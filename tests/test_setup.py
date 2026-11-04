@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import platform
 import shlex
 import subprocess
 import tempfile
@@ -17,6 +18,41 @@ SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 
 class SetupScriptTests(unittest.TestCase):
     maxDiff = None
+
+    def test_python_smoke_is_fixed_exact_and_cleans_up_on_success_and_failure(self) -> None:
+        source = SETUP.read_text(encoding="utf-8")
+        body = source.split("\nverify_python_smoke() (\n", 1)[1].split("\n)\n", 1)[0]
+        expected_source = "O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n"
+        for output, status, expected_status in (("2", 0, 0), ("[number] 2", 0, 0),
+                                                ("12", 0, 1), ("2", 7, 1),
+                                                ("2\nextra", 0, 1)):
+            with self.subTest(output=output, status=status), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "examples").mkdir()
+                (root / "examples/hello.O").write_text("not the smoke computation")
+                temporary = root / "scratch"
+                temporary.mkdir()
+                script = (
+                    "set -euo pipefail\n"
+                    "fake_runner() {\n"
+                    '  printf "%s" "$1" > "$PROJECT_ROOT/source-path"\n'
+                    '  cp "$1" "$PROJECT_ROOT/source-copy"\n'
+                    '  test "$O_BACKENDS_DIR" = "$PROJECT_ROOT/backends"\n'
+                    '  printf "%s" "$SMOKE_OUTPUT"\n'
+                    '  return "$SMOKE_STATUS"\n'
+                    "}\n"
+                    f"verify_python_smoke() (\n{body}\n)\nverify_python_smoke fake_runner\n"
+                )
+                result = subprocess.run([str(BASH), "-c", script], cwd=root, env={
+                    "PATH": SYSTEM_PATH, "PROJECT_ROOT": str(root), "TMPDIR": str(temporary),
+                    "SMOKE_OUTPUT": output, "SMOKE_STATUS": str(status),
+                }, text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, expected_status, self.combined_output(result))
+                self.assertEqual((root / "source-copy").read_text(), expected_source)
+                staged = Path((root / "source-path").read_text())
+                self.assertNotEqual(staged, root / "examples/hello.O")
+                self.assertFalse(staged.exists())
+                self.assertEqual(list(temporary.iterdir()), [])
 
     def test_native_install_dispatch_keeps_required_argv_under_system_bash_nounset(self) -> None:
         # Execute the real function bodies, not setup's global installation
@@ -403,6 +439,23 @@ class SetupScriptTests(unittest.TestCase):
             self.assertFalse(guests_dir.exists())
             self.assertEqual(list(home.iterdir()), [])
 
+    def test_read_only_modes_do_not_write_python_import_caches(self) -> None:
+        # Force an empty bytecode-cache destination on every host, including
+        # hosts whose Python normally writes beside already-cached sources.
+        for option in ("--dry-run", "--check"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                cache = home / "python-cache"
+                environment = {"PYTHONPYCACHEPREFIX": str(cache)}
+                if option == "--check":
+                    # OS simulation is intentionally allowed only in dry-run.
+                    environment.update(OSTADIX_SETUP_PLATFORM="", OSTADIX_SETUP_DISTRO="")
+                result = self.run_setup("--minimal", "--no-env", option, home=home,
+                                        extra_env=environment)
+                self.assertEqual(result.returncode, 0, self.combined_output(result))
+                self.assertFalse(cache.exists(), self.combined_output(result))
+                self.assertEqual(list(home.iterdir()), [])
+
     def test_dry_run_makes_gemini_registration_device_conditional(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = self.run_setup(
@@ -580,7 +633,7 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("--features notebook --bin o-notebook", result.stdout)
         self.assertIn("/bin/o-notebook from", result.stdout)
 
-    def test_default_setup_selects_all_root_bins_workspace_and_native_apps(self) -> None:
+    def test_default_setup_selects_all_root_bins_workspace_and_host_supported_apps(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             tools = home / "fake-tools"
@@ -603,7 +656,13 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("--features notebook", result.stdout)
         self.assertIn("default-jdk-headless", result.stdout)
         self.assertIn("[DRY]", result.stdout)
-        self.assertIn("mobile-console/Cargo.toml", result.stdout)
+        # Dependency-package planning above is simulated Linux; independent
+        # component capability checks deliberately inspect the actual host.
+        # Keep the Linux-only USB/configfs app unavailable on other hosts.
+        if platform.system() == "Linux":
+            self.assertIn("mobile-console/Cargo.toml", result.stdout)
+        else:
+            self.assertIn("[skip] mobile-console: Linux/Android USB configfs implementation", result.stdout)
         self.assertIn("android-terminal/runtime/Cargo.toml", result.stdout)
         self.assertIn("Android platform jar", result.stdout)
 

@@ -1248,6 +1248,75 @@ mod tests {
     use super::*;
     use o_lang::ocore::driver::Target;
 
+    fn qualification_clang(directory: &std::path::Path) -> std::path::PathBuf {
+        // Apple's clang may advertise RISC-V while its driver cannot invoke
+        // that assembler. Require actual ELF assembly for every tested ISA.
+        // An explicit override is authoritative and must not silently fall back.
+        let candidates = if let Some(clang) = std::env::var_os("OCORE_TEST_CLANG") {
+            vec![std::path::PathBuf::from(clang)]
+        } else {
+            let mut candidates: Vec<_> = which::which("clang").into_iter().collect();
+            for path in [
+                "/opt/homebrew/opt/llvm/bin/clang",
+                "/usr/local/opt/llvm/bin/clang",
+            ] {
+                let path = std::path::PathBuf::from(path);
+                if path.is_file() && !candidates.contains(&path) {
+                    candidates.push(path);
+                }
+            }
+            candidates
+        };
+        let source = directory.join("assembler-probe.s");
+        fs::write(&source, ".text\n.globl probe\nprobe:\nret\n").unwrap();
+        let mut failures = Vec::new();
+        for clang in candidates {
+            let mut supported = true;
+            for (triple, machine) in [
+                ("x86_64-unknown-none", 62u16),
+                ("aarch64-unknown-none", 183u16),
+                ("riscv64-unknown-none", 243u16),
+            ] {
+                let object = directory.join(format!("assembler-probe-{triple}.o"));
+                let result = Command::new(&clang)
+                    .args(["-target", triple, "-c", "-x", "assembler"])
+                    .arg(&source)
+                    .arg("-o")
+                    .arg(&object)
+                    .output();
+                let detail = match result {
+                    Ok(result) if result.status.success() => {
+                        let bytes = fs::read(&object).unwrap();
+                        if bytes.len() >= 20
+                            && &bytes[..6] == b"\x7fELF\x02\x01"
+                            && u16::from_le_bytes(bytes[18..20].try_into().unwrap()) == machine
+                        {
+                            continue;
+                        }
+                        "assembler did not produce the expected ELF64 target".into()
+                    }
+                    Ok(result) => String::from_utf8_lossy(&result.stderr).into_owned(),
+                    Err(error) => error.to_string(),
+                };
+                failures.push(format!("{} ({triple}): {detail}", clang.display()));
+                supported = false;
+                break;
+            }
+            if supported {
+                eprintln!(
+                    "owned exception qualification assembler: {}",
+                    clang.display()
+                );
+                return clang;
+            }
+        }
+        panic!(
+            "owned exception qualification requires clang with all three ELF targets; \
+             set OCORE_TEST_CLANG to a compatible LLVM clang:\n{}",
+            failures.join("\n")
+        );
+    }
+
     fn module(triple: &str, group: Option<&str>, selection: &str) -> NativeModule {
         serde_json::from_value(json!({
             "format":"ocore-native-module-v1","name":"owned-eh-artifact-fixture",
@@ -1482,8 +1551,7 @@ mod tests {
                 .as_nanos()
         ));
         fs::create_dir(&directory).unwrap();
-        let clang = which::which("clang")
-            .expect("LLVM clang is required for owned exception object qualification");
+        let clang = qualification_clang(&directory);
         for (arch, triple, target) in [
             ("x86_64", "x86_64-unknown-none", Target::X86_64UnknownNone),
             (

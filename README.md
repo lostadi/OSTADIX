@@ -77,8 +77,9 @@ The system has two computational languages:
    evaluator environments, deferred work, project routes, operating-system
    values, and distributed placement through typed parentheses and `OValue`.
 2. **O-core**, written in `.oc`, compiles statically typed machine computation
-   through resolved HIR and SSA MIR into freestanding x86_64 and bounded
-   AArch64 objects. OKernel is built through this pipeline.
+   through resolved HIR and SSA MIR into freestanding x86_64, AArch64 and
+   RV64GC objects. The existing x86_64 and AArch64 kernel profiles use this
+   pipeline; an ISA backend does not by itself qualify a kernel port.
 
 OIR models orchestration among evaluators. O-core MIR models control flow,
 memory, ABI, atomics, hardware operations, and native execution. That division
@@ -105,23 +106,21 @@ G13 qualification gates is named **OSTADIX Alpha**.
 - [Architecture](ARCHITECTURE.md)
 - [Claim and evidence index](docs/CLAIMS.md)
 
-The artifact set is pinned to master commit
-`36787b16476bc0c8c4ddf665c7228b314d04e716`. At that snapshot,
-`ostadix-api` owns 42 engine modules. Its 36 public module identities are
-reexported by the root compatibility library. The root Cargo package declares
-14 binaries, including `ogit` and `ocore-kernel-world-record`. The backend
-catalog contains 30 canonical backends and six aliases, including canonical
-`ubuntu_vm` with the `ubuntu` alias. That snapshot tracks 44 recursively
-discovered `.O` examples. The in-checkout MCP server exposes 10 tools. Native
-release evidence contains 26 required portable QEMU gates and one supplemental
-hardware gate.
+The technical whitepaper is revised through 28 October 2026 and pins the
+published canonical runtime source `f472c983deb83d260d4d52e77aa4dd8740710dc5`.
+It covers the three native compiler targets, original-module import and
+source recipes, hosted reference-edition repairs, MCP HTTP/OAuth, and native
+image repairs. Its dated evidence table separates the 26/26 portable QEMU
+result from Linux and Mac host tests and the earlier compiler experiments.
+The [revision evidence summary](evidence/whitepaper_revision_20261028.json)
+records source coordinates, counts and retained-log identities. Rebuild the
+paper with `python3 scripts/build_whitepaper.py --install` (Tectonic and qpdf).
 
-The isolated audit of that pinned snapshot recorded 1,351 passing tests and
-three ignored tests. Its portable native aggregate recorded 26 of 26 required
-gates passing. The exact historical validation scope and the then-observed G0
-evidence continuity defect are recorded in
-[Validation at the audited master](#validation-at-the-audited-master) and
-[Exact implementation boundaries](#exact-implementation-boundaries).
+The compiler-emitted HGraph figures retain their August snapshot at
+`36787b16476bc0c8c4ddf665c7228b314d04e716`. The earlier 1,351-test audit,
+26-gate native result and then-observed G0 continuity defect remain dated in
+[Validation at the historical audited master](#validation-at-the-historical-audited-master).
+These historical illustrations and results are not relabelled as October runs.
 
 The current M3 boundary is specified separately by [OIR Execution Fabric
 V1](docs/OIR_EXECUTION_FABRIC_V1.md) and the [authenticated pure
@@ -276,7 +275,7 @@ cd OSTADIX
 ./setup.sh -y --minimal
 source "$HOME/.config/ostadix/env.sh"
 
-O examples/hello.O "$PWD/backends"
+o eval 'python^( __oval_result__ = 1 + 1 )_python'
 # expected: [number] 2
 
 O version --json
@@ -284,6 +283,21 @@ O version --json
 
 `O version --json` reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.
+
+For a greeting that crosses three language boundaries, install Node.js and a
+Common Lisp runtime such as SBCL alongside Python 3, then run:
+
+```bash
+O examples/hello.O "$PWD/backends"
+# hello from Python and Lisp and JavaScript!
+./boot-and-test.sh hosted
+```
+
+The hosted check compares graph and serial stdout byte for byte, then runs
+the same greeting through the Python and C17 reference editions. An available
+edition that fails makes the check fail; absent optional tools are reported as
+skips. Setup verification and MCP `o_smoke` use a fixed Python-only calculation
+so minimal setup does not depend on the greeting's optional language engines.
 
 `setup.sh` installs syntax support for detected Code editors, Nano, Vim,
 Neovim, Emacs, Sublime Text, and bat. Update only editor support with:
@@ -821,13 +835,13 @@ intentionally avoid heredocs.
 First refresh the installed tools and prove ordinary local execution:
 
 ```bash
-cd "${O_LANG_ROOT:-$HOME/Ostadix-lang}"
+cd "${O_LANG_ROOT:-$HOME/OSTADIX}"
 git switch master
 git pull --ff-only origin master
 ./setup.sh -y --minimal
 export O_LANG_ROOT="$PWD"
 export PATH="$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH"
-O examples/hello.O "$O_LANG_ROOT/backends"
+o eval 'python^( __oval_result__ = 1 + 1 )_python'
 # expected: [number] 2
 ```
 
@@ -869,7 +883,7 @@ then paste this block to reconstruct the remaining paths and check the TLS
 endpoint:
 
 ```bash
-cd "${O_LANG_ROOT:-$HOME/Ostadix-lang}"
+cd "${O_LANG_ROOT:-$HOME/OSTADIX}"
 export O_LANG_ROOT="$PWD"
 export PATH="$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH"
 export PKI="$DEMO/pki"
@@ -1217,7 +1231,7 @@ The empty-argument command continues to use stdio.
 | `o_env` | Reports the resolved Ostadix root, backend directory, `O` and `olangc` paths, Python shim status, and a 30-backend runtime summary. |
 | `o_runtimes` | Discovers executable requirements and projects typed value capabilities from the canonical backend catalog compiled into that MCP binary, including alternative runtime sets, without failing because an optional runtime is absent. Rebuild MCP with O after catalog changes. |
 | `o_doctor` | Checks the local toolchain and inventories compatibility shims plus the complete backend runtime report. |
-| `o_smoke` | Runs `examples/hello.O` with an absolute backend path and expects `2`. |
+| `o_smoke` | Runs a fixed Python-only O calculation with an absolute backend path and expects `2`, independently of editable examples. |
 | `o_analyze_intent` | Analyzes exact source and a stable graph intent, then creates a bounded one-use handle. |
 | `o_execute_intent` | Consumes that handle, requires O to recompute the same Intent V1, then performs a fresh V6 admission before dispatch. |
 | `o_run` | Accepts exactly one complete `.O` `source` or existing `path`; local runs use the unified project-aware front door and return decoded results as MCP structured content. `placement=node` submits the complete document to one selected hosted node without claiming graph splitting. |
@@ -1308,11 +1322,11 @@ paths rather than relying on shell expansion inside JSON:
 {
   "mcpServers": {
     "ostadix": {
-      "command": "/absolute/path/to/Ostadix-lang/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp",
+      "command": "/absolute/path/to/OSTADIX/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp",
       "args": [],
       "env": {
-        "O_LANG_ROOT": "/absolute/path/to/Ostadix-lang",
-        "O_BACKENDS_DIR": "/absolute/path/to/Ostadix-lang/backends"
+        "O_LANG_ROOT": "/absolute/path/to/OSTADIX",
+        "O_BACKENDS_DIR": "/absolute/path/to/OSTADIX/backends"
       }
     }
   }
@@ -1325,15 +1339,15 @@ source-first workflow such as:
 ```text
 o_execute {"source":"python^( __oval_result__ = 2 )_python"}
 o_execute {"source":"python^( __oval_result__ = 2 )_python","action":"check"}
-o_execute {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","action":"plan"}
+o_execute {"path":"/absolute/path/to/OSTADIX/examples/hello.O","action":"plan"}
 o_capabilities {"query":"mesh"}
 o_guide {"topic":"projects"}
 o_env {}
 o_runtimes {}
 o_smoke {}
 o_run {"source":"python^(\n__oval_result__ = 1 + 1\n)_python"}
-o_run {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O"}
-o_olangc {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","target":"ir"}
+o_run {"path":"/absolute/path/to/OSTADIX/examples/hello.O"}
+o_olangc {"path":"/absolute/path/to/OSTADIX/examples/hello.O","target":"ir"}
 o_information_inspect {"state":"/absolute/path/to/existing-information-state","head":"main"}
 ```
 
@@ -1366,7 +1380,9 @@ compiler path in this repository:
   `ocorec`.
 - The **C17 edition** is the small standalone hosted runtime and AOT compiler.
 - The **Python edition** is the readable reference implementation used for
-  semantic cross-checking.
+  semantic cross-checking. It also runs stateless Common Lisp and JavaScript
+  blocks through the shipped shims; its builtin Python evaluator stays
+  in-process.
 - **O-core** is compiled by the Rust `ocorec` binary, but the code it produces
   is freestanding and has no Rust runtime dependency.
 
@@ -1631,9 +1647,12 @@ make
 
 The C17 port implements the core typed-parenthesis evaluator, structural
 backends, Python execution, the Nix value ladder, lazy and deferred requests,
-shebang handling, and AOT packaging. The Rust edition remains authoritative
-for OIR planning, coordination-group concurrency, the full backend registry,
-the notebook, and O-core.
+shebang handling, and AOT packaging. Its interpreter and generated programs
+share registration and shim packaging for the shipped adapters. The external
+language engines used by a program must still be installed; the greeting above
+uses Python 3, Common Lisp, and Node.js. The Rust edition remains authoritative
+for OIR planning, coordination-group concurrency, the complete runtime feature
+set, the notebook, and O-core.
 
 ### Embedding the Python and C17 editions
 
@@ -2300,9 +2319,9 @@ mode-17 rollback, denial, stale-generation, restart, and parser corpus.
 M6A is gated separately by `smoke-personality-qemu.sh` in mode 18. A
 deterministic digest-pinned read-only OVFS image supplies a test client, native
 personality daemon, native supervisor daemon, and unrelated observer as four
-independently loaded CPL3 ELFs. Its canonical image is 62,104 bytes with
+independently loaded CPL3 ELFs. Its canonical image is 58,320 bytes with
 SHA-256
-`f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417`;
+`bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d`;
 the gate verifies that identity, the exact four `/sbin/m6-*.elf` paths, and the
 absence of their module symbols from the kernel. The supervisor health-gates
 publication and chooses cancellation, one crash-driven generation restart, and
@@ -2344,8 +2363,8 @@ device service.
 
 Mode 24 adds a separately gated live composition without broadening that claim
 to a general foreign ABI. `build-m6b-live-artifacts.sh` deterministically packs
-four independently linked CPL3 ELFs into a 65,152-byte OVFS image with SHA-256
-`5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887`.
+four independently linked CPL3 ELFs into a 61,576-byte OVFS image with SHA-256
+`9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0`.
 The client issues each bounded call once; one exact four-byte `INOUT` request
 crosses the public call, view lookup/read/write, and reply syscalls. The
 generation-1 daemon is fault-contained, the unrelated observer survives, and
@@ -2523,8 +2542,8 @@ content-addressed attestations. The executable G0 composition is
 [`evidence/world_contract_v2.toml`](evidence/world_contract_v2.toml), which
 imports the byte-frozen
 [`evidence/world_contract_v1.toml`](evidence/world_contract_v1.toml) vocabulary
-and the separately versioned O-Machine contract. The current validator result
-is recorded in [Validation at the audited master](#validation-at-the-audited-master).
+and the separately versioned O-Machine contract. A historical validator result
+is recorded in [Validation at the historical audited master](#validation-at-the-historical-audited-master).
 
 Run the bounded shared World-identity gate with:
 
@@ -5192,7 +5211,7 @@ flowchart TD
     G2 --> Q["Required portable manifest"]
     SMP --> Q
     KW --> Q
-    Q --> E["26 required QEMU gates<br/>201 exact transcript markers"]
+    Q --> E["26 required QEMU gates<br/>202 exact transcript markers"]
     KW -.-> HW["Mode 21 supplemental<br/>AMD SVM and KVM"]
 ```
 
@@ -5605,7 +5624,7 @@ edition supports every file.
 
 | File | What it demonstrates |
 |------|----------------------|
-| `examples/hello.O` | Smallest Python-backed O program. |
+| `examples/hello.O` | Greeting passed from Python to Common Lisp to JavaScript; requires Python 3, a supported Common Lisp runtime, and Node.js. |
 | `examples/bindings.O` | `let` and `$var` splicing. |
 | `examples/nested_splice.O` | Nested Python expressions. |
 | `examples/trailing_expr.O` | Python trailing-expression result rule. |
@@ -6029,9 +6048,9 @@ stopped.
   exact health-gated activation, one contained package-daemon fault and
   health-gated fresh-generation restart, final control-plane deactivation,
   control revocation, namespace/process teardown, reclamation, and
-  post-lifecycle timer survival. Its canonical embedded OVFS image is 62,056
+  post-lifecycle timer survival. Its canonical embedded OVFS image is 57,960
   bytes with SHA-256
-  `388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a`,
+  `a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4`,
   checked independently by the host and kernel before import.
 - A bounded M6A gate for four package-loaded CPL3 principals: a test client,
   native personality daemon, native supervisor daemon, and unrelated observer.
@@ -6219,7 +6238,7 @@ confuse with the implemented mechanisms described above.
   now restore source-digest validation; the registry derives only G0 and G2 as
   passed. This repair does not refresh the historical 26-of-26 portable native
   execution-gate observation.
-- The standalone MCP crate passed all 29 Rust tests, and the real built server
+- At the historical audited snapshot, the standalone MCP crate passed all 29 Rust tests, and the real built server
   passed a smoke of all ten tools. Separately, root Python
   `tests.test_mcp_smoke` recorded four passes and one brittle assertion failure:
   its exact command-substring expectation omits the current `--bin o-cli`

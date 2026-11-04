@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m6b-live-personality}"
 TIMEOUT_SECONDS="${OCORE_M6B_LIVE_TIMEOUT_SECONDS:-180}"
-DIGEST="5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887"
-IMAGE_BYTES=65152
-IMAGE="$ROOT/target/ocore-m6b-live-artifacts/images/root-${DIGEST}.ovfs"
+DIGEST="9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0"
+IMAGE_BYTES=61576
+IMAGE_RECORD="$BUILD_DIR/m6b-live-image.path"
 
 for tool in qemu-system-x86_64 nm python3 shasum; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -18,7 +18,13 @@ done
 OCORE_PROBE_MODE=24 OCORE_BUILD_DIR="$BUILD_DIR" \
   "$ROOT/ocore/kernel/build.sh" >/dev/null
 
-if [[ ! -f "$IMAGE" ]] \
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: M6B live build did not record one exact embedded OVFS path" >&2
+  exit 1
+fi
+IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
+if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
   echo "error: M6B live embedded OVFS artifact identity is not canonical" >&2

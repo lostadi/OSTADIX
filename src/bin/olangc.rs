@@ -318,6 +318,11 @@ struct Cli {
     #[arg(long, requires = "native_runtime")]
     native_runtime_source: Option<PathBuf>,
 
+    /// Pinned original source-library group plan. Every component is built and
+    /// verified through olangc; complete runtime/resource gates remain separate.
+    #[arg(long, requires = "native_runtime")]
+    native_runtime_provider_plan: Option<PathBuf>,
+
     /// C frontend used by the source capture (default: clang on PATH).
     #[arg(long, requires = "native_runtime_source")]
     native_runtime_cc: Option<PathBuf>,
@@ -369,6 +374,11 @@ struct Cli {
     /// containing word and the execution environment's LR/SC eventuality property.
     #[arg(long, value_parser = ["coherent-ram-v1"], requires = "native_runtime")]
     atomic_profile: Option<String>,
+
+    /// Explicit native wide volatile ordinary-RAM realization. MMIO and
+    /// indivisibility/atomicity are excluded; dependencies remain separate.
+    #[arg(long, requires = "native_runtime", value_parser = ["ordinary-ram-split-v1"])]
+    wide_volatile_profile: Option<String>,
 
     /// Compilation target
     #[arg(long, value_enum, default_value_t = CompileTarget::Binary)]
@@ -542,10 +552,12 @@ fn run_cli() -> Result<()> {
                 llvm_sha256: cli.llvm_sha256.as_deref(),
                 tls_profile: cli.tls_profile.as_deref(),
                 atomic_profile: cli.atomic_profile.as_deref(),
+                wide_volatile_profile: cli.wide_volatile_profile.as_deref(),
                 dependencies: &cli.native_runtime_dependency,
             },
             native_runtime::NativeSourceOptions {
                 source: cli.native_runtime_source.as_deref(),
+                provider_plan: cli.native_runtime_provider_plan.as_deref(),
                 cc: cli.native_runtime_cc.as_deref(),
                 cxx: cli.native_runtime_cxx.as_deref(),
                 rustc: cli.native_runtime_rustc.as_deref(),

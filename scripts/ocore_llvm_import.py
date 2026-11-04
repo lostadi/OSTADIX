@@ -13,6 +13,7 @@ import argparse
 import ctypes as C
 import hashlib
 import json
+import re
 import os
 from pathlib import Path
 import sys
@@ -94,11 +95,14 @@ class LLVM:
             "LLVMGetFirstUse": (P, [P]), "LLVMGetNextUse": (P, [P]),
             "LLVMGetUser": (P, [P]),
             "LLVMGlobalGetValueType": (P, [P]), "LLVMGetTypeKind": (B, [P]),
-            "LLVMTypeIsSized": (B, [P]),
+            "LLVMIntTypeInContext": (P, [P, U]), "LLVMConstBitCast": (P, [P, P]),
             "LLVMGetIntTypeWidth": (U, [P]), "LLVMGetPointerAddressSpace": (U, [P]),
             "LLVMGetArrayLength2": (Q, [P]), "LLVMGetElementType": (P, [P]),
+            "LLVMGetVectorSize": (U, [P]),
             "LLVMCountStructElementTypes": (U, [P]), "LLVMGetStructElementTypes": (None, [P, C.POINTER(P)]),
             "LLVMIsPackedStruct": (B, [P]), "LLVMIsOpaqueStruct": (B, [P]),
+            "LLVMGetStructName": (C.c_char_p, [P]),
+            "LLVMTypeIsSized": (B, [P]),
             "LLVMCountParamTypes": (U, [P]), "LLVMGetParamTypes": (None, [P, C.POINTER(P)]),
             "LLVMGetReturnType": (P, [P]), "LLVMIsFunctionVarArg": (B, [P]),
             "LLVMGetLinkage": (B, [P]), "LLVMGetVisibility": (B, [P]),
@@ -114,6 +118,7 @@ class LLVM:
             "LLVMGetPersonalityFn": (P, [P]),
             "LLVMHasPrefixData": (B, [P]), "LLVMHasPrologueData": (B, [P]),
             "LLVMGetFunctionCallConv": (U, [P]), "LLVMGetIntrinsicID": (U, [P]),
+            "LLVMLookupIntrinsicID": (U, [C.c_char_p, S]),
             "LLVMGetAttributeCountAtIndex": (U, [P, U]),
             "LLVMGetAttributesAtIndex": (None, [P, U, C.POINTER(P)]),
             "LLVMGetCallSiteAttributeCount": (U, [P, U]),
@@ -126,6 +131,9 @@ class LLVM:
             "LLVMGetStringAttributeValue": (P, [P, C.POINTER(U)]),
             "LLVMCountParams": (U, [P]), "LLVMGetParams": (None, [P, C.POINTER(P)]),
             "LLVMGetFirstBasicBlock": (P, [P]), "LLVMGetNextBasicBlock": (P, [P]),
+            "LLVMGetBasicBlockParent": (P, [P]), "LLVMValueAsBasicBlock": (P, [P]),
+            "LLVMGetBlockAddressFunction": (P, [P]), "LLVMGetBlockAddressBasicBlock": (P, [P]),
+            "LLVMValueIsBasicBlock": (B, [P]), "LLVMIsABlockAddress": (P, [P]),
             "LLVMGetFirstInstruction": (P, [P]), "LLVMGetNextInstruction": (P, [P]),
             "LLVMGetBasicBlockTerminator": (P, [P]), "LLVMGetInstructionOpcode": (B, [P]),
             "LLVMGetInstructionParent": (P, [P]),
@@ -133,6 +141,8 @@ class LLVM:
             "LLVMConstIntGetZExtValue": (Q, [P]), "LLVMGetConstOpcode": (B, [P]),
             "LLVMIsNull": (B, [P]),
             "LLVMGetAggregateElement": (P, [P, U]),
+            "LLVMGetFCmpPredicate": (B, [P]), "LLVMGetFastMathFlags": (U, [P]),
+            "LLVMCanValueUseFastMathFlags": (B, [P]),
             "LLVMGetICmpPredicate": (B, [P]), "LLVMGetICmpSameSign": (B, [P]),
             "LLVMGetNUW": (B, [P]), "LLVMGetNSW": (B, [P]), "LLVMGetExact": (B, [P]),
             "LLVMGetIsDisjoint": (B, [P]), "LLVMGetNNeg": (B, [P]),
@@ -174,7 +184,7 @@ class LLVM:
             "LLVMGetMDNodeNumOperands": (U, [P]), "LLVMGetMDNodeOperands": (None, [P, C.POINTER(P)]),
             "LLVMGetMDString": (P, [P, C.POINTER(U)]),
         }
-        for name in ("Constant", "ConstantInt", "ConstantPointerNull", "ConstantAggregateZero", "ConstantExpr", "AllocaInst",
+        for name in ("Constant", "ConstantInt", "ConstantFP", "ConstantPointerNull", "ConstantAggregateZero", "ConstantExpr", "AllocaInst",
                      "Function", "GlobalVariable", "UndefValue", "PoisonValue", "MDString", "MDNode",
                      "LoadInst", "StoreInst", "FenceInst", "AtomicRMWInst", "AtomicCmpXchgInst"):
             bindings["LLVMIsA" + name] = (P, [P])
@@ -215,6 +225,7 @@ class Importer:
     VISIBILITY = {0: "default", 1: "hidden", 2: "protected"}
     TLS_PROFILE = "linux-elf-static-nonpreemptive-v1"
     ATOMIC_PROFILE = "coherent-ram-v1"
+    WIDE_VOLATILE_PROFILE = "ordinary-ram-split-v1"
     ATOMIC_ORDERINGS = {1: "unordered", 2: "monotonic", 4: "acquire", 5: "release",
                         6: "acq_rel", 7: "seq_cst"}
     # Public LLVMAtomicRMWBinOp differs from the internal C++ enum after14.
@@ -230,16 +241,33 @@ class Importer:
                            for operation in ("sadd", "uadd", "ssub", "usub", "smul", "umul")
                            for bits in range(1, 65)}
     # Exact selected LLVM22 provider IDs, not recognition by a name prefix.
+    INTEGER_UNARY_INTRINSICS = {f"llvm.{kind}.i{bits}": (kind, bits)
+                                for kind in ("ctlz", "abs") for bits in (32, 64)}
+    INTEGER_POPULATION_COUNT_INTRINSICS = {f"llvm.ctpop.i{bits}": bits for bits in (32, 64)}
+    INTEGER_BYTE_SWAP_INTRINSICS = {f"llvm.bswap.i{bits}": bits for bits in (16, 32, 48, 64, 128)}
+    INTEGER_FUNNEL_INTRINSICS = {f"llvm.{kind}.i{bits}": (kind, bits)
+                                 for kind in ("fshl", "fshr")
+                                 for bits in (1, 2, 4, 8, 16, 32, 64, 128)}
+    INTEGER_SATURATING_SUB_INTRINSICS = {f"llvm.usub.sat.i{bits}": bits
+                                         for bits in (*range(1, 65), 128)}
+    FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
+    FLOAT_INTEGRAL_INTRINSICS = {f"llvm.{kind}.f{bits}": (kind, bits)
+                                 for kind in ("floor", "ceil", "trunc") for bits in (32, 64, 128)}
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
                          for kind, intrinsic_id in MINMAX_IDS.items() for bits in range(1, 65)}
     RELATIVE_INTRINSICS = {"llvm.load.relative.i32", "llvm.load.relative.i64"}
+    POINTER_MASK_INTRINSIC = "llvm.ptrmask.p0.i64"
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_BYTE_SWAP_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS) | set(FLOAT_INTEGRAL_INTRINSICS) | set(INTEGER_SATURATING_SUB_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
-    CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
+    FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
+    FLOAT_CMP = dict(enumerate(("false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord",
+                                "uno", "ueq", "ugt", "uge", "ult", "ule", "une", "true")))
+    CAST = {33: "fp_to_ui", 34: "fp_to_si", 35: "ui_to_fp", 36: "si_to_fp",
+            37: "fp_trunc", 38: "fp_ext", 30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
     CMP = dict(zip(range(32, 42), ("eq", "ne", "ugt", "uge", "ult", "ule", "sgt", "sge", "slt", "sle")))
     LINKAGES = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak",
                 6: "weak_odr", 8: "internal", 9: "private"}
@@ -258,7 +286,7 @@ class Importer:
                 "nontemporal", "invariant.load", "invariant.group", "llvm.loop", "prof",
                 "align", "dereferenceable", "dereferenceable_or_null", "unpredictable"}
 
-    def __init__(self, api: LLVM, context, module, tls_profile=None, atomic_profile=None):
+    def __init__(self, api: LLVM, context, module, tls_profile=None, atomic_profile=None, wide_volatile_profile=None):
         self.a, self.context, self.module = api, context, module
         if tls_profile not in {None, self.TLS_PROFILE}:
             raise ImportFailure(f"unsupported TLS profile {tls_profile}")
@@ -266,6 +294,9 @@ class Importer:
         if atomic_profile not in {None, self.ATOMIC_PROFILE}:
             raise ImportFailure(f"unsupported atomic profile {atomic_profile}")
         self.atomic_profile = atomic_profile
+        if wide_volatile_profile not in {None, self.WIDE_VOLATILE_PROFILE}:
+            raise ImportFailure(f"unsupported wide volatile profile {wide_volatile_profile}")
+        self.wide_volatile_profile = wide_volatile_profile
         self.atomic_sync_scope_names = None
         self.atomic_sync_scope_ids = set()
         self.types, self.type_ids, self.refinements = [], {}, set()
@@ -288,7 +319,7 @@ class Importer:
         self.exception_handling = None
         self.symbol = ""
         self.attribute_names = {}
-        for name in self.ERASED | self.ERASED_RESTRICTIONS | {
+        for name in self.ERASED | self.ERASED_RESTRICTIONS | {"returns_twice",
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
                 "immarg", "dead_on_unwind", "dead_on_return", "allockind", "allocsize", "allocalign", "allocptr",
                 "writable", "returned", "builtin", "sret",
@@ -298,9 +329,28 @@ class Importer:
                 self.attribute_names[kind] = name
         self.metadata_names = {api.GetMDKindIDInContext(context, name.encode(), len(name)): name for name in self.METADATA}
         self.noundef_metadata_kind = api.GetMDKindIDInContext(context, b"noundef", 7)
+        self.callees_metadata_kind = api.GetMDKindIDInContext(context, b"callees", 7)
+        self.call_target_constraints = []
 
     def reject(self, message):
         raise ImportFailure(message, symbol=self.symbol)
+
+    @staticmethod
+    def vector_reduce_add_name(name):
+        match = re.fullmatch(r"llvm\.vector\.reduce\.add\.v([1-9][0-9]*)i(1|8|16|32|64)", name)
+        return (int(match[1]), int(match[2])) if match else None
+
+    def supported_intrinsic(self, name):
+        return name in self.INTRINSICS or self.vector_reduce_add_name(name) is not None
+
+    def vector_reduce_add_identity(self, value, name):
+        base = b"llvm.vector.reduce.add"
+        expected = self.a.LookupIntrinsicID(base, len(base))
+        if (self.vector_reduce_add_name(name) is None or not expected
+                or not self.a.IsAFunction(value) or self.a.GetIntrinsicID(value) != expected
+                or self.a.GetLinkage(value) != 0 or self.a.GetFirstBasicBlock(value)
+                or self.a.GetPointerAddressSpace(self.a.TypeOf(value)) != 0):
+            self.reject("vector reduction requires its exact pinned intrinsic identity and external AS0 declaration")
 
     def ty(self, llvm_type):
         if llvm_type in self.type_ids:
@@ -311,18 +361,20 @@ class Importer:
         self.types.append(None)
         if kind == 0:
             result = {"kind": "void"}
-        elif kind == 5:
-            # LLVM FP128 is IEEE binary128, distinct from PPC_FP128 and i128.
-            # Only its storage layout is admitted; value_type and native ABI/
-            # executable-value audits reject every first-class use.
-            if (a.ABISizeOfType(self.layout, llvm_type) != 16
-                    or a.ABIAlignmentOfType(self.layout, llvm_type) != 16):
-                self.reject("binary128 storage layout requires exactly 16-byte ABI size and alignment")
-            result = {"kind": "float", "bits": 128}
-            self.refinements.add("retained IEEE binary128 solely as original 16-byte size/alignment storage layout; alloca/GEP, positive-zero static storage and raw memory copies do not imply floating arithmetic, first-class SSA or ABI support")
+        elif kind in {2, 3, 4, 5}:
+            bits = {2: 32, 3: 64, 4: 80, 5: 128}[kind]
+            expected_size, expected_alignment = {32: (4, 4), 64: (8, 8),
+                                                 80: (16, 16), 128: (16, 16)}[bits]
+            if bits == 80 and not (a.GetTarget(self.module) or b"" ).startswith(b"x86_64-"):
+                self.reject("x87 extended80 requires the x86-64 ELF target profile")
+            if (a.ABISizeOfType(self.layout, llvm_type), a.ABIAlignmentOfType(self.layout, llvm_type)) != (expected_size, expected_alignment):
+                self.reject(f"floating-point f{bits} requires original ABI layout ({expected_size},{expected_alignment})")
+            if a.StoreSizeOfType(self.layout, llvm_type) != (bits + 7) // 8:
+                self.reject("floating-point significant-bit storage size disagrees with LLVM DataLayout")
+            result = {"kind": "float", "bits": bits}
         elif kind == 8:
             bits = a.GetIntTypeWidth(llvm_type)
-            if not 1 <= bits <= 64:
+            if not (1 <= bits <= 64 or bits == 128):
                 self.reject(f"unsupported integer width i{bits}")
             result = {"kind": "int", "bits": bits}
         elif kind == 12:
@@ -330,18 +382,31 @@ class Importer:
             if space != 0:
                 self.reject(f"unsupported pointer address space {space}")
             result = {"kind": "pointer", "address_space": space}
+        elif kind == 13:
+            element, count = a.GetElementType(llvm_type), a.GetVectorSize(llvm_type)
+            if (not count or a.GetTypeKind(element) != 8
+                    or a.GetIntTypeWidth(element) not in {1, 8, 16, 32, 64}):
+                self.reject("fixed vectors require positive length and supported integer lanes i1/i8/i16/i32/i64")
+            lane_bits = a.GetIntTypeWidth(element)
+            store = (count * lane_bits + 7) // 8
+            if (a.StoreSizeOfType(self.layout, llvm_type) != store
+                    or a.ABISizeOfType(self.layout, llvm_type) < store):
+                self.reject("fixed vector original significant-bit store/allocation layout disagrees")
+            result = {"kind": "vector", "element": self.ty(element), "len": count}
         elif kind == 11:
             result = {"kind": "array", "element": self.ty(a.GetElementType(llvm_type)), "len": a.GetArrayLength2(llvm_type)}
         elif kind == 10:
             if a.IsOpaqueStruct(llvm_type):
-                self.reject("opaque structure has no importable layout")
-            fields = (P * a.CountStructElementTypes(llvm_type))()
-            a.GetStructElementTypes(llvm_type, fields)
-            result = {"kind": "struct", "fields": [self.ty(field) for field in fields], "packed": bool(a.IsPackedStruct(llvm_type))}
+                name = a.GetStructName(llvm_type)
+                result = {"kind": "opaque_struct", "name": name.decode() if name else None}
+            else:
+                fields = (P * a.CountStructElementTypes(llvm_type))()
+                a.GetStructElementTypes(llvm_type, fields)
+                result = {"kind": "struct", "fields": [self.ty(field) for field in fields], "packed": bool(a.IsPackedStruct(llvm_type))}
         elif kind == 9:
             result = {"kind": "function", "signature": self.signature(llvm_type)}
         else:
-            self.reject(f"unsupported LLVM type kind {kind} (float, vector, token and target types require another lowering)")
+            self.reject(f"unsupported LLVM type kind {kind} (half, bfloat, PPC128, scalable vector, token and target types require another lowering)")
         self.types[ident] = result
         return ident
 
@@ -364,20 +429,20 @@ class Importer:
 
     def scalar(self, llvm_type):
         ty = self.ty(llvm_type)
-        if self.types[ty]["kind"] not in {"int", "pointer"}:
+        if self.types[ty]["kind"] not in {"int", "float", "pointer"}:
             self.reject("aggregate SSA/call values are unsupported")
         return ty
 
     def value_type(self, llvm_type):
         """Preserve sized scalar or aggregate value types without ABI coercion."""
         kind = self.a.GetTypeKind(llvm_type)
-        if kind in {10, 11} and not self.a.TypeIsSized(llvm_type):
+        if kind in {10, 11, 13} and not self.a.TypeIsSized(llvm_type):
             self.reject("aggregate SSA requires a supported sized struct or array")
         ty = self.ty(llvm_type)
-        if self.contains_binary128(ty):
-            self.reject("binary128 is supported only for storage layout, not first-class SSA or ABI values")
-        if self.types[ty]["kind"] not in {"int", "pointer", "struct", "array"}:
+        if self.types[ty]["kind"] not in {"int", "float", "pointer", "struct", "array", "vector"}:
             self.reject("unsupported SSA value type")
+        if kind == 13:
+            self.refinements.add("fixed integer vector SSA preserves typed lanes, partial poison/undef and lane order; source memory packs lane significant bits at lane_index*lane_bits, with exact store size distinct from allocation stride and original ABI alignment; vector C/fastcc call ABI remains separately unsupported except exact owned intrinsic declarations")
         if kind in {10, 11}:
             self.refinements.add("aggregate SSA retains original nested struct fields and array elements, typed poison/undef, PHI/select and element-wise freeze; padding is not an SSA field; memory lowering requires original DataLayout leaf offsets and allocation strides; native aggregate C/fastcc ABI classification remains mandatory")
         return ty
@@ -436,6 +501,16 @@ class Importer:
         self.refinements.add(f"{self.symbol}: {site} attribute index {index}: validated allocator description {name}={payload}; {position}; original body, calls, arguments, memory effects and dependency symbols retained; no allocator substitution, elision, zeroing, purity, runtime value guard or provider closure inferred")
         self.refinements.add("allocator descriptions validated after pinned LLVM parsing and attribute normalization; input_sha256 binds the original bytes; exact parsed names, values and attribute positions retained without callee inheritance; allocptr pointer types and actual free/realloc effects are preserved")
 
+    def control_effects(self, value, call=False):
+        # Read only this raw site, never copy declaration effects into a call.
+        kind = self.a.GetEnumAttributeKindForName(b"returns_twice", 13)
+        for attribute in self.attribute_records(value, 0xffffffff, call):
+            if self.a.IsEnumAttribute(attribute) and self.a.GetEnumAttributeKind(attribute) == kind:
+                if self.a.GetEnumAttributeValue(attribute) != 0:
+                    self.reject("returns_twice requires the exact zero-payload function control effect")
+                return {"returns_twice": True}
+        return {}
+
     def attrs(self, value, index, call=False, intrinsic=None, attribute_type=None):
         a = self.a
         attributes = self.attribute_records(value, index, call)
@@ -459,7 +534,8 @@ class Importer:
                 if key in {"target-cpu", "tune-cpu", "target-features"} and index == 0xffffffff:
                     if key == "target-features":
                         self.riscv_abi_features(text)
-                    self.refinements.add(f"erased target tuning attribute {key}={text}; no target intrinsic lowering")
+                    disposition = "retained in original function source ABI witness" if not call and key in {"target-cpu", "target-features"} else "erased tuning preference"
+                    self.refinements.add(f"{disposition}: {key}={text}; no target intrinsic lowering or C/fastcc equivalence inferred")
                     continue
                 if index == 0xffffffff and (
                     (key == "min-legal-vector-width" and text == "0")
@@ -491,6 +567,26 @@ class Importer:
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} attribute index {index}: erased TLS intrinsic pointer promise align={payload}; original current-thread address operation, global identity, source storage alignment and all memory operations retained; no memory alignment/effect, provider binding or optimization inferred")
                 self.refinements.add("TLS intrinsic pointer alignment promises validated after pinned LLVM parsing and attribute normalization; input_sha256 binds the original bytes; no declaration-to-callsite inheritance")
+            elif intrinsic == "llvm.ptrmask.p0.i64" and name == "align":
+                if (not a.IsEnumAttribute(attribute) or not call or index != 0
+                        or attribute_type is None or a.GetTypeKind(attribute_type) != 12
+                        or a.GetPointerAddressSpace(attribute_type) != 0):
+                    self.reject("ptrmask alignment currently requires its call-result integral AS0 pointer; input/declaration alignment promises need separate proof or constraint transport")
+                payload = a.GetEnumAttributeValue(attribute)
+                if not payload or payload > 1 << 32 or payload & (payload - 1):
+                    self.reject("ptrmask pointer alignment must be a positive power of two, at most 2^32")
+                if a.GetNumArgOperands(value) != 2:
+                    self.reject("ptrmask alignment proof requires the exact two original arguments")
+                mask = a.GetOperand(value, 1)
+                if a.GetTypeKind(a.TypeOf(mask)) != 8 or a.GetIntTypeWidth(a.TypeOf(mask)) != 64:
+                    self.reject("ptrmask alignment proof requires the exact original i64 mask")
+                if payload > 1:
+                    if not a.IsAConstantInt(mask):
+                        self.reject("ptrmask return alignment is unproved for a variable mask; general constraint transport is unsupported")
+                    if self.bounded_integer(mask) & (payload - 1):
+                        self.reject("ptrmask constant mask does not prove the original return alignment")
+                self.refinements.add(f"{self.symbol}: callsite attribute index 0: retained ptrmask return_alignment={payload}; proved cleared low address bits by literal i64 mask & (alignment-1)==0, or vacuous alignment1; exact original pointer, mask, result and underlying object/provenance retained; independently checked typed constraint, no storage/byval alignment, stronger memory access, callee inheritance or runtime guard inferred")
+                self.refinements.add("original LLVM ptrmask call-return alignment is explicit NativeModule constraint transport, not unconditional promise erasure; pinned LLVM22 parsing/normalization and input_sha256 retain original source identity; unproved masks and input pointer promises remain unsupported")
             elif (intrinsic in self.MEMORY_INTRINSICS and index in pointer_indices
                     and name in {"align", "dereferenceable", "dereferenceable_or_null"}
                     and a.IsEnumAttribute(attribute)):
@@ -654,6 +750,43 @@ class Importer:
                     and a.GetEnumAttributeValue(attribute) == 0):
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned integer-min/max operation; defined integer operands select a defined original-width input; input poison/undef remain represented; no input noundef, ordinary function purity or optimization inferred")
+            elif (intrinsic in self.INTEGER_FUNNEL_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: exact scalar funnel-shift nocreateundeforpoison=0 promise realized by normalized in-range shifts for defined inputs; no ordinary-function promise or attribute erasure inferred")
+            elif (intrinsic in self.INTEGER_BYTE_SWAP_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: scalar byte-swap nocreateundeforpoison=0 realized by a byte permutation with in-range shifts; no ordinary-function promise or blanket attribute erasure inferred")
+            elif (intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar population-count operation; defined i32/i64 bits yield a defined same-width count from zero through the operand width; original poison/undef operands remain represented; no input noundef, ordinary-function purity or optimization inferred")
+            elif (intrinsic in self.FLOAT_INTEGRAL_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: exact scalar rounding nocreateundeforpoison=0 promise realized by defined bit operations with all shift counts in range; no input noundef or ordinary-function promise inferred")
+            elif (intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} exact scalar unsigned-saturating subtraction creates no undef/poison from defined inputs; per-source-argument freeze is an explicit permitted stable undef/poison refinement, not poison equivalence or assumed noundef; no ordinary-function promise inferred")
+            elif (intrinsic in self.FLOAT_ABS_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                # llvmorg-22.1.6 LangRef: defined arguments produce a defined
+                # result before return attributes. Exact sign-bit clearing
+                # realizes this promise without inferring ordinary purity.
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar-fabs sign-bit clear; defined operand bits yield a defined same-format result; input poison/undef and all fast-math flags remain represented; no input noundef, ordinary function purity or optimization inferred")
+            elif (intrinsic == self.POINTER_MASK_INTRINSIC and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: exact scalar pointer-mask nocreateundeforpoison promise realized for defined pointer/mask inputs; original underlying-object provenance and input poison/undef retained; no ordinary function purity or integer pointer reconstruction inferred")
+            elif (intrinsic in self.INTEGER_UNARY_INTRINSICS and name == "immarg" and index == 2
+                    and not call and a.IsEnumAttribute(attribute) and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{intrinsic}: original second-argument immarg retained as an exact constant i1 poison-control field on every owned operation")
             elif (intrinsic in self.MEMORY_INTRINSICS and name == "immarg" and index == 4
                     and not call and a.IsEnumAttribute(attribute) and a.GetEnumAttributeValue(attribute) == 0):
                 self.refinements.add(f"{intrinsic}: volatile immarg contract retained by validating every direct call's constant i1 operand")
@@ -681,6 +814,11 @@ class Importer:
                 self.refinements.add(f"{self.symbol}: {site} argument index {index}: validated dead_on_return=0 from LLVM22.1.6; erased the poison-on-normal-or-unwind-return memory promise while retaining every original call, memory operation and operand; no synthesized poison, store elimination, aliasing assumption, ABI adaptation or hidden copy; original input_sha256 binds the attribute bytes")
             elif name in {"signext", "zeroext"} and index != 0xffffffff:
                 preserved.append(name)
+            elif name == "returns_twice":
+                if (index != 0xffffffff or not a.IsEnumAttribute(attribute)
+                        or a.GetEnumAttributeValue(attribute) != 0):
+                    self.reject("returns_twice requires the exact zero-payload function control effect")
+                self.refinements.add(f"{self.symbol}: raw {'callsite' if call else 'function'} returns_twice control effect retained explicitly; no attribute erasure, native frame or original jump-provider qualification")
             elif name in self.ERASED and a.IsEnumAttribute(attribute):
                 self.refinements.add(f"{self.symbol}: attribute index {index}: erased optimization assumption {name}={a.GetEnumAttributeValue(attribute)}")
             elif name in self.ERASED_RESTRICTIONS:
@@ -777,6 +915,96 @@ class Importer:
                 self.refinements.add(f"{self.symbol}: retained metadata-only personality declaration i32(...) with exact C convention and no ABI extension attributes; original declaration, personality references and dependency identity retained; explicit included five-argument C unwinder callback adaptation required; no ordinary variadic call admission")
         return signature
 
+    def integer_byte_swap_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.bswap", len(b"llvm.bswap"))
+        if (name not in self.INTEGER_BYTE_SWAP_INTRINSICS or not expected
+                or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar byte-swap declaration identity")
+
+    def integer_population_count_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.ctpop", len(b"llvm.ctpop"))
+        if (name not in self.INTEGER_POPULATION_COUNT_INTRINSICS or not expected
+                or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM population-count declaration identity")
+        self.refinements.add(f"{name}: exact intrinsic declaration validated after pinned LLVM22.1.6 UpgradeIntrinsicFunction attribute normalization; input_sha256 binds original unit bytes; call-site ABI attributes are checked independently")
+
+    def integer_unary_identity(self, value, name):
+        a = self.a
+        kind, _ = self.INTEGER_UNARY_INTRINSICS[name]
+        base = f"llvm.{kind}".encode("ascii")
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (not expected or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM integer-{kind} declaration identity")
+
+        self.refinements.add(f"{name}: exact intrinsic declaration validated after pinned LLVM22.1.6 UpgradeIntrinsicFunction attribute normalization; input_sha256 binds the original unit bytes; declaration defaults are not inherited by call sites, whose ABI extension attributes remain independently checked")
+
+    def float_abs_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.fabs", len(b"llvm.fabs"))
+        if (not expected or name not in self.FLOAT_ABS_INTRINSICS or not a.IsAFunction(value)
+                or a.GetIntrinsicID(value) != expected or a.GetLinkage(value) != 0
+                or a.GetPointerAddressSpace(a.TypeOf(value)) != 0 or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires the exact pinned LLVM fabs intrinsic declaration")
+
+    def integer_funnel_identity(self, value, name):
+        a = self.a
+        kind, _ = self.INTEGER_FUNNEL_INTRINSICS[name]
+        base = f"llvm.{kind}".encode("ascii")
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (not expected or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar funnel-shift declaration identity")
+
+    def float_integral_identity(self, value, name):
+        a = self.a
+        kind, _ = self.FLOAT_INTEGRAL_INTRINSICS[name]
+        base = f"llvm.{kind}".encode("ascii")
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (not expected or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar integral-rounding declaration identity")
+    def integer_saturating_sub_identity(self, value, name):
+        a = self.a
+        base = b"llvm.usub.sat"
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (name not in self.INTEGER_SATURATING_SUB_INTRINSICS or not expected
+                or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar unsigned-saturation declaration identity")
+
+    def pointer_mask_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.ptrmask", len(b"llvm.ptrmask"))
+        if (name != self.POINTER_MASK_INTRINSIC or not expected or not a.IsAFunction(value)
+                or a.GetIntrinsicID(value) != expected or a.GetLinkage(value) != 0
+                or a.GetPointerAddressSpace(a.TypeOf(value)) != 0 or a.GetFirstBasicBlock(value)):
+            self.reject("pointer mask requires the exact pinned llvm.ptrmask.p0.i64 declaration")
+        pointer = a.GetReturnType(a.GlobalGetValueType(value))
+        layout = (a.GetDataLayoutStr(self.module) or b"").decode()
+        if (a.GetTypeKind(pointer) != 12 or a.GetPointerAddressSpace(pointer) != 0
+                or a.ABISizeOfType(self.layout, pointer) != 8 or not layout.startswith("e")):
+            self.reject("pointer mask requires an integral little-endian AS0 64-bit pointer/index profile")
+        for token in layout.split("-"):
+            if token.startswith(("p:", "p0:")):
+                fields = token.split(":")
+                if fields[1] != "64" or (len(fields) >= 5 and fields[4] != "64"):
+                    self.reject("pointer mask requires equal64-bit pointer and index widths")
+            if token.startswith("ni:") and "0" in token.split(":")[1:]:
+                self.reject("pointer mask requires integral AS0 pointers")
+            if token[:1] in {"A", "G", "P"} and token[1:] != "0":
+                self.reject("pointer mask requires default address spaces")
+
     def minmax_identity(self, value, name):
         a = self.a
         if (not a.IsAFunction(value) or name not in self.MINMAX_INTRINSICS
@@ -789,6 +1017,82 @@ class Importer:
     def intrinsic_signature(self, name, signature):
         pointer = {"kind": "pointer", "address_space": 0}
         integer = lambda bits: {"kind": "int", "bits": bits}
+        reduction = self.vector_reduce_add_name(name)
+        if reduction is not None:
+            lanes, width = reduction
+            params = [self.types[ty] for ty in signature["params"]]
+            if (len(params) != 1 or params[0].get("kind") != "vector"
+                    or params[0]["len"] != lanes or self.types[params[0]["element"]] != integer(width)
+                    or self.types[signature["result"]] != integer(width)
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject("vector reduction requires its exact integer-vector operand and scalar-element result signature without ABI attributes")
+            return
+        if name in self.INTEGER_BYTE_SWAP_INTRINSICS:
+            width = self.INTEGER_BYTE_SWAP_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width}) C signature without ABI attributes")
+            return
+        if name in self.FLOAT_INTEGRAL_INTRINSICS:
+            _, width = self.FLOAT_INTEGRAL_INTRINSICS[name]
+            expected = {"kind": "float", "bits": width}
+            if (self.types[signature["result"]] != expected
+                    or [self.types[ty] for ty in signature["params"]] != [expected]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires its exact scalar floating unary C signature without ABI attributes")
+            return
+        if name in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+            width = self.INTEGER_POPULATION_COUNT_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width}) C signature without ABI extension attributes")
+            return
+        if name in self.INTEGER_SATURATING_SUB_INTRINSICS:
+            width = self.INTEGER_SATURATING_SUB_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)] * 2
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width},i{width}) C signature without ABI attributes")
+            return
+        if name in self.INTEGER_FUNNEL_INTRINSICS:
+            _, width = self.INTEGER_FUNNEL_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)] * 3
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width},i{width},i{width}) C signature without ABI attributes")
+            return
+        if name in self.INTEGER_UNARY_INTRINSICS:
+            _, width = self.INTEGER_UNARY_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width), integer(1)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width},i1) C signature without ABI extension attributes")
+            return
+        if name in self.FLOAT_ABS_INTRINSICS:
+            expected = {"kind": "float", "bits": self.FLOAT_ABS_INTRINSICS[name]}
+            if (self.types[signature["result"]] != expected
+                    or [self.types[ty] for ty in signature["params"]] != [expected]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires its exact scalar floating unary C signature")
+            return
         if name == self.NOALIAS_INTRINSIC:
             if (self.types[signature["result"]] != {"kind": "void"}
                     or [self.types[ty] for ty in signature["params"]] != [{"kind": "metadata"}]
@@ -804,6 +1108,14 @@ class Importer:
                     or signature["result_attributes"] or any(signature["param_attributes"])
                     or signature.get("return_storage") is not None):
                 self.reject("llvm.threadlocal.address.p0 requires exact ptrAS0(ptrAS0) signature without ABI extension attributes")
+            return
+        if name == self.POINTER_MASK_INTRINSIC:
+            if (self.types[signature["result"]] != pointer
+                    or [self.types[ty] for ty in signature["params"]] != [pointer, integer(64)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject("pointer mask requires exact C ptrAS0(ptrAS0,i64) signature without ABI attributes")
             return
         if name in self.RELATIVE_INTRINSICS:
             width = int(name.rsplit(".i", 1)[1])
@@ -990,6 +1302,36 @@ class Importer:
                     block = self.block_ids[a.GetInstructionParent(value)]
                     self.refinements.add(f"{self.symbol}: block {block} load value {self.values[value]}: erased empty !noundef load promise; original load, volatile flag, alignment and type retained; atomic and other memory contracts remain independently validated; no native optimization, purity, runtime guard, trap, ABI, provider or MemorySanitizer support inferred")
                     self.refinements.add("noundef metadata validated by exact parsed context name and empty MDNode on LoadInst only; input_sha256 binds the original bytes")
+                    continue
+                if kind == self.callees_metadata_kind:
+                    if global_value or a.GetInstructionOpcode(value) not in {5, 45}:
+                        self.reject("callees metadata requires an original ordinary call or invoke")
+                    callee = a.GetCalledValue(value)
+                    direct = bool(a.IsAFunction(callee))
+                    if ((not direct and callee not in self.values)
+                            or direct and a.GetIntrinsicID(callee)
+                            or a.IsFunctionVarArg(a.GetCalledFunctionType(value))):
+                        self.reject("callees metadata requires an SSA or ordinary named direct target and fixed signature")
+                    metadata = a.ValueMetadataEntriesGetMetadata(entries, i)
+                    node = a.MetadataAsValue(self.context, metadata) if metadata else None
+                    if (not node or a.GetMetadataKind(metadata) != 4 or not a.IsAMDNode(node)):
+                        self.reject("callees metadata requires an MDTuple of original functions")
+                    operands = (P * a.GetMDNodeNumOperands(node))()
+                    a.GetMDNodeOperands(node, operands)
+                    if any(not target or not a.IsAFunction(target) or a.GetIntrinsicID(target)
+                           for target in operands):
+                        self.reject("callees metadata members require ordinary original Function values")
+                    names = [a.name(target) for target in operands]
+                    if direct:
+                        if a.name(callee) not in names:
+                            self.reject("direct callees promise does not include its actual original target")
+                        signature = self.signature(a.GetCalledFunctionType(value), owner=value, call=True)
+                        if any(self.signature(a.GlobalGetValueType(target), owner=target) != signature
+                               for target in operands):
+                            self.reject("direct callees members require the exact original fixed call ABI")
+                    self.call_target_constraints.append({"site": self.source_sites[value],
+                                                         "callees": names})
+                    self.refinements.add("retained exact per-call callees target promise and original SSA or named direct operand; direct target membership and exact fixed ABI are checked; outside-set targets are LLVM source UB; all original calls and bodies remain without promotion, runtime check or fabricated executable provider references")
                     continue
                 name = self.metadata_names.get(kind)
                 if name is None:
@@ -1257,6 +1599,65 @@ class Importer:
         return {"name": self.symbol, "ty": self.ty(a.GlobalGetValueType(value)),
                 "aliasee": a.name(target), "linkage": linkage, "visibility": visibility}
 
+    def bounded_integer(self, value):
+        a = self.a
+        if (not a.IsAConstantInt(value) or a.GetIntTypeWidth(a.TypeOf(value)) > 64):
+            self.reject("bounded native index, size or metadata integer requires at most 64 bits")
+        return a.ConstIntGetZExtValue(value)
+
+    def integer_bits(self, value):
+        a = self.a
+        if not a.IsAConstantInt(value):
+            self.reject("integer bits require an exact APInt constant")
+        width = a.GetIntTypeWidth(a.TypeOf(value))
+        if width <= 64:
+            return self.bounded_integer(value)
+        if width != 128:
+            self.reject(f"unsupported integer width i{width}")
+        message = a.PrintValueToString(value)
+        try:
+            text = C.string_at(message).decode("ascii")
+        finally:
+            a.DisposeMessage(message)
+        match = re.fullmatch(r"i128 (-?[0-9]+)", text)
+        if not match:
+            self.reject("unexpected exact i128 APInt printer representation")
+        return int(match[1]) % (1 << 128)
+
+    def float_bits(self, value):
+        """Read APFloat bits by exact constant bitcast; never convert to host double.
+
+        The temporary integer LLVM type is not interned in NativeModule.types.
+        Its only role is extracting all significant bits, including NaN payloads.
+        """
+        a = self.a
+        llvm_type = a.TypeOf(value)
+        ty = self.ty(llvm_type)
+        if self.types[ty]["kind"] != "float" or not a.IsAConstantFP(value):
+            self.reject("floating constant requires exact supported APFloat value")
+        width = self.types[ty]["bits"]
+        integer = a.ConstBitCast(value, a.IntTypeInContext(self.context, width))
+        if not integer or not a.IsAConstantInt(integer):
+            self.reject("LLVM failed to expose exact floating-point constant bits")
+        if width <= 64:
+            return self.bounded_integer(integer)
+        message = a.PrintValueToString(integer)
+        try:
+            text = C.string_at(message).decode("ascii")
+        finally:
+            a.DisposeMessage(message)
+        match = re.fullmatch(r"i" + str(width) + r" (-?[0-9]+)", text)
+        if not match:
+            self.reject("unexpected exact APInt bitcast printer representation")
+        return int(match[1]) % (1 << width)
+
+    def fast_math(self, value):
+        mask = self.a.GetFastMathFlags(value)
+        if mask & ~127:
+            self.reject("unknown LLVM22 fast-math flag bit")
+        return {name: bool(mask & (1 << bit)) for bit, name in
+                enumerate(("reassoc", "nnan", "ninf", "nsz", "arcp", "contract", "afn"))}
+
     def operand(self, value):
         a = self.a
         llvm_type = a.TypeOf(value)
@@ -1267,7 +1668,7 @@ class Importer:
             return {"kind": "poison", "ty": ty}
         if a.IsAUndefValue(value):
             return {"kind": "undef", "ty": ty}
-        if self.types[ty]["kind"] in {"struct", "array"}:
+        if self.types[ty]["kind"] in {"struct", "array", "vector"}:
             if a.IsAConstantAggregateZero(value):
                 return {"kind": "aggregate_zero", "ty": ty}
             if not a.IsAConstant(value):
@@ -1278,7 +1679,7 @@ class Importer:
                 children = enumerate(fields)
             else:
                 element_type = a.GetElementType(llvm_type)
-                children = ((index, element_type) for index in range(a.GetArrayLength2(llvm_type)))
+                children = ((index, element_type) for index in range(a.GetVectorSize(llvm_type) if a.GetTypeKind(llvm_type) == 13 else a.GetArrayLength2(llvm_type)))
             elements = []
             for index, child_type in children:
                 # This is the actual public C API index domain, not a graph
@@ -1291,10 +1692,17 @@ class Importer:
                     self.reject("aggregate constant requires exact typed constant fields/elements")
                 elements.append(self.operand(child))
             return {"kind": "aggregate", "ty": ty, "elements": elements}
+        if a.IsAConstantFP(value):
+            return {"kind": "float", "ty": ty, "bits": str(self.float_bits(value))}
         if a.IsAConstantInt(value):
-            return {"kind": "int", "ty": ty, "bits": str(a.ConstIntGetZExtValue(value))}
+            return {"kind": "int", "ty": ty, "bits": str(self.integer_bits(value))}
         if a.IsAConstantPointerNull(value):
             return {"kind": "null", "ty": ty}
+        block = self.block_constant(value)
+        if block is not None:
+            function, target, addend = block
+            return {"kind": "block_address", "ty": ty, "function": function,
+                    "block": target, "addend": addend}
         if a.IsAConstantExpr(value) and a.GetConstOpcode(value) == 40:
             return {"kind": "pointer_bits", "ty": ty, "bits": str(self.pointer_literal_bits(value))}
         if a.IsAConstantExpr(value) and a.GetConstOpcode(value) in {29, 41}:
@@ -1330,6 +1738,138 @@ class Importer:
         instructions.append({"result": {"id": ident, "ty": ty}, "operation": operation})
         return {"kind": "value", "id": ident}
 
+    def integer_byte_swap(self, name, argument, ty, instructions):
+        """Reverse original bytes using only in-range typed integer primitives.
+
+        A single freeze before reuse makes one permitted stable undef/poison
+        refinement without assuming noundef; defined input bits stay exact.
+        No target instruction extension or native provider is required.
+        """
+        width = self.INTEGER_BYTE_SWAP_INTRINSICS[name]
+        source = self.synthetic({"op": "freeze", "value": argument}, ty, instructions)
+
+        def binary(kind, lhs, rhs):
+            return self.synthetic({"op": "binary", "kind": kind, "lhs": lhs,
+                                   "rhs": rhs, "flags": []}, ty, instructions)
+
+        terms = []
+        for offset in range(0, width, 8):
+            byte = binary("and", binary("l_shr", source, self.literal(offset, width)),
+                          self.literal(255, width))
+            terms.append(binary("shl", byte, self.literal(width - 8 - offset, width)))
+        joined = terms[0]
+        for term in terms[1:-1]:
+            joined = binary("or", joined, term)
+        self.refinements.add(f"{name}: complete original declaration and same-width input/result retained; exact scalar byte reversal using in-range logical shifts, byte masks and disjoint OR terms; one stable permitted undef/poison freeze refinement without noundef, source sanitization, optional ISA instructions, helper providers or implementation-IR interpretation")
+        return {"op": "binary", "kind": "or", "lhs": joined,
+                "rhs": terms[-1], "flags": []}
+
+    def integer_saturating_sub(self, name, args, ty, instructions):
+        """Five-node defined-exact graph; one permitted stable choice per argument."""
+        lhs, rhs = [self.synthetic({"op": "freeze", "value": value}, ty, instructions)
+                    for value in args]
+        difference = self.synthetic({"op": "binary", "kind": "sub", "lhs": lhs,
+                                     "rhs": rhs, "flags": []}, ty, instructions)
+        underflow = self.synthetic({"op": "i_cmp", "predicate": "ult", "lhs": lhs,
+                                    "rhs": rhs}, self.integer_type(1), instructions)
+        width = self.INTEGER_SATURATING_SUB_INTRINSICS[name]
+        self.refinements.add(f"{name}: original complete declaration/result and both typed input occurrences retained; distinct per-source-argument freeze chooses a stable permitted undef/poison refinement without assuming noundef; flag-free subtraction and unsigned comparison select zero on underflow, exact max(a-b,0) for defined i{width} inputs; no helper/provider or implementation-IR interpreter")
+        return {"op": "select", "condition": underflow,
+                "on_true": self.literal(0, width), "on_false": difference}
+
+    def integer_funnel(self, name, args, ty, instructions):
+        """Expand the scalar funnel without a width-sized or poisoned shift.
+
+        LLVM's third operand is unsigned modulo the element width. Each
+        original argument is frozen once before reuse: defined bits stay
+        exact; undef/poison receive one permitted stable refinement under
+        llvm_defined_behavior_v1. This introduces no noundef assumption.
+        """
+        kind, width = self.INTEGER_FUNNEL_INTRINSICS[name]
+        high, low, count = [self.synthetic({"op": "freeze", "value": value}, ty, instructions)
+                            for value in args]
+
+        def binary(operation, lhs, rhs):
+            return self.synthetic({"op": "binary", "kind": operation, "lhs": lhs,
+                                   "rhs": rhs, "flags": []}, ty, instructions)
+
+        mask, zero = self.literal(width - 1, width), self.literal(0, width)
+        shift = binary("and", count, mask)
+        reverse = binary("and", binary("sub", zero, shift), mask)
+        is_zero = self.synthetic({"op": "i_cmp", "predicate": "eq", "lhs": shift,
+                                  "rhs": zero}, self.integer_type(1), instructions)
+        left = binary("shl", high, shift if kind == "fshl" else reverse)
+        right = binary("l_shr", low, reverse if kind == "fshl" else shift)
+        joined = binary("or", left, right)
+        self.refinements.add(f"{name}: original declaration/result and each input retained; per-argument freeze chooses one stable permitted undef/poison refinement without assuming noundef; exact unsigned count modulo {width}, complementary count normalized before both shifts, explicit zero-count selection; existing typed integer primitives only, no helper/provider or implementation-IR interpreter")
+        return {"op": "select", "condition": is_zero,
+                "on_true": high if kind == "fshl" else low, "on_false": joined}
+
+    def float_integral(self, name, argument, ty, instructions):
+        """Round IEEE binary32/64/128 via existing typed integer primitives.
+
+        Only default LLVM FP semantics are admitted: strictfp, constrained
+        intrinsics and nondefault denormal attributes remain rejected. No
+        ambient rounding mode, target optional instruction or helper is used.
+        Freeze chooses one stable permitted undef/poison refinement before
+        reusing the argument; it is not an input noundef assumption.
+        """
+        kind, width = self.FLOAT_INTEGRAL_INTRINSICS[name]
+        fraction, exponent, bias = {32: (23, 8, 127), 64: (52, 11, 1023),
+                                    128: (112, 15, 16383)}[width]
+        integer, boolean = self.integer_type(width), self.integer_type(1)
+        const = lambda n: self.literal(n, width)
+
+        def binary(kind, lhs, rhs):
+            return self.synthetic({"op": "binary", "kind": kind, "lhs": lhs,
+                                   "rhs": rhs, "flags": []}, integer, instructions)
+
+        def compare(predicate, lhs, rhs):
+            return self.synthetic({"op": "i_cmp", "predicate": predicate,
+                                   "lhs": lhs, "rhs": rhs}, boolean, instructions)
+
+        def select(condition, on_true, on_false):
+            return self.synthetic({"op": "select", "condition": condition,
+                                   "on_true": on_true, "on_false": on_false}, integer, instructions)
+
+        frozen = self.synthetic({"op": "freeze", "value": argument}, ty, instructions)
+        bits = self.synthetic({"op": "cast", "kind": "bitcast", "value": frozen}, integer, instructions)
+        sign = binary("and", bits, const(1 << (width - 1)))
+        magnitude = binary("and", bits, const((1 << (width - 1)) - 1)) if kind != "trunc" else None
+        negative = compare("ne", sign, const(0)) if kind != "trunc" else None
+        is_zero = compare("eq", magnitude, const(0)) if kind != "trunc" else None
+        exp = binary("and", binary("l_shr", bits, const(fraction)), const((1 << exponent) - 1))
+        small = compare("ult", exp, const(bias))
+        # The middle range alone needs a variable mask. Clamp BEFORE every
+        # shift, including for zero, NaN, infinity and huge finite exponents.
+        below_integral = compare("ult", exp, const(bias + fraction))
+        middle = self.synthetic({"op": "binary", "kind": "and", "lhs": below_integral,
+                                 "rhs": compare("uge", exp, const(bias)), "flags": []}, boolean, instructions)
+        shift = select(middle, binary("sub", const(bias + fraction), exp), const(1))
+        unit = binary("shl", const(1), shift)
+        mask = binary("sub", unit, const(1))
+        whole = binary("and", bits, binary("xor", mask, const((1 << width) - 1)))
+        if kind == "trunc":
+            rounded, tiny = whole, sign
+        else:
+            non_integral = compare("ne", binary("and", bits, mask), const(0))
+            direction = negative if kind == "floor" else compare("eq", sign, const(0))
+            increment = self.synthetic({"op": "binary", "kind": "and", "lhs": direction,
+                                        "rhs": non_integral, "flags": []}, boolean, instructions)
+            rounded = select(increment, binary("add", whole, unit), whole)
+            one = const(bias << fraction)
+            tiny_nonzero = (select(negative, const((1 << (width - 1)) | (bias << fraction)), const(0))
+                            if kind == "floor" else select(negative, sign, one))
+            tiny = select(is_zero, bits, tiny_nonzero)
+        finite_or_inf = select(small, tiny, select(middle, rounded, bits))
+        is_nan = self.synthetic({"op": "binary", "kind": "and",
+            "lhs": compare("eq", exp, const((1 << exponent) - 1)),
+            "rhs": compare("ne", binary("and", bits, const((1 << fraction) - 1)), const(0)),
+            "flags": []}, boolean, instructions)
+        result = select(is_nan, binary("or", bits, const(1 << (fraction - 1))), finite_or_inf)
+        self.refinements.add(f"{name}: exact original format/input/result retained through a per-argument freeze and IEEE sign/exponent/fraction integer graph; default LLVM FP environment only; exact directed integral rounding, signed zero, infinity and subnormal behavior; deterministic permitted quieted input NaN payload, not arbitrary NaN/strict or dynamic-fenv equivalence; no target rounding-mode change, float-to-int conversion, runtime helper or implementation-IR interpreter")
+        return {"op": "cast", "kind": "bitcast", "value": result}
+
     def gep_offset(self, value, instructions=None):
         a, total, current = self.a, 0, self.a.GetGEPSourceElementType(value)
         self.ty(current)
@@ -1338,10 +1878,12 @@ class Importer:
             index = a.GetOperand(value, i)
             self.scalar(a.TypeOf(index))
             width = a.GetIntTypeWidth(a.TypeOf(index))
+            if width > 64:
+                self.reject("GEP index requires at most 64 bits; no implicit i128 truncation")
             if i > 1 and a.GetTypeKind(current) == 10:
                 if not a.IsAConstantInt(index):
                     self.reject("nonconstant struct GEP index")
-                field = a.ConstIntGetZExtValue(index)
+                field = self.bounded_integer(index)
                 fields = (P * a.CountStructElementTypes(current))()
                 a.GetStructElementTypes(current, fields)
                 total += a.OffsetOfElement(self.layout, current, field)
@@ -1353,7 +1895,7 @@ class Importer:
                 current = a.GetElementType(current)
             stride = a.ABISizeOfType(self.layout, current)
             if a.IsAConstantInt(index):
-                bits = a.ConstIntGetZExtValue(index)
+                bits = self.bounded_integer(index)
                 signed = bits - (1 << width) if bits & (1 << (width - 1)) else bits
                 total += signed * stride
             elif instructions is None:
@@ -1373,6 +1915,45 @@ class Importer:
         if a.GEPGetNoWrapFlags(value):
             self.refinements.add("GEP no-wrap/inbounds poison is refined without using it as an optimization assumption")
         return offset
+
+    def block_constant(self, value):
+        """Retain actual pinned LLVM function/block identity, not printed names.
+
+        Pointer GEP/bitcast wrappers keep exact DataLayout byte addends. The
+        original address may travel opaquely or through reversible arithmetic;
+        no dereference, ordinary native call or label-equality promise follows.
+        """
+        a, current, offsets = self.a, value, []
+        while a.IsAConstantExpr(current):
+            opcode = a.GetConstOpcode(current)
+            if opcode == 29:
+                offsets.append(current)
+            elif opcode != 41:
+                return None
+            current = a.GetOperand(current, 0)
+        if not a.IsABlockAddress(current):
+            return None
+        # LLVM22.1.6 BlockAddress has one BasicBlock operand; its function is
+        # the block's parent. Use the public typed getters, not an old layout.
+        if a.GetNumOperands(current) != 1:
+            self.reject("blockaddress requires exact pinned basic-block operand")
+        label = a.GetOperand(current, 0)
+        function, block = a.GetBlockAddressFunction(current), a.GetBlockAddressBasicBlock(current)
+        if (not a.IsAFunction(function) or not a.ValueIsBasicBlock(label)
+                or a.ValueAsBasicBlock(label) != block
+                or a.GetPointerAddressSpace(a.TypeOf(function)) != 0
+                or a.GetPointerAddressSpace(a.TypeOf(value)) != 0):
+            self.reject("blockaddress requires owned AS0 function and block pointer identity")
+        name = a.name(function)
+        blocks = list(a.sequence(a.GetFirstBasicBlock, a.GetNextBasicBlock, function))
+        if (not name or a.GetNamedFunction(self.module, name.encode()) != function
+                or a.GetBasicBlockParent(block) != function or block not in blocks
+                or not blocks or block == blocks[0] or a.GetIntrinsicID(function)):
+            self.reject("blockaddress requires an included defined function and its non-entry block")
+        addend = sum(self.gep_offset(item) for item in offsets)
+        addend = (addend + (1 << 63)) % (1 << 64) - (1 << 63)
+        self.refinements.add("LLVM blockaddress retains exact owned function/non-entry-block identity and integral AS0 signed byte addend modulo2^64; original code address and destination CFG retained; opaque/reversible address flow only, no label-equality, dereference, ordinary function ABI, provider substitution or interpreter inferred")
+        return name, blocks.index(block), addend
 
     def symbol_constant(self, value):
         a = self.a
@@ -1410,7 +1991,7 @@ class Importer:
         # This compile-time source width is folded into exact pointer bits; it
         # is not an executable integer type or a new native arithmetic promise.
         self.refinements.add(f"{self.symbol}: constant integer-to-pointer source i{width} retains exact zero-extended integral AS0 address bits; no symbol relocation or dereference is introduced")
-        return a.ConstIntGetZExtValue(integer)
+        return self.bounded_integer(integer)
 
     def relative_initializer(self, value, offset):
         """Recognize the exact parsed i32 trunc(i64(target - base)) form."""
@@ -1453,22 +2034,18 @@ class Importer:
     def initializer(self, value, llvm_type, data, relocations, offset=0):
         a, kind = self.a, self.a.GetTypeKind(llvm_type)
         ty = self.ty(llvm_type)
-        if (a.IsAPoisonValue(value) or a.IsAUndefValue(value)) and self.contains_binary128(ty):
-            self.reject("binary128 storage initializer cannot contain poison or undef")
         if a.IsAConstantAggregateZero(value) or a.IsAConstantPointerNull(value):
             return
         if a.IsAPoisonValue(value) or a.IsAUndefValue(value):
             self.refinements.add("global undef/poison initializer refined to zero bytes")
             return
-        if kind == 5:
-            # Constant::isNullValue tests exact positive zero, not a conversion
-            # through host double (which could erase -0, NaNs or tiny values).
-            if not a.IsNull(value):
-                self.reject("binary128 storage initializer requires exact positive zero")
+        if kind in {2, 3, 4, 5}:
+            size = a.StoreSizeOfType(self.layout, llvm_type)
+            data[offset:offset + size] = self.float_bits(value).to_bytes(size, "little")
             return
         if kind == 8 and a.IsAConstantInt(value):
             size = a.StoreSizeOfType(self.layout, llvm_type)
-            data[offset:offset + size] = a.ConstIntGetZExtValue(value).to_bytes(size, "little")
+            data[offset:offset + size] = self.integer_bits(value).to_bytes(size, "little")
         elif kind == 8 and a.IsAConstantExpr(value):
             relocations.append(self.relative_initializer(value, offset))
         elif kind == 12:
@@ -1480,10 +2057,32 @@ class Importer:
                 size = a.StoreSizeOfType(self.layout, llvm_type)
                 data[offset:offset + size] = self.pointer_literal_bits(value).to_bytes(size, "little")
                 return
+            block = self.block_constant(value)
+            if block is not None:
+                function, target, addend = block
+                relocations.append({"offset": offset, "width": 64, "symbol": "", "addend": addend,
+                                    "block": {"function": function, "block": target}})
+                return
             name, addend = self.symbol_constant(value)
             if not -(1 << 63) <= addend < (1 << 63):
                 self.reject("relocation addend exceeds signed 64-bit range")
             relocations.append({"offset": offset, "width": 64, "symbol": name, "addend": addend})
+        elif kind == 13:
+            element_type = a.GetElementType(llvm_type)
+            width, count = a.GetIntTypeWidth(element_type), a.GetVectorSize(llvm_type)
+            packed = 0
+            for index in range(count):
+                lane = a.GetAggregateElement(value, index)
+                if not lane or a.TypeOf(lane) != element_type:
+                    self.reject("vector initializer requires exact typed constant lanes")
+                if a.IsAPoisonValue(lane) or a.IsAUndefValue(lane):
+                    self.refinements.add(f"vector initializer lane {index} at bit offset {offset*8+index*width} refined independently to zero; defined neighboring lanes preserved")
+                elif a.IsAConstantInt(lane):
+                    packed |= self.integer_bits(lane) << (index * width)
+                else:
+                    self.reject("integer vector initializer requires literal integer/poison/undef lanes")
+            size = a.StoreSizeOfType(self.layout, llvm_type)
+            data[offset:offset+size] = packed.to_bytes(size, "little")
         elif kind in {10, 11}:
             if kind == 10:
                 fields = (P * a.CountStructElementTypes(llvm_type))()
@@ -1599,6 +2198,13 @@ class Importer:
     def instruction(self, value, instructions):
         a, opcode = self.a, self.a.GetInstructionOpcode(value)
         self.metadata(value)
+        fabs_call = (opcode == 45 and a.IsAFunction(a.GetCalledValue(value))
+                     and a.name(a.GetCalledValue(value)) in self.FLOAT_ABS_INTRINSICS)
+        if fabs_call:
+            self.float_abs_identity(a.GetCalledValue(value), a.name(a.GetCalledValue(value)))
+        if not fabs_call and opcode not in self.FLOAT_BIN and opcode not in {43, 66} and a.CanValueUseFastMathFlags(value):
+            if any(self.fast_math(value).values()):
+                self.reject("nonzero fast-math flags on cast/select/phi/call require explicit flag representation")
         operand = lambda i: self.operand(a.GetOperand(value, i))
         if opcode == 59:
             self.exception_aggregate(a.TypeOf(value))
@@ -1630,7 +2236,20 @@ class Importer:
                 self.reject("landingpad requires cleanup or at least one clause")
             operation = {"op": "landing_pad", "cleanup": cleanup, "clauses": clauses}
             self.refinements.add(f"{self.symbol}: landingpad retains original unpacked {{ptrAS0,i32}}, cleanup flag and ordered catch/filter typeinfos including empty filters; required native LSDA/CFI and genuine provider closure are separate; no catch-all or cleanup substitution")
+        elif opcode in self.FLOAT_BIN:
+            operation = {"op": "float_binary", "kind": self.FLOAT_BIN[opcode],
+                         "lhs": operand(0), "rhs": operand(1), "flags": self.fast_math(value)}
+        elif opcode == 66:
+            operation = {"op": "float_neg", "value": operand(0), "flags": self.fast_math(value)}
+        elif opcode == 43:
+            predicate = self.FLOAT_CMP.get(a.GetFCmpPredicate(value))
+            if predicate is None:
+                self.reject("unknown LLVM floating-point comparison predicate")
+            operation = {"op": "f_cmp", "predicate": predicate,
+                         "lhs": operand(0), "rhs": operand(1), "flags": self.fast_math(value)}
         elif opcode in self.BIN:
+            if a.GetTypeKind(a.TypeOf(value)) == 13 and opcode in {14, 15, 17, 18}:
+                self.reject("vector div/rem requires nontrapping poison-lane realization")
             flags = []
             if opcode in {8, 10, 12, 20}:
                 flags += [name for name, fn in (("nsw", a.GetNSW), ("nuw", a.GetNUW)) if fn(value)]
@@ -1640,7 +2259,13 @@ class Importer:
                 flags.append("disjoint")
             operation = {"op": "binary", "kind": self.BIN[opcode], "lhs": operand(0), "rhs": operand(1), "flags": flags}
         elif opcode in self.CAST:
-            if opcode == 31 and a.GetNNeg(value):
+            if (a.GetTypeKind(a.TypeOf(value)) == 13 or a.GetTypeKind(a.TypeOf(a.GetOperand(value, 0))) == 13) and opcode not in {30, 31, 32}:
+                self.reject("fixed vectors currently require lane-wise integer trunc/zext/sext casts")
+            integer_type = a.TypeOf(value) if opcode in {33, 34} else a.TypeOf(a.GetOperand(value, 0))
+            if (opcode in {33, 34, 35, 36} and a.GetTypeKind(integer_type) == 8
+                    and a.GetIntTypeWidth(integer_type) > 64):
+                self.reject("numeric floating/integer128 conversion requires an explicit supported bridge")
+            if opcode in {31, 35} and a.GetNNeg(value):
                 self.refinements.add("zext nneg poison assumption erased")
             if opcode == 30 and (a.GetNSW(value) or a.GetNUW(value)):
                 self.refinements.add("trunc nowrap poison assumptions erased")
@@ -1653,6 +2278,11 @@ class Importer:
             operation = {"op": "select", "condition": operand(0), "on_true": operand(1), "on_false": operand(2)}
         elif opcode == 68:
             operation = {"op": "freeze", "value": operand(0)}
+        elif opcode in {50, 51}:
+            operation = {"op": "extract_element" if opcode == 50 else "insert_element", "vector": operand(0),
+                         "index": operand(1 if opcode == 50 else 2)}
+            if opcode == 51:
+                operation["value"] = operand(1)
         elif opcode in {53, 54}:
             # Extract/insert paths are unsigned integer metadata on the
             # instruction, not ordinary LLVM value operands or GEP indices.
@@ -1675,7 +2305,7 @@ class Importer:
             self.refinements.add(f"{self.symbol}: alloca inalloca/swifterror restrictions, if present, refined to ordinary storage; every ABI-dependent use is rejected")
             allocated = a.GetAllocatedType(value)
             self.ty(allocated)
-            size = a.ABISizeOfType(self.layout, allocated) * a.ConstIntGetZExtValue(count)
+            size = a.ABISizeOfType(self.layout, allocated) * self.bounded_integer(count)
             if size >= 1 << 64:
                 self.reject("alloca byte extent exceeds u64")
             operation = {"op": "alloca", "size": size,
@@ -1685,6 +2315,9 @@ class Importer:
         elif opcode in {27, 28}:
             if not (a.IsALoadInst if opcode == 27 else a.IsAStoreInst)(value):
                 self.reject("load/store instruction subclass is invalid")
+            memory_type = a.TypeOf(value) if opcode == 27 else a.TypeOf(a.GetOperand(value, 0))
+            if a.GetTypeKind(memory_type) == 13 and (a.GetOrdering(value) or a.GetVolatile(value)):
+                self.reject("volatile/atomic vector memory requires an explicit supported effect realization")
             if a.GetOrdering(value):
                 operation = self.atomic_operation(value, opcode)
             elif opcode == 27:
@@ -1700,11 +2333,36 @@ class Importer:
             intrinsic = None
             if a.IsAFunction(callee) and a.GetIntrinsicID(callee):
                 intrinsic = a.name(callee)
-                if intrinsic not in self.INTRINSICS:
+                if not self.supported_intrinsic(intrinsic):
                     self.reject(f"intrinsic {intrinsic} requires explicit call lowering")
+                if self.vector_reduce_add_name(intrinsic) is not None:
+                    self.vector_reduce_add_identity(callee, intrinsic)
+                if intrinsic in self.INTEGER_BYTE_SWAP_INTRINSICS:
+                    self.integer_byte_swap_identity(callee, intrinsic)
+                if intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+                    self.integer_population_count_identity(callee, intrinsic)
+                if intrinsic in self.INTEGER_UNARY_INTRINSICS:
+                    self.integer_unary_identity(callee, intrinsic)
+                if intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
+                    self.integer_funnel_identity(callee, intrinsic)
+                if intrinsic in self.FLOAT_INTEGRAL_INTRINSICS:
+                    self.float_integral_identity(callee, intrinsic)
+                if intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS:
+                    self.integer_saturating_sub_identity(callee, intrinsic)
                 if intrinsic in self.MINMAX_INTRINSICS:
                     self.minmax_identity(callee, intrinsic)
+                if intrinsic in self.FLOAT_ABS_INTRINSICS:
+                    self.float_abs_identity(callee, intrinsic)
+                if intrinsic == self.POINTER_MASK_INTRINSIC:
+                    self.pointer_mask_identity(callee, intrinsic)
             signature = self.signature(a.GetCalledFunctionType(value), value, call=True, intrinsic=intrinsic)
+            site_effects = self.control_effects(value, call=True)
+            declared_effects = self.control_effects(callee) if a.IsAFunction(callee) else {}
+            if site_effects or declared_effects:
+                if (not a.IsAFunction(callee) or intrinsic or signature["abi"] != "c"
+                        or signature["variadic"] or self.current_abi != "c"
+                        or self.exception_handling is not None):
+                    self.reject("returns_twice requires a direct ordinary nonvariadic C call without EH/indirect combinations")
             # A TLS GlobalVariable is the descriptor of current-thread storage,
             # not an ordinary constant Symbol address. Only this owned call
             # reads its literal global argument without materializing a Symbol.
@@ -1721,6 +2379,48 @@ class Importer:
                              "source_instruction": self.instruction_positions[value][1]}
                 self.refinements.add(f"{self.symbol}: retained llvm.experimental.noalias.scope.decl as an exact compiler-only scope marker; original list/scope/domain identity and declaration placement retained; no runtime instruction, metadata ABI, alias-based optimization, purity or memory-effect inference")
                 self.refinements.add("scoped alias metadata graph uses actual parsed metadata identity and deterministic module-local traversal IDs; trusted LLVM printer records attest post-parse storage only; raw pointer fallback labels remain provenance bytes, never graph IDs; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
+            elif intrinsic and self.vector_reduce_add_name(intrinsic) is not None:
+                operation = {"op": "vector_reduce_add", "value": args[0]}
+                self.refinements.add("owned fixed integer vector reduction retains exact original declaration, typed input lanes and element-width modular sum; no helper/provider forwarding or vector call ABI inferred")
+            elif intrinsic == self.POINTER_MASK_INTRINSIC:
+                operation = {"op": "ptr_mask", "pointer": args[0], "mask": args[1]}
+                alignments = [a.GetEnumAttributeValue(attr) for attr in self.attribute_records(value, 0, True)
+                              if a.IsEnumAttribute(attr) and self.attribute_names.get(a.GetEnumAttributeKind(attr)) == "align"]
+                if alignments:
+                    if len(alignments) != 1:
+                        self.reject("ptrmask requires an unambiguous original return-alignment constraint")
+                    operation["return_alignment"] = alignments[0]
+                self.refinements.add("llvm.ptrmask.p0.i64 retained as explicit typed pointer-base and mask operands with same AS0 pointer result; exact integral64-bit pointer/index address masking preserves the original underlying object/provenance per llvmorg-22.1.6 LangRef; no ptrtoint/inttoptr reconstruction, fresh allocation, alias optimization or unresolved intrinsic provider")
+            elif intrinsic in self.INTEGER_BYTE_SWAP_INTRINSICS:
+                operation = self.integer_byte_swap(intrinsic, args[0], signature["result"], instructions)
+            elif intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+                operation = {"op": "integer_population_count", "value": args[0]}
+                self.refinements.add(f"{intrinsic}: original same-width single scalar operand/result retained as owned population count; zero is defined as zero and no poison-control flag, helper dependency, vector operation or optional target instruction is introduced")
+            elif intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS:
+                operation = self.integer_saturating_sub(intrinsic, args, signature["result"], instructions)
+            elif intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
+                operation = self.integer_funnel(intrinsic, args, signature["result"], instructions)
+            elif intrinsic in self.FLOAT_INTEGRAL_INTRINSICS:
+                if any(self.fast_math(value).values()):
+                    self.reject("integral-rounding fast-math constraints require explicit supported transport")
+                operation = self.float_integral(intrinsic, args[0], signature["result"], instructions)
+            elif intrinsic in self.INTEGER_UNARY_INTRINSICS:
+                control = a.GetOperand(value, 1)
+                if (not a.IsAConstantInt(control) or a.GetTypeKind(a.TypeOf(control)) != 8
+                        or a.GetIntTypeWidth(a.TypeOf(control)) != 1):
+                    self.reject(f"{intrinsic} requires an exact constant i1 poison-control operand")
+                flag = self.bounded_integer(control)
+                if flag not in {0, 1}:
+                    self.reject(f"{intrinsic} has a non-boolean poison control")
+                kind, width = self.INTEGER_UNARY_INTRINSICS[intrinsic]
+                operation = {"op": "integer_count_leading_zeros" if kind == "ctlz" else "integer_abs",
+                             "value": args[0],
+                             "zero_is_poison" if kind == "ctlz" else "int_min_is_poison": bool(flag)}
+                boundary = "zero yields the original source width" if kind == "ctlz" else "INT_MIN yields its original wrapped bit pattern"
+                self.refinements.add(f"{intrinsic}: exact original i{width} operand/result and constant poison flag={flag} retained; {boundary}; when flag=true the boundary result is a permitted deterministic poison refinement under llvm_defined_behavior_v1, and when false it is defined LLVM behavior; no duplicated operand use, optimization assumption, target-extension instruction or runtime helper")
+            elif intrinsic in self.FLOAT_ABS_INTRINSICS:
+                operation = {"op": "float_abs", "value": args[0], "flags": self.fast_math(value)}
+                self.refinements.add(f"{intrinsic}: exact owned significant-bit sign clearing retains original scalar format, operand, result, NaN payloads and all seven call-site fast-math flags; no comparison, host conversion, arithmetic helper or unresolved intrinsic provider")
             elif intrinsic in self.VARIADIC_INTRINSICS:
                 if intrinsic == "llvm.va_start.p0" and not self.current_variadic:
                     self.reject("llvm.va_start requires an enclosing variadic function definition")
@@ -1775,7 +2475,7 @@ class Importer:
                 volatility = a.GetOperand(value, 3)
                 if not a.IsAConstantInt(volatility):
                     self.reject("memory intrinsic volatility must be a constant i1")
-                volatile = a.ConstIntGetZExtValue(volatility)
+                volatile = self.bounded_integer(volatility)
                 if volatile not in {0, 1}:
                     self.reject("memory intrinsic volatility must be exactly false or true")
                 if intrinsic.startswith("llvm.memset."):
@@ -1789,6 +2489,8 @@ class Importer:
                 self.refinements.add(f"{intrinsic}: owned exact-byte memory operation retains unsigned length, callsite alignment and volatility; zero length accesses no memory; overlap policy is explicit; no native helper symbol or erased memory effect")
             else:
                 operation = {"op": "call", "callee": self.operand(callee), "signature": signature, "args": args}
+                if site_effects:
+                    operation["control_effects"] = site_effects
         elif opcode == 44:
             incoming = {}
             for i in range(a.CountIncoming(value)):
@@ -1808,6 +2510,8 @@ class Importer:
 
     def terminator(self, value):
         a, opcode = self.a, self.a.GetInstructionOpcode(value)
+        if a.CanValueUseFastMathFlags(value) and any(self.fast_math(value).values()):
+            self.reject("nonzero fast-math flags on invoke require explicit flag representation")
         self.metadata(value)
         if opcode == 5:
             if self.exception_handling is None:
@@ -1817,6 +2521,8 @@ class Importer:
             callee = a.GetCalledValue(value)
             if a.IsAFunction(callee) and (a.GetIntrinsicID(callee) or a.name(callee).startswith("llvm.")):
                 self.reject("intrinsic cannot be invoked through an ordinary unwind call")
+            if self.control_effects(value, call=True) or (a.IsAFunction(callee) and self.control_effects(callee)):
+                self.reject("returns_twice invoke/EH combinations are unsupported")
             # Invoke is a CallBase but not a CallInst: no TailCallKind getter.
             signature = self.signature(a.GetCalledFunctionType(value), value, call=True)
             args = [self.operand(a.GetOperand(value, i)) for i in range(a.GetNumArgOperands(value))]
@@ -1860,6 +2566,16 @@ class Importer:
                               "target": self.block_ids[a.GetSuccessor(value, index)]})
             return {"op": "switch", "condition": imported_condition,
                     "default": self.block_ids[a.GetSuccessor(value, 0)], "cases": cases}
+        if opcode == 4:
+            count = a.GetNumSuccessors(value)
+            if a.GetNumOperands(value) != count + 1:
+                self.reject("indirectbr requires exact pinned address/destination operand layout")
+            address = a.GetOperand(value, 0)
+            if a.GetTypeKind(a.TypeOf(address)) != 12 or a.GetPointerAddressSpace(a.TypeOf(address)) != 0:
+                self.reject("indirectbr requires its original integral AS0 pointer")
+            destinations = [self.block_ids[a.GetSuccessor(value, index)] for index in range(count)]
+            self.refinements.add("LLVM indirectbr retains the original AS0 address and complete ordered destination list including repeats; target choice occurs at runtime before that edge's PHI copies; out-of-list/cross-function/undef/poison addresses are source UB, never an ordinary native call or implementation-IR interpreter")
+            return {"op": "indirect_branch", "address": self.operand(address), "destinations": destinations}
         if opcode == 7:
             return {"op": "unreachable"}
         self.reject(f"unsupported terminator opcode {opcode}")
@@ -1872,19 +2588,55 @@ class Importer:
                 or any(signature["param_attributes"])):
             self.reject("llvm.assume requires exact void(i1) signature without ABI extension attributes")
 
+    def source_abi_witness(self, value):
+        witness = {}
+        for attribute in self.attribute_records(value, 0xffffffff):
+            if self.a.IsStringAttribute(attribute):
+                key = self.a.string(self.a.GetStringAttributeKind, attribute, U)
+                if key in {"target-cpu", "target-features"}:
+                    witness[key.replace("-", "_")] = self.a.string(self.a.GetStringAttributeValue, attribute, U)
+        return witness or None
+
     def function(self, value):
         a = self.a
         self.symbol = a.name(value)
+        count = S()
+        entries = a.GlobalCopyAllMetadata(value, C.byref(count))
+        try:
+            if any(a.ValueMetadataEntriesGetKind(entries, index) == self.callees_metadata_kind
+                   for index in range(count.value)):
+                self.reject("callees metadata requires an original indirect call or invoke owner")
+        finally:
+            if entries:
+                a.DisposeValueMetadataEntries(entries)
         if not self.symbol:
             self.reject("unnamed function")
         linkage, visibility, alignment, comdat = self.global_contract(value)
         intrinsic = None
         if a.GetIntrinsicID(value) or self.symbol.startswith("llvm."):
-            if self.symbol not in self.INTRINSICS or not a.GetIntrinsicID(value):
+            if not self.supported_intrinsic(self.symbol) or not a.GetIntrinsicID(value):
                 self.reject(f"intrinsic {self.symbol} requires explicit lowering")
             intrinsic = self.symbol
+            if self.vector_reduce_add_name(intrinsic) is not None:
+                self.vector_reduce_add_identity(value, intrinsic)
+            if intrinsic in self.INTEGER_BYTE_SWAP_INTRINSICS:
+                self.integer_byte_swap_identity(value, intrinsic)
+            if intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+                self.integer_population_count_identity(value, intrinsic)
+            if intrinsic in self.INTEGER_UNARY_INTRINSICS:
+                self.integer_unary_identity(value, intrinsic)
+            if intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
+                self.integer_funnel_identity(value, intrinsic)
+            if intrinsic in self.FLOAT_INTEGRAL_INTRINSICS:
+                self.float_integral_identity(value, intrinsic)
+            if intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS:
+                self.integer_saturating_sub_identity(value, intrinsic)
             if intrinsic in self.MINMAX_INTRINSICS:
                 self.minmax_identity(value, intrinsic)
+            if intrinsic in self.FLOAT_ABS_INTRINSICS:
+                self.float_abs_identity(value, intrinsic)
+            if intrinsic == self.POINTER_MASK_INTRINSIC:
+                self.pointer_mask_identity(value, intrinsic)
         if a.GetGC(value) or a.HasPrefixData(value) or a.HasPrologueData(value):
             self.reject("unsupported function GC or prefix/prologue data")
         self.exception_handling = None
@@ -1896,6 +2648,11 @@ class Importer:
             self.refinements.add(f"{self.symbol}: retained original Itanium/DWARF personality identity without callback substitution; native instruction-precise CFI/LSDA, unwind services and complete included provider closure require independent realization")
         signature = self.signature(a.GlobalGetValueType(value), value, intrinsic=intrinsic)
         self.current_variadic = signature["variadic"]
+        self.current_abi = signature["abi"]
+        function_effects = self.control_effects(value)
+        if function_effects and (signature["abi"] != "c" or signature["variadic"]
+                or intrinsic or self.exception_handling is not None):
+            self.reject("returns_twice declaration requires an ordinary nonvariadic C function without intrinsic/EH contracts")
         if intrinsic:
             if visibility != "default":
                 self.reject("owned intrinsic requires default symbol visibility")
@@ -1908,6 +2665,7 @@ class Importer:
         self.values, self.block_ids = {}, {block: i for i, block in enumerate(blocks)}
         self.instruction_positions = {}
         self.source_sites = {}
+        self.call_target_constraints = []
         for param in params:
             self.values[param] = len(self.values)
         for block in blocks:
@@ -1930,11 +2688,18 @@ class Importer:
                     self.instruction(inst, instructions)
                     self.source_sites[inst]["instruction_count"] = len(instructions) - start
             imported.append({"id": self.block_ids[block], "instructions": instructions, "terminator": self.terminator(terminator)})
-        return {"name": self.symbol, "linkage": linkage, "visibility": visibility, "alignment": alignment, "comdat": comdat, "signature": signature,
+        function = {"name": self.symbol, "linkage": linkage, "visibility": visibility, "alignment": alignment, "comdat": comdat, "signature": signature,
                 "params": [{"id": self.values[param], "ty": signature["params"][index]}
                            for index, param in enumerate(params)],
                 "entry": 0 if blocks else None, "blocks": imported, "managed_method": None, "intrinsic": intrinsic,
-                "exception_handling": self.exception_handling}
+                "exception_handling": self.exception_handling,
+                "call_target_constraints": self.call_target_constraints}
+        if function_effects:
+            function["control_effects"] = function_effects
+        source_abi = self.source_abi_witness(value)
+        if source_abi is not None:
+            function["source_abi"] = source_abi
+        return function
 
     def module_metadata(self):
         if self.metadata_checked:
@@ -1982,8 +2747,8 @@ class Importer:
                             or a.GetIntTypeWidth(a.TypeOf(parts[0])) != 32
                             or a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32):
                         self.reject(f"unsupported module flag {key} types; expected i32 behavior and level")
-                    behavior = a.ConstIntGetZExtValue(parts[0])
-                    level = a.ConstIntGetZExtValue(parts[2])
+                    behavior = self.bounded_integer(parts[0])
+                    level = self.bounded_integer(parts[2])
                     if behavior != expected_behavior or level not in {0, 1, 2} or key in relocation_flags:
                         self.reject(f"unsupported module flag {key}={level}, behavior={behavior}")
                     relocation_flags.add(key)
@@ -1999,8 +2764,8 @@ class Importer:
                             or a.GetIntTypeWidth(a.TypeOf(parts[0])) != 32
                             or a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32):
                         self.reject("unsupported module flag uwtable types; expected i32 behavior and level")
-                    behavior = a.ConstIntGetZExtValue(parts[0])
-                    level = a.ConstIntGetZExtValue(parts[2])
+                    behavior = self.bounded_integer(parts[0])
+                    level = self.bounded_integer(parts[2])
                     if behavior != 7 or level not in {0, 1, 2} or unwind_table_seen:
                         self.reject(f"unsupported module flag uwtable={level}, behavior={behavior}")
                     unwind_table_seen = True
@@ -2016,7 +2781,7 @@ class Importer:
                         self.reject(f"unsupported target ABI {abi}")
                     self.target_abi = abi
                     self.refinements.add(f"verified RISC-V {abi} target ABI")
-                    self.refinements.add("exact RISC-V scalar ABI identity retained independently of target tuning; floating-point first-class values and operations remain unsupported; binary128 storage layout is separately audited")
+                    self.refinements.add("exact RISC-V scalar ABI identity retained independently of target tuning; floating-point values retain original formats and require independently verified target ABI classification")
                     if abi == "lp64d":
                         self.refinements.add("lp64d requires the own RV64GC D/F/Zicsr-enabled, E-disabled execution profile and matching native ELF ABI identity; absent target tuning is qualified by that profile, not inferred from the producer CPU")
                 elif key == "riscv-isa" and riscv64:
@@ -2024,14 +2789,14 @@ class Importer:
                 elif key == "Code Model" and a.IsAConstantInt(parts[2]):
                     if a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32:
                         self.reject(f"unsupported module flag {key} integer width; expected i32")
-                    number = a.ConstIntGetZExtValue(parts[2])
+                    number = self.bounded_integer(parts[2])
                     if not riscv64 or number != 3:
                         self.reject(f"unsupported module flag {key}={number}")
                     self.refinements.add("re-lowered RISC-V Code Model=3 (Medium) under the required static, non-preemptive scalar native linkage profile; own emission and linking must resolve address materialization and relocation spans; mixed precompiled code models are unsupported")
                 elif key in {"frame-pointer", "RtLibUseGOT", "SmallDataLimit"} and a.IsAConstantInt(parts[2]):
                     if a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32:
                         self.reject(f"unsupported module flag {key} integer width; expected i32")
-                    number = a.ConstIntGetZExtValue(parts[2])
+                    number = self.bounded_integer(parts[2])
                     if (key == "frame-pointer" and number not in {0, 1, 2, 4}) or (key == "RtLibUseGOT" and number not in {0, 1}):
                         self.reject(f"unsupported module flag {key}={number}")
                     self.refinements.add(f"erased scalar codegen module flag {key}={number}; own emitters use frame pointers and introduce no LLVM runtime libcalls")
@@ -2055,6 +2820,16 @@ class Importer:
                 len(parts) == 4 and bool(parts[1]) and parts[2] == "linux"
                 and parts[3] in {"gnu", "musl"}):
             self.reject("native TLS profile requires a qualified Linux GNU/musl target triple")
+        if self.wide_volatile_profile is not None:
+            for token in layout.split("-"):
+                if token.startswith(("p:", "p0:")):
+                    fields = token.split(":")
+                    if fields[1] != "64" or (len(fields) >= 5 and fields[4] != "64"):
+                        self.reject("ordinary-RAM wide volatile profile requires 64-bit AS0 pointers and indices")
+                if token.startswith("ni:") and "0" in token.split(":")[1:]:
+                    self.reject("ordinary-RAM wide volatile profile requires integral AS0 pointers")
+                if token[:1] in {"A", "G", "P"} and token[1:] != "0":
+                    self.reject("ordinary-RAM wide volatile profile requires default address spaces")
         return triple, layout
 
     def run(self, input_digest, frontend, frontend_version):
@@ -2099,6 +2874,13 @@ class Importer:
                 llvm_type = a.GlobalGetValueType(value)
                 ty = self.ty(llvm_type)
                 initializer = a.GetInitializer(value)
+                opaque = self.types[ty]["kind"] == "opaque_struct"
+                if not opaque and not a.TypeIsSized(llvm_type):
+                    self.reject("unsized global aggregates require separate lowering; only direct opaque external structure declarations are supported")
+                if opaque and a.GetPointerAddressSpace(a.TypeOf(value)) != 0:
+                    self.reject("opaque external declarations require the existing default AS0 global profile")
+                if opaque and (initializer or linkage != "external" or thread_local or comdat is not None):
+                    self.reject("opaque structure is supported only as a non-TLS external global declaration without a COMDAT or initializer")
                 init = None
                 if initializer:
                     data = bytearray(a.ABISizeOfType(self.layout, llvm_type))
@@ -2107,7 +2889,7 @@ class Importer:
                     init = {"bytes": list(data), "relocations": relocations}
                 global_ = {"name": self.symbol, "ty": ty, "linkage": linkage, "visibility": visibility,
                                  "comdat": comdat,
-                                 "alignment": alignment or a.ABIAlignmentOfType(self.layout, llvm_type),
+                                 "alignment": alignment if opaque else (alignment or a.ABIAlignmentOfType(self.layout, llvm_type)),
                                   "constant": bool(a.IsGlobalConstant(value)), "thread_local": thread_local, "initializer": init}
                 if tls_model is not None:
                     global_["tls_model"] = tls_model
@@ -2129,6 +2911,9 @@ class Importer:
             if self.atomic_profile is not None:
                 target["atomic_profile"] = "coherent_ram_v1"
                 self.refinements.add("explicit coherent-ram-v1 atomic realization profile retained independently of source orderings, synchronization scopes and volatility; ordinary coherent RAM only, no MMIO; masked subword realization requires the complete containing word mapped as coherent RAM; RV LR/SC realization requires the platform's eventuality-region property, and a constrained loop alone does not establish liveness or starvation freedom; native realization, threading providers and dependency closure are not inferred")
+            if self.wide_volatile_profile is not None:
+                target["wide_volatile_profile"] = "ordinary_ram_split_v1"
+                self.refinements.add("explicit ordinary-ram-split-v1 wide volatile realization contract retained independently of each original operation's type, volatility, width and alignment; ordinary RAM only, no MMIO, no indivisibility or atomicity promise; target-sized ordered parts may realize one source access; no native execution, provider closure or platform qualification inferred")
             if self.atomic_sync_scope_ids:
                 self.refinements.add("atomic synchronization scopes retain exact parsed LLVM context-local IDs and arbitrary name bytes from verified LLVM bitcode serialization; original input_sha256 binds reader scope-ID normalization; IDs are not global linkage or capability identities")
                 if self.atomic_profile is None:
@@ -2391,7 +3176,7 @@ def normalize_legacy_lifetime_artifacts(a, context, module, audit):
 
 def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                   frontend="LLVM IR", frontend_version="producer version not declared", tls_profile=None,
-                  atomic_profile=None):
+                  atomic_profile=None, wide_volatile_profile=None):
     """Return a fully traversed supported module; reject unsupported whole units."""
     path = Path(path)
     data = path.read_bytes()
@@ -2413,7 +3198,7 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
             a.DisposeMessage(message)
         if invalid:
             raise ImportFailure(detail or "LLVM verification failed", "llvm-verify")
-        importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile)
+        importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile, wide_volatile_profile=wide_volatile_profile)
         importer.module_metadata()
         importer.check_target_profile()
         audit = audit_verified_module(a, module)
@@ -2472,11 +3257,13 @@ def main():
     parser.add_argument("--frontend-version", default="producer version not declared")
     parser.add_argument("--tls-profile")
     parser.add_argument("--atomic-profile")
+    parser.add_argument("--wide-volatile-profile")
     args = parser.parse_args()
     try:
         module = import_module(args.input, args.llvm_library, expected_sha256=args.llvm_sha256,
                                frontend=args.frontend, frontend_version=args.frontend_version,
-                               tls_profile=args.tls_profile, atomic_profile=args.atomic_profile)
+                               tls_profile=args.tls_profile, atomic_profile=args.atomic_profile,
+                               wide_volatile_profile=args.wide_volatile_profile)
         encoded = json.dumps(module, indent=2) + "\n"
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)

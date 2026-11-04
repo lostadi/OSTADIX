@@ -7,6 +7,10 @@ cd "$ROOT"
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/ostadix-world-resource-keys.XXXXXX")
 trap 'rm -rf -- "$work_dir"' EXIT
 transcript="$work_dir/transcript.log"
+smoke_source="$work_dir/python-one-plus-one.O"
+cat >"$smoke_source" <<'SMOKE_SOURCE'
+python^( __oval_result__ = 1 + 1 )_python
+SMOKE_SOURCE
 
 run() {
     "$@" 2>&1 | tee -a "$transcript"
@@ -73,7 +77,7 @@ mark 'World ResourceKey governed/ambient grounding projection: PASS'
 run cargo build --locked --package o-lang --bin olangc
 cli_log="$work_dir/world-resource-keys-cli.log"
 run_logged "$cli_log" "$ROOT/target/debug/olangc" \
-    "$ROOT/examples/hello.O" \
+    "$smoke_source" \
     --target ir \
     --grounding \
     --world-id desk \

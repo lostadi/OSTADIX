@@ -304,7 +304,7 @@ const SERVICE: usize = 1;
 const SUPERVISOR: usize = 2;
 const OBSERVER: usize = 3;
 const QUOTA: usize = 16;
-const IMAGE_LENGTH: usize = 62104;
+const IMAGE_LENGTH: usize = 58320;
 const SCALAR_MASK: u64 = 0x00ff_ffff_ffff_ffff;
 const INFINITE_DEADLINE: u64 = 0xffff_ffff_ffff_ffff;
 
@@ -352,52 +352,52 @@ static M7_PATH_IDS: [u64; 4] = [
     0x8c3e_d9fc_1274_56bf,
 ];
 
-const IMAGE_ID: u64 = 0xf592_4eeb_64b5_a3d3;
-const IMAGE_DIGEST_0: u64 = 0xd3a3_b564_eb4e_92f5;
-const IMAGE_DIGEST_1: u64 = 0x237b_ae0f_5d0b_e232;
-const IMAGE_DIGEST_2: u64 = 0xea72_8bb5_4e71_e23a;
-const IMAGE_DIGEST_3: u64 = 0x1744_3326_4d8a_f007;
-const IMAGE_SHA_0: u64 = 0xf592_4eeb_64b5_a3d3;
-const IMAGE_SHA_1: u64 = 0x32e2_0b5d_0fae_7b23;
-const IMAGE_SHA_2: u64 = 0x3ae2_714e_b58b_72ea;
-const IMAGE_SHA_3: u64 = 0x07f0_8a4d_2633_4417;
-const BOUNDED_IMAGE_LENGTH: usize = 65152;
-const BOUNDED_IMAGE_ID: u64 = 0x5b9d_2526_da2a_bd75;
-const BOUNDED_IMAGE_DIGEST_0: u64 = 0x75bd_2ada_2625_9d5b;
-const BOUNDED_IMAGE_DIGEST_1: u64 = 0x2359_ed0d_77b4_90ec;
-const BOUNDED_IMAGE_DIGEST_2: u64 = 0xb16f_73ad_2f13_56d8;
-const BOUNDED_IMAGE_DIGEST_3: u64 = 0x8798_57f1_341c_243f;
-const BOUNDED_IMAGE_SHA_0: u64 = 0x5b9d_2526_da2a_bd75;
-const BOUNDED_IMAGE_SHA_1: u64 = 0xec90_b477_0ded_5923;
-const BOUNDED_IMAGE_SHA_2: u64 = 0xd856_132f_ad73_6fb1;
-const BOUNDED_IMAGE_SHA_3: u64 = 0x3f24_1c34_f157_9887;
+const IMAGE_ID: u64 = 0xbad3_c789_64ac_6608;
+const IMAGE_DIGEST_0: u64 = 0x0866_ac64_89c7_d3ba;
+const IMAGE_DIGEST_1: u64 = 0xec1f_dcf0_1085_574b;
+const IMAGE_DIGEST_2: u64 = 0x9319_f9cd_a33c_e559;
+const IMAGE_DIGEST_3: u64 = 0x5d7f_94a4_1226_b320;
+const IMAGE_SHA_0: u64 = 0xbad3_c789_64ac_6608;
+const IMAGE_SHA_1: u64 = 0x4b57_8510_f0dc_1fec;
+const IMAGE_SHA_2: u64 = 0x59e5_3ca3_cdf9_1993;
+const IMAGE_SHA_3: u64 = 0x20b3_2612_a494_7f5d;
+const BOUNDED_IMAGE_LENGTH: usize = 61576;
+const BOUNDED_IMAGE_ID: u64 = 0x9f83_25ed_73a1_3c67;
+const BOUNDED_IMAGE_DIGEST_0: u64 = 0x673c_a173_ed25_839f;
+const BOUNDED_IMAGE_DIGEST_1: u64 = 0xf6f3_3f7c_18f5_01c3;
+const BOUNDED_IMAGE_DIGEST_2: u64 = 0xd8f5_fc69_b00f_e7a4;
+const BOUNDED_IMAGE_DIGEST_3: u64 = 0xb087_41ea_c984_ce5f;
+const BOUNDED_IMAGE_SHA_0: u64 = 0x9f83_25ed_73a1_3c67;
+const BOUNDED_IMAGE_SHA_1: u64 = 0xc301_f518_7c3f_f3f6;
+const BOUNDED_IMAGE_SHA_2: u64 = 0xa4e7_0fb0_69fc_f5d8;
+const BOUNDED_IMAGE_SHA_3: u64 = 0x5fce_84c9_ea41_87b0;
 
 // Updated by the deterministic Mode 25 artifact builder. Keeping all four
 // words in source makes the boot-time admission decision independent of the
 // host path used to produce the embedded image.
-const LINUX_IMAGE_LENGTH: usize = 60104;
-const LINUX_IMAGE_ID: u64 = 0xb380_e5cb_be50_403b;
-const LINUX_IMAGE_DIGEST_0: u64 = 0x3b40_50be_cbe5_80b3;
-const LINUX_IMAGE_DIGEST_1: u64 = 0x224f_c511_fbda_8bd5;
-const LINUX_IMAGE_DIGEST_2: u64 = 0x4898_c82f_74cc_f001;
-const LINUX_IMAGE_DIGEST_3: u64 = 0xe886_286e_a28b_a07f;
-const LINUX_IMAGE_SHA_0: u64 = 0xb380_e5cb_be50_403b;
-const LINUX_IMAGE_SHA_1: u64 = 0xd58b_dafb_11c5_4f22;
-const LINUX_IMAGE_SHA_2: u64 = 0x01f0_cc74_2fc8_9848;
-const LINUX_IMAGE_SHA_3: u64 = 0x7fa0_8ba2_6e28_86e8;
+const LINUX_IMAGE_LENGTH: usize = 60648;
+const LINUX_IMAGE_ID: u64 = 0x71cf_5cd3_f68d_8d42;
+const LINUX_IMAGE_DIGEST_0: u64 = 0x428d_8df6_d35c_cf71;
+const LINUX_IMAGE_DIGEST_1: u64 = 0xaf5a_a2ef_f765_494c;
+const LINUX_IMAGE_DIGEST_2: u64 = 0xbe6d_abf8_771c_3d0f;
+const LINUX_IMAGE_DIGEST_3: u64 = 0x2666_94c0_6278_82c8;
+const LINUX_IMAGE_SHA_0: u64 = 0x71cf_5cd3_f68d_8d42;
+const LINUX_IMAGE_SHA_1: u64 = 0x4c49_65f7_efa2_5aaf;
+const LINUX_IMAGE_SHA_2: u64 = 0x0f3d_1c77_f8ab_6dbe;
+const LINUX_IMAGE_SHA_3: u64 = 0xc882_7862_c094_6626;
 
 // Filled from the deterministic Mode 26 OVFS build before the live gate is
 // admitted.  Mode 25's immutable package identity above remains unchanged.
-const M7_IMAGE_LENGTH: usize = 92872;
-const M7_IMAGE_ID: u64 = 0x920b_014c_fb13_3f03;
-const M7_IMAGE_DIGEST_0: u64 = 0x033f_13fb_4c01_0b92;
-const M7_IMAGE_DIGEST_1: u64 = 0xd2b1_e56f_da61_673b;
-const M7_IMAGE_DIGEST_2: u64 = 0x052c_1188_bf13_e62b;
-const M7_IMAGE_DIGEST_3: u64 = 0xd9eb_bee1_82f9_0aec;
-const M7_IMAGE_SHA_0: u64 = 0x920b_014c_fb13_3f03;
-const M7_IMAGE_SHA_1: u64 = 0x3b67_61da_6fe5_b1d2;
-const M7_IMAGE_SHA_2: u64 = 0x2be6_13bf_8811_2c05;
-const M7_IMAGE_SHA_3: u64 = 0xec0a_f982_e1be_ebd9;
+const M7_IMAGE_LENGTH: usize = 97512;
+const M7_IMAGE_ID: u64 = 0xc150_1f63_3640_d92a;
+const M7_IMAGE_DIGEST_0: u64 = 0x2ad9_4036_631f_50c1;
+const M7_IMAGE_DIGEST_1: u64 = 0xeefb_8aaa_ba84_7d8b;
+const M7_IMAGE_DIGEST_2: u64 = 0xcc38_91f7_d440_9aca;
+const M7_IMAGE_DIGEST_3: u64 = 0xc30a_8f67_0e3c_f708;
+const M7_IMAGE_SHA_0: u64 = 0xc150_1f63_3640_d92a;
+const M7_IMAGE_SHA_1: u64 = 0x8b7d_84ba_aa8a_fbee;
+const M7_IMAGE_SHA_2: u64 = 0xca9a_40d4_f791_38cc;
+const M7_IMAGE_SHA_3: u64 = 0x08f7_3c0e_678f_0ac3;
 
 static IMAGE_MESSAGE: [u8; 28] = b"M6A OVFS image import: PASS\n";
 static LOAD_MESSAGE: [u8; 34] = b"M6A four packaged ELF loads: PASS\n";

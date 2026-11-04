@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m4-native}"
 TIMEOUT_SECONDS=20
+DIGEST="310049d696211708b9240046d4540ed85e72046b67fb6a150378e00ec19359ba"
+IMAGE_BYTES=57960
+IMAGE_RECORD="$BUILD_DIR/m4-image.path"
 
 if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
   echo "error: qemu-system-x86_64 is not installed" >&2
@@ -12,6 +15,20 @@ fi
 
 OCORE_PROBE_MODE=15 OCORE_BUILD_DIR="$BUILD_DIR" \
   "$ROOT/ocore/kernel/build.sh" >/dev/null
+
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: M4 build did not record one exact embedded OVFS path" >&2
+  exit 1
+fi
+IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
+if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
+  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
+  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
+  echo "error: M4 embedded OVFS artifact identity is not canonical" >&2
+  exit 1
+fi
+python3 "$ROOT/ocore/user/verify_ovfs.py" --expect-m4 "$IMAGE" >/dev/null
 
 # The personalities must arrive only as OVFS payload bytes. A kernel symbol
 # for either source module would mean the native-loader gate was bypassed.

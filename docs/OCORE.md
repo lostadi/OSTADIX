@@ -1910,8 +1910,8 @@ filesystem.
 M6A is a separate bounded personality-supervision slice in mode 18.
 `build-m6-artifacts.sh` deterministically packages a test client, native
 personality daemon, native supervisor daemon, and unrelated observer at exact
-`/sbin/m6-*.elf` paths in a 62,104-byte immutable OVFS image. Its SHA-256 is
-`f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417`.
+`/sbin/m6-*.elf` paths in a 58,320-byte immutable OVFS image. Its SHA-256 is
+`bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d`.
 `smoke-personality-qemu.sh` checks the artifact identity and absence of the four
 user modules from kernel symbols before boot. In QEMU, the CPL3 supervisor
 performs health-before-publication, cancels one held request, observes the
@@ -1965,8 +1965,8 @@ Mode 24 is a bounded M6B vertical slice. It composes the mode-19 view
 mechanism with the existing M6A request router and four independently packaged
 CPL3 principals. `build-m6b-live-artifacts.sh` deterministically rebuilds a
 client, personality daemon, supervisor, and unrelated observer into a
-65,152-byte OVFS image whose SHA-256 is
-`5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887`.
+61,576-byte OVFS image whose SHA-256 is
+`9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0`.
 The client issues each call once through syscall 17; the live corpus uses one
 exact four-byte `INOUT` view. The daemon discovers only the view correlated to
 the received request, accesses it through syscalls 18-20, and completes it
@@ -1998,8 +1998,8 @@ packages exactly `/bin/linux-minimal.elf`, `/sbin/linux-personalityd.elf`,
 OVFS image. The foreign payload is independently pinned at 8,520 bytes with
 SHA-256
 `06240b6a840ed4262835aceff64a94f6ebd77838666f05eb7415d9a0d1b5868d`;
-the complete image is 60,104 bytes with SHA-256
-`b380e5cbbe50403bd58bdafb11c54f2201f0cc742fc898487fa08ba26e2886e8`.
+the complete image is 60,648 bytes with SHA-256
+`71cf5cd3f68d8d424c4965f7efa25aaf0f3d1c77f8ab6dbec8827862c0946626`.
 The live gate pins both identities and rejects any of those packaged principals
 linked into the kernel as source modules.
 
@@ -2042,8 +2042,8 @@ exact 8,520-byte Linux x86-64 ELF and adds an unprivileged native 9P2000 server,
 native supervisor, and independently linked native Plan-9-style client. The
 deterministic builder packages exactly `/bin/linux-minimal.elf`,
 `/sbin/linux-9pd.elf`, `/sbin/linux-supervisord.elf`, and
-`/bin/plan9-namespace-client.elf` into a 92,872-byte OVFS image with SHA-256
-`920b014cfb133f033b6761da6fe5b1d22be613bf88112c05ec0af982e1beebd9`.
+`/bin/plan9-namespace-client.elf` into a 97,512-byte OVFS image with SHA-256
+`c1501f633640d92a8b7d84baaa8afbeeca9a40d4f79138cc08f73c0e678f0ac3`.
 The builder double-compiles each native principal, rejects dynamic or W+X ELF
 profiles, double-packs the image, and runs an independent exact-wire oracle
 before the image is admitted.
@@ -2088,7 +2088,7 @@ Mode 31 is the bounded M7B-1 mechanism gate. Run it with:
 ./ocore/kernel/smoke-m7b-logical-read-qemu.sh
 ```
 
-The deterministic 78,304-byte OVFS contains one requester-local client/router
+The deterministic 82,400-byte OVFS contains one requester-local client/router
 ELF, one provider ELF instantiated as two distinct generation-bound CPL3
 provider principals, and one exact 20-byte immutable object. Before the request,
 O-core admits distinct A/B provider identities, service bindings, endpoints,

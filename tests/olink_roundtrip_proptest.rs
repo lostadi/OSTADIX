@@ -51,6 +51,9 @@ fn content_strategy() -> impl Strategy<Value = String> {
         prop_oneof![
             "[a-zA-Z0-9 _=+*/.,;:{}'\"-]{0,30}",
             Just("\n".to_string()),
+            Just("\r\n".to_string()),
+            Just("#".to_string()),
+            Just("# ── embedded/file.O ──\n# o-link-section-bytes: 999\n".to_string()),
             Just("$HOME".to_string()),
             Just("$value".to_string()),
             Just("python^(".to_string()),
@@ -66,6 +69,42 @@ fn content_strategy() -> impl Strategy<Value = String> {
         0..10,
     )
     .prop_map(|parts| parts.concat())
+}
+
+fn o_document_strategy() -> impl Strategy<Value = String> {
+    (
+        any::<bool>(),
+        prop::collection::vec(
+            prop_oneof![
+                "[a-zA-Z0-9 _#=-]{0,30}",
+                Just("lambda λ and snowman ☃".to_string()),
+                Just("── embedded/file.O ──".to_string()),
+                Just("o-link-section-bytes: 999".to_string()),
+            ],
+            0..6,
+        ),
+        prop_oneof![Just("\n"), Just("\r\n")],
+        any::<bool>(),
+    )
+        .prop_map(|(inner_shebang, comments, newline, final_newline)| {
+            // Generate valid .O documents: literal mode still parses the bundle.
+            // Comment data includes marker-like text; the nested O stays intentional.
+            let mut source = String::new();
+            if inner_shebang {
+                source.push_str("#!/usr/bin/env o");
+                source.push_str(newline);
+            }
+            for comment in comments {
+                source.push_str("# ");
+                source.push_str(&comment);
+                source.push_str(newline);
+            }
+            source.push_str("python[0]^(print('literal λ'))_python[0]");
+            if final_newline {
+                source.push_str(newline);
+            }
+            source
+        })
 }
 
 fn write_tree(root: &Path, files: &BTreeMap<String, String>) {
@@ -129,12 +168,104 @@ fn setup(files: &BTreeMap<String, String>, symlink_mode: u8) -> (TempDir, PathBu
     (temp, source, expected)
 }
 
+fn assert_exact_literal_round_trip(
+    files: &BTreeMap<String, String>,
+    symlink_mode: u8,
+    outer_shebang: bool,
+) {
+    let (temp, source, expected) = setup(files, symlink_mode);
+    let combined = temp.path().join("combined.O");
+    let restored = temp.path().join("restored");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_o-link"));
+    command.arg("--literal").arg(&source).arg("-o").arg(&combined);
+    if outer_shebang {
+        command.arg("--shebang");
+    }
+    run(&mut command);
+    let linked = fs::read(&combined).unwrap();
+    assert_eq!(linked.starts_with(b"#!/usr/bin/env o\n"), outer_shebang);
+
+    run(
+        Command::new(env!("CARGO_BIN_EXE_o-unlink"))
+            .arg(&combined)
+            .arg("-o")
+            .arg(&restored),
+    );
+    for (relative, original) in files {
+        assert_eq!(
+            fs::read(restored.join(relative)).unwrap(),
+            original.as_bytes(),
+            "literal bytes changed for {relative}, outer shebang={outer_shebang}"
+        );
+    }
+    let diff = Command::new("diff")
+        .arg("-r")
+        .arg(&expected)
+        .arg(&restored)
+        .output()
+        .unwrap();
+    assert!(
+        diff.status.success(),
+        "round-trip file inventory or bytes changed:\n{}",
+        String::from_utf8_lossy(&diff.stdout)
+    );
+}
+
+#[test]
+fn literal_o_shebang_only_round_trips_without_final_newline() {
+    let files = BTreeMap::from([("only.O".to_string(), "#!/usr/bin/env o".to_string())]);
+    for outer_shebang in [false, true] {
+        assert_exact_literal_round_trip(&files, 0, outer_shebang);
+    }
+}
+
+#[test]
+fn literal_o_inner_shebang_round_trips_with_and_without_outer_shebang() {
+    let files = BTreeMap::from([(
+        "inner.O".to_string(),
+        "#!/usr/bin/env o\npython[0]^(print('nested O'))_python[0]".to_string(),
+    )]);
+    for outer_shebang in [false, true] {
+        assert_exact_literal_round_trip(&files, 0, outer_shebang);
+    }
+}
+
+#[test]
+fn literal_o_crlf_unicode_and_embedded_markers_round_trip_exactly() {
+    let files = BTreeMap::from([(
+        "nested/λ_program.O".to_string(),
+        concat!(
+            "#!/usr/bin/env o\r\n",
+            "# λ and snowman ☃\r\n",
+            "# ── embedded/file.O ──\r\n",
+            "# o-link-section-bytes: 999\r\n",
+            "python[0]^(print('no final newline'))_python[0]"
+        )
+        .to_string(),
+    )]);
+    for outer_shebang in [false, true] {
+        assert_exact_literal_round_trip(&files, 0, outer_shebang);
+    }
+}
+
 proptest! {
     #![proptest_config(ProptestConfig {
         cases: 128,
         failure_persistence: None,
         ..ProptestConfig::default()
     })]
+
+    #[test]
+    fn generated_o_documents_round_trip_with_optional_outer_shebang(
+        relative in relative_path_strategy(),
+        source in o_document_strategy(),
+        outer_shebang in any::<bool>(),
+        symlink_mode in 0u8..4,
+    ) {
+        let relative = PathBuf::from(relative).with_extension("O");
+        let files = BTreeMap::from([(relative.to_str().unwrap().to_string(), source)]);
+        assert_exact_literal_round_trip(&files, symlink_mode, outer_shebang);
+    }
 
     #[test]
     fn generated_file_trees_round_trip_with_empty_recursive_diff(

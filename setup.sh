@@ -181,6 +181,12 @@ if $PERSIST_ENV && ! $WRITE_ENV; then
   exit 2
 fi
 
+if $DRY_RUN || $CHECK_ONLY; then
+  # Python may cache imports under HOME (Apple's system Python does so before
+  # our helpers run). Read-only planning must suppress those writes as well.
+  export PYTHONDONTWRITEBYTECODE=1
+fi
+
 if $FULL; then
   if ! $SKIP_OCORE; then WITH_OCORE=true; fi
   if ! $SKIP_NIX; then
@@ -1581,6 +1587,16 @@ verify_ocore() {
   "$PROJECT_ROOT/ocore/kernel/smoke-qemu.sh"
 }
 
+verify_python_smoke() (
+  # Installation must not depend on mutable examples or optional Lisp/JS tools.
+  local smoke_dir output
+  smoke_dir="$(mktemp -d "${TMPDIR:-/tmp}/ostadix-python-smoke.XXXXXX")" || return 1
+  trap 'rm -rf -- "$smoke_dir"' EXIT
+  printf 'O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n' >"$smoke_dir/program.O"
+  output="$(O_BACKENDS_DIR="$PROJECT_ROOT/backends" "$@" "$smoke_dir/program.O")" || return 1
+  [[ "$output" == "2" || "$output" == "[number] 2" ]]
+)
+
 verify_runnable() {
   if ! $VERIFY; then return; fi
   if $DRY_RUN; then
@@ -1598,7 +1614,7 @@ verify_runnable() {
   rm -f "$verify_bin"
 
   echo -n "Rust release interpreter: "
-  if target/release/O examples/hello.O 2>/dev/null | grep -qE "(2|Int)"; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
+  if verify_python_smoke target/release/O 2>/dev/null; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
 
   echo -n "Installed O on PATH: "
   if has_cmd O && "$(command -v O)" examples/bindings.O 2>/dev/null | grep -q "43"; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
@@ -1659,7 +1675,7 @@ verify_runnable() {
   rm -f "$verify_bin" 2>/dev/null || true
 
   echo -n "C interp: "
-  if [[ -x ./c_cpp/O ]] && ./c_cpp/O examples/hello.O ./backends 2>/dev/null | grep -q "2"; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
+  if [[ -x ./c_cpp/O ]] && verify_python_smoke ./c_cpp/O 2>/dev/null; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
 
   echo -n "C AOT (olangc): "
   if [[ -x ./c_cpp/olangc ]] && ./c_cpp/olangc examples/trailing_expr.O -o "$verify_bin" 2>&1 | tail -1 >/dev/null && "$verify_bin" 2>/dev/null | grep -q "42"; then
@@ -1670,7 +1686,7 @@ verify_runnable() {
   rm -f "$verify_bin" 2>/dev/null || true
 
   echo -n "Python: "
-  if python3 -m o_lang examples/hello.O 2>/dev/null | grep -q "2"; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
+  if verify_python_smoke python3 -m o_lang 2>/dev/null; then echo "OK"; ((ok+=1)); else echo "FAIL"; ((fail+=1)); fi
 
   echo "Verification: $ok passed, $fail failed."
   if [[ $fail -gt 0 ]]; then

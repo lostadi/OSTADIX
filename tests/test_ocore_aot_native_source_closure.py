@@ -220,6 +220,42 @@ class NativeAotSourceClosureTests(unittest.TestCase):
         edges = require_source_closure(embedded_native_sources())
         self.assertTrue(edges, "closure analysis discovered no real Rust dependencies")
 
+    def test_nonlocal_control_source_is_required_by_generated_core(self):
+        files = embedded_native_sources()
+        edges = require_source_closure(files)
+        self.assertIn(("mod.rs", "path-module", "native_nonlocal.rs"), edges)
+        del files["native_nonlocal.rs"]
+        with self.assertRaisesRegex(AssertionError, "missing native_nonlocal.rs"):
+            require_source_closure(files)
+
+    def test_vector_codegen_source_is_required_by_generated_core(self):
+        files = embedded_native_sources()
+        edges = require_source_closure(files)
+        self.assertIn(("native_codegen.rs", "include", "native_vector_codegen.rs"), edges)
+        del files["native_vector_codegen.rs"]
+        self.assertNotIn("native_vector_codegen.rs", files)
+        with self.assertRaisesRegex(AssertionError, "missing native_vector_codegen.rs"):
+            require_source_closure(files)
+
+    def test_machine_contract_sources_are_both_required_by_generated_core(self):
+        files = embedded_native_sources()
+        edges = require_source_closure(files)
+        required = ("native_machine_ir.rs", "native_machine_verify.rs")
+        for name in required:
+            self.assertIn(name, files)
+            self.assertIn(("mod.rs", "path-module", name), edges)
+        for name in required:
+            with self.subTest(source=name):
+                missing = dict(files)
+                del missing[name]
+                self.assertNotIn(name, missing)
+                other = next(candidate for candidate in required if candidate != name)
+                self.assertIn(other, missing)
+                reason = (f"generated native source closure missing {name}: "
+                          "mod.rs references it via path-module")
+                with self.assertRaisesRegex(AssertionError, "^" + re.escape(reason) + "$"):
+                    require_source_closure(missing)
+
     def test_derived_child_dependency_detects_missing_file_without_a_filename_inventory(self):
         files = {
             "mod.rs": '#[path = "driver.rs"] pub mod driver;',
@@ -260,6 +296,41 @@ fn f<'a>(s: &'a str) { let _ = ('x', s); }
         for source in ('include!(concat!("part", ".rs"));', 'mod implicit;'):
             with self.subTest(source=source), self.assertRaisesRegex(AssertionError, "explicit closure analysis"):
                 require_source_closure({"mod.rs": source})
+
+
+    def test_whole_unit_and_assembly_reader_sources_are_both_required_by_generated_core(self):
+        files = embedded_native_sources()
+        edges = require_source_closure(files)
+        required = ("native_machine_asm_reader.rs", "native_machine_unit.rs")
+        for name in required:
+            self.assertIn(name, files)
+            self.assertIn(("mod.rs", "path-module", name), edges)
+        for name in required:
+            with self.subTest(source=name):
+                missing = dict(files)
+                del missing[name]
+                self.assertNotIn(name, missing)
+                other = next(candidate for candidate in required if candidate != name)
+                self.assertIn(other, missing)
+                reason = (f"generated native source closure missing {name}: "
+                          "mod.rs references it via path-module")
+                with self.assertRaisesRegex(AssertionError, "^" + re.escape(reason) + "$"):
+                    require_source_closure(missing)
+
+    def test_engine_and_generated_native_roots_share_exact_registered_machine_source(self):
+        files = embedded_native_sources()
+        core_path = ROOT / "crates/ostadix-api/src/ocore/native_core.rs"
+        engine_root = ROOT / "crates/ostadix-api/src/ocore/mod.rs"
+        self.assertEqual(files["mod.rs"], core_path.read_text())
+        root_tokens = rust_tokens(engine_root.read_text())
+        include = [("word", "include"), ("punctuation", "!"), ("punctuation", "("),
+                   ("string", "native_core.rs"), ("punctuation", ")")]
+        matches = sum(root_tokens[i:i + len(include)] == include
+                      for i in range(len(root_tokens) - len(include) + 1))
+        self.assertEqual(matches, 1, "engine must include the same native_core root exactly once")
+        edges = require_source_closure(files)
+        for name in ("native_machine_asm_reader.rs", "native_machine_unit.rs"):
+            self.assertIn(("mod.rs", "path-module", name), edges)
 
 
 if __name__ == "__main__":

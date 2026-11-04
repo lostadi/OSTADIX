@@ -1390,8 +1390,8 @@ merge:
             "ifunc": "@indirect = ifunc i32 (), ptr @resolve\ndefine ptr @resolve() { ret ptr null }",
             "TLS": "@thread = thread_local global i32 0",
             "address space": "@foreign = addrspace(1) global i32 0",
-            "float declaration": "declare double @unsupported(double)",
-            "float hidden in poison aggregate": "@mixed = global {i32, double} {i32 0, double poison}",
+            "unsupported half declaration": "declare half @unsupported(half)",
+            "unsupported half hidden in poison aggregate": "@mixed = global {i32, half} {i32 0, half poison}",
             "constructor list": "@llvm.global_ctors = appending global [1 x {i32, ptr, ptr}] [{i32, ptr, ptr} {i32 65535, ptr @initialize, ptr null}]\ndeclare void @initialize()",
         }
         for name, body in cases.items():
@@ -1504,10 +1504,10 @@ define i32 @entry() {
 
     def test_poison_or_dead_results_do_not_hide_unsupported_operations(self):
         cases = {
-            "floating add": "define i32 @entry() { %unused = fadd double poison, poison\n ret i32 0 }",
-            "wide integer": "define i32 @entry() { %unused = add i128 poison, 1\n ret i32 0 }",
+            "unsupported half add": "define i32 @entry() { %unused = fadd half poison, poison\n ret i32 0 }",
+            "unsupported integer width": "define i32 @entry() { %unused = add i129 poison, 1\n ret i32 0 }",
             "vector": "define i32 @entry() { %unused = add <2 x i32> poison, poison\n ret i32 0 }",
-            "aggregate extraction hidden float": "define i32 @entry() { %unused = extractvalue {i32, double} poison, 0\n ret i32 0 }",
+            "aggregate extraction hidden unsupported PPC128": "define i32 @entry() { %unused = extractvalue {i32, ppc_fp128} poison, 0\n ret i32 0 }",
             "intrinsic": "declare i32 @llvm.ctpop.i32(i32)\ndefine i32 @entry() { %unused = call i32 @llvm.ctpop.i32(i32 poison)\n ret i32 0 }",
             "dynamic alloca": "define i32 @entry(i64 %size) { %unused = alloca i8, i64 %size\n ret i32 0 }",
             "inline assembly": 'define void @entry() { call void asm sideeffect "nop", ""()\n ret void }',
@@ -1711,7 +1711,7 @@ define noundef i32 @entry(i32 noundef %value) sanitize_memory {
         flags = self.clang22_frontend_flags()
         fixture = ROOT / "tests/fixtures/ocore_import_scalar.c"
         variants = {
-            "unsupported_float": "double unsupported_float(double value) { return value + 1.0; }\n",
+            "unsupported_vector": "typedef double v2d __attribute__((vector_size(16))); v2d unsupported_vector(v2d value) { return value + value; }\n",
             "unsupported_tls": "__thread unsigned long unsupported_tls;\n",
         }
         for symbol, declaration in variants.items():
@@ -1737,7 +1737,8 @@ define noundef i32 @entry(i32 noundef %value) sanitize_memory {
                             if symbol == "unsupported_tls":
                                 self.assertRegex(llvm_ir, r"@unsupported_tls =[^\n]*thread_local")
                             else:
-                                self.assertRegex(llvm_ir, r"define[^\n]*double @unsupported_float\(")
+                                self.assertRegex(llvm_ir, r"define[^\n]*@unsupported_vector\(")
+                                self.assertIn("<2 x double>", llvm_ir)
                         else:
                             self.assertTrue(source.read_bytes().startswith(b"BC\xc0\xde"))
                         with self.assertRaises(importer.ImportFailure) as raised:
@@ -2016,6 +2017,300 @@ define i32 @entry(i8 %byte) {
         self.assertTrue(completed.stderr.strip())
         self.assertEqual(json.loads(completed.stderr)["error"]["stage"], "parse")
         self.assertFalse(output.exists(), "invalid import published a partial artifact")
+
+    def test_pointer_mask_preserves_original_base_mask_declarations_globals_and_relocations_all_three_isas(self):
+        from tests import test_ocore_llvm_memory_import as memory
+        body = """
+@anchor = global i64 7, align 8
+@slot = global ptr @anchor, align 8
+declare ptr @llvm.ptrmask.p0.i64(ptr, i64)
+declare i64 @unused_dependency(i64)
+define ptr @mask_value(ptr %base, i64 %mask) {
+  %r = call ptr @llvm.ptrmask.p0.i64(ptr %base, i64 %mask)
+  ret ptr %r
+}
+define ptr @mask_global() {
+  %r = call ptr @llvm.ptrmask.p0.i64(ptr @anchor, i64 -16)
+  ret ptr %r
+}
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                source = self.write(body, triple=triple, layout=LAYOUT + "-i128:128")
+                binary = memory.LlvmMemoryImportTests.bitcode(self, source)
+                for path in (source, binary):
+                    module = importer.import_module(path, library_path=self.library, expected_sha256=self.library_sha256)
+                    self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+                    self.assertEqual({fn["name"] for fn in module["functions"]}, {"mask_value", "mask_global", "llvm.ptrmask.p0.i64", "unused_dependency"})
+                    self.assertEqual({g["name"] for g in module["globals"]}, {"anchor", "slot"})
+                    self.assertEqual(module["provenance"]["source_function_count"], 4)
+                    self.assertEqual(module["provenance"]["source_global_count"], 2)
+                    declaration = self.function(module, "llvm.ptrmask.p0.i64")
+                    self.assertEqual(declaration["intrinsic"], declaration["name"])
+                    self.assertIsNone(declaration["entry"])
+                    function = self.function(module, "mask_value")
+                    operations = self.operations(function)
+                    self.assertEqual(operations, [{"op":"ptr_mask", "pointer":{"kind":"value", "id":function["params"][0]["id"]}, "mask":{"kind":"value", "id":function["params"][1]["id"]}}])
+                    global_operation = self.operations(self.function(module, "mask_global"))[0]
+                    self.assertEqual(global_operation["op"], "ptr_mask")
+                    self.assertEqual(global_operation["pointer"]["name"], "anchor")
+                    self.assertEqual(global_operation["mask"]["bits"], str((1 << 64) - 16))
+                    slot = next(g for g in module["globals"] if g["name"] == "slot")
+                    self.assertEqual(slot["initializer"]["relocations"][0]["symbol"], "anchor")
+                    self.assertTrue(any("original underlying object/provenance" in item for item in module["provenance"]["refinements"]))
+
+    def test_pointer_mask_rejects_foreign_address_spaces_index_widths_and_intrinsic_escapes(self):
+        self.reject("declare ptr addrspace(1) @llvm.ptrmask.p1.i64(ptr addrspace(1), i64)",
+                    layout=LAYOUT + "-p1:64:64-ni:1")
+        self.reject("declare ptr @llvm.ptrmask.p0.i32(ptr, i32)",
+                    layout="e-p:64:64:64:32-i64:64")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)",
+                    layout="e-p:64:64:64:32-i64:64")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)",
+                    layout="e-p:64:64-i64:64-A1")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)\n@escape = global ptr @llvm.ptrmask.p0.i64", stage="llvm-verify")
+
+    def test_pointer_mask_does_not_reclassify_ordinary_functions_or_erase_call_constraints(self):
+        body = "declare ptr @pointer_mask_like(ptr, i64)\ndefine ptr @f(ptr %p, i64 %m) { %r = call ptr @pointer_mask_like(ptr %p, i64 %m)\n ret ptr %r }"
+        module = self.import_ir(body)
+        operation = self.operations(self.function(module, "f"))[0]
+        self.assertEqual(operation["op"], "call")
+        self.assertEqual(operation["callee"]["name"], "pointer_mask_like")
+        self.assertIsNone(self.function(module, "pointer_mask_like")["entry"])
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)\ndefine ptr @f(ptr %p, i64 %m) { %r = call ptr @llvm.ptrmask.p0.i64(ptr %p, i64 %m) [ \"deopt\"(i32 1) ]\n ret ptr %r }")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)\ndefine ptr @f(ptr %p, i64 %m) { %r = musttail call ptr @llvm.ptrmask.p0.i64(ptr %p, i64 %m)\n ret ptr %r }")
+
+    def test_owned_scalar_fabs_keeps_declarations_formats_operands_and_fast_math_flags(self):
+        for triple in TRIPLES:
+            widths = (32, 64, 80, 128) if triple.startswith("x86_64") else (32, 64, 128)
+            types = {32:"float", 64:"double", 80:"x86_fp80", 128:"fp128"}
+            rows = []
+            for width in widths:
+                t = types[width]
+                rows += [f"declare {t} @llvm.fabs.f{width}({t})",
+                         f"define {t} @absolute{width}({t} %x) {{ %r = call fast {t} @llvm.fabs.f{width}({t} %x)\n ret {t} %r }}"]
+            with self.subTest(triple=triple):
+                module = self.import_ir("\n".join(rows), triple=triple, layout=LAYOUT + "-i128:128-f80:128")
+                self.assertEqual(module["provenance"]["source_function_count"], 2 * len(widths))
+                self.assertTrue(any("nocreateundeforpoison=0 realized by the exact owned scalar-fabs" in item
+                                    for item in module["provenance"]["refinements"]))
+                self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(self.source.read_bytes()).hexdigest())
+                for width in widths:
+                    decl = self.function(module, f"llvm.fabs.f{width}")
+                    self.assertEqual(decl["intrinsic"], f"llvm.fabs.f{width}")
+                    self.assertIsNone(decl["entry"])
+                    function = self.function(module, f"absolute{width}")
+                    operations = self.operations(function)
+                    self.assertEqual(len(operations), 1)
+                    self.assertEqual(operations[0]["op"], "float_abs")
+                    self.assertEqual(operations[0]["value"], {"kind":"value", "id":function["params"][0]["id"]})
+                    self.assertTrue(all(operations[0]["flags"].values()))
+                    self.assertEqual(module["types"][decl["signature"]["result"]], {"kind":"float", "bits":width})
+        self.reject('declare <2 x float> @llvm.fabs.v2f32(<2 x float>)')
+        self.reject('declare float @llvm.fabs.f32(float)\n@escape = global ptr @llvm.fabs.f32', stage="llvm-verify")
+        self.reject('declare float @llvm.experimental.constrained.sqrt.f32(float, metadata, metadata)')
+        self.reject('define float @ordinary(float %x) nocreateundeforpoison { ret float %x }')
+        self.reject('declare float @llvm.fabs.f32(float)\ndefine float @strict_abs(float %x) strictfp { %r = call float @llvm.fabs.f32(float %x)\n ret float %r }')
+
+    def test_wide_volatile_profile_is_explicit_preserves_operations_and_rejects_foreign_or_non_lp64_targets(self):
+        body = "define i128 @touch(ptr %p, i128 %x) { %old = load volatile i128, ptr %p, align 16\n store volatile i128 %x, ptr %p, align 16\n ret i128 %old }"
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                source = self.write(body, triple=triple, layout=LAYOUT + "-i128:128")
+                plain = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256)
+                selected = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
+                                                  wide_volatile_profile="ordinary-ram-split-v1")
+                self.assertNotIn("wide_volatile_profile", plain["target"])
+                self.assertEqual(selected["target"]["wide_volatile_profile"], "ordinary_ram_split_v1")
+                self.assertEqual(selected["provenance"]["input_sha256"], hashlib.sha256(source.read_bytes()).hexdigest())
+                self.assertEqual(plain["functions"], selected["functions"])
+                self.assertEqual(plain["types"], selected["types"])
+                self.assertEqual(plain["globals"], selected["globals"])
+                operations = self.operations(self.function(selected, "touch"))
+                self.assertEqual([op["op"] for op in operations], ["load", "store"])
+                self.assertTrue(all(op["volatile"] and op["alignment"] == 16 for op in operations))
+                self.assertTrue(any("no MMIO, no indivisibility or atomicity" in item for item in selected["provenance"]["refinements"]))
+        output = self.directory / "profile.native.json"
+        command = [sys.executable, str(SCRIPT), str(source), "--llvm-library", str(self.library),
+                   "--llvm-sha256", self.library_sha256, "--wide-volatile-profile", "ordinary-ram-split-v1",
+                   "-o", str(output)]
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(output.read_text())["target"]["wide_volatile_profile"], "ordinary_ram_split_v1")
+        rejected = self.directory / "must-not-publish.native.json"
+        command[command.index("ordinary-ram-split-v1")] = "ordinary-mmio"
+        command[-1] = str(rejected)
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertFalse(rejected.exists())
+        self.assertEqual(json.loads(completed.stderr)["error"]["stage"], "import")
+        for triple, layout, profile in [(TRIPLES[0], LAYOUT, "ordinary-mmio"),
+                                        ("x86_64-pc-windows-msvc", LAYOUT, "ordinary-ram-split-v1"),
+                                        ("i386-unknown-linux-gnu", "e-p:32:32-i64:64", "ordinary-ram-split-v1"),
+                                        (TRIPLES[0], "e-p:32:32-i64:64", "ordinary-ram-split-v1"),
+                                        (TRIPLES[0], "e-p:64:64:64:32-i64:64", "ordinary-ram-split-v1")]:
+            with self.subTest(triple=triple, layout=layout, profile=profile):
+                source = self.write("define i64 @f() { ret i64 1 }", triple=triple, layout=layout)
+                with self.assertRaises(importer.ImportFailure) as raised:
+                    importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
+                                           wide_volatile_profile=profile)
+                self.assertEqual(raised.exception.stage, "import")
+
+    def test_i128_constants_and_initializers_preserve_top_bits_negative_values_and_padding(self):
+        patterns = (0, 1, 1 << 127, (1 << 128) - 1, -1, -(1 << 127))
+        body = []
+        for index, number in enumerate(patterns):
+            body += [f"@g{index} = global <{{i8, i128, i8}}> <{{i8 9, i128 {number}, i8 7}}>, align 1",
+                     f"define i128 @v{index}() {{ ret i128 {number} }}"]
+        body += ['@padded = global {i8, i128, i8} {i8 3, i128 1, i8 5}',
+                 'define fp128 @bits_to_quad(i128 %x) { %r = bitcast i128 %x to fp128\n ret fp128 %r }',
+                 'define i128 @quad_to_bits(fp128 %x) { %r = bitcast fp128 %x to i128\n ret i128 %r }']
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir('\n'.join(body), triple=triple, layout=LAYOUT + '-i128:128')
+                self.assertTrue(any(t == {"kind":"int","bits":128} for t in module["types"]))
+                for index, number in enumerate(patterns):
+                    bits = number % (1 << 128)
+                    value = self.function(module, f"v{index}")["blocks"][0]["terminator"]["value"]
+                    self.assertEqual(value["bits"], str(bits))
+                    glob = next(g for g in module["globals"] if g["name"] == f"g{index}")
+                    self.assertEqual(bytes(glob["initializer"]["bytes"]), b'\x09'+bits.to_bytes(16,'little')+b'\x07')
+                padded = next(g for g in module["globals"] if g["name"] == "padded")
+                self.assertEqual(bytes(padded["initializer"]["bytes"]), b'\x03'+bytes(15)+(1).to_bytes(16,'little')+b'\x05'+bytes(15))
+                for name in ("bits_to_quad", "quad_to_bits"):
+                    self.assertEqual(self.operations(self.function(module, name))[0]["kind"], "bitcast")
+
+    def test_i128_does_not_widen_bounded_indices_or_numeric_float_bridges(self):
+        for width in (65, 80, 127, 129):
+            self.reject(f"define i{width} @f(i{width} %x) {{ ret i{width} %x }}")
+        bodies = (
+            'define ptr @f(ptr %p, i128 %n) { %r = getelementptr i8, ptr %p, i128 %n\n ret ptr %r }',
+            'define ptr @f(ptr %p) { %r = getelementptr i8, ptr %p, i128 1\n ret ptr %r }',
+            'define ptr @f() { %r = alloca i8, i128 1\n ret ptr %r }',
+            'define i128 @f(double %x) { %r = fptosi double %x to i128\n ret i128 %r }',
+            'define double @f(i128 %x) { %r = uitofp i128 %x to double\n ret double %r }',
+        )
+        for body in bodies:
+            with self.subTest(body=body):
+                self.reject(body)
+
+    def test_floating_constants_retain_all_bits_and_global_payloads_without_integer_type_leaks(self):
+        # Constant integer bitcasts ask LLVM to construct exact APFloat payloads;
+        # the importer may never use ConstRealGetDouble or a Python float.
+        patterns = {
+            32: (0, 1 << 31, 1, 0x7f800000, 0xff800000, 0x7fc00019, 0x7f800017),
+            64: (0, 1 << 63, 1, 0x7ff0000000000000, 0xfff0000000000000,
+                 0x7ff8000000000019, 0x7ff0000000000017),
+            80: (0, 1 << 79, 1, (0x7fff << 64) | (1 << 63),
+                 (0xffff << 64) | (1 << 63), (0x7fff << 64) | (3 << 62) | 19,
+                 (0x7fff << 64) | (1 << 63) | 17),
+            128: (0, 1 << 127, 1, 0x7fff << 112, 0xffff << 112,
+                  (0x7fff << 112) | (1 << 111) | 19, (0x7fff << 112) | 17),
+        }
+        names = {32: "float", 64: "double", 80: "x86_fp80", 128: "fp128"}
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                rows, expected = [], {}
+                widths = (32, 64, 80, 128) if triple.startswith("x86_64") else (32, 64, 128)
+                for width in widths:
+                    for index, bits in enumerate(patterns[width]):
+                        name, llvm_type = f"f{width}_{index}", names[width]
+                        literal = f"bitcast (i{width} {bits} to {llvm_type})"
+                        rows += [f"@g_{name} = global {llvm_type} {literal}",
+                                 f"define {llvm_type} @{name}() {{ ret {llvm_type} {literal} }}"]
+                        expected[name] = (width, bits)
+                module = self.import_ir("\n".join(rows), triple=triple,
+                                        layout=LAYOUT + "-i128:128-f80:128")
+                self.assertFalse(any(t["kind"] == "int" and t["bits"] > 64 for t in module["types"]),
+                                 "private APFloat extraction integers leaked into the native type inventory")
+                self.assertEqual(module["provenance"]["source_function_count"], len(expected))
+                self.assertEqual(module["provenance"]["source_global_count"], len(expected))
+                for name, (width, bits) in expected.items():
+                    value = self.function(module, name)["blocks"][0]["terminator"]["value"]
+                    self.assertEqual(value["kind"], "float")
+                    self.assertEqual(module["types"][value["ty"]], {"kind": "float", "bits": width})
+                    self.assertEqual(value["bits"], str(bits))
+                    glob = next(g for g in module["globals"] if g["name"] == "g_" + name)
+                    payload = width // 8
+                    raw = bytes(glob["initializer"]["bytes"])
+                    self.assertEqual(raw[:payload], bits.to_bytes(payload, "little"))
+                    self.assertEqual(raw[payload:], bytes(16 - payload) if width == 80 else b"")
+                    self.assertEqual(glob["initializer"]["relocations"], [])
+
+    def test_floating_operations_predicates_casts_and_all_fast_math_bits_are_typed(self):
+        rows = []
+        for op in ("fadd", "fsub", "fmul", "fdiv", "frem"):
+            rows.append(f"define double @{op}(double %a, double %b) {{ %r = {op} fast double %a, %b\n ret double %r }}")
+        rows.append("define double @neg(double %a) { %r = fneg fast double %a\n ret double %r }")
+        predicates = ("false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord",
+                      "uno", "ueq", "ugt", "uge", "ult", "ule", "une", "true")
+        for predicate in predicates:
+            rows.append(f"define i1 @cmp_{predicate}(double %a, double %b) {{ %r = fcmp fast {predicate} double %a, %b\n ret i1 %r }}")
+        casts = (("fptrunc", "double", "float", "fp_trunc"),
+                 ("fpext", "float", "double", "fp_ext"),
+                 ("fptoui", "double", "i64", "fp_to_ui"),
+                 ("fptosi", "double", "i64", "fp_to_si"),
+                 ("uitofp", "i64", "double", "ui_to_fp"),
+                 ("sitofp", "i64", "double", "si_to_fp"))
+        for op, source, result, _ in casts:
+            rows.append(f"define {result} @{op}({source} %a) {{ %r = {op} {source} %a to {result}\n ret {result} %r }}")
+        rows.append("define double @quad_trunc(fp128 %a) { %r = fptrunc fp128 %a to double\n ret double %r }")
+        flags = dict.fromkeys(("reassoc", "nnan", "ninf", "nsz", "arcp", "contract", "afn"), True)
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir("\n".join(rows), triple=triple, layout=LAYOUT + "-i128:128")
+                for name in ("fadd", "fsub", "fmul", "fdiv", "frem", "neg"):
+                    op = self.operations(self.function(module, name))[0]
+                    self.assertEqual(op["op"], "float_neg" if name == "neg" else "float_binary")
+                    self.assertEqual(op["flags"], flags)
+                for predicate in predicates:
+                    op = self.operations(self.function(module, "cmp_" + predicate))[0]
+                    self.assertEqual((op["op"], op["predicate"], op["flags"]), ("f_cmp", predicate, flags))
+                for name, _, _, kind in casts:
+                    op = self.operations(self.function(module, name))[0]
+                    self.assertEqual((op["op"], op["kind"]), ("cast", kind))
+                self.assertEqual(module["provenance"]["source_function_count"], len(rows))
+
+    def test_floating_packed_storage_keeps_original_padding_stride_and_poison_refinement(self):
+        body = """
+@packed = global <{i8, fp128, double}> <{i8 7, fp128 bitcast(i128 170141183460469231731687303715884105728 to fp128), double bitcast(i64 9221120237041090585 to double)}>, align 1
+@undefined = global {i8, fp128} {i8 9, fp128 poison}
+define ptr @slot(ptr %p) { %r = getelementptr <{i8, fp128, double}>, ptr %p, i64 2, i32 1
+ ret ptr %r }
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir(body, triple=triple, layout=LAYOUT + "-i128:128")
+                packed = next(g for g in module["globals"] if g["name"] == "packed")
+                self.assertEqual(packed["alignment"], 1)
+                self.assertEqual(bytes(packed["initializer"]["bytes"]), b"\x07" + (1 << 127).to_bytes(16, "little") + (9221120237041090585).to_bytes(8, "little"))
+                undefined = next(g for g in module["globals"] if g["name"] == "undefined")
+                self.assertEqual(bytes(undefined["initializer"]["bytes"]), b"\x09" + bytes(31))
+                self.assertTrue(any("undef/poison initializer refined to zero" in x for x in module["provenance"]["refinements"]))
+                self.assertEqual(self.operations(self.function(module, "slot"))[0]["op"], "gep")
+
+    def test_unsupported_floating_formats_layouts_and_unrepresented_fast_math_flags_reject(self):
+        for llvm_type in ("half", "bfloat", "ppc_fp128", "<2 x float>"):
+            with self.subTest(llvm_type=llvm_type):
+                self.reject(f"define {llvm_type} @f({llvm_type} %a) {{ ret {llvm_type} %a }}")
+        for triple in TRIPLES[1:]:
+            with self.subTest(triple=triple):
+                self.reject("define x86_fp80 @f(x86_fp80 %a) { ret x86_fp80 %a }", triple=triple, layout=LAYOUT + "-f80:128")
+        for spec, llvm_type in (("f32:64", "float"), ("f64:128", "double"), ("f128:64", "fp128")):
+            with self.subTest(spec=spec):
+                self.reject(f"define {llvm_type} @f({llvm_type} %a) {{ ret {llvm_type} %a }}", layout=LAYOUT + "-" + spec)
+        rejected = (
+            "define float @f(double %a) { %r = fptrunc nnan double %a to float\n ret float %r }",
+            "define double @f(i1 %c, double %a, double %b) { %r = select nnan i1 %c, double %a, double %b\n ret double %r }",
+            "declare double @helper(double)\ndefine double @f(double %a) { %r = call nnan double @helper(double %a)\n ret double %r }",
+            "define double @f(i1 %c, double %a) { br i1 %c, label %yes, label %no\nyes: br label %join\nno: br label %join\njoin: %r = phi nnan double [%a, %yes], [0.0, %no]\n ret double %r }",
+        )
+        for body in rejected:
+            with self.subTest(body=body):
+                with self.assertRaises(importer.ImportFailure) as caught:
+                    self.import_ir(body)
+                self.assertEqual(caught.exception.stage, "import")
+                self.assertIn("fast-math flags", str(caught.exception))
 
     def test_explicit_non_elf_library_reports_import_failure(self):
         linker_script = self.directory / "libLLVM.so"

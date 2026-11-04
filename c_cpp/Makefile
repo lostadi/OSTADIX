@@ -61,7 +61,7 @@ clean:
 
 # Smoke test core (no-nix) examples. Adjust path to backends if needed.
 # Run from c_cpp/ dir.
-test: all parser-test o-sequencing-test
+test: all parser-test o-sequencing-test backend-test
 	@echo "=== Testing manifest-selected C17 interpreter examples ==="
 	@python3 ../tests/example_manifest.py run \
 		--edition c17 --runner ./O --backends ../backends
@@ -98,6 +98,9 @@ path-test: all
 installed-path-test: all
 	@python3 tests/test_installed_paths.py --runner ./O --compiler ./olangc
 
+backend-test: all
+	@python3 tests/test_backend_registration.py --runner ./O --compiler ./olangc
+
 # Release-clean native + generated-AOT path. OLANGC_WARNINGS_AS_ERRORS makes
 # the compiler apply -Werror to the copied runtime and generated_main.c too.
 warnings-as-errors:
@@ -110,4 +113,4 @@ run:
 	@if [ -z "$(EX)" ]; then echo "Usage: make run EX=hello  (or bindings, html_basic, ...)"; exit 1; fi
 	@./O ../examples/$(EX).O ../backends
 
-.PHONY: all clean test fresh-env-test o-sequencing-test parser-test olangc-test path-test installed-path-test warnings-as-errors run
+.PHONY: all clean test fresh-env-test o-sequencing-test parser-test olangc-test path-test installed-path-test backend-test warnings-as-errors run

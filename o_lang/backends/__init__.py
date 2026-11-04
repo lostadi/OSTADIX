@@ -13,6 +13,7 @@ from .quote_backend import QuoteBackend
 from .nix_backend import NixBackend
 from .nix_store_backend import NixStoreBackend
 from .nixos_test_backend import NixOSTestBackend
+from .shim_backend import ShimBackend
 
 
 def default_registry() -> Dict[str, Backend]:
@@ -35,6 +36,8 @@ def default_registry() -> Dict[str, Backend]:
         "nix": NixBackend(),
         "nix_store": NixStoreBackend(),
         "nixos_test": NixOSTestBackend(),
+        "common_lisp": ShimBackend("common_lisp"),
+        "javascript": ShimBackend("javascript"),
     }
 
 

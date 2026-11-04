@@ -1,6 +1,6 @@
 module runtime::image_vfs_storage;
 
-// Mode 26 admits one 92,872-byte four-principal OVFS while preserving the
+// Mode 26 admits one 97,512-byte four-principal OVFS while preserving the
 // two-slot image model and explicit 96 KiB per-image bound.
 pub const IMAGE_BYTE_CAPACITY: usize = 98304;
 const STORAGE_BYTE_CAPACITY: usize = 196608;

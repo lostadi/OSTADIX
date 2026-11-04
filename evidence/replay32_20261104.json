@@ -1,0 +1,247 @@
+{
+  "schema": "ostadix.replay32.actual-data-attempt/v1",
+  "utc": "2026-11-04T07:30:55.403Z",
+  "success": true,
+  "qualification": false,
+  "before": {
+    "root": 110526464,
+    "tmp": 53858304,
+    "memory": 694034432
+  },
+  "errors": [],
+  "prior_attempt": "replay32-DATA-run-r2: bad outer freeze pin, no child dispatch",
+  "interpreter": "/usr/bin/python3.13",
+  "startup": {
+    "isolation": "-I -S -B",
+    "stdlib": "/usr/lib/python3.13",
+    "trust": "Installed system Python/standard library. Exact interpreter bound; not full runtime qualification."
+  },
+  "argv": {
+    "flags": [
+      "-I",
+      "-S",
+      "-B",
+      "-c"
+    ],
+    "bootstrap_sha256": "d71396c80b59d0363c3b4182aa451e1cbd20d1b94c587993a0815a26984bdf64",
+    "arguments": [
+      "/tmp/resume-rust-replay32-runner-r2-20261104/final/runner.py",
+      "20340",
+      "afa75fe5d4c3fedea63665908088b075382574b6d37c1e3b4dc7ff182aa38f04",
+      "1067",
+      "cdee06ea0358c93cdb1e46f9a04d54de86c7a80f34d35d2023f1dfb0acfd8b52"
+    ]
+  },
+  "before_dispatch": {
+    "root": 110518272,
+    "tmp": 53858304,
+    "memory": 687026176
+  },
+  "dispatched": true,
+  "exit_code": 0,
+  "signal": null,
+  "child_error": null,
+  "stdout": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/replay32-DATA-run-r3/stdout.log",
+    "bytes": 4936,
+    "sha256": "8597b8c5d9729f78b883a8572f027f2b533aee90894f260ad50be22fc989d3a0"
+  },
+  "stderr": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/replay32-DATA-run-r3/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "result": {
+    "caller_finalization": "pending outer native terminal",
+    "completed_control_ids": [
+      "baseline_actual_worker_shape_reaches_missing_unit_replay",
+      "candidate_maps_complete_emitted_names_across_uuid_index_reorder",
+      "multiline_frontend_metadata_raw_lineage_and_inputs_retained",
+      "missing_emitted_output_is_not_partial_success",
+      "extra_emitted_output_rejects_complete_inventory",
+      "duplicate_emitted_filename_with_distinct_ids_is_ambiguous",
+      "duplicate_capture_unit_id_with_distinct_filenames_rejects",
+      "ir_must_belong_to_exact_replay_directory",
+      "emitted_artifact_requires_ll_suffix",
+      "wrong_replay_emit_contract_rejects",
+      "different_replay_outdir_cannot_rebind_existing_units",
+      "noncanonical_replay_directory_rejects",
+      "duplicate_replay_emit_option_rejects",
+      "separate_output_option_cannot_replace_worker_contract",
+      "per_unit_replay_command_is_not_default_worker_evidence",
+      "actual_event_replay_failure_rejects",
+      "injected_executed_argv_is_not_default_worker_evidence",
+      "unit_producer_must_match_owning_registered_rustc",
+      "unit_kind_must_match_owning_rustc",
+      "unit_frontend_version_must_equal_full_owner_version",
+      "unknown_frontend_metadata_drift_changes_action",
+      "effective_sysroot_drift_changes_action",
+      "default_sysroot_drift_changes_action",
+      "sysroot_source_drift_changes_action",
+      "ir_layout_drift_changes_unit",
+      "unknown_ir_metadata_drift_changes_unit",
+      "recorded_dependency_order_is_not_sorted_away",
+      "missing_dependency_changes_unit",
+      "semantic_flags_drift_changes_actual_action_contract",
+      "cargo_parent_remains_explicitly_unsupported",
+      "sealed_occurrence_order_rejects_equal_counter_reordering",
+      "sealed_occurrence_multiplicity_rejects_independently"
+    ],
+    "completed_row_count": 32,
+    "emergency_summary": {
+      "bytes": 65536,
+      "path": "/tmp/resume-rust-replay32-RUN-r2-20261104/emergency-summary.json",
+      "sha256": "4c1f1717b1fea069fad232affe84f3e694c1dbc80c51eeb78977f986e86da6bc"
+    },
+    "error_count": 0,
+    "errors": [],
+    "expected_count": 32,
+    "expected_ids": [
+      "baseline_actual_worker_shape_reaches_missing_unit_replay",
+      "candidate_maps_complete_emitted_names_across_uuid_index_reorder",
+      "multiline_frontend_metadata_raw_lineage_and_inputs_retained",
+      "missing_emitted_output_is_not_partial_success",
+      "extra_emitted_output_rejects_complete_inventory",
+      "duplicate_emitted_filename_with_distinct_ids_is_ambiguous",
+      "duplicate_capture_unit_id_with_distinct_filenames_rejects",
+      "ir_must_belong_to_exact_replay_directory",
+      "emitted_artifact_requires_ll_suffix",
+      "wrong_replay_emit_contract_rejects",
+      "different_replay_outdir_cannot_rebind_existing_units",
+      "noncanonical_replay_directory_rejects",
+      "duplicate_replay_emit_option_rejects",
+      "separate_output_option_cannot_replace_worker_contract",
+      "per_unit_replay_command_is_not_default_worker_evidence",
+      "actual_event_replay_failure_rejects",
+      "injected_executed_argv_is_not_default_worker_evidence",
+      "unit_producer_must_match_owning_registered_rustc",
+      "unit_kind_must_match_owning_rustc",
+      "unit_frontend_version_must_equal_full_owner_version",
+      "unknown_frontend_metadata_drift_changes_action",
+      "effective_sysroot_drift_changes_action",
+      "default_sysroot_drift_changes_action",
+      "sysroot_source_drift_changes_action",
+      "ir_layout_drift_changes_unit",
+      "unknown_ir_metadata_drift_changes_unit",
+      "recorded_dependency_order_is_not_sorted_away",
+      "missing_dependency_changes_unit",
+      "semantic_flags_drift_changes_actual_action_contract",
+      "cargo_parent_remains_explicitly_unsupported",
+      "sealed_occurrence_order_rejects_equal_counter_reordering",
+      "sealed_occurrence_multiplicity_rejects_independently"
+    ],
+    "full_detail": {
+      "bytes": 22912,
+      "path": "/tmp/resume-rust-replay32-RUN-r2-20261104/detail.json",
+      "sha256": "5315474808d111c9666b27e45566ad96d8af364dde9f8572e7155d2d9c6d21a5"
+    },
+    "full_detail_identity": {
+      "bytes": 22912,
+      "sha256": "5315474808d111c9666b27e45566ad96d8af364dde9f8572e7155d2d9c6d21a5"
+    },
+    "outer_errors": [],
+    "outer_runner_postguard_and_close_complete": true,
+    "owner": "/tmp/resume-rust-replay32-RUN-r2-20261104",
+    "qualification": false,
+    "raw_control_success": true,
+    "resources": [
+      {
+        "memory_available": 679702528,
+        "phase": "before_owned_attempt",
+        "reservation": false,
+        "root_available": 110522368,
+        "tmp_available": 53858304
+      },
+      {
+        "memory_available": 679702528,
+        "phase": "after_owned_attempt",
+        "reservation": false,
+        "root_available": 110522368,
+        "tmp_available": 53858304
+      },
+      {
+        "memory_available": 679444480,
+        "phase": "after_emergency_reservation",
+        "reservation": false,
+        "root_available": 110522368,
+        "tmp_available": 53792768
+      },
+      {
+        "memory_available": 679063552,
+        "phase": "after_DATA_or_error",
+        "reservation": false,
+        "root_available": 110514176,
+        "tmp_available": 53792768
+      },
+      {
+        "memory_available": 679063552,
+        "phase": "before_detail.json",
+        "reservation": false,
+        "root_available": 110514176,
+        "tmp_available": 53792768
+      },
+      {
+        "memory_available": 679063552,
+        "phase": "after_detail.json",
+        "reservation": false,
+        "root_available": 110514176,
+        "tmp_available": 53768192
+      },
+      {
+        "memory_available": 679063552,
+        "phase": "final_return_resources",
+        "reservation": false,
+        "root_available": 110514176,
+        "tmp_available": 53768192
+      }
+    ],
+    "schema": "rust-replay32-DATA-attempt-v2",
+    "source_output_custody_complete": true,
+    "success": true
+  },
+  "full_detail_readback": true,
+  "emergency_summary_readback": true,
+  "after": {
+    "root": 110505984,
+    "tmp": 53768192,
+    "memory": 682979328
+  },
+  "sources": [
+    {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/replay32-latest-build-independent-review-r1/review.json",
+      "bytes": 4512,
+      "sha256": "ef0a10a8969c06a43a8a50632a92c721f75292b5de88d48debcb8b34eedb9f3f",
+      "metadata": "45826:2401697:33024:1:4512:1793777215401.769:1793777215401.769"
+    },
+    {
+      "path": "/tmp/resume-rust-replay32-runner-r2-20261104/final/source-freeze.json",
+      "bytes": 2573,
+      "sha256": "51b6193a2fcc6704161f9a7e34aaccde32ede36a943a3812ccaa318109166711",
+      "metadata": "30:54866:33024:1:2573:1793762839149.5083:1793762839149.5083"
+    },
+    {
+      "path": "/tmp/resume-rust-replay32-runner-r2-20261104/final/bootstrap.py",
+      "bytes": 4562,
+      "sha256": "d71396c80b59d0363c3b4182aa451e1cbd20d1b94c587993a0815a26984bdf64",
+      "metadata": "30:54862:33024:1:4562:1793762839139.508:1793762839139.508"
+    },
+    {
+      "path": "/tmp/resume-rust-replay32-runner-r2-20261104/final/runner.py",
+      "bytes": 20340,
+      "sha256": "afa75fe5d4c3fedea63665908088b075382574b6d37c1e3b4dc7ff182aa38f04",
+      "metadata": "30:54863:33024:1:20340:1793762839139.508:1793762839139.508"
+    },
+    {
+      "path": "/tmp/resume-rust-replay32-runner-r2-20261104/final/policy.json",
+      "bytes": 1067,
+      "sha256": "cdee06ea0358c93cdb1e46f9a04d54de86c7a80f34d35d2023f1dfb0acfd8b52",
+      "metadata": "30:54864:33024:1:1067:1793762839149.5083:1793762839149.5083"
+    },
+    {
+      "path": "/usr/bin/python3.13",
+      "bytes": 6400392,
+      "sha256": "8517cd237a0a8dea12fd5c773456db70d8f7262dcb35060f80640b8800c11fc6",
+      "metadata": "45826:15233:33261:1:6400392:1786363619000:1789636174105.9438"
+    }
+  ]
+}

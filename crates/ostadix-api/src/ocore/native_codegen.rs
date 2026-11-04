@@ -5,12 +5,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use super::native_abi::{AbiContext, AbiLocation, AbiPart, AbiPlan, Extension};
+use super::native_abi::{AbiClass, AbiContext, AbiLocation, AbiPart, AbiPlan, Extension};
 use super::native_exception_codegen::{CallSite, ExceptionTables};
 use super::native_ir::*;
 use super::native_map::{NativeAssemblyMap, NativeAssemblySite, NativeAssemblySiteKind};
+use super::native_nonlocal::{self, FrameRegion, FunctionFrameProof, NativeNonlocalReport, NonlocalCallSiteProof, SavedFrameRegister, SpillChunk};
 use super::native_verify::{
-    instruction_operands, type_alignment, type_layouts, value_leaf_layouts,
+    fixed_vector_layout, instruction_operands, type_alignment, type_layouts, value_leaf_layouts,
 };
 use super::Diagnostic;
 use super::Target;
@@ -29,9 +30,29 @@ mod float_layout {
 mod variadic {
     include!("native_variadic_codegen.rs");
 }
+mod floating_transport {
+    include!("native_floating_transport.rs");
+}
+mod floating {
+    use super::*;
+    include!("native_floating_codegen.rs");
+}
+mod wide_integer {
+    use super::*;
+    include!("native_wide_integer_codegen.rs");
+}
+mod wide_volatile {
+    use super::*;
+    include!("native_wide_volatile_codegen.rs");
+}
+mod vector {
+    use super::*;
+    include!("native_vector_codegen.rs");
+}
 
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
-    emit_impl(module, target, None)
+    let (assembly, _) = emit_impl(module, target, None)?;
+    Ok(assembly)
 }
 
 /// Emit the identical assembly together with descriptive IR-to-assembly byte ranges.
@@ -41,16 +62,40 @@ pub fn emit_with_map(
     target: Target,
 ) -> Result<(String, NativeAssemblyMap), Diagnostic> {
     let mut sites = Vec::new();
-    let assembly = emit_impl(module, target, Some(&mut sites))?;
+    let (assembly, _) = emit_impl(module, target, Some(&mut sites))?;
     let map = NativeAssemblyMap::from_emission(module, target, &assembly, sites)?;
     Ok((assembly, map))
+}
+
+/// Emit the same fixed-frame realization and its computed continuation report.
+/// This does not admit original jump providers or managed-frame exposure.
+pub fn emit_with_nonlocal_report(
+    module: &NativeModule,
+    target: Target,
+) -> Result<(String, NativeNonlocalReport), Diagnostic> {
+    let (assembly, frames) = emit_impl(module, target, None)?;
+    let report = NativeNonlocalReport::from_emission(module, target, &assembly, frames)?;
+    Ok((assembly, report))
+}
+
+pub fn emit_with_map_and_nonlocal_report(
+    module: &NativeModule,
+    target: Target,
+) -> Result<(String, NativeAssemblyMap, NativeNonlocalReport), Diagnostic> {
+    let mut sites = Vec::new();
+    let (assembly, frames) = emit_impl(module, target, Some(&mut sites))?;
+    let map = NativeAssemblyMap::from_emission(module, target, &assembly, sites)?;
+    let report = NativeNonlocalReport::from_emission(module, target, &assembly, frames)?;
+    Ok((assembly, map, report))
 }
 
 fn emit_impl(
     module: &NativeModule,
     target: Target,
     mut sites: Option<&mut Vec<NativeAssemblySite>>,
-) -> Result<String, Diagnostic> {
+) -> Result<(String, Vec<FunctionFrameProof>), Diagnostic> {
+    // Retain the verifier's ordinary C/direct-AS0/fixed-alloca/no-EH constraints.
+    // Every exposed emitter then computes its actual non-reused frame proof.
     super::native_verify::verify(module)?;
     audit(module, target)?;
     let leaf_layouts = value_leaf_layouts(module, &executable_value_types(module))?;
@@ -61,15 +106,21 @@ fn emit_impl(
         let types: BTreeMap<_, _> = function_values(function).map(|v| (v.id, v.ty)).collect();
         if !metadata_personalities.contains(&function.name)
             && function.intrinsic.as_deref() != Some(NOALIAS_SCOPE_DECL)
+            && !vector::is_reduction_declaration(function)
         {
-            abi.plan(&function.signature)?;
+            if function.entry.is_some()
+                || !super::native_abi::is_fast_float_signature(module, &function.signature)
+            {
+                abi.plan_function(function)?;
+            }
         }
         for instruction in function.blocks.iter().flat_map(|b| &b.instructions) {
             if let Operation::Call {
                 signature, args, ..
             } = &instruction.operation
             {
-                abi.plan_call(
+                abi.plan_call_from(
+                    function,
                     signature,
                     &argument_types(args, &types),
                     &signature.param_attributes,
@@ -81,7 +132,8 @@ fn emit_impl(
                 signature, args, ..
             } = &block.terminator
             {
-                abi.plan_call(
+                abi.plan_call_from(
+                    function,
                     signature,
                     &argument_types(args, &types),
                     &signature.param_attributes,
@@ -90,6 +142,7 @@ fn emit_impl(
         }
     }
     let mut out = String::new();
+    let mut frames = Vec::new();
     let mut namespace = 0usize;
     let label_prefix = loop {
         let candidate = format!(".Locore_native_{namespace}_");
@@ -204,7 +257,13 @@ fn emit_impl(
                     writeln!(out, "  .long {} - {}{:+}", reloc.symbol, base, reloc.addend).unwrap();
                     offset += 4;
                 } else {
-                    writeln!(out, "  .quad {}{:+}", reloc.symbol, reloc.addend).unwrap();
+                    let target = reloc.block.as_ref().map_or_else(
+                        || reloc.symbol.clone(),
+                        |block| {
+                            block_address_label(module, &label_prefix, &block.function, block.block)
+                        },
+                    );
+                    writeln!(out, "  .quad {target}{:+}", reloc.addend).unwrap();
                     offset += 8;
                 }
             } else {
@@ -217,7 +276,7 @@ fn emit_impl(
     for (index, function) in module.functions.iter().enumerate() {
         elf_visibility(&mut out, &function.name, function.visibility);
         if function.entry.is_some() {
-            Emitter::new(
+            if let Some(proof) = Emitter::new(
                 module,
                 function,
                 index,
@@ -226,7 +285,9 @@ fn emit_impl(
                 &leaf_layouts,
                 &abi,
             )?
-            .emit(&mut out, sites.as_deref_mut())?;
+            .emit(&mut out, sites.as_deref_mut())? {
+                frames.push(proof);
+            }
         }
     }
     for alias in &module.aliases {
@@ -251,7 +312,7 @@ fn emit_impl(
     if target == Target::Riscv64UnknownNone {
         out.push_str(".option pop\n");
     }
-    Ok(out)
+    Ok((out, frames))
 }
 
 fn visibility(out: &mut String, name: &str, linkage: &str) {
@@ -260,6 +321,26 @@ fn visibility(out: &mut String, name: &str, linkage: &str) {
         "weak" | "linkonce" | "linkonce_odr" | "weak_odr" => writeln!(out, ".weak {name}").unwrap(),
         _ => writeln!(out, ".global {name}").unwrap(),
     }
+}
+
+fn native_block_label(prefix: &str, function: usize, block: BlockId) -> String {
+    format!("{prefix}{function}_b{block}")
+}
+
+/// Block references use the same local code labels as block emission. They are
+/// not ordinary function/global symbols and must retain their owning function.
+fn block_address_label(
+    module: &NativeModule,
+    prefix: &str,
+    function: &str,
+    block: BlockId,
+) -> String {
+    let index = module
+        .functions
+        .iter()
+        .position(|candidate| candidate.name == function)
+        .expect("verified block-address function");
+    native_block_label(prefix, index, block)
 }
 
 fn emit_section(
@@ -318,7 +399,9 @@ fn executable_value_types(module: &NativeModule) -> Vec<TypeId> {
     for function in &module.functions {
         // The verified metadata-only declaration has no executable parameter
         // leaves. It is retained in inventory without fabricating an ABI slot.
-        if function.intrinsic.as_deref() == Some(NOALIAS_SCOPE_DECL) {
+        if function.intrinsic.as_deref() == Some(NOALIAS_SCOPE_DECL)
+            || vector::is_reduction_declaration(function)
+        {
             continue;
         }
         types.extend(function.signature.params.iter().copied());
@@ -349,6 +432,7 @@ fn executable_value_types(module: &NativeModule) -> Vec<TypeId> {
                 | Terminator::Switch {
                     condition: value, ..
                 }
+                | Terminator::IndirectBranch { address: value, .. }
                 | Terminator::Resume { value, .. } => {
                     if let Some(ty) = constant_type(value) {
                         types.insert(ty);
@@ -398,11 +482,13 @@ fn function_values(function: &Function) -> impl Iterator<Item = &Value> {
 fn constant_type(value: &Operand) -> Option<TypeId> {
     match value {
         Operand::Value { .. } => None,
-        Operand::Int { ty, .. }
+        Operand::Float { ty, .. }
+        | Operand::Int { ty, .. }
         | Operand::PointerBits { ty, .. }
         | Operand::Null { ty }
         | Operand::Symbol { ty, .. }
         | Operand::SymbolOffset { ty, .. }
+        | Operand::BlockAddress { ty, .. }
         | Operand::Aggregate { ty, .. }
         | Operand::AggregateZero { ty }
         | Operand::Undef { ty }
@@ -457,16 +543,20 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             "imported scalar backend requires little-endian LP64",
         ));
     }
-    for ty in &module.types {
+    for (ty_id, ty) in module.types.iter().enumerate() {
         match ty {
-            Type::Int { bits: 1..=64 }
+            Type::Int { bits: 1..=64 | 128 }
             | Type::Pointer { address_space: 0 }
             | Type::Void
             | Type::Metadata {}
-            | Type::Float { bits: 128 }
+            | Type::OpaqueStruct { .. } // verified address-only external declarations
+            | Type::Float {
+                bits: 32 | 64 | 80 | 128,
+            }
             | Type::Array { .. }
             | Type::Struct { .. }
             | Type::Function { .. } => {}
+            Type::Vector { .. } => { leaf_bits(module, ty_id)?; }
             _ => {
                 return Err(error_diagnostic(format!(
                     "imported ISA lowering is not implemented for type {ty:?}"
@@ -521,6 +611,11 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                 )));
             }
             for r in &init.relocations {
+                if r.block.is_some() && (r.width != 64 || r.relative_to.is_some()) {
+                    return Err(error_diagnostic(
+                        "only absolute64 block-address initializer relocations are implemented",
+                    ));
+                }
                 if !matches!((r.width, r.relative_to.is_some()), (64, false) | (32, true)) {
                     return Err(error_diagnostic(
                         "only absolute64 and source-relative32 initializer relocations are implemented",
@@ -547,6 +642,7 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
         }
         if !metadata_personalities.contains(&function.name)
             && function.intrinsic.as_deref() != Some(NOALIAS_SCOPE_DECL)
+            && !vector::is_reduction_declaration(function)
         {
             super::native_abi::audit_signature(module, target, &function.signature)?;
         }
@@ -566,12 +662,18 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             }
             for instruction in &block.instructions {
                 atomic::audit_instruction(module, instruction, &value_types)?;
+                super::native_floating_helpers::operation_requirement(
+                    module,
+                    target,
+                    instruction,
+                    &value_types,
+                )?;
                 if let Some(result) = instruction.result {
                     // Every component type was audited above. Reject an
                     // unsupported ABI before expanding any aggregate spills.
                     if !matches!(
                         module.types[result.ty],
-                        Type::Array { .. } | Type::Struct { .. }
+                        Type::Array { .. } | Type::Struct { .. } | Type::Vector { .. }
                     ) {
                         scalar_bits(module, result.ty)?;
                     }
@@ -611,11 +713,13 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                     } => {
                         let ty = match value {
                             Operand::Value { id } => value_types[id],
-                            Operand::Int { ty, .. }
+                            Operand::Float { ty, .. }
+                            | Operand::Int { ty, .. }
                             | Operand::PointerBits { ty, .. }
                             | Operand::Null { ty }
                             | Operand::Symbol { ty, .. }
                             | Operand::SymbolOffset { ty, .. }
+                            | Operand::BlockAddress { ty, .. }
                             | Operand::Aggregate { ty, .. }
                             | Operand::AggregateZero { ty }
                             | Operand::Undef { ty }
@@ -647,6 +751,22 @@ fn volatile_audit(
     } else {
         alignment
     };
+    if scalar_bits(module, ty)? > 64 {
+        if module.target.wide_volatile_profile != Some(WideVolatileProfile::OrdinaryRamSplitV1) {
+            return Err(error_diagnostic(
+                "wide volatile accesses require the explicit ordinary-RAM wide-volatile profile; generic and MMIO accesses remain unsupported",
+            ));
+        }
+        // No byte splitting or widened external access is hidden in this
+        // profile. x86 uses one f128/x87 memory operation where applicable;
+        // scalar i128 and non-native f128 use ordered low/high64 RAM accesses.
+        if target != Target::X86_64UnknownNone && alignment < 8 {
+            return Err(error_diagnostic(
+                "wide volatile RAM accesses require at least eight-byte alignment on this target",
+            ));
+        }
+        return Ok(());
+    }
     let bytes = u64::from(scalar_bits(module, ty)?.div_ceil(8));
     if !bytes.is_power_of_two() {
         return Err(error_diagnostic("odd-byte volatile access requires a target-specific access-width contract; byte splitting is forbidden"));
@@ -660,14 +780,33 @@ fn volatile_audit(
 fn scalar_bits(module: &NativeModule, ty: TypeId) -> Result<u16, Diagnostic> {
     match module.types[ty] {
         Type::Int {
-            bits: bits @ 1..=64,
+            bits: bits @ (1..=64 | 128),
         } => Ok(bits),
         Type::Pointer { address_space: 0 } => Ok(64),
+        Type::Float {
+            bits: bits @ (32 | 64 | 80 | 128),
+        } => Ok(bits),
         _ => Err(error_diagnostic(format!(
             "imported scalar value/ABI cannot represent type {}",
             ty
         ))),
     }
+}
+
+// A vector is one typed packed leaf, irrespective of source allocation padding.
+// Physical SSA storage is a checked sequence of eight-byte chunks, not a
+// scalar-element byte stride or an implicit single machine word.
+fn leaf_bits(module: &NativeModule, ty: TypeId) -> Result<u64, Diagnostic> {
+    let bits = if matches!(module.types[ty], Type::Vector { .. }) {
+        fixed_vector_layout(module, ty)?.bit_width
+    } else {
+        u64::from(scalar_bits(module, ty)?)
+    };
+    let bytes = bits.div_ceil(64).checked_mul(8)
+        .ok_or_else(|| error_diagnostic("packed leaf spill extent overflow"))?;
+    i64::try_from(bytes).map_err(|_| error_diagnostic("packed leaf spill exceeds physical frame address space"))?;
+    usize::try_from(bits.div_ceil(64)).map_err(|_| error_diagnostic("packed leaf chunk count exceeds compiler address space"))?;
+    Ok(bits)
 }
 
 struct Emitter<'a> {
@@ -676,6 +815,7 @@ struct Emitter<'a> {
     index: usize,
     target: Target,
     slots: BTreeMap<ValueId, i64>,
+    leaf_spill_offsets: BTreeMap<TypeId, Vec<i64>>,
     types: BTreeMap<ValueId, TypeId>,
     allocations: BTreeMap<ValueId, i64>,
     call_return_storage: BTreeMap<ValueId, i64>,
@@ -683,9 +823,11 @@ struct Emitter<'a> {
     /// x86/AArch64 register-save area, below the ordinary fixed frame.
     /// RV64 instead saves a0..a7 immediately below the incoming stack area.
     variadic_save: Option<i64>,
+    /// A private 16-byte bit-pattern bridge for x87 ABI transport.
+    floating_scratch: i64,
     abi_plan: AbiPlan,
     abi: &'a AbiContext<'a>,
-    /// One eight-byte spill per scalar field, independent of memory padding.
+    /// Packed leaf chunks use eight-byte spills, independent of memory padding.
     /// Original aggregate types and DataLayout offsets remain the memory ABI.
     leaf_layouts: &'a BTreeMap<TypeId, Vec<(TypeId, u64)>>,
     phi_slots: Vec<i64>,
@@ -694,6 +836,7 @@ struct Emitter<'a> {
     label_prefix: &'a str,
     exception_tables: Option<ExceptionTables<'a>>,
     call_sites: Vec<CallSite>,
+    nonlocal_calls: Vec<NonlocalCallSiteProof>,
 }
 
 impl<'a> Emitter<'a> {
@@ -712,12 +855,14 @@ impl<'a> Emitter<'a> {
             index,
             target,
             slots: BTreeMap::new(),
+            leaf_spill_offsets: BTreeMap::new(),
             types: BTreeMap::new(),
             allocations: BTreeMap::new(),
             call_return_storage: BTreeMap::new(),
             return_pointer: None,
             variadic_save: None,
-            abi_plan: abi.plan(&function.signature)?,
+            floating_scratch: 0,
+            abi_plan: abi.plan_function(function)?,
             abi,
             leaf_layouts,
             phi_slots: Vec::new(),
@@ -735,12 +880,26 @@ impl<'a> Emitter<'a> {
             .then(|| ExceptionTables::new(function))
             .transpose()?,
             call_sites: Vec::new(),
+            nonlocal_calls: Vec::new(),
         };
         for value in function_values(function) {
+            if !result.leaf_spill_offsets.contains_key(&value.ty) {
+                let mut cursor = 0i64;
+                let mut offsets = Vec::new();
+                for (field, _) in &leaf_layouts[&value.ty] {
+                    offsets.push(cursor);
+                    cursor = cursor
+                        .checked_add(i64::try_from(leaf_bits(module, *field)?.div_ceil(64))
+                            .ok().and_then(|parts| parts.checked_mul(8))
+                            .ok_or_else(|| error_diagnostic("packed leaf spill extent overflow"))?)
+                        .ok_or_else(|| error_diagnostic("aggregate spill offset overflow"))?;
+                }
+                result.leaf_spill_offsets.insert(value.ty, offsets);
+            }
             result.frame = result
                 .frame
                 .checked_add(
-                    i64::try_from(result.leaf_layouts[&value.ty].len().max(1))
+                    i64::try_from(result.value_chunks(value.ty).len().max(1))
                         .ok()
                         .and_then(|parts| parts.checked_mul(8))
                         .ok_or_else(|| error_diagnostic("value spill extent overflow"))?,
@@ -757,7 +916,8 @@ impl<'a> Emitter<'a> {
                 ..
             } = &block.terminator
             {
-                let plan = abi.plan_call(
+                let plan = abi.plan_call_from(
+                    function,
                     signature,
                     &argument_types(args, &result.types),
                     &signature.param_attributes,
@@ -818,7 +978,8 @@ impl<'a> Emitter<'a> {
                 signature, args, ..
             } = &instruction.operation
             {
-                let plan = abi.plan_call(
+                let plan = abi.plan_call_from(
+                    function,
                     signature,
                     &argument_types(args, &result.types),
                     &signature.param_attributes,
@@ -852,7 +1013,7 @@ impl<'a> Emitter<'a> {
                     .iter()
                     .filter(|i| matches!(i.operation, Operation::Phi { .. }))
                     .try_fold(0usize, |count, i| {
-                        count.checked_add(result.leaf_layouts[&i.result.unwrap().ty].len())
+                        count.checked_add(result.value_chunks(i.result.unwrap().ty).len())
                     })
             })
             .collect::<Option<Vec<_>>>()
@@ -882,8 +1043,138 @@ impl<'a> Emitter<'a> {
             )?;
             result.variadic_save = Some(-result.frame);
         }
+        if module
+            .types
+            .iter()
+            .any(|ty| matches!(ty, Type::Float { bits: 80 }))
+        {
+            result.frame = align(
+                result
+                    .frame
+                    .checked_add(16)
+                    .ok_or_else(|| error_diagnostic("floating scratch extent overflow"))?,
+                16,
+            )?;
+            result.floating_scratch = -result.frame;
+        }
         result.frame = align(result.frame, 16)?;
         Ok(result)
+    }
+
+    fn nonlocal_frame_proof(&self) -> Result<Option<FunctionFrameProof>, Diagnostic> {
+        let exposed = self.function.control_effects.returns_twice
+            || self.function.blocks.iter().flat_map(|block| &block.instructions).any(|instruction| {
+                matches!(&instruction.operation, Operation::Call { callee, control_effects, .. }
+                    if self.module.effective_returns_twice(callee, *control_effects))
+            });
+        if !exposed { return Ok(None); }
+        // These are physical restrictions of this realization, in addition to
+        // the independent native verifier's original source-effect checks.
+        if self.function.signature.abi != "c" || self.exception_tables.is_some()
+            || self.abi_plan.stack_alignment > 16 {
+            return Err(error_diagnostic("nonlocal fixed-frame realization requires the ordinary C ABI without EH or extended stack alignment"));
+        }
+        let mut regions = Vec::new();
+        for (&value, &offset) in &self.slots {
+            let ty = self.types[&value];
+            let parts = self.value_chunks(ty);
+            let bytes = u64::try_from(parts.len().max(1)).ok().and_then(|n| n.checked_mul(8))
+                .ok_or_else(|| error_diagnostic("nonlocal SSA spill extent overflow"))?;
+            let mut chunks = Vec::new();
+            for (leaf, bit) in parts {
+                let field = self.leaf_layouts[&ty][leaf].0;
+                let chunk_offset = offset.checked_add(self.leaf_spill_offsets[&ty][leaf])
+                    .and_then(|n| n.checked_add(i64::try_from(bit / 8).ok()?))
+                    .ok_or_else(|| error_diagnostic("nonlocal SSA spill offset overflow"))?;
+                chunks.push(SpillChunk { leaf, bit_offset: bit,
+                    value_bits: (leaf_bits(self.module, field)? - bit).min(64) as u16,
+                    offset_from_fp: chunk_offset, storage_bytes: 8 });
+            }
+            regions.push(FrameRegion { role: "ssa_spill".into(), value: Some(value), ty: Some(ty),
+                offset_from_fp: offset, bytes, alignment: 8, chunks });
+        }
+        for block in &self.function.blocks {
+            for instruction in &block.instructions {
+                if let Operation::Alloca { size, alignment } = instruction.operation {
+                    let value = instruction.result.ok_or_else(|| error_diagnostic("nonlocal allocation result missing"))?;
+                    let offset = *self.allocations.get(&value.id)
+                        .ok_or_else(|| error_diagnostic("nonlocal fixed allocation missing"))?;
+                    regions.push(FrameRegion { role: "fixed_original_alloca".into(), value: Some(value.id),
+                        ty: Some(value.ty), offset_from_fp: offset, bytes: size,
+                        alignment: alignment.max(1), chunks: Vec::new() });
+                }
+            }
+        }
+        // Use the exact plan used to reserve each implicit result object. Do
+        // not confuse the object's memory bytes with the result's SSA spills.
+        let mut result_storage = |signature: &Signature, args: &[Operand], value: Option<Value>| -> Result<(), Diagnostic> {
+            let plan = self.abi.plan_call_from(self.function, signature,
+                &argument_types(args, &self.types), &signature.param_attributes)?;
+            if let Some(storage) = plan.storage.as_ref().filter(|storage| storage.explicit_param.is_none()) {
+                let value = value.ok_or_else(|| error_diagnostic("nonlocal implicit result missing"))?;
+                let offset = *self.call_return_storage.get(&value.id)
+                    .ok_or_else(|| error_diagnostic("nonlocal actual result storage missing"))?;
+                regions.push(FrameRegion { role: "implicit_call_result".into(), value: Some(value.id),
+                    ty: Some(storage.ty), offset_from_fp: offset, bytes: storage.size,
+                    alignment: storage.alignment.max(1), chunks: Vec::new() });
+            }
+            Ok(())
+        };
+        for block in &self.function.blocks {
+            for instruction in &block.instructions {
+                if let Operation::Call { signature, args, .. } = &instruction.operation {
+                    result_storage(signature, args, instruction.result)?;
+                }
+            }
+            if let Terminator::Invoke { signature, args, result, .. } = &block.terminator {
+                result_storage(signature, args, *result)?;
+            }
+        }
+        if regions.iter().filter(|region| region.role == "implicit_call_result").count()
+            != self.call_return_storage.len() {
+            return Err(error_diagnostic("nonlocal result storage membership differs from emitter layout"));
+        }
+        if let Some(offset) = self.return_pointer {
+            regions.push(FrameRegion { role: "hidden_result_pointer".into(), value: None, ty: None,
+                offset_from_fp: offset, bytes: 8, alignment: 8, chunks: Vec::new() });
+        }
+        for &offset in &self.phi_slots {
+            regions.push(FrameRegion { role: "phi_parallel_copy".into(), value: None, ty: None,
+                offset_from_fp: offset, bytes: 8, alignment: 8, chunks: Vec::new() });
+        }
+        if let Some(offset) = self.variadic_save {
+            regions.push(FrameRegion { role: "variadic_register_save".into(), value: None, ty: None,
+                offset_from_fp: offset, bytes: if self.target == Target::X86_64UnknownNone { 176 } else { 192 },
+                alignment: 16, chunks: Vec::new() });
+        }
+        if self.floating_scratch != 0 {
+            regions.push(FrameRegion { role: "x87_bit_pattern_bridge".into(), value: None, ty: None,
+                offset_from_fp: self.floating_scratch, bytes: 16, alignment: 16, chunks: Vec::new() });
+        }
+        let (fp, sp, entry_sp, saved): (&str, &str, i64, Vec<(&str, i64)>) = match self.target {
+            Target::X86_64UnknownNone => ("rbp", "rsp", 8, vec![("rbp", 0), ("rip", 8)]),
+            Target::Aarch64UnknownNone => ("x29", "sp", 16, vec![("x29", 0), ("x30", 8)]),
+            Target::Riscv64UnknownNone => ("s0", "sp", self.incoming_stack_base(), vec![("s0", 0), ("ra", 8)]),
+        };
+        let mut saved_frame_registers: Vec<_> = saved.into_iter().map(|(register, offset)|
+            SavedFrameRegister { register: register.into(), offset_from_fp: offset, bytes: 8 }).collect();
+        if self.function.signature.variadic && self.target == Target::Riscv64UnknownNone {
+            for (index, register) in ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"].into_iter().enumerate() {
+                saved_frame_registers.push(SavedFrameRegister { register: register.into(),
+                    offset_from_fp: 16 + index as i64 * 8, bytes: 8 });
+            }
+        }
+        let proof = FunctionFrameProof { function_index: self.index, function: self.function.name.clone(),
+            declaration_effects: self.function.control_effects, signature: self.function.signature.clone(),
+            source_abi: native_nonlocal::snapshot(&self.function.source_abi)?,
+            entry_abi_plan: native_nonlocal::snapshot(&self.abi_plan)?, frame_pointer: fp.into(),
+            stack_pointer: sp.into(), entry_sp_from_fp: entry_sp,
+            incoming_stack_base: self.incoming_stack_base(), fixed_frame_bytes: self.frame,
+            steady_sp_from_fp: -self.frame, stack_alignment: 16, saved_frame_registers, regions,
+            call_sites: Vec::new(),
+            state_strategy: "all SSA chunks, original mutable allocas, implicit results and PHI scratch use distinct fixed FP-relative storage; every return captures results after the resume label before restoring the outgoing area".into() };
+        proof.validate_regions()?;
+        Ok(Some(proof))
     }
 
     fn reg(&self, number: usize) -> &'static str {
@@ -894,7 +1185,7 @@ impl<'a> Emitter<'a> {
         }
     }
     fn block_label(&self, block: BlockId) -> String {
-        format!("{}{}_b{}", self.label_prefix, self.index, block)
+        native_block_label(self.label_prefix, self.index, block)
     }
     fn label(&mut self) -> String {
         let n = self.label_counter;
@@ -904,11 +1195,13 @@ impl<'a> Emitter<'a> {
     fn ty(&self, value: &Operand) -> TypeId {
         match value {
             Operand::Value { id } => self.types[id],
-            Operand::Int { ty, .. }
+            Operand::Float { ty, .. }
+            | Operand::Int { ty, .. }
             | Operand::PointerBits { ty, .. }
             | Operand::Null { ty }
             | Operand::Symbol { ty, .. }
             | Operand::SymbolOffset { ty, .. }
+            | Operand::BlockAddress { ty, .. }
             | Operand::Aggregate { ty, .. }
             | Operand::AggregateZero { ty }
             | Operand::Undef { ty }
@@ -982,10 +1275,29 @@ impl<'a> Emitter<'a> {
         self.operand_leaf(out, reg, value, 0);
     }
 
-    fn operand_leaf(&self, out: &mut String, reg: usize, mut value: &Operand, mut leaf: usize) {
+    fn operand_leaf(&self, out: &mut String, reg: usize, value: &Operand, leaf: usize) {
+        self.operand_chunk(out, reg, value, leaf, 0);
+    }
+    // Preserve the scalar/ABI helper interface; packed vector offsets are u64.
+    fn operand_chunk(&self, out: &mut String, reg: usize, value: &Operand, leaf: usize, bit_offset: u16) {
+        self.operand_packed_chunk(out, reg, value, leaf, u64::from(bit_offset));
+    }
+
+    fn operand_packed_chunk(
+        &self,
+        out: &mut String,
+        reg: usize,
+        mut value: &Operand,
+        mut leaf: usize,
+        bit_offset: u64,
+    ) {
         // Constants retain their nested source shape. Descend iteratively so
         // aggregate nesting does not consume the compiler's native call stack.
-        while let Operand::Aggregate { elements, .. } = value {
+        while let Operand::Aggregate { ty, elements } = value {
+            if matches!(self.module.types[*ty], Type::Vector { .. }) {
+                self.vector_constant_chunk(out, reg, *ty, elements, bit_offset);
+                return;
+            }
             let mut selected = None;
             for element in elements {
                 let count = self.leaf_layouts[&self.ty(element)].len();
@@ -998,10 +1310,25 @@ impl<'a> Emitter<'a> {
             value = selected.expect("verified aggregate constant leaf");
         }
         match value {
-            Operand::Value { id } => self.stack_load(out, reg, self.slots[id] + leaf as i64 * 8),
+            Operand::Value { id } => self.stack_load(
+                out,
+                reg,
+                self.slots[id]
+                    + self.leaf_spill_offsets[&self.types[id]][leaf]
+                    + i64::try_from(bit_offset / 8).expect("audited packed spill offset"),
+            ),
+            Operand::Float { bits, .. } => self.immediate(
+                out,
+                reg,
+                (bits.parse::<u128>().unwrap() >> bit_offset) as u64,
+            ),
             Operand::Aggregate { .. } => unreachable!("aggregate descent completed"),
             Operand::Int { bits, .. } | Operand::PointerBits { bits, .. } => {
-                self.immediate(out, reg, bits.parse().unwrap());
+                self.immediate(
+                    out,
+                    reg,
+                    (bits.parse::<u128>().unwrap() >> bit_offset) as u64,
+                );
             }
             Operand::Null { .. }
             | Operand::AggregateZero { .. }
@@ -1010,6 +1337,15 @@ impl<'a> Emitter<'a> {
             Operand::Symbol { name, .. } => self.symbol_address(out, reg, name, 0),
             Operand::SymbolOffset { name, addend, .. } => {
                 self.symbol_address(out, reg, name, *addend)
+            }
+            Operand::BlockAddress {
+                function,
+                block,
+                addend,
+                ..
+            } => {
+                let label = block_address_label(self.module, self.label_prefix, function, *block);
+                self.block_address(out, reg, &label, *addend);
             }
         }
     }
@@ -1037,10 +1373,37 @@ impl<'a> Emitter<'a> {
         (first, self.leaf_layouts[&ty].len())
     }
 
+    fn value_chunks(&self, ty: TypeId) -> Vec<(usize, u64)> {
+        self.leaf_layouts[&ty]
+            .iter()
+            .enumerate()
+            .flat_map(|(leaf, (field, _))| {
+                let bits = leaf_bits(self.module, *field).expect("audited packed leaf");
+                (0..bits).step_by(64).map(move |bit| (leaf, bit))
+            })
+            .collect()
+    }
     fn spill_leaf(&self, out: &mut String, result: Value, leaf: usize) {
+        self.spill_chunk(out, result, leaf, 0);
+    }
+    fn spill_chunk(&self, out: &mut String, result: Value, leaf: usize, bit_offset: u16) {
+        self.spill_packed_chunk(out, result, leaf, u64::from(bit_offset));
+    }
+
+    fn spill_packed_chunk(&self, out: &mut String, result: Value, leaf: usize, bit_offset: u64) {
         let ty = self.leaf_layouts[&result.ty][leaf].0;
-        self.mask(out, 0, scalar_bits(self.module, ty).unwrap());
-        self.stack_store(out, 0, self.slots[&result.id] + leaf as i64 * 8);
+        self.mask(
+            out,
+            0,
+            (leaf_bits(self.module, ty).unwrap() - bit_offset).min(64) as u16,
+        );
+        self.stack_store(
+            out,
+            0,
+            self.slots[&result.id]
+                + self.leaf_spill_offsets[&result.ty][leaf]
+                + i64::try_from(bit_offset / 8).expect("audited packed spill offset"),
+        );
     }
 
     /// Reg 1 holds an original memory address, and reg 0 may hold a store
@@ -1079,6 +1442,32 @@ impl<'a> Emitter<'a> {
                 if addend != 0 {
                     writeln!(out, "  li ra, {addend}\n  add {r}, {r}, ra").unwrap();
                 }
+            }
+        }
+    }
+    /// Code block addresses use full64 relocations even when a function is too
+    /// large for a PC-relative reference to its distant target block. Only the
+    /// adjacent literal and the branch around it need PC-relative reach. Output
+    /// byte offsets provide a unique namespace without mutating operand state.
+    fn block_address(&self, out: &mut String, reg: usize, label: &str, addend: i64) {
+        let literal = format!("{}{}_a{}", self.label_prefix, self.index, out.len());
+        let next = format!("{literal}_after");
+        self.jump(out, &next);
+        writeln!(
+            out,
+            "  .balign 8\n{literal}:\n  .quad {label}{addend:+}\n{next}:"
+        )
+        .unwrap();
+        let r = self.reg(reg);
+        match self.target {
+            Target::X86_64UnknownNone => {
+                writeln!(out, "  mov {r}, qword ptr [rip + {literal}]").unwrap();
+            }
+            Target::Aarch64UnknownNone => {
+                writeln!(out, "  ldr {r}, {literal}").unwrap();
+            }
+            Target::Riscv64UnknownNone => {
+                writeln!(out, "  lla ra, {literal}\n  ld {r}, 0(ra)").unwrap();
             }
         }
     }
@@ -1145,6 +1534,26 @@ impl<'a> Emitter<'a> {
             }
         )
         .unwrap();
+    }
+    /// Indirect edges may cross arbitrarily large PHI-copy stubs. Load a full
+    /// address from an adjacent literal instead of imposing a direct-branch
+    /// range on those edges. The literal belongs to this function's section
+    /// (and COMDAT, if any), and neither path can fall through into its bytes.
+    /// Absolute64 code relocations use the existing static ELF profile.
+    fn indirect_edge_jump(&mut self, out: &mut String, label: &str) {
+        let literal = self.label();
+        match self.target {
+            Target::X86_64UnknownNone => {
+                writeln!(out, "  jmp qword ptr [rip + {literal}]").unwrap();
+            }
+            Target::Aarch64UnknownNone => {
+                writeln!(out, "  ldr x17, {literal}\n  br x17").unwrap();
+            }
+            Target::Riscv64UnknownNone => {
+                writeln!(out, "  lla ra, {literal}\n  ld ra, 0(ra)\n  jr ra").unwrap();
+            }
+        }
+        writeln!(out, "  .balign 8\n{literal}:\n  .quad {label}").unwrap();
     }
     fn zero_jump(&self, out: &mut String, reg: usize, label: &str, zero: bool) {
         let r = self.reg(reg);
@@ -1218,7 +1627,9 @@ impl<'a> Emitter<'a> {
         mut self,
         out: &mut String,
         mut sites: Option<&mut Vec<NativeAssemblySite>>,
-    ) -> Result<(), Diagnostic> {
+    ) -> Result<Option<FunctionFrameProof>, Diagnostic> {
+        // Compute from the final actual allocation/ABI plan before any assembly.
+        let mut frame_proof = self.nonlocal_frame_proof()?;
         let prologue_start = out.len();
         emit_section(
             out,
@@ -1276,9 +1687,7 @@ impl<'a> Emitter<'a> {
         }
         for part in &self.abi_plan.args {
             let param = self.function.params[part.param.unwrap()];
-            self.incoming(out, part.location)?;
-            self.mask(out, 0, scalar_bits(self.module, part.ty)?);
-            self.spill_leaf(out, param, part.leaf);
+            self.capture_abi_part(out, part, param)?;
         }
         self.jump(out, &self.block_label(self.function.entry.unwrap()));
         self.map_site(
@@ -1302,7 +1711,7 @@ impl<'a> Emitter<'a> {
             );
             for (index, instruction) in block.instructions.iter().enumerate() {
                 let instruction_start = out.len();
-                self.instruction(out, instruction)?;
+                self.instruction(out, instruction, block.id, index)?;
                 self.map_site(
                     &mut sites,
                     NativeAssemblySiteKind::Instruction,
@@ -1331,6 +1740,7 @@ impl<'a> Emitter<'a> {
                         args,
                         *result,
                         Some((landing, action)),
+                        None,
                     )?;
                     self.phis(out, block.id, *normal);
                     self.jump(out, &self.block_label(*normal));
@@ -1373,6 +1783,51 @@ impl<'a> Emitter<'a> {
                     self.phis(out, block.id, *target);
                     self.jump(out, &self.block_label(*target));
                 }
+                Terminator::IndirectBranch {
+                    address,
+                    destinations,
+                } => {
+                    self.operand(out, 0, address);
+                    // Select an edge before running any PHI copies: copies may
+                    // overwrite the address value or registers used to compare
+                    // it. Keep duplicate destinations in their original order.
+                    let edges: Vec<_> = destinations
+                        .iter()
+                        .map(|&destination| (destination, self.label()))
+                        .collect();
+                    for (destination, edge) in &edges {
+                        let next = self.label();
+                        self.block_address(out, 1, &self.block_label(*destination), 0);
+                        // The conditional only skips an unconditional jump,
+                        // independent of the size of later PHI-copy stubs.
+                        match self.target {
+                            Target::X86_64UnknownNone => {
+                                writeln!(out, "  cmp rax, rcx\n  jne {next}").unwrap();
+                            }
+                            Target::Aarch64UnknownNone => {
+                                writeln!(out, "  cmp x9, x10\n  b.ne {next}").unwrap();
+                            }
+                            Target::Riscv64UnknownNone => {
+                                writeln!(out, "  bne t0, t1, {next}").unwrap();
+                            }
+                        }
+                        self.indirect_edge_jump(out, edge);
+                        writeln!(out, "{next}:").unwrap();
+                    }
+                    // LLVM indirectbr is undefined unless the recovered code
+                    // address names one of its listed destinations. An empty
+                    // destination list therefore has no defined outgoing edge.
+                    out.push_str(match self.target {
+                        Target::X86_64UnknownNone => "  ud2\n",
+                        Target::Aarch64UnknownNone => "  brk #0\n",
+                        Target::Riscv64UnknownNone => "  unimp\n",
+                    });
+                    for (destination, edge) in edges {
+                        writeln!(out, "{edge}:").unwrap();
+                        self.phis(out, block.id, destination);
+                        self.indirect_edge_jump(out, &self.block_label(destination));
+                    }
+                }
                 Terminator::Branch {
                     condition,
                     on_true,
@@ -1394,18 +1849,24 @@ impl<'a> Emitter<'a> {
                 } => {
                     self.operand(out, 0, condition);
                     for case in cases {
-                        self.operand(out, 1, &case.value);
                         let matched = self.label();
                         let next = self.label();
-                        match self.target {
-                            Target::X86_64UnknownNone => {
-                                writeln!(out, "  cmp rax, rcx\n  je {matched}").unwrap()
-                            }
-                            Target::Aarch64UnknownNone => {
-                                writeln!(out, "  cmp x9, x10\n  b.eq {matched}").unwrap()
-                            }
-                            Target::Riscv64UnknownNone => {
-                                writeln!(out, "  beq t0, t1, {matched}").unwrap()
+                        if self.is_i128(condition) {
+                            self.wide_inputs(out, condition, &case.value);
+                            self.wide_compare(out, IntPredicate::Eq);
+                            self.zero_jump(out, 0, &matched, false);
+                        } else {
+                            self.operand(out, 1, &case.value);
+                            match self.target {
+                                Target::X86_64UnknownNone => {
+                                    writeln!(out, "  cmp rax, rcx\n  je {matched}").unwrap()
+                                }
+                                Target::Aarch64UnknownNone => {
+                                    writeln!(out, "  cmp x9, x10\n  b.eq {matched}").unwrap()
+                                }
+                                Target::Riscv64UnknownNone => {
+                                    writeln!(out, "  beq t0, t1, {matched}").unwrap()
+                                }
                             }
                         }
                         // Keep conditional reach independent of the edge-copy size.
@@ -1423,6 +1884,10 @@ impl<'a> Emitter<'a> {
                         // rax is also the x86 value scratch. Install its result
                         // last so later aggregate fields cannot overwrite it.
                         for part in self.abi_plan.results.iter().rev() {
+                            if !matches!(part.location, AbiLocation::IndirectResult { .. }) {
+                                self.place_abi_part(out, part, value)?;
+                                continue;
+                            }
                             self.operand_leaf(out, 0, value, part.leaf);
                             self.extend_abi_part(out, part)?;
                             match part.location {
@@ -1600,7 +2065,10 @@ impl<'a> Emitter<'a> {
                 out.len(),
             );
         }
-        Ok(())
+        if let Some(proof) = &mut frame_proof {
+            proof.call_sites = self.nonlocal_calls;
+        }
+        Ok(frame_proof)
     }
 
     fn map_site(
@@ -1656,7 +2124,7 @@ impl<'a> Emitter<'a> {
         Ok(())
     }
     fn extend_abi_part(&self, out: &mut String, part: &AbiPart) -> Result<(), Diagnostic> {
-        let bits = scalar_bits(self.module, part.ty)?;
+        let bits = part.value_bits.min(64);
         self.mask(out, 0, bits);
         if part.extension == Extension::Sign {
             self.signed(out, 0, bits);
@@ -1684,17 +2152,17 @@ impl<'a> Emitter<'a> {
             .collect();
         let mut temporary = 0;
         for (value, incoming) in &phis {
-            for leaf in 0..self.leaf_layouts[&value.ty].len() {
-                self.operand_leaf(out, 0, &incoming.value, leaf);
+            for (leaf, bit) in self.value_chunks(value.ty) {
+                self.operand_packed_chunk(out, 0, &incoming.value, leaf, bit);
                 self.stack_store(out, 0, self.phi_slots[temporary]);
                 temporary += 1;
             }
         }
         temporary = 0;
         for (value, _) in &phis {
-            for leaf in 0..self.leaf_layouts[&value.ty].len() {
+            for (leaf, bit) in self.value_chunks(value.ty) {
                 self.stack_load(out, 0, self.phi_slots[temporary]);
-                self.stack_store(out, 0, self.slots[&value.id] + leaf as i64 * 8);
+                self.spill_packed_chunk(out, *value, leaf, bit);
                 temporary += 1;
             }
         }
@@ -1704,8 +2172,26 @@ impl<'a> Emitter<'a> {
         &mut self,
         out: &mut String,
         instruction: &Instruction,
+        block: BlockId,
+        ordinal: usize,
     ) -> Result<(), Diagnostic> {
+        if self.vector_instruction(out, instruction)?
+            || self.wide_volatile_instruction(out, instruction)?
+            || self.floating_instruction(out, instruction)?
+            || self.wide_integer_instruction(out, instruction)?
+        {
+            return Ok(());
+        }
         match &instruction.operation {
+            Operation::ExtractElement { .. }
+            | Operation::InsertElement { .. }
+            | Operation::VectorReduceAdd { .. } => unreachable!("fixed vector instruction handled"),
+            Operation::FloatBinary { .. }
+            | Operation::FloatNeg { .. }
+            | Operation::FloatAbs { .. }
+            | Operation::FCmp { .. } => {
+                unreachable!("floating instruction handled")
+            }
             Operation::AtomicLoad { .. }
             | Operation::AtomicStore { .. }
             | Operation::AtomicFence { .. }
@@ -1762,6 +2248,13 @@ impl<'a> Emitter<'a> {
             Operation::IntegerMinMax { kind, lhs, rhs } => {
                 self.integer_min_max(out, *kind, lhs, rhs)
             }
+            Operation::IntegerPopulationCount { value } => {
+                self.integer_population_count(out, value)
+            }
+            Operation::IntegerCountLeadingZeros { value, .. } => {
+                self.integer_count_leading_zeros(out, value)
+            }
+            Operation::IntegerAbs { value, .. } => self.integer_abs(out, value),
             Operation::ICmp {
                 predicate,
                 lhs,
@@ -1775,18 +2268,18 @@ impl<'a> Emitter<'a> {
             }
             Operation::Freeze { value } => {
                 let result = instruction.result.unwrap();
-                for leaf in 0..self.leaf_layouts[&result.ty].len() {
-                    self.operand_leaf(out, 0, value, leaf);
-                    self.spill_leaf(out, result, leaf);
+                for (leaf, bit) in self.value_chunks(result.ty) {
+                    self.operand_packed_chunk(out, 0, value, leaf, bit);
+                    self.spill_packed_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
             Operation::ExtractValue { aggregate, indices } => {
                 let result = instruction.result.unwrap();
-                let (first, count) = self.aggregate_span(self.ty(aggregate), indices);
-                for leaf in 0..count {
-                    self.operand_leaf(out, 0, aggregate, first + leaf);
-                    self.spill_leaf(out, result, leaf);
+                let (first, _) = self.aggregate_span(self.ty(aggregate), indices);
+                for (leaf, bit) in self.value_chunks(result.ty) {
+                    self.operand_packed_chunk(out, 0, aggregate, first + leaf, bit);
+                    self.spill_packed_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1797,13 +2290,13 @@ impl<'a> Emitter<'a> {
             } => {
                 let result = instruction.result.unwrap();
                 let (first, count) = self.aggregate_span(self.ty(aggregate), indices);
-                for leaf in 0..self.leaf_layouts[&result.ty].len() {
+                for (leaf, bit) in self.value_chunks(result.ty) {
                     if (first..first + count).contains(&leaf) {
-                        self.operand_leaf(out, 0, value, leaf - first);
+                        self.operand_packed_chunk(out, 0, value, leaf - first, bit);
                     } else {
-                        self.operand_leaf(out, 0, aggregate, leaf);
+                        self.operand_packed_chunk(out, 0, aggregate, leaf, bit);
                     }
-                    self.spill_leaf(out, result, leaf);
+                    self.spill_packed_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1815,16 +2308,20 @@ impl<'a> Emitter<'a> {
                 let result = instruction.result.unwrap();
                 let aggregate = matches!(
                     self.module.types[result.ty],
-                    Type::Array { .. } | Type::Struct { .. }
+                    Type::Array { .. }
+                        | Type::Struct { .. }
+                        | Type::Float { bits: 80 | 128 }
+                        | Type::Int { bits: 128 }
+                        | Type::Vector { .. }
                 );
                 self.operand(out, 0, condition);
                 let no = self.label();
                 let done = self.label();
                 self.zero_jump(out, 0, &no, true);
                 if aggregate {
-                    for leaf in 0..self.leaf_layouts[&result.ty].len() {
-                        self.operand_leaf(out, 0, on_true, leaf);
-                        self.spill_leaf(out, result, leaf);
+                    for (leaf, bit) in self.value_chunks(result.ty) {
+                        self.operand_packed_chunk(out, 0, on_true, leaf, bit);
+                        self.spill_packed_chunk(out, result, leaf, bit);
                     }
                 } else {
                     self.operand(out, 0, on_true);
@@ -1832,9 +2329,9 @@ impl<'a> Emitter<'a> {
                 self.jump(out, &done);
                 writeln!(out, "{no}:").unwrap();
                 if aggregate {
-                    for leaf in 0..self.leaf_layouts[&result.ty].len() {
-                        self.operand_leaf(out, 0, on_false, leaf);
-                        self.spill_leaf(out, result, leaf);
+                    for (leaf, bit) in self.value_chunks(result.ty) {
+                        self.operand_packed_chunk(out, 0, on_false, leaf, bit);
+                        self.spill_packed_chunk(out, result, leaf, bit);
                     }
                 } else {
                     self.operand(out, 0, on_false);
@@ -1877,6 +2374,13 @@ impl<'a> Emitter<'a> {
                     }
                 }
             }
+            Operation::PtrMask { pointer, mask, .. } => {
+                // Verified integral64/64 AS0: retain source provenance in IR;
+                // target address bits are the base pointer AND the exact mask.
+                self.operand(out, 0, pointer);
+                self.operand(out, 1, mask);
+                self.simple_binary(out, "and");
+            }
             Operation::Gep { base, offset, .. } => {
                 self.operand(out, 0, base);
                 self.operand(out, 1, offset);
@@ -1892,16 +2396,17 @@ impl<'a> Emitter<'a> {
                 } else {
                     *alignment
                 };
-                for leaf in 0..self.leaf_layouts[&ty].len() {
-                    let (field, offset) = self.leaf_layouts[&ty][leaf];
+                for (leaf, bit) in self.value_chunks(ty) {
+                    let (field, base) = self.leaf_layouts[&ty][leaf];
+                    let offset = base + u64::from(bit / 8);
                     self.operand(out, 1, pointer);
                     self.address_offset(out, offset);
                     self.load(
                         out,
-                        u64::from(scalar_bits(self.module, field)?.div_ceil(8)),
+                        (leaf_bits(self.module, field)? - bit).min(64).div_ceil(8),
                         offset_alignment(alignment, offset),
                     );
-                    self.spill_leaf(out, result, leaf);
+                    self.spill_packed_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1917,14 +2422,15 @@ impl<'a> Emitter<'a> {
                 } else {
                     *alignment
                 };
-                for leaf in 0..self.leaf_layouts[&ty].len() {
-                    let (field, offset) = self.leaf_layouts[&ty][leaf];
-                    self.operand_leaf(out, 0, value, leaf);
+                for (leaf, bit) in self.value_chunks(ty) {
+                    let (field, base) = self.leaf_layouts[&ty][leaf];
+                    let offset = base + u64::from(bit / 8);
+                    self.operand_packed_chunk(out, 0, value, leaf, bit);
                     self.operand(out, 1, pointer);
                     self.address_offset(out, offset);
                     self.store(
                         out,
-                        u64::from(scalar_bits(self.module, field)?.div_ceil(8)),
+                        (leaf_bits(self.module, field)? - bit).min(64).div_ceil(8),
                         offset_alignment(alignment, offset),
                     );
                 }
@@ -1934,8 +2440,10 @@ impl<'a> Emitter<'a> {
                 callee,
                 signature,
                 args,
+                control_effects,
             } => {
-                self.call(out, callee, signature, args, instruction.result, None)?;
+                self.call(out, callee, signature, args, instruction.result, None,
+                    Some((block, ordinal, *control_effects)))?;
                 return Ok(());
             }
             Operation::LandingPad { .. } => {
@@ -2038,6 +2546,89 @@ impl<'a> Emitter<'a> {
         } else {
             writeln!(out, "  {operation} {a}, {a}, {b}").unwrap();
         }
+    }
+
+    fn integer_population_count(&mut self, out: &mut String, value: &Operand) {
+        // Each iteration removes exactly one set bit. RV64GC needs no Zbb,
+        // x86-64 needs no POPCNT, and no vector/FP register bank is touched.
+        self.operand(out, 0, value);
+        let bits = self.bits(value);
+        let again = self.label();
+        let done = self.label();
+        match self.target {
+            Target::X86_64UnknownNone => {
+                if bits == 32 {
+                    out.push_str("  mov eax, eax\n");
+                }
+                out.push_str("  xor ecx, ecx\n");
+                writeln!(out, "{again}:\n  test rax, rax\n  jz {done}\n  mov rdx, rax\n  sub rdx, 1\n  and rax, rdx\n  add rcx, 1\n  jmp {again}\n{done}:\n  mov rax, rcx").unwrap();
+            }
+            Target::Aarch64UnknownNone => {
+                if bits == 32 {
+                    out.push_str("  mov w9, w9\n");
+                }
+                out.push_str("  mov x10, #0\n");
+                writeln!(out, "{again}:\n  cbz x9, {done}\n  sub x11, x9, #1\n  and x9, x9, x11\n  add x10, x10, #1\n  b {again}\n{done}:\n  mov x9, x10").unwrap();
+            }
+            Target::Riscv64UnknownNone => {
+                if bits == 32 {
+                    out.push_str("  slli t0, t0, 32\n  srli t0, t0, 32\n");
+                }
+                out.push_str("  li t1, 0\n");
+                writeln!(out, "{again}:\n  beqz t0, {done}\n  addi t2, t0, -1\n  and t0, t0, t2\n  addi t1, t1, 1\n  j {again}\n{done}:\n  mv t0, t1").unwrap();
+            }
+        }
+    }
+
+    fn integer_count_leading_zeros(&mut self, out: &mut String, value: &Operand) {
+        self.operand(out, 0, value);
+        let bits = self.bits(value);
+        match self.target {
+            Target::X86_64UnknownNone => {
+                // BSR has an undefined destination for zero: branch around it.
+                let zero = self.label();
+                let done = self.label();
+                let source = if bits == 32 { "eax" } else { "rax" };
+                writeln!(out, "  test {source}, {source}\n  jz {zero}").unwrap();
+                if bits == 32 {
+                    out.push_str("  bsr eax, eax\n  xor eax, 31\n");
+                } else {
+                    out.push_str("  bsr rax, rax\n  xor rax, 63\n");
+                }
+                writeln!(out, "  jmp {done}\n{zero}:\n  mov rax, {bits}\n{done}:").unwrap();
+            }
+            Target::Aarch64UnknownNone => out.push_str(if bits == 32 {
+                "  clz w9, w9\n"
+            } else {
+                "  clz x9, x9\n"
+            }),
+            Target::Riscv64UnknownNone => {
+                // RV64GC does not imply Zbb. Count exact source-width bits with
+                // a bounded owned loop; zero terminates after exactly N steps.
+                let again = self.label();
+                let done = self.label();
+                self.immediate(out, 1, u64::from(bits));
+                self.immediate(out, 2, 0);
+                writeln!(out, "  li t3, {}", (1u64 << (bits - 1)) as i64).unwrap();
+                writeln!(out, "{again}:\n  and t4, t0, t3\n  bnez t4, {done}\n  addi t2, t2, 1\n  beq t2, t1, {done}\n  slli t0, t0, 1\n  j {again}\n{done}:\n  mv t0, t2").unwrap();
+            }
+        }
+    }
+
+    fn integer_abs(&mut self, out: &mut String, value: &Operand) {
+        self.operand(out, 0, value);
+        self.signed(out, 0, self.bits(value));
+        // Unsigned two's-complement magnitude, then normal original-width
+        // result masking. INT_MIN never invokes signed host overflow.
+        out.push_str(match self.target {
+            Target::X86_64UnknownNone => {
+                "  mov rcx, rax\n  sar rcx, 63\n  xor rax, rcx\n  sub rax, rcx\n"
+            }
+            Target::Aarch64UnknownNone => {
+                "  asr x10, x9, #63\n  eor x9, x9, x10\n  sub x9, x9, x10\n"
+            }
+            Target::Riscv64UnknownNone => "  srai t1, t0, 63\n  xor t0, t0, t1\n  sub t0, t0, t1\n",
+        });
     }
 
     fn integer_min_max(
@@ -2640,13 +3231,15 @@ impl<'a> Emitter<'a> {
         args: &[Operand],
         result: Option<Value>,
         exception_target: Option<(String, u64)>,
+        site: Option<(BlockId, usize, ControlEffects)>,
     ) -> Result<(), Diagnostic> {
         if let Operand::Symbol { name, .. } = callee {
             if let Some(intrinsic) = super::native_verify::variadic_intrinsic(name) {
                 return self.variadic_intrinsic(out, intrinsic, args);
             }
         }
-        let plan = self.abi.plan_call(
+        let plan = self.abi.plan_call_from(
+            self.function,
             signature,
             &argument_types(args, &self.types),
             &signature.param_attributes,
@@ -2667,22 +3260,8 @@ impl<'a> Emitter<'a> {
             let AbiLocation::Stack { offset } = part.location else {
                 continue;
             };
-            self.operand_leaf(out, 0, &args[part.param.unwrap()], part.leaf);
-            self.extend_abi_part(out, part)?;
-            match self.target {
-                Target::X86_64UnknownNone => writeln!(
-                    out,
-                    "  mov r11, {offset}\n  add r11, rsp\n  mov qword ptr [r11], rax"
-                )
-                .unwrap(),
-                Target::Aarch64UnknownNone => {
-                    arm_immediate(out, "x17", offset);
-                    out.push_str("  add x17, sp, x17\n  str x9, [x17]\n");
-                }
-                Target::Riscv64UnknownNone => {
-                    writeln!(out, "  li ra, {offset}\n  add ra, sp, ra\n  sd t0, 0(ra)").unwrap()
-                }
-            }
+            let _ = offset;
+            self.place_abi_part(out, part, &args[part.param.unwrap()])?;
         }
         // LLVM inserts this storage pointer during target lowering. It is not
         // added to the source signature or represented as a fabricated SSA arg.
@@ -2709,15 +3288,15 @@ impl<'a> Emitter<'a> {
             let AbiLocation::Register(reg) = part.location else {
                 continue;
             };
-            self.operand_leaf(out, 0, &args[part.param.unwrap()], part.leaf);
-            self.extend_abi_part(out, part)?;
-            self.mov(out, reg, self.reg(0));
+            let _ = reg;
+            self.place_abi_part(out, part, &args[part.param.unwrap()])?;
         }
         let call_start = self
             .function
             .exception_handling
             .is_some()
             .then(|| self.label());
+        let actual_call_start;
         match callee {
             Operand::Symbol { name, .. } => {
                 if signature.variadic && self.target == Target::X86_64UnknownNone {
@@ -2731,6 +3310,7 @@ impl<'a> Emitter<'a> {
                 if let Some(start) = &call_start {
                     writeln!(out, "{start}:").unwrap();
                 }
+                actual_call_start = out.len();
                 writeln!(
                     out,
                     "  {} {name}",
@@ -2758,6 +3338,7 @@ impl<'a> Emitter<'a> {
                 if let Some(start) = &call_start {
                     writeln!(out, "{start}:").unwrap();
                 }
+                actual_call_start = out.len();
                 writeln!(
                     out,
                     "  {} {}",
@@ -2773,6 +3354,37 @@ impl<'a> Emitter<'a> {
                     }
                 )
                 .unwrap();
+            }
+        }
+        // A restored provider resumes here, with the original call's outgoing
+        // area still installed. Do not put result capture, SP restoration or
+        // any destructive scratch instruction before this physical label.
+        if let Some((block, ordinal, effects)) = site {
+            if self.module.effective_returns_twice(callee, effects) {
+                let Operand::Symbol { name, .. } = callee else {
+                    return Err(error_diagnostic("nonlocal continuation requires a direct original symbol"));
+                };
+                let (index, declaration) = self.module.functions.iter().enumerate()
+                    .find(|(_, function)| function.name == *name)
+                    .ok_or_else(|| error_diagnostic("nonlocal original declaration missing"))?;
+                let call_end = out.len();
+                let label = format!("{}{}_nonlocal_b{}_i{}", self.label_prefix, self.index, block, ordinal);
+                let continuation_sp = self.frame.checked_add(stack).and_then(|n| n.checked_neg())
+                    .ok_or_else(|| error_diagnostic("nonlocal continuation stack extent overflow"))?;
+                writeln!(out, "{label}:").unwrap();
+                let resume_end = out.len();
+                let proof = NonlocalCallSiteProof {
+                    block, instruction: ordinal, callee: name.clone(), callee_function_index: index,
+                    declaration_effects: declaration.control_effects, call_effects: effects,
+                    signature: signature.clone(), arguments: native_nonlocal::snapshot(&args)?,
+                    result: native_nonlocal::snapshot(&result)?, abi_plan: native_nonlocal::snapshot(&plan)?,
+                    outgoing_stack_bytes: stack, continuation_sp_from_fp: continuation_sp,
+                    call_assembly_start: actual_call_start, call_assembly_end: call_end,
+                    resume_label: label.clone(), resume_assembly_start: call_end,
+                    resume_assembly_end: resume_end,
+                    result_capture_after_resume: true, stack_restore_after_resume: true,
+                };
+                self.nonlocal_calls.push(proof);
             }
         }
         if let Some(start) = call_start {
@@ -2791,6 +3403,10 @@ impl<'a> Emitter<'a> {
             // Capture rax first on x86 before using it to spill rdx/rcx.
             // Address scratch is outside every supported return register set.
             for part in &plan.results {
+                if !matches!(part.location, AbiLocation::IndirectResult { .. }) {
+                    self.capture_abi_part(out, part, result)?;
+                    continue;
+                }
                 match part.location {
                     AbiLocation::Register(reg) => self.mov(out, self.reg(0), reg),
                     AbiLocation::IndirectResult { offset } => {
@@ -3274,4 +3890,392 @@ int main(void) {
             directory.display()
         );
     }
+
+    // These fixtures exercise native emission directly. They are authored MIR,
+    // not imported original-engine or provider-closure qualification.
+    fn vector_qa_value(id: usize) -> serde_json::Value { json!({"kind":"value","id":id}) }
+    fn vector_qa_int(ty: usize, value: u64) -> serde_json::Value {
+        json!({"kind":"int","ty":ty,"bits":value.to_string()})
+    }
+    fn vector_qa_instruction(id: usize, ty: usize, operation: serde_json::Value) -> serde_json::Value {
+        json!({"result":{"id":id,"ty":ty},"operation":operation})
+    }
+    fn vector_qa_push(
+        instructions: &mut Vec<serde_json::Value>,
+        next: &mut usize,
+        ty: usize,
+        operation: serde_json::Value,
+    ) -> usize {
+        let id = *next;
+        *next += 1;
+        instructions.push(vector_qa_instruction(id, ty, operation));
+        id
+    }
+    fn vector_qa_store(
+        instructions: &mut Vec<serde_json::Value>,
+        next: &mut usize,
+        base: usize,
+        offset: u64,
+        value: serde_json::Value,
+    ) {
+        let pointer = if offset == 0 { vector_qa_value(base) } else {
+            let id = vector_qa_push(instructions, next, 6, json!({"op":"gep",
+                "base":vector_qa_value(base),"offset":vector_qa_int(5,offset),"inbounds":false}));
+            vector_qa_value(id)
+        };
+        instructions.push(json!({"result":null,"operation":{"op":"store",
+            "pointer":pointer,"value":value,"alignment":1,"volatile":false}}));
+    }
+    fn vector_qa_function(
+        name: &str, params: &[usize], result: usize, blocks: Vec<serde_json::Value>,
+    ) -> serde_json::Value {
+        let values: Vec<_> = params.iter().enumerate().map(|(id,ty)| json!({"id":id,"ty":ty})).collect();
+        json!({"name":name,"linkage":"external",
+            "signature":{"params":params,"result":result,"abi":"c","variadic":false},
+            "params":values,"entry":0,"blocks":blocks})
+    }
+    fn vector_qa_module(triple: &str, functions: Vec<serde_json::Value>) -> NativeModule {
+        let count = functions.len();
+        serde_json::from_value(json!({"format":FORMAT,"name":"fixed-vector-native-qa",
+            "target":{"triple":triple,"data_layout":"e-p:64:64-i64:64-S128","pointer_bits":64,"little_endian":true},
+            "semantics":"llvm_defined_behavior_v1",
+            "types":[
+                {"kind":"void"},{"kind":"int","bits":1},{"kind":"int","bits":8},
+                {"kind":"int","bits":16},{"kind":"int","bits":32},{"kind":"int","bits":64},
+                {"kind":"pointer","address_space":0},
+                {"kind":"vector","element":4,"len":4},{"kind":"vector","element":1,"len":4},
+                {"kind":"vector","element":1,"len":9},{"kind":"vector","element":2,"len":3},
+                {"kind":"vector","element":2,"len":9},
+                {"kind":"struct","fields":[2,10,2],"packed":false},
+                {"kind":"array","element":10,"len":2},
+                {"kind":"vector","element":5,"len":1},{"kind":"vector","element":5,"len":2},
+                {"kind":"vector","element":1,"len":65537},
+                {"kind":"vector","element":2,"len":4},{"kind":"vector","element":3,"len":4},
+                {"kind":"vector","element":5,"len":4}
+            ],"globals":[],"functions":functions,
+            "provenance":{"input_sha256":"0".repeat(64),"frontend":"native backend QA","frontend_version":"1",
+                "importer":"authored MIR","importer_version":"1","source_function_count":count,
+                "source_global_count":0,"refinements":[]}})).unwrap()
+    }
+
+    fn vector_qa_phi_function() -> serde_json::Value {
+        // Loop PHIs swap two distinct multiword vectors simultaneously.
+        // Iteration zero preserves both; each odd iteration exchanges them.
+        vector_qa_function("qa_vector_phi", &[6,6,6,5], 0, vec![
+            json!({"id":0,"instructions":[
+                vector_qa_instruction(4,7,json!({"op":"load","pointer":vector_qa_value(0),"alignment":1,"volatile":false})),
+                vector_qa_instruction(5,7,json!({"op":"load","pointer":vector_qa_value(1),"alignment":1,"volatile":false}))
+            ],"terminator":{"op":"jump","target":1}}),
+            json!({"id":1,"instructions":[
+                vector_qa_instruction(6,7,json!({"op":"phi","incoming":[
+                    {"block":0,"value":vector_qa_value(4)},{"block":2,"value":vector_qa_value(7)}]})),
+                vector_qa_instruction(7,7,json!({"op":"phi","incoming":[
+                    {"block":0,"value":vector_qa_value(5)},{"block":2,"value":vector_qa_value(6)}]})),
+                vector_qa_instruction(8,5,json!({"op":"phi","incoming":[
+                    {"block":0,"value":vector_qa_int(5,0)},{"block":2,"value":vector_qa_value(10)}]})),
+                vector_qa_instruction(9,1,json!({"op":"i_cmp","predicate":"ult","lhs":vector_qa_value(8),"rhs":vector_qa_value(3)}))
+            ],"terminator":{"op":"branch","condition":vector_qa_value(9),"on_true":2,"on_false":3}}),
+            json!({"id":2,"instructions":[
+                vector_qa_instruction(10,5,json!({"op":"binary","kind":"add","lhs":vector_qa_value(8),"rhs":vector_qa_int(5,1),"flags":[]}))
+            ],"terminator":{"op":"jump","target":1}}),
+            json!({"id":3,"instructions":[
+                {"result":null,"operation":{"op":"store","pointer":vector_qa_value(2),"value":vector_qa_value(6),"alignment":1,"volatile":false}},
+                vector_qa_instruction(11,6,json!({"op":"gep","base":vector_qa_value(2),"offset":vector_qa_int(5,16),"inbounds":false})),
+                {"result":null,"operation":{"op":"store","pointer":vector_qa_value(11),"value":vector_qa_value(7),"alignment":1,"volatile":false}}
+            ],"terminator":{"op":"return","value":null}})
+        ])
+    }
+
+    #[test]
+    fn fixed_vector_physical_frames_and_parallel_phi_scratch_cover_packed_values() {
+        for (target, triple) in [
+            (Target::X86_64UnknownNone,"x86_64-unknown-linux-gnu"),
+            (Target::Aarch64UnknownNone,"aarch64-unknown-linux-gnu"),
+            (Target::Riscv64UnknownNone,"riscv64-unknown-linux-gnu"),
+        ] {
+            let mut module = vector_qa_module(triple, vec![vector_qa_phi_function()]);
+            module.functions[0].control_effects.returns_twice = true;
+            let (assembly, report) = emit_with_nonlocal_report(&module, target).unwrap();
+            assert!(!assembly.is_empty());
+            assert!(report.has_nonlocal_effects);
+            assert!(!report.provider_qualified);
+            assert!(!report.library_exposure_admitted);
+            assert_eq!(report.functions.len(),1);
+            let frame = &report.functions[0];
+            for value in [4,5,6,7] {
+                let region = frame.regions.iter().find(|r| r.role=="ssa_spill" && r.value==Some(value)).unwrap();
+                assert_eq!(region.bytes,16,"target {target:?}, value {value}");
+                let chunks: Vec<_> = region.chunks.iter().map(|c| (c.leaf,c.bit_offset,c.value_bits,c.storage_bytes)).collect();
+                assert_eq!(chunks,vec![(0,0,64,8),(0,64,64,8)]);
+                assert_eq!(region.chunks[0].offset_from_fp,region.offset_from_fp);
+                assert_eq!(region.chunks[1].offset_from_fp,region.offset_from_fp+8);
+            }
+            // Two 128-bit vector PHIs and one 64-bit loop counter require
+            // five distinct simultaneous incoming snapshots.
+            let scratch: Vec<_> = frame.regions.iter().filter(|r| r.role=="phi_parallel_copy").collect();
+            assert_eq!(scratch.len(),5);
+            assert!(scratch.iter().all(|r| r.bytes==8 && r.alignment==8));
+            let mut spans: Vec<_> = frame.regions.iter().map(|r|
+                (r.offset_from_fp,r.offset_from_fp+i64::try_from(r.bytes).unwrap())).collect();
+            spans.sort();
+            assert!(spans.windows(2).all(|w| w[0].1<=w[1].0));
+            assert_eq!(frame.fixed_frame_bytes%16,0);
+            assert_eq!(frame.steady_sp_from_fp,-frame.fixed_frame_bytes);
+        }
+    }
+
+    #[test]
+    fn fixed_vector_nonlocal_offsets_preserve_the_first_bit_above_u16() {
+        for (target,triple) in [
+            (Target::X86_64UnknownNone,"x86_64-unknown-linux-gnu"),
+            (Target::Aarch64UnknownNone,"aarch64-unknown-linux-gnu"),
+            (Target::Riscv64UnknownNone,"riscv64-unknown-linux-gnu"),
+        ] {
+            let function = vector_qa_function("qa_wide_mask_frame",&[],0,vec![json!({
+                "id":0,"instructions":[vector_qa_instruction(0,16,json!({"op":"freeze",
+                    "value":{"kind":"aggregate_zero","ty":16}}))],
+                "terminator":{"op":"return","value":null}})]);
+            let mut module=vector_qa_module(triple,vec![function]);
+            module.functions[0].control_effects.returns_twice=true;
+            let (_,report)=emit_with_nonlocal_report(&module,target).unwrap();
+            assert!(!report.provider_qualified);
+            let frame=&report.functions[0];
+            let region=frame.regions.iter().find(|r| r.role=="ssa_spill" && r.value==Some(0)).unwrap();
+            // Literal endpoints come from 65537 source bits, not the
+            // implementation's chunk iterator. A u16 offset loses the last bit.
+            assert_eq!(region.bytes,8200);
+            assert_eq!(region.offset_from_fp,-8200);
+            assert_eq!(frame.fixed_frame_bytes,8208);
+            assert_eq!(region.chunks.len(),1025);
+            assert_eq!((region.chunks[1023].bit_offset,region.chunks[1023].value_bits,
+                region.chunks[1023].offset_from_fp),(65472,64,-16));
+            assert_eq!((region.chunks[1024].bit_offset,region.chunks[1024].value_bits,
+                region.chunks[1024].offset_from_fp),(65536,1,-8));
+            assert!(region.chunks.iter().all(|c| c.storage_bytes==8));
+        }
+    }
+
+    #[test]
+    fn fixed_vector_layout_uses_vector_overrides_packed_bits_and_allocation_stride() {
+        use super::super::native_verify::value_leaf_layout;
+        let mut module=vector_qa_module("x86_64-unknown-linux-gnu",vec![]);
+        let layout=fixed_vector_layout(&module,10).unwrap();
+        assert_eq!((layout.store_size,layout.abi_alignment,layout.allocation_size),(3,4,4));
+        let mask=fixed_vector_layout(&module,9).unwrap();
+        assert_eq!((mask.bit_width,mask.store_size,mask.abi_alignment,mask.allocation_size),(9,2,2,2));
+        assert_eq!(value_leaf_layout(&module,9).unwrap(),vec![(9,0)]);
+        assert_eq!(value_leaf_layout(&module,13).unwrap(),vec![(10,0),(10,4)]);
+        assert_eq!(value_leaf_layout(&module,12).unwrap(),vec![(2,0),(10,4),(2,8)]);
+        module.target.data_layout="e-p:64:64-i64:128-S128".into();
+        assert_eq!(type_layouts(&module).unwrap()[5],Some((16,16)));
+        let one=fixed_vector_layout(&module,14).unwrap();
+        assert_eq!((one.store_size,one.abi_alignment,one.allocation_size),(8,8,8));
+        module.target.data_layout="e-p:64:64-i64:64-v128:256-S128".into();
+        let wide=fixed_vector_layout(&module,15).unwrap();
+        assert_eq!((wide.store_size,wide.abi_alignment,wide.allocation_size),(16,32,32));
+        let array=module.types.len();
+        module.types.push(Type::Array{element:15,len:2});
+        assert_eq!(type_layouts(&module).unwrap()[array],Some((64,32)));
+        assert_eq!(value_leaf_layout(&module,array).unwrap(),vec![(15,0),(15,32)]);
+        for (alignment_bits,expected_alloc,expected_align) in [(8,3,1),(64,8,8)] {
+            module.target.data_layout=format!("e-p:64:64-i64:64-v24:{alignment_bits}-S128");
+            let overridden=fixed_vector_layout(&module,10).unwrap();
+            assert_eq!((overridden.store_size,overridden.allocation_size,overridden.abi_alignment),
+                (3,expected_alloc,expected_align));
+            assert_eq!(value_leaf_layout(&module,13).unwrap(),vec![(10,0),(10,expected_alloc)]);
+        }
+    }
+
+    fn vector_qa_execution_module() -> NativeModule {
+        let mut functions=Vec::new();
+        for (bits,scalar,vector) in [(1u16,1usize,8usize),(8,2,17),(16,3,18),(32,4,7),(64,5,19)] {
+            let mut instructions=Vec::new();
+            let mut next=3usize;
+            let a=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"load","pointer":vector_qa_value(0),"alignment":1,"volatile":false}));
+            let b=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"load","pointer":vector_qa_value(1),"alignment":1,"volatile":false}));
+            let sub=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"binary","kind":"sub","lhs":vector_qa_value(a),"rhs":vector_qa_value(b),"flags":[]}));
+            let less=vector_qa_push(&mut instructions,&mut next,8,json!({"op":"i_cmp","predicate":"slt","lhs":vector_qa_value(a),"rhs":vector_qa_value(b)}));
+            let selected=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"select","condition":vector_qa_value(less),"on_true":vector_qa_value(a),"on_false":vector_qa_value(b)}));
+            let sum=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"binary","kind":"add","lhs":vector_qa_value(a),"rhs":vector_qa_value(b),"flags":[]}));
+            let lane_masks: Vec<_>=(0..4).map(|_|vector_qa_int(scalar,u64::from(bits-1))).collect();
+            let counts=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"binary","kind":"and","lhs":vector_qa_value(b),
+                "rhs":{"kind":"aggregate","ty":vector,"elements":lane_masks},"flags":[]}));
+            let shifted=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"binary","kind":"a_shr","lhs":vector_qa_value(a),"rhs":vector_qa_value(counts),"flags":[]}));
+            let extended=if bits==1 { less } else {
+                vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"cast","kind":"s_ext","value":vector_qa_value(less)}))
+            };
+            let conjunction=vector_qa_push(&mut instructions,&mut next,vector,json!({"op":"binary","kind":"and","lhs":vector_qa_value(a),"rhs":vector_qa_value(b),"flags":[]}));
+            for (ordinal,value) in [sub,selected,sum,shifted,extended,conjunction].into_iter().enumerate() {
+                vector_qa_store(&mut instructions,&mut next,2,ordinal as u64*32,vector_qa_value(value));
+            }
+            functions.push(vector_qa_function(&format!("qa_vector_math_{bits}"),&[6,6,6],0,
+                vec![json!({"id":0,"instructions":instructions,"terminator":{"op":"return","value":null}})]));
+        }
+        let mut instructions=Vec::new();
+        let mut next=1usize;
+        let bytes: Vec<_>=[0xa1u64,0xb2,0xc3].into_iter().map(|v|vector_qa_int(2,v)).collect();
+        vector_qa_store(&mut instructions,&mut next,0,0,json!({"kind":"aggregate","ty":10,"elements":bytes}));
+        functions.push(vector_qa_function("qa_vector_store3",&[6],0,vec![json!({"id":0,"instructions":instructions,"terminator":{"op":"return","value":null}})]));
+
+        let mut instructions=Vec::new();
+        let mut next=3usize;
+        let a=vector_qa_push(&mut instructions,&mut next,9,json!({"op":"load","pointer":vector_qa_value(0),"alignment":1,"volatile":false}));
+        let b=vector_qa_push(&mut instructions,&mut next,9,json!({"op":"load","pointer":vector_qa_value(1),"alignment":1,"volatile":false}));
+        let xor=vector_qa_push(&mut instructions,&mut next,9,json!({"op":"binary","kind":"xor","lhs":vector_qa_value(a),"rhs":vector_qa_value(b),"flags":[]}));
+        vector_qa_store(&mut instructions,&mut next,2,0,vector_qa_value(xor));
+        let extended=vector_qa_push(&mut instructions,&mut next,11,json!({"op":"cast","kind":"z_ext","value":vector_qa_value(xor)}));
+        vector_qa_store(&mut instructions,&mut next,2,4,vector_qa_value(extended));
+        let parity=vector_qa_push(&mut instructions,&mut next,1,json!({"op":"vector_reduce_add","value":vector_qa_value(xor)}));
+        let returned=vector_qa_push(&mut instructions,&mut next,5,json!({"op":"cast","kind":"z_ext","value":vector_qa_value(parity)}));
+        functions.push(vector_qa_function("qa_vector_mask9",&[6,6,6],5,vec![json!({"id":0,"instructions":instructions,"terminator":{"op":"return","value":vector_qa_value(returned)}})]));
+
+        let partial=json!({"kind":"aggregate","ty":7,"elements":[vector_qa_int(4,7),{"kind":"poison","ty":4},vector_qa_int(4,9),vector_qa_int(4,11)]});
+        let mut instructions=Vec::new();
+        let mut next=1usize;
+        let frozen=vector_qa_push(&mut instructions,&mut next,7,json!({"op":"freeze","value":partial.clone()}));
+        for (slot,lane) in [0u64,2,3].into_iter().enumerate() {
+            let value=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"extract_element","vector":vector_qa_value(frozen),"index":vector_qa_int(5,lane)}));
+            vector_qa_store(&mut instructions,&mut next,0,slot as u64*4,vector_qa_value(value));
+        }
+        let unknown_a=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"extract_element","vector":vector_qa_value(frozen),"index":vector_qa_int(5,1)}));
+        let unknown_b=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"extract_element","vector":vector_qa_value(frozen),"index":vector_qa_int(5,1)}));
+        let cancellation=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"binary","kind":"xor","lhs":vector_qa_value(unknown_a),"rhs":vector_qa_value(unknown_b),"flags":[]}));
+        vector_qa_store(&mut instructions,&mut next,0,12,vector_qa_value(cancellation));
+        let replaced=vector_qa_push(&mut instructions,&mut next,7,json!({"op":"insert_element","vector":partial,"value":vector_qa_int(4,3),"index":vector_qa_int(5,1)}));
+        let total=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"vector_reduce_add","value":vector_qa_value(replaced)}));
+        vector_qa_store(&mut instructions,&mut next,0,16,vector_qa_value(total));
+        functions.push(vector_qa_function("qa_vector_poison_defined",&[6],0,vec![json!({"id":0,"instructions":instructions,"terminator":{"op":"return","value":null}})]));
+
+        let mut instructions=Vec::new();
+        let mut next=3usize;
+        let input=vector_qa_push(&mut instructions,&mut next,7,json!({"op":"load","pointer":vector_qa_value(0),"alignment":1,"volatile":false}));
+        let extracted=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"extract_element","vector":vector_qa_value(input),"index":vector_qa_value(1)}));
+        let valid=vector_qa_push(&mut instructions,&mut next,1,json!({"op":"i_cmp","predicate":"ult","lhs":vector_qa_value(1),"rhs":vector_qa_int(5,4)}));
+        let result=vector_qa_push(&mut instructions,&mut next,4,json!({"op":"select","condition":vector_qa_value(valid),"on_true":vector_qa_value(extracted),"on_false":vector_qa_int(4,71)}));
+        let inserted=vector_qa_push(&mut instructions,&mut next,7,json!({"op":"insert_element","vector":vector_qa_value(input),"value":vector_qa_int(4,0xdeadbeef),"index":vector_qa_value(1)}));
+        let safe=vector_qa_push(&mut instructions,&mut next,7,json!({"op":"select","condition":vector_qa_value(valid),"on_true":vector_qa_value(inserted),"on_false":vector_qa_value(input)}));
+        vector_qa_store(&mut instructions,&mut next,2,0,vector_qa_value(safe));
+        functions.push(vector_qa_function("qa_vector_dynamic",&[6,5,6],4,vec![json!({"id":0,"instructions":instructions,"terminator":{"op":"return","value":vector_qa_value(result)}})]));
+        functions.push(vector_qa_phi_function());
+        vector_qa_module("x86_64-unknown-linux-gnu",functions)
+    }
+
+    /// Execute only on the actual matching native host, like the existing
+    /// integer C oracles. Other-target frame tests above do not execute code.
+    #[cfg(all(target_arch="x86_64",target_os="linux"))]
+    #[test]
+    fn native_fixed_vector_defined_results_match_independent_c_oracle() {
+        use std::{fs,process::Command,time::{SystemTime,UNIX_EPOCH}};
+        let directory=std::env::temp_dir().join(format!("ostadix-fixed-vector-{}-{}",
+            std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir(&directory).unwrap();
+        let module=vector_qa_execution_module();
+        fs::write(directory.join("module.json"),serde_json::to_vec_pretty(&module).unwrap()).unwrap();
+        fs::write(directory.join("own.s"),emit(&module,Target::X86_64UnknownNone).unwrap()).unwrap();
+        let source=r#"#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+extern void qa_vector_math_1(const unsigned char*,const unsigned char*,unsigned char*);
+extern void qa_vector_math_8(const unsigned char*,const unsigned char*,unsigned char*);
+extern void qa_vector_math_16(const unsigned char*,const unsigned char*,unsigned char*);
+extern void qa_vector_math_32(const unsigned char*,const unsigned char*,unsigned char*);
+extern void qa_vector_math_64(const unsigned char*,const unsigned char*,unsigned char*);
+extern void qa_vector_store3(unsigned char*);
+extern uint64_t qa_vector_mask9(const unsigned char*,const unsigned char*,unsigned char*);
+extern void qa_vector_poison_defined(uint32_t*);
+extern uint32_t qa_vector_dynamic(const uint32_t*,uint64_t,uint32_t*);
+extern void qa_vector_phi(const uint32_t*,const uint32_t*,uint32_t*,uint64_t);
+typedef void (*Math)(const unsigned char*,const unsigned char*,unsigned char*);
+static Math math_functions[]={qa_vector_math_1,qa_vector_math_8,qa_vector_math_16,qa_vector_math_32,qa_vector_math_64};
+static const unsigned widths[]={1,8,16,32,64};
+static uint64_t state=UINT64_C(0xf137a5294bd3c681);
+static uint64_t rng(void){state^=state<<13;state^=state>>7;state^=state<<17;return state;}
+/* The oracle packs one bit at a time, independently of native spill/chunk code. */
+static void put(unsigned char *p,unsigned width,unsigned lane,uint64_t value){
+ for(unsigned bit=0;bit<width;bit++)if((value>>bit)&1)p[(lane*width+bit)/8]|=(unsigned char)(1u<<((lane*width+bit)%8));
+}
+static uint64_t get(const unsigned char*p,unsigned width,unsigned lane){
+ uint64_t value=0;for(unsigned bit=0;bit<width;bit++)value|=(uint64_t)((p[(lane*width+bit)/8]>>((lane*width+bit)%8))&1)<<bit;return value;
+}
+#define CHECK(tag,condition) do{if(!(condition)){fprintf(stderr,"%s mismatch line=%d\n",tag,__LINE__);return 1;}checks++;}while(0)
+int main(int argc,char**argv){
+ (void)argv;uint64_t checks=0;
+ for(unsigned wi=0;wi<5;wi++){
+  unsigned width=widths[wi],bytes=(width*4+7)/8;
+  uint64_t mask=width==64?UINT64_MAX:(UINT64_C(1)<<width)-1,high=UINT64_C(1)<<(width-1);
+  uint64_t corners[]={0,1,mask,mask>>1,high,mask-1,high-1,(high+1)&mask};
+  for(unsigned sample=0;sample<128;sample++){
+   unsigned char a[32]={0},b[32]={0},out[200];uint64_t av[4],bv[4];memset(out,0xaa,sizeof(out));
+   for(unsigned lane=0;lane<4;lane++){
+    av[lane]=(sample<64?corners[(sample/8+lane)%8]:rng())&mask;
+    bv[lane]=(sample<64?corners[(sample%8+3*lane)%8]:rng())&mask;
+    put(a,width,lane,av[lane]);put(b,width,lane,bv[lane]);
+   }
+   math_functions[wi](a,b,out);
+   for(unsigned lane=0;lane<4;lane++){
+    uint64_t ua=av[lane],ub=bv[lane],count=ub&(width-1);
+    __int128 sa=(__int128)ua-((ua&high)?(__int128)((unsigned __int128)1<<width):0);
+    __int128 sb=(__int128)ub-((ub&high)?(__int128)((unsigned __int128)1<<width):0);
+    uint64_t shifted=count?((ua>>count)|((ua&high)?(mask^(mask>>count)):0)):ua;
+    uint64_t expected[]={ (ua-ub)&mask,sa<sb?ua:ub,(ua+ub)&mask,shifted&mask,sa<sb?mask:0,ua&ub };
+    for(unsigned op=0;op<6;op++){
+     if(argc>1&&wi==0&&sample==0&&lane==0&&op==0)expected[op]^=1;
+     uint64_t actual=get(out+32*op,width,lane);
+     if(actual!=expected[op]){fprintf(stderr,"math mismatch width=%u sample=%u lane=%u operation=%u expected=%llu actual=%llu\n",width,sample,lane,op,(unsigned long long)expected[op],(unsigned long long)actual);return 1;}
+     checks++;
+    }
+   }
+   for(unsigned op=0;op<6;op++)for(unsigned byte=bytes;byte<32;byte++)CHECK("math extent",out[32*op+byte]==0xaa);
+   for(unsigned byte=192;byte<200;byte++)CHECK("math suffix",out[byte]==0xaa);
+  }
+ }
+ unsigned char canary[16];memset(canary,0xaa,sizeof(canary));qa_vector_store3(canary+5);
+ for(unsigned byte=0;byte<16;byte++){unsigned expected=byte==5?0xa1:byte==6?0xb2:byte==7?0xc3:0xaa;CHECK("v3i8 extent",canary[byte]==expected);}
+ for(unsigned pattern=0;pattern<512;pattern++){
+  unsigned other=(pattern*73+19)&511,expected=pattern^other;
+  unsigned char a[2]={(unsigned char)pattern,(unsigned char)(pattern>>8)},b[2]={(unsigned char)other,(unsigned char)(other>>8)},out[20];memset(out,0xaa,sizeof(out));
+  uint64_t parity=qa_vector_mask9(a,b,out);unsigned sum=0;
+  for(unsigned lane=0;lane<9;lane++){unsigned bit=(expected>>lane)&1;CHECK("v9i1 packed",get(out,1,lane)==bit);CHECK("v9i1 zext",out[4+lane]==bit);sum+=bit;}
+  CHECK("v9i1 parity",parity==(sum&1));
+  /* Unused bits in the final packed byte are deliberately not compared. */
+  for(unsigned byte=0;byte<20;byte++)if(byte==2||byte==3||byte>=13)CHECK("v9i1 extent",out[byte]==0xaa);
+ }
+ uint32_t poison[5]={0};const uint32_t poison_expected[]={7,9,11,0,30};qa_vector_poison_defined(poison);
+ for(unsigned i=0;i<5;i++)CHECK("defined poison/freeze",poison[i]==poison_expected[i]);
+ uint32_t input[]={7,UINT32_C(0x80000001),91,UINT32_C(0xffffffff)},out[8];
+ const uint64_t indexes[]={0,1,2,3,4,5,UINT64_MAX};
+ for(unsigned sample=0;sample<7;sample++){
+  uint64_t index=indexes[sample];uint32_t result=qa_vector_dynamic(input,index,out);
+  CHECK("dynamic extract selected poison away",result==(index<4?input[index]:71));
+  for(unsigned lane=0;lane<4;lane++)CHECK("dynamic insert selected poison away",out[lane]==(index==lane?UINT32_C(0xdeadbeef):input[lane]));
+ }
+ const uint32_t a[]={1,2,UINT32_C(0x80000003),4},b[]={41,52,63,UINT32_C(0xfffffff4)};
+ for(unsigned iterations=0;iterations<8;iterations++){
+  memset(out,0,sizeof(out));qa_vector_phi(a,b,out,iterations);
+  for(unsigned lane=0;lane<4;lane++){CHECK("parallel phi A",out[lane]==((iterations&1)?b[lane]:a[lane]));CHECK("parallel phi B",out[4+lane]==((iterations&1)?a[lane]:b[lane]));}
+ }
+ printf("%llu defined vector observations\n",(unsigned long long)checks);return checks==110968?0:2;
+}
+"#;
+        fs::write(directory.join("oracle.c"),source).unwrap();
+        let compiler=std::env::var_os("OCORE_TEST_CLANG").unwrap_or_else(||"clang".into());
+        let compile=Command::new(&compiler).current_dir(&directory)
+            .args(["-O2","oracle.c","own.s","-o","oracle"]).output()
+            .expect("native fixed-vector QA requires clang; set OCORE_TEST_CLANG if needed");
+        fs::write(directory.join("compile.stdout"),&compile.stdout).unwrap();
+        fs::write(directory.join("compile.stderr"),&compile.stderr).unwrap();
+        assert!(compile.status.success(),"{}: {}",directory.display(),String::from_utf8_lossy(&compile.stderr));
+        let output=Command::new(directory.join("oracle")).output().unwrap();
+        fs::write(directory.join("execution.stdout"),&output.stdout).unwrap();
+        fs::write(directory.join("execution.stderr"),&output.stderr).unwrap();
+        assert!(output.status.success(),"{}: {}",directory.display(),String::from_utf8_lossy(&output.stderr));
+        assert_eq!(String::from_utf8_lossy(&output.stdout),"110968 defined vector observations\n");
+        let corrupted=Command::new(directory.join("oracle")).arg("corrupt").output().unwrap();
+        fs::write(directory.join("corrupt.stdout"),&corrupted.stdout).unwrap();
+        fs::write(directory.join("corrupt.stderr"),&corrupted.stderr).unwrap();
+        assert!(!corrupted.status.success(),"corrupted vector oracle unexpectedly passed");
+        assert!(String::from_utf8_lossy(&corrupted.stderr).contains("math mismatch width=1 sample=0 lane=0 operation=0"));
+        println!("fixed-vector QA: 110968 defined observations and corrupted-oracle rejection; artifacts {}",directory.display());
+    }
+
 }

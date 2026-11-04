@@ -2753,9 +2753,16 @@ fn declared_pure_route_retains_conservative_hostworld_dependencies() {
 #[test]
 fn ordinary_oir_graph_execution_is_unchanged() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixture = tempfile::tempdir().unwrap();
+    let program = fixture.path().join("python-smoke.O");
+    std::fs::write(
+        &program,
+        "O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n",
+    )
+    .unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_O"))
         .args(["--executor", "graph"])
-        .arg(root.join("examples/hello.O"))
+        .arg(&program)
         .arg(root.join("backends"))
         .env_remove("O_PROJECT_EXECUTOR")
         .output()

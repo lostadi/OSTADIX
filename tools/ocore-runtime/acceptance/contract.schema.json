@@ -32,6 +32,7 @@
         "jit_invalidation": {"type": "boolean"}
       }
     },
+    "isa_coverage": {"$ref": "#/$defs/file", "description": "Optional pinned ISA prerequisites; missing/unverified lanes remain RED while declared unit work continues."},
     "targets": {
       "type": "array", "minItems": 1,
       "items": {

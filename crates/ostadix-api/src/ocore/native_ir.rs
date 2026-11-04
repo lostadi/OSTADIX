@@ -193,12 +193,35 @@ pub struct TargetLayout {
     /// property for these regions; this does not promise starvation freedom.
     #[serde(default)]
     pub atomic_profile: Option<AtomicProfile>,
+    /// Explicit ordinary-RAM realization for wide volatile accesses. Native
+    /// accesses may use ordered target-sized parts: this excludes MMIO and
+    /// provides no indivisibility or atomicity. Original operations are retained.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wide_volatile_profile: Option<WideVolatileProfile>,
+}
+
+/// Original function subtarget strings, not replacement executable IR. Their
+/// ordered spelling is retained so ABI-sensitive legalization can be checked
+/// independently against the original producer and at caller/provider edges.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SourceAbiWitness {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_cpu: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_features: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AtomicProfile {
     CoherentRamV1,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WideVolatileProfile {
+    OrdinaryRamSplitV1,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -233,6 +256,12 @@ pub enum Type {
     /// Compiler-only LLVM metadata. It has no size, alignment, SSA storage,
     /// register, stack slot, global address, or ordinary native calling ABI.
     Metadata {},
+    /// An identified LLVM structure whose body is unknown. Its TypeId preserves
+    /// identity even when `name` is None. This has no allocation/SSA/ABI layout;
+    /// only a direct external global declaration may use it.
+    OpaqueStruct {
+        name: Option<String>,
+    },
     Int {
         bits: u16,
     },
@@ -241,6 +270,12 @@ pub enum Type {
     },
     Pointer {
         address_space: u32,
+    },
+    /// Fixed integer vector. Lanes occupy consecutive significant bits in
+    /// memory, not the allocation stride of the scalar element type.
+    Vector {
+        element: TypeId,
+        len: u64,
     },
     Array {
         element: TypeId,
@@ -402,11 +437,41 @@ pub struct Relocation {
     /// global; its identity remains explicit rather than becoming a PC offset.
     #[serde(default)]
     pub relative_to: Option<String>,
+    /// An owned code-block target; `symbol` is empty for this variant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub block: Option<BlockAddressRef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BlockAddressRef {
+    pub function: String,
+    pub block: BlockId,
+}
+
+/// Raw source control effects, separate from the ordinary calling signature.
+/// `returns_twice` permits later resumption of this call's continuation; it
+/// does not assert a qualified native frame or external jump provider.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ControlEffects {
+    #[serde(default)]
+    pub returns_twice: bool,
+}
+
+impl ControlEffects {
+    pub fn is_empty(&self) -> bool {
+        !self.returns_twice
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Function {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_abi: Option<SourceAbiWitness>,
+    #[serde(default, skip_serializing_if = "ControlEffects::is_empty")]
+    pub control_effects: ControlEffects,
     pub name: String,
     pub linkage: String,
     #[serde(default)]
@@ -430,6 +495,23 @@ pub struct Function {
     /// The personality operand keeps the original symbol/declaration identity.
     #[serde(default)]
     pub exception_handling: Option<ExceptionHandling>,
+    /// Original LLVM call-target promises for SSA or named direct calls. These restrict defined
+    /// executions; they do not promote calls, insert runtime checks, or invent
+    /// executable/link references to otherwise unused declarations.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub call_target_constraints: Vec<CallTargetConstraint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CallTargetConstraint {
+    /// The exact source instruction and its contiguous native expansion. The
+    /// final operation is the unchanged SSA/named direct call (or invoke).
+    /// Its original operand is retained on that operation, never inferred from this list.
+    pub site: NoAliasSite,
+    /// Preserve ordering, repeated names and the empty set. An empty set is
+    /// distinct from an absent promise: executing such a call is source UB.
+    pub callees: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -499,6 +581,12 @@ pub enum Operand {
         ty: TypeId,
         bits: String,
     },
+    /// Unsigned decimal encoding of the exact IEEE32/64/128 or x87 extended80
+    /// significant bits. No host floating-point conversion or ABI padding.
+    Float {
+        ty: TypeId,
+        bits: String,
+    },
     /// Literal unsigned address bits for an integral, little-endian 64-bit
     /// address-space-zero pointer. This is neither a symbol nor a relocation,
     /// and does not establish that the address is dereferenceable.
@@ -521,13 +609,21 @@ pub enum Operand {
         name: String,
         addend: i64,
     },
-    /// A source struct/array constant with its original aggregate type. Every
+    /// A code-block address, retaining reversible opaque address arithmetic.
+    BlockAddress {
+        ty: TypeId,
+        function: String,
+        block: BlockId,
+        #[serde(default)]
+        addend: i64,
+    },
+    /// A source struct/array/vector constant with its original type. Every
     /// child is itself constant; SSA construction uses InsertValue instead.
     Aggregate {
         ty: TypeId,
         elements: Vec<Operand>,
     },
-    /// Compact LLVM zeroinitializer for a sized struct or array, including
+    /// Compact LLVM zeroinitializer for a sized struct, array or vector, including
     /// empty aggregates. This does not materialize padding or repeated leaves.
     AggregateZero {
         ty: TypeId,
@@ -592,6 +688,32 @@ pub enum Operation {
         rhs: Operand,
         flags: Vec<String>,
     },
+    FloatBinary {
+        kind: FloatBinaryOp,
+        lhs: Operand,
+        rhs: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
+    FloatNeg {
+        value: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
+    /// Exact significant-bit sign clearing, including signed zeros and NaN
+    /// payloads. This is LLVM fabs, not comparison or host floating arithmetic.
+    FloatAbs {
+        value: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
+    FCmp {
+        predicate: FloatPredicate,
+        lhs: Operand,
+        rhs: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
     /// Exact modular arithmetic and representability flag, as returned by
     /// LLVM's scalar `[su]{add,sub,mul}.with.overflow` intrinsics. Overflow is
     /// defined for every input and does not produce LLVM poison.
@@ -609,6 +731,23 @@ pub enum Operation {
         lhs: Operand,
         rhs: Operand,
     },
+    /// Same-width population count; one original scalar operand and no poison flag.
+    IntegerPopulationCount {
+        value: Operand,
+    },
+    /// Same-width leading-zero count. The original LLVM immediate poison flag
+    /// is retained; LlvmDefinedBehaviorV1 realizes zero as the source width even
+    /// when the source flag permits poison. No undefined target BSR is exposed.
+    IntegerCountLeadingZeros {
+        value: Operand,
+        zero_is_poison: bool,
+    },
+    /// Same-width wrapping magnitude. INT_MIN remains INT_MIN; a true source
+    /// poison flag permits this deterministic refinement, not overflow trapping.
+    IntegerAbs {
+        value: Operand,
+        int_min_is_poison: bool,
+    },
     ICmp {
         predicate: IntPredicate,
         lhs: Operand,
@@ -624,6 +763,22 @@ pub enum Operation {
         on_false: Operand,
     },
     Freeze {
+        value: Operand,
+    },
+    /// Unsigned lane index; an out-of-range source index produces poison,
+    /// which LlvmDefinedBehaviorV1 may refine without introducing a trap.
+    ExtractElement {
+        vector: Operand,
+        index: Operand,
+    },
+    /// Replace one lane and retain every other defined original lane.
+    InsertElement {
+        vector: Operand,
+        value: Operand,
+        index: Operand,
+    },
+    /// Source integer-lane-width modular addition across all fixed lanes.
+    VectorReduceAdd {
         value: Operand,
     },
     /// A nonempty constant path through original struct fields/array elements.
@@ -651,6 +806,17 @@ pub enum Operation {
         base: Operand,
         offset: Operand,
         inbounds: bool,
+    },
+    /// Mask address bits while preserving the original pointer's underlying
+    /// object/provenance. The current native profile is integral AS0 with
+    /// 64-bit pointer and index widths; this is not an integer round trip.
+    PtrMask {
+        pointer: Operand,
+        mask: Operand,
+        /// Original LLVM call-result pointer alignment. A present constraint
+        /// must be independently proved from the literal mask (or be 1).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        return_alignment: Option<u64>,
     },
     Load {
         pointer: Operand,
@@ -710,6 +876,8 @@ pub enum Operation {
         sync_scope: u32,
     },
     Call {
+        #[serde(default, skip_serializing_if = "ControlEffects::is_empty")]
+        control_effects: ControlEffects,
         callee: Operand,
         signature: Signature,
         args: Vec<Operand>,
@@ -748,6 +916,51 @@ pub enum BinaryOp {
     Xor,
 }
 
+/// Retained LLVM fast-math promises. The strict realization does not exploit
+/// these permissions; it must not invent reassociation, contraction or NaNs.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct FastMathFlags {
+    pub reassoc: bool,
+    pub nnan: bool,
+    pub ninf: bool,
+    pub nsz: bool,
+    pub arcp: bool,
+    pub contract: bool,
+    pub afn: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FloatBinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FloatPredicate {
+    False,
+    Oeq,
+    Ogt,
+    Oge,
+    Olt,
+    Ole,
+    One,
+    Ord,
+    Uno,
+    Ueq,
+    Ugt,
+    Uge,
+    Ult,
+    Ule,
+    Une,
+    True,
+}
+
 /// Distinct from floating-point min/max and the atomic read-modify-write kinds.
 /// In particular, signed i1 orders true (-1) before false (0).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -783,6 +996,12 @@ pub enum CastOp {
     PtrToInt,
     IntToPtr,
     Bitcast,
+    FpTrunc,
+    FpExt,
+    FpToUi,
+    FpToSi,
+    UiToFp,
+    SiToFp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -814,6 +1033,11 @@ pub enum Terminator {
         on_true: BlockId,
         on_false: BlockId,
     },
+    /// All original destinations are explicit CFG edges, including repeats.
+    IndirectBranch {
+        address: Operand,
+        destinations: Vec<BlockId>,
+    },
     Switch {
         condition: Operand,
         default: BlockId,
@@ -838,6 +1062,30 @@ pub enum Terminator {
 }
 
 impl NativeModule {
+    /// Conservative whole-module gate, including cold/unused declarations.
+    pub fn has_nonlocal_control_effects(&self) -> bool {
+        self.functions.iter().any(|function| {
+            function.control_effects.returns_twice
+                || function
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.instructions)
+                    .any(|instruction| {
+                        matches!(&instruction.operation, Operation::Call { control_effects, .. }
+                        if control_effects.returns_twice)
+                    })
+        })
+    }
+
+    /// Raw site effects remain distinct from the direct declaration's effects.
+    /// Unknown indirect/alias combinations are not inferred from symbol names.
+    pub fn effective_returns_twice(&self, callee: &Operand, site: ControlEffects) -> bool {
+        site.returns_twice
+            || matches!(callee, Operand::Symbol { name, .. }
+            if self.functions.iter().any(|function|
+                function.name == *name && function.control_effects.returns_twice))
+    }
+
     pub fn from_json(bytes: &[u8]) -> Result<Self, super::Diagnostic> {
         let module: Self = serde_json::from_slice(bytes)
             .map_err(|error| error_diagnostic(format!("invalid native module: {error}")))?;

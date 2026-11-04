@@ -30,12 +30,12 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
     ("common.rs", include_str!("../ocore/common.rs")),
     ("native_abi.rs", include_str!("../ocore/native_abi.rs")),
     (
-        "native_codegen.rs",
-        include_str!("../ocore/native_codegen.rs"),
+        "native_floating_helpers.rs",
+        include_str!("../ocore/native_floating_helpers.rs"),
     ),
     (
-        "native_variadic_codegen.rs",
-        include_str!("../ocore/native_variadic_codegen.rs"),
+        "native_codegen.rs",
+        include_str!("../ocore/native_codegen.rs"),
     ),
     ("native_eh.rs", include_str!("../ocore/native_eh.rs")),
     (
@@ -43,7 +43,20 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         include_str!("../ocore/native_exception_codegen.rs"),
     ),
     ("native_ir.rs", include_str!("../ocore/native_ir.rs")),
+    ("native_machine_ir.rs", include_str!("../ocore/native_machine_ir.rs")),
+    ("native_machine_verify.rs", include_str!("../ocore/native_machine_verify.rs")),
+    ("native_machine_asm_reader.rs", include_str!("../ocore/native_machine_asm_reader.rs")),
+    ("native_machine_unit.rs", include_str!("../ocore/native_machine_unit.rs")),
+    ("native_machine_lift.rs", include_str!("../ocore/native_machine_lift.rs")),
+    ("native_machine_lift_dispatch.rs", include_str!("../ocore/native_machine_lift_dispatch.rs")),
+    ("native_machine_lift_x86_64.rs", include_str!("../ocore/native_machine_lift_x86_64.rs")),
+    ("native_machine_lift_aarch64.rs", include_str!("../ocore/native_machine_lift_aarch64.rs")),
+    ("native_machine_lift_rv64.rs", include_str!("../ocore/native_machine_lift_rv64.rs")),
     ("native_map.rs", include_str!("../ocore/native_map.rs")),
+    (
+        "native_nonlocal.rs",
+        include_str!("../ocore/native_nonlocal.rs"),
+    ),
     (
         "native_verify.rs",
         include_str!("../ocore/native_verify.rs"),
@@ -56,6 +69,32 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         "native_float_layout.rs",
         include_str!("../ocore/native_float_layout.rs"),
     ),
+    (
+        "native_variadic_codegen.rs",
+        include_str!("../ocore/native_variadic_codegen.rs"),
+    ),
+    (
+        "native_floating_codegen.rs",
+        include_str!("../ocore/native_floating_codegen.rs"),
+    ),
+    (
+        "native_floating_transport.rs",
+        include_str!("../ocore/native_floating_transport.rs"),
+    ),
+    (
+        "native_wide_integer_codegen.rs",
+        include_str!("../ocore/native_wide_integer_codegen.rs"),
+    ),
+    (
+        "native_vector_codegen.rs",
+        include_str!("../ocore/native_vector_codegen.rs"),
+    ),
+    (
+        "native_wide_volatile_codegen.rs",
+        include_str!("../ocore/native_wide_volatile_codegen.rs"),
+    ),
+    ("native_machine_emit.rs", include_str!("../ocore/native_machine_emit.rs")),
+    ("native_machine_emit_rv64.rs", include_str!("../ocore/native_machine_emit_rv64.rs")),
 ];
 pub const RUNTIME_BACKEND_CATALOG_MODULE_RS: &str = include_str!("../backend_catalog.rs");
 pub const RUNTIME_BACKEND_CATALOG_DATA_RS: &str = include_str!("../backend_catalog.inc.rs");
@@ -319,3 +358,6 @@ pub const RUNTIME_PROJECT_SOURCES: &[(&str, &str)] = &[
         include_str!("../project/ecosystems/shell.rs"),
     ),
 ];
+
+#[cfg(test)]
+include!("aot_source_native_registry_tests.rs");

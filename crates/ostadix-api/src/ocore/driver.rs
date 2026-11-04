@@ -12,16 +12,6 @@ use super::{mir, parser, typeck, Diagnostic, Span};
 
 pub use super::Target;
 
-impl Target {
-    fn architecture(self) -> &'static str {
-        match self {
-            Target::X86_64UnknownNone => "x86_64",
-            Target::Aarch64UnknownNone => "aarch64",
-            Target::Riscv64UnknownNone => "riscv64",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmitKind {
     Ast,
@@ -73,6 +63,10 @@ pub struct NativeArtifactMap {
     pub artifact_sha256: String,
     pub artifact_bytes: usize,
     pub assembly: super::native_map::NativeAssemblyMap,
+    /// Computed frame/continuation correspondence for original returns_twice
+    /// effects. This does not qualify providers or Rust/OValue exposure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonlocal_control: Option<super::native_nonlocal::NativeNonlocalReport>,
 }
 
 pub const NATIVE_ARTIFACT_MAP_FORMAT: &str = "ocore-native-artifact-map-v1";
@@ -103,11 +97,17 @@ pub fn compile_native_module_with_map(
             "imported native modules have no .oc AST/HIR; use --emit mir",
         ));
     }
-    let (assembly, map) = if map_output.is_some() {
+    let (assembly, map, nonlocal_control) = if map_output.is_some()
+        && module.has_nonlocal_control_effects()
+    {
+        let (assembly, map, report) =
+            super::native_codegen::emit_with_map_and_nonlocal_report(&module, options.target)?;
+        (assembly, Some(map), Some(report))
+    } else if map_output.is_some() {
         let (assembly, map) = super::native_codegen::emit_with_map(&module, options.target)?;
-        (assembly, Some(map))
+        (assembly, Some(map), None)
     } else {
-        (super::native_codegen::emit(&module, options.target)?, None)
+        (super::native_codegen::emit(&module, options.target)?, None, None)
     };
     let output = if options.emit == EmitKind::Assembly {
         write_text(&options.output, &assembly)?;
@@ -116,7 +116,12 @@ pub fn compile_native_module_with_map(
             assembly: Some(options.output.clone()),
         }
     } else {
-        emit_object(options, &assembly, module.target.abi.as_deref())?
+        emit_object(
+            options,
+            &assembly,
+            module.target.abi.as_deref(),
+            native_block_labels_required(&module),
+        )?
     };
     if let (Some(path), Some(map)) = (map_output, map) {
         let artifact = fs::read(&output.output)
@@ -135,6 +140,7 @@ pub fn compile_native_module_with_map(
             artifact_sha256: hex::encode(Sha256::digest(&artifact)),
             artifact_bytes: artifact.len(),
             assembly: map,
+            nonlocal_control,
         };
         let json = serde_json::to_string_pretty(&record)
             .map_err(|error| driver_error(format!("failed to serialize native map: {error}")))?;
@@ -230,6 +236,19 @@ pub fn verify_native_artifact_map(
     let assembly = std::str::from_utf8(&assembly_bytes)
         .map_err(|error| driver_error(format!("native assembly is not UTF-8: {error}")))?;
     record.assembly.verify(&module, target, assembly)?;
+    match (&record.nonlocal_control, module.has_nonlocal_control_effects()) {
+        (Some(report), true) => {
+            let raw = serde_json::to_vec(report)
+                .map_err(|error| driver_error(format!("invalid native nonlocal report: {error}")))?;
+            super::native_nonlocal::verify_report_json(&raw, &module, target, assembly)?;
+        }
+        (None, false) => {}
+        _ => {
+            return Err(driver_error(
+                "native artifact map nonlocal-control report presence mismatch",
+            ));
+        }
+    }
     let artifact = read(artifact_input)?;
     if record.artifact_bytes != artifact.len()
         || record.artifact_sha256 != hex::encode(Sha256::digest(&artifact))
@@ -344,7 +363,44 @@ pub fn compile_with_function_sections(
         });
     }
 
-    emit_object(options, &assembly, None)
+    emit_object(options, &assembly, None, false)
+}
+
+fn native_block_labels_required(module: &super::native_ir::NativeModule) -> bool {
+    use super::native_ir::{Operand, Terminator};
+    fn contains_block(value: &Operand) -> bool {
+        let mut pending = vec![value];
+        while let Some(value) = pending.pop() {
+            match value {
+                Operand::BlockAddress { .. } => return true,
+                Operand::Aggregate { elements, .. } => pending.extend(elements),
+                _ => {}
+            }
+        }
+        false
+    }
+    module.globals.iter().any(|global| {
+        global.initializer.as_ref().is_some_and(|initializer| {
+            initializer
+                .relocations
+                .iter()
+                .any(|relocation| relocation.block.is_some())
+        })
+    }) || module
+        .functions
+        .iter()
+        .flat_map(|function| &function.blocks)
+        .any(|block| {
+            matches!(block.terminator, Terminator::IndirectBranch { .. })
+                || block.instructions.iter().any(|instruction| {
+                    super::native_verify::instruction_operands(&instruction.operation)
+                        .into_iter()
+                        .any(contains_block)
+                })
+                || super::native_verify::terminator_operands(&block.terminator)
+                    .into_iter()
+                    .any(contains_block)
+        })
 }
 
 fn object_assembler_abi(
@@ -366,6 +422,7 @@ fn emit_object(
     options: &CompileOptions,
     assembly: &str,
     imported_abi: Option<&str>,
+    retain_block_labels: bool,
 ) -> Result<CompileOutput, Diagnostic> {
     let abi = object_assembler_abi(options.target, imported_abi)?;
     if let Some(parent) = options.output.parent() {
@@ -392,22 +449,7 @@ fn emit_object(
             options.target.architecture()
         ))
     })?;
-    let mut command = Command::new(&clang);
-    command.args([
-        "-target",
-        options.target.triple(),
-        "-ffreestanding",
-        "-fno-stack-protector",
-        "-c",
-        "-x",
-        "assembler",
-    ]);
-    if let Some(abi) = abi {
-        // Preserve the imported scalar module's ABI marker. LP64D integer
-        // arguments use the same integer convention; FP values remain rejected
-        // by native_codegen rather than silently converted to an integer ABI.
-        command.arg("-march=rv64gc").arg(format!("-mabi={abi}"));
-    }
+    let mut command = object_assembler_command(&clang, options.target, abi, retain_block_labels);
     let output = command
         .arg(&assembly_path)
         .arg("-o")
@@ -431,6 +473,398 @@ fn emit_object(
     Ok(CompileOutput {
         output: options.output.clone(),
         assembly: options.keep_assembly.then_some(assembly_path),
+    })
+}
+
+fn object_assembler_command(
+    clang: &Path,
+    target: Target,
+    abi: Option<&str>,
+    retain_block_labels: bool,
+) -> Command {
+    let mut command = Command::new(clang);
+    command.args([
+        "-target",
+        target.triple(),
+        "-ffreestanding",
+        "-fno-stack-protector",
+        "-c",
+        "-x",
+        "assembler",
+    ]);
+    if retain_block_labels {
+        // The independent object inventory binds verified BlockLabel map sites
+        // to local ELF identities. A folded section offset alone cannot identify
+        // an original block. Keep the ordinary emission command unchanged.
+        command.arg("-Wa,-L");
+    }
+    if let Some(abi) = abi {
+        // Preserve the imported scalar module's ABI marker. LP64D integer
+        // arguments use the same integer convention; FP values remain rejected
+        // by native_codegen rather than silently converted to an integer ABI.
+        command.arg("-march=rv64gc").arg(format!("-mabi={abi}"));
+    }
+    command
+}
+
+/// In-process authority minted only by exact object reproduction below. There
+/// is deliberately no Deserialize implementation or public field constructor.
+/// This binds an artifact to the selected assembler's result; it does not prove
+/// the assembler's correctness or its shared-library/dependency closure.
+pub struct NativeObjectReproduction {
+    target: Target,
+    module_json: Vec<u8>,
+    assembly: String,
+    input_directory: PathBuf,
+    inputs_before: ReproductionInputSnapshot,
+    inputs_after: ReproductionInputSnapshot,
+    object: Vec<u8>,
+    assembler_invoked: PathBuf,
+    assembler_resolved: PathBuf,
+    assembler_sha256: String,
+    environment: (Option<std::ffi::OsString>, Option<std::ffi::OsString>),
+    receipt: serde_json::Value,
+}
+
+#[derive(serde::Serialize)]
+struct ReproductionInputObservation {
+    path: PathBuf,
+    expected_sha256: String,
+    expected_bytes: usize,
+    observed_sha256: Option<String>,
+    observed_bytes: Option<usize>,
+    read_error: Option<String>,
+    exact_match: bool,
+    retained_mismatch: Option<PathBuf>,
+}
+
+#[derive(serde::Serialize)]
+struct ReproductionInputSnapshot {
+    module: ReproductionInputObservation,
+    assembly: ReproductionInputObservation,
+}
+
+impl ReproductionInputSnapshot {
+    fn matches(&self) -> bool {
+        self.module.exact_match && self.assembly.exact_match
+    }
+}
+
+/// Observe full bytes, not merely the expected in-memory digest. These checks
+/// do not seal the files or prevent a change-and-restore race during assembly.
+fn observe_reproduction_inputs(
+    directory: &Path,
+    module: &[u8],
+    assembly: &[u8],
+    phase: &str,
+) -> Result<ReproductionInputSnapshot, Diagnostic> {
+    fn observe(
+        path: PathBuf,
+        expected: &[u8],
+        mismatch: PathBuf,
+    ) -> Result<ReproductionInputObservation, Diagnostic> {
+        let mut observation = ReproductionInputObservation {
+            path: path.clone(),
+            expected_sha256: hex::encode(Sha256::digest(expected)),
+            expected_bytes: expected.len(),
+            observed_sha256: None,
+            observed_bytes: None,
+            read_error: None,
+            exact_match: false,
+            retained_mismatch: None,
+        };
+        match fs::read(&path) {
+            Ok(bytes) => {
+                observation.observed_sha256 = Some(hex::encode(Sha256::digest(&bytes)));
+                observation.observed_bytes = Some(bytes.len());
+                observation.exact_match = bytes == expected;
+                if !observation.exact_match {
+                    fs::write(&mismatch, &bytes).map_err(|error| {
+                        driver_error(format!("retain changed reproduction input: {error}"))
+                    })?;
+                    observation.retained_mismatch = Some(mismatch);
+                }
+            }
+            Err(error) => observation.read_error = Some(error.to_string()),
+        }
+        Ok(observation)
+    }
+    let snapshot = ReproductionInputSnapshot {
+        module: observe(
+            directory.join("module.native.json"),
+            module,
+            directory.join(format!("{phase}-module.observed.json")),
+        )?,
+        assembly: observe(
+            directory.join("module.s"),
+            assembly,
+            directory.join(format!("{phase}-assembly.observed.s")),
+        )?,
+    };
+    fs::write(
+        directory.join(format!("inputs-{phase}.json")),
+        serde_json::to_vec_pretty(&snapshot).map_err(|error| {
+            driver_error(format!(
+                "serialize reproduction input observations: {error}"
+            ))
+        })?,
+    )
+    .map_err(|error| driver_error(format!("retain reproduction input observations: {error}")))?;
+    Ok(snapshot)
+}
+
+fn selected_object_assembler() -> Result<(PathBuf, PathBuf, String), Diagnostic> {
+    // This is the existing compiler-owned selection policy, not an executable
+    // or expected digest supplied by a witness/receipt caller.
+    let invoked = which::which("clang")
+        .map_err(|_| driver_error("clang is required for independent object reproduction"))?;
+    let resolved = invoked
+        .canonicalize()
+        .map_err(|error| driver_error(format!("resolve selected assembler: {error}")))?;
+    let bytes = fs::read(&resolved)
+        .map_err(|error| driver_error(format!("pin selected assembler: {error}")))?;
+    Ok((invoked, resolved, hex::encode(Sha256::digest(&bytes))))
+}
+
+impl NativeObjectReproduction {
+    pub fn receipt(&self) -> &serde_json::Value {
+        &self.receipt
+    }
+
+    /// Rebind private observed bytes, never a supplied success flag/digest.
+    pub fn verify(
+        &self,
+        module: &super::native_ir::NativeModule,
+        target: Target,
+        object: &[u8],
+    ) -> Result<(), Diagnostic> {
+        if target != self.target || module.to_json()? != self.module_json || object != self.object {
+            return Err(driver_error(
+                "independent object reproduction module/target/object mismatch",
+            ));
+        }
+        let (assembly, _) = super::native_codegen::emit_with_map(module, target)?;
+        if assembly != self.assembly {
+            return Err(driver_error(
+                "independent object reproduction assembly changed",
+            ));
+        }
+        if !self.inputs_before.matches() || !self.inputs_after.matches() {
+            return Err(driver_error(
+                "independent object reproduction has unbound input observations",
+            ));
+        }
+        let current_inputs = observe_reproduction_inputs(
+            &self.input_directory,
+            &self.module_json,
+            self.assembly.as_bytes(),
+            &format!("verify-{}", monotonic_nonce()),
+        )?;
+        if !current_inputs.matches() {
+            return Err(driver_error(format!(
+                "on-disk reproduction inputs changed; see {}",
+                self.input_directory.display()
+            )));
+        }
+        let (invoked, resolved, sha256) = selected_object_assembler()?;
+        if invoked != self.assembler_invoked
+            || resolved != self.assembler_resolved
+            || sha256 != self.assembler_sha256
+            || self.environment
+                != (
+                    std::env::var_os("PATH"),
+                    std::env::var_os("LD_LIBRARY_PATH"),
+                )
+        {
+            return Err(driver_error(
+                "independent object reproduction assembler/environment changed",
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Independently regenerate verified MIR assembly and reproduce exact object
+/// bytes under the compiler-owned selected/pinned assembler and ABI. Every
+/// attempted invocation and its raw output remain in a fresh evidence directory.
+/// A mismatch is an unmet gate; no symbol/section/path normalization is allowed.
+pub fn reproduce_native_object(
+    module: &super::native_ir::NativeModule,
+    target: Target,
+    supplied_object: &[u8],
+    evidence_root: &Path,
+) -> Result<NativeObjectReproduction, Diagnostic> {
+    let (assembly, map) = super::native_codegen::emit_with_map(module, target)?;
+    let module_json = module.to_json()?;
+    let abi = object_assembler_abi(target, module.target.abi.as_deref())?;
+    let (invoked, resolved, assembler_sha256) = selected_object_assembler()?;
+    let environment = (
+        std::env::var_os("PATH"),
+        std::env::var_os("LD_LIBRARY_PATH"),
+    );
+    let directory = evidence_root.join(format!(
+        "attempt-{}-{}",
+        std::process::id(),
+        monotonic_nonce()
+    ));
+    fs::create_dir_all(&directory)
+        .map_err(|error| driver_error(format!("create object reproduction evidence: {error}")))?;
+    let directory = directory
+        .canonicalize()
+        .map_err(|error| driver_error(format!("resolve object reproduction evidence: {error}")))?;
+    let assembly_path = directory.join("module.s");
+    let object_path = directory.join("module.o");
+    fs::write(directory.join("module.native.json"), &module_json)
+        .and_then(|_| fs::write(&assembly_path, &assembly))
+        .map_err(|error| driver_error(format!("retain object reproduction inputs: {error}")))?;
+    let mut command =
+        object_assembler_command(&invoked, target, abi, native_block_labels_required(module));
+    command.arg(&assembly_path).arg("-o").arg(&object_path);
+    let argv: Vec<_> = std::iter::once(command.get_program())
+        .chain(command.get_args())
+        .map(|arg| {
+            arg.to_str()
+                .map(str::to_owned)
+                .ok_or_else(|| driver_error("object reproduction argv must be lossless UTF-8"))
+        })
+        .collect::<Result<_, _>>()?;
+    let cwd = std::env::current_dir()
+        .map_err(|error| driver_error(format!("resolve object reproduction cwd: {error}")))?;
+    command.current_dir(&cwd);
+    let inputs_before =
+        observe_reproduction_inputs(&directory, &module_json, assembly.as_bytes(), "before")?;
+    let invocation = serde_json::json!({
+        "format":"ocore-independent-object-invocation-v1",
+        "module_sha256":hex::encode(Sha256::digest(&module_json)),
+        "module_path":directory.join("module.native.json"),"target":target.name(),
+        "frontend_target_and_profiles":module.target,"semantics":module.semantics,
+        "assembly_sha256":map.assembly_sha256,"assembly_path":assembly_path,
+        "assembler_selection_policy":"ocore-driver-which-clang-v1",
+        "assembler_invoked":invoked,"assembler_resolved":resolved,"assembler_sha256":assembler_sha256,
+        "argv":argv,"cwd":cwd,"PATH":environment.0,"LD_LIBRARY_PATH":environment.1,
+        "object_path":object_path,"supplied_object_sha256":hex::encode(Sha256::digest(supplied_object)),
+        "evidence_directory":directory,"inputs_before":inputs_before,
+        "input_file_guard_scope":"full-byte observations; no sealed-file or TOCTOU protection"
+    });
+    fs::write(
+        directory.join("invocation.json"),
+        serde_json::to_vec_pretty(&invocation)
+            .map_err(|error| driver_error(format!("serialize object invocation: {error}")))?,
+    )
+    .map_err(|error| driver_error(format!("retain object invocation before launch: {error}")))?;
+    if !inputs_before.matches() {
+        let failure = serde_json::json!({"format":"ocore-independent-object-reproduction-v1",
+            "status":"not_launched_input_drift","invocation":"invocation.json",
+            "inputs_before":inputs_before,"proof_minted":false,
+            "input_file_guard_scope":"full-byte observations; no sealed-file or TOCTOU protection"});
+        fs::write(
+            directory.join("receipt.json"),
+            serde_json::to_vec_pretty(&failure).map_err(|error| {
+                driver_error(format!("serialize changed-input receipt: {error}"))
+            })?,
+        )
+        .map_err(|error| driver_error(format!("retain changed-input receipt: {error}")))?;
+        return Err(driver_error(format!(
+            "on-disk reproduction inputs changed before launch; see {}",
+            directory.display()
+        )));
+    }
+    let launched = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output();
+    let output = match launched {
+        Ok(output) => output,
+        Err(error) => {
+            let inputs_after = observe_reproduction_inputs(
+                &directory,
+                &module_json,
+                assembly.as_bytes(),
+                "after-launch-error",
+            )?;
+            let failure = serde_json::json!({"format":"ocore-independent-object-launch-failure-v1",
+                "status":"spawn_failed","error":error.to_string(),"kind":format!("{:?}",error.kind()),
+                "raw_os_error":error.raw_os_error(),"invocation":"invocation.json","proof_minted":false,
+                "inputs_before":inputs_before,"inputs_after":inputs_after});
+            fs::write(
+                directory.join("launch-error.json"),
+                serde_json::to_vec_pretty(&failure).map_err(|error| {
+                    driver_error(format!("serialize object launch failure: {error}"))
+                })?,
+            )
+            .map_err(|error| driver_error(format!("retain object launch failure: {error}")))?;
+            return Err(driver_error(format!(
+                "launch independent object reproduction failed: {error}; see {}",
+                directory.display()
+            )));
+        }
+    };
+    let inputs_after =
+        observe_reproduction_inputs(&directory, &module_json, assembly.as_bytes(), "after")?;
+    fs::write(directory.join("stdout"), &output.stdout)
+        .and_then(|_| fs::write(directory.join("stderr"), &output.stderr))
+        .map_err(|error| driver_error(format!("retain object reproduction output: {error}")))?;
+    let reproduced = fs::read(&object_path).ok();
+    let stable = selected_object_assembler().is_ok_and(|identity| {
+        identity == (invoked.clone(), resolved.clone(), assembler_sha256.clone())
+    }) && environment
+        == (
+            std::env::var_os("PATH"),
+            std::env::var_os("LD_LIBRARY_PATH"),
+        );
+    let exact = reproduced.as_deref() == Some(supplied_object);
+    let receipt = serde_json::json!({
+        "format":"ocore-independent-object-reproduction-v1",
+        "module_sha256":hex::encode(Sha256::digest(&module_json)),"target":target.name(),
+        "frontend_target_and_profiles":module.target,"semantics":module.semantics,
+        "assembly_sha256":map.assembly_sha256,"assembly_map":map,
+        "assembler_selection_policy":"ocore-driver-which-clang-v1",
+        "assembler_invoked":invoked,"assembler_resolved":resolved,"assembler_sha256":assembler_sha256,
+        "argv":argv,"cwd":cwd,"PATH":environment.0,"LD_LIBRARY_PATH":environment.1,
+        "status":output.status.code(),"assembler_stable":stable,
+        "stdout_sha256":hex::encode(Sha256::digest(&output.stdout)),
+        "stderr_sha256":hex::encode(Sha256::digest(&output.stderr)),
+        "supplied_object_sha256":hex::encode(Sha256::digest(supplied_object)),
+        "reproduced_object_sha256":reproduced.as_ref().map(|bytes| hex::encode(Sha256::digest(bytes))),
+        "exact_byte_identity":exact,"evidence_directory":directory,
+        "inputs_before":inputs_before,"inputs_after":inputs_after,
+        "input_files_match_verified_bytes":inputs_before.matches() && inputs_after.matches(),
+        "input_file_guard_scope":"full-byte observations; no sealed-file or TOCTOU protection",
+        "assembler_correctness_qualified":false,"assembler_shared_library_closure_qualified":false,
+        "native_execution_qualified":false
+    });
+    fs::write(
+        directory.join("receipt.json"),
+        serde_json::to_vec_pretty(&receipt).map_err(|error| {
+            driver_error(format!("serialize object reproduction receipt: {error}"))
+        })?,
+    )
+    .map_err(|error| driver_error(format!("retain object reproduction receipt: {error}")))?;
+    if !output.status.success()
+        || !stable
+        || !exact
+        || !inputs_before.matches()
+        || !inputs_after.matches()
+    {
+        return Err(driver_error(format!(
+            "independent exact object reproduction failed; see {}",
+            directory.display()
+        )));
+    }
+    Ok(NativeObjectReproduction {
+        target,
+        module_json,
+        assembly,
+        input_directory: directory,
+        inputs_before,
+        inputs_after,
+        object: reproduced.unwrap(),
+        assembler_invoked: invoked,
+        assembler_resolved: resolved,
+        assembler_sha256,
+        environment,
+        receipt,
     })
 }
 

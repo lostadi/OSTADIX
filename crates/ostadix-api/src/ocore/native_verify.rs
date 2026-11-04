@@ -23,6 +23,10 @@ mod atomic_tests;
 #[path = "native_minmax_verify_tests.rs"]
 mod minmax_tests;
 
+#[cfg(test)]
+#[path = "native_integer_unary_verify_tests.rs"]
+mod integer_unary_tests;
+
 fn fail(context: &str, message: impl std::fmt::Display) -> Diagnostic {
     error_diagnostic(format!("{context}: {message}"))
 }
@@ -72,12 +76,63 @@ pub fn type_alignment(module: &NativeModule, ty: TypeId) -> Result<u64> {
 }
 
 /// Original allocation size and ABI alignment, computed once for a module.
-/// Missing entries are unsized void/metadata/function types; no layout is inferred.
+/// Missing entries are unsized void/metadata/opaque/function types; no layout is inferred.
 pub fn type_layouts(module: &NativeModule) -> Result<Vec<Option<(u64, u64)>>> {
     Ok(layouts(module)?
         .into_iter()
         .map(|layout| layout.map(|value| (value.size, value.align)))
         .collect())
+}
+
+/// Fixed-vector source layout, distinct from private SSA spill storage.
+/// LLVM22.1.6 DataLayout.cpp getAlignment and DataLayout.h getTypeStoreSize:
+/// lanes pack significant bits; exact v-width ABI entries override natural
+/// power-of-two store alignment. Allocation includes only ABI tail padding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FixedVectorLayout {
+    pub element: TypeId,
+    pub len: u64,
+    pub lane_bits: u16,
+    pub bit_width: u64,
+    pub store_size: u64,
+    pub allocation_size: u64,
+    pub abi_alignment: u64,
+}
+
+pub fn fixed_vector_layout(module: &NativeModule, ty: TypeId) -> Result<FixedVectorLayout> {
+    fixed_vector_layout_with_data(module, ty, &DataLayout::parse(module)?)
+}
+
+fn fixed_vector_layout_with_data(
+    module: &NativeModule,
+    ty: TypeId,
+    data: &DataLayout,
+) -> Result<FixedVectorLayout> {
+    let context = "fixed vector layout";
+    let Some(Type::Vector { element, len }) = module.types.get(ty) else {
+        return Err(fail(context, "fixed vector type required"));
+    };
+    if !module.target.little_endian {
+        return Err(fail(context, "fixed vectors require a supported little-endian memory profile"));
+    }
+    let lane_bits = match module.types.get(*element) {
+        Some(Type::Int { bits: bits @ (1 | 8 | 16 | 32 | 64) }) => *bits,
+        _ => return Err(fail(context, "fixed vector elements require integer i1/i8/i16/i32/i64; floating, pointer, nested and other widths need explicit lowering")),
+    };
+    if *len == 0 {
+        return Err(fail(context, "fixed vector lane count must be nonzero"));
+    }
+    let bit_width = len.checked_mul(u64::from(lane_bits))
+        .ok_or_else(|| fail(context, "vector significant bit width overflows u64"))?;
+    let store_size = bit_width.div_ceil(8);
+    let abi_alignment = match data.vectors.get(&bit_width) {
+        Some(value) => *value,
+        None => store_size.checked_next_power_of_two()
+            .ok_or_else(|| fail(context, "natural vector ABI alignment overflows u64"))?,
+    };
+    let allocation_size = align_up(store_size, abi_alignment, context)?;
+    Ok(FixedVectorLayout { element: *element, len: *len, lane_bits, bit_width,
+        store_size, allocation_size, abi_alignment })
 }
 
 /// Select a source struct/array element without flattening or changing TypeIds.
@@ -119,7 +174,10 @@ pub fn aggregate_element_type(
     Ok(ty)
 }
 
-/// Source scalar leaves in field/element order, with DataLayout byte offsets.
+/// Source scalar or opaque fixed-vector leaves with DataLayout byte offsets.
+/// A vector remains ONE typed leaf, including inside nested aggregates. Its
+/// lanes have packed BIT offsets exposed by fixed_vector_layout, never forged
+/// per-i1 byte offsets. Emitters must reserve the full vector spill span.
 /// Allocation strides include tail padding; padding is never an SSA leaf.
 /// Empty aggregates have no leaves. Generic floating-point leaves are retained
 /// here even when a native execution profile cannot lower them yet.
@@ -149,7 +207,9 @@ pub fn value_leaf_layouts(
             .get(ty)
             .ok_or_else(|| fail("value leaf layouts", format!("type {ty} is out of bounds")))?;
         match value {
-            Type::Void | Type::Metadata {} | Type::Function { .. } => continue,
+            Type::Void | Type::Metadata {} | Type::OpaqueStruct { .. } | Type::Function { .. } => {
+                continue
+            }
             Type::Struct { fields, .. } => pending.extend(fields),
             Type::Array { element, len } if *len != 0 => pending.push(*element),
             _ => {}
@@ -197,7 +257,8 @@ fn value_leaf_layout_with_layouts(
                     continue;
                 }
                 match &module.types[ty] {
-                    Type::Int { .. } | Type::Float { .. } | Type::Pointer { .. } => {
+                    Type::Int { .. } | Type::Float { .. } | Type::Pointer { .. }
+                    | Type::Vector { .. } => {
                         leaves.try_reserve(1).map_err(|error| {
                             fail(context, format!("scalar leaf allocation failed: {error}"))
                         })?;
@@ -216,7 +277,10 @@ fn value_leaf_layout_with_layouts(
                         base,
                         offset: 0,
                     }),
-                    Type::Void | Type::Metadata {} | Type::Function { .. } => unreachable!(),
+                    Type::Void
+                    | Type::Metadata {}
+                    | Type::OpaqueStruct { .. }
+                    | Type::Function { .. } => unreachable!(),
                 }
             }
             Pending::Array {
@@ -280,6 +344,7 @@ fn value_leaf_layout_with_layouts(
 struct DataLayout {
     ints: BTreeMap<u64, u64>,
     floats: BTreeMap<u64, u64>,
+    vectors: BTreeMap<u64, u64>,
     pointers: BTreeMap<u32, Layout>,
     pointer_indices: BTreeMap<u32, u64>,
     non_integral: BTreeSet<u32>,
@@ -304,6 +369,7 @@ impl DataLayout {
             // LLVM 21's default ABI alignments; i64 defaults to four bytes.
             ints: [(1, 1), (8, 1), (16, 2), (32, 4), (64, 4)].into(),
             floats: [(16, 2), (32, 4), (64, 8), (128, 16)].into(),
+            vectors: [(64, 8), (128, 16)].into(),
             pointers: [(0, Layout { size: 8, align: 8 })].into(),
             pointer_indices: [(0, 64)].into(),
             non_integral: BTreeSet::new(),
@@ -363,6 +429,8 @@ impl DataLayout {
                         dl.ints.insert(bits, abi);
                     } else if token.starts_with('f') {
                         dl.floats.insert(bits, abi);
+                    } else {
+                        dl.vectors.insert(bits, abi);
                     }
                 }
                 b'p' => {
@@ -488,7 +556,9 @@ impl DataLayout {
 
     fn primitive(&self, ty: &Type, context: &str) -> Result<Option<Layout>> {
         let (bytes, align) = match ty {
-            Type::Void | Type::Metadata {} | Type::Function { .. } => return Ok(None),
+            Type::Void | Type::Metadata {} | Type::OpaqueStruct { .. } | Type::Function { .. } => {
+                return Ok(None)
+            }
             Type::Int { bits } => {
                 if *bits == 0 {
                     return Err(fail(context, "zero-width integer"));
@@ -529,13 +599,30 @@ impl DataLayout {
                     align: p.align,
                 }));
             }
-            Type::Array { .. } | Type::Struct { .. } => return Ok(None),
+            Type::Array { .. } | Type::Struct { .. } | Type::Vector { .. } => return Ok(None),
         };
         Ok(Some(Layout {
             size: align_up(bytes, align, context)?,
             align,
         }))
     }
+}
+
+fn integral_default_pointer_profile(module: &NativeModule, dl: &DataLayout) -> bool {
+    module.target.pointer_bits == 64
+        && module.target.little_endian
+        && dl.pointers[&0].size == 8
+        && dl.pointer_indices[&0] == 64
+        && dl.non_integral.is_empty()
+        && dl.default_spaces == [0; 3]
+}
+
+// Layout-only entry for ABI proofs, intentionally not verify()/audit_module().
+pub(super) fn integral_default_64_pointer_profile(module: &NativeModule) -> Result<bool> {
+    Ok(integral_default_pointer_profile(
+        module,
+        &DataLayout::parse(module)?,
+    ))
 }
 
 fn layouts(module: &NativeModule) -> Result<Vec<Option<Layout>>> {
@@ -599,6 +686,12 @@ fn layouts(module: &NativeModule) -> Result<Vec<Option<Layout>>> {
                 ));
             }
             state[id] = 1;
+            if matches!(ty, Type::Vector { .. }) {
+                let vector = fixed_vector_layout_with_data(module, id, &dl)?;
+                output[id] = Some(Layout { size: vector.allocation_size, align: vector.abi_alignment });
+                state[id] = 2;
+                continue;
+            }
             let children: &[TypeId] = match ty {
                 Type::Array { element, .. } => std::slice::from_ref(element),
                 Type::Struct { fields, .. } => fields,
@@ -994,6 +1087,8 @@ pub fn variadic_intrinsic(name: &str) -> Option<VariadicIntrinsic> {
     }
 }
 
+pub const POINTER_MASK_INTRINSIC: &str = "llvm.ptrmask.p0.i64";
+
 fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
     use IntrinsicArgument::{Integer, Metadata, Pointer};
     match name {
@@ -1005,6 +1100,7 @@ fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
         "llvm.va_copy.p0" => Some(&[Pointer, Pointer]),
         "llvm.load.relative.i32" => Some(&[Pointer, Integer(32)]),
         "llvm.load.relative.i64" => Some(&[Pointer, Integer(64)]),
+        POINTER_MASK_INTRINSIC => Some(&[Pointer, Integer(64)]),
         "llvm.assume" => Some(&[Integer(1)]),
         "llvm.lifetime.start.p0" | "llvm.lifetime.end.p0" => Some(&[Pointer]),
         "llvm.memset.p0.i32" => Some(&[Pointer, Integer(8), Integer(32), Integer(1)]),
@@ -1025,6 +1121,24 @@ pub fn is_builtin_intrinsic(name: &str) -> bool {
     builtin_signature(name).is_some()
         || integer_overflow_intrinsic(name).is_some()
         || integer_minmax_intrinsic(name).is_some()
+        || float_abs_intrinsic(name).is_some()
+        || integer_unary_intrinsic(name).is_some()
+        || integer_population_count_intrinsic(name).is_some()
+        || integer_byte_swap_intrinsic(name).is_some()
+        || integer_funnel_intrinsic(name).is_some()
+        || float_integral_intrinsic(name).is_some()
+        || integer_saturating_sub_intrinsic(name).is_some()
+        || vector_reduce_add_intrinsic(name).is_some()
+}
+
+/// Exact overloaded fixed-integer reduction spelling; shape is checked below.
+pub fn vector_reduce_add_intrinsic(name: &str) -> Option<(u64, u16)> {
+    let (lanes, bits) = name.strip_prefix("llvm.vector.reduce.add.v")?.split_once('i')?;
+    let len: u64 = lanes.parse().ok()?;
+    let bits: u16 = bits.parse().ok()?;
+    (len != 0 && matches!(bits, 1 | 8 | 16 | 32 | 64)
+        && name == format!("llvm.vector.reduce.add.v{len}i{bits}"))
+        .then_some((len, bits))
 }
 
 /// Compiler-only declarations have no ordinary native ABI or executable
@@ -1055,6 +1169,77 @@ pub fn integer_overflow_intrinsic(name: &str) -> Option<(BinaryOp, bool, u16)> {
 /// Canonical names for the owned LLVM scalar integer min/max profile. Provider
 /// intrinsic-ID lookup alone cannot establish either this spelling or its type.
 /// Wider and vector LLVM overloads require separate supported realizations.
+pub fn float_abs_intrinsic(name: &str) -> Option<u16> {
+    match name {
+        "llvm.fabs.f32" => Some(32),
+        "llvm.fabs.f64" => Some(64),
+        "llvm.fabs.f80" => Some(80),
+        "llvm.fabs.f128" => Some(128),
+        _ => None,
+    }
+}
+
+/// Exact scalar byte-swap overloads in the supported native integer profile.
+/// Even-byte widths outside i1..i64 and i128 need a separately supported body.
+pub fn integer_byte_swap_intrinsic(name: &str) -> Option<u16> {
+    let width = name.strip_prefix("llvm.bswap.i")?;
+    let bits = width.parse::<u16>().ok()?;
+    (matches!(bits, 16 | 32 | 48 | 64 | 128) && width == bits.to_string()).then_some(bits)
+}
+
+/// Exact supported scalar population-count overloads; one same-width operand, with no poison flag.
+pub fn integer_population_count_intrinsic(name: &str) -> Option<u16> {
+    match name {
+        "llvm.ctpop.i32" => Some(32),
+        "llvm.ctpop.i64" => Some(64),
+        _ => None,
+    }
+}
+
+/// Exact supported scalar ctlz/abs overloads; names never authorize a body or
+/// a mismatched declaration signature. The boolean distinguishes ctlz from abs.
+pub fn integer_unary_intrinsic(name: &str) -> Option<(bool, u16)> {
+    match name {
+        "llvm.ctlz.i32" => Some((true, 32)),
+        "llvm.ctlz.i64" => Some((true, 64)),
+        "llvm.abs.i32" => Some((false, 32)),
+        "llvm.abs.i64" => Some((false, 64)),
+        _ => None,
+    }
+}
+
+/// Canonical scalar unsigned-saturating subtraction, expanded into five typed
+/// primitives. Existing scalar native/ABI widths are i1..i64 and exactly i128.
+/// A retained declaration never authorizes an ordinary call or invoke.
+pub fn integer_saturating_sub_intrinsic(name: &str) -> Option<u16> {
+    let width = name.strip_prefix("llvm.usub.sat.i")?;
+    let bits = width.parse::<u16>().ok()?;
+    (((1..=64).contains(&bits) || bits == 128) && width == bits.to_string()).then_some(bits)
+}
+
+/// Exact scalar power-of-two funnel overloads expanded into existing integer
+/// operations by the importer. A declaration never authorizes a native call.
+pub fn integer_funnel_intrinsic(name: &str) -> Option<u16> {
+    let (operation, width) = name.strip_prefix("llvm.")?.split_once(".i")?;
+    if !matches!(operation, "fshl" | "fshr") {
+        return None;
+    }
+    let bits = width.parse::<u16>().ok()?;
+    (matches!(bits, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128) && width == bits.to_string())
+        .then_some(bits)
+}
+
+/// Exact IEEE scalar overloads expanded by the importer into a verified
+/// integer graph. They never authorize an unresolved intrinsic call.
+pub fn float_integral_intrinsic(name: &str) -> Option<u16> {
+    let (operation, width) = name.strip_prefix("llvm.")?.split_once(".f")?;
+    if !matches!(operation, "floor" | "ceil" | "trunc") {
+        return None;
+    }
+    let bits = width.parse::<u16>().ok()?;
+    (matches!(bits, 32 | 64 | 128) && width == bits.to_string()).then_some(bits)
+}
+
 pub fn integer_minmax_intrinsic(name: &str) -> Option<(IntegerMinMaxKind, u16)> {
     let (operation, width) = name.strip_prefix("llvm.")?.split_once(".i")?;
     let kind = match operation {
@@ -1100,10 +1285,32 @@ impl<'a> Verifier<'a> {
     }
 
     fn same_type(&self, lhs: TypeId, rhs: TypeId, context: &str) -> Result<()> {
-        if lhs == rhs || self.ty(lhs, context)? == self.ty(rhs, context)? {
+        if lhs == rhs
+            || (!matches!(self.ty(lhs, context)?, Type::OpaqueStruct { .. })
+                && !matches!(self.ty(rhs, context)?, Type::OpaqueStruct { .. })
+                && self.ty(lhs, context)? == self.ty(rhs, context)?)
+        {
             Ok(())
         } else {
             Err(fail(context, format!("type mismatch: {lhs} versus {rhs}")))
+        }
+    }
+
+    fn floating_width(&self, id: TypeId, context: &str) -> Result<u16> {
+        match self.ty(id, context)? {
+            Type::Float {
+                bits: 32 | 64 | 128,
+            } => {
+                let Type::Float { bits } = self.ty(id, context)? else {
+                    unreachable!()
+                };
+                Ok(*bits)
+            }
+            Type::Float { bits: 80 } if self.module.target.triple.starts_with("x86_64-") => Ok(80),
+            _ => Err(fail(
+                context,
+                "floating value requires supported IEEE32/64/128 or x86 extended80 type",
+            )),
         }
     }
 
@@ -1277,6 +1484,33 @@ impl<'a> Verifier<'a> {
                 }
                 *ty
             }
+            Operand::Float { ty, bits } => {
+                let width = self.floating_width(*ty, context)?;
+                if bits.is_empty() || !bits.bytes().all(|c| c.is_ascii_digit()) {
+                    return Err(fail(
+                        context,
+                        "floating constant requires unsigned decimal significant bits",
+                    ));
+                }
+                let digits = bits.trim_start_matches('0');
+                let raw = if digits.is_empty() {
+                    0
+                } else {
+                    digits.parse::<u128>().map_err(|_| {
+                        fail(
+                            context,
+                            "floating constant exceeds its significant bit width",
+                        )
+                    })?
+                };
+                if width < 128 && raw >> width != 0 {
+                    return Err(fail(
+                        context,
+                        "floating constant exceeds its significant bit width",
+                    ));
+                }
+                *ty
+            }
             Operand::PointerBits { ty, bits } => {
                 if !matches!(self.ty(*ty, context)?, Type::Pointer { address_space: 0 }) {
                     return Err(fail(
@@ -1306,6 +1540,21 @@ impl<'a> Verifier<'a> {
                 if !matches!(self.ty(*ty, context)?, Type::Pointer { .. }) {
                     return Err(fail(context, "null requires pointer type"));
                 }
+                *ty
+            }
+            Operand::BlockAddress {
+                ty,
+                function,
+                block,
+                ..
+            } => {
+                if !matches!(self.ty(*ty, context)?, Type::Pointer { address_space: 0 }) {
+                    return Err(fail(
+                        context,
+                        "block address requires its integral AS0 pointer type",
+                    ));
+                }
+                self.block_address(function, *block, context)?;
                 *ty
             }
             Operand::Symbol { ty, name } | Operand::SymbolOffset { ty, name, .. } => {
@@ -1396,7 +1645,7 @@ impl<'a> Verifier<'a> {
                                     .map(|(value, ty)| (value, Some(*ty))),
                             );
                         }
-                        Type::Array { element, len } => {
+                        Type::Array { element, len } | Type::Vector { element, len } => {
                             if u64::try_from(elements.len()).ok() != Some(*len) {
                                 return Err(fail(
                                     context,
@@ -1408,7 +1657,7 @@ impl<'a> Verifier<'a> {
                         _ => {
                             return Err(fail(
                                 context,
-                                "aggregate constant requires a struct or array",
+                                "aggregate constant requires a struct, array or fixed vector",
                             ))
                         }
                     }
@@ -1417,9 +1666,9 @@ impl<'a> Verifier<'a> {
                 Operand::AggregateZero { ty } => {
                     if !matches!(
                         self.ty(*ty, context)?,
-                        Type::Struct { .. } | Type::Array { .. }
+                        Type::Struct { .. } | Type::Array { .. } | Type::Vector { .. }
                     ) {
-                        return Err(fail(context, "aggregate zero requires a struct or array"));
+                        return Err(fail(context, "aggregate zero requires a struct, array or fixed vector"));
                     }
                     self.sized(*ty, context)?;
                     *ty
@@ -1521,6 +1770,8 @@ struct Definition {
     block: Option<usize>,
     position: usize,
     alloca: bool,
+    // Derived from an exact typed producer; never serialized or caller supplied.
+    nonnegative_i32: bool,
 }
 
 fn atomic_sync_scopes(module: &NativeModule) -> Result<HashMap<u32, &AtomicSyncScope>> {
@@ -1565,6 +1816,81 @@ fn atomic_sync_scopes(module: &NativeModule) -> Result<HashMap<u32, &AtomicSyncS
     Ok(scopes)
 }
 
+/// Opaque identified structures retain identity without acquiring a size. This
+/// bounded representation admits their direct, non-TLS external declarations
+/// only; even a zero-length aggregate or an unused signature cannot size them.
+fn opaque_declarations(module: &NativeModule) -> Result<()> {
+    let opaque: HashSet<_> = module
+        .types
+        .iter()
+        .enumerate()
+        .filter_map(|(id, ty)| matches!(ty, Type::OpaqueStruct { .. }).then_some(id))
+        .collect();
+    if opaque.is_empty() {
+        return Ok(());
+    }
+    let context = "opaque declarations";
+    let mut named = HashSet::new();
+    for id in &opaque {
+        if let Type::OpaqueStruct { name: Some(name) } = &module.types[*id] {
+            if name.is_empty() || name.as_bytes().contains(&0) || !named.insert(name.as_str()) {
+                return Err(fail(context, "opaque identified names must be nonempty and unique; anonymous TypeIds remain distinct"));
+            }
+        }
+    }
+    for ty in &module.types {
+        let nested = match ty {
+            Type::Array { element, .. } => opaque.contains(element),
+            Type::Struct { fields, .. } => fields.iter().any(|id| opaque.contains(id)),
+            Type::Function { signature } => {
+                opaque.contains(&signature.result)
+                    || signature.params.iter().any(|id| opaque.contains(id))
+                    || signature
+                        .return_storage
+                        .as_ref()
+                        .is_some_and(|storage| opaque.contains(&storage.ty))
+            }
+            _ => false,
+        };
+        if nested {
+            return Err(fail(context, "opaque structure cannot be an aggregate member, function value or return-storage type"));
+        }
+    }
+    let mut used = HashSet::new();
+    let mut globals = HashSet::new();
+    for global in &module.globals {
+        if opaque.contains(&global.ty) {
+            if global.linkage != "external"
+                || global.initializer.is_some()
+                || global.thread_local
+                || global.tls_model.is_some()
+                || global.comdat.is_some()
+            {
+                return Err(fail(context, "opaque structure requires a direct non-TLS external global declaration without COMDAT or initializer"));
+            }
+            used.insert(global.ty);
+            globals.insert(global.name.as_str());
+        }
+    }
+    if used != opaque {
+        return Err(fail(
+            context,
+            "every opaque TypeId must belong to a direct external global declaration",
+        ));
+    }
+    if module
+        .aliases
+        .iter()
+        .any(|alias| opaque.contains(&alias.ty) || globals.contains(alias.aliasee.as_str()))
+    {
+        return Err(fail(
+            context,
+            "opaque external storage cannot be an alias or alias target",
+        ));
+    }
+    Ok(())
+}
+
 /// Validate a complete module before target-specific support checks/emission.
 pub fn verify(module: &NativeModule) -> Result<()> {
     if module.format != FORMAT {
@@ -1605,12 +1931,7 @@ pub fn verify(module: &NativeModule) -> Result<()> {
     comdats(module)?;
     super::native_eh::validate_resume_interface(module)?;
     let data_layout = DataLayout::parse(module)?;
-    let literal_pointer_profile = module.target.pointer_bits == 64
-        && module.target.little_endian
-        && data_layout.pointers[&0].size == 8
-        && data_layout.pointer_indices[&0] == 64
-        && data_layout.non_integral.is_empty()
-        && data_layout.default_spaces == [0; 3];
+    let literal_pointer_profile = integral_default_pointer_profile(module, &data_layout);
     let native_tls_profile = module.target.tls_profile.is_some();
     let atomic_pointer_profile = module.target.pointer_bits == 64
         && module.target.little_endian
@@ -1620,6 +1941,30 @@ pub fn verify(module: &NativeModule) -> Result<()> {
         && data_layout.default_spaces == [0; 3];
     if module.target.atomic_profile.is_some() && !atomic_pointer_profile {
         return Err(fail("target", "coherent RAM atomic profile requires integral AS0 little-endian 64-bit pointers/indices and default address spaces"));
+    }
+    if module.target.wide_volatile_profile.is_some() {
+        let parts: Vec<_> = module.target.triple.split('-').collect();
+        let elf = (parts.len() == 3 || parts.len() == 4)
+            && parts.get(1).is_some_and(|vendor| !vendor.is_empty())
+            && ((parts.get(2) == Some(&"linux")
+                && parts.len() == 4
+                && matches!(parts.get(3), Some(&"gnu" | &"musl")))
+                || (parts.get(2) == Some(&"none")
+                    && (parts.len() == 3 || matches!(parts.get(3), Some(&"elf" | &"eabi")))));
+        let bare_rv = module.target.triple == "riscv64"
+            && matches!(module.target.abi.as_deref(), Some("lp64" | "lp64d"));
+        if !literal_pointer_profile
+            || !matches!(
+                parts.first().copied(),
+                Some("x86_64" | "aarch64" | "riscv64")
+            )
+            || !(elf || bare_rv)
+            || (parts.first().copied() == Some("riscv64")
+                && !matches!(module.target.abi.as_deref(), None | Some("lp64" | "lp64d")))
+            || (parts.first().copied() != Some("riscv64") && module.target.abi.is_some())
+        {
+            return Err(fail("target", "ordinary-RAM wide volatile profile requires a supported LP64 little-endian ELF target with integral AS0 64-bit pointers/indices and default address spaces"));
+        }
     }
     if native_tls_profile {
         // Source access models may be specialized to local-exec only within
@@ -1638,6 +1983,7 @@ pub fn verify(module: &NativeModule) -> Result<()> {
             return Err(fail("target", "native TLS profile requires Linux x86-64, AArch64 or RV64 with integral AS0 little-endian 64-bit pointers/indices and default address spaces"));
         }
     }
+    opaque_declarations(module)?;
     let mut v = Verifier {
         module,
         data_layout,
@@ -1741,6 +2087,7 @@ pub fn verify(module: &NativeModule) -> Result<()> {
         }
         v.function(function)?;
     }
+    super::native_abi::audit_fast_float_interfaces(module)?;
     Ok(())
 }
 
@@ -1812,9 +2159,39 @@ impl<'a> Verifier<'a> {
         Ok(target)
     }
 
+    fn block_address(&self, name: &str, block: BlockId, context: &str) -> Result<()> {
+        if !self.literal_pointer_profile {
+            return Err(fail(context, "block address requires the integral AS0 little-endian 64-bit pointer/index profile"));
+        }
+        let function = match self.symbols.get(name) {
+            Some(Symbol::Function(function))
+                if function.entry.is_some() && function.intrinsic.is_none() =>
+            {
+                function
+            }
+            _ => {
+                return Err(fail(
+                    context,
+                    "block address requires an included defined ordinary function",
+                ))
+            }
+        };
+        if function.entry == Some(block) || !function.blocks.iter().any(|item| item.id == block) {
+            return Err(fail(
+                context,
+                "block address requires an existing non-entry block of its exact function",
+            ));
+        }
+        Ok(())
+    }
+
     fn global(&self, global: &Global) -> Result<()> {
         let context = format!("global {:?}", global.name);
-        let layout = self.sized(global.ty, &context)?;
+        let layout = if matches!(self.ty(global.ty, &context)?, Type::OpaqueStruct { .. }) {
+            None // opaque_declarations proved this is an unsized external declaration.
+        } else {
+            Some(self.sized(global.ty, &context)?)
+        };
         linkage(&global.linkage, global.initializer.is_some(), &context)?;
         visibility(&global.linkage, global.visibility, &context)?;
         alignment(global.alignment, true, &context)?;
@@ -1834,6 +2211,8 @@ impl<'a> Verifier<'a> {
         let Some(initializer) = &global.initializer else {
             return Ok(());
         };
+        let layout =
+            layout.ok_or_else(|| fail(&context, "opaque declaration cannot initialize storage"))?;
         if initializer.bytes.len() as u64 != layout.size {
             return Err(fail(
                 &context,
@@ -1848,28 +2227,41 @@ impl<'a> Verifier<'a> {
                     "relocation width must be a nonzero bit width in whole bytes",
                 ));
             }
-            if !self.symbols.contains_key(relocation.symbol.as_str()) {
-                return Err(fail(
-                    &context,
-                    format!(
-                        "relocation references unknown symbol {:?}",
-                        relocation.symbol
-                    ),
-                ));
-            }
-            if matches!(self.symbols.get(relocation.symbol.as_str()), Some(Symbol::Function(f)) if f.intrinsic.is_some())
-            {
-                return Err(fail(
-                    &context,
-                    "relocation cannot reference an intrinsic address",
-                ));
-            }
-            if matches!(self.symbols.get(relocation.symbol.as_str()), Some(Symbol::Global(target)) if target.thread_local)
-            {
-                return Err(fail(
-                    &context,
-                    "initializer cannot contain a static address of TLS storage",
-                ));
+            if let Some(target) = &relocation.block {
+                if !relocation.symbol.is_empty()
+                    || relocation.width != 64
+                    || relocation.relative_to.is_some()
+                {
+                    return Err(fail(
+                        &context,
+                        "block relocation requires an unambiguous absolute64 typed block target",
+                    ));
+                }
+                self.block_address(&target.function, target.block, &context)?;
+            } else {
+                if !self.symbols.contains_key(relocation.symbol.as_str()) {
+                    return Err(fail(
+                        &context,
+                        format!(
+                            "relocation references unknown symbol {:?}",
+                            relocation.symbol
+                        ),
+                    ));
+                }
+                if matches!(self.symbols.get(relocation.symbol.as_str()), Some(Symbol::Function(f)) if f.intrinsic.is_some())
+                {
+                    return Err(fail(
+                        &context,
+                        "relocation cannot reference an intrinsic address",
+                    ));
+                }
+                if matches!(self.symbols.get(relocation.symbol.as_str()), Some(Symbol::Global(target)) if target.thread_local)
+                {
+                    return Err(fail(
+                        &context,
+                        "initializer cannot contain a static address of TLS storage",
+                    ));
+                }
             }
             if let Some(base) = &relocation.relative_to {
                 if relocation.width != 32 {
@@ -1936,8 +2328,142 @@ impl<'a> Verifier<'a> {
         Ok(())
     }
 
+    fn call_target_constraints(&self, function: &Function, context: &str) -> Result<()> {
+        let mut source_sites = HashSet::new();
+        let mut native_sites = HashSet::new();
+        for constraint in &function.call_target_constraints {
+            let site = &constraint.site;
+            if site.function != function.name
+                || !source_sites.insert((site.block, site.source_instruction))
+            {
+                return Err(fail(
+                    context,
+                    "callee constraint has wrong owner or repeated source site",
+                ));
+            }
+            let block = function
+                .blocks
+                .iter()
+                .find(|block| block.id == site.block)
+                .ok_or_else(|| fail(context, "callee constraint block is missing"))?;
+            let (callee, signature, position) = if site.instruction_count == 0 {
+                if site.instruction != block.instructions.len() {
+                    return Err(fail(context, "callee constraint terminator anchor changed"));
+                }
+                match &block.terminator {
+                    Terminator::Invoke {
+                        callee, signature, ..
+                    } => (callee, signature, site.instruction),
+                    _ => {
+                        return Err(fail(
+                            context,
+                            "callee constraint requires an indirect call or invoke",
+                        ))
+                    }
+                }
+            } else {
+                if site.instruction_count != 1 {
+                    return Err(fail(
+                        context,
+                        "callee constraint requires its single unchanged call operation",
+                    ));
+                }
+                let end = site
+                    .instruction
+                    .checked_add(site.instruction_count)
+                    .filter(|end| *end <= block.instructions.len())
+                    .ok_or_else(|| {
+                        fail(context, "callee constraint expansion exceeds its block")
+                    })?;
+                match &block.instructions[end - 1].operation {
+                    Operation::Call {
+                        callee, signature, ..
+                    } => (callee, signature, end - 1),
+                    _ => {
+                        return Err(fail(
+                            context,
+                            "callee constraint expansion must end at its original call",
+                        ))
+                    }
+                }
+            };
+            if !native_sites.insert((site.block, position)) {
+                return Err(fail(
+                    context,
+                    "multiple callee constraints name the same native call",
+                ));
+            }
+            // The original operation retains either its SSA operand or its
+            // named direct Function. Aliases/expressions and variadic promises
+            // remain unsupported; ordinary call ABI/effect checks are unchanged.
+            if signature.variadic {
+                return Err(fail(context, "callee constraint requires a fixed signature"));
+            }
+            match callee {
+                Operand::Value { .. } => {}
+                Operand::Symbol { name, .. } => {
+                    let direct = self.module.functions.iter().find(|item| item.name == *name)
+                        .ok_or_else(|| fail(context, "callee constraint direct target must be an original Function"))?;
+                    if direct.intrinsic.is_some() || name.starts_with("llvm.")
+                        || !constraint.callees.iter().any(|target| target == name)
+                        || !signatures_equal(&direct.signature, signature)
+                    {
+                        return Err(fail(context, "callee constraint direct target is outside its exact ordinary target/ABI contract"));
+                    }
+                }
+                _ => return Err(fail(context, "callee constraint requires an SSA or named direct Function target")),
+            }
+            for name in &constraint.callees {
+                let target = self
+                    .module
+                    .functions
+                    .iter()
+                    .find(|target| target.name == *name)
+                    .ok_or_else(|| fail(context, "callee constraint target function is missing"))?;
+                if target.intrinsic.is_some()
+                    || name.starts_with("llvm.")
+                    || !signatures_equal(&target.signature, signature)
+                {
+                    return Err(fail(context, "callee constraint requires an ordinary function with its exact call signature"));
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn function(&self, function: &Function) -> Result<()> {
         let context = format!("function {:?}", function.name);
+        if function.control_effects.returns_twice
+            && (function.signature.abi != "c"
+                || function.signature.variadic
+                || function.intrinsic.is_some()
+                || function.exception_handling.is_some())
+        {
+            return Err(fail(&context, "returns_twice declaration requires an ordinary nonvariadic C function without intrinsic/EH contracts"));
+        }
+        let exposed = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| {
+                matches!(&instruction.operation, Operation::Call { callee, control_effects, .. }
+                if self.module.effective_returns_twice(callee, *control_effects))
+            });
+        if exposed
+            && (function.signature.abi != "c"
+                || function.exception_handling.is_some()
+                || function.blocks.iter().any(|block| {
+                    matches!(
+                        block.terminator,
+                        Terminator::Invoke { .. } | Terminator::Resume { .. }
+                    ) || block.instructions.iter().any(|instruction| {
+                        matches!(instruction.operation, Operation::Alloca { alignment, .. }
+                            if Some(block.id) != function.entry || alignment > 16)
+                    })
+                }))
+        {
+            return Err(fail(&context, "returns_twice exposure requires ordinary C with fixed entry allocas and no EH/dynamic-stack combination"));
+        }
         if !function.signature.variadic
             && function.blocks.iter().flat_map(|block| &block.instructions).any(|instruction| {
                 matches!(&instruction.operation, Operation::Call { callee: Operand::Symbol { name, .. }, .. }
@@ -1946,6 +2472,7 @@ impl<'a> Verifier<'a> {
         {
             return Err(fail(&context, "va_start requires an enclosing variadic function definition"));
         }
+        self.call_target_constraints(function, &context)?;
         alignment(function.alignment, true, &context)?;
         if function.name == NOALIAS_SCOPE_DECL {
             self.metadata_signature(&function.signature, &context)?;
@@ -1967,8 +2494,15 @@ impl<'a> Verifier<'a> {
                     "thread-local intrinsic requires an explicit native TLS profile",
                 ));
             }
+            if function.name == POINTER_MASK_INTRINSIC && !self.literal_pointer_profile {
+                return Err(fail(&context, "pointer mask requires integral AS0 64-bit pointers/indices and default address spaces"));
+            }
             let sig = &function.signature;
-            let shape = if let Some((_, _, bits)) = integer_overflow_intrinsic(&function.name) {
+            let shape = if let Some((len, bits)) = vector_reduce_add_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && fixed_vector_layout(self.module, sig.params[0]).is_ok_and(|vector| vector.len == len && vector.lane_bits == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some((_, _, bits)) = integer_overflow_intrinsic(&function.name) {
                 sig.params.len() == 2
                     && sig.params.iter().all(|ty| {
                         matches!(self.module.types.get(*ty), Some(Type::Int { bits: actual }) if *actual == bits)
@@ -1977,6 +2511,43 @@ impl<'a> Verifier<'a> {
                         if fields.len() == 2
                         && matches!(self.module.types.get(fields[0]), Some(Type::Int { bits: actual }) if *actual == bits)
                         && matches!(self.module.types.get(fields[1]), Some(Type::Int { bits: 1 })))
+            } else if let Some(bits) = integer_byte_swap_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = integer_population_count_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = integer_saturating_sub_intrinsic(&function.name) {
+                sig.params.len() == 2
+                    && sig.params.iter().all(|ty| {
+                        matches!(self.module.types.get(*ty), Some(Type::Int { bits: actual }) if *actual == bits)
+                    })
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = integer_funnel_intrinsic(&function.name) {
+                sig.params.len() == 3
+                    && sig.params.iter().all(|ty| {
+                        matches!(self.module.types.get(*ty), Some(Type::Int { bits: actual }) if *actual == bits)
+                    })
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = float_integral_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Float { bits: actual }) if *actual == bits)
+            } else if let Some((_, bits)) = integer_unary_intrinsic(&function.name) {
+                sig.params.len() == 2
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
+                    && matches!(
+                        self.module.types.get(sig.params[1]),
+                        Some(Type::Int { bits: 1 })
+                    )
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = float_abs_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && (bits != 80 || self.module.target.triple.starts_with("x86_64-"))
             } else if let Some((_, bits)) = integer_minmax_intrinsic(&function.name) {
                 sig.params.len() == 2
                     && sig.params.iter().all(|ty| {
@@ -1994,7 +2565,8 @@ impl<'a> Verifier<'a> {
                         }
                         "llvm.load.relative.i32"
                         | "llvm.load.relative.i64"
-                        | "llvm.threadlocal.address.p0" => matches!(
+                        | "llvm.threadlocal.address.p0"
+                        | POINTER_MASK_INTRINSIC => matches!(
                             self.ty(sig.result, &context)?,
                             Type::Pointer { address_space: 0 }
                         ),
@@ -2053,6 +2625,7 @@ impl<'a> Verifier<'a> {
                         block: None,
                         position: 0,
                         alloca: false,
+                        nonnegative_i32: false,
                     },
                 )
                 .is_some()
@@ -2119,6 +2692,7 @@ impl<'a> Verifier<'a> {
                                 block: Some(index),
                                 position,
                                 alloca: matches!(instruction.operation, Operation::Alloca { .. }),
+                                nonnegative_i32: false,
                             },
                         )
                         .is_some()
@@ -2142,6 +2716,7 @@ impl<'a> Verifier<'a> {
                                 block: Some(node_count),
                                 position: 0,
                                 alloca: false,
+                                nonnegative_i32: false,
                             },
                         )
                         .is_some()
@@ -2166,6 +2741,7 @@ impl<'a> Verifier<'a> {
                 Terminator::Branch {
                     on_true, on_false, ..
                 } => vec![*on_true, *on_false],
+                Terminator::IndirectBranch { destinations, .. } => destinations.clone(),
                 Terminator::Switch { default, cases, .. } => std::iter::once(*default)
                     .chain(cases.iter().map(|case| case.target))
                     .collect(),
@@ -2253,6 +2829,32 @@ impl<'a> Verifier<'a> {
             }
         }
         let dominance = Dominance::compute(entry, &dominance_successors, &dominance_predecessors);
+        // Range facts are conditional on defined execution, not input noundef.
+        // Existing check_use/dominance still validates the producer operand and
+        // each call use, including dead blocks; no phi/parameter inference.
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                if let (
+                    Some(result),
+                    Operation::Cast {
+                        kind: CastOp::ZExt,
+                        value,
+                    },
+                ) = (instruction.result, &instruction.operation)
+                {
+                    let input = self.operand(value, &definitions, &context)?;
+                    if matches!(
+                        self.module.types.get(result.ty),
+                        Some(Type::Int { bits: 32 })
+                    ) && matches!(
+                        self.module.types.get(input),
+                        Some(Type::Int { bits: 1..=31 })
+                    ) {
+                        definitions.get_mut(&result.id).unwrap().nonnegative_i32 = true;
+                    }
+                }
+            }
+        }
         for (index, block) in function.blocks.iter().enumerate() {
             let here = format!("{context}, block {}", block.id);
             for (position, instruction) in block.instructions.iter().enumerate() {
@@ -2316,6 +2918,17 @@ impl<'a> Verifier<'a> {
                     self.boolean(self.operand(condition, &definitions, &here)?, &here)?;
                     self.check_use(condition, &definitions, index, position, &dominance, &here)?;
                 }
+                Terminator::IndirectBranch { address, .. } => {
+                    if !self.literal_pointer_profile
+                        || !matches!(
+                            self.ty(self.operand(address, &definitions, &here)?, &here)?,
+                            Type::Pointer { address_space: 0 }
+                        )
+                    {
+                        return Err(fail(&here, "indirect branch requires the original integral AS0 64-bit pointer profile"));
+                    }
+                    self.check_use(address, &definitions, index, position, &dominance, &here)?;
+                }
                 Terminator::Switch {
                     condition, cases, ..
                 } => {
@@ -2353,7 +2966,16 @@ impl<'a> Verifier<'a> {
                     result,
                     ..
                 } => {
-                    self.call(callee, signature, args, *result, &definitions, &here, false)?;
+                    self.call(
+                        callee,
+                        signature,
+                        args,
+                        *result,
+                        &definitions,
+                        &here,
+                        false,
+                        ControlEffects::default(),
+                    )?;
                     for operand in std::iter::once(callee).chain(args) {
                         self.check_use(operand, &definitions, index, position, &dominance, &here)?;
                     }
@@ -2646,8 +3268,15 @@ impl<'a> Verifier<'a> {
                 let ty = operand(lhs)?;
                 self.same_type(ty, operand(rhs)?, context)?;
                 self.same_type(ty, result()?, context)?;
-                if !matches!(self.ty(ty, context)?, Type::Int { .. }) {
-                    return Err(fail(context, "integer operation has non-integer operands"));
+                match self.ty(ty, context)? {
+                    Type::Int { .. } => {},
+                    Type::Vector { .. } => {
+                        fixed_vector_layout(self.module, ty)?;
+                        if matches!(kind, BinaryOp::UDiv | BinaryOp::SDiv | BinaryOp::URem | BinaryOp::SRem) {
+                            return Err(fail(context, "vector div/rem need guarded poison-lane lowering without eager scalar hardware traps"));
+                        }
+                    },
+                    _ => return Err(fail(context, "integer operation requires integer scalar or fixed-vector operands")),
                 }
                 let mut seen = HashSet::new();
                 for flag in flags {
@@ -2670,6 +3299,23 @@ impl<'a> Verifier<'a> {
                         ));
                     }
                 }
+            }
+            Operation::FloatBinary { lhs, rhs, .. } => {
+                let ty = operand(lhs)?;
+                self.floating_width(ty, context)?;
+                self.same_type(ty, operand(rhs)?, context)?;
+                self.same_type(ty, result()?, context)?;
+            }
+            Operation::FloatNeg { value, .. } | Operation::FloatAbs { value, .. } => {
+                let ty = operand(value)?;
+                self.floating_width(ty, context)?;
+                self.same_type(ty, result()?, context)?;
+            }
+            Operation::FCmp { lhs, rhs, .. } => {
+                let ty = operand(lhs)?;
+                self.floating_width(ty, context)?;
+                self.same_type(ty, operand(rhs)?, context)?;
+                self.boolean(result()?, context)?;
             }
             Operation::IntegerOverflow { kind, lhs, rhs, .. } => {
                 let ty = operand(lhs)?;
@@ -2709,25 +3355,69 @@ impl<'a> Verifier<'a> {
                     ));
                 }
             }
+            Operation::IntegerPopulationCount { value } => {
+                let ty = operand(value)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(self.ty(ty, context)?, Type::Int { bits: 32 | 64 }) {
+                    return Err(fail(context, "integer population count requires same-type scalar i32 or i64 operand and result"));
+                }
+            }
+            Operation::IntegerCountLeadingZeros { value, .. }
+            | Operation::IntegerAbs { value, .. } => {
+                let ty = operand(value)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(self.ty(ty, context)?, Type::Int { bits: 32 | 64 }) {
+                    return Err(fail(
+                        context,
+                        "integer ctlz/abs requires same-type scalar i32 or i64 operand and result",
+                    ));
+                }
+            }
             Operation::ICmp { lhs, rhs, .. } => {
                 let ty = operand(lhs)?;
                 self.same_type(ty, operand(rhs)?, context)?;
-                if !matches!(
-                    self.ty(ty, context)?,
-                    Type::Int { .. } | Type::Pointer { .. }
-                ) {
-                    return Err(fail(context, "icmp requires integer or pointer operands"));
+                if matches!(self.ty(ty, context)?, Type::Vector { .. }) {
+                    let source = fixed_vector_layout(self.module, ty)?;
+                    let mask = fixed_vector_layout(self.module, result()?)?;
+                    if mask.len != source.len || mask.lane_bits != 1 {
+                        return Err(fail(context, "vector icmp requires corresponding same-lane-count i1 vector result"));
+                    }
+                } else {
+                    if !matches!(self.ty(ty, context)?, Type::Int { .. } | Type::Pointer { .. }) {
+                        return Err(fail(context, "icmp requires integer, pointer or fixed-integer-vector operands"));
+                    }
+                    self.boolean(result()?, context)?;
                 }
-                self.boolean(result()?, context)?;
             }
             Operation::Cast { kind, value } => {
                 let from = self.ty(operand(value)?, context)?;
                 let to = self.ty(result()?, context)?;
                 let valid = match (kind, from, to) {
+                    (CastOp::Trunc | CastOp::ZExt | CastOp::SExt, Type::Vector { .. }, Type::Vector { .. }) => {
+                        let a = fixed_vector_layout(self.module, operand(value)?)?;
+                        let b = fixed_vector_layout(self.module, result()?)?;
+                        a.len == b.len && match kind {
+                            CastOp::Trunc => a.lane_bits > b.lane_bits,
+                            CastOp::ZExt | CastOp::SExt => a.lane_bits < b.lane_bits,
+                            _ => false,
+                        }
+                    },
                     (CastOp::Trunc, Type::Int { bits: a }, Type::Int { bits: b }) => a > b,
                     (CastOp::ZExt | CastOp::SExt, Type::Int { bits: a }, Type::Int { bits: b }) => {
                         a < b
                     }
+                    (CastOp::FpTrunc, Type::Float { bits: a }, Type::Float { bits: b }) => a > b,
+                    (CastOp::FpExt, Type::Float { bits: a }, Type::Float { bits: b }) => a < b,
+                    (
+                        CastOp::FpToUi | CastOp::FpToSi,
+                        Type::Float { .. },
+                        Type::Int { bits: 1..=64 },
+                    ) => true,
+                    (
+                        CastOp::UiToFp | CastOp::SiToFp,
+                        Type::Int { bits: 1..=64 },
+                        Type::Float { .. },
+                    ) => true,
                     (CastOp::PtrToInt, Type::Pointer { .. }, Type::Int { .. }) => true,
                     (CastOp::IntToPtr, Type::Int { .. }, Type::Pointer { .. }) => true,
                     (
@@ -2742,6 +3432,12 @@ impl<'a> Verifier<'a> {
                     ) => a == b,
                     _ => false,
                 };
+                if matches!(from, Type::Float { .. }) {
+                    self.floating_width(operand(value)?, context)?;
+                }
+                if matches!(to, Type::Float { .. }) {
+                    self.floating_width(result()?, context)?;
+                }
                 if !valid {
                     return Err(fail(context, "invalid cast kind/type/width combination"));
                 }
@@ -2751,13 +3447,42 @@ impl<'a> Verifier<'a> {
                 on_true,
                 on_false,
             } => {
-                self.boolean(operand(condition)?, context)?;
+                let condition_ty = operand(condition)?;
                 let ty = operand(on_true)?;
+                if matches!(self.ty(condition_ty, context)?, Type::Vector { .. }) {
+                    let mask = fixed_vector_layout(self.module, condition_ty)?;
+                    let value = fixed_vector_layout(self.module, ty)?;
+                    if mask.lane_bits != 1 || mask.len != value.len {
+                        return Err(fail(context, "vector select requires same-lane-count i1 condition"));
+                    }
+                } else {
+                    self.boolean(condition_ty, context)?;
+                }
                 self.same_type(ty, operand(on_false)?, context)?;
                 self.same_type(ty, result()?, context)?;
             }
             Operation::Freeze { value } => {
                 self.same_type(operand(value)?, result()?, context)?;
+            }
+            Operation::ExtractElement { vector, index } => {
+                let shape = fixed_vector_layout(self.module, operand(vector)?)?;
+                if !matches!(self.ty(operand(index)?, context)?, Type::Int { bits: 1..=64 }) {
+                    return Err(fail(context, "vector index requires an unsigned scalar integer up to 64 bits"));
+                }
+                self.same_type(shape.element, result()?, context)?;
+            }
+            Operation::InsertElement { vector, value, index } => {
+                let ty = operand(vector)?;
+                let shape = fixed_vector_layout(self.module, ty)?;
+                if !matches!(self.ty(operand(index)?, context)?, Type::Int { bits: 1..=64 }) {
+                    return Err(fail(context, "vector index requires an unsigned scalar integer up to 64 bits"));
+                }
+                self.same_type(shape.element, operand(value)?, context)?;
+                self.same_type(ty, result()?, context)?;
+            }
+            Operation::VectorReduceAdd { value } => {
+                let shape = fixed_vector_layout(self.module, operand(value)?)?;
+                self.same_type(shape.element, result()?, context)?;
             }
             Operation::ExtractValue { aggregate, indices } => {
                 let ty = operand(aggregate)?;
@@ -2781,6 +3506,46 @@ impl<'a> Verifier<'a> {
             } => {
                 self.pointer(result()?, context)?;
                 alignment(*align, true, context)?;
+            }
+            Operation::PtrMask {
+                pointer,
+                mask,
+                return_alignment,
+            } => {
+                if !self.literal_pointer_profile {
+                    return Err(fail(context, "pointer mask requires integral AS0 64-bit pointers/indices and default address spaces"));
+                }
+                let ty = operand(pointer)?;
+                self.memory_pointer(ty, context)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(self.ty(operand(mask)?, context)?, Type::Int { bits: 64 }) {
+                    return Err(fail(context, "pointer mask requires an exact i64 mask"));
+                }
+                if let Some(align) = return_alignment {
+                    if !align.is_power_of_two() || *align > (1u64 << 32) {
+                        return Err(fail(context, "pointer-mask return alignment must be a positive power of two at most 2^32"));
+                    }
+                    if *align > 1 {
+                        let Operand::Int { bits, .. } = mask else {
+                            return Err(fail(
+                                context,
+                                "pointer-mask return alignment requires a proving literal i64 mask",
+                            ));
+                        };
+                        let mask_bits = bits.parse::<u64>().map_err(|_| {
+                            fail(
+                                context,
+                                "pointer-mask alignment proof requires an exact uint64 mask",
+                            )
+                        })?;
+                        if mask_bits & (*align - 1) != 0 {
+                            return Err(fail(
+                                context,
+                                "pointer-mask literal does not prove the original return alignment",
+                            ));
+                        }
+                    }
+                }
             }
             Operation::Gep { base, offset, .. } => {
                 let ty = operand(base)?;
@@ -2967,6 +3732,7 @@ impl<'a> Verifier<'a> {
                 callee,
                 signature,
                 args,
+                control_effects,
             } => {
                 self.call(
                     callee,
@@ -2976,6 +3742,7 @@ impl<'a> Verifier<'a> {
                     definitions,
                     context,
                     true,
+                    *control_effects,
                 )?;
             }
             Operation::LandingPad { cleanup, clauses } => {
@@ -3033,6 +3800,44 @@ impl<'a> Verifier<'a> {
         Ok(())
     }
 
+    fn nonnegative_i32(&self, value: &Operand, definitions: &HashMap<ValueId, Definition>) -> bool {
+        match value {
+            Operand::Int { ty, bits }
+                if matches!(self.module.types.get(*ty), Some(Type::Int { bits: 32 }))
+                    && !bits.is_empty()
+                    && bits.bytes().all(|b| b.is_ascii_digit()) =>
+            {
+                BigUint::parse_bytes(bits.as_bytes(), 10)
+                    .is_some_and(|n| n < (BigUint::from(1u8) << 31usize))
+            }
+            Operand::Value { id } => definitions.get(id).is_some_and(|d| {
+                d.nonnegative_i32
+                    && matches!(self.module.types.get(d.ty), Some(Type::Int { bits: 32 }))
+            }),
+            _ => false,
+        }
+    }
+
+    fn direct_i32_argument_refinement(
+        &self,
+        declared: &Signature,
+        call: &Signature,
+        args: &[Operand],
+        definitions: &HashMap<ValueId, Definition>,
+    ) -> bool {
+        if !self.literal_pointer_profile || args.len() != call.params.len() {
+            return false;
+        }
+        let proof: Vec<_> = args
+            .iter()
+            .map(|value| self.nonnegative_i32(value, definitions))
+            .collect();
+        // No successful provenance/receipt flag is trusted. Serialized reloads
+        // recompute the typed SSA facts and both unchanged original ABI plans.
+        super::native_abi::direct_i32_argument_transport(self.module, declared, call, &proof)
+            .unwrap_or(false)
+    }
+
     // Ordinary calls and invokes share validation while retaining their distinct ABI rules.
     #[allow(clippy::too_many_arguments)]
     fn call(
@@ -3044,7 +3849,46 @@ impl<'a> Verifier<'a> {
         definitions: &HashMap<ValueId, Definition>,
         context: &str,
         ordinary: bool,
+        control_effects: ControlEffects,
     ) -> Result<()> {
+        if self.module.effective_returns_twice(callee, control_effects) {
+            if !ordinary
+                || signature.abi != "c"
+                || signature.variadic
+                || !matches!(callee, Operand::Symbol { ty, name }
+                    if matches!(self.module.types.get(*ty), Some(Type::Pointer { address_space: 0 }))
+                    && self.module.functions.iter().any(|function| function.name == *name
+                        && function.intrinsic.is_none()))
+            {
+                return Err(fail(context, "returns_twice requires a direct ordinary AS0 nonvariadic C call; invoke/indirect/alias combinations are unsupported"));
+            }
+        }
+        if matches!(callee, Operand::BlockAddress { .. }) {
+            return Err(fail(
+                context,
+                "a block address is not an ordinary function ABI call target",
+            ));
+        }
+        if matches!(callee, Operand::Symbol { name, .. } if name == POINTER_MASK_INTRINSIC) {
+            return Err(fail(context, "pointer-mask intrinsic requires the explicit typed PtrMask operation, never an ordinary call or invoke"));
+        }
+
+        if matches!(callee, Operand::Symbol { name, .. } if integer_byte_swap_intrinsic(name).is_some())
+        {
+            return Err(fail(context, "byte-swap intrinsic requires its lowered integer operation graph, never an ordinary call or invoke"));
+        }
+        if matches!(callee, Operand::Symbol { name, .. } if integer_saturating_sub_intrinsic(name).is_some())
+        {
+            return Err(fail(context, "unsigned-saturating intrinsic requires its lowered integer operation graph, never an ordinary call or invoke"));
+        }
+        if matches!(callee, Operand::Symbol { name, .. } if integer_funnel_intrinsic(name).is_some())
+        {
+            return Err(fail(context, "funnel-shift intrinsic requires its lowered integer operation graph, never an ordinary call or invoke"));
+        }
+        if matches!(callee, Operand::Symbol { name, .. } if float_integral_intrinsic(name).is_some())
+        {
+            return Err(fail(context, "floating integral-rounding intrinsic requires its lowered bit operation graph, never an ordinary call or invoke"));
+        }
         let fixed_signature = if signature.variadic {
             if signature.param_attributes.len() != args.len() {
                 return Err(fail(
@@ -3114,11 +3958,16 @@ impl<'a> Verifier<'a> {
                         || (ordinary
                             && matches!(callee, Operand::Symbol { name, .. } if name == &function.name)
                             && matches!(ty, Type::Pointer { address_space: 0 })
-                            && direct_i32_return_refinement(
+                            && (direct_i32_return_refinement(
                                 self.module,
                                 &function.signature,
                                 signature,
-                            )) => {}
+                            ) || self.direct_i32_argument_refinement(
+                                &function.signature,
+                                signature,
+                                args,
+                                definitions,
+                            ))) => {}
                 _ => return Err(fail(context, "direct callee symbol/signature mismatch")),
             }
         }
@@ -3207,10 +4056,21 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
             ..
         } => vec![destination, source, length],
         Operation::Binary { lhs, rhs, .. }
+        | Operation::FloatBinary { lhs, rhs, .. }
+        | Operation::FCmp { lhs, rhs, .. }
         | Operation::IntegerOverflow { lhs, rhs, .. }
         | Operation::IntegerMinMax { lhs, rhs, .. }
         | Operation::ICmp { lhs, rhs, .. } => vec![lhs, rhs],
-        Operation::Cast { value, .. } | Operation::Freeze { value } => vec![value],
+        Operation::Cast { value, .. }
+        | Operation::FloatNeg { value, .. }
+        | Operation::FloatAbs { value, .. }
+        | Operation::IntegerPopulationCount { value }
+        | Operation::IntegerCountLeadingZeros { value, .. }
+        | Operation::IntegerAbs { value, .. }
+        | Operation::Freeze { value }
+        | Operation::VectorReduceAdd { value } => vec![value],
+        Operation::ExtractElement { vector, index } => vec![vector, index],
+        Operation::InsertElement { vector, value, index } => vec![vector, value, index],
         Operation::ExtractValue { aggregate, .. } => vec![aggregate],
         Operation::InsertValue {
             aggregate, value, ..
@@ -3228,6 +4088,7 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
             vec![]
         }
         Operation::Gep { base, offset, .. } => vec![base, offset],
+        Operation::PtrMask { pointer, mask, .. } => vec![pointer, mask],
         Operation::Load { pointer, .. } | Operation::AtomicLoad { pointer, .. } => vec![pointer],
         Operation::Store { pointer, value, .. }
         | Operation::AtomicStore { pointer, value, .. }
@@ -3264,6 +4125,7 @@ pub(crate) fn terminator_operands(terminator: &Terminator) -> Vec<&Operand> {
         Terminator::Branch { condition, .. } | Terminator::Switch { condition, .. } => {
             vec![condition]
         }
+        Terminator::IndirectBranch { address, .. } => vec![address],
         Terminator::Invoke { callee, args, .. } => std::iter::once(callee).chain(args).collect(),
         Terminator::Resume { value } => vec![value],
         Terminator::Jump { .. } | Terminator::Unreachable => vec![],
@@ -3444,6 +4306,742 @@ mod tests {
             }),
         });
         module.provenance.source_global_count += 1;
+    }
+
+    fn opaque_module() -> NativeModule {
+        let mut m = module();
+        let id = m.types.len();
+        m.types.push(Type::OpaqueStruct {
+            name: Some("original.forward".into()),
+        });
+        m.globals.push(Global {
+            name: "external_object".into(),
+            ty: id,
+            linkage: "external".into(),
+            visibility: Visibility::Default,
+            comdat: None,
+            alignment: 1,
+            constant: false,
+            thread_local: false,
+            tls_model: None,
+            initializer: None,
+        });
+        m.provenance.source_global_count += 1;
+        m
+    }
+
+    #[test]
+    fn opaque_external_declaration_retains_identity_without_any_layout() {
+        let m = opaque_module();
+        verify(&m).unwrap();
+        let id = m.globals[0].ty;
+        assert!(type_layouts(&m).unwrap()[id].is_none());
+        assert!(type_size(&m, id).is_err());
+        assert!(type_alignment(&m, id).is_err());
+        assert!(value_leaf_layout(&m, id).is_err());
+        let reloaded: NativeModule =
+            serde_json::from_value(serde_json::to_value(&m).unwrap()).unwrap();
+        verify(&reloaded).unwrap();
+        assert_eq!(
+            serde_json::to_value(&m.types).unwrap(),
+            serde_json::to_value(&reloaded.types).unwrap()
+        );
+        assert!(reloaded.globals[0].initializer.is_none());
+        assert_eq!(reloaded.globals[0].alignment, 1);
+    }
+
+    #[test]
+    fn opaque_definitions_tls_comdat_and_nonexternal_linkage_are_rejected() {
+        for mutation in 0..5 {
+            let mut m = opaque_module();
+            match mutation {
+                0 => {
+                    m.globals[0].initializer = Some(Initializer {
+                        bytes: vec![],
+                        relocations: vec![],
+                    })
+                }
+                1 => m.globals[0].thread_local = true,
+                2 => m.globals[0].comdat = Some("unproved_group".into()),
+                3 => m.globals[0].linkage = "extern_weak".into(),
+                _ => m.globals[0].tls_model = Some(TlsModel::LocalExec),
+            }
+            assert!(
+                verify(&m).is_err(),
+                "accepted opaque storage mutation {mutation}"
+            );
+        }
+    }
+
+    #[test]
+    fn opaque_nested_zero_arrays_structs_and_function_value_types_are_rejected() {
+        for mutation in 0..3 {
+            let mut m = opaque_module();
+            let opaque = m.globals[0].ty;
+            let ty = match mutation {
+                0 => Type::Array {
+                    element: opaque,
+                    len: 0,
+                },
+                1 => Type::Struct {
+                    fields: vec![opaque],
+                    packed: false,
+                },
+                _ => {
+                    let mut signature = m.functions[0].signature.clone();
+                    signature.params[0] = opaque;
+                    Type::Function { signature }
+                }
+            };
+            m.types.push(ty);
+            rejects(&m, "opaque structure cannot be an aggregate member");
+        }
+    }
+
+    #[test]
+    fn opaque_ssa_and_function_interfaces_never_acquire_storage_layout() {
+        for mutation in 0..3 {
+            let mut m = opaque_module();
+            let opaque = m.globals[0].ty;
+            match mutation {
+                0 => m.functions[0].signature.result = opaque,
+                1 => m.functions[0].signature.params[0] = opaque,
+                _ => {
+                    m.functions[0].blocks[0].instructions[0]
+                        .result
+                        .as_mut()
+                        .unwrap()
+                        .ty = opaque
+                }
+            }
+            assert!(
+                verify(&m).is_err(),
+                "accepted opaque value mutation {mutation}"
+            );
+        }
+    }
+
+    #[test]
+    fn opaque_aliases_duplicate_names_and_anonymous_identity_merges_are_rejected() {
+        let mut m = opaque_module();
+        let id = m.globals[0].ty;
+        m.aliases.push(Alias {
+            name: "opaque_alias".into(),
+            ty: id,
+            aliasee: "external_object".into(),
+            linkage: "external".into(),
+            visibility: Visibility::Default,
+        });
+        m.provenance.source_alias_count += 1;
+        rejects(&m, "opaque external storage cannot be an alias");
+        let mut m = opaque_module();
+        m.types.push(m.types[id].clone());
+        let mut second = m.globals[0].clone();
+        second.name = "other_object".into();
+        second.ty = m.types.len() - 1;
+        m.globals.push(second);
+        m.provenance.source_global_count += 1;
+        rejects(&m, "opaque identified names must be nonempty and unique");
+        m.types[id] = Type::OpaqueStruct { name: None };
+        let other = m.globals[1].ty;
+        m.types[other] = Type::OpaqueStruct { name: None };
+        verify(&m).unwrap();
+        m.globals[1].ty = id;
+        rejects(&m, "every opaque TypeId must belong");
+    }
+
+    #[test]
+    fn sized_empty_structure_is_not_an_opaque_type_or_inferred_opaque_storage() {
+        let mut m = module();
+        let id = m.types.len();
+        m.types.push(Type::Struct {
+            fields: vec![],
+            packed: false,
+        });
+        m.globals.push(Global {
+            name: "genuine_empty".into(),
+            ty: id,
+            linkage: "external".into(),
+            visibility: Visibility::Default,
+            comdat: None,
+            alignment: 1,
+            constant: false,
+            thread_local: false,
+            tls_model: None,
+            initializer: Some(Initializer {
+                bytes: vec![],
+                relocations: vec![],
+            }),
+        });
+        m.provenance.source_global_count += 1;
+        verify(&m).unwrap();
+        assert_eq!(type_size(&m, id).unwrap(), 0);
+        assert!(type_layouts(&opaque_module())
+            .unwrap()
+            .last()
+            .unwrap()
+            .is_none());
+    }
+
+    fn indirect_callees_module() -> NativeModule {
+        let mut m = module();
+        let mut target = m.functions[0].clone();
+        target.name = "permitted".into();
+        let signature = target.signature.clone();
+        m.functions.push(target);
+        m.provenance.source_function_count += 1;
+        let caller = &mut m.functions[0];
+        caller.signature.params = vec![3, 2];
+        caller.signature.param_attributes = vec![vec![], vec![]];
+        caller.params = vec![Value { id: 7, ty: 3 }, Value { id: 9, ty: 2 }];
+        caller.blocks = vec![Block {
+            id: 10,
+            instructions: vec![Instruction {
+                result: Some(Value { id: 8, ty: 2 }),
+                operation: Operation::Call {
+                    control_effects: Default::default(),
+                    callee: value(7),
+                    signature,
+                    args: vec![value(9)],
+                },
+            }],
+            terminator: Terminator::Return {
+                value: Some(value(8)),
+            },
+        }];
+        caller.call_target_constraints = vec![CallTargetConstraint {
+            site: NoAliasSite {
+                function: caller.name.clone(),
+                block: 10,
+                instruction: 0,
+                instruction_count: 1,
+                source_instruction: 0,
+            },
+            callees: vec!["permitted".into(), "permitted".into()],
+        }];
+        m
+    }
+
+    #[test]
+    fn direct_callees_keep_named_operand_and_repeated_wire_promise() {
+        let mut m = indirect_callees_module();
+        let Operation::Call { callee, .. } = &mut m.functions[0].blocks[0].instructions[0].operation else { unreachable!() };
+        *callee = Operand::Symbol { ty: 3, name: "permitted".into() };
+        verify(&m).unwrap();
+        let parsed = NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+        assert!(matches!(&parsed.functions[0].blocks[0].instructions[0].operation,
+            Operation::Call { callee: Operand::Symbol { name, .. }, .. } if name == "permitted"));
+        assert_eq!(parsed.functions[0].call_target_constraints[0].callees,
+            vec!["permitted", "permitted"]);
+        m.functions[0].call_target_constraints[0].callees.clear();
+        rejects(&m, "callee constraint");
+    }
+
+    #[test]
+    fn direct_callees_reject_empty_missing_and_changed_abi_contracts() {
+        for fault in ["empty", "missing", "abi", "variadic", "outside-set"] {
+            let mut m = indirect_callees_module();
+            let mut outside = m.functions[1].clone();
+            outside.name = "unlisted".into();
+            m.functions.push(outside);
+            m.provenance.source_function_count += 1;
+            let Operation::Call { callee, signature, .. } = &mut m.functions[0].blocks[0].instructions[0].operation else { unreachable!() };
+            *callee = Operand::Symbol { ty: 3, name: if fault == "missing" { "absent" } else if fault == "outside-set" { "unlisted" } else { "permitted" }.into() };
+            if fault == "variadic" { signature.variadic = true; }
+            if fault == "empty" { m.functions[0].call_target_constraints[0].callees.clear(); }
+            if fault == "abi" { m.functions[1].signature.abi = "fastcc".into(); }
+            rejects(&m, "callee constraint");
+        }
+    }
+
+    #[test]
+    fn indirect_callees_keep_repeated_empty_and_absent_promises_distinct() {
+        let mut m = indirect_callees_module();
+        verify(&m).unwrap();
+        let parsed = NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(
+            parsed.functions[0].call_target_constraints[0].callees,
+            vec!["permitted", "permitted"]
+        );
+        assert!(serde_json::to_value(&m.functions[1])
+            .unwrap()
+            .get("call_target_constraints")
+            .is_none());
+        m.functions[0].call_target_constraints[0].callees.clear();
+        verify(&m).unwrap();
+        let json = serde_json::to_value(&m.functions[0]).unwrap();
+        assert_eq!(json["call_target_constraints"][0]["callees"], json!([]));
+        // A standalone MIR without a promise remains legal. Tying it back to
+        // annotated LLVM requires the independent original-source inventory.
+        m.functions[0].call_target_constraints.clear();
+        verify(&m).unwrap();
+        assert!(serde_json::to_value(&m.functions[0])
+            .unwrap()
+            .get("call_target_constraints")
+            .is_none());
+    }
+
+    #[test]
+    fn indirect_callees_reject_forged_sites_missing_functions_and_abi_changes() {
+        let baseline = indirect_callees_module();
+        verify(&baseline).unwrap();
+        for fault in [
+            "owner",
+            "block",
+            "expansion",
+            "duplicate",
+            "missing",
+            "abi",
+            "direct-outside-set",
+        ] {
+            let mut m = baseline.clone();
+            match fault {
+                "owner" => {
+                    m.functions[0].call_target_constraints[0].site.function = "permitted".into()
+                }
+                "block" => m.functions[0].call_target_constraints[0].site.block = 999,
+                "expansion" => {
+                    m.functions[0].call_target_constraints[0]
+                        .site
+                        .instruction_count = 2
+                }
+                "duplicate" => {
+                    let duplicate = m.functions[0].call_target_constraints[0].clone();
+                    m.functions[0].call_target_constraints.push(duplicate);
+                }
+                "missing" => {
+                    m.functions[0].call_target_constraints[0].callees = vec!["absent".into()]
+                }
+                "abi" => m.functions[1].signature.abi = "fastcc".into(),
+                "direct-outside-set" => {
+                    let outside = m.functions[0].name.clone();
+                    let Operation::Call { callee, .. } =
+                        &mut m.functions[0].blocks[0].instructions[0].operation
+                    else {
+                        unreachable!()
+                    };
+                    *callee = Operand::Symbol {
+                        ty: 3,
+                        name: outside,
+                    };
+                }
+                _ => unreachable!(),
+            }
+            rejects(&m, "callee constraint");
+        }
+    }
+
+    fn pointer_mask_module() -> NativeModule {
+        let mut m = module();
+        let f = &mut m.functions[0];
+        f.signature.params = vec![3, 2];
+        f.signature.result = 3;
+        f.params = vec![Value { id: 7, ty: 3 }, Value { id: 9, ty: 2 }];
+        f.blocks = vec![Block {
+            id: 10,
+            instructions: vec![Instruction {
+                result: Some(Value { id: 8, ty: 3 }),
+                operation: Operation::PtrMask {
+                    pointer: value(7),
+                    mask: value(9),
+                    return_alignment: None,
+                },
+            }],
+            terminator: Terminator::Return {
+                value: Some(value(8)),
+            },
+        }];
+        let mut declaration = builtin(POINTER_MASK_INTRINSIC, &[3, 2]);
+        declaration.signature.result = 3;
+        m.functions.push(declaration);
+        m.provenance.source_function_count += 1;
+        m
+    }
+
+    #[test]
+    fn pointer_mask_retains_one_pointer_leaf_and_exact_intrinsic_inventory() {
+        for triple in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            let mut m = pointer_mask_module();
+            m.target.triple = triple.into();
+            verify(&m).unwrap();
+            assert_eq!(value_leaf_layout(&m, 3).unwrap(), vec![(3, 0)]);
+            let parsed = NativeModule::from_json(&serde_json::to_vec(&m).unwrap()).unwrap();
+            assert_eq!(parsed.functions.len(), 2);
+            assert_eq!(
+                parsed.functions[1].intrinsic.as_deref(),
+                Some(POINTER_MASK_INTRINSIC)
+            );
+            assert!(is_builtin_intrinsic(POINTER_MASK_INTRINSIC));
+            let operands =
+                instruction_operands(&parsed.functions[0].blocks[0].instructions[0].operation);
+            assert_eq!(operands.len(), 2);
+            assert!(matches!(operands[0], Operand::Value { id: 7 }));
+            assert!(matches!(operands[1], Operand::Value { id: 9 }));
+            let error = crate::ocore::native_interpret::evaluate(&m, &m.functions[0].name, &[])
+                .unwrap_err();
+            assert!(error.message.contains("pointer masks"));
+        }
+        for name in [
+            "llvm.fabs.f32",
+            "llvm.fabs.f64",
+            "llvm.fabs.f80",
+            "llvm.fabs.f128",
+        ] {
+            assert!(
+                is_builtin_intrinsic(name),
+                "owned resolution does not remove its source declaration"
+            );
+        }
+    }
+
+    #[test]
+    fn pointer_mask_rejects_wrong_mask_pointer_profile_result_and_ordinary_call() {
+        for (layout, diagnostic) in [
+            ("e-p:64:64:64:32-i64:64", "pointer mask requires"),
+            (
+                "e-p:64:64-i64:64-ni:0",
+                "invalid non-integral address space",
+            ),
+            ("e-p:64:64-i64:64-A1", "pointer mask requires"),
+        ] {
+            let mut m = pointer_mask_module();
+            m.target.data_layout = layout.into();
+            rejects(&m, diagnostic);
+        }
+        let mut m = pointer_mask_module();
+        m.types[3] = Type::Pointer { address_space: 1 };
+        assert!(verify(&m).is_err());
+        let mut m = pointer_mask_module();
+        let narrow_mask = m.types.len();
+        m.types.push(Type::Int { bits: 32 });
+        m.functions[0].signature.params[1] = narrow_mask;
+        m.functions[0].params[1].ty = narrow_mask;
+        rejects(&m, "pointer mask requires an exact i64 mask");
+        let mut m = pointer_mask_module();
+        m.functions[0].blocks[0].instructions[0]
+            .result
+            .as_mut()
+            .unwrap()
+            .ty = 2;
+        assert!(verify(&m).is_err());
+        let mut m = pointer_mask_module();
+        m.functions[0].blocks[0].instructions[0].operation = Operation::Call {
+            control_effects: Default::default(),
+            callee: Operand::Symbol {
+                ty: 3,
+                name: POINTER_MASK_INTRINSIC.into(),
+            },
+            signature: m.functions[1].signature.clone(),
+            args: vec![value(7), value(9)],
+        };
+        rejects(&m, "explicit typed PtrMask");
+        let mut m = pointer_mask_module();
+        m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
+            pointer: value(7),
+            mask: value(999),
+            return_alignment: None,
+        };
+        assert!(
+            verify(&m).is_err(),
+            "the mask must participate in dominance and use checking"
+        );
+    }
+
+    #[test]
+    fn pointer_mask_return_alignment_is_explicit_and_requires_literal_low_bit_proof() {
+        for triple in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            for (align, bits) in [
+                (1, None),
+                (16, Some(u64::MAX - 15)),
+                (1u64 << 32, Some(u64::MAX - ((1u64 << 32) - 1))),
+            ] {
+                let mut m = pointer_mask_module();
+                m.target.triple = triple.into();
+                m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
+                    pointer: value(7),
+                    mask: bits
+                        .map(|bits| Operand::Int {
+                            ty: 2,
+                            bits: bits.to_string(),
+                        })
+                        .unwrap_or_else(|| value(9)),
+                    return_alignment: Some(align),
+                };
+                verify(&m).unwrap();
+                let encoded = serde_json::to_value(&m).unwrap();
+                assert_eq!(
+                    encoded["functions"][0]["blocks"][0]["instructions"][0]["operation"]
+                        ["return_alignment"]
+                        .as_u64(),
+                    Some(align)
+                );
+                verify(&NativeModule::from_json(&serde_json::to_vec(&m).unwrap()).unwrap())
+                    .unwrap();
+            }
+        }
+        for (align, mask, diagnostic) in [
+            (0, value(9), "positive power of two"),
+            (3, value(9), "positive power of two"),
+            (1u64 << 33, value(9), "positive power of two"),
+            (16, value(9), "proving literal i64 mask"),
+            (
+                32,
+                Operand::Int {
+                    ty: 2,
+                    bits: (u64::MAX - 15).to_string(),
+                },
+                "does not prove",
+            ),
+        ] {
+            let mut m = pointer_mask_module();
+            m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
+                pointer: value(7),
+                mask,
+                return_alignment: Some(align),
+            };
+            rejects(&m, diagnostic);
+        }
+    }
+
+    #[test]
+    fn wide_volatile_profile_is_explicit_roundtrips_and_rejects_foreign_or_non_lp64_targets() {
+        let original = module();
+        let old_target = serde_json::to_value(&original.target).unwrap();
+        assert!(old_target.get("wide_volatile_profile").is_none());
+        for triple in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            let mut m = original.clone();
+            m.target.triple = triple.into();
+            m.target.wide_volatile_profile = Some(WideVolatileProfile::OrdinaryRamSplitV1);
+            let encoded = serde_json::to_vec(&m).unwrap();
+            let parsed = NativeModule::from_json(&encoded).unwrap();
+            assert_eq!(
+                parsed.target.wide_volatile_profile,
+                m.target.wide_volatile_profile
+            );
+            let mut invalid = m.clone();
+            invalid.target.triple = "x86_64-pc-windows-msvc".into();
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut invalid = m.clone();
+            invalid.target.pointer_bits = 32;
+            invalid.target.data_layout = "e-p:32:32-i64:64-i128:128".into();
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut invalid = m.clone();
+            invalid.target.data_layout = "e-p:64:64:64:32-i64:64-i128:128".into();
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut invalid = m.clone();
+            invalid.target.abi = Some("ilp32".into());
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut value = serde_json::to_value(&m).unwrap();
+            value["target"]["wide_volatile_profile"] = serde_json::json!("ordinary_mmio");
+            assert!(NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).is_err());
+        }
+    }
+
+    #[test]
+    fn fabs_intrinsics_require_exact_declarations_and_typed_unary_results() {
+        for bits in [32u16, 64, 80, 128] {
+            let mut m = module();
+            let ty = m.types.len();
+            m.types.push(Type::Float { bits });
+            let name = format!("llvm.fabs.f{bits}");
+            m.functions.push(
+                serde_json::from_value(json!({"name":name,"linkage":"external",
+                "intrinsic":name,"signature":{"params":[ty],"result":ty,"abi":"c","variadic":false},
+                "params":[{"id":0,"ty":ty}],"entry":null,"blocks":[]}))
+                .unwrap(),
+            );
+            m.provenance.source_function_count += 1;
+            let f = &mut m.functions[0];
+            f.signature.params = vec![ty];
+            f.signature.result = ty;
+            f.params = vec![Value { id: 7, ty }];
+            f.blocks = vec![Block {
+                id: 10,
+                instructions: vec![Instruction {
+                    result: Some(Value { id: 8, ty }),
+                    operation: Operation::FloatAbs {
+                        value: value(7),
+                        flags: FastMathFlags::default(),
+                    },
+                }],
+                terminator: Terminator::Return {
+                    value: Some(value(8)),
+                },
+            }];
+            verify(&m).unwrap();
+            NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+            let mut invalid = m.clone();
+            invalid.functions[1].signature.result = 2;
+            rejects(&invalid, "invalid or unsupported intrinsic declaration");
+            let mut invalid = m.clone();
+            invalid.functions[1].intrinsic = None;
+            rejects(&invalid, "invalid or unsupported intrinsic declaration");
+            let mut invalid = m.clone();
+            invalid.functions[0].blocks[0].instructions[0]
+                .result
+                .as_mut()
+                .unwrap()
+                .ty = 2;
+            rejects(&invalid, "type mismatch");
+        }
+        assert_eq!(float_abs_intrinsic("llvm.fabs.v2f32"), None);
+        assert_eq!(float_abs_intrinsic("llvm.fabs.f16"), None);
+    }
+
+    #[test]
+    fn floating_constants_retain_exact_significant_bits_and_fail_closed_on_invalid_payloads() {
+        for width in [32u16, 64, 80, 128] {
+            let mut m = module();
+            let ty = m.types.len();
+            m.types.push(Type::Float { bits: width });
+            let f = &mut m.functions[0];
+            f.signature.params.clear();
+            f.params.clear();
+            f.signature.result = ty;
+            let raw = if width == 128 {
+                u128::MAX
+            } else {
+                (1u128 << width) - 1
+            };
+            f.blocks = vec![Block {
+                id: 10,
+                instructions: vec![],
+                terminator: Terminator::Return {
+                    value: Some(Operand::Float {
+                        ty,
+                        bits: raw.to_string(),
+                    }),
+                },
+            }];
+            verify(&m).unwrap();
+            let wire = m.to_json().unwrap();
+            let decoded = NativeModule::from_json(&wire).unwrap();
+            assert!(matches!(&decoded.functions[0].blocks[0].terminator,
+                Terminator::Return { value: Some(Operand::Float { ty: actual, bits }) } if *actual == ty && bits == &raw.to_string()));
+            for bad in [
+                "".into(),
+                "-1".into(),
+                "+1".into(),
+                "NaN".into(),
+                "1.0".into(),
+                if width == 128 {
+                    "340282366920938463463374607431768211456".into()
+                } else {
+                    (1u128 << width).to_string()
+                },
+            ] {
+                let mut invalid = m.clone();
+                invalid.functions[0].blocks[0].terminator = Terminator::Return {
+                    value: Some(Operand::Float { ty, bits: bad }),
+                };
+                rejects(&invalid, "floating constant");
+            }
+            if width == 80 {
+                m.target.triple = "aarch64-unknown-linux-gnu".into();
+                rejects(&m, "floating value requires");
+            }
+        }
+        assert!(serde_json::from_value::<FastMathFlags>(json!({"invented":true})).is_err());
+        let flags: FastMathFlags = serde_json::from_value(json!({"nnan":true})).unwrap();
+        assert!(flags.nnan && !flags.ninf && !flags.reassoc && !flags.afn);
+    }
+
+    #[test]
+    fn floating_instructions_require_exact_scalar_types_and_cast_directions() {
+        let mut m = module();
+        let f64 = m.types.len();
+        m.types.push(Type::Float { bits: 64 });
+        let f32 = m.types.len();
+        m.types.push(Type::Float { bits: 32 });
+        let function = &mut m.functions[0];
+        function.signature.params = vec![f64];
+        function.signature.result = f64;
+        function.params = vec![Value { id: 7, ty: f64 }];
+        function.blocks = vec![Block {
+            id: 10,
+            instructions: vec![Instruction {
+                result: Some(Value { id: 8, ty: f64 }),
+                operation: Operation::FloatBinary {
+                    kind: FloatBinaryOp::Add,
+                    lhs: value(7),
+                    rhs: Operand::Float {
+                        ty: f64,
+                        bits: "0".into(),
+                    },
+                    flags: FastMathFlags::default(),
+                },
+            }],
+            terminator: Terminator::Return {
+                value: Some(value(8)),
+            },
+        }];
+        verify(&m).unwrap();
+        let mut invalid = m.clone();
+        if let Operation::FloatBinary { rhs, .. } =
+            &mut invalid.functions[0].blocks[0].instructions[0].operation
+        {
+            *rhs = Operand::Float {
+                ty: f32,
+                bits: "0".into(),
+            };
+        }
+        rejects(&invalid, "type mismatch");
+        for (kind, source, result, valid) in [
+            (CastOp::FpTrunc, f64, f32, true),
+            (CastOp::FpTrunc, f32, f64, false),
+            (CastOp::FpExt, f32, f64, true),
+            (CastOp::FpExt, f64, f32, false),
+            (CastOp::FpToSi, f64, 2, true),
+            (CastOp::FpToUi, f64, 2, true),
+            (CastOp::SiToFp, 2, f64, true),
+            (CastOp::UiToFp, 2, f64, true),
+            (CastOp::FpToSi, 2, f64, false),
+            (CastOp::UiToFp, f64, 2, false),
+        ] {
+            let mut cast = m.clone();
+            let function = &mut cast.functions[0];
+            function.signature.params = vec![source];
+            function.params[0].ty = source;
+            function.signature.result = result;
+            function.blocks[0].instructions[0] = Instruction {
+                result: Some(Value { id: 8, ty: result }),
+                operation: Operation::Cast {
+                    kind,
+                    value: value(7),
+                },
+            };
+            assert_eq!(verify(&cast).is_ok(), valid, "{kind:?}");
+        }
+        let instruction = Instruction {
+            result: Some(Value { id: 8, ty: 1 }),
+            operation: Operation::FCmp {
+                predicate: FloatPredicate::Uno,
+                lhs: value(7),
+                rhs: value(7),
+                flags: FastMathFlags::default(),
+            },
+        };
+        m.functions[0].signature.result = 1;
+        m.functions[0].blocks[0].instructions[0] = instruction;
+        verify(&m).unwrap();
+        m.functions[0].blocks[0].instructions[0]
+            .result
+            .as_mut()
+            .unwrap()
+            .ty = 2;
+        rejects(&m, "i1");
     }
 
     #[test]
@@ -3949,6 +5547,7 @@ mod tests {
             Instruction {
                 result: Some(Value { id: 15, ty: 3 }),
                 operation: Operation::Call {
+                    control_effects: Default::default(),
                     callee: pointer_bits(4096),
                     signature: Signature {
                         params: vec![3],
@@ -3965,6 +5564,7 @@ mod tests {
             Instruction {
                 result: Some(Value { id: 16, ty: 3 }),
                 operation: Operation::Call {
+                    control_effects: Default::default(),
                     callee: Operand::Symbol {
                         ty: 3,
                         name: "choose".into(),
@@ -4134,6 +5734,7 @@ mod tests {
             symbol: "ordinary_dependency".into(),
             addend: 0,
             relative_to: None,
+            block: None,
         }];
         global(&mut m);
         m.globals[1].name = "ordinary_dependency".into();
@@ -4176,6 +5777,7 @@ mod tests {
         caller.blocks[0].instructions = vec![Instruction {
             result: Some(Value { id: 8, ty: 4 }),
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Symbol {
                     ty: 3,
                     name: "function_alias".into(),
@@ -4210,6 +5812,7 @@ mod tests {
                         symbol: "function_alias".into(),
                         addend: 0,
                         relative_to: None,
+                        block: None,
                     },
                     Relocation {
                         offset: 8,
@@ -4217,6 +5820,7 @@ mod tests {
                         symbol: "pointer_alias".into(),
                         addend: 0,
                         relative_to: None,
+                        block: None,
                     },
                 ],
             }),
@@ -4855,6 +6459,7 @@ mod tests {
         rejects(&invalid, "intrinsic declaration");
         invalid = m.clone();
         invalid.functions[0].blocks[0].instructions[1].operation = Operation::Call {
+            control_effects: Default::default(),
             callee: Operand::Symbol {
                 ty: 3,
                 name: "llvm.assume".into(),
@@ -4876,6 +6481,7 @@ mod tests {
                 symbol: "llvm.assume".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             });
         rejects(&invalid, "intrinsic address");
     }
@@ -4888,6 +6494,301 @@ mod tests {
             "entry":null,"blocks":[]
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn unsigned_saturation_declarations_require_the_exact_owned_graph_contract() {
+        for bits in (1u16..=64).chain(std::iter::once(128)) {
+            let name = format!("llvm.usub.sat.i{bits}");
+            assert_eq!(integer_saturating_sub_intrinsic(&name), Some(bits));
+            assert!(is_builtin_intrinsic(&name));
+            let mut m = module();
+            let ty = m.types.len();
+            m.types.push(Type::Int { bits });
+            let mut declaration = builtin(&name, &[ty, ty]);
+            declaration.signature.result = ty;
+            m.functions.push(declaration);
+            m.provenance.source_function_count += 1;
+            verify(&m).unwrap();
+            for change in 0..8 {
+                let mut invalid = m.clone();
+                let function = invalid.functions.last_mut().unwrap();
+                match change {
+                    0 => function.intrinsic = None,
+                    1 => {
+                        function.signature.params.pop();
+                    }
+                    2 => function.signature.result = 0,
+                    3 => function.signature.abi = "fastcc".into(),
+                    4 => function.visibility = Visibility::Hidden,
+                    5 => function.signature.variadic = true,
+                    6 => function.signature.result_attributes = vec!["zeroext".into()],
+                    7 => {
+                        function.entry = Some(10);
+                        function.blocks = vec![Block {
+                            id: 10,
+                            instructions: vec![],
+                            terminator: Terminator::Return {
+                                value: Some(integer(ty, 0)),
+                            },
+                        }];
+                    }
+                    _ => unreachable!(),
+                }
+                assert!(
+                    verify(&invalid).is_err(),
+                    "forged saturation contract {change}"
+                );
+            }
+            let mut invalid = m.clone();
+            let signature = invalid.functions.last().unwrap().signature.clone();
+            invalid.functions[0].blocks[0].instructions[0] = Instruction {
+                result: Some(Value { id: 8, ty }),
+                operation: Operation::Call {
+                    control_effects: Default::default(),
+                    callee: Operand::Symbol { ty: 3, name },
+                    signature,
+                    args: vec![integer(ty, 0); 2],
+                },
+            };
+            rejects(
+                &invalid,
+                "unsigned-saturating intrinsic requires its lowered integer operation graph",
+            );
+        }
+        // Invoke uses the same rejection path while its surrounding EH graph
+        // remains the valid original test fixture.
+        let mut invoked = eh_module();
+        let ty = invoked.functions[1].signature.result;
+        let Type::Int { bits } = invoked.types[ty] else {
+            panic!("integer EH fixture")
+        };
+        let name = format!("llvm.usub.sat.i{bits}");
+        let mut declaration = builtin(&name, &[ty, ty]);
+        declaration.signature.result = ty;
+        let exact = declaration.signature.clone();
+        invoked.functions.push(declaration);
+        invoked.provenance.source_function_count += 1;
+        let Terminator::Invoke {
+            callee,
+            signature,
+            args,
+            ..
+        } = &mut invoked.functions[0].blocks[0].terminator
+        else {
+            unreachable!()
+        };
+        *callee = Operand::Symbol { ty: 3, name };
+        *signature = exact;
+        *args = vec![integer(ty, 0); 2];
+        rejects(
+            &invoked,
+            "unsigned-saturating intrinsic requires its lowered integer operation graph",
+        );
+        for name in [
+            "llvm.usub.sat.i0",
+            "llvm.usub.sat.i65",
+            "llvm.usub.sat.i127",
+            "llvm.usub.sat.i129",
+            "llvm.usub.sat.i032",
+            "llvm.usub.sat.v2i32",
+            "llvm.usub.sat.i128.extra",
+            "llvm.ssub.sat.i32",
+        ] {
+            assert_eq!(integer_saturating_sub_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
+    }
+
+    #[test]
+    fn byte_swap_declarations_require_exact_contract_and_cannot_be_calls() {
+        for bits in [16, 32, 48, 64, 128] {
+            let name = format!("llvm.bswap.i{bits}");
+            assert_eq!(integer_byte_swap_intrinsic(&name), Some(bits));
+            assert!(is_builtin_intrinsic(&name));
+            let mut m = module();
+            let ty = m.types.len();
+            m.types.push(Type::Int { bits });
+            let mut declaration = builtin(&name, &[ty]);
+            declaration.signature.result = ty;
+            m.functions.push(declaration);
+            m.provenance.source_function_count += 1;
+            verify(&m).unwrap();
+            for change in 0..9 {
+                let mut invalid = m.clone();
+                let function = invalid.functions.last_mut().unwrap();
+                match change {
+                    0 => function.intrinsic = None,
+                    1 => function.signature.params.clear(),
+                    2 => function.signature.result = 0,
+                    3 => function.signature.abi = "fastcc".into(),
+                    4 => function.visibility = Visibility::Hidden,
+                    5 => function.signature.variadic = true,
+                    6 => function.signature.result_attributes = vec!["zeroext".into()],
+                    7 => function.signature.params[0] = 3,
+                    8 => {
+                        function.entry = Some(10);
+                        function.blocks = vec![Block { id: 10, instructions: vec![],
+                            terminator: Terminator::Return { value: Some(integer(ty, 0)) } }];
+                    }
+                    _ => unreachable!(),
+                }
+                assert!(verify(&invalid).is_err(), "forged byte-swap contract {change}");
+            }
+            let mut invalid = m.clone();
+            let declaration = invalid.functions.last().unwrap().clone();
+            invalid.functions[0].blocks[0].instructions[0] = Instruction {
+                result: Some(Value { id: 8, ty }),
+                operation: Operation::Call { control_effects: Default::default(),
+                    callee: Operand::Symbol { ty: 3, name }, signature: declaration.signature,
+                    args: vec![integer(ty, 0)] },
+            };
+            rejects(&invalid, "byte-swap intrinsic requires its lowered integer operation graph");
+        }
+        for name in ["llvm.bswap.i0", "llvm.bswap.i8", "llvm.bswap.i24", "llvm.bswap.i96",
+                     "llvm.bswap.i256", "llvm.bswap.i016", "llvm.bswap.v2i16", "llvm.bswap.i32.extra"] {
+            assert_eq!(integer_byte_swap_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
+    }
+
+    #[test]
+    fn funnel_declarations_require_exact_owned_scalar_contract_and_cannot_be_calls() {
+        for bits in [1, 2, 4, 8, 16, 32, 64, 128] {
+            for direction in ["fshl", "fshr"] {
+                let name = format!("llvm.{direction}.i{bits}");
+                assert_eq!(integer_funnel_intrinsic(&name), Some(bits));
+                assert!(is_builtin_intrinsic(&name));
+                let mut m = module();
+                let ty = m.types.len();
+                m.types.push(Type::Int { bits });
+                let mut declaration = builtin(&name, &[ty, ty, ty]);
+                declaration.signature.result = ty;
+                m.functions.push(declaration);
+                m.provenance.source_function_count += 1;
+                verify(&m).unwrap();
+                for change in 0..9 {
+                    let mut invalid = m.clone();
+                    let function = invalid.functions.last_mut().unwrap();
+                    match change {
+                        0 => function.intrinsic = None,
+                        1 => function.signature.params.pop().map(|_| ()).unwrap(),
+                        2 => function.signature.result = 0,
+                        3 => function.signature.abi = "fastcc".into(),
+                        4 => function.visibility = Visibility::Hidden,
+                        5 => function.signature.variadic = true,
+                        6 => function.signature.result_attributes = vec!["zeroext".into()],
+                        7 => function.signature.params[1] = 3,
+                        8 => {
+                            function.entry = Some(10);
+                            function.blocks = vec![Block {
+                                id: 10,
+                                instructions: vec![],
+                                terminator: Terminator::Return {
+                                    value: Some(integer(ty, 0)),
+                                },
+                            }];
+                        }
+                        _ => unreachable!(),
+                    }
+                    assert!(verify(&invalid).is_err(), "forged funnel contract {change}");
+                }
+                let mut invalid = m.clone();
+                let declaration = invalid.functions.last().unwrap().clone();
+                invalid.functions[0].blocks[0].instructions[0] = Instruction {
+                    result: Some(Value { id: 8, ty }),
+                    operation: Operation::Call {
+                        control_effects: Default::default(),
+                        callee: Operand::Symbol { ty: 3, name },
+                        signature: declaration.signature,
+                        args: vec![integer(ty, 0); 3],
+                    },
+                };
+                rejects(
+                    &invalid,
+                    "funnel-shift intrinsic requires its lowered integer operation graph",
+                );
+            }
+        }
+        for name in [
+            "llvm.fshl.i0",
+            "llvm.fshl.i3",
+            "llvm.fshl.i65",
+            "llvm.fshl.i256",
+            "llvm.fshr.i0128",
+            "llvm.fshr.v2i64",
+            "llvm.fshr.i128.extra",
+        ] {
+            assert_eq!(integer_funnel_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
+    }
+
+    #[test]
+    fn integral_rounding_declarations_require_exact_ieee_contract_and_no_calls() {
+        for bits in [32, 64, 128] {
+            for operation in ["floor", "ceil", "trunc"] {
+                let name = format!("llvm.{operation}.f{bits}");
+                assert_eq!(float_integral_intrinsic(&name), Some(bits));
+                assert!(is_builtin_intrinsic(&name));
+                let mut m = module();
+                let ty = m.types.len();
+                m.types.push(Type::Float { bits });
+                let mut declaration = builtin(&name, &[ty]);
+                declaration.signature.result = ty;
+                m.functions.push(declaration);
+                m.provenance.source_function_count += 1;
+                verify(&m).unwrap();
+                for change in 0..8 {
+                    let mut invalid = m.clone();
+                    let function = invalid.functions.last_mut().unwrap();
+                    match change {
+                        0 => function.intrinsic = None,
+                        1 => function.signature.params.clear(),
+                        2 => function.signature.result = 0,
+                        3 => function.signature.abi = "fastcc".into(),
+                        4 => function.visibility = Visibility::Hidden,
+                        5 => function.signature.variadic = true,
+                        6 => function.signature.result_attributes = vec!["zeroext".into()],
+                        7 => function.signature.params[0] = 2,
+                        _ => unreachable!(),
+                    }
+                    assert!(
+                        verify(&invalid).is_err(),
+                        "forged rounding contract {change}"
+                    );
+                }
+                let mut invalid = m.clone();
+                let declaration = invalid.functions.last().unwrap().clone();
+                invalid.functions[0].blocks[0].instructions[0] = Instruction {
+                    result: Some(Value { id: 8, ty }),
+                    operation: Operation::Call {
+                        control_effects: Default::default(),
+                        callee: Operand::Symbol { ty: 3, name },
+                        signature: declaration.signature,
+                        args: vec![Operand::Float {
+                            ty,
+                            bits: "0".into(),
+                        }],
+                    },
+                };
+                rejects(
+                    &invalid,
+                    "floating integral-rounding intrinsic requires its lowered bit operation graph",
+                );
+            }
+        }
+        for name in [
+            "llvm.floor.f16",
+            "llvm.floor.f80",
+            "llvm.floor.f0128",
+            "llvm.ceil.v2f64",
+            "llvm.trunc.f64.extra",
+            "llvm.round.f64",
+        ] {
+            assert_eq!(float_integral_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
     }
 
     fn overflow_module(bits: u16, kind: BinaryOp, signed: bool) -> NativeModule {
@@ -5065,6 +6966,7 @@ mod tests {
         }
         let mut invalid = m.clone();
         invalid.functions[0].blocks[0].instructions[0].operation = Operation::Call {
+            control_effects: Default::default(),
             callee: Operand::Symbol {
                 ty: 3,
                 name: m.functions[1].name.clone(),
@@ -5305,6 +7207,7 @@ mod tests {
                 symbol: name.into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             }];
             rejects(&invalid, "intrinsic address");
         }
@@ -6112,13 +8015,13 @@ mod tests {
     #[test]
     fn aggregate_constants_reject_hidden_ssa_arity_type_and_literal_errors() {
         for (value, message) in [
-            (Operand::AggregateZero { ty: 2 }, "struct or array"),
+            (Operand::AggregateZero { ty: 2 }, "struct, array or fixed vector"),
             (
                 Operand::Aggregate {
                     ty: 2,
                     elements: vec![],
                 },
-                "struct or array",
+                "struct, array or fixed vector",
             ),
             (
                 Operand::Aggregate {
@@ -6149,7 +8052,7 @@ mod tests {
                 },
                 "bit width",
             ),
-            (Operand::AggregateZero { ty: 3 }, "struct or array"),
+            (Operand::AggregateZero { ty: 3 }, "struct, array or fixed vector"),
         ] {
             let mut m = aggregate_module();
             let mut constant = aggregate_constant();
@@ -6406,6 +8309,7 @@ mod tests {
                 symbol: "choose".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             });
         verify(&m).unwrap();
         m.globals[0].initializer.as_mut().unwrap().relocations[0].offset = 1;
@@ -6419,6 +8323,7 @@ mod tests {
                 symbol: "choose".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             },
             Relocation {
                 offset: 2,
@@ -6426,6 +8331,7 @@ mod tests {
                 symbol: "choose".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             },
         ];
         rejects(&m, "overlapping");
@@ -6437,6 +8343,7 @@ mod tests {
             symbol: "missing".into(),
             addend: 0,
             relative_to: None,
+            block: None,
         }];
         rejects(&m, "unknown symbol");
         let mut m = module();
@@ -6485,6 +8392,7 @@ mod tests {
         caller.blocks[0].instructions = vec![Instruction {
             result: None,
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Symbol {
                     ty: 3,
                     name: "make_result".into(),
@@ -6784,6 +8692,7 @@ mod tests {
         let mut m = module();
         let signature = m.functions[0].signature.clone();
         m.functions.push(Function {
+            control_effects: Default::default(),
             name: "external".into(),
             linkage: "external".into(),
             visibility: Visibility::Default,
@@ -6794,6 +8703,8 @@ mod tests {
             entry: None,
             blocks: vec![],
             managed_method: None,
+            source_abi: None,
+            call_target_constraints: Vec::new(),
             intrinsic: None,
             exception_handling: None,
         });
@@ -6801,6 +8712,7 @@ mod tests {
         m.functions[0].blocks[3].instructions.push(Instruction {
             result: Some(Value { id: 41, ty: 2 }),
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Symbol {
                     ty: 3,
                     name: "external".into(),
@@ -6832,6 +8744,152 @@ mod tests {
         rejects(&m, "unsupported imported ABI");
     }
 
+    fn bare_i32_argument_module() -> NativeModule {
+        let mut m = module();
+        m.types.push(Type::Int { bits: 32 });
+        m.functions = serde_json::from_value(json!([
+            {"name":"caller","linkage":"external",
+             "signature":{"params":[4,4,5],"result":2,"abi":"c","variadic":false},
+             "params":[{"id":0,"ty":4},{"id":1,"ty":4},{"id":2,"ty":5}],"entry":0,
+             "blocks":[{"id":0,"instructions":[
+               {"result":{"id":3,"ty":5},"operation":{"op":"cast","kind":"z_ext","value":{"kind":"value","id":0}}},
+               {"result":{"id":4,"ty":2},"operation":{"op":"call","callee":{"kind":"symbol","ty":3,"name":"consume"},
+                 "signature":{"params":[5],"result":2,"abi":"c","variadic":false},"args":[{"kind":"value","id":3}]}}
+             ],"terminator":{"op":"return","value":{"kind":"value","id":4}}}]},
+            {"name":"consume","linkage":"external",
+             "signature":{"params":[5],"result":2,"abi":"c","variadic":false,"param_attributes":[["signext"]]},
+             "params":[{"id":0,"ty":5}],"entry":null,"blocks":[]}
+        ])).unwrap();
+        m.provenance.source_function_count = 2;
+        m
+    }
+
+    #[test]
+    fn ordinary_i32_extension_admission_reproves_ranges_profiles_and_dominance() {
+        for (triple, abi) in [
+            ("x86_64-unknown-linux-gnu", None),
+            ("aarch64-unknown-linux-gnu", None),
+            ("riscv64-unknown-linux-gnu", Some("lp64")),
+            ("riscv64-unknown-linux-gnu", Some("lp64d")),
+        ] {
+            let mut m = bare_i32_argument_module();
+            m.target.triple = triple.into();
+            m.target.abi = abi.map(str::to_owned);
+            verify(&m).unwrap();
+            let encoded = m.to_json().unwrap();
+            let reloaded = NativeModule::from_json(&encoded).unwrap();
+            assert_eq!(
+                serde_json::to_value(&m.functions).unwrap(),
+                serde_json::to_value(&reloaded.functions).unwrap()
+            );
+            assert!(m.functions[0].blocks[0].instructions.iter().any(|i|
+                matches!(&i.operation, Operation::Call { signature, .. } if signature.param_attributes.is_empty())));
+            assert_eq!(
+                m.functions[1].signature.param_attributes,
+                vec![vec!["signext"]]
+            );
+            for bits in 1..=31 {
+                let mut exact = m.clone();
+                let ty = exact.types.len();
+                exact.types.push(Type::Int { bits });
+                exact.functions[0].signature.params[0] = ty;
+                exact.functions[0].params[0].ty = ty;
+                verify(&exact).unwrap();
+            }
+            for value in [0, 9, 10, 255, 2147483647] {
+                let mut literal = m.clone();
+                let Operation::Call { args, .. } =
+                    &mut literal.functions[0].blocks[0].instructions[1].operation
+                else {
+                    unreachable!()
+                };
+                args[0] = integer(5, value);
+                verify(&literal).unwrap();
+            }
+            for argument in [
+                integer(5, 2147483648),
+                integer(5, 4294967295),
+                Operand::Value { id: 2 },
+                Operand::Undef { ty: 5 },
+                Operand::Poison { ty: 5 },
+            ] {
+                let mut invalid = m.clone();
+                let Operation::Call { args, .. } =
+                    &mut invalid.functions[0].blocks[0].instructions[1].operation
+                else {
+                    unreachable!()
+                };
+                args[0] = argument;
+                rejects(&invalid, "direct callee symbol/signature mismatch");
+            }
+            let mut negative = m.clone();
+            let Operation::Cast { kind, .. } =
+                &mut negative.functions[0].blocks[0].instructions[0].operation
+            else {
+                unreachable!()
+            };
+            *kind = CastOp::SExt;
+            rejects(&negative, "direct callee symbol/signature mismatch");
+            let mut unknown = m.clone();
+            unknown.functions[0].blocks[0].instructions[0].operation = Operation::Freeze {
+                value: integer(5, 10),
+            };
+            rejects(&unknown, "direct callee symbol/signature mismatch");
+            let mut late = m.clone();
+            late.functions[0].blocks[0].instructions.swap(0, 1);
+            assert!(
+                verify(&late).is_err(),
+                "a late z_ext must not dominate the call"
+            );
+            let mut offset = m.clone();
+            let Operation::Call { callee, .. } =
+                &mut offset.functions[0].blocks[0].instructions[1].operation
+            else {
+                unreachable!()
+            };
+            *callee = Operand::SymbolOffset {
+                ty: 3,
+                name: "consume".into(),
+                addend: 0,
+            };
+            rejects(&offset, "direct callee symbol/signature mismatch");
+            let mut conflicting = m.clone();
+            let Operation::Call { signature, .. } =
+                &mut conflicting.functions[0].blocks[0].instructions[1].operation
+            else {
+                unreachable!()
+            };
+            signature.param_attributes = vec![vec!["zeroext".into()]];
+            rejects(&conflicting, "direct callee symbol/signature mismatch");
+            let mut foreign = m.clone();
+            foreign.target.data_layout.push_str("-ni:1");
+            rejects(&foreign, "direct callee symbol/signature mismatch");
+            if abi.is_some() {
+                let mut unclassified = m.clone();
+                unclassified.target.abi = None;
+                rejects(&unclassified, "direct callee symbol/signature mismatch");
+            }
+        }
+        // A valid EH graph must not enter the ordinary-call adaptation path.
+        let mut invoked = eh_module();
+        let ty = invoked.types.len();
+        invoked.types.push(Type::Int { bits: 32 });
+        invoked.functions[1].signature.params = vec![ty];
+        invoked.functions[1].signature.param_attributes = vec![vec!["signext".into()]];
+        invoked.functions[1].params = vec![Value { id: 0, ty }];
+        let original = invoked.functions[1].signature.clone();
+        let Terminator::Invoke {
+            signature, args, ..
+        } = &mut invoked.functions[0].blocks[0].terminator
+        else {
+            unreachable!()
+        };
+        *signature = original;
+        signature.param_attributes.clear();
+        *args = vec![integer(ty, 10)];
+        rejects(&invoked, "direct callee symbol/signature mismatch");
+    }
+
     fn bare_i32_call_to_signext_provider() -> NativeModule {
         let mut m = module();
         m.types.push(Type::Int { bits: 32 }); // 5
@@ -6852,6 +8910,7 @@ mod tests {
                 Instruction {
                     result: Some(Value { id: 8, ty: 5 }),
                     operation: Operation::Call {
+                        control_effects: Default::default(),
                         callee: Operand::Symbol {
                             ty: 3,
                             name: "provider".into(),
@@ -7867,6 +9926,7 @@ mod tests {
             instructions: vec![Instruction {
                 result: Some(Value { id: 80, ty: 5 }),
                 operation: Operation::Call {
+                    control_effects: Default::default(),
                     callee: Operand::Symbol {
                         ty: 3,
                         name: "personality".into(),
@@ -7893,6 +9953,7 @@ mod tests {
                 symbol: "personality".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             });
         rejects(&wrong, "metadata-only i32(...)");
         let mut scanned = m.clone();
@@ -7950,6 +10011,7 @@ mod tests {
         m.functions[0].blocks[0].instructions.push(Instruction {
             result: Some(Value { id: 90, ty: 5 }),
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Symbol {
                     ty: 3,
                     name: "personality".into(),
@@ -8180,6 +10242,7 @@ mod tests {
             wrong.functions[0].blocks[0].instructions.push(Instruction {
                 result: Some(Value { id: 100, ty: 5 }),
                 operation: Operation::Call {
+                    control_effects: Default::default(),
                     callee,
                     signature: m.functions[1].signature.clone(),
                     args: vec![Operand::Null { ty: 3 }],
@@ -8200,6 +10263,7 @@ mod tests {
                 symbol: "llvm.eh.typeid.for.p0".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             });
         rejects(&wrong, "intrinsic address");
     }
@@ -8345,6 +10409,7 @@ mod tests {
             symbol: "choose".into(),
             addend: 9,
             relative_to: None,
+            block: None,
         });
         verify(&m).unwrap();
         let mut old = serde_json::to_value(&m).unwrap();
@@ -8514,6 +10579,7 @@ mod tests {
                     .push(Instruction {
                         result: Some(Value { id: 93, ty: 3 }),
                         operation: Operation::Call {
+                            control_effects: Default::default(),
                             callee,
                             signature,
                             args: vec![Operand::Null { ty: 3 }, integer(5, 0)],
@@ -8534,6 +10600,7 @@ mod tests {
                     symbol: m.functions[1].name.clone(),
                     addend: 0,
                     relative_to: None,
+                    block: None,
                 });
             rejects(&invalid, "intrinsic address");
         }
@@ -8862,6 +10929,7 @@ mod tests {
                 symbol: "tls_counter".into(),
                 addend: 0,
                 relative_to: None,
+                block: None,
             }];
             invalid.globals.push(storage);
             invalid.provenance.source_global_count += 1;
@@ -8891,6 +10959,7 @@ mod tests {
                     symbol: target.into(),
                     addend: 0,
                     relative_to: None,
+                    block: None,
                 }];
                 m.globals.push(storage);
                 m.provenance.source_global_count += 1;
@@ -8904,6 +10973,7 @@ mod tests {
                 symbol: "slot".into(),
                 addend: -1,
                 relative_to: Some("tls_counter".into()),
+                block: None,
             }];
             rejects(&invalid, "initialized private/internal non-TLS global");
             invalid = m.clone();
@@ -8969,6 +11039,7 @@ mod tests {
         m.functions[0].blocks[0].instructions.push(Instruction {
             result: None,
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Symbol {
                     ty: 3,
                     name: "consume_pointer".into(),
@@ -9133,6 +11204,7 @@ mod tests {
                     .push(Instruction {
                         result: Some(Value { id: 99, ty: 3 }),
                         operation: Operation::Call {
+                            control_effects: Default::default(),
                             callee,
                             signature: tls_signature(&[3], 3),
                             args: vec![value(77)],
@@ -9713,6 +11785,7 @@ mod tests {
         bad.functions[0].blocks[0].instructions.push(Instruction {
             result: None,
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Null { ty: 3 },
                 signature: call_signature,
                 args: vec![Operand::Undef { ty: 5 }],
@@ -9828,6 +11901,7 @@ mod tests {
                 addend: 0,
                 width: 64,
                 relative_to: None,
+                block: None,
             });
         rejects(&bad, "intrinsic address");
         bad = m;
@@ -10093,5 +12167,294 @@ mod tests {
             name: "llvm.va_end.p0".into(),
         };
         rejects(&invalid, "intrinsic address");
+    }
+
+    #[test]
+    fn block_addresses_retain_owned_nonentry_identity_and_complete_indirect_cfg() {
+        let mut m = module();
+        m.functions[0].blocks[0].terminator = Terminator::IndirectBranch {
+            address: Operand::BlockAddress {
+                ty: 3,
+                function: "choose".into(),
+                block: 20,
+                addend: 0,
+            },
+            destinations: vec![20, 30, 20],
+        };
+        verify(&m).unwrap();
+        let mut invalid = m.clone();
+        let Terminator::IndirectBranch { address, .. } =
+            &mut invalid.functions[0].blocks[0].terminator
+        else {
+            unreachable!()
+        };
+        *address = Operand::BlockAddress {
+            ty: 3,
+            function: "choose".into(),
+            block: 10,
+            addend: 0,
+        };
+        rejects(&invalid, "non-entry");
+        let mut invalid = m.clone();
+        let Terminator::IndirectBranch { destinations, .. } =
+            &mut invalid.functions[0].blocks[0].terminator
+        else {
+            unreachable!()
+        };
+        destinations.push(999);
+        rejects(&invalid, "unknown block");
+        let mut invalid = m.clone();
+        let Terminator::IndirectBranch { address, .. } =
+            &mut invalid.functions[0].blocks[0].terminator
+        else {
+            unreachable!()
+        };
+        *address = integer(2, 20);
+        assert!(verify(&invalid).is_err());
+        let mut invalid = m.clone();
+        let Terminator::IndirectBranch { address, .. } =
+            &mut invalid.functions[0].blocks[0].terminator
+        else {
+            unreachable!()
+        };
+        *address = Operand::BlockAddress {
+            ty: 3,
+            function: "missing_provider".into(),
+            block: 20,
+            addend: 0,
+        };
+        rejects(&invalid, "included");
+    }
+
+    #[test]
+    fn typed_block_relocations_cannot_masquerade_as_ordinary_provider_symbols() {
+        let mut m = module();
+        global(&mut m);
+        m.globals[0].ty = 3;
+        m.globals[0]
+            .initializer
+            .as_mut()
+            .unwrap()
+            .relocations
+            .push(Relocation {
+                offset: 0,
+                width: 64,
+                symbol: String::new(),
+                addend: 7,
+                relative_to: None,
+                block: Some(BlockAddressRef {
+                    function: "choose".into(),
+                    block: 20,
+                }),
+            });
+        verify(&m).unwrap();
+        for mutation in 0..5 {
+            let mut invalid = m.clone();
+            let relocation = &mut invalid.globals[0].initializer.as_mut().unwrap().relocations[0];
+            match mutation {
+                0 => relocation.symbol = "choose".into(),
+                1 => relocation.relative_to = Some("slot".into()),
+                2 => relocation.width = 32,
+                3 => relocation.block.as_mut().unwrap().block = 10,
+                4 => relocation.block.as_mut().unwrap().function = "external_provider".into(),
+                _ => unreachable!(),
+            }
+            assert!(
+                verify(&invalid).is_err(),
+                "typed block relocation mutation {mutation} escaped"
+            );
+        }
+    }
+    fn nonlocal_effect_fixture() -> NativeModule {
+        let mut m = module();
+        let mut declaration = m.functions[0].clone();
+        declaration.name = "checkpoint".into();
+        declaration.entry = None;
+        declaration.blocks.clear();
+        declaration.control_effects.returns_twice = true;
+        let pointer = m
+            .types
+            .iter()
+            .position(|ty| matches!(ty, Type::Pointer { address_space: 0 }))
+            .unwrap_or_else(|| {
+                m.types.push(Type::Pointer { address_space: 0 });
+                m.types.len() - 1
+            });
+        let mut caller = m.functions[0].clone();
+        caller.name = "caller".into();
+        caller.control_effects = ControlEffects::default();
+        let result = Value {
+            id: caller.params.iter().map(|v| v.id).max().unwrap_or(0) + 1,
+            ty: declaration.signature.result,
+        };
+        caller.blocks = vec![Block {
+            id: 0,
+            instructions: vec![Instruction {
+                result: Some(result),
+                operation: Operation::Call {
+                    control_effects: ControlEffects {
+                        returns_twice: true,
+                    },
+                    callee: Operand::Symbol {
+                        ty: pointer,
+                        name: declaration.name.clone(),
+                    },
+                    signature: declaration.signature.clone(),
+                    args: caller
+                        .params
+                        .iter()
+                        .map(|p| Operand::Value { id: p.id })
+                        .collect(),
+                },
+            }],
+            terminator: Terminator::Return {
+                value: Some(Operand::Value { id: result.id }),
+            },
+        }];
+        caller.entry = Some(0);
+        m.functions = vec![caller, declaration];
+        m.provenance.source_function_count = m.functions.len().try_into().unwrap();
+        m
+    }
+
+    #[test]
+    fn nonlocal_effects_roundtrip_without_rewriting_ordinary_signatures() {
+        let m = nonlocal_effect_fixture();
+        verify(&m).unwrap();
+        let before: Vec<_> = m.functions.iter().map(|f| f.signature.clone()).collect();
+        let reloaded = NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(
+            before,
+            reloaded
+                .functions
+                .iter()
+                .map(|f| f.signature.clone())
+                .collect::<Vec<_>>()
+        );
+        assert!(reloaded.functions[1].control_effects.returns_twice);
+        let Operation::Call {
+            control_effects, ..
+        } = &reloaded.functions[0].blocks[0].instructions[0].operation
+        else {
+            unreachable!()
+        };
+        assert!(control_effects.returns_twice);
+        let plain = serde_json::to_value(module()).unwrap();
+        assert!(plain["functions"][0].get("control_effects").is_none());
+    }
+
+    #[test]
+    fn nonlocal_effect_omissions_remain_structural_not_source_origin_proofs() {
+        for (site, declared) in [(true, true), (false, true), (true, false), (false, false)] {
+            let mut m = nonlocal_effect_fixture();
+            m.functions[1].control_effects.returns_twice = declared;
+            let Operation::Call {
+                control_effects,
+                callee,
+                ..
+            } = &mut m.functions[0].blocks[0].instructions[0].operation
+            else {
+                unreachable!()
+            };
+            control_effects.returns_twice = site;
+            let callee = callee.clone();
+            assert_eq!(
+                m.effective_returns_twice(
+                    &callee,
+                    ControlEffects {
+                        returns_twice: site
+                    }
+                ),
+                site || declared
+            );
+            // Exact source-effect omissions are rejected by the independent
+            // original-LLVM inventory, not invented by structural verification.
+            verify(&m).unwrap();
+        }
+    }
+
+    #[test]
+    fn nonlocal_effects_reject_unknown_targets_and_invoke() {
+        let mut m = nonlocal_effect_fixture();
+        let Operation::Call { callee, .. } =
+            &mut m.functions[0].blocks[0].instructions[0].operation
+        else {
+            unreachable!()
+        };
+        let Operand::Symbol { ty, name } = callee.clone() else {
+            unreachable!()
+        };
+        *callee = Operand::SymbolOffset {
+            ty,
+            name,
+            addend: 0,
+        };
+        rejects(&m, "returns_twice requires a direct ordinary");
+        let mut invoked = eh_module();
+        invoked.functions[1].control_effects.returns_twice = true;
+        rejects(&invoked, "returns_twice requires a direct ordinary");
+    }
+
+    #[test]
+    fn nonlocal_effects_reject_unqualified_frame_and_declaration_contracts() {
+        let mut m = nonlocal_effect_fixture();
+        m.functions[0].signature.abi = "fastcc".into();
+        rejects(&m, "returns_twice exposure requires ordinary C");
+        let mut m = nonlocal_effect_fixture();
+        m.functions[1].signature.variadic = true;
+        // The original mismatched caller must still fail the ordinary ABI gate.
+        rejects(&m, "direct callee symbol/signature mismatch");
+        // Isolate the cold declaration contract from that earlier ABI fault.
+        let mut declaration_only = nonlocal_effect_fixture();
+        declaration_only.functions.remove(0);
+        declaration_only.functions[0].signature.variadic = true;
+        declaration_only.provenance.source_function_count = 1;
+        rejects(&declaration_only, "returns_twice declaration requires");
+    }
+
+    #[test]
+    fn nonlocal_effects_retain_cold_provider_obligations_and_block_reference_execution() {
+        let mut m = module();
+        let mut unused = m.functions[0].clone();
+        unused.name = "unused_checkpoint".into();
+        unused.entry = None;
+        unused.blocks.clear();
+        unused.control_effects.returns_twice = true;
+        m.functions.push(unused);
+        m.provenance.source_function_count = m.functions.len().try_into().unwrap();
+        verify(&m).unwrap();
+        assert!(m.has_nonlocal_control_effects());
+        // These are separately declared authored module profiles, not retargeted
+        // upstream capture or evidence of original-provider execution.
+        for (target, triple, abi) in [
+            (crate::ocore::Target::X86_64UnknownNone, "x86_64-unknown-linux-gnu", None),
+            (crate::ocore::Target::Aarch64UnknownNone, "aarch64-unknown-linux-gnu", None),
+            (crate::ocore::Target::Riscv64UnknownNone, "riscv64-unknown-linux-gnu", Some("lp64")),
+            (crate::ocore::Target::Riscv64UnknownNone, "riscv64-unknown-linux-gnu", Some("lp64d")),
+        ] {
+            let mut profile = m.clone();
+            profile.target.triple = triple.into();
+            profile.target.abi = abi.map(str::to_string);
+            let (assembly, report) =
+                crate::ocore::native_codegen::emit_with_nonlocal_report(&profile, target).unwrap();
+            assert!(!report.provider_qualified);
+            assert!(!report.library_exposure_admitted);
+            assert!(!report.original_provider_obligations.is_empty(), "cold original declaration was omitted");
+            crate::ocore::native_nonlocal::verify_report_json(
+                &serde_json::to_vec(&report).unwrap(), &profile, target, &assembly,
+            ).unwrap();
+        }
+        let error =
+            crate::ocore::native_interpret::evaluate(&m, &m.functions[0].name, &[]).unwrap_err();
+        assert!(error.message.contains("returns_twice nonlocal execution"));
+    }
+
+    #[test]
+    fn nonlocal_effects_reject_unknown_serialized_effects() {
+        let mut value = serde_json::to_value(nonlocal_effect_fixture()).unwrap();
+        value["functions"][1]["control_effects"]["invented_frame_proof"] = json!(true);
+        assert!(NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).is_err());
+        value["functions"][1]["control_effects"] = json!({"returns_twice":"true"});
+        assert!(NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).is_err());
     }
 }

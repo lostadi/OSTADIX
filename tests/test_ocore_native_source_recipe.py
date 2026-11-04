@@ -115,7 +115,7 @@ class NativeSourceRecipeTests(unittest.TestCase):
             "\t$(CC) $(CFLAGS) -c $< -o $@\n"
             "list-sources:\n\t@printf '%s\\n' $(SOURCES)\n")
         for argv in (["git", "init", "-q"], ["git", "add", "."],
-                     ["git", "-c", "user.name=Native Source Recipe Test", "-c", "user.email=test@example.invalid",
+                     ["git", "-c", "user.name=Lee Daghlar Ostadi", "-c", "user.email=ostadi.lee@gmail.com",
                       "commit", "-qm", "original complete source fixture"]):
             result = run(argv, cwd=self.source)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

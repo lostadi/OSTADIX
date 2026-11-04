@@ -6,6 +6,7 @@
 #include "parser.h"
 #include "eval.h"
 #include "installed_paths.h"
+#include "backends.h"
 
 static char *read_file(const char *path) {
     FILE *f = fopen(path, "rb");
@@ -50,27 +51,13 @@ int main(int argc, char **argv) {
         else source[0] = 0;
     }
 
-    /* default registered (same as before) */
-    StringSet *bs = string_set_new();
+    StringSet *bs = olang_default_backends();
     if (!bs) {
         fprintf(stderr, "failed to create backend set\n");
         free(source);
         free(installed_shims);
         return 1;
     }
-    const char *tags[] = {"O", "python", "html", "latex", "markdown", "text", "bash", "shell",
-                          "rust", "racket", "nix", "nix_expr", "nix_store", "nixos_test", "quote", NULL};
-    for (int i=0; tags[i]; ++i) {
-        string_set_add(bs, tags[i]);
-        if (!string_set_contains(bs, tags[i])) {
-            fprintf(stderr, "failed to register backend tag %s\n", tags[i]);
-            string_set_free(bs);
-            free(source);
-            free(installed_shims);
-            return 1;
-        }
-    }
-
     OParser p;
     parser_init(&p, source, bs);
     ONodeList *nodes = parser_parse(&p);

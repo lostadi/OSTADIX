@@ -1189,6 +1189,15 @@ def run_smoke(
     home_fixture = tempfile.TemporaryDirectory(prefix=".mcp-home-smoke-")
     environment["HOME"] = home_fixture.name
     intent_fixture = tempfile.TemporaryDirectory(prefix=".mcp-intent-smoke-")
+    smoke_work = Path(intent_fixture.name).resolve()
+    smoke_corpus = smoke_work / "search"
+    smoke_corpus.mkdir()
+    smoke_program = smoke_corpus / "python-smoke.O"
+    smoke_program.write_text(
+        "O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n",
+        encoding="utf-8",
+    )
+    relative_smoke_program = os.path.relpath(smoke_program, root)
     information_fixture = tempfile.TemporaryDirectory(prefix=".mcp-information-smoke-")
     wasm_fixture = (
         tempfile.TemporaryDirectory(prefix=".mcp-wasm-smoke-")
@@ -1520,8 +1529,16 @@ def run_smoke(
 
         integer_two = {"t": "number", "v": {"kind": "int", "v": "2"}}
         run_calls = [
-            (6, {"path": "examples/hello.O", "timeout_secs": 45}, integer_two),
-            (7, {"path": "hello.O", "cwd": "examples", "timeout_secs": 45}, integer_two),
+            (6, {"path": relative_smoke_program, "timeout_secs": 45}, integer_two),
+            (
+                7,
+                {
+                    "path": smoke_program.name,
+                    "cwd": os.path.relpath(smoke_corpus, root),
+                    "timeout_secs": 45,
+                },
+                integer_two,
+            ),
             (
                 88,
                 {
@@ -1852,7 +1869,7 @@ def run_smoke(
                 "params": {
                     "name": "o_olangc",
                     "arguments": {
-                        "path": "examples/hello.O",
+                        "path": relative_smoke_program,
                         "target": "ir",
                         "timeout_secs": 45,
                     },
@@ -2041,7 +2058,7 @@ def run_smoke(
                     "name": "o_execute_intent",
                     "arguments": {
                         "handle": mismatch_handle,
-                        "path": "examples/hello.O",
+                        "path": relative_smoke_program,
                     },
                 },
             },
@@ -2164,25 +2181,30 @@ def run_smoke(
                 "method": "tools/call",
                 "params": {
                     "name": "o_search_run",
-                    "arguments": {"name": "hello", "timeout_secs": 45},
+                    "arguments": {
+                        "name": smoke_program.stem,
+                        "work": os.fspath(smoke_work),
+                        "timeout_secs": 45,
+                    },
                 },
             },
         )
         search_result = responses.response(21, timeout)
         search_text = _content_text(search_result)
         required_search = {
-            f"program={root / 'examples/hello.O'}",
-            f"corpus={root / 'examples'}",
+            f"program={smoke_program}",
+            f"work={smoke_work}",
+            f"corpus={smoke_corpus}",
             "[number] 2",
         }
         if search_result.get("isError") is True or not all(
             marker in search_text for marker in required_search
         ):
-            raise SmokeError(f"o_search_run bundled corpus failed:\n{search_text}")
+            raise SmokeError(f"o_search_run Python fixture failed:\n{search_text}")
 
         for request_id, rejected_name in (
             (22, "../hello"),
-            (23, os.fspath(root / "examples/hello.O")),
+            (23, os.fspath(smoke_program)),
         ):
             _send(
                 process,

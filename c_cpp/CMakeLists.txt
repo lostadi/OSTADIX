@@ -79,6 +79,12 @@ enable_testing()
 add_test(NAME parser_boundaries_and_scaling COMMAND $<TARGET_FILE:parser_test>)
 set_tests_properties(parser_boundaries_and_scaling PROPERTIES TIMEOUT 15)
 
+add_test(NAME backend_registration_and_aot_shims
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_backend_registration.py
+            --runner $<TARGET_FILE:O>
+            --compiler $<TARGET_FILE:olangc>
+)
+
 set(OLANG_BACKENDS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../backends)
 set(OLANG_EXAMPLE_RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/../tests/example_manifest.py)
 

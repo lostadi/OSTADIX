@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -67,6 +68,20 @@ def checked(record):
     return actual
 
 
+def pinned_isa_buffer(record):
+    # Pin and consume the same bytes. A final file hash alone cannot detect a
+    # transient substitution between a pin check and a separate parse/exec read.
+    require(isinstance(record, dict) and {"path", "sha256"} <= set(record)
+            and set(record) <= {"path", "sha256", "bytes"}, "ISA file identity fields differ")
+    require(isinstance(record["path"], str) and Path(record["path"]).is_absolute(), "ISA file path must be absolute")
+    require(isinstance(record["sha256"], str) and re.fullmatch(r"[0-9a-f]{64}", record["sha256"]), "ISA file requires SHA-256")
+    path = Path(record["path"]).resolve(strict=True)
+    data = path.read_bytes()
+    actual = {"path": str(path), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    require(all(actual[key] == value for key, value in record.items()), "file bytes differ from pin: " + record["path"])
+    return actual, data
+
+
 def exact_keys(value, keys, label):
     require(isinstance(value, dict) and set(value) == set(keys), label + " fields differ")
 
@@ -78,7 +93,8 @@ def validate_import_profiles(profiles, message):
 
 
 def validate_profile(profile):
-    exact_keys(profile, ["schema", "name", "implementation", "requirements", "targets"], "profile")
+    required = {"schema", "name", "implementation", "requirements", "targets"}
+    require(isinstance(profile, dict) and required <= set(profile) <= required | {"isa_coverage"}, "profile fields differ")
     require(profile["schema"] == SCHEMA, "unsupported acceptance profile schema")
     require(isinstance(profile["name"], str) and profile["name"].strip(), "profile needs a name")
     impl = profile["implementation"]
@@ -219,6 +235,61 @@ def check_target(module, expected):
     require(module.get("target") == expected, "native target/DataLayout/ABI/execution profile mismatch")
 
 
+def check_diagnostic_object(path, target):
+    """Check the owned emitter's ELF envelope; this does not prove code semantics."""
+    machines = {"x86_64-unknown-none": ("x86_64", 62),
+                "aarch64-unknown-none": ("aarch64", 183),
+                "riscv64-unknown-none": ("riscv64", 243)}
+    require(target["target"] in machines, "no ELF object validation profile for requested target")
+    architecture, machine = machines[target["target"]]
+    native = target["native_target"]
+    require(isinstance(native, dict) and native.get("pointer_bits") == 64
+            and native.get("little_endian") is True
+            and isinstance(native.get("triple"), str)
+            and native["triple"].split("-", 1)[0] == architecture,
+            "native target and diagnostic ELF profile differ")
+    path = Path(path)
+    path = path.resolve(strict=True)
+    identity_fields = lambda info: (info.st_dev, info.st_ino, info.st_mode, info.st_uid,
+                                   info.st_gid, info.st_size, info.st_mtime_ns,
+                                   info.st_ctime_ns, info.st_nlink)
+    with path.open("rb") as stream:
+        before = os.fstat(stream.fileno())
+        require(stat.S_ISREG(before.st_mode), "diagnostic object must be a regular file")
+        header = stream.read(64)
+        checksum = hashlib.sha256(header)
+        consumed_bytes = len(header)
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            checksum.update(chunk)
+            consumed_bytes += len(chunk)
+        after = os.fstat(stream.fileno())
+        require(identity_fields(before) == identity_fields(after)
+                and consumed_bytes == before.st_size
+                and identity_fields(after) == identity_fields(path.stat()),
+                "diagnostic object changed while consuming ELF bytes")
+    require(len(header) == 64 and header[:7] == b"\x7fELF\x02\x01\x01",
+            "diagnostic object is not a complete little-endian ELF64 header")
+    field = lambda offset, size: int.from_bytes(header[offset:offset + size], "little")
+    require(field(16, 2) == 1 and field(18, 2) == machine and field(20, 4) == 1
+            and field(52, 2) == 64 and field(58, 2) == 64,
+            "diagnostic ELF type, machine, version or header layout differs from target")
+    flags = field(48, 4)
+    if architecture == "riscv64":
+        abi_flags = {None: 0, "lp64": 0, "lp64d": 4}
+        require(native.get("abi") in abi_flags, "unsupported diagnostic ELF RISC-V ABI profile")
+        require(flags & ~1 == abi_flags[native.get("abi")], "diagnostic ELF flags differ from target ABI")
+    else:
+        require(flags == 0, "diagnostic ELF flags differ from target ABI")
+    section_offset, section_count = field(40, 8), field(60, 2)
+    require(section_count > 0 and section_offset >= 64
+            and section_offset + section_count * 64 <= consumed_bytes
+            and field(62, 2) < section_count,
+            "diagnostic ELF section inventory is missing, truncated or invalid")
+    return {"path": str(path), "bytes": consumed_bytes, "sha256": checksum.hexdigest(),
+            "elf_type": 1, "elf_machine": machine, "elf_class_bits": 64,
+            "little_endian": True, "elf_flags": flags, "target_abi": native.get("abi")}
+
+
 def complete_artifact_gate(source_receipt, coverage):
     # These are deliberately necessary but insufficient. No public whole-runtime
     # artifact re-admission interface exists in the inspected source-recipe API.
@@ -281,10 +352,39 @@ class Runner:
         spec.loader.exec_module(self.inventory)
         self.reader = None
 
+    checked_isa_pin = staticmethod(checked)
+    read_isa_buffer = staticmethod(pinned_isa_buffer)
+    isa_artifact = staticmethod(artifact)
+
+    def isa_environment_sha256(self):
+        return hashlib.sha256(json.dumps(self.environment, sort_keys=True).encode()).hexdigest()
+
+    def dynamic_isa_coverage(self):
+        path = Path(__file__).with_name("dynamic_isa.py")
+        pin, source = pinned_isa_buffer(artifact(path))
+        self.record.setdefault("isa_inputs_before", {})[pin["path"]] = pin
+        checker_pin = artifact(__file__)
+        self.record["isa_inputs_before"][checker_pin["path"]] = checker_pin
+        for key in ["profile", "toolchain"]:
+            if key in self.record:
+                selected = checked(self.record[key])
+                self.record["isa_inputs_before"][selected["path"]] = selected
+        spec = importlib.util.spec_from_file_location("ocore_dynamic_isa_" + pin["sha256"], pin["path"])
+        module = importlib.util.module_from_spec(spec)
+        exec(compile(source, str(path), "exec"), module.__dict__)
+        summary = module.evaluate(self)
+        if not summary["catalog_observed"]:
+            raise Unverified("actual selected compiler catalog is unavailable; original-unit work continues")
+        require(summary["status"] == "PREREQUISITES_PRESENT",
+                "dynamic ISA/profile/runner/reference/pairwise prerequisites are incomplete; see isa_coverage")
+        return {"scope": "actual catalog and declared prerequisites only; no runtime semantic qualification",
+                "catalog": summary["catalog"], "required_isa_ids": summary["required_isa_ids"],
+                "semantic_equivalence_qualified": False}
+
     def save(self):
         (self.output / "report.json").write_text(json.dumps(self.record, indent=2) + "\n")
 
-    def command(self, argv, directory, label):
+    def command(self, argv, directory, label, timeout=None):
         directory.mkdir(parents=True, exist_ok=True)
         stdout, stderr = directory / (label + ".stdout"), directory / (label + ".stderr")
         row = {"argv": list(map(str, argv)), "cwd": str(directory), "started_epoch": time.time()}
@@ -294,7 +394,17 @@ class Runner:
             process = subprocess.Popen(list(map(str, argv)), cwd=directory, env=self.environment, stdout=out, stderr=err)
             row["pid_in_launcher_namespace"] = process.pid
             self.save()
-            row["exit_code"] = process.wait()
+            try:
+                row["exit_code"] = process.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                row["timed_out"] = True
+                process.terminate()
+                try:
+                    row["exit_code"] = process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    row["exit_code"] = process.wait()
+
         row.update(stdout=artifact(stdout), stderr=artifact(stderr), finished_epoch=time.time())
         self.save()
         return row
@@ -373,9 +483,16 @@ class Runner:
         require(result.get("verified") is True and result.get("module_sha256") == fresh_pin["sha256"], "regenerated verification is not bound to exact bytes")
         obj = directory / "diagnostic.o"
         emitted = self.command([self.tools["ocorec"]["path"], fresh, "--input-kind", "native-ir", "--emit", "obj", "--target", target["target"], "-o", obj], directory, "emit-fresh")
-        require(emitted["exit_code"] == 0 and obj.is_file() and obj.read_bytes()[:4] == b"\x7fELF", "fresh owned diagnostic object emission failed")
+        require(emitted["exit_code"] == 0 and obj.is_file(), "fresh owned diagnostic object emission failed")
+        object_identity = check_diagnostic_object(obj, target)
         require(checked(claimed) == claimed and artifact(fresh) == fresh_pin and all(checked(item) == item for item in inputs), "unit inputs/regenerated bytes changed during readmission")
-        return {"status": "GREEN", "original_inputs": inputs, "claimed_module": claimed, "module": fresh_pin, "original_ir_readmission": artifact(admission_path), "source_inventory": artifact(directory / "original.json"), "preservation": artifact(directory / "preservation.json"), "claimed_verification": artifact(claimed_receipt), "verification": artifact(verification), "fresh_owned_diagnostic_object": artifact(obj), "complete_olangc_artifact": False}
+        object_pin = {key: object_identity[key] for key in ("path", "bytes", "sha256")}
+        result = {"status": "GREEN", "original_inputs": inputs, "claimed_module": claimed, "module": fresh_pin, "original_ir_readmission": artifact(admission_path), "source_inventory": artifact(directory / "original.json"), "preservation": artifact(directory / "preservation.json"), "claimed_verification": artifact(claimed_receipt), "verification": artifact(verification), "fresh_owned_diagnostic_object": object_pin, "diagnostic_object_profile": object_identity, "complete_olangc_artifact": False}
+        # This final check binds the returned pin to the exact validated ELF stream.
+        # Prepare all other receipt identities first; do not reopen the object later.
+        require(checked(object_pin) == object_pin,
+                "diagnostic object changed after ELF profile validation")
+        return result
 
     def run_target(self, target):
         path = self.output / hashlib.sha256(target["id"].encode()).hexdigest()
@@ -394,6 +511,10 @@ class Runner:
         source_path = generated / "source-recipe.json"
         def source_pipeline():
             require(identity["status"] == "GREEN", "original source identity failed")
+            # An incomplete coverage matrix does not suppress source work. A
+            # changed selected executable must not be invoked as a trusted tool.
+            for role in ["olangc", "ocorec"]:
+                checked(self.tools[role])
             argv = [self.tools["olangc"]["path"], self.profile["implementation"]["recipe"]["path"], "--native-runtime", "--native-runtime-source", self.profile["implementation"]["source_checkout"], "--native-runtime-output", "ir", "--native-isa", target["target"], "--native-runtime-unit-inventory", target["unit_inventory"], "--native-runtime-jobs", str(target["jobs"]), "--llvm-library", self.tools["llvm_library"]["path"], "--llvm-sha256", self.tools["llvm_library"]["sha256"], "-o", str(generated)]
             for flag, role in target["frontend_tools"].items():
                 require(role in self.tools, "selected frontend tool is unpinned: " + role)
@@ -503,6 +624,12 @@ class Runner:
         return after
 
     def run(self):
+        self.record["global_stages"] = []
+        global_result = {"stages": self.record["global_stages"]}
+        stage = self.stage(global_result, "dynamic_isa_coverage_prerequisites", self.dynamic_isa_coverage)
+        stage["scope"] = "actual selected compiler catalog and declared prerequisites; never execution or functional identity"
+        self.save()
+        # Global omissions never suppress the independent diagnostics of declared units.
         for target in self.profile["targets"]:
             try:
                 self.run_target(target)
@@ -512,8 +639,17 @@ class Runner:
         self.record["tools_after"] = {name: artifact(pin["path"]) for name, pin in self.tools.items()}
         self.record["capture_verifier_python_after"] = artifact(self.python["path"])
         self.record["tools_stable"] = self.record["capture_verifier_python_after"] == self.python and self.record["tools_before"] == self.record["tools_after"] and artifact(self.sibling["path"]) == self.sibling
+        self.record["isa_inputs_after"] = {}
+        for path, before in self.record.get("isa_inputs_before", {}).items():
+            try:
+                self.record["isa_inputs_after"][path] = artifact(path)
+            except Exception as error:
+                self.record["isa_inputs_after"][path] = {"error_type": type(error).__name__, "diagnostic": str(error)}
+        self.record["isa_inputs_stable"] = not self.record.get("isa_input_failures") and self.record.get("isa_inputs_before", {}) == self.record["isa_inputs_after"]
+        self.record["all_isa_identity_qualified"] = False
+        self.record["semantic_equivalence_qualified"] = False
         self.record.update(stage="complete", finished_epoch=time.time())
-        good = self.record["tools_stable"] and not self.record.get("failures") and len(self.record["targets"]) == len(self.profile["targets"]) and all(row["status"] == "GREEN" for row in self.record["targets"])
+        good = (self.record["isa_inputs_stable"] and all(row["status"] == "GREEN" for row in self.record["global_stages"]) and self.record.get("isa_coverage", {}).get("semantic_equivalence_qualified") is True) and self.record["tools_stable"] and not self.record.get("failures") and len(self.record["targets"]) == len(self.profile["targets"]) and all(row["status"] == "GREEN" for row in self.record["targets"])
         self.record.update(status="GREEN" if good else "RED", complete=good, runtime_accepted=good)
         self.save()
         return 0 if good else 1
@@ -576,8 +712,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        profile_pin, tool_pin = artifact(args.profile), artifact(args.tools)
-        runner = Runner(json.loads(args.profile.read_text()), json.loads(args.tools.read_text()), args.output)
+        profile_pin, profile_source = pinned_isa_buffer(artifact(args.profile))
+        tool_pin, tool_source = pinned_isa_buffer(artifact(args.tools))
+        runner = Runner(json.loads(profile_source), json.loads(tool_source), args.output)
         runner.record.update(profile=profile_pin, toolchain=tool_pin, runner=artifact(__file__))
         runner.save()
         code = runner.run()

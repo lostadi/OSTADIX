@@ -46,13 +46,17 @@ impl EmbeddedModule {
         if self.sha256 != digest(self.native_ir.as_bytes()) {
             bail!("embedded native module hash differs: {}", self.identity());
         }
-        NativeModule::from_json(self.native_ir.as_bytes()).map_err(|error| {
+        let module = NativeModule::from_json(self.native_ir.as_bytes()).map_err(|error| {
             anyhow::anyhow!(
                 "embedded native module {}: {}",
                 self.identity(),
                 error.message
             )
-        })
+        })?;
+        if module.has_nonlocal_control_effects() {
+            bail!("returns_twice module-set admission requires verified nonlocal control/provider contracts; complete artifact is not admitted");
+        }
+        Ok(module)
     }
 }
 
@@ -70,6 +74,13 @@ pub(super) struct Artifact {
     components: Vec<Component>,
     pub(super) modules: Vec<EmbeddedModule>,
     symbol_inventory: Value,
+}
+
+pub(super) struct GroupComponent {
+    pub(super) name: String,
+    pub(super) capture_sha256: String,
+    pub(super) modules: Vec<(String, Vec<u8>)>,
+    pub(super) dependencies: Vec<(String, String)>,
 }
 
 pub(super) struct LoadedArtifact {
@@ -217,6 +228,169 @@ impl Artifact {
         Ok(artifact)
     }
 
+    pub(super) fn check_component_dependencies(
+        &self,
+        name: &str,
+        expected: &[(String, String)],
+    ) -> Result<()> {
+        let component = self
+            .components
+            .iter()
+            .find(|c| c.name == name)
+            .context("source component absent")?;
+        let actual: BTreeSet<_> = component
+            .dependencies
+            .iter()
+            .map(|d| (d.name.clone(), d.capture_sha256.clone()))
+            .collect();
+        // Original logical labels remain in SourceComponent and its pinned
+        // recipe. Multiple labels may name the same physical provider edge.
+        if actual != expected.iter().cloned().collect() {
+            bail!("source dependency graph differs from original recipe/policy");
+        }
+        Ok(())
+    }
+
+    pub(super) fn check_component(
+        &self,
+        name: &str,
+        capture_sha256: &str,
+        units: &BTreeSet<&str>,
+    ) -> Result<()> {
+        let component = self
+            .components
+            .iter()
+            .find(|c| c.name == name)
+            .context("source group component absent")?;
+        if component.capture_sha256 != capture_sha256
+            || component
+                .unit_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>()
+                != *units
+        {
+            bail!("source group component capture/unit binding differs");
+        }
+        Ok(())
+    }
+
+    fn group_body(root: &str, sources: &[GroupComponent]) -> Result<Self> {
+        let first = sources
+            .first()
+            .and_then(|s| s.modules.first())
+            .context("empty source group")?;
+        let first = NativeModule::from_json(&first.1).map_err(|e| anyhow::anyhow!(e.message))?;
+        let mut artifact = Self {
+            format: FORMAT.into(),
+            name: root.into(),
+            target: first.target,
+            components: Vec::new(),
+            modules: Vec::new(),
+            symbol_inventory: Value::Null,
+        };
+        for source in sources {
+            artifact.components.push(Component {
+                name: source.name.clone(),
+                capture_sha256: source.capture_sha256.clone(),
+                unit_ids: source.modules.iter().map(|(id, _)| id.clone()).collect(),
+                dependencies: source
+                    .dependencies
+                    .iter()
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .map(|(name, capture_sha256)| Dependency {
+                        name,
+                        capture_sha256,
+                    })
+                    .collect(),
+            });
+            for (id, bytes) in &source.modules {
+                artifact.modules.push(EmbeddedModule {
+                    component: source.name.clone(),
+                    unit_id: id.clone(),
+                    sha256: digest(bytes),
+                    native_ir: String::from_utf8(bytes.clone())?,
+                });
+            }
+        }
+        Ok(artifact)
+    }
+
+
+    pub(super) fn build_group(root: &str, sources: &[GroupComponent]) -> Result<Self> {
+        let mut artifact = Self::group_body(root, sources)?;
+        artifact.symbol_inventory = artifact.inventory()?;
+        Ok(artifact)
+    }
+
+    // Complete unique IR bodies are distinct from an original native link's
+    // object/archive occurrences. This current all-units resolver does not
+    // implement repeated object definitions, archive extraction or rescanning.
+    // Refuse those plans explicitly; never project them to first occurrences.
+    fn validate_module_resolution_order(&self, order: &[(String, String)]) -> Result<()> {
+        if order.is_empty() {
+            bail!("source module resolution order is empty");
+        }
+        let mut selected = BTreeSet::new();
+        for (component, unit) in order {
+            identifier(component)?;
+            identifier(unit)?;
+            if !selected.insert((component.as_str(), unit.as_str())) {
+                bail!("repeated source-module occurrences require an explicit native link realization; not admitted");
+            }
+        }
+        let mut available = BTreeSet::new();
+        for module in &self.modules {
+            if !available.insert((module.component.as_str(), module.unit_id.as_str())) {
+                bail!("duplicate source module body inventory");
+            }
+        }
+        if selected != available {
+            bail!("source module resolution order differs from complete module body inventory");
+        }
+        Ok(())
+    }
+
+    pub(super) fn build_group_ordered(
+        root: &str,
+        sources: &[GroupComponent],
+        order: &[(String, String)],
+    ) -> Result<Self> {
+        // Do not run the old-order resolver first: it could choose an
+        // incompatible weak definition before the selected order is applied.
+        let mut artifact = Self::group_body(root, sources)?;
+        artifact.validate_module_resolution_order(order)?;
+        let mut bodies: BTreeMap<_, _> = std::mem::take(&mut artifact.modules)
+            .into_iter()
+            .map(|module| ((module.component.clone(), module.unit_id.clone()), module))
+            .collect();
+        artifact.modules = order
+            .iter()
+            .map(|identity| bodies.remove(identity).context("selected source module body absent"))
+            .collect::<Result<Vec<_>>>()?;
+        artifact.check_module_order(order)?;
+        // The same real resolver used by V1 now consumes the selected order.
+        // Its strong/weak/linkage, ABI, initializer and nonlocal guards remain.
+        artifact.symbol_inventory = artifact.inventory()?;
+        Ok(artifact)
+    }
+
+    /// Order consistency only. Callers must also retain normal Artifact and
+    /// original-source/admission checks and the independently held policy.
+    pub(super) fn check_module_order(&self, expected: &[(String, String)]) -> Result<()> {
+        self.validate_module_resolution_order(expected)?;
+        let actual: Vec<_> = self.modules
+            .iter()
+            .map(|module| (module.component.clone(), module.unit_id.clone()))
+            .collect();
+        if actual.as_slice() != expected {
+            bail!("serialized native module order differs from selected source resolution order");
+        }
+        Ok(())
+    }
+
     pub(super) fn build(
         name: &str,
         capture_sha256: &str,
@@ -339,7 +513,8 @@ pub(super) fn compile_package(
     let mut issues = Vec::new();
     for (index, embedded) in artifact.modules.iter().enumerate() {
         let mut record = json!({"id":embedded.identity(),"component":embedded.component,
-            "unit_id":embedded.unit_id,"verified":true,"lowered":false});
+            "unit_id":embedded.unit_id,"verified":true,"lowered":false,
+            "verification_mode":"in_process"});
         let result = (|| -> Result<()> {
             let module = embedded.verify()?;
             let directory = output.join(format!("unit-{index:06}"));
@@ -347,23 +522,23 @@ pub(super) fn compile_package(
             let imported = directory.join("module.native-ir.json");
             fs::write(&imported, embedded.native_ir.as_bytes())?;
             record["module"] = json!({"path":imported,"sha256":embedded.sha256});
+            record["generated_floating_helper_requirements"] =
+                json!(floating_requirements(&module)?);
             if output_kind == "obj" {
                 let object = directory.join("module.o");
-                invoke(
-                    compiler,
-                    &[
-                        imported.display().to_string(),
-                        "--input-kind".into(),
-                        "native-ir".into(),
-                        "--emit".into(),
-                        "obj".into(),
-                        "--target".into(),
-                        format!("{arch}-unknown-none"),
-                        "-o".into(),
-                        object.display().to_string(),
-                    ],
-                    &directory.join("emit.log"),
-                )?;
+                let emission_arguments = vec![
+                    imported.display().to_string(),
+                    "--input-kind".into(),
+                    "native-ir".into(),
+                    "--emit".into(),
+                    "obj".into(),
+                    "--target".into(),
+                    format!("{arch}-unknown-none"),
+                    "-o".into(),
+                    object.display().to_string(),
+                ];
+                record["emit_argv"] = json!(emission_arguments);
+                invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let object_bytes = fs::read(&object)?;
                 record["object_inventory"] = object_inventory(&object_bytes, arch, &module)?;
                 record["object"] = json!({"path":object,"sha256":digest(&object_bytes),"bytes":object_bytes.len()});
@@ -391,7 +566,8 @@ pub(super) fn compile_package(
     let complete = issues.is_empty();
     let receipt = json!({"schema":RECEIPT_FORMAT,"input_kind":"native_module_set",
         "input_sha256":digest(bytes),"name":artifact.name,"requested_target":target,"architecture":arch,
-        "output_kind":output_kind,"compiler_sha256":compiler_sha256,
+        "output_kind":output_kind,"compiler":(output_kind == "obj").then_some(compiler),
+        "compiler_sha256":compiler_sha256,
         "source_capture_reverification_performed":false,"units":records,"issues":issues,
         "module_set_artifact":{"path":package_path,"sha256":digest(bytes),"bytes":bytes.len(),
             "format":FORMAT,"module_count":artifact.modules.len()},
@@ -525,7 +701,7 @@ mod tests {
     #[test]
     fn package_rechecks_hashes_bodies_inventories_profiles_and_closure() {
         let source = package("provider");
-        for case in 0..9 {
+        for case in 0..10 {
             let mut altered = source.clone();
             match case {
                 0 => altered.modules[0].sha256 = "0".repeat(64),
@@ -553,6 +729,10 @@ mod tests {
                     name: "absent".into(),
                     capture_sha256: "a".repeat(64),
                 }),
+                9 => {
+                    altered.target.wide_volatile_profile =
+                        Some(WideVolatileProfile::OrdinaryRamSplitV1)
+                }
                 _ => unreachable!(),
             }
             assert!(
@@ -637,6 +817,110 @@ mod tests {
             });
         assert!(cyclic.inventory().is_ok());
     }
+
+    fn ordered_choice_sources(strong_b: bool) -> Vec<GroupComponent> {
+        let choice = |bits: &str, linkage: &str| {
+            let mut ir: Value = serde_json::from_slice(&module("choice", true)).unwrap();
+            ir["types"].as_array_mut().unwrap().push(json!({"kind":"int", "bits":32}));
+            ir["functions"][0]["signature"]["result"] = json!(1);
+            ir["functions"][0]["linkage"] = json!(linkage);
+            ir["functions"][0]["blocks"][0]["terminator"]["value"] =
+                json!({"kind":"int", "ty":1, "bits":bits});
+            serde_json::to_vec(&ir).unwrap()
+        };
+        vec![
+            GroupComponent {
+                name: "root".into(), capture_sha256: "c".repeat(64),
+                modules: vec![("r".into(), module("root", true))],
+                dependencies: vec![("A".into(), "a".repeat(64)), ("B".into(), "b".repeat(64))],
+            },
+            GroupComponent {
+                name: "A".into(), capture_sha256: "a".repeat(64),
+                modules: vec![("a".into(), choice("101", "weak"))], dependencies: vec![],
+            },
+            GroupComponent {
+                name: "B".into(), capture_sha256: "b".repeat(64),
+                modules: vec![("b".into(), choice("202", if strong_b { "external" } else { "weak" }))],
+                dependencies: vec![],
+            },
+        ]
+    }
+
+    fn order_b_before_a() -> Vec<(String, String)> {
+        vec![("root".into(), "r".into()), ("B".into(), "b".into()), ("A".into(), "a".into())]
+    }
+
+    fn selected_choice(artifact: &Artifact) -> String {
+        artifact.symbol_inventory["export_resolutions"].as_array().unwrap().iter()
+            .find(|row| row["symbol"] == "choice").unwrap()["selected_unit"]
+            .as_str().unwrap().to_owned()
+    }
+
+    #[test]
+    fn ordered_source_group_changes_actual_weak_choice_and_selected_body() {
+        let sources = ordered_choice_sources(false);
+        let legacy = Artifact::build_group("root", &sources).unwrap();
+        assert_eq!(selected_choice(&legacy), module_identity("A", "a"));
+        let order = order_b_before_a();
+        let selected = Artifact::build_group_ordered("root", &sources, &order).unwrap();
+        assert_eq!(selected_choice(&selected), module_identity("B", "b"));
+        assert_ne!(selected_choice(&selected), selected_choice(&legacy));
+        selected.check_module_order(&order).unwrap();
+        let selected_body: Value = serde_json::from_str(&selected.modules[1].native_ir).unwrap();
+        let legacy_body: Value = serde_json::from_str(&legacy.modules[1].native_ir).unwrap();
+        assert_eq!(selected_body["functions"][0]["blocks"][0]["terminator"]["value"]["bits"], "202");
+        assert_eq!(legacy_body["functions"][0]["blocks"][0]["terminator"]["value"]["bits"], "101");
+        Artifact::from_bytes(&serde_json::to_vec(&selected).unwrap()).unwrap()
+            .check_module_order(&order).unwrap();
+    }
+
+    #[test]
+    fn internally_valid_reordered_package_still_fails_external_module_order() {
+        let order = order_b_before_a();
+        let mut changed = Artifact::build_group_ordered("root", &ordered_choice_sources(false), &order).unwrap();
+        assert_eq!(selected_choice(&changed), module_identity("B", "b"));
+        changed.modules.swap(1, 2);
+        assert_eq!(changed.modules[1].component, "A");
+        changed.symbol_inventory = changed.inventory().unwrap();
+        assert_eq!(selected_choice(&changed), module_identity("A", "a"));
+        // This mutant passes the ordinary module-set reader: only the held
+        // original-order boundary can reject this internally consistent swap.
+        let read = Artifact::from_bytes(&serde_json::to_vec(&changed).unwrap()).unwrap();
+        let error = read.check_module_order(&order).unwrap_err().to_string();
+        assert!(error.contains("serialized native module order differs"));
+    }
+
+    #[test]
+    fn ordered_group_refuses_missing_extra_and_repeated_occurrences() {
+        let sources = ordered_choice_sources(false);
+        let valid = order_b_before_a();
+        Artifact::build_group_ordered("root", &sources, &valid).unwrap();
+        let mut missing = valid.clone(); missing.pop();
+        assert_ne!(missing, valid);
+        assert!(Artifact::build_group_ordered("root", &sources, &missing).err().unwrap()
+            .to_string().contains("complete module body inventory"));
+        let mut extra = valid.clone(); extra.push(("B".into(), "unknown".into()));
+        assert_eq!(extra.len(), valid.len() + 1);
+        assert!(Artifact::build_group_ordered("root", &sources, &extra).err().unwrap()
+            .to_string().contains("complete module body inventory"));
+        let mut repeated = valid.clone(); repeated.push(valid[1].clone());
+        assert_eq!(repeated.iter().filter(|identity| *identity == &valid[1]).count(), 2);
+        assert!(Artifact::build_group_ordered("root", &sources, &repeated).err().unwrap()
+            .to_string().contains("repeated source-module occurrences require an explicit native link realization"));
+    }
+
+    #[test]
+    fn ordered_group_preserves_strong_definition_precedence() {
+        let sources = ordered_choice_sources(true);
+        let order = order_b_before_a();
+        let mut a_before_b = order.clone(); a_before_b.swap(1, 2);
+        for selected in [&order, &a_before_b] {
+            let artifact = Artifact::build_group_ordered("root", &sources, selected).unwrap();
+            assert_eq!(selected_choice(&artifact), module_identity("B", "b"));
+            artifact.check_module_order(selected).unwrap();
+        }
+    }
+
     #[test]
     fn weak_provider_selection_preserves_explicit_dependency_order() {
         let weak = |name: &str| {
@@ -690,6 +974,7 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run"),
@@ -704,6 +989,13 @@ mod tests {
         assert_eq!(receipt["source_capture_reverification_performed"], false);
         assert_eq!(receipt["runtime_complete"], false);
         assert_eq!(receipt["native_execution_qualified"], false);
+        assert!(receipt["compiler"].is_null());
+        for unit in receipt["units"].as_array().unwrap() {
+            assert_eq!(unit["verification_mode"], "in_process");
+            for field in ["import_argv", "verify_argv", "emit_argv"] {
+                assert!(unit.get(field).is_none(), "unattempted command {field}");
+            }
+        }
         let module = fs::read(output.join("unit-000000/module.native-ir.json")).unwrap();
         assert!(NativeModule::from_json(&module).is_ok());
     }
@@ -790,12 +1082,88 @@ mod tests {
                     llvm_sha256: None,
                     tls_profile: None,
                     atomic_profile,
+                    wide_volatile_profile: None,
                     dependencies: &[],
                 },
                 Path::new("/compiler-must-not-run")
             )
             .is_err());
             assert!(!output.exists());
+        }
+    }
+    #[test]
+    fn package_keeps_wide_volatile_profile_and_rejects_removal_from_either_target() {
+        let old = package("provider");
+        assert!(serde_json::to_value(&old.target)
+            .unwrap()
+            .get("wide_volatile_profile")
+            .is_none());
+        let mut module: Value = serde_json::from_slice(&module("provider", false)).unwrap();
+        module["target"]["wide_volatile_profile"] = json!("ordinary_ram_split_v1");
+        let unit = serde_json::to_vec(&module).unwrap();
+        let profiled =
+            Artifact::build("provider", &"a".repeat(64), &[("unit".into(), unit)], &[]).unwrap();
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&profiled).unwrap()).is_ok());
+        let mut missing_header = profiled.clone();
+        missing_header.target.wide_volatile_profile = None;
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&missing_header).unwrap()).is_err());
+        let mut missing_module = profiled.clone();
+        let mut ir: Value = serde_json::from_str(&missing_module.modules[0].native_ir).unwrap();
+        ir["target"]
+            .as_object_mut()
+            .unwrap()
+            .remove("wide_volatile_profile");
+        missing_module.modules[0].native_ir = ir.to_string();
+        missing_module.modules[0].sha256 = digest(missing_module.modules[0].native_ir.as_bytes());
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&missing_module).unwrap()).is_err());
+        let mut unknown = serde_json::to_value(&profiled).unwrap();
+        unknown["target"]["wide_volatile_profile"] = json!("ordinary_mmio");
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&unknown).unwrap()).is_err());
+    }
+    fn effectful_module(unused: bool) -> Vec<u8> {
+        let mut value: Value = serde_json::from_slice(&module("provider", true)).unwrap();
+        if unused {
+            let mut declaration = value["functions"][0].clone();
+            declaration["name"] = json!("unused_checkpoint");
+            declaration["entry"] = Value::Null;
+            declaration["blocks"] = json!([]);
+            declaration["control_effects"] = json!({"returns_twice":true});
+            value["functions"].as_array_mut().unwrap().push(declaration);
+            value["provenance"]["source_function_count"] = json!(2);
+        } else {
+            value["functions"][0]["control_effects"] = json!({"returns_twice":true});
+        }
+        serde_json::to_vec(&value).unwrap()
+    }
+
+    #[test]
+    fn nonlocal_effects_never_enter_symbol_closure_or_artifact_construction() {
+        for unused in [false, true] {
+            let bytes = effectful_module(unused);
+            let parsed = NativeModule::from_json(&bytes).unwrap();
+            assert!(parsed.has_nonlocal_control_effects());
+            assert!(symbols("unit", &parsed)
+                .unwrap_err()
+                .to_string()
+                .contains("returns_twice symbol closure"));
+            assert!(
+                Artifact::build("provider", &"a".repeat(64), &[("unit".into(), bytes)], &[])
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn nonlocal_effects_are_rejected_by_public_read_even_with_recomputed_hashes() {
+        for unused in [false, true] {
+            let mut candidate = package("provider");
+            let bytes = effectful_module(unused);
+            candidate.modules[0].sha256 = digest(&bytes);
+            candidate.modules[0].native_ir = String::from_utf8(bytes).unwrap();
+            let error = Artifact::from_bytes(&serde_json::to_vec(&candidate).unwrap()).unwrap_err();
+            assert!(error
+                .to_string()
+                .contains("returns_twice module-set admission"));
         }
     }
 }

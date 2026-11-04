@@ -1,0 +1,9 @@
+{
+  "command": "python3 -I -S -B scripts/test_ocore_rust_replay_profile.py",
+  "exit_code": 0,
+  "stdout": "{\"controls\": 32, \"qualification\": false, \"schema\": \"ocore-rust-replay-portable-controls-v1\", \"success\": true}\n",
+  "stderr": "",
+  "candidate_helper_sha256": "74db34b7e94bcfc41dffb710edb21dc4b1b03ea939762396ca4ee98010beb93c",
+  "adapter_sha256": "47570d0c535939a0764343ea93cc1d6f76792829d11a11b65747b8f6b509cb75",
+  "qualification": false
+}

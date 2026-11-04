@@ -468,6 +468,7 @@ fn noalias_address_cannot_escape_through_cold_operands_aliases_or_initializers()
         width: 64,
         symbol: NOALIAS_SCOPE_DECL.into(),
         addend: 0,
+        block: None,
         relative_to: None,
     }];
     rejected_before_emission(&initializer, "intrinsic address");

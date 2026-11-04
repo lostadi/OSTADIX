@@ -264,6 +264,7 @@ mod tests {
 
     fn function(clauses: Vec<ExceptionClause>, cleanup: bool) -> Function {
         Function {
+            control_effects: Default::default(),
             name: "owned".into(),
             linkage: "external".into(),
             visibility: Visibility::Default,
@@ -289,6 +290,8 @@ mod tests {
                 terminator: Terminator::Unreachable,
             }],
             managed_method: None,
+            source_abi: None,
+            call_target_constraints: Vec::new(),
             intrinsic: None,
             exception_handling: None,
         }

@@ -11,12 +11,16 @@ pub(super) const RECIPE_FORMAT: &str = "ocore-runtime-recipe-v1";
 const RECEIPT_SCHEMA: &str = "ocore-native-source-recipe-v1";
 const CAPTURE_WORKER: &str = include_str!("../../../../scripts/ocore_runtime_capture.py");
 const PRODUCER_REGISTRY: &str = include_str!("../../../../scripts/ocore_producer_registry.json");
+
+// The order consumer uses the same actual compiled producer contract.
+pub(super) fn order_producer_registry() -> &'static str { PRODUCER_REGISTRY }
 const RUST_PAYLOAD: &str =
     include_str!("../../../../tools/ocore-runtime/rust/payload_inventory.py");
 
 #[derive(Default)]
 pub(crate) struct NativeSourceOptions<'a> {
     pub(crate) source: Option<&'a Path>,
+    pub(crate) provider_plan: Option<&'a Path>,
     pub(crate) cc: Option<&'a Path>,
     pub(crate) cxx: Option<&'a Path>,
     pub(crate) rustc: Option<&'a Path>,
@@ -29,7 +33,8 @@ pub(crate) struct NativeSourceOptions<'a> {
 
 impl NativeSourceOptions<'_> {
     pub(super) fn requested(&self) -> bool {
-        self.source.is_some()
+        self.provider_plan.is_some()
+            || self.source.is_some()
             || self.cc.is_some()
             || self.cxx.is_some()
             || self.rustc.is_some()
@@ -43,7 +48,14 @@ impl NativeSourceOptions<'_> {
 
 /// Resolve an as-yet nonexistent output against its real existing parent.
 /// In particular, never create missing ancestors before detecting source aliases.
-fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
+pub(super) fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
+    // Compare filesystem identities on both sides. A source path may use a
+    // symlinked ancestor (including macOS /var -> /private/var) even when the
+    // output's parent has already been resolved to its physical location.
+    let source = source
+        .canonicalize()
+        .context("resolve original source checkout")?;
+    let recipe = recipe.canonicalize().context("resolve source recipe")?;
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -58,10 +70,10 @@ fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
         .canonicalize()
         .context("source recipe output parent must already exist")?;
     let output = parent.join(name);
-    if output.starts_with(source)
+    if output.starts_with(&source)
         || source.starts_with(&output)
         || recipe.starts_with(&output)
-        || output.starts_with(recipe)
+        || output.starts_with(&recipe)
     {
         bail!("source recipe output must be separate from the source checkout and input recipe");
     }
@@ -136,7 +148,7 @@ fn immutable_driver(
 // Keep source bytes, output contract, both option sets, and compiler identity
 // explicit at the shared native-runtime orchestration boundary.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn compile(
+pub(super) fn compile_impl(
     recipe_input: &Path,
     recipe_bytes: &[u8],
     target: &str,
@@ -145,7 +157,9 @@ pub(super) fn compile(
     import_options: NativeImportOptions<'_>,
     options: NativeSourceOptions<'_>,
     compiler: &Path,
-) -> Result<()> {
+    stage_only: bool,
+    selected_python: Option<&Path>,
+) -> Result<Option<StagedComponent>> {
     // Reject configuration/path mistakes before creating any output or running
     // the user-selected original build. Pins remain the capture worker's check.
     architecture(target)?;
@@ -201,7 +215,13 @@ pub(super) fn compile(
         "dependency_closure_complete":false,"artifact_complete":false,"link_performed":false,
         "native_execution_qualified":false,"runtime_complete":false,
         "scope":"original source build capture followed by independently verified O-core unit lowering; reference build products do not qualify owned native runtime execution"});
+    if serde_json::from_slice::<Value>(recipe_bytes)?["source"]["kind"] == "debian-source-v1" {
+        receipt["source_input_root"] = json!(source);
+        receipt["source_origin_kind"] = json!("debian-source-v1");
+        receipt["source"] = Value::Null;
+    }
     write_receipt(&output, &receipt)?;
+    let mut staged_component = None;
     let result = (|| -> Result<()> {
         fs::create_dir_all(worker.parent().unwrap())?;
         fs::create_dir_all(helper.parent().unwrap())?;
@@ -210,7 +230,8 @@ pub(super) fn compile(
         fs::write(&helper, RUST_PAYLOAD.as_bytes())?;
         let log = output.join("capture.log");
         let log_file = fs::File::create(&log)?;
-        let mut command = Command::new("python3");
+        let python = selected_python.unwrap_or_else(|| Path::new("python3"));
+        let mut command = Command::new(python);
         command
             .arg("-I")
             .arg(&worker)
@@ -245,7 +266,7 @@ pub(super) fn compile(
                     .context("source capture arguments must be UTF-8")
             })
             .collect::<Result<Vec<_>>>()?;
-        receipt["capture_process"] = json!({"program":"python3",
+        receipt["capture_process"] = json!({"program":python,
             "argv":argv,"log":log,
             "exit_code":null,"success":false});
         write_receipt(&output, &receipt)?;
@@ -261,6 +282,11 @@ pub(super) fn compile(
             receipt["capture_report"] = artifact_record(&report)?;
             let captured: Value = serde_json::from_slice(&fs::read(&report)?)?;
             receipt["worker_capture_complete"] = json!(captured["capture_complete"] == true);
+            if captured["source"]["kind"] == "debian-source-v1" {
+                receipt["source"] = captured["source"]["path"].clone();
+                receipt["source_input_root"] = captured["source"]["input_root"].clone();
+                receipt["source_origin"] = captured["source"].clone();
+            }
         }
         immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry)?;
         if !status.success() {
@@ -284,14 +310,12 @@ pub(super) fn compile(
             .context("captured source-build report changed before native lowering")?;
         receipt["stage"] = json!("lowering");
         write_receipt(&output, &receipt)?;
-        let lowering = compile_with_compiler(
-            &report,
-            target,
-            output_kind,
-            &lowered,
-            import_options,
-            compiler,
-        );
+        let lowering = lower_held_capture_with_compiler(
+            &report, Some(&report_bytes), target, output_kind, &lowered,
+            import_options, compiler, stage_only, selected_python,
+        ).map(|component| {
+            if stage_only { staged_component = Some(component); }
+        });
         let coverage = lowered.join("coverage.json");
         if coverage.is_file() {
             receipt["lowering_receipt"] = artifact_record(&coverage)?;
@@ -311,12 +335,24 @@ pub(super) fn compile(
             bail!("captured source-build report changed during native lowering");
         }
         lowering?;
-        if receipt["capture_complete"] != true {
-            bail!("native lowering did not independently verify the source capture");
+        if stage_only {
+            let component = staged_component
+                .as_ref()
+                .context("provider group has no actual staging result")?;
+            receipt["source_units_staged_complete"] =
+                json!(component.source_capture_complete && component.unit_lowering_complete);
+            receipt["provider_group_finalization_deferred"] = json!(true);
+            receipt["stage"] = json!("source_units_staged");
+            // A private stage handoff is not success of the complete source route.
+            // In particular lowering_complete/success remain false here.
+        } else {
+            if receipt["capture_complete"] != true {
+                bail!("native lowering did not independently verify the source capture");
+            }
+            receipt["lowering_complete"] = json!(true);
+            receipt["stage"] = json!("complete");
+            receipt["success"] = json!(true);
         }
-        receipt["lowering_complete"] = json!(true);
-        receipt["stage"] = json!("complete");
-        receipt["success"] = json!(true);
         Ok(())
     })();
     if let Err(error) = &result {
@@ -324,11 +360,65 @@ pub(super) fn compile(
     }
     write_receipt(&output, &receipt)?;
     result?;
-    eprintln!(
-        "olangc: original-source recipe completed verified unit lowering; receipt {}",
-        output.join("source-recipe.json").display()
-    );
+    if !stage_only {
+        eprintln!(
+            "olangc: original-source recipe completed verified unit lowering; receipt {}",
+            output.join("source-recipe.json").display()
+        );
+    }
+    Ok(staged_component)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn compile(
+    recipe_input: &Path,
+    recipe_bytes: &[u8],
+    target: &str,
+    output_kind: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    options: NativeSourceOptions<'_>,
+    compiler: &Path,
+) -> Result<()> {
+    compile_impl(
+        recipe_input,
+        recipe_bytes,
+        target,
+        output_kind,
+        output,
+        import_options,
+        options,
+        compiler,
+        false,
+        None,
+    )?;
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn stage_for_group(
+    recipe_input: &Path,
+    recipe_bytes: &[u8],
+    target: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    options: NativeSourceOptions<'_>,
+    compiler: &Path,
+    python: &Path,
+) -> Result<StagedComponent> {
+    compile_impl(
+        recipe_input,
+        recipe_bytes,
+        target,
+        "ir",
+        output,
+        import_options,
+        options,
+        compiler,
+        true,
+        Some(python),
+    )?
+    .context("provider source recipe returned no actual staged component")
 }
 
 #[cfg(test)]
@@ -363,5 +453,40 @@ mod tests {
             assert!(new_output(&link.join("output"), &source, &recipe).is_err());
             assert!(!source.join("output").exists());
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn source_output_checks_resolve_symlinked_input_ancestors() {
+        let directory = tempfile::tempdir().unwrap();
+        let physical = directory.path().canonicalize().unwrap();
+        let source = physical.join("source");
+        fs::create_dir(&source).unwrap();
+        let recipe = physical.join("recipe.json");
+        fs::write(&recipe, b"{}").unwrap();
+        let alias = physical.join("alias");
+        std::os::unix::fs::symlink(&physical, &alias).unwrap();
+
+        let aliased_source = alias.join("source");
+        let aliased_recipe = alias.join("recipe.json");
+        for output in [source.join("output"), aliased_source.join("output")] {
+            assert!(new_output(&output, &aliased_source, &aliased_recipe).is_err());
+            assert!(!source.join("output").exists());
+        }
+
+        // Resolving inputs must still allow a genuinely separate new output,
+        // without creating it or accepting a missing parent directory.
+        assert_eq!(
+            new_output(&alias.join("output"), &aliased_source, &aliased_recipe).unwrap(),
+            physical.join("output")
+        );
+        assert!(!physical.join("output").exists());
+        assert!(new_output(
+            &alias.join("missing/output"),
+            &aliased_source,
+            &aliased_recipe
+        )
+        .is_err());
+        assert!(!physical.join("missing").exists());
     }
 }

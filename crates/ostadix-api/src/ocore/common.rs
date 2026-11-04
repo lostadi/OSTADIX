@@ -1,36 +1,75 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Target {
-    X86_64UnknownNone,
-    Aarch64UnknownNone,
-    Riscv64UnknownNone,
+// The compiler, artifact driver and generated runtime share this declaration.
+// Catalog membership describes implemented target dispatch, not runtime health,
+// complete language support, or executable semantic qualification.
+macro_rules! define_targets {
+    ($($variant:ident {
+        id: $id:literal,
+        architecture: $architecture:literal,
+        name: $name:literal,
+        triple: $triple:literal,
+        aliases: [$($alias:literal),* $(,)?]
+    }),+ $(,)?) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum Target { $($variant),+ }
+
+        impl Target {
+            /// Every canonical target, derived together with the enum variants.
+            pub const ALL: &'static [Self] = &[$(Self::$variant),+];
+
+            pub fn parse(value: &str) -> Option<Self> {
+                Self::ALL.iter().copied().find(|target| target.aliases().contains(&value))
+            }
+
+            /// Architecture names are accepted only by callers that request
+            /// this interface; Target::parse keeps its existing CLI aliases.
+            pub fn from_architecture(value: &str) -> Option<Self> {
+                Self::ALL.iter().copied().find(|target| target.architecture() == value)
+            }
+
+            pub const fn id(self) -> &'static str {
+                match self { $(Self::$variant => $id),+ }
+            }
+
+            pub const fn architecture(self) -> &'static str {
+                match self { $(Self::$variant => $architecture),+ }
+            }
+
+            pub const fn name(self) -> &'static str {
+                match self { $(Self::$variant => $name),+ }
+            }
+
+            pub const fn triple(self) -> &'static str {
+                match self { $(Self::$variant => $triple),+ }
+            }
+
+            pub const fn aliases(self) -> &'static [&'static str] {
+                match self { $(Self::$variant => &[$name, $triple, $($alias),*]),+ }
+            }
+        }
+    };
 }
 
-impl Target {
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "x86_64-unknown-none" | "x86_64-unknown-none-elf" => Some(Target::X86_64UnknownNone),
-            "aarch64-unknown-none" | "aarch64-unknown-none-elf" => Some(Target::Aarch64UnknownNone),
-            "riscv64-unknown-none" | "riscv64-unknown-none-elf" | "riscv64gc-unknown-none-elf" => {
-                Some(Target::Riscv64UnknownNone)
-            }
-            _ => None,
-        }
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Target::X86_64UnknownNone => "x86_64-unknown-none",
-            Target::Aarch64UnknownNone => "aarch64-unknown-none",
-            Target::Riscv64UnknownNone => "riscv64-unknown-none",
-        }
-    }
-
-    pub fn triple(self) -> &'static str {
-        match self {
-            Target::X86_64UnknownNone => "x86_64-unknown-none-elf",
-            Target::Aarch64UnknownNone => "aarch64-unknown-none-elf",
-            Target::Riscv64UnknownNone => "riscv64-unknown-none-elf",
-        }
+define_targets! {
+    X86_64UnknownNone {
+        id: "x86_64",
+        architecture: "x86_64",
+        name: "x86_64-unknown-none",
+        triple: "x86_64-unknown-none-elf",
+        aliases: []
+    },
+    Aarch64UnknownNone {
+        id: "aarch64",
+        architecture: "aarch64",
+        name: "aarch64-unknown-none",
+        triple: "aarch64-unknown-none-elf",
+        aliases: []
+    },
+    Riscv64UnknownNone {
+        id: "rv64gc",
+        architecture: "riscv64",
+        name: "riscv64-unknown-none",
+        triple: "riscv64-unknown-none-elf",
+        aliases: ["riscv64gc-unknown-none-elf"]
     }
 }
 
@@ -72,3 +111,37 @@ impl std::fmt::Display for Diagnostic {
 }
 
 impl std::error::Error for Diagnostic {}
+
+#[cfg(test)]
+mod target_catalog_tests {
+    use super::Target;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn canonical_target_registry_is_complete_unique_and_round_trips() {
+        assert!(!Target::ALL.is_empty());
+        let mut ids = BTreeSet::new();
+        let mut architectures = BTreeSet::new();
+        let mut aliases = BTreeSet::new();
+        for &target in Target::ALL {
+            assert!(ids.insert(target.id()));
+            assert!(architectures.insert(target.architecture()));
+            assert_eq!(
+                Target::from_architecture(target.architecture()),
+                Some(target)
+            );
+            assert!(target.aliases().contains(&target.name()));
+            assert!(target.aliases().contains(&target.triple()));
+            for &alias in target.aliases() {
+                assert!(aliases.insert(alias), "duplicate target alias {alias}");
+                assert_eq!(Target::parse(alias), Some(target));
+            }
+            assert_eq!(Target::parse(target.architecture()), None);
+        }
+        assert_eq!(Target::parse("not-a-canonical-target"), None);
+        assert_eq!(
+            Target::from_architecture("not-a-canonical-architecture"),
+            None
+        );
+    }
+}

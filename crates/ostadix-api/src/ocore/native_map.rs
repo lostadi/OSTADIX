@@ -6,6 +6,9 @@
 //! instruction has a site, including zero-width PHIs, assumptions, lifetime and
 //! alias markers, and landing-pad instructions. PHI copies belong to predecessor
 //! terminator sites, or their per-invoke exception landing sites on unwind edges.
+//! Indirect-branch dispatch and all of its edge-copy stubs belong to the original
+//! indirect terminator site, including repeated destinations, nearby full64
+//! transfer literals, and its UB trap.
 //! Global data, aliases, and module-wide directives have no instruction sites.
 
 use serde::{Deserialize, Serialize};
@@ -54,7 +57,7 @@ pub enum NativeAssemblySiteKind {
     FunctionPrologue,
     BlockLabel,
     Instruction,
-    /// Includes epilogue code for return and any normal-edge PHI copies.
+    /// Includes return epilogues, indirect dispatch, and normal-edge PHI copies.
     Terminator,
     /// Identified by the predecessor invoke's block, including unwind PHI copies.
     ExceptionLanding,
@@ -218,6 +221,166 @@ mod tests {
             let restored = NativeAssemblyMap::from_json(&map.to_json().unwrap()).unwrap();
             assert_eq!(restored, map);
             restored.verify(&module, target, &assembly).unwrap();
+        }
+    }
+
+    fn block_address_module(triple: &str) -> NativeModule {
+        let mut wire = serde_json::to_value(module(triple)).unwrap();
+        wire["types"].as_array_mut().unwrap().extend([
+            json!({"kind":"pointer","address_space":0}),
+            json!({"kind":"array","element":3,"len":4}),
+        ]);
+        wire["globals"] = json!([{
+            "name":"destinations","linkage":"internal","ty":4,"constant":true,"thread_local":false,
+            "alignment":8,"initializer":{"bytes":vec![0;32],"relocations":[
+                {"offset":0,"width":64,"symbol":"","block":{"function":"choose","block":11},"addend":0},
+                {"offset":8,"width":64,"symbol":"","block":{"function":"choose","block":23},"addend":13},
+                {"offset":16,"width":64,"symbol":"","block":{"function":"choose","block":11},"addend":-9},
+                {"offset":24,"width":64,"symbol":"","block":{"function":"cold","block":11},"addend":0}
+            ]}
+        }]);
+        wire["functions"][1] = json!({
+            "name":"choose","linkage":"external",
+            "signature":{"params":[3,2,2],"result":2,"abi":"c","variadic":false},
+            "params":[{"id":0,"ty":3},{"id":1,"ty":2},{"id":2,"ty":2}],"entry":7,
+            "blocks":[
+                {"id":7,"instructions":[],"terminator":{"op":"indirect_branch",
+                    "address":{"kind":"value","id":0},"destinations":[11,23,11]}},
+                {"id":11,"instructions":[
+                    {"result":{"id":3,"ty":2},"operation":{"op":"phi","incoming":[{"block":7,"value":{"kind":"value","id":1}}]}},
+                    {"result":{"id":4,"ty":2},"operation":{"op":"phi","incoming":[{"block":7,"value":{"kind":"value","id":2}}]}}
+                ],"terminator":{"op":"jump","target":23}},
+                {"id":23,"instructions":[{"result":{"id":5,"ty":2},"operation":{"op":"phi","incoming":[
+                    {"block":7,"value":{"kind":"value","id":2}},
+                    {"block":11,"value":{"kind":"value","id":3}}
+                ]}}],"terminator":{"op":"return","value":{"kind":"value","id":5}}}
+            ]
+        });
+        wire["functions"].as_array_mut().unwrap().push(json!({
+            "name":"cold","linkage":"internal",
+            "signature":{"params":[],"result":2,"abi":"c","variadic":false},
+            "params":[],"entry":7,"blocks":[
+                {"id":7,"instructions":[],"terminator":{"op":"indirect_branch",
+                    "address":{"kind":"block_address","ty":3,"function":"cold","block":11},
+                    "destinations":[11]}},
+                {"id":11,"instructions":[],"terminator":{"op":"return",
+                    "value":{"kind":"int","ty":2,"bits":"17"}}}
+            ]
+        }));
+        wire["provenance"]["source_function_count"] = json!(3);
+        wire["provenance"]["source_global_count"] = json!(1);
+        serde_json::from_value(wire).unwrap()
+    }
+
+    #[test]
+    fn block_addresses_bind_owner_labels_and_indirect_edge_copy_sites_on_all_targets() {
+        for (target, triple, load, trap) in [
+            (
+                Target::X86_64UnknownNone,
+                "x86_64-unknown-linux-gnu",
+                "  mov rcx, qword ptr [rip + ",
+                "  ud2\n",
+            ),
+            (
+                Target::Aarch64UnknownNone,
+                "aarch64-unknown-linux-gnu",
+                "  ldr x10, ",
+                "  brk #0\n",
+            ),
+            (
+                Target::Riscv64UnknownNone,
+                "riscv64-unknown-linux-gnu",
+                "  ld t1, 0(ra)\n",
+                "  unimp\n",
+            ),
+        ] {
+            let module = block_address_module(triple);
+            let (assembly, map) = emit_with_map(&module, target).unwrap();
+            assert_eq!(assembly, emit(&module, target).unwrap());
+            map.verify(&module, target, &assembly).unwrap();
+            for relocation in [
+                ".quad .Locore_native_0_1_b11+0",
+                ".quad .Locore_native_0_1_b23+13",
+                ".quad .Locore_native_0_1_b11-9",
+                ".quad .Locore_native_0_2_b11+0",
+            ] {
+                assert!(assembly.contains(relocation), "{relocation}");
+            }
+            assert!(assembly.contains(".Locore_native_0_2_b11:\n"));
+            let site = map
+                .sites
+                .iter()
+                .find(|site| {
+                    site.function == "choose"
+                        && site.block == Some(7)
+                        && site.kind == NativeAssemblySiteKind::Terminator
+                })
+                .unwrap();
+            let dispatch = &assembly[site.assembly_start..site.assembly_end];
+            let first = "  .quad .Locore_native_0_1_b11+0\n";
+            let second = "  .quad .Locore_native_0_1_b23+0\n";
+            let positions: Vec<_> = dispatch
+                .match_indices(first)
+                .map(|(offset, _)| offset)
+                .collect();
+            assert_eq!(
+                positions.len(),
+                2,
+                "duplicate destinations retain separate dispatch entries"
+            );
+            assert!(positions[0] < dispatch.find(second).unwrap());
+            assert!(dispatch.find(second).unwrap() < positions[1]);
+            assert_eq!(dispatch.matches(load).count(), 3);
+            let trap_position = dispatch.find(trap).unwrap();
+            // Address dispatch happens before any selected edge can overwrite
+            // the incoming address through register or PHI spill operations.
+            assert!(trap_position > positions[1]);
+            assert!(dispatch[trap_position + trap.len()..].contains(".Locore_native_0_1_b11"));
+            assert!(dispatch[trap_position + trap.len()..].contains(".Locore_native_0_1_b23"));
+            assert_eq!(dispatch.matches("  .quad ").count(), 9);
+            assert_eq!(
+                dispatch.matches("  .quad .Locore_native_0_1_b11\n").count(),
+                2
+            );
+            assert_eq!(
+                dispatch.matches("  .quad .Locore_native_0_1_b23\n").count(),
+                1
+            );
+            assert_eq!(dispatch.matches("  .balign 8\n").count(), 9);
+            let transfer = match target {
+                Target::X86_64UnknownNone => "  jmp qword ptr [rip + ",
+                Target::Aarch64UnknownNone => "  br x17\n",
+                Target::Riscv64UnknownNone => "  jr ra\n",
+            };
+            // RV's fixed jump around each address literal also uses JR.
+            assert_eq!(
+                dispatch.matches(transfer).count(),
+                if target == Target::Riscv64UnknownNone {
+                    9
+                } else {
+                    6
+                }
+            );
+            assert_eq!(
+                map.sites
+                    .iter()
+                    .filter(|site| {
+                        site.function == "choose"
+                            && site.kind == NativeAssemblySiteKind::Instruction
+                    })
+                    .count(),
+                3
+            );
+            let mut missing = map.clone();
+            missing.sites.retain(|candidate| candidate != site);
+            assert!(missing.verify(&module, target, &assembly).is_err());
+            let mut altered = module.clone();
+            altered.globals[0].initializer.as_mut().unwrap().relocations[0]
+                .block
+                .as_mut()
+                .unwrap()
+                .function = "cold".into();
+            assert!(map.verify(&altered, target, &assembly).is_err());
         }
     }
 
