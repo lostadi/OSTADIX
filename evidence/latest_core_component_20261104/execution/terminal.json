@@ -1,0 +1,617 @@
+{
+  "schema": "ostadix-bounded-generated-add-execution/v1",
+  "success": true,
+  "utc": "2026-11-04T10:11:51Z",
+  "cases": [
+    [
+      19,
+      23,
+      42
+    ],
+    [
+      -7,
+      11,
+      4
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      1099511627776,
+      -3,
+      1099511627773
+    ]
+  ],
+  "commands": [
+    {
+      "argv": [
+        "/usr/bin/clang",
+        "--target=x86_64-unknown-none",
+        "-c",
+        "-x",
+        "assembler",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.s",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.o"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive-assemble.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive-assemble.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/ld.lld",
+        "-m",
+        "elf_x86_64",
+        "-static",
+        "-e",
+        "_start",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-x86_64",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive-execute.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive-execute.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/clang",
+        "--target=x86_64-unknown-none",
+        "-c",
+        "-x",
+        "assembler",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.s",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.o"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative-assemble.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative-assemble.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/ld.lld",
+        "-m",
+        "elf_x86_64",
+        "-static",
+        "-e",
+        "_start",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-x86_64",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative"
+      ],
+      "exit_code": 4,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative-execute.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative-execute.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/clang",
+        "--target=aarch64-unknown-none",
+        "-c",
+        "-x",
+        "assembler",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.s",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.o"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive-assemble.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive-assemble.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/ld.lld",
+        "-m",
+        "aarch64elf",
+        "-static",
+        "-e",
+        "_start",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-aarch64",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive-execute.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive-execute.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/clang",
+        "--target=aarch64-unknown-none",
+        "-c",
+        "-x",
+        "assembler",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.s",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.o"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative-assemble.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative-assemble.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/ld.lld",
+        "-m",
+        "aarch64elf",
+        "-static",
+        "-e",
+        "_start",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-aarch64",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative"
+      ],
+      "exit_code": 4,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative-execute.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative-execute.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/clang",
+        "--target=riscv64-unknown-none",
+        "-march=rv64gc",
+        "-c",
+        "-x",
+        "assembler",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.s",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.o"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive-assemble.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive-assemble.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/ld.lld",
+        "-m",
+        "elf64lriscv",
+        "-static",
+        "-e",
+        "_start",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-riscv64",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive-execute.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive-execute.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/clang",
+        "--target=riscv64-unknown-none",
+        "-march=rv64gc",
+        "-c",
+        "-x",
+        "assembler",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.s",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.o"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative-assemble.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative-assemble.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/ld.lld",
+        "-m",
+        "elf64lriscv",
+        "-static",
+        "-e",
+        "_start",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative"
+      ],
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-riscv64",
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative"
+      ],
+      "exit_code": 4,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative-execute.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative-execute.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "targets": {
+    "x86_64": {
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/x86_64.s",
+        "bytes": 724,
+        "sha256": "28f619925b126a46aa21849482dbdb2f45678380fcbde6cc532501f4d6e7371d"
+      },
+      "runs": [
+        {
+          "negative_wrong_final_expectation": false,
+          "expected_exit": 0,
+          "observed_exit": 0,
+          "assembly": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.s",
+            "bytes": 1370,
+            "sha256": "f95f127b5616947a9a800b295eda1ac5f82f7da873aef289104462cda94e01f2"
+          },
+          "object": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.o",
+            "bytes": 864,
+            "sha256": "9c9c596913844aeb69c6914fad40d3344cc6e1836f7b028e63d9e6fdc7e75cc5"
+          },
+          "executable": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive",
+            "bytes": 1176,
+            "sha256": "38fb17a9718e5aaa9fd4dad620dac13d329665bcb6cabd19232c7a636b0f7470"
+          },
+          "ELF_type": 2,
+          "machine": 62
+        },
+        {
+          "negative_wrong_final_expectation": true,
+          "expected_exit": 4,
+          "observed_exit": 4,
+          "assembly": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.s",
+            "bytes": 1370,
+            "sha256": "b40962dfc5bc49f2c968bc2bf38a4141a056a706578200ce8e80ea469e5ee691"
+          },
+          "object": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.o",
+            "bytes": 864,
+            "sha256": "bba0462128defee495972237aac1383dece472e825955c39ac3d351966b87af7"
+          },
+          "executable": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative",
+            "bytes": 1176,
+            "sha256": "7cdab733088a7e9fbc201c56e39e3bc0d31e396230edce70db534ffc67421256"
+          },
+          "ELF_type": 2,
+          "machine": 62
+        }
+      ]
+    },
+    "aarch64": {
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/aarch64.s",
+        "bytes": 852,
+        "sha256": "1d5e14077d2abf7303c91bf644d20edf20da93600904787ede6ebd120e34eaeb"
+      },
+      "runs": [
+        {
+          "negative_wrong_final_expectation": false,
+          "expected_exit": 0,
+          "observed_exit": 0,
+          "assembly": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.s",
+            "bytes": 1715,
+            "sha256": "26579c84c48bee2b0fad602c03f9953226fce104754e98971e5e82dd173f0fbb"
+          },
+          "object": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.o",
+            "bytes": 928,
+            "sha256": "36d403dabf309f265a012e36c6f354119ad42ff016e953042cf9b80bc623401c"
+          },
+          "executable": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive",
+            "bytes": 1248,
+            "sha256": "53408336f9a7e63d8a7531f4468605f44c1463fc1cc18ace17998c2d9ecdc6ba"
+          },
+          "ELF_type": 2,
+          "machine": 183
+        },
+        {
+          "negative_wrong_final_expectation": true,
+          "expected_exit": 4,
+          "observed_exit": 4,
+          "assembly": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.s",
+            "bytes": 1715,
+            "sha256": "b8af52113f6479ac038a01e74f8b85ca1ccd1a4331da0b2a0d54d27bc50e9a19"
+          },
+          "object": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.o",
+            "bytes": 928,
+            "sha256": "5bbc55dae4fd317c39be1cc5beccb7ff16adbba031c1211cb4e6349841eca48b"
+          },
+          "executable": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative",
+            "bytes": 1248,
+            "sha256": "e075c1c2fafd0d71c225c272bd140c4c1dcc6054817d76ed3e6434b6ec4816aa"
+          },
+          "ELF_type": 2,
+          "machine": 183
+        }
+      ]
+    },
+    "riscv64": {
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/riscv64.s",
+        "bytes": 1215,
+        "sha256": "14e7ae42b05de65b220b9366b56dd14c76de9ce63e8e1b3ae0444318a4e27ff6"
+      },
+      "runs": [
+        {
+          "negative_wrong_final_expectation": false,
+          "expected_exit": 0,
+          "observed_exit": 0,
+          "assembly": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.s",
+            "bytes": 1797,
+            "sha256": "f03ae9437a0595dc79d766315eb67835bbd7ebc5264e48531e62994ca6ef114b"
+          },
+          "object": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.o",
+            "bytes": 1696,
+            "sha256": "faff5dc96bd0a5b15b6099274eeb010a34b66d29650fb17fb281a911ca607bc0"
+          },
+          "executable": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive",
+            "bytes": 1648,
+            "sha256": "19a2bef5c20413e74b9a4b2f6ab5d950a827b75b14d53eff871e4d673fffa68e"
+          },
+          "ELF_type": 2,
+          "machine": 243
+        },
+        {
+          "negative_wrong_final_expectation": true,
+          "expected_exit": 4,
+          "observed_exit": 4,
+          "assembly": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.s",
+            "bytes": 1797,
+            "sha256": "89c4a089c0482f0b7a78bb85b2d82768aaa88b3907bcdeb60d5dfde8955bacfc"
+          },
+          "object": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.o",
+            "bytes": 1696,
+            "sha256": "af27d732527adba50fe0b556131853cf9b02516a71dd6b8424807b82719586ef"
+          },
+          "executable": {
+            "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative",
+            "bytes": 1648,
+            "sha256": "9479edf37f52223ce4de075e4348b68ad69e0b1941ec2b653a649b1f513bc371"
+          },
+          "ELF_type": 2,
+          "machine": 243
+        }
+      ]
+    }
+  },
+  "errors": [],
+  "qualification": false,
+  "full_API": false,
+  "full_compiler": false,
+  "whole_runtime_ISA_qualified": false,
+  "scope": "Four nonoverflowing i64 additions per target under explicit user-mode QEMU; original O-core assembly prefix unchanged; wrong final expected-result control must exit 4. No original foreign runtime is lowered by this harness.",
+  "resources_before": {
+    "disk_available": 102948864,
+    "memory_available": 1609138176
+  },
+  "tools_before": [
+    {
+      "path": "/usr/lib/llvm-19/bin/clang",
+      "bytes": 107616,
+      "sha256": "a63241749c2d3932e2b7fa91a6e14d7c29ba1ca7558739e53aa4bb67152c4081"
+    },
+    {
+      "path": "/usr/lib/llvm-19/bin/lld",
+      "bytes": 4626320,
+      "sha256": "968791f8ff20e1d9cb86122df2238e464b17b8e1f8653230e54395e922856d5c"
+    },
+    {
+      "path": "/usr/bin/qemu-x86_64",
+      "bytes": 13353352,
+      "sha256": "bac5ac5434e37472082b0b24e0a5e5f7e59fc00eb5947ff65fff9d7175bf1633"
+    },
+    {
+      "path": "/usr/bin/qemu-aarch64",
+      "bytes": 15917968,
+      "sha256": "1033216dcbba58da7aafb970cf63d8fe679f5a9521bf594868fb8db660365c56"
+    },
+    {
+      "path": "/usr/bin/qemu-riscv64",
+      "bytes": 13964656,
+      "sha256": "0eae64f05f8bf4cfced1d76379e4f19ccc87661aa032233d68c7d3a40e355630"
+    }
+  ],
+  "resources_after": {
+    "disk_available": 102862848,
+    "memory_available": 1596112896
+  }
+}

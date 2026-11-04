@@ -1,0 +1,87 @@
+{
+  "schema": "ostadix-core-library-independent-finalization/v1",
+  "utc": "2026-11-04T09:30:12Z",
+  "success": true,
+  "exit_code": 0,
+  "input_count": 3296,
+  "input_postguards_passed": true,
+  "input_manifest_base_sha256": "6243f5f0e191de43452171655c6d3321f3dd3607197fa724c1b49e56eef3b3f4",
+  "artifact": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/libo_lang.rlib",
+    "bytes": 76976684,
+    "sha256": "b1b1bdbd3a71bf69c585927a96667ebcd001f19edb41cd9444421074ee132424",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691079",
+      "bytes": 76976684,
+      "mode": 438,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793784407819230964",
+      "ctime_ns": "1793784408519245200"
+    },
+    "first_eight_hex": "213c617263683e0a"
+  },
+  "dependency_file": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/api.d",
+    "bytes": 12889,
+    "sha256": "9437eb0a07cd4d511c27fce679b341b1881ab86b37c0a1a15f8f7573e52ea408",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691074",
+      "bytes": 12889,
+      "mode": 438,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793784146773922264",
+      "ctime_ns": "1793784146773922264"
+    },
+    "first_eight_hex": "2f686f6d652f6f72"
+  },
+  "archive_members": [
+    {
+      "name": "/",
+      "bytes": 7030136
+    },
+    {
+      "name": "//",
+      "bytes": 48
+    },
+    {
+      "name": "lib.rmeta/",
+      "bytes": 10748520,
+      "elf_class": 2,
+      "machine": 243
+    },
+    {
+      "name": "lib.rmeta-link/",
+      "bytes": 512,
+      "elf_class": 2,
+      "machine": 243
+    },
+    {
+      "name": "/0",
+      "bytes": 59197160,
+      "elf_class": 2,
+      "machine": 243
+    }
+  ],
+  "resources": {
+    "root": 118865920,
+    "tmp": 53768192,
+    "memory": 1713373184
+  },
+  "build_profile_change": {
+    "old": "codegen-units=16",
+    "new": "codegen-units=1",
+    "reason": "Measured r4 memory cancellation; reduce parallel backend work.",
+    "semantic_qualification": false
+  },
+  "full_API": false,
+  "full_compiler": false,
+  "original_runtime_lowering_qualified": false,
+  "cross_ISA_qualified": false,
+  "qualification": false
+}

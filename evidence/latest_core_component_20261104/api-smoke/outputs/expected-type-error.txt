@@ -1,0 +1,1 @@
+Diagnostic { file: "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/bad.oc", span: Span { start: 44, end: 48, line: 2, column: 26 }, message: "expected `i64`, found `bool`" }

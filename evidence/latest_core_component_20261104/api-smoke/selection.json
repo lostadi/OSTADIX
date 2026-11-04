@@ -1,0 +1,78 @@
+{
+  "schema": "ostadix-latest-core-native-smoke/v3",
+  "success": false,
+  "qualification": false,
+  "full_API": false,
+  "full_compiler": false,
+  "cross_ISA_runtime_qualified": false,
+  "argv": [
+    "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+    "--crate-name",
+    "latest_core_smoke",
+    "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke.rs",
+    "--edition=2021",
+    "--target",
+    "riscv64gc-unknown-linux-gnu",
+    "-C",
+    "opt-level=0",
+    "-C",
+    "debuginfo=0",
+    "-C",
+    "codegen-units=1",
+    "-C",
+    "debug-assertions=yes",
+    "-C",
+    "overflow-checks=yes",
+    "-C",
+    "linker=/usr/bin/cc",
+    "--extern",
+    "o_lang=/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/libo_lang.rlib",
+    "-L",
+    "dependency=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps",
+    "-L",
+    "dependency=/tmp/Main-SourceL-API-component-build-r1/target/debug/deps",
+    "-o",
+    "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke"
+  ],
+  "library": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/libo_lang.rlib",
+    "bytes": 76976684,
+    "sha256": "b1b1bdbd3a71bf69c585927a96667ebcd001f19edb41cd9444421074ee132424",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691079",
+      "bytes": 76976684,
+      "mode": 438,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793784407819230964",
+      "ctime_ns": "1793784408519245200"
+    },
+    "first_eight_hex": "213c617263683e0a"
+  },
+  "source": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke.rs",
+    "bytes": 2075,
+    "sha256": "fb27c27108486f709d0d1441f08c4d1ff601b052e531c12950d964aed48b193e",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691105",
+      "bytes": 2075,
+      "mode": 438,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793786208476008606",
+      "ctime_ns": "1793786208476008606"
+    },
+    "first_eight_hex": "757365207374643a"
+  },
+  "previous_assembly_smoke": "core-library-native-smoke-r2: successful",
+  "resources_before": {
+    "root": 109965312,
+    "tmp": 53768192,
+    "memory": 1639596032
+  },
+  "errors": []
+}

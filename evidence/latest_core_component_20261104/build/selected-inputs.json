@@ -1,0 +1,120 @@
+{
+  "base_path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r4/selected-inputs.json",
+  "base_sha256": "6243f5f0e191de43452171655c6d3321f3dd3607197fa724c1b49e56eef3b3f4",
+  "original_selection_sha256": "efb6b788de2e7673d7f1c19d6df58dd4dc31d69e325b5bb6144548621808b562",
+  "freshly_checked_inputs": 3296,
+  "historical_metadata_differences": [
+    {
+      "path": "/usr/bin/python3.13",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-gcc-14",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-g++-14",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-ar",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-as",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-ld.bfd",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/libexec/gcc/riscv64-linux-gnu/14/cc1",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/libexec/gcc/riscv64-linux-gnu/14/cc1plus",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/libexec/gcc/riscv64-linux-gnu/14/collect2",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/node",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/env",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/bash",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/bin/sh",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/cc",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/as",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/ld",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    }
+  ]
+}
