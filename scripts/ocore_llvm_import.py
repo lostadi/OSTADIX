@@ -233,10 +233,13 @@ class Importer:
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
                          for kind, intrinsic_id in MINMAX_IDS.items() for bits in range(1, 65)}
+    FUNNEL_IDS = {"fshl": 188, "fshr": 189}
+    FUNNEL_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
+                         for kind, intrinsic_id in FUNNEL_IDS.items() for bits in range(1, 65)}
     RELATIVE_INTRINSICS = {"llvm.load.relative.i32", "llvm.load.relative.i64"}
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FUNNEL_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
@@ -654,6 +657,10 @@ class Importer:
                     and a.GetEnumAttributeValue(attribute) == 0):
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned integer-min/max operation; defined integer operands select a defined original-width input; input poison/undef remain represented; no input noundef, ordinary function purity or optimization inferred")
+            elif (intrinsic in self.FUNNEL_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: {intrinsic} nocreateundeforpoison=0 realized by bounded scalar funnel shifts; defined inputs and modulo-width counts yield defined results; no ordinary function purity inferred")
             elif (intrinsic in self.MEMORY_INTRINSICS and name == "immarg" and index == 4
                     and not call and a.IsEnumAttribute(attribute) and a.GetEnumAttributeValue(attribute) == 0):
                 self.refinements.add(f"{intrinsic}: volatile immarg contract retained by validating every direct call's constant i1 operand")
@@ -786,9 +793,27 @@ class Importer:
                 or a.GetFirstBasicBlock(value)):
             self.reject(f"intrinsic {name} requires an external AS0 owned intrinsic declaration")
 
+    def funnel_identity(self, value, name):
+        a = self.a
+        if (not a.IsAFunction(value) or name not in self.FUNNEL_INTRINSICS
+                or a.GetIntrinsicID(value) != self.FUNNEL_INTRINSICS[name]):
+            self.reject(f"intrinsic {name} requires its exact actual pinned funnel-shift intrinsic ID")
+        if (a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires an external AS0 owned intrinsic declaration")
+
     def intrinsic_signature(self, name, signature):
         pointer = {"kind": "pointer", "address_space": 0}
         integer = lambda bits: {"kind": "int", "bits": bits}
+        if name in self.FUNNEL_INTRINSICS:
+            width = int(name.rsplit(".i", 1)[1])
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)] * 3
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width},i{width},i{width}) C signature without ABI extension attributes")
+            return
         if name == self.NOALIAS_INTRINSIC:
             if (self.types[signature["result"]] != {"kind": "void"}
                     or [self.types[ty] for ty in signature["params"]] != [{"kind": "metadata"}]
@@ -1704,6 +1729,8 @@ class Importer:
                     self.reject(f"intrinsic {intrinsic} requires explicit call lowering")
                 if intrinsic in self.MINMAX_INTRINSICS:
                     self.minmax_identity(callee, intrinsic)
+                if intrinsic in self.FUNNEL_INTRINSICS:
+                    self.funnel_identity(callee, intrinsic)
             signature = self.signature(a.GetCalledFunctionType(value), value, call=True, intrinsic=intrinsic)
             # A TLS GlobalVariable is the descriptor of current-thread storage,
             # not an ordinary constant Symbol address. Only this owned call
@@ -1753,6 +1780,32 @@ class Importer:
                 displacement = self.synthetic({"op": "cast", "kind": "s_ext", "value": displacement}, self.integer_type(), instructions)
                 operation = {"op": "gep", "base": args[0], "offset": displacement, "inbounds": False}
                 self.refinements.add(f"{self.symbol}: {intrinsic} retains exact declaration and original result identity; signed byte index addresses a nonvolatile aligned-4 i32 load, whose signed displacement is added to the ORIGINAL base; lowered with existing native GEP/load/cast operations, no helper or invoke admission; no link-span guarantee inferred")
+            elif intrinsic in self.FUNNEL_INTRINSICS:
+                # LLVM22 LangRef: concatenate {a:b}, reduce unsigned count
+                # modulo N, then select the high (left) or low (right) N bits.
+                # Freeze each original argument once before duplicated uses:
+                # this refines undef/poison without making inconsistent choices.
+                width = int(intrinsic.rsplit(".i", 1)[1])
+                ty = signature["result"]
+                a_, b_, count = [self.synthetic({"op": "freeze", "value": arg}, ty, instructions)
+                                 for arg in args]
+                def binary(kind, lhs, rhs):
+                    return self.synthetic({"op": "binary", "kind": kind,
+                                           "lhs": lhs, "rhs": rhs, "flags": []}, ty, instructions)
+                amount = binary("u_rem", count, self.literal(width, width))
+                # The complement is also reduced, so even the unselected zero
+                # case contains no over-wide shift (including the i1 profile).
+                complement = binary("u_rem", binary("sub", self.literal(width, width), amount),
+                                    self.literal(width, width))
+                left = intrinsic.split(".")[1] == "fshl"
+                upper = binary("shl", a_, amount if left else complement)
+                lower = binary("l_shr", b_, complement if left else amount)
+                combined = binary("or", upper, lower)
+                zero = self.synthetic({"op": "i_cmp", "predicate": "eq", "lhs": amount,
+                                       "rhs": self.literal(0, width)}, self.integer_type(1), instructions)
+                operation = {"op": "select", "condition": zero,
+                             "on_true": a_ if left else b_, "on_false": combined}
+                self.refinements.add(f"{intrinsic}: exact owned scalar i{width} funnel shift lowered to existing verified integer operations; unsigned count modulo width, correct zero-count half, no oversized shifts or runtime helper; freeze original inputs once as explicit undef/poison refinement under llvm_defined_behavior_v1")
             elif intrinsic in self.OVERFLOW_INTRINSICS:
                 family = intrinsic.split(".")[1]
                 operation = {"op": "integer_overflow", "kind": family[1:], "signed": family[0] == "s",
@@ -1885,6 +1938,8 @@ class Importer:
             intrinsic = self.symbol
             if intrinsic in self.MINMAX_INTRINSICS:
                 self.minmax_identity(value, intrinsic)
+            if intrinsic in self.FUNNEL_INTRINSICS:
+                self.funnel_identity(value, intrinsic)
         if a.GetGC(value) or a.HasPrefixData(value) or a.HasPrologueData(value):
             self.reject("unsupported function GC or prefix/prologue data")
         self.exception_handling = None

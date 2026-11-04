@@ -1,0 +1,119 @@
+{
+  "schema": "ostadix.boot-evidence-index/v1",
+  "date": "2026-11-03",
+  "scope": "Selected source-build, actual boot/save/restart and preservation evidence. Generated VM disks, kernel binaries and toolchain caches remain local; embedded original paths are provenance.",
+  "files": [
+    {
+      "path": "qualification.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/qualification.json",
+      "bytes": 8006,
+      "sha256": "0c7abfdb598ac036bf4bd997c0733aca022f9bd20ec92c9e20b1b123a28e1fc2"
+    },
+    {
+      "path": "canonical-default-entry.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/default-entry/result.json",
+      "bytes": 3109,
+      "sha256": "0b0f7c8c56a92c1b8d3601a48e146008307f412b20fb94acb91d10fdcad1d994"
+    },
+    {
+      "path": "bm-default-entry.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/bm-default-entry/result.json",
+      "bytes": 3130,
+      "sha256": "beb176ff024d35bae89e694be1677281f6239ddbfe0ee444525e713efaec537a"
+    },
+    {
+      "path": "native-codec-live.json",
+      "source_path": "/home/ustad/.cache/okb20261103/package-domain/native-codec-live-b6987d01af9748b08eace8c0ec01b018.json",
+      "bytes": 13437,
+      "sha256": "9246eae4c6b01ca1acbfb9a2ace887d33bbd3f37125e150c72225e30bc0a2959"
+    },
+    {
+      "path": "monitor-profile.json",
+      "source_path": "/home/ustad/.cache/okb20261103/package-domain/monitor/monitor-profile.json",
+      "bytes": 11860,
+      "sha256": "22b3f8b395835c8c68c868d15ccd9c994d1938312d6f8fd099e03cd144682a3d"
+    },
+    {
+      "path": "withdrawal-live.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/result.json",
+      "bytes": 5179,
+      "sha256": "df9b8f38cb90ce202779c2aec3910d2b39342866a313e4a9ba9befd77ed41f5e"
+    },
+    {
+      "path": "preservation-audit.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/preservation-audit.json",
+      "bytes": 1424,
+      "sha256": "60faedcd7163a411fba11be683fe39974ee43e7c6a81183ccb4e9b93f7aa623c"
+    },
+    {
+      "path": "language-sources.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/language-sources.json",
+      "bytes": 188330,
+      "sha256": "43f426d2a96e259bb040b3ee3e9868027873feea5f6195e3917662097909db1e"
+    },
+    {
+      "path": "compiler-preservation-review.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-preservation-review.json",
+      "bytes": 12943,
+      "sha256": "bfef2d5a1376823e4756cbd37759b15e0102dac1000f21800112bc0192409fa7"
+    },
+    {
+      "path": "compiler-qualification.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-compiler-validation/qualification.json",
+      "bytes": 4954,
+      "sha256": "4cfd4bb22228b3bb4e9a608fc07e1954c68123bc7c68bfbab442e5a247d78de2"
+    },
+    {
+      "path": "source-release-qualification.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-source-release-qualification.json",
+      "bytes": 2236,
+      "sha256": "0397e27b8f8d8bc5f60513f8b465f54391c913db4a77eeaea48e08e09854c080"
+    },
+    {
+      "path": "bm-qualification.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-bm-validation/qualification.json",
+      "bytes": 5504,
+      "sha256": "1d37f4b5a50c81ed53510dba4a8eb877471d3eb66967353b4e361c11c23e186e"
+    },
+    {
+      "path": "bm-preservation-audit.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-bm-validation/preservation-audit.json",
+      "bytes": 6861,
+      "sha256": "5202246e0a2e6cf9a58478ed37740ccb23f77ae3e81ec112469d6df8fb866319"
+    },
+    {
+      "path": "bm-architecture-baseline-failure.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-baseline-failure.json",
+      "bytes": 736,
+      "sha256": "5e05f13ee789eb790e59f62289a0d6a968af422cdd17a59365598bba457f96f6"
+    },
+    {
+      "path": "bm-architecture-unchanged-blob-proof.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-unchanged-blob-proof.json",
+      "bytes": 1292,
+      "sha256": "b91e9756fabe129e8faddf09f78ddd58085e47dd255f63d06a00beaa643a9050"
+    },
+    {
+      "path": "aarch64-native-codec.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/native-codec.json",
+      "bytes": 7835,
+      "sha256": "ec7e5103acfe0d61679ec634d1dfa6ef860c23a448fc1ec6b20fe791090d95d5"
+    },
+    {
+      "path": "x86_64-native-codec.json",
+      "source_path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/native-codec.json",
+      "bytes": 7775,
+      "sha256": "5f34c1a91685b6dde7a570b59a6e7546d3e2f7d9a0cc1d5a851a1d51e8a099fc"
+    },
+    {
+      "path": "validation-output.json",
+      "bytes": 73152,
+      "sha256": "7362f981af1f848e5c4c244a36a03e8dfe1d1b4a5953e135e1a8e66d3bf0c801"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5091,
+      "sha256": "f3d6d00e9e4082f4bdf71e27c8347c5551f2f17cf936792db7c489a5bf16528b"
+    }
+  ]
+}

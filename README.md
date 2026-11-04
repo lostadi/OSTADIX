@@ -45,6 +45,7 @@ and writes the rendered Markdown.
 | Your goal | Start here |
 |---|---|
 | Build and use it | [Quickstart](#quickstart), then the [literate report source](examples/literate_report.O) and [human/LLM workflow guide](docs/HUMAN_LLM_WORKFLOWS.md). |
+| Boot the interactive O-Kernel system | [Boot guide](boot/README.md): prepare its persistent native-codec state, then run `./boot/boot.sh` or `./boot-and-test.sh kernel`. |
 | Evaluate the research | [Technical whitepaper](Ostadix-lang_Technical_Whitepaper.pdf), [language specification](SPEC.md), and [claim/evidence index](docs/CLAIMS.md). |
 | Contribute to the runtime | [Architecture](ARCHITECTURE.md) and [development guide](DEVELOPMENT.md). |
 

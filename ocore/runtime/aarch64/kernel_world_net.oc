@@ -1,0 +1,389 @@
+module runtime::aarch64::kernel_world_net;
+
+// Guest-facing modern virtio-net. Linux descriptor addresses are never given
+// to the outer NIC: validated frames cross through private monitor buffers.
+use runtime::aarch64::kernel_world_net_host::send as host_send;
+use runtime::aarch64::kernel_world_net_host::receive as host_receive;
+
+extern "ocore" fn kw_guest_address(gpa: u64, length: u64) -> usize;
+extern "ocore" fn kw_memory_barrier() -> void;
+extern "ocore" fn kw_net_irq_level(asserted: u64) -> void;
+
+const QUEUE_MAX: u64 = 32;
+const MAX_FRAME: usize = 1514;
+const HEADER_BYTES: u64 = 12;
+const FEATURES_LOW: u64 = 32; // MAC only; high word offers VERSION_1.
+
+static mut ACTIVE: u64 = 0;
+static mut GENERATION: u64 = 0;
+static mut RAM_BASE: u64 = 0;
+static mut RAM_SIZE: u64 = 0;
+static mut STATUS: u64 = 0;
+static mut DEVICE_FEATURE_SEL: u64 = 0;
+static mut DRIVER_FEATURE_SEL: u64 = 0;
+static mut DRIVER_LOW: u64 = 0;
+static mut DRIVER_HIGH: u64 = 0;
+static mut QUEUE_SEL: usize = 0;
+static mut SIZE: [u64; 2] = [0; 2];
+static mut READY: [u64; 2] = [0; 2];
+static mut DESC: [u64; 2] = [0; 2];
+static mut AVAIL: [u64; 2] = [0; 2];
+static mut USED: [u64; 2] = [0; 2];
+static mut LAST_AVAIL: [u64; 2] = [0; 2];
+static mut LAST_USED: [u64; 2] = [0; 2];
+static mut INTERRUPT: u64 = 0;
+static mut CHAIN_COUNT: usize = 0;
+static mut CHAIN_TOTAL: u64 = 0;
+static mut IDS: [u64; 32] = [0; 32];
+static mut ADDRESSES: [u64; 32] = [0; 32];
+static mut LENGTHS: [u64; 32] = [0; 32];
+static mut TX_FRAME: [u8; 1514] = [0; 1514];
+static mut RX_FRAME: [u8; 1514] = [0; 1514];
+static mut RX_LENGTH: usize = 0;
+static mut TX_COUNT: u64 = 0;
+static mut RX_COUNT: u64 = 0;
+static mut DENIED_COUNT: u64 = 0;
+
+unsafe fn address(gpa: u64, length: u64) -> usize {
+    if length == 0 || gpa < RAM_BASE || length > RAM_SIZE
+        || gpa - RAM_BASE > RAM_SIZE - length {
+        return 0;
+    }
+    return kw_guest_address(gpa, length);
+}
+
+fn overlaps(a: u64, length_a: u64, b: u64, length_b: u64) -> bool {
+    return a < b + length_b && b < a + length_a;
+}
+
+unsafe fn load16(gpa: u64) -> u64 {
+    return volatile_load(address(gpa, 2) as *const u16) as u64;
+}
+unsafe fn load32(gpa: u64) -> u64 {
+    return volatile_load(address(gpa, 4) as *const u32) as u64;
+}
+unsafe fn load64(gpa: u64) -> u64 {
+    return volatile_load(address(gpa, 8) as *const u64);
+}
+
+unsafe fn queue_basic(queue: usize) -> bool {
+    let size: u64 = SIZE[queue];
+    if size == 0 || size > QUEUE_MAX || (size & (size - 1)) != 0
+        || (DESC[queue] & 15) != 0 || (AVAIL[queue] & 1) != 0 || (USED[queue] & 3) != 0 {
+        return false;
+    }
+    let dl: u64 = size * 16;
+    let al: u64 = 4 + size * 2;
+    let ul: u64 = 4 + size * 8;
+    return address(DESC[queue], dl) != 0 && address(AVAIL[queue], al) != 0
+        && address(USED[queue], ul) != 0
+        && !overlaps(DESC[queue], dl, AVAIL[queue], al)
+        && !overlaps(DESC[queue], dl, USED[queue], ul)
+        && !overlaps(AVAIL[queue], al, USED[queue], ul);
+}
+
+unsafe fn metadata_overlap(start: u64, length: u64, queue: usize) -> bool {
+    return overlaps(start, length, DESC[queue], SIZE[queue] * 16)
+        || overlaps(start, length, AVAIL[queue], 4 + SIZE[queue] * 2)
+        || overlaps(start, length, USED[queue], 4 + SIZE[queue] * 8);
+}
+
+unsafe fn queue_valid(queue: usize) -> bool {
+    if !queue_basic(queue) { return false; }
+    let other: usize = 1 - queue;
+    if READY[other] == 1 {
+        if !queue_basic(other)
+            || metadata_overlap(DESC[queue], SIZE[queue] * 16, other)
+            || metadata_overlap(AVAIL[queue], 4 + SIZE[queue] * 2, other)
+            || metadata_overlap(USED[queue], 4 + SIZE[queue] * 8, other) {
+            return false;
+        }
+    }
+    return true;
+}
+
+unsafe fn fail() -> u64 {
+    STATUS = STATUS | 64;
+    INTERRUPT = INTERRUPT | 2;
+    DENIED_COUNT += 1;
+    kw_net_irq_level(1);
+    return 0;
+}
+
+unsafe fn reset_transport() -> void {
+    STATUS = 0;
+    DEVICE_FEATURE_SEL = 0;
+    DRIVER_FEATURE_SEL = 0;
+    DRIVER_LOW = 0;
+    DRIVER_HIGH = 0;
+    QUEUE_SEL = 0;
+    INTERRUPT = 0;
+    RX_LENGTH = 0;
+    CHAIN_COUNT = 0;
+    CHAIN_TOTAL = 0;
+    let mut queue: usize = 0;
+    while queue < 2 {
+        SIZE[queue] = 0;
+        READY[queue] = 0;
+        DESC[queue] = 0;
+        AVAIL[queue] = 0;
+        USED[queue] = 0;
+        LAST_AVAIL[queue] = 0;
+        LAST_USED[queue] = 0;
+        queue += 1;
+    }
+    kw_net_irq_level(0);
+}
+
+pub unsafe fn init(guest_base: u64, guest_size: u64, generation: u64) -> u64 {
+    if guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
+        || generation == 0 || generation <= GENERATION {
+        return 0;
+    }
+    RAM_BASE = guest_base;
+    RAM_SIZE = guest_size;
+    GENERATION = generation;
+    ACTIVE = 1;
+    TX_COUNT = 0;
+    RX_COUNT = 0;
+    DENIED_COUNT = 0;
+    reset_transport();
+    return 1;
+}
+
+pub unsafe fn mmio_read(offset: u64) -> u64 {
+    if offset == 0 { return 0x7472_6976; }
+    if offset == 4 { return 2; }
+    if offset == 8 { return 1; }
+    if offset == 12 { return 0x4f43_4f52; }
+    if offset == 16 {
+        if DEVICE_FEATURE_SEL == 0 { return FEATURES_LOW; }
+        if DEVICE_FEATURE_SEL == 1 { return 1; }
+        return 0;
+    }
+    if offset == 52 && QUEUE_SEL < 2 { return QUEUE_MAX; }
+    if offset == 68 && QUEUE_SEL < 2 { return READY[QUEUE_SEL]; }
+    if offset == 96 { return INTERRUPT; }
+    if offset == 112 { return STATUS; }
+    if offset == 252 { return GENERATION & 255; }
+    // 52:54:00:12:34:56, matching the separately provisioned outer NIC.
+    if offset == 256 { return 0x1200_5452; }
+    if offset == 260 { return 0x5634; }
+    return 0;
+}
+
+pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
+    if ACTIVE != 1 { return 0; }
+    if value > 0xffff_ffff || (offset & 3) != 0 { return fail(); }
+    if offset == 100 {
+        INTERRUPT = INTERRUPT & ~(value & 3);
+        kw_net_irq_level((INTERRUPT != 0) as u64);
+        return 1;
+    }
+    if offset == 112 && value == 0 { reset_transport(); return 1; }
+    if (STATUS & 192) != 0 { return 0; }
+    if offset == 20 { DEVICE_FEATURE_SEL = value; return 1; }
+    if offset == 36 {
+        if (STATUS & 8) != 0 { return fail(); }
+        DRIVER_FEATURE_SEL = value;
+        return 1;
+    }
+    if offset == 32 {
+        if (STATUS & 8) != 0 { return fail(); }
+        if DRIVER_FEATURE_SEL == 0 { DRIVER_LOW = value; return 1; }
+        if DRIVER_FEATURE_SEL == 1 { DRIVER_HIGH = value; return 1; }
+        if value != 0 { return fail(); }
+        return 1;
+    }
+    if offset == 48 { QUEUE_SEL = value as usize; return 1; }
+    if offset == 112 {
+        if (value & STATUS) != STATUS { return fail(); }
+        if (value & 8) != 0
+            && ((DRIVER_LOW & ~FEATURES_LOW) != 0 || DRIVER_HIGH != 1) {
+            STATUS = value & ~8;
+            return 1;
+        }
+        if (value & 4) != 0 && ((value & 11) != 11 || READY[0] != 1 || READY[1] != 1) {
+            return fail();
+        }
+        STATUS = value;
+        return 1;
+    }
+    if QUEUE_SEL >= 2 { return 0; }
+    let queue: usize = QUEUE_SEL;
+    if offset == 68 {
+        if value == 0 { READY[queue] = 0; return 1; }
+        if value == 1 && (STATUS & 8) != 0 && queue_valid(queue) { READY[queue] = 1; return 1; }
+        return fail();
+    }
+    if offset == 80 {
+        if value >= 2 || READY[value as usize] != 1 || (STATUS & 4) == 0 { return fail(); }
+        return 1;
+    }
+    if READY[queue] != 0 { return fail(); }
+    if offset == 56 { SIZE[queue] = value; return 1; }
+    if offset == 128 { DESC[queue] = (DESC[queue] & 0xffff_ffff_0000_0000) | value; return 1; }
+    if offset == 132 { DESC[queue] = (DESC[queue] & 0xffff_ffff) | (value << 32); return 1; }
+    if offset == 144 { AVAIL[queue] = (AVAIL[queue] & 0xffff_ffff_0000_0000) | value; return 1; }
+    if offset == 148 { AVAIL[queue] = (AVAIL[queue] & 0xffff_ffff) | (value << 32); return 1; }
+    if offset == 160 { USED[queue] = (USED[queue] & 0xffff_ffff_0000_0000) | value; return 1; }
+    if offset == 164 { USED[queue] = (USED[queue] & 0xffff_ffff) | (value << 32); return 1; }
+    return 0;
+}
+
+unsafe fn capture(queue: usize, head: u64) -> bool {
+    CHAIN_COUNT = 0;
+    CHAIN_TOTAL = 0;
+    let mut id: u64 = head;
+    let mut walking: bool = true;
+    while walking {
+        if id >= SIZE[queue] || CHAIN_COUNT >= 32 { return false; }
+        let mut prior: usize = 0;
+        while prior < CHAIN_COUNT {
+            if IDS[prior] == id { return false; }
+            prior += 1;
+        }
+        let entry: u64 = DESC[queue] + id * 16;
+        let start: u64 = load64(entry);
+        let length: u64 = load32(entry + 8);
+        let flags: u64 = load16(entry + 12);
+        if (flags & ~3) != 0 || length > 65536 || address(start, length) == 0
+            || ((flags & 2) != 0) != (queue == 0) {
+            return false;
+        }
+        let mut metadata_queue: usize = 0;
+        while metadata_queue < 2 {
+            if READY[metadata_queue] == 1 && metadata_overlap(start, length, metadata_queue) { return false; }
+            metadata_queue += 1;
+        }
+        prior = 0;
+        while prior < CHAIN_COUNT {
+            // TX is entirely device-readable: repeated/overlapping SG inputs
+            // contribute bytes in chain order to a private frame. RX targets
+            // remain disjoint so no device write can alias another element.
+            if queue == 0 && overlaps(start, length, ADDRESSES[prior], LENGTHS[prior]) { return false; }
+            prior += 1;
+        }
+        IDS[CHAIN_COUNT] = id;
+        ADDRESSES[CHAIN_COUNT] = start;
+        LENGTHS[CHAIN_COUNT] = length;
+        CHAIN_COUNT += 1;
+        CHAIN_TOTAL += length;
+        walking = (flags & 1) != 0;
+        id = load16(entry + 14);
+    }
+    return CHAIN_COUNT != 0;
+}
+
+unsafe fn chain_byte(offset: u64) -> u8 {
+    let mut index: usize = 0;
+    let mut position: u64 = offset;
+    while index < CHAIN_COUNT {
+        if position < LENGTHS[index] {
+            return volatile_load((address(ADDRESSES[index], LENGTHS[index]) + position as usize) as *const u8);
+        }
+        position -= LENGTHS[index];
+        index += 1;
+    }
+    return 0;
+}
+
+unsafe fn complete(queue: usize, head: u64, written: u64) -> void {
+    let entry: u64 = USED[queue] + 4 + (LAST_USED[queue] % SIZE[queue]) * 8;
+    volatile_store(address(entry, 4) as *mut u32, head as u32);
+    volatile_store(address(entry + 4, 4) as *mut u32, written as u32);
+    kw_memory_barrier();
+    LAST_USED[queue] = (LAST_USED[queue] + 1) & 0xffff;
+    volatile_store(address(USED[queue] + 2, 2) as *mut u16, LAST_USED[queue] as u16);
+    kw_memory_barrier();
+    LAST_AVAIL[queue] = (LAST_AVAIL[queue] + 1) & 0xffff;
+    // Without EVENT_IDX, the driver's avail NO_INTERRUPT flag suppresses
+    // notifications while its NAPI/virtqueue polling loop drains completions.
+    if (load16(AVAIL[queue]) & 1) == 0 {
+        INTERRUPT = INTERRUPT | 1;
+        kw_net_irq_level(1);
+    }
+}
+
+unsafe fn next_head(queue: usize) -> u64 {
+    kw_memory_barrier();
+    let available: u64 = load16(AVAIL[queue] + 2);
+    let distance: u64 = (available + 65536 - LAST_AVAIL[queue]) & 0xffff;
+    if distance > SIZE[queue] { fail(); return QUEUE_MAX; }
+    if distance == 0 { return QUEUE_MAX; }
+    let head: u64 = load16(AVAIL[queue] + 4 + (LAST_AVAIL[queue] % SIZE[queue]) * 2);
+    if head >= SIZE[queue] { fail(); return QUEUE_MAX; }
+    return head;
+}
+
+pub unsafe fn poll() -> u64 {
+    if ACTIVE != 1 || (STATUS & 4) == 0 || (STATUS & 192) != 0 { return 0; }
+    if READY[0] != 1 || READY[1] != 1 || !queue_valid(0) || !queue_valid(1) { return fail(); }
+    let mut completed: u64 = 0;
+    let mut budget: u64 = 0;
+    while budget < QUEUE_MAX {
+        let head: u64 = next_head(1);
+        if head == QUEUE_MAX { break; }
+        if !capture(1, head) || CHAIN_TOTAL < HEADER_BYTES + 14
+            || CHAIN_TOTAL > HEADER_BYTES + MAX_FRAME as u64 {
+            return fail();
+        }
+        // The trailing num_buffers field has no TX meaning without mergeable
+        // RX buffers. Linux 6.12 leaves those skb headroom bytes untouched in
+        // this feature profile; never interpret them as offload authority.
+        if chain_byte(0) != 0 || chain_byte(1) != 0 {
+            return fail();
+        }
+        let frame_length: usize = (CHAIN_TOTAL - HEADER_BYTES) as usize;
+        let mut byte: usize = 0;
+        while byte < frame_length {
+            TX_FRAME[byte] = chain_byte(HEADER_BYTES + byte as u64);
+            byte += 1;
+        }
+        let accepted: u64 = host_send((&TX_FRAME[0]), frame_length);
+        if accepted == 0 { break; }
+        if accepted != 1 { return fail(); }
+        complete(1, head, 0);
+        TX_COUNT += 1;
+        completed += 1;
+        budget += 1;
+    }
+    budget = 0;
+    while budget < QUEUE_MAX && (STATUS & 192) == 0 {
+        let head: u64 = next_head(0);
+        if head == QUEUE_MAX { break; }
+        if RX_LENGTH == 0 {
+            RX_LENGTH = host_receive((&mut RX_FRAME[0]), MAX_FRAME);
+            if RX_LENGTH == 0 { break; }
+            if RX_LENGTH < 14 || RX_LENGTH > MAX_FRAME { return fail(); }
+        }
+        if !capture(0, head) || CHAIN_TOTAL < HEADER_BYTES + RX_LENGTH as u64 { return fail(); }
+        let needed: u64 = HEADER_BYTES + RX_LENGTH as u64;
+        let mut position: u64 = 0;
+        let mut index: usize = 0;
+        while index < CHAIN_COUNT && position < needed {
+            let destination: usize = address(ADDRESSES[index], LENGTHS[index]);
+            let mut byte: u64 = 0;
+            while byte < LENGTHS[index] && position < needed {
+                let mut value: u8 = 0;
+                if position == 10 { value = 1; }
+                if position >= HEADER_BYTES { value = RX_FRAME[(position - HEADER_BYTES) as usize]; }
+                volatile_store((destination + byte as usize) as *mut u8, value);
+                position += 1;
+                byte += 1;
+            }
+            index += 1;
+        }
+        complete(0, head, needed);
+        RX_LENGTH = 0;
+        RX_COUNT += 1;
+        completed += 1;
+        budget += 1;
+    }
+    return completed;
+}
+
+pub unsafe fn transmitted() -> u64 { return TX_COUNT; }
+pub unsafe fn received() -> u64 { return RX_COUNT; }
+pub unsafe fn denials() -> u64 { return DENIED_COUNT; }
+pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && (STATUS & 192) == 0) as u64; }

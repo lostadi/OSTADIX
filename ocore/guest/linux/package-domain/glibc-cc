@@ -1,0 +1,37 @@
+#!/bin/sh
+# Bind original GCC to an authenticated private ARM64 GNU libc closure.
+# Compiler builtin headers remain GCC's; every libc/Linux header is private.
+set -eu
+unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH
+sysroot="${OSTADIX_GLIBC_SYSROOT:?A verified private GNU libc sysroot is required}"
+interpreter="${OSTADIX_GLIBC_INTERPRETER:?A private GNU ELF interpreter binding is required}"
+libraries="$sysroot/usr/lib/aarch64-linux-gnu"
+internal="$(gcc -print-file-name=include)"
+for required in "$libraries/crt1.o" "$libraries/crti.o" "$libraries/crtn.o" \
+    "$libraries/libc.so.6" "$libraries/libc_nonshared.a" "$libraries/libgcc_s.so.1" "$libraries/ld-linux-aarch64.so.1"; do
+    [ -f "$required" ] || { echo "Missing original GNU ABI input: $required" >&2; exit 1; }
+done
+for argument do
+    case "$argument" in
+        -c|-E|-S)
+            exec gcc --sysroot="$sysroot" -nostdinc -U_FORTIFY_SOURCE \
+                -isystem "$internal" -isystem "$sysroot/usr/include/aarch64-linux-gnu" \
+                -isystem "$sysroot/usr/include" "$@"
+            ;;
+    esac
+done
+begin="$(gcc -print-file-name=crtbegin.o)"
+end="$(gcc -print-file-name=crtend.o)"
+[ -f "$begin" ] && [ -f "$end" ] || { echo 'Original GCC initialization objects are missing.' >&2; exit 1; }
+# Name the original DSOs directly: Debian's libc.so linker script assumes a
+# system-wide usrmerge alias which a private extracted dependency tree lacks.
+# GCC's normal crtbegin/crtend retain constructor/unwind initialization.
+exec gcc --sysroot="$sysroot" -nostdinc -U_FORTIFY_SOURCE \
+    -isystem "$internal" -isystem "$sysroot/usr/include/aarch64-linux-gnu" \
+    -isystem "$sysroot/usr/include" -nostdlib -no-pie \
+    -Wl,--dynamic-linker,"$interpreter" \
+    '-Wl,--disable-new-dtags,-rpath,$ORIGIN/../lib/glibc/usr/lib/aarch64-linux-gnu' \
+    "$libraries/crt1.o" "$libraries/crti.o" "$begin" "$@" \
+    -Wl,--start-group "$libraries/libc.so.6" "$libraries/libc_nonshared.a" \
+    "$libraries/libgcc_s.so.1" "$libraries/ld-linux-aarch64.so.1" -Wl,--end-group \
+    "$end" "$libraries/crtn.o"
