@@ -104,10 +104,12 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/registry/bundle/mod.rs": "pub use crate::backend_catalog::*;\n",
         "crates/ostadix-api/src/project.rs": "pub mod lower;\n",
         "crates/ostadix-api/src/project/lower.rs": 'include!("input_kind.inc.rs");\n',
+        "crates/ostadix-api/src/shims.rs": 'include!("private_dir.inc.rs");\n',
         "crates/ostadix-api/src/ocore/mod.rs": 'include!("native_core.rs");\n',
         "crates/ostadix-api/src/ocore/native_codegen.rs": (
             'mod atomic { include!("native_atomic_codegen.rs"); }\n'
             'mod float_layout { include!("native_float_layout.rs"); }\n'
+            'mod variadic { include!("native_variadic_codegen.rs"); }\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -236,6 +238,11 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "included_from": "crates/ostadix-api/src/project/lower.rs",
                 },
                 {
+                    "path": "crates/ostadix-api/src/private_dir.inc.rs",
+                    "owner": "shims",
+                    "included_from": "crates/ostadix-api/src/shims.rs",
+                },
+                {
                     "path": "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
@@ -252,6 +259,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                     "module_path": ["ocore", "native_codegen", "float_layout"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "variadic"],
                 },
             ],
         )
@@ -879,9 +892,11 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         for relative, owner in (
             ("crates/ostadix-api/src/backend_catalog.inc.rs", "backend_catalog"),
             ("crates/ostadix-api/src/project/input_kind.inc.rs", "project"),
+            ("crates/ostadix-api/src/private_dir.inc.rs", "shims"),
             ("crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_core.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_float_layout.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "ocore"),
         ):
             with self.subTest(fragment=relative):
                 with tempfile.TemporaryDirectory() as directory:
@@ -1811,11 +1826,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_minimal_tree(root)
-            (root / "crates/ostadix-api/src/shims.rs").unlink()
+            # shims owns a compiled fragment, so use a root that owns none.
+            (root / "crates/ostadix-api/src/cancellation.rs").unlink()
             result = run_checker(root)
         self.assertEqual(result.returncode, 1)
         self.assertIn(
-            "manifest root `shims` has no production Rust source", result.stderr
+            "manifest root `cancellation` has no production Rust source", result.stderr
         )
 
     def test_manifest_cannot_exclude_an_arbitrary_compiled_module_file(self) -> None:
