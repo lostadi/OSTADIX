@@ -214,8 +214,12 @@ physical-multinode, distinct-kernel, or heterogeneous-architecture claim.</p>
 their musl memory/string dependency compile unchanged through
 <code>olangc --native-runtime</code>, alongside a native 9P namespace peer and
 object-store service. A codec manifest validator and a live verifier check
-the pinned sources, recipes and objects. Kernel-world selection of the peer
-is not yet wired; default kernel selection is unchanged.</p>
+the pinned sources, recipes and objects. The AArch64 kernel-world build
+selects the peer only when <code>OCORE_LINUX_NATIVE_9P_MANIFEST</code> names a codec
+manifest, which requires <code>OCORE_LINUX_NAMESPACE=1</code> with the package-domain
+profile; the manifest is validated and its objects are linked in place of
+the existing namespace peer. <code>scripts/boot_okernel.py prepare --codec-manifest</code> sets it for a new package-domain state. Without the
+variable, kernel selection is unchanged.</p>
 </li>
 <li><p>The LLVM importer admits <code>fshl</code>/<code>fshr</code> funnel shifts, and native code uses
 compact stack addressing on x86-64, AArch64 and RV64, with a full-width

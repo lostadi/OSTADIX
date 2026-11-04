@@ -211,8 +211,13 @@ Package SemVer is only one of the independent coordinates documented in
   their musl memory/string dependency compile unchanged through
   `olangc --native-runtime`, alongside a native 9P namespace peer and
   object-store service. A codec manifest validator and a live verifier check
-  the pinned sources, recipes and objects. Kernel-world selection of the peer
-  is not yet wired; default kernel selection is unchanged.
+  the pinned sources, recipes and objects. The AArch64 kernel-world build
+  selects the peer only when `OCORE_LINUX_NATIVE_9P_MANIFEST` names a codec
+  manifest, which requires `OCORE_LINUX_NAMESPACE=1` with the package-domain
+  profile; the manifest is validated and its objects are linked in place of
+  the existing namespace peer. `scripts/boot_okernel.py prepare
+  --codec-manifest` sets it for a new package-domain state. Without the
+  variable, kernel selection is unchanged.
 
 - The LLVM importer admits `fshl`/`fshr` funnel shifts, and native code uses
   compact stack addressing on x86-64, AArch64 and RV64, with a full-width
