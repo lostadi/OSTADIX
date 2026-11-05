@@ -168,7 +168,7 @@ scripts/okernel-unified-console.sh --state PRIVATE_FORK --build ADMITTED_BUILD s
 
 The launcher also supports `start --detach`, `attach`, `status` and `stop`.
 `stop` requires the controller's new paired-save receipt before reporting
-success. The default older `okernel` session is a separate preserved system.
+success. The earlier `okernel previous` session is a separate preserved system.
 
 The automated acceptance scripts distinguish foreground PTY keystrokes,
 original-provider component execution, native architectural stress, and byte

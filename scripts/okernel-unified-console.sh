@@ -30,7 +30,7 @@ prepared unified monitor profile. This launcher never builds or selects the
 default working OS. Status does not change the saved head.
 
 Guest console: Ctrl-^ then 0 selects Linux; Ctrl-^ then 1 selects original Plan9.
-Save and stop: Ctrl+] or Ctrl+B then Q. Detach: Ctrl+B then D.
+Save and stop: Ctrl+] or Ctrl+B then q. Detach: Ctrl+B then d.
 Rerun with the same --state and --build to reconnect or resume its saved pair.
 Requires Python 3, tmux, and an AArch64 QEMU; O is not a runtime dependency.
 EOF

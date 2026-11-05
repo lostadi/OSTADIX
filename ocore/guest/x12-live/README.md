@@ -128,3 +128,20 @@ metadata without creating privileged host device nodes. Actual ISO/driver
 loading, foreground input, Linux/Plan 9 shared-file use, original compiler use,
 paired save, exit and poweroff require separately retained boot evidence.
 Failed construction/boot attempts remain distinct from later successful bytes.
+
+Nested software emulation can exceed the embedded runner's normal 180-second
+startup budget. The verifier can retain that failure, detach only its own failed
+console, then use the ISO's host diagnostic shell to inventory-check and launch
+the same frozen controller with its supported `--timeout 900` option:
+
+```sh
+python3 -B scripts/verify_okernel_x12_iso.py \
+  --iso /path/to/okernel-x12-development.iso \
+  --output /path/to/new-slow-emulation-check \
+  --slow-timeout 900 --timeout 5400
+```
+
+That mode changes only the explicit validation caller's deadline. It neither
+changes the image/defaults nor turns the default nested startup failure into a
+pass. Full command, shared-file, compiler, saved-pair, typed-exit and poweroff
+checks still apply. Physical X12 startup is a separate qualification.

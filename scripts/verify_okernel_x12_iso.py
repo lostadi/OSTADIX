@@ -52,6 +52,8 @@ def main():
     parser.add_argument("--network-test", action="store_true")
     parser.add_argument("--virtual-time", action="store_true",
                         help="single-vCPU deterministic instruction clock for nested functional checks; not performance")
+    parser.add_argument("--slow-timeout", type=int, choices=(900,),
+                        help="after a retained default startup failure, validate the unchanged runner with explicit900s caller budget")
     args = parser.parse_args()
     output = args.output.absolute(); output.mkdir(mode=0o700, parents=True, exist_ok=False)
     iso = args.iso.resolve(strict=True); qemu = Path(shutil.which(args.qemu) or args.qemu).resolve(strict=True)
@@ -61,6 +63,8 @@ def main():
               "qemu": identity(qemu), "verifier": identity(Path(__file__).resolve()),
               "scope": __doc__, "root_only": args.root_only, "network_test": args.network_test,
               "virtual_time": args.virtual_time,
+              "slow_validation_timeout_seconds": args.slow_timeout,
+              "default_nested_startup_qualified": False,
               "events": [], "existing_vm_actions": [], "physical_hardware_qualified": False,
               "native_driver_lowering": False, "efficiency_qualified": False}
     (output / "verifier.py").write_bytes(Path(__file__).read_bytes())
@@ -71,6 +75,10 @@ def main():
     shared_digest = hashlib.sha256(expected_shared).hexdigest()
     record["expected_shared_file"] = {"bytes": len(expected_shared), "sha256": shared_digest}
     failure_seen = None
+    failure_scan_after = 0
+    failed_stage = None
+    slow_launched = False
+    slow_start = 0
     def event(name, **fields):
         record["events"].append({"event": name, "seconds": time.monotonic() - started, **fields})
         print("ISO check: " + name, flush=True)
@@ -132,11 +140,16 @@ def main():
                     text = terminal_text(bytes(capture))
                     if any(marker in text for marker in (b"Kernel panic", b"OKERNEL X12 BOOTSTRAP: FAIL")):
                         raise RuntimeError("boot/controller failure; inspect console.log")
-                    if (b"Unified execution failed:" in text and failure_seen is None):
+                    if (b"Unified execution failed:" in terminal_text(bytes(capture[failure_scan_after:])) and failure_seen is None):
                         failure_seen = time.monotonic()
                         record["guest_controller_failed"] = True
+                        failed_stage = stage
                         event("guest-controller-failure-observed")
                         stage = "failure-menu"
+                        if not slow_launched:
+                            # This is the test's own known failed tmux. Detach
+                            # its retained dead pane to return to the ISO menu.
+                            send(b"\x02d")
                     if stage == "failure-menu":
                         if b"OKernel console stopped. RAM state remains available." in text:
                             stage_start = len(capture); send(b"s\n"); stage = "failure-shell"
@@ -163,6 +176,25 @@ def main():
                                     except (ValueError, UnicodeDecodeError): pass
                             if "guest_failure_diagnostic" in record:
                                 event("guest-controller-failure-diagnostic-captured")
+                                if args.slow_timeout and not slow_launched and failed_stage == "unified":
+                                    record["default_startup_failure_diagnostic"] = record.pop("guest_failure_diagnostic")
+                                    record["default_nested_startup_qualified"] = False
+                                    command = ("export PATH=/opt/okernel/runtime/host-bin:/usr/bin:/bin; "
+                                        "export OKERNEL_UNIFIED_HOST_PYTHON=/usr/bin/python3.12; "
+                                        "/usr/bin/python3.12 -B /opt/okernel/runtime/okernel-unified check && "
+                                        "/usr/bin/python3.12 -B /opt/okernel/runtime/runtime/scripts/okernel_unified_world.py run "
+                                        "--state /run/okernel/state --build /opt/okernel/runtime/build "
+                                        "--qemu /opt/okernel/runtime/tools/bin/qemu-system-aarch64 --timeout " + str(args.slow_timeout)
+                                        + "; _slow_rc=$?; printf '\\nOKERNEL_ISO_SLOW_CALLER_STATUS:%s\\n' \"$_slow_rc\"; exit\n")
+                                    record["slow_validation_launch"] = {"command": command,
+                                        "scope": "same inventory-checked embedded runner and saved pair; explicit caller timeout; image and default unchanged"}
+                                    slow_launched = True
+                                    failure_seen = None
+                                    failure_scan_after = len(capture)
+                                    slow_start = len(capture)
+                                    send(command.encode()); stage = "unified"
+                                    event("explicit-slow-caller-started", timeout_seconds=args.slow_timeout)
+                                    continue
                                 raise RuntimeError("guest controller failed; captured private guest session tails before cleanup")
                             record["guest_failure_diagnostic_unavailable"] = True
                             event("guest-controller-failure-diagnostic-unavailable")
@@ -188,7 +220,13 @@ def main():
                         if args.root_only:
                             record["ok"] = True; break
                         stage = "unified"
-                    if stage == "unified" and b"Linux and original Plan 9 share this workspace." in text:
+                    ready_text = terminal_text(bytes(capture[slow_start:])) if slow_launched else text
+                    if stage == "unified" and b"Linux and original Plan 9 share this workspace." in ready_text:
+                        if slow_launched:
+                            if b"Frozen unified runtime: PASS" not in terminal_text(bytes(capture[slow_start:])):
+                                raise RuntimeError("slow caller did not verify the immutable embedded runtime")
+                        else:
+                            record["default_nested_startup_qualified"] = True
                         event("foreground-unified-console")
                         command = ("printf 'OKERNEL_ISO_SHARED_" + token + "\\000\\377\\021\\023\\n' > /n/okernel/work/iso-" + token
                             + "; p9 --timeout-ms 300000 rc -I -c 'cat /n/work/iso-" + token + "' > /work/iso-p9-" + token
@@ -207,8 +245,10 @@ def main():
                                     or b"OKERNEL_ISO_SOURCE_" + token.encode() not in text):
                                 raise RuntimeError("shared-file/source-build command failed")
                             event("original-plan9-shared-read-and-original-linux-source-build")
-                            send(b"exit\n"); stage = "exit"
-                    if stage == "exit" and b"OKernel console stopped. RAM state remains available." in text:
+                            stage_start = len(capture); send(b"exit\n"); stage = "exit"
+                    if stage == "exit" and b"OKernel console stopped. RAM state remains available." in terminal_text(bytes(capture[stage_start:])):
+                        if slow_launched and b"OKERNEL_ISO_SLOW_CALLER_STATUS:0" not in terminal_text(bytes(capture[stage_start:])):
+                            raise RuntimeError("explicit slow caller did not return success")
                         event("typed-exit-returned-to-host-menu")
                         stage_start = len(capture); send(b"s\n"); stage = "host-audit-shell"
                     if stage == "host-audit-shell" and b"# " in terminal_text(bytes(capture[stage_start:])):
