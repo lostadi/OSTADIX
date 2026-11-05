@@ -16,21 +16,36 @@ to Plan9port or a host shell.
 On X12, start or reconnect from a host terminal:
 
 ```sh
-okernel-unified
+okernel
 ```
 
-`okernel-unified start --detach` starts it in the background. Use
-`okernel-unified status` to check the console and `okernel-unified stop` for a
-confirmed save and stop. Closing an attached terminal leaves the tmux session
-running; Ctrl+B then D detaches explicitly. The older `okernel` command keeps
-its separate saved state.
+`okernel-unified` opens the same current profile. `okernel start --detach`
+starts it in the background; `okernel status` checks its state. Inside the
+managed Linux shell, type `exit` or `quit` to save and return to the host
+terminal. From another host terminal, `okernel stop`, `okernel exit` and
+`okernel quit` request a confirmed save and stop. Ctrl+] or Ctrl+B then q also
+requests saving. Closing an attached terminal leaves the tmux session running;
+Ctrl+B then D detaches explicitly.
 
-This installed entry selects the frozen R9 runtime and the prepared
-`unified-system-20261102` state. It verifies 233 captured files before launch,
+The updated X12 entry selects `unified-runtime-20261105-exit-r1` and the private
+saved copy `unified-system-20261105-exit`. It verifies 231 captured files before launch,
 including the native monitor, original kernels, host controller and QEMU
-closure. Normal startup uses those captured bytes. `okernel-unified check`
+closure. Normal startup uses those captured bytes. `okernel check`
 checks that inventory without starting a VM. The saved Linux disk and native
 store remain writable through new coordinated generations.
+
+The earlier consoles remain accessible through `okernel previous` and
+`okernel-unified previous`, using their original separate states. `okernel native`
+still opens the bounded native development profile.
+
+Logout is requested by PID1 only after its managed shell returns. A nested
+shell's exit and text sent to a foreground program remain ordinary guest input.
+The private Linux controller carries the logout request; saving uses the same
+shell and native-quiescence checks as Ctrl+]. The replacement management shell
+allows that save to complete. Successful tmux panes close and return to the
+host; failed saves retain the running VM for inspection and an explicit retry.
+Both typed logout forms, terminal restoration and saved-file reopening passed
+the real two-boot `scripts/verify_okernel_console_exit.py` check on 2026-11-05.
 
 From the Linux console, use ordinary Linux commands and `p9 NAME` for original
 Plan 9 programs. Both resolve files in the shared workspace:

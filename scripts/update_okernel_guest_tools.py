@@ -40,8 +40,9 @@ TOOLS = {
     "/usr/local/bin/okernel-status": ROOT / "ocore/guest/linux/package-domain/okernel-status",
     "/usr/local/libexec/pkg-net-udhcpc": ROOT / "ocore/guest/linux/package-domain/pkg-net-udhcpc",
     "/sbin/package-domain-init": ROOT / "ocore/guest/linux/package-domain/package-domain-init",
+    "/usr/local/libexec/okernel-shellrc": ROOT / "ocore/guest/linux/package-domain/okernel-shellrc",
 }
-TOOL_MODES = {name: 0o644 for name in ("/usr/local/libexec/okernel-9p-bridge.c", "/usr/local/libexec/u9fs-path-hardening.patch",
+TOOL_MODES = {name: 0o644 for name in ("/usr/local/libexec/okernel-shellrc", "/usr/local/libexec/okernel-9p-bridge.c", "/usr/local/libexec/u9fs-path-hardening.patch",
                                      "/usr/local/libexec/glibc-abi.tar.gz", "/usr/local/libexec/glibc-abi.json", "/usr/local/libexec/glibc-abi.sha256")}
 PROTECTED = (("work", "/work"), ("apk-configuration", "/etc/apk"), ("apk-database", "/lib/apk/db"))
 

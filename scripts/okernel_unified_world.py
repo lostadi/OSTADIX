@@ -49,6 +49,8 @@ COORDINATOR_UART = {"guest_address": 0x09001000, "guest_irq": 51,
                     "output_address": 0x6d080000, "output_bytes": 65536}
 
 
+COORDINATOR_START = "mkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /usr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/okernel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :"
+
 def owned_qemu_child(parent_pid: int):
     """Keep this controller's private QEMU from outliving an abrupt owner exit."""
     libc = ctypes.CDLL(None, use_errno=True)
@@ -160,6 +162,8 @@ class UnifiedDomain:
         self.coordinator_position = 0
         self.coordinator_capture = bytearray()
         self.coordinator_events = []
+        self.console_exit_seen = set()
+        self.console_exit_request = None
         self.last_coordinator_poll = 0.0
         self.selector = selectors.DefaultSelector()
         self.live, self.timeout = live, timeout
@@ -199,6 +203,12 @@ class UnifiedDomain:
                 artifacts[name] = target
             self.head = json.loads((self.state / "head.json").read_text())
             common.validate_head(self.state, self.head)
+            consumed = self.head.get("console_exit_consumed", [])
+            if not isinstance(consumed, list):
+                raise ValueError("saved console exit history must be an array")
+            for request_id in consumed:
+                protocol._hex(request_id, 32, "saved console exit request ID")
+                self.console_exit_seen.add(request_id)
             if self.head["disk"]["bytes"] != DISK_BYTES or not self.head.get("namespace"):
                 raise ValueError("unified execution requires a saved1GiB disk/native-store pair")
             for name, key in (("disk.ext4", "disk"), ("namespace.raw", "namespace")):
@@ -407,15 +417,18 @@ class UnifiedDomain:
             self.native_control(3, payload=frame + b"\n")
             deadline = time.monotonic() + 30
             while time.monotonic() < deadline:
+                accepted = None
                 for acknowledgement in self.coordinator_read():
-                    if acknowledgement.get("event") == "unknown":
+                    if acknowledgement.get("event") in ("unknown", "console-exit"):
                         self.coordinator_events.append(acknowledgement)
                         continue
                     if acknowledgement.get("seq") != sequence:
                         continue
                     if acknowledgement.get("sha256") != expected_hash or acknowledgement.get("ok") is not True:
                         raise RuntimeError("Linux-private coordinator publication failed: " + repr(acknowledgement))
-                    self.record.setdefault("coordinator_updates", []).append({"frame": document, "ack": acknowledgement})
+                    accepted = acknowledgement
+                if accepted is not None:
+                    self.record.setdefault("coordinator_updates", []).append({"frame": document, "ack": accepted})
                     return
                 self.pump(0.05)
             raise TimeoutError("Linux-private coordinator acknowledgement missing")
@@ -452,10 +465,21 @@ class UnifiedDomain:
 
     def watch_guest_coordinator(self):
         for message in self.coordinator_read():
-            if message.get("event") == "unknown":
+            if message.get("event") in ("unknown", "console-exit"):
                 self.coordinator_events.append(message)
         while self.coordinator_events:
             event = self.coordinator_events.pop(0)
+            if event.get("event") == "console-exit":
+                protocol._hex(event.get("generation"), 16, "coordinator generation")
+                protocol._hex(event.get("request_id"), 32, "console exit request ID")
+                if not self.service or event["generation"] != self.service["generation"]:
+                    continue
+                request_id = event["request_id"]
+                if request_id not in self.console_exit_seen:
+                    self.console_exit_seen.add(request_id)
+                    self.console_exit_request = event
+                    self.record.setdefault("console_exit_requests", []).append(dict(event))
+                continue
             protocol.ready_marker(event.get("generation"), event.get("instance"))
             protocol._hex(event.get("request_id"), 32, "request ID")
             protocol._hex(event.get("request_sha256"), 64, "request SHA256")
@@ -476,6 +500,12 @@ class UnifiedDomain:
                         or hashlib.sha256(request_bytes).hexdigest() != event["request_sha256"]):
                     raise RuntimeError("unknown completion notice differs from native request")
             self.recycle_plan9(None, {}, unknown=event)
+
+    def take_console_exit_request(self):
+        """Consume operator logout once; saving occurs outside pump/watchers."""
+        request = self.console_exit_request
+        self.console_exit_request = None
+        return request
 
     def watch_provider(self):
         # Read a quiescent native snapshot. Guest console text never asks for
@@ -651,8 +681,8 @@ class UnifiedDomain:
                 token = "P9_CLIENT_PRESENT_" + uuid.uuid4().hex
                 self.command("if test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && test -x /usr/local/bin/p9; then echo " + token + "; fi")
                 if token.encode() in bytes(self.capture).replace(b"\r", b"").split(b"\n"):
-                    self.command("mkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /usr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9 > /run/okernel/p9/controller.log 2>&1 & echo $! > /run/okernel/p9/controller.pid")
-                    self.command("i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done")
+                    self.command(COORDINATOR_START)
+                    self.command("i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done")
                     self.coordinator_update()
                     self.guest_coordinator_online = True
                     self.record["plan9_client"] = {"ready": True, "control": "/run/okernel/p9", "transport": "native Linux-only PL011"}
@@ -704,7 +734,8 @@ class UnifiedDomain:
             raise RuntimeError("native operations did not reach a snapshot boundary")
         selected = {"schema": "ostadix.package-domain-disk-head/v2",
                     "previous": self.head["disk"], "previous_namespace": self.head["namespace"],
-                    "session": str(self.session)}
+                    "session": str(self.session),
+                    "console_exit_consumed": sorted(self.console_exit_seen)}
         for key, folder, suffix, address, size in (("disk", "disk-generations", ".ext4", 0x70000000, DISK_BYTES),
                                                    ("namespace", "namespace-generations", ".raw", 0x6c000000, STORE_BYTES)):
             generations = self.state / folder

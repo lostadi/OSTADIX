@@ -14,6 +14,8 @@ Recovered ACK is durable before current.json is atomically published LAST.
 controller-state.json reserves accepted sequence numbers before publication;
 after an interrupted publication the sender must retry with a larger sequence.
 The client may hold client.lock throughout recovery: this daemon never opens it.
+PID1's private console-exit.json is forwarded only after trusted ready admission;
+console-exit events bind the coordinator generation, not a Plan9 service instance.
 """
 from __future__ import annotations
 
@@ -35,6 +37,7 @@ MAX_LOCAL = 3 * 1048576
 SESSION_SCHEMA = "ostadix.p9.client-session/v1"
 RECOVERY_SCHEMA = "ostadix.p9.recovered/v1"
 STATE_SCHEMA = "ostadix.p9.controller-state/v1"
+EXIT_SCHEMA = "ostadix.console-exit-request/v1"
 LOCAL_FILESYSTEMS = {"ext2", "ext3", "ext4", "tmpfs", "ramfs", "rootfs", "overlay", "btrfs", "xfs", "zfs"}
 MAPPING = {"service_root": "/n/okernel/services/plan9", "linux_mount": "/n/okernel", "plan9_mount": "/n"}
 
@@ -240,6 +243,7 @@ class Controller:
         self.directory = directory
         self.current = None  # Never adopt preexisting current/namespace markers on startup.
         self.unknown_seen = None
+        self.exit_seen = set()
         stored = read_local(directory, "controller-state.json")
         self.sequence = 0
         if stored is not None:
@@ -315,6 +319,25 @@ class Controller:
         except (OSError, ControlError, RecursionError):
             return None  # Partial/malformed private journals never authorize recovery.
 
+    def console_exit_event(self):
+        # Startup/recovery cannot adopt an old selector from disk. A request
+        # remains queued until the host provisions a ready current session.
+        if self.current is None or self.current.get("state", "ready") != "ready":
+            return None
+        current = read_local(self.directory, "current.json")
+        if current != self.current:
+            raise ControlError("private current session changed outside controller publication")
+        value = read_local(self.directory, "console-exit.json", 512)
+        if value is None:
+            return None
+        if value.keys() != {"schema", "request_id"} or value["schema"] != EXIT_SCHEMA:
+            raise ControlError("invalid private console exit request schema/fields")
+        request = hexadecimal(value["request_id"], 32, "console exit request ID")
+        if request in self.exit_seen:
+            return None
+        self.exit_seen.add(request)
+        return {"event": "console-exit", "generation": current["generation"], "request_id": request}
+
 
 def open_device(path):
     fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -369,6 +392,9 @@ def serve(controller, device):
                 digest = hashlib.sha256()
                 oversized = False
         event = controller.unknown_event()
+        if event is not None:
+            write_all(device, json.dumps(event, separators=(",", ":")).encode("ascii") + b"\n")
+        event = controller.console_exit_event()
         if event is not None:
             write_all(device, json.dumps(event, separators=(",", ":")).encode("ascii") + b"\n")
 

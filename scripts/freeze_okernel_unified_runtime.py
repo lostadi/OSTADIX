@@ -63,7 +63,7 @@ def verify():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", nargs="?", default="start", choices=("start", "run", "status", "attach", "stop", "check"))
+    parser.add_argument("action", nargs="?", default="start", choices=("start", "run", "status", "attach", "stop", "exit", "quit", "check"))
     parser.add_argument("--state", type=Path, help="explicit existing fork; no default state is selected")
     parser.add_argument("--detach", action="store_true")
     parser.add_argument("--stop-timeout", type=int, default=120)
@@ -97,7 +97,8 @@ def main():
         command = ["/bin/bash", str(ROOT / "runtime/scripts/okernel-unified-console.sh"),
                    "--state", str(args.state.expanduser()), "--build", str(ROOT / "build"),
                    "--qemu", str(ROOT / "tools/bin/qemu-system-aarch64"),
-                   "--stop-timeout", str(args.stop_timeout), "start" if args.action == "run" else args.action]
+                   "--stop-timeout", str(args.stop_timeout),
+                   "start" if args.action == "run" else "stop" if args.action in ("exit", "quit") else args.action]
         if args.detach:
             command.append("--detach")
         os.execve(command[0], command, environment)

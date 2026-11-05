@@ -639,6 +639,49 @@ def prepare(state: Path, *, network: bool = False, namespace: bool = False):
     subprocess.run(["bash", str(ROOT / "ocore/kernel/build-aarch64-kernel-world-linux.sh")], env=env, check=True)
 
 
+def save_interactive(domain, *, logged_out=False):
+    """Attempt the existing shell/quiescence barrier; retain failures for retry."""
+    try:
+        # Ctrl-U alone is consumed by foreground programs
+        # and cannot cancel an unfinished shell quote.
+        # Interrupt first, then require a fresh nonce-marked
+        # shell roundtrip. This also works with custom PS1.
+        for probe in range(2):
+            # A private logout notice means the foreground shell has already
+            # returned. Interrupting its replacement before ash installs its
+            # interactive signal handlers can kill that management shell.
+            domain.send(b"\x15" if logged_out and probe == 0 else b"\x03\x15")
+            try:
+                domain.command("true", timeout=min(domain.timeout, 2 if probe == 0 else 15))
+            except TimeoutError:
+                if probe:
+                    raise
+                # ash may flush input while unwinding the
+                # interrupted foreground job. A fresh nonce
+                # on the second attempt cannot acknowledge
+                # an old/echoed probe.
+            else:
+                break
+        domain.save()
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError,
+            TimeoutError, subprocess.SubprocessError) as error:
+        if domain.process.poll() is not None:
+            raise RuntimeError("guest exited before the requested save completed") from error
+        # A failed export can leave the vCPU stopped. Keep
+        # the same VM and console available for inspection
+        # and another save attempt; never force its exit.
+        try:
+            domain.qmp.execute("cont")
+        except (OSError, ValueError, RuntimeError, TimeoutError) as resume_error:
+            print(f"\r\nCould not resume the VM: {resume_error}\r", flush=True)
+        print(f"\r\nSave not confirmed: {error}\r\n"
+              f"VM retained; inspect {domain.session / 'console.log'}. "
+              "Ctrl+] retries saving.\r", flush=True)
+    else:
+        return True
+    return False
+
+
 def run_interactive(domain):
     """Forward terminal input; only an explicit, completed save ends the VM."""
     descriptor = sys.stdin.fileno()
@@ -661,41 +704,13 @@ def run_interactive(domain):
                     if before:
                         domain.send(before)
                     if requested:
-                        try:
-                            # Ctrl-U alone is consumed by foreground programs
-                            # and cannot cancel an unfinished shell quote.
-                            # Interrupt first, then require a fresh nonce-marked
-                            # shell roundtrip. This also works with custom PS1.
-                            for probe in range(2):
-                                domain.send(b"\x03\x15")
-                                try:
-                                    domain.command("true", timeout=min(domain.timeout, 2 if probe == 0 else 15))
-                                except TimeoutError:
-                                    if probe:
-                                        raise
-                                    # ash may flush input while unwinding the
-                                    # interrupted foreground job. A fresh nonce
-                                    # on the second attempt cannot acknowledge
-                                    # an old/echoed probe.
-                                else:
-                                    break
-                            domain.save()
-                        except (OSError, ValueError, KeyError, TypeError, RuntimeError,
-                                TimeoutError, subprocess.SubprocessError) as error:
-                            if domain.process.poll() is not None:
-                                raise RuntimeError("guest exited before the requested save completed") from error
-                            # A failed export can leave the vCPU stopped. Keep
-                            # the same VM and console available for inspection
-                            # and another save attempt; never force its exit.
-                            try:
-                                domain.qmp.execute("cont")
-                            except (OSError, ValueError, RuntimeError, TimeoutError) as resume_error:
-                                print(f"\r\nCould not resume the VM: {resume_error}\r", flush=True)
-                            print(f"\r\nSave not confirmed: {error}\r\n"
-                                  f"VM retained; inspect {domain.session / 'console.log'}. "
-                                  "Ctrl+] retries saving.\r", flush=True)
-                        else:
+                        if save_interactive(domain):
                             return
+            take_request = getattr(domain, "take_console_exit_request", None)
+            if take_request is not None and take_request():
+                print("\r\nShell exited; saving the disk and shared namespace.\r", flush=True)
+                if save_interactive(domain, logged_out=True):
+                    return
             domain.pump(0.02 if input_open else 0.1)
         raise RuntimeError("QEMU exited without a completed interactive save")
     finally:

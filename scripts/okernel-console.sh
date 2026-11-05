@@ -7,6 +7,7 @@ okernel_state="${OSTADIX_OKERNEL_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/os
 okernel_package_state="$okernel_state/package-domain"
 okernel_mode=package
 okernel_action="${1:-start}"
+if [[ "$okernel_action" == exit || "$okernel_action" == quit ]]; then okernel_action=stop; fi
 if (( $# )); then shift; fi
 if [[ "$okernel_action" == native ]]; then
     okernel_mode=native
@@ -31,7 +32,7 @@ Usage: okernel [COMMAND]
   attach            Reconnect to its tmux session
   status            Show session state and log location
   logs              Print the latest session log
-  stop              Ask the OS to sync/save and exit; wait for completion
+  stop|exit|quit    Ask the OS to sync/save and exit; wait for completion
   restart           Save, stop, and start the prepared OS
   doctor            Check package-console tools and prepared artifacts
   test [OPTIONS]    Verify online packages, shared files, source builds/restart
@@ -43,7 +44,7 @@ Usage: okernel [COMMAND]
 
 Prepare once: okernel packages build --network --namespace
 The default OS uses Linux userspace and a shared native O-core 9P namespace.
-Start never rebuilds it. Guest: pkg help. Save and exit: Ctrl+].
+Start never rebuilds it. Guest: pkg help. Save/exit: Ctrl+] or Ctrl+B then Q.
 Detach without stopping: Ctrl+B then D. Reconnect: okernel.
 Native tools: okernel native help; native test; native verify [OUTPUT].
 HELP
@@ -219,6 +220,9 @@ start_session() {
         tmux -L "$okernel_socket" -f /dev/null new-session -d -s okernel -n console \
             -x 120 -y 36 "$command" \; set-window-option -t okernel:console remain-on-exit on
     fi
+    if [[ "$okernel_mode" == package ]]; then
+        tmux -L "$okernel_socket" bind-key -T prefix q send-keys -t "$okernel_target" 'C-]'
+    fi
     if [[ "${1:-}" == --detach || ! -t 0 || ! -t 1 ]]; then
         printf 'OKernel session ready. Reconnect with: %s attach\n' "$okernel_reconnect"
     else
@@ -234,7 +238,13 @@ case "$okernel_action" in
         exec python3 "$okernel_root/scripts/fork_okernel_state.py" --source "$okernel_package_state" --output "$1"
         ;;
     start) start_session "$@" ;;
-    attach) no_arguments "$@"; exec tmux -L "$okernel_socket" attach-session -t '=okernel' ;;
+    attach)
+        no_arguments "$@"
+        if [[ "$okernel_mode" == package ]]; then
+            tmux -L "$okernel_socket" bind-key -T prefix q send-keys -t "$okernel_target" 'C-]'
+        fi
+        exec tmux -L "$okernel_socket" attach-session -t '=okernel'
+        ;;
     status)
         no_arguments "$@"
         if session_exists; then

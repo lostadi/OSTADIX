@@ -60,12 +60,17 @@ if command == 'has-session':
 elif command == 'new-session':
     state['exists'] = True
     state['dead'] = False
+    state['exit'] = 0
+    state['remain_on_exit'] = args[args.index('remain-on-exit') + 1]
     for key in ('@okernel-unified-state', '@okernel-unified-build', '@okernel-unified-before-head'):
         state['options'][key] = args[args.index(key) + 1]
 elif command == 'show-options':
     output = state['options'].get(args[-1], '')
 elif command == 'display-message':
     output = str(int(state['dead'])) if args[-1] == '#{pane_dead}' else str(state['exit'])
+elif command == 'bind-key':
+    assert args[1:] == ['-T', 'prefix', 'q', 'send-keys', '-t', '=okernel-unified:console.0', 'C-]']
+    state.setdefault('bindings', {})['q'] = args[1:]
 elif command == 'send-keys':
     assert args[-1] == 'C-]'
     state['dead'] = True
@@ -84,6 +89,8 @@ elif command == 'send-keys':
                   'paired_snapshot': mode != 'partial', 'virtual_cpu_stopped': True,
                   'native_operations_quiescent': True}
         (session / 'result.json').write_text(json.dumps(result))
+    if state['remain_on_exit'] == 'failed' and state['exit'] == 0:
+        state['exists'] = False
 elif command == 'kill-session':
     state['exists'] = False
 elif command != 'attach-session':
@@ -182,22 +189,94 @@ class UnifiedConsoleLauncherTests(unittest.TestCase):
         values = self.stored()
         self.assertFalse(values['exists'])
         actions = [call[0] for call in values['calls']]
-        self.assertLess(actions.index('send-keys'), actions.index('kill-session'))
+        self.assertEqual(values['remain_on_exit'], 'failed')
+        self.assertNotIn('kill-session', actions)
+        self.assertNotIn('kill-server', actions)
+        before_head = next(i for i, call in enumerate(values['calls'])
+                           if call[0] == 'show-options' and call[-1] == '@okernel-unified-before-head')
+        self.assertLess(before_head, actions.index('send-keys'))
         selected = json.loads(self.head.read_text())
         self.assertEqual(selected['schema'], 'ostadix.package-domain-disk-head/v2')
         self.assertIn('Saved namespace: ' + selected['namespace']['sha256'], result.stdout)
 
-    def test_no_save_partial_save_or_failed_controller_is_not_cleaned_up(self):
-        for mode in ('no-save', 'partial', 'failed'):
-            with self.subTest(mode=mode):
+    def test_prefix_q_binding_does_not_run_save_or_change_the_head(self):
+        before = self.head.read_bytes()
+        result = self.invoke('start', '--detach')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        values = self.stored()
+        self.assertTrue(values['exists'])
+        self.assertFalse(values['dead'])
+        self.assertEqual(values['bindings']['q'],
+                         ['-T', 'prefix', 'q', 'send-keys', '-t', '=okernel-unified:console.0', 'C-]'])
+        self.assertFalse(any(call[0] in ('send-keys', 'kill-session', 'kill-server') for call in values['calls']))
+        self.assertEqual(before, self.head.read_bytes())
+
+    def test_exit_and_quit_require_and_publish_a_complete_paired_save(self):
+        initial = self.head.read_bytes()
+        for action in ('exit', 'quit'):
+            with self.subTest(action=action):
                 self.database.unlink(missing_ok=True)
+                self.head.write_bytes(initial)
                 self.assertEqual(self.invoke('start', '--detach').returncode, 0)
-                environment = {**self.environment, 'FIXTURE_SAVE': mode}
-                result = self.invoke('stop', environment=environment)
-                self.assertNotEqual(result.returncode, 0)
+                result = self.invoke(action)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('saved and stopped', result.stdout)
                 values = self.stored()
-                self.assertTrue(values['exists'])
-                self.assertFalse(any(call[0] in ('kill-session', 'kill-server') for call in values['calls']))
+                self.assertFalse(values['exists'])
+                sends = [call for call in values['calls'] if call[0] == 'send-keys']
+                self.assertEqual(sends, [['send-keys', '-t', '=okernel-unified:console.0', 'C-]']])
+                actions = [call[0] for call in values['calls']]
+                self.assertEqual(values['remain_on_exit'], 'failed')
+                self.assertNotIn('kill-session', actions)
+                self.assertNotIn('kill-server', actions)
+                selected = json.loads(self.head.read_text())
+                receipt = json.loads((Path(selected['session']) / 'result.json').read_text())
+                self.assertEqual(receipt['after'], selected)
+                self.assertTrue(all(receipt[key] is True for key in
+                                    ('ok', 'paired_snapshot', 'virtual_cpu_stopped', 'native_operations_quiescent')))
+
+    def test_legacy_retained_successful_pane_is_cleaned_only_after_paired_save(self):
+        self.assertEqual(self.invoke('start', '--detach').returncode, 0)
+        database = json.loads(self.database.read_text())
+        next(iter(database.values()))['remain_on_exit'] = 'on'
+        self.database.write_text(json.dumps(database))
+        result = self.invoke('exit')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        values = self.stored()
+        self.assertFalse(values['exists'])
+        actions = [call[0] for call in values['calls']]
+        self.assertLess(actions.index('send-keys'), actions.index('kill-session'))
+        self.assertNotIn('kill-server', actions)
+        selected = json.loads(self.head.read_text())
+        receipt = json.loads((Path(selected['session']) / 'result.json').read_text())
+        self.assertTrue(receipt['ok'] and receipt['paired_snapshot'])
+
+    def test_exit_aliases_without_a_session_do_not_start_a_controller(self):
+        before = self.head.read_bytes()
+        for action in ('exit', 'quit'):
+            with self.subTest(action=action):
+                result = self.invoke(action)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('already stopped', result.stdout)
+        self.assertEqual(before, self.head.read_bytes())
+        self.assertTrue(all(call[0] == 'has-session' for call in self.stored()['calls']))
+
+    def test_no_save_partial_save_or_failed_controller_is_never_reported_as_saved(self):
+        initial = self.head.read_bytes()
+        for action in ('stop', 'exit', 'quit'):
+            for mode in ('no-save', 'partial', 'failed'):
+                with self.subTest(action=action, mode=mode):
+                    self.database.unlink(missing_ok=True)
+                    self.head.write_bytes(initial)
+                    self.assertEqual(self.invoke('start', '--detach').returncode, 0)
+                    environment = {**self.environment, 'FIXTURE_SAVE': mode}
+                    result = self.invoke(action, environment=environment)
+                    self.assertNotEqual(result.returncode, 0)
+                    values = self.stored()
+                    self.assertEqual(values['exists'], mode == 'failed')
+                    self.assertFalse(any(call[0] in ('kill-session', 'kill-server') for call in values['calls']))
+                    if mode == 'no-save':
+                        self.assertEqual(initial, self.head.read_bytes())
 
     def test_an_existing_session_cannot_be_selected_with_a_different_build(self):
         self.assertEqual(self.invoke('start', '--detach').returncode, 0)
@@ -211,11 +290,15 @@ class UnifiedConsoleLauncherTests(unittest.TestCase):
         self.assertEqual(sum(call[0] == 'new-session' for call in self.stored()['calls']), 1)
 
     def test_attach_requires_a_real_terminal(self):
+        before = self.head.read_bytes()
         self.assertEqual(self.invoke('start', '--detach').returncode, 0)
         result = self.invoke('attach')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('real foreground terminal', result.stderr)
         self.assertFalse(any(call[0] == 'attach-session' for call in self.stored()['calls']))
+        self.assertEqual(sum(call[0] == 'bind-key' for call in self.stored()['calls']), 2)
+        self.assertFalse(any(call[0] == 'send-keys' for call in self.stored()['calls']))
+        self.assertEqual(before, self.head.read_bytes())
 
     def test_working_package_domain_is_rejected_even_if_given_explicitly(self):
         working = Path(self.environment['XDG_STATE_HOME']) / 'ostadix/okernel/package-domain'

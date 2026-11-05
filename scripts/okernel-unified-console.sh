@@ -18,7 +18,7 @@ usage() {
     cat <<'EOF'
 Usage: okernel-unified-console.sh --state STATE --build BUILD ACTION [OPTIONS]
 
-Actions: help, status, start, attach, stop
+Actions: help, status, start, attach, stop (also exit or quit)
   start --detach       Start without attaching, or reconnect to the same session
   attach               Attach a real terminal to the existing session
   stop                 Request Ctrl+] and wait for a confirmed paired save
@@ -30,7 +30,7 @@ prepared unified monitor profile. This launcher never builds or selects the
 default working OS. Status does not change the saved head.
 
 Guest console: Ctrl-^ then 0 selects Linux; Ctrl-^ then 1 selects original Plan9.
-Save and stop: Ctrl+]. Detach without stopping: Ctrl+B then D.
+Save and stop: Ctrl+] or Ctrl+B then Q. Detach: Ctrl+B then D.
 Rerun with the same --state and --build to reconnect or resume its saved pair.
 Requires Python 3, tmux, and an AArch64 QEMU; O is not a runtime dependency.
 EOF
@@ -53,6 +53,9 @@ while (( $# )); do
         status|start|attach|stop)
             [[ -z "$action" ]] || fail 'choose one action'
             action=$1; shift ;;
+        exit|quit)
+            [[ -z "$action" ]] || fail 'choose one action'
+            action=stop; shift ;;
         *) fail "unknown argument: $1" ;;
     esac
 done
@@ -125,7 +128,7 @@ attach() {
     exec tmux -L "$socket" attach-session -t "=$session"
 }
 confirm_save() {
-    "$python" -B - "$state" "$(option @okernel-unified-before-head)" <<'PY'
+    "$python" -B - "$state" "$1" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 state, before = Path(sys.argv[1]), sys.argv[2]
@@ -177,11 +180,12 @@ case "$action" in
             tm -f /dev/null new-session -d -s "$session" -n console -x 120 -y 36 \
                 -e "PATH=$PATH" -e PYTHONUNBUFFERED=1 \
                 "$python" -B "$runner" run --state "$state" --build "$build" --qemu "$qemu" \
-                \; set-window-option -t "$session:console" remain-on-exit on \
+                \; set-window-option -t "$session:console" remain-on-exit failed \
                 \; set-option -t "=$session:" @okernel-unified-state "$state" \
                 \; set-option -t "=$session:" @okernel-unified-build "$build" \
                 \; set-option -t "=$session:" @okernel-unified-before-head "$before_head"
         fi
+        tm bind-key -T prefix q send-keys -t "$target" 'C-]'
         if (( detach )) || [[ ! -t 0 || ! -t 1 ]]; then
             printf 'Unified console ready. Reconnect with the same --state and --build.\n'
         else attach; fi
@@ -190,21 +194,27 @@ case "$action" in
         exists || fail 'the private console is not running; use start'
         owned
         [[ "$(dead)" != 1 ]] || fail 'the console has stopped; use start to resume its saved pair'
+        tm bind-key -T prefix q send-keys -t "$target" 'C-]'
         attach
         ;;
     stop)
         if ! exists; then printf 'Unified console is already stopped.\n'; exit 0; fi
         owned
+        started_before=$(option @okernel-unified-before-head)
         if [[ "$(dead)" != 1 ]]; then
             printf 'Requesting both original shells and a paired disk/namespace save.\n'
             tm send-keys -t "$target" 'C-]'
         fi
         for (( waited=0; waited <= stop_timeout; waited++ )); do
-            exists || fail 'the console disappeared; a save cannot be confirmed'
+            if ! exists; then
+                confirm_save "$started_before" || exit 1
+                printf 'Unified console saved and stopped.\n'
+                exit 0
+            fi
             if [[ "$(dead)" == 1 ]]; then
                 code=$(tm display-message -p -t "$target" '#{pane_dead_status}')
                 [[ "$code" == 0 ]] || fail "controller exited $code; its pane and evidence are retained"
-                confirm_save || exit 1
+                confirm_save "$started_before" || exit 1
                 tm kill-session -t "=$session"
                 printf 'Unified console saved and stopped.\n'
                 exit 0

@@ -312,6 +312,97 @@ class P9ControllerTests(unittest.TestCase):
         self.assertNotIn("request_hex", event)
         self.assertFalse(select.select([master], [], [], .25)[0])
 
+    def exit_request(self, request_id="a" * 32):
+        return {"schema": controller.EXIT_SCHEMA, "request_id": request_id}
+
+    def test_console_exit_queues_until_trusted_ready_and_binds_current_generation_only(self):
+        self.put("current.json", session())
+        self.put("console-exit.json", self.exit_request())
+        self.assertIsNone(self.subject.console_exit_event())
+        recovering = session()
+        recovering["state"] = "recovering"
+        self.apply(1, recovering)
+        self.assertIsNone(self.subject.console_exit_event())
+        ready = session("2" * 32)
+        ready["generation"] = "fedcba0987654321"
+        self.apply(2, ready)
+        self.assertEqual(self.subject.console_exit_event(), {"event": "console-exit",
+                         "generation": ready["generation"], "request_id": "a" * 32})
+        self.assertTrue((self.control / "console-exit.json").exists())
+
+    def test_console_exit_dedup_survives_instance_change_and_old_marker_reappearance(self):
+        self.apply(1)
+        for request in ("a", "b"):
+            self.put("console-exit.json", self.exit_request(request * 32))
+            self.assertEqual(self.subject.console_exit_event()["request_id"], request * 32)
+            self.assertIsNone(self.subject.console_exit_event())
+        self.apply(2, session("2" * 32))
+        self.put("console-exit.json", self.exit_request())
+        self.assertIsNone(self.subject.console_exit_event())
+
+    def test_console_exit_daemon_restart_reemits_only_after_new_provisioning(self):
+        self.apply(1)
+        self.put("console-exit.json", self.exit_request())
+        event = self.subject.console_exit_event()
+        self.subject = controller.Controller(self.fd)
+        self.assertIsNone(self.subject.console_exit_event())
+        self.apply(2)
+        self.assertEqual(self.subject.console_exit_event(), event)
+
+    def test_console_exit_private_file_schema_modes_size_and_symlink_fail_visibly(self):
+        self.apply(1)
+        path = self.control / "console-exit.json"
+        for value in ({"schema": "wrong", "request_id": "a" * 32}, self.exit_request("A" * 32),
+                      self.exit_request("a" * 31), {**self.exit_request(), "generation": session()["generation"]}):
+            self.put(path.name, value)
+            with self.subTest(value=value), self.assertRaises(controller.ControlError):
+                self.subject.console_exit_event()
+        path.write_bytes(b'{"schema":"ostadix.console-exit-request/v1","request_id":"a","request_id":"b"}')
+        with self.assertRaisesRegex(controller.ControlError, "duplicate"):
+            self.subject.console_exit_event()
+        path.write_bytes(b"x" * 513)
+        with self.assertRaisesRegex(controller.ControlError, "size"):
+            self.subject.console_exit_event()
+        path.write_bytes(encode(self.exit_request()))
+        path.chmod(0o666)
+        with self.assertRaisesRegex(controller.ControlError, "untrusted"):
+            self.subject.console_exit_event()
+        path.unlink()
+        target = self.root / "outside"
+        target.write_bytes(encode(self.exit_request()))
+        path.symlink_to(target)
+        with self.assertRaises(OSError):
+            self.subject.console_exit_event()
+        self.assertEqual(target.read_bytes(), encode(self.exit_request()))
+
+    def test_console_exit_refuses_selector_mutation(self):
+        self.apply(1)
+        self.put("console-exit.json", self.exit_request())
+        self.put("current.json", session("2" * 32))
+        with self.assertRaisesRegex(controller.ControlError, "outside controller"):
+            self.subject.console_exit_event()
+
+    def test_pty_console_exit_once_after_recovering_to_ready(self):
+        self.put("console-exit.json", self.exit_request())
+        master, _ = self.start()
+        self.assertFalse(select.select([master], [], [], .15)[0])
+        recovering = session()
+        recovering["state"] = "recovering"
+        self.assertTrue(self.send(master, {"seq": 1, "current": recovering})["ok"])
+        self.assertFalse(select.select([master], [], [], .15)[0])
+        self.assertTrue(self.send(master, {"seq": 2, "current": session("2" * 32)})["ok"])
+        self.assertEqual(self.line(master), {"event": "console-exit", "generation": session()["generation"],
+                                           "request_id": "a" * 32})
+        self.assertFalse(select.select([master], [], [], .25)[0])
+
+    def test_pty_invalid_console_exit_stops_daemon_with_visible_error(self):
+        master, process = self.start()
+        self.assertTrue(self.send(master, {"seq": 1, "current": session()})["ok"])
+        self.put("console-exit.json", {"schema": "wrong", "request_id": "a" * 32})
+        self.assertEqual(process.wait(timeout=3), 1)
+        self.assertIn(b"invalid private console exit", process.stderr.read())
+        self.assertFalse(self.subject.exit_seen)
+
     def test_help_and_regular_device_denial(self):
         help_result = subprocess.run([sys.executable, str(SCRIPT), "--help"], capture_output=True, check=True)
         self.assertIn(b"--control-dir", help_result.stdout)

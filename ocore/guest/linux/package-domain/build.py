@@ -297,6 +297,7 @@ def prepare(args: argparse.Namespace) -> dict:
     write_file(root, "etc/apk/repositories", "/repositories/main\n/repositories/community\n")
     # Alpine's architecture-selected key set is already in the rootfs.
     write_file(root, "sbin/package-domain-init", (HERE / "package-domain-init").read_bytes(), 0o755)
+    write_file(root, "usr/local/libexec/okernel-shellrc", (HERE / "okernel-shellrc").read_bytes(), 0o644)
     write_file(root, "usr/local/bin/pkg", (HERE / "pkg").read_bytes(), 0o755)
     write_file(root, "usr/local/bin/pkg-net", (HERE / "pkg-net").read_bytes(), 0o755)
     write_file(root, "usr/local/bin/pkg-namespace", (HERE / "pkg-namespace").read_bytes(), 0o755)
@@ -383,7 +384,7 @@ def prepare(args: argparse.Namespace) -> dict:
                                  "packages": abi_manifest["packages"], "profile": "private original GNU libc for source-compiled u9fs only"},
         "artifacts": artifacts, "disk_uuid": image_uuid, "disk_bytes": args.disk_bytes,
         "guest_ready_marker": "OKERNEL PACKAGE DOMAIN READY", "guest_prompt": "pkg> ",
-        "guest_programs": {name: {"sha256": digest(HERE / name)} for name in ("init", "package-domain-init", "pkg", "pkg-net", "pkg-net-udhcpc", "pkg-namespace", "pkg-plan9port", "pkg-9p", "glibc-cc", "plan9port-activate", "okernel-status")},
+        "guest_programs": {name: {"sha256": digest(HERE / name)} for name in ("init", "package-domain-init", "okernel-shellrc", "pkg", "pkg-net", "pkg-net-udhcpc", "pkg-namespace", "pkg-plan9port", "pkg-9p", "glibc-cc", "plan9port-activate", "okernel-status")},
         "guest_source_inputs": {name: {"sha256": digest(HERE / name)} for name in ("okernel-9p-bridge.c", "u9fs-path-hardening.patch")},
         "scope": "Original Alpine Linux userland and package/source tools inside an O-core-governed Linux guest; not source lowering of Linux or packages to O-core.",
     }

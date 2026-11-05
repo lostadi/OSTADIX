@@ -1,6 +1,7 @@
 #!/bin/sh
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export HOME=/root TERM=vt100 PS1='pkg> '
+export ENV=/usr/local/libexec/okernel-shellrc
 export NAMESPACE=/run/okernel-9p
 mkdir -p /run /tmp /dev/pts /work
 mountpoint -q /run || mount -t tmpfs tmpfs /run
@@ -28,7 +29,51 @@ if [ "${OSTADIX_PKG_NAMESPACE_REQUIRED:-0}" = 1 ]; then
 else
     cd /work || cd /
 fi
+# Managed console lifecycle. Only this shell's return requests a host save;
+# nested shell exits and foreground program input never pass this boundary.
+request_console_exit() {
+    (
+        umask 077
+        control=/run/okernel/p9
+        if [ -L /run/okernel ] || [ -L "$control" ]; then
+            return 1
+        fi
+        mkdir -p "$control" || return 1
+        chmod 0700 /run/okernel "$control" || return 1
+        request_id=$(tr -d '-' </proc/sys/kernel/random/uuid) || return 1
+        case "$request_id" in ''|*[!0-9a-f]*) return 1 ;; esac
+        [ "${#request_id}" -eq 32 ] || return 1
+        temporary=$(mktemp "$control/.console-exit.XXXXXXXX") || return 1
+        if ! printf '{"schema":"ostadix.console-exit-request/v1","request_id":"%s"}\n' "$request_id" >"$temporary"; then
+            rm -f "$temporary"
+            return 1
+        fi
+        # /run is private volatile state; rename publishes the whole request.
+        if ! mv -fT "$temporary" "$control/console-exit.json"; then
+            rm -f "$temporary"
+            return 1
+        fi
+    )
+}
+if [ -c /dev/ttyAMA1 ]; then
+    echo 'Type exit or quit to save and leave OKernel. Ctrl+] also saves and exits.'
+else
+    echo 'Ctrl+] saves and exits OKernel. exit or quit restarts this guest shell.'
+fi
 while :; do
     setsid /bin/sh -c 'exec /bin/sh -i </dev/ttyAMA0 >/dev/ttyAMA0 2>&1'
-    echo 'Shell exited; starting a new shell.'
+    shell_status=$?
+    if [ "$shell_status" -ge 128 ]; then
+        echo 'Console shell interrupted; starting a new shell. Ctrl+] saves and exits.'
+        continue
+    fi
+    if [ -c /dev/ttyAMA1 ]; then
+        if request_console_exit; then
+            echo 'Save requested; starting a management shell while the host saves.'
+        else
+            echo 'Could not publish the private exit request. Ctrl+] saves and exits.'
+        fi
+    else
+        echo 'Shell exited; Ctrl+] saves and exits OKernel. Starting a new shell.'
+    fi
 done

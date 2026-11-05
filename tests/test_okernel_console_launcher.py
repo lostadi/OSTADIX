@@ -78,7 +78,11 @@ if "display-message" in args:
     sys.exit(0)
 if "new-session" in args: state.update(exists=True, dead="0", status="0")
 if "kill-session" in args: state["exists"] = False
-if "send-keys" in args and os.environ.get("FAKE_STOP_SUCCEEDS") == "1":
+if "bind-key" in args:
+    binding = args[args.index("bind-key") + 1:]
+    assert binding == ["-T", "prefix", "q", "send-keys", "-t", "okernel:console.0", "C-]"]
+    state.setdefault("bindings", {{}})["q"] = binding
+elif "send-keys" in args and os.environ.get("FAKE_STOP_SUCCEEDS") == "1":
     if args[-1] in ("C-]", "x"):
         state.update(dead="1", status=os.environ.get("FAKE_EXIT_STATUS", "0"))
 if "list-panes" in args: print("OKernel session fixture")
@@ -159,6 +163,35 @@ print({tool!r} + " fixture")
         self.assertFalse(any("new-session" in entry for entry in self.commands()))
         self.assertFalse(self.helper_marker.exists())
 
+    def test_start_binds_prefix_q_without_executing_its_save_command(self):
+        self.launch("start", "--detach", FAKE_STOP_SUCCEEDS="1")
+        calls = self.commands("tmux")
+        bindings = [entry for entry in calls if entry[3] == "bind-key"]
+        self.assertEqual(len(bindings), 1)
+        self.assertEqual(bindings[0][2], "fixture-package")
+        self.assertEqual(bindings[0][3:], ["bind-key", "-T", "prefix", "q", "send-keys",
+                                         "-t", "okernel:console.0", "C-]"])
+        state = json.loads(self.sessions.read_text())["fixture-package"]
+        self.assertTrue(state["exists"])
+        self.assertEqual(state["dead"], "0")
+        self.assertFalse(any(entry[3] in ("send-keys", "kill-session", "kill-server") for entry in calls))
+
+    def test_attach_refreshes_package_exit_key_without_stopping_existing_session(self):
+        self.set_session()
+        self.set_session(native=True)
+        native_before = json.loads(self.sessions.read_text())["fixture-native"]
+        self.launch("attach", FAKE_STOP_SUCCEEDS="1")
+        calls = self.commands("tmux")
+        binding = next(entry for entry in calls if entry[3] == "bind-key")
+        attached = next(entry for entry in calls if entry[3] == "attach-session")
+        self.assertLess(calls.index(binding), calls.index(attached))
+        self.assertTrue(all(entry[2] == "fixture-package" for entry in calls))
+        self.assertFalse(any(entry[3] in ("send-keys", "kill-session", "kill-server") for entry in calls))
+        states = json.loads(self.sessions.read_text())
+        self.assertTrue(states["fixture-package"]["exists"])
+        self.assertEqual(states["fixture-package"]["dead"], "0")
+        self.assertEqual(states["fixture-native"], native_before)
+
     def test_missing_profile_explains_explicit_build(self):
         self.profile.unlink()
         result = self.launch("start", expected=1)
@@ -214,6 +247,48 @@ print({tool!r} + " fixture")
         self.assertEqual(sends[0][-1], "C-]")
         self.assertTrue(any("kill-session" in entry for entry in calls))
         self.assertFalse(json.loads(self.sessions.read_text())["fixture-package"]["exists"])
+
+    def test_exit_and_quit_save_existing_package_session_without_touching_native(self):
+        for action in ("exit", "quit"):
+            with self.subTest(action=action):
+                self.calls.unlink(missing_ok=True)
+                self.set_session()
+                self.set_session(native=True)
+                native_before = json.loads(self.sessions.read_text())["fixture-native"]
+                result = self.launch(action, FAKE_STOP_SUCCEEDS="1")
+                self.assertIn("saved and stopped", result.stdout)
+                calls = self.commands("tmux")
+                sends = [entry for entry in calls if entry[3] == "send-keys"]
+                self.assertEqual(len(sends), 1)
+                self.assertEqual(sends[0][3:], ["send-keys", "-t", "okernel:console.0", "C-]"])
+                self.assertTrue(all(entry[2] == "fixture-package" for entry in calls))
+                killed = next(entry for entry in calls if entry[3] == "kill-session")
+                self.assertLess(calls.index(sends[0]), calls.index(killed))
+                self.assertEqual(killed[-1], "=okernel")
+                self.assertFalse(any(entry[3] in ("new-session", "kill-server") for entry in calls))
+                self.assertFalse(self.commands("python3"))
+                states = json.loads(self.sessions.read_text())
+                self.assertFalse(states["fixture-package"]["exists"])
+                self.assertEqual(states["fixture-native"], native_before)
+
+    def test_exit_aliases_keep_pending_or_failed_save_session_for_inspection(self):
+        for action in ("exit", "quit"):
+            for mode in ("pending", "failed"):
+                with self.subTest(action=action, mode=mode):
+                    self.calls.unlink(missing_ok=True)
+                    self.set_session()
+                    environment = {"FAKE_STOP_SUCCEEDS": "1", "FAKE_EXIT_STATUS": "1"} if mode == "failed" else {}
+                    self.launch(action, expected=1, **environment)
+                    self.assertTrue(json.loads(self.sessions.read_text())["fixture-package"]["exists"])
+                    self.assertFalse(any(entry[3] in ("kill-session", "kill-server", "new-session")
+                                         for entry in self.commands("tmux")))
+
+    def test_exit_alias_extra_arguments_are_rejected_before_session_contact(self):
+        self.set_session()
+        for action in ("exit", "quit"):
+            with self.subTest(action=action):
+                self.launch(action, "--unknown", expected=2)
+                self.assertFalse(self.commands())
 
     def test_pending_save_does_not_kill_vm_or_session(self):
         self.set_session()

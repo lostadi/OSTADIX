@@ -1,0 +1,3 @@
+# Interactive BusyBox ash configuration. Exiting a nested shell remains local;
+# PID1 requests a save only after its managed top-level shell returns.
+alias quit=exit

@@ -449,6 +449,37 @@ class InteractiveConsoleTests(unittest.TestCase):
         self.interact([b"\x1d", b"\x1d"])
         self.assertEqual(self.domain.save.call_count, 2)
 
+    def test_protected_logout_event_uses_same_save_barrier_and_restores_terminal(self):
+        event = {"request_id": "a" * 32}
+        self.domain.take_console_exit_request = Mock(side_effect=[None, event])
+        self.interact([b"exit\n", b""])
+        self.domain.send.assert_any_call(b"exit\n")
+        self.assertEqual(self.domain.send.call_args_list[1].args, (b"\x15",))
+        self.domain.command.assert_called_once_with("true", timeout=2)
+        self.domain.save.assert_called_once()
+        self.restore.assert_called_once_with(17, RUNNER.termios.TCSADRAIN, "original")
+
+    def test_literal_exit_inside_foreground_input_is_forwarded(self):
+        self.domain.take_console_exit_request = Mock(return_value=None)
+        self.interact([b"exit\n", b"\x1d"])
+        self.assertEqual(self.domain.send.call_args_list[0].args, (b"exit\n",))
+        self.domain.save.assert_called_once()  # only the later explicit save key
+
+    def test_failed_logout_save_is_not_automatically_repeated(self):
+        self.domain.take_console_exit_request = Mock(side_effect=[{"request_id": "a" * 32}, None])
+        self.domain.save.side_effect = OSError("export failed")
+        calls = []
+        def pump(delay):
+            calls.append(delay)
+            if len(calls) == 2:
+                self.running = False
+        self.domain.pump.side_effect = pump
+        with self.assertRaisesRegex(RuntimeError, "without a completed interactive save"):
+            self.interact([b""])
+        self.domain.save.assert_called_once()
+        self.domain.qmp.execute.assert_called_once_with("cont")
+        self.restore.assert_called_once()
+
     def test_ctrl_c_is_forwarded_to_guest_without_requesting_save(self):
         self.interact([b"\x03", b"\x1d"])
         self.assertEqual(self.domain.send.call_args_list[0].args, (b"\x03",))
