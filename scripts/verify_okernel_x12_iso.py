@@ -70,6 +70,7 @@ def main():
     expected_shared = ("OKERNEL_ISO_SHARED_" + token).encode() + b"\x00\xff\x11\x13\n"
     shared_digest = hashlib.sha256(expected_shared).hexdigest()
     record["expected_shared_file"] = {"bytes": len(expected_shared), "sha256": shared_digest}
+    failure_seen = None
     def event(name, **fields):
         record["events"].append({"event": name, "seconds": time.monotonic() - started, **fields})
         print("ISO check: " + name, flush=True)
@@ -129,8 +130,45 @@ def main():
                             capture.extend(block); (output / "console.log").write_bytes(capture)
                     if len(capture) > 16*1024*1024: raise RuntimeError("outer serial capture limit")
                     text = terminal_text(bytes(capture))
-                    if any(marker in text for marker in (b"Kernel panic", b"OKERNEL X12 BOOTSTRAP: FAIL", b"Unified execution failed:")):
+                    if any(marker in text for marker in (b"Kernel panic", b"OKERNEL X12 BOOTSTRAP: FAIL")):
                         raise RuntimeError("boot/controller failure; inspect console.log")
+                    if (b"Unified execution failed:" in text and failure_seen is None):
+                        failure_seen = time.monotonic()
+                        record["guest_controller_failed"] = True
+                        event("guest-controller-failure-observed")
+                        stage = "failure-menu"
+                    if stage == "failure-menu":
+                        if b"OKernel console stopped. RAM state remains available." in text:
+                            stage_start = len(capture); send(b"s\n"); stage = "failure-shell"
+                        elif time.monotonic() - failure_seen > 90:
+                            raise RuntimeError("controller failed and host menu did not return")
+                    if stage == "failure-shell" and b"# " in terminal_text(bytes(capture[stage_start:])):
+                        diagnostic = ("import json,base64;from pathlib import Path;"
+                            "s=Path('/run/okernel/state');"
+                            "p=Path((s/'latest-unified-session').read_text().strip());"
+                            "assert p.parent==s;"
+                            "names=('result.json','qemu-stderr.log','console.log','linux-console.log','plan9-console.log');"
+                            "d={n:base64.b64encode((p/n).read_bytes()[-65536:]).decode() for n in names if (p/n).is_file()};"
+                            "print('OKERNEL_ISO_FAILURE_DIAGNOSTIC_'+json.dumps({'session':str(p),'tail_files_base64':d},sort_keys=True))")
+                        send(("python3 -B -c " + shlex.quote(diagnostic)
+                              + "; printf '\\nOKERNEL_ISO_FAILURE_CAPTURE_DONE\\n'\n").encode())
+                        stage = "failure-diagnostic"
+                    if stage == "failure-diagnostic":
+                        fresh = terminal_text(bytes(capture[stage_start:]))
+                        if b"\nOKERNEL_ISO_FAILURE_CAPTURE_DONE\n" in fresh:
+                            for line in fresh.splitlines():
+                                prefix = b"OKERNEL_ISO_FAILURE_DIAGNOSTIC_"
+                                if line.startswith(prefix):
+                                    try: record["guest_failure_diagnostic"] = json.loads(line[len(prefix):])
+                                    except (ValueError, UnicodeDecodeError): pass
+                            if "guest_failure_diagnostic" in record:
+                                event("guest-controller-failure-diagnostic-captured")
+                                raise RuntimeError("guest controller failed; captured private guest session tails before cleanup")
+                            record["guest_failure_diagnostic_unavailable"] = True
+                            event("guest-controller-failure-diagnostic-unavailable")
+                            raise RuntimeError("guest controller failed; guest diagnostic unavailable, raw serial retained")
+                    if failure_seen is not None and time.monotonic() - failure_seen > 180:
+                        raise RuntimeError("guest controller failed; diagnostic capture deadline")
                     if stage == "menu" and b"OKernel serial test console" in text:
                         send(b"s\r"); stage = "carrier"; event("selected-serial-entry")
                     if stage == "carrier" and b"Type n within eight seconds" in text:
@@ -214,6 +252,7 @@ def main():
     except BaseException as error:
         record["error"] = type(error).__name__ + ": " + str(error)
     finally:
+        record["final_stage"] = stage
         if process is not None and process.poll() is None:
             try:
                 if stream is not None: qmp("quit")

@@ -158,5 +158,26 @@ class X12ArtifactBoundaries(unittest.TestCase):
         with self.assertRaises(ValueError):
             builder.canonical_fat_free(self.fat12()[:-512], iso_structure)
 
+    def test_retained_notices_copy_exact_bytes_and_reject_changed_source(self):
+        source = self.root / 'assembly'; stage = source / 'iso-tree'
+        notices = stage / 'licenses'; notices.mkdir(parents=True)
+        (notices / 'copyright').write_bytes(b'original upstream notice\n')
+        (notices / 'manifest.json').write_bytes(b'{}\n')
+        tools = stage / 'carrier-tools'; tools.mkdir()
+        dash = tools / 'dash'; dash.write_bytes(b'bound optional binary'); dash.chmod(0o555)
+        manifest = {'schema': builder.ISO_SCHEMA, 'ok': True, 'attributions': {
+            'inventory': builder.inventory(notices), 'optional_dash': builder.identity(dash)}}
+        (source / 'result.json').write_text(json.dumps(manifest))
+        target = self.root / 'target'; target.mkdir()
+        receipt = builder.retained_attributions(source, target)
+        self.assertEqual(builder.inventory(target / 'licenses'), manifest['attributions']['inventory'])
+        self.assertEqual((target / 'carrier-tools/dash').read_bytes(), b'bound optional binary')
+        self.assertEqual(receipt['optional_dash']['sha256'], manifest['attributions']['optional_dash']['sha256'])
+        (notices / 'copyright').write_bytes(b'changed upstream notice\n')
+        target2 = self.root / 'target2'; target2.mkdir()
+        with self.assertRaisesRegex(ValueError, 'inventory changed'):
+            builder.retained_attributions(source, target2)
+        self.assertEqual(list(target2.iterdir()), [])
+
 
 if __name__ == "__main__": unittest.main()

@@ -288,6 +288,30 @@ def repack(args, output: Path, record: dict) -> None:
     record["ok"] = True
 
 
+def retained_attributions(source: Path, stage: Path) -> dict:
+    source = source.resolve(strict=True)
+    receipt = source / "result.json"
+    value = json.loads(receipt.read_bytes())
+    if value.get("schema") != ISO_SCHEMA or value.get("ok") is not True:
+        raise ValueError("completed attribution source required")
+    retained = value["attributions"]
+    origin = source / "iso-tree"
+    verify_inventory(origin / "licenses", retained["inventory"])
+    dash = origin / "carrier-tools/dash"
+    if dash.is_symlink() or dash.stat().st_size != retained["optional_dash"]["bytes"] or sha(dash) != retained["optional_dash"]["sha256"]:
+        raise ValueError("attribution source dash changed")
+    shutil.copytree(origin / "licenses", stage / "licenses")
+    (stage / "carrier-tools").mkdir()
+    shutil.copyfile(dash, stage / "carrier-tools/dash")
+    (stage / "carrier-tools/dash").chmod(0o555)
+    verify_inventory(stage / "licenses", retained["inventory"])
+    if sha(stage / "carrier-tools/dash") != retained["optional_dash"]["sha256"]:
+        raise ValueError("retained dash copy changed")
+    return {**retained, "retained_source_receipt": identity(receipt),
+            "manifest": identity(stage / "licenses/manifest.json"),
+            "optional_dash": identity(stage / "carrier-tools/dash")}
+
+
 class Capture:
     def __init__(self, root: Path, record: dict):
         self.root, self.record = root, record
@@ -664,7 +688,8 @@ menuentry "OKernel serial test console (ttyS0)" --hotkey=s {
 }
 '''
     (stage / "boot/grub/grub.cfg").write_text(config)
-    record["attributions"] = attribution_append(stage, record)
+    record["attributions"] = (retained_attributions(args.notices_from, stage)
+        if args.notices_from else attribution_append(stage, record))
     record["stage_inventory"] = inventory(stage)
     assemble(stage, output, record)
     record.update(squashfs=squash, bootstrap=identity(stage / "boot/initramfs.gz"),
@@ -686,6 +711,8 @@ def main() -> int:
     iso.add_argument("--carrier", type=Path, required=True)
     iso.add_argument("--runtime", type=Path, required=True)
     iso.add_argument("--state-seed", type=Path, required=True)
+    iso.add_argument("--notices-from", type=Path,
+                     help="retain exact audited notices/dash from a completed captured ISO assembly")
     repacked = sub.add_parser("repack", help="reuse verified boot payloads and append installed attribution notices")
     repacked.add_argument("--output", type=Path, required=True)
     repacked.add_argument("--from-build", type=Path, required=True)
