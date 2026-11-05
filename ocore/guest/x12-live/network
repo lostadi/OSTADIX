@@ -1,0 +1,43 @@
+#!/bin/bash
+# Original Linux networking tools; credentials/configuration exist only in RAM.
+set -euo pipefail
+umask 077
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+control=/run/okernel/network
+mkdir -p "$control"
+printf 'Available live-host network interfaces:\n'
+ip -brief link
+printf 'Interface (for example wlp0s20f3 or eth0): '
+IFS= read -r interface
+[[ "$interface" =~ ^[A-Za-z0-9_.:-]+$ && -d "/sys/class/net/$interface" ]] \
+    || { printf 'Invalid interface.\n' >&2; exit 1; }
+ip link set dev "$interface" up
+if [[ -d "/sys/class/net/$interface/wireless" ]]; then
+    rfkill unblock wifi || true
+    printf 'Wi-Fi SSID: '
+    IFS= read -r ssid
+    [[ -n "$ssid" ]] || exit 1
+    printf 'Wi-Fi password (hidden): '
+    IFS= read -r -s password
+    printf '\n'
+    config="$control/$interface.conf"
+    # The passphrase program receives the secret on stdin, never argv. Its
+    # convenience plaintext comment is removed before writing the RAM config.
+    { printf 'ctrl_interface=%s\n' "$control/$interface"
+      printf '%s\n' "$password" | wpa_passphrase "$ssid" | sed '/^[[:space:]]*#psk=/d'
+    } >"$config"
+    unset password
+    wpa_supplicant -B -i "$interface" -c "$config" -P "$control/$interface.pid" \
+        >"$control/$interface.log" 2>&1
+    for ((attempt=0; attempt<60; attempt++)); do
+        if wpa_cli -p "$control/$interface" -i "$interface" status 2>/dev/null \
+            | grep -qx 'wpa_state=COMPLETED'; then break; fi
+        sleep 1
+    done
+    wpa_cli -p "$control/$interface" -i "$interface" status | grep -qx 'wpa_state=COMPLETED' \
+        || { printf 'Wi-Fi association failed; diagnostic log is in RAM at %s\n' "$control"; exit 1; }
+fi
+/usr/bin/busybox udhcpc -i "$interface" -s /usr/lib/okernel/dhcp -q -f -t 8
+printf 'Live host networking is configured.\n'
+ip -brief address show dev "$interface"
+ip route

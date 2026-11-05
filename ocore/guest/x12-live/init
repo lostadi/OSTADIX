@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root LC_ALL=C.UTF-8 LANG=C.UTF-8 PYTHONDONTWRITEBYTECODE=1
+export TMPDIR=/tmp
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts 2>/dev/null || true
+mount -t tmpfs -o mode=1777 tmpfs /tmp
+mount -t tmpfs -o mode=0755 tmpfs /run
+mkdir -p /run/okernel /root /var/tmp
+hostname okernel-x12-live
+# Batch the initial modalias probe: starting one kmod per sysfs entry made
+# broad original driver admission unnecessarily slow under outer TCG.
+cp /etc/mdev.conf /run/okernel/mdev.conf
+: >/etc/mdev.conf
+mdev -s
+# Load matching original Linux modules by actual modalias. Module presence is
+# recorded separately from peripheral functionality and user-space services.
+echo 'OKERNEL X12 ORIGINAL MODULE PROBE: starting' >/dev/console
+aliases=$(find /sys/devices -name modalias -type f -exec cat '{}' \; 2>/dev/null | sort -u) || true
+set -f
+modprobe -a -b -- $aliases 2>/dev/null || true
+set +f
+mv /run/okernel/mdev.conf /etc/mdev.conf
+echo /sbin/mdev >/proc/sys/kernel/hotplug 2>/dev/null || true
+echo 'OKERNEL X12 ORIGINAL MODULE PROBE: complete' >/dev/console
+console=/dev/tty1
+term=linux
+for argument in $(cat /proc/cmdline); do
+    case "$argument" in okernel.console=serial) console=/dev/ttyS0; term=vt100 ;; esac
+done
+export TERM=$term
+if [ "$console" = /dev/tty1 ]; then
+    setfont -C /dev/tty1 /usr/share/consolefonts/Uni3-TerminusBold32x16.psf.gz 2>/dev/null || true
+fi
+printf '\nOKernel X12 Linux-hosted O-core development ISO\n' >"$console"
+printf 'State and package changes are in RAM and disappear on poweroff.\n' >"$console"
+printf 'Internal disks are not mounted. See /usr/share/okernel/image.json.\n\n' >"$console"
+if ! /usr/bin/python3 -B /usr/lib/okernel/seed.py > /run/okernel/seed.log 2>&1; then
+    cat /run/okernel/seed.log >"$console"
+    exec setsid cttyhack sh <"$console" >"$console" 2>&1
+fi
+cat /run/okernel/seed.log >"$console"
+printf '\nType n within eight seconds to configure host networking; Enter starts OKernel: ' >"$console"
+answer=
+IFS= read -r -t 8 answer <"$console" || true
+if [ "$answer" = n ]; then
+    setsid cttyhack /usr/local/sbin/okernel-network <"$console" >"$console" 2>&1 || true
+fi
+while :; do
+    setsid cttyhack /usr/local/sbin/okernel-live-session <"$console" >"$console" 2>&1 || true
+    printf '\nOKernel console stopped. RAM state remains available.\n' >"$console"
+    while :; do
+        printf '[r] resume  [p] power off  [n] networking  [s] host diagnostic shell: ' >"$console"
+        answer=
+        IFS= read -r answer <"$console" || answer=p
+        case "$answer" in
+            r|R) break ;;
+            n|N) setsid cttyhack /usr/local/sbin/okernel-network <"$console" >"$console" 2>&1 || true ;;
+            s|S) setsid cttyhack sh <"$console" >"$console" 2>&1 || true ;;
+            p|P|exit|poweroff|shutdown)
+                sync
+                printf 'OKERNEL X12 POWEROFF\n' >"$console"
+                poweroff -f
+                ;;
+            *) ;;
+        esac
+    done
+done

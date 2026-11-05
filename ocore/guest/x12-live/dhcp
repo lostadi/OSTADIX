@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+case "$1" in
+    deconfig) ip -4 address flush dev "$interface" ;;
+    bound|renew)
+        prefix=$(python3 -c 'import ipaddress,sys;print(ipaddress.IPv4Network("0.0.0.0/"+sys.argv[1]).prefixlen)' "$subnet")
+        ip -4 address replace "$ip/$prefix" dev "$interface"
+        for gateway in ${router:-}; do
+            ip -4 route replace default via "$gateway" dev "$interface"
+            break
+        done
+        : >/etc/resolv.conf
+        for server in ${dns:-}; do printf 'nameserver %s\n' "$server" >>/etc/resolv.conf; done
+        ;;
+esac

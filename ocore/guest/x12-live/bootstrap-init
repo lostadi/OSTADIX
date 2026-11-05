@@ -1,0 +1,57 @@
+#!/bin/sh
+# Read-only optical/USB bootstrap. Never probes or mounts an internal disk.
+set -eu
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+BB=/bin/busybox
+fail() {
+    echo "OKERNEL X12 BOOTSTRAP: FAIL: $*" >/dev/console
+    exec "$BB" sh </dev/console >/dev/console 2>&1
+}
+mount -t proc proc /proc || fail proc
+mount -t sysfs sysfs /sys || fail sysfs
+mount -t devtmpfs devtmpfs /dev || fail devtmpfs
+mkdir -p /media/okernel /lower /upper /newroot
+for module in isofs overlay loop usb_storage uas sd_mod sr_mod ahci ata_piix virtio_pci virtio_blk; do
+    modprobe "$module" 2>/dev/null || true
+done
+mdev -s || fail devices
+. /etc/okernel-rootfs.identity
+mounted=
+attempt=0
+while [ "$attempt" -lt 40 ]; do
+    # Only optical drives and explicitly USB-backed SCSI disks are candidates.
+    # NVMe/mmc/internal SATA devices are deliberately absent from this loop.
+    for sys in /sys/class/block/sr* /sys/class/block/sd*; do
+        [ -e "$sys" ] || continue
+        name=${sys##*/}
+        case "$name" in
+            sr*) ;;
+            sd*) case "$(readlink -f "$sys/device")" in */usb*/*) ;; *) continue ;; esac ;;
+            *) continue ;;
+        esac
+        [ -b "/dev/$name" ] || continue
+        if mount -t iso9660 -o ro "/dev/$name" /media/okernel 2>/dev/null; then
+            if [ -f /media/okernel/boot/rootfs.squashfs ] \
+                && [ -f /media/okernel/OKERNEL_X12_LIVE ]; then mounted=1; break; fi
+            umount /media/okernel || fail wrong-media-unmount
+        fi
+    done
+    [ -z "$mounted" ] || break
+    attempt=$((attempt+1)); sleep 1; mdev -s
+done
+[ -n "$mounted" ] || fail 'no declared read-only optical/USB ISO'
+echo 'OKERNEL X12 ROOT IDENTITY: checking read-only image' >/dev/console
+echo "$ROOTFS_SHA256  /media/okernel/boot/rootfs.squashfs" | sha256sum -c - \
+    || fail rootfs-identity
+mount -t squashfs -o ro,loop /media/okernel/boot/rootfs.squashfs /lower || fail squashfs
+mount -t tmpfs -o mode=0755 tmpfs /upper || fail tmpfs
+mkdir /upper/rw /upper/work
+mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper/rw,workdir=/upper/work /newroot \
+    || fail overlay
+mkdir -p /newroot/media/okernel /newroot/run /newroot/proc /newroot/sys /newroot/dev
+mount --move /media/okernel /newroot/media/okernel || fail media-move
+mount --move /proc /newroot/proc || fail proc-move
+mount --move /sys /newroot/sys || fail sys-move
+mount --move /dev /newroot/dev || fail dev-move
+echo 'OKERNEL X12 READONLY ROOT: PASS' >/newroot/dev/console
+exec switch_root /newroot /sbin/init
