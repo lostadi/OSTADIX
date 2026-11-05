@@ -271,7 +271,9 @@ class UnifiedDomain:
             (self.state / "latest-unified-session").write_text(str(self.session) + "\n")
             self.selector.register(self.process.stdout, selectors.EVENT_READ, self.terminal_log)
             self.selector.register(self.process.stderr, selectors.EVENT_READ, self.error_log)
-            self.qmp = common.QMP(self.control.path)
+            if self.live:
+                print("Starting OKernel; loading the saved workspace...", flush=True)
+            self.qmp = common.QMP(self.control.path, timeout=self.timeout)
             self.control.connected()
         except BaseException as error:
             self.record["error"] = str(error)

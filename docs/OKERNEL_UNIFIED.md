@@ -27,7 +27,7 @@ terminal. From another host terminal, `okernel stop`, `okernel exit` and
 requests saving. Closing an attached terminal leaves the tmux session running;
 Ctrl+B then D detaches explicitly.
 
-The updated X12 entry selects `unified-runtime-20261105-exit-r1` and the private
+The updated X12 entry selects `unified-runtime-20261105-exit-r2` and the private
 saved copy `unified-system-20261105-exit`. It verifies 231 captured files before launch,
 including the native monitor, original kernels, host controller and QEMU
 closure. Normal startup uses those captured bytes. `okernel check`
