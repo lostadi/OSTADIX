@@ -14,6 +14,13 @@ hostname okernel-x12-live
 cp /etc/mdev.conf /run/okernel/mdev.conf
 : >/etc/mdev.conf
 mdev -s
+# Restore the helper before loading transports: USB/I2C drivers can create
+# new HID child aliases during modprobe, after this initial alias snapshot.
+mv /run/okernel/mdev.conf /etc/mdev.conf
+[ -x /usr/bin/mdev ]
+printf '%s\n' /usr/bin/mdev > /proc/sys/kernel/hotplug
+[ "$(cat /proc/sys/kernel/hotplug)" = /usr/bin/mdev ]
+echo 'OKERNEL X12 HOTPLUG DRIVER HELPER: /usr/bin/mdev' >/dev/console
 # Load matching original Linux modules by actual modalias. Module presence is
 # recorded separately from peripheral functionality and user-space services.
 echo 'OKERNEL X12 ORIGINAL MODULE PROBE: starting' >/dev/console
@@ -21,8 +28,6 @@ aliases=$(find /sys/devices -name modalias -type f -exec cat '{}' \; 2>/dev/null
 set -f
 modprobe -a -b -- $aliases 2>/dev/null || true
 set +f
-mv /run/okernel/mdev.conf /etc/mdev.conf
-echo /sbin/mdev >/proc/sys/kernel/hotplug 2>/dev/null || true
 echo 'OKERNEL X12 ORIGINAL MODULE PROBE: complete' >/dev/console
 console=/dev/tty1
 term=linux

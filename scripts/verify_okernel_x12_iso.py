@@ -25,6 +25,8 @@ import subprocess
 import tempfile
 import time
 
+HOST_MENU = b"[r] resume  [p] power off  [n] networking  [s] host diagnostic shell:"
+
 
 def identity(path):
     path = Path(path); value = hashlib.sha256()
@@ -63,8 +65,10 @@ def main():
               "qemu": identity(qemu), "verifier": identity(Path(__file__).resolve()),
               "scope": __doc__, "root_only": args.root_only, "network_test": args.network_test,
               "virtual_time": args.virtual_time,
+              "clock_profile": "fixed instruction clock; functional evidence only" if args.virtual_time else "ordinary TCG wall-clock profile",
               "slow_validation_timeout_seconds": args.slow_timeout,
               "default_nested_startup_qualified": False,
+              "selected_profile_startup_qualified": False,
               "events": [], "existing_vm_actions": [], "physical_hardware_qualified": False,
               "native_driver_lowering": False, "efficiency_qualified": False}
     (output / "verifier.py").write_bytes(Path(__file__).read_bytes())
@@ -76,6 +80,7 @@ def main():
     record["expected_shared_file"] = {"bytes": len(expected_shared), "sha256": shared_digest}
     failure_seen = None
     failure_scan_after = 0
+    failure_scope_start = 0
     failed_stage = None
     slow_launched = False
     slow_start = 0
@@ -144,6 +149,7 @@ def main():
                         failure_seen = time.monotonic()
                         record["guest_controller_failed"] = True
                         failed_stage = stage
+                        failure_scope_start = failure_scan_after
                         event("guest-controller-failure-observed")
                         stage = "failure-menu"
                         if not slow_launched:
@@ -151,7 +157,7 @@ def main():
                             # its retained dead pane to return to the ISO menu.
                             send(b"\x02d")
                     if stage == "failure-menu":
-                        if b"OKernel console stopped. RAM state remains available." in text:
+                        if HOST_MENU in terminal_text(bytes(capture[failure_scope_start:])):
                             stage_start = len(capture); send(b"s\n"); stage = "failure-shell"
                         elif time.monotonic() - failure_seen > 90:
                             raise RuntimeError("controller failed and host menu did not return")
@@ -160,7 +166,7 @@ def main():
                             "s=Path('/run/okernel/state');"
                             "p=Path((s/'latest-unified-session').read_text().strip());"
                             "assert p.parent==s;"
-                            "names=('result.json','qemu-stderr.log','console.log','linux-console.log','plan9-console.log');"
+                            "names=('result.json','qemu-stderr.log','console.log','linux-console.log','plan9-console.log','native-observation.json');"
                             "d={n:base64.b64encode((p/n).read_bytes()[-65536:]).decode() for n in names if (p/n).is_file()};"
                             "print('OKERNEL_ISO_FAILURE_DIAGNOSTIC_'+json.dumps({'session':str(p),'tail_files_base64':d},sort_keys=True))")
                         send(("python3 -B -c " + shlex.quote(diagnostic)
@@ -225,8 +231,9 @@ def main():
                         if slow_launched:
                             if b"Frozen unified runtime: PASS" not in terminal_text(bytes(capture[slow_start:])):
                                 raise RuntimeError("slow caller did not verify the immutable embedded runtime")
-                        else:
+                        elif not args.virtual_time:
                             record["default_nested_startup_qualified"] = True
+                        record["selected_profile_startup_qualified"] = True
                         event("foreground-unified-console")
                         command = ("printf 'OKERNEL_ISO_SHARED_" + token + "\\000\\377\\021\\023\\n' > /n/okernel/work/iso-" + token
                             + "; p9 --timeout-ms 300000 rc -I -c 'cat /n/work/iso-" + token + "' > /work/iso-p9-" + token
@@ -246,7 +253,7 @@ def main():
                                 raise RuntimeError("shared-file/source-build command failed")
                             event("original-plan9-shared-read-and-original-linux-source-build")
                             stage_start = len(capture); send(b"exit\n"); stage = "exit"
-                    if stage == "exit" and b"OKernel console stopped. RAM state remains available." in terminal_text(bytes(capture[stage_start:])):
+                    if stage == "exit" and HOST_MENU in terminal_text(bytes(capture[stage_start:])):
                         if slow_launched and b"OKERNEL_ISO_SLOW_CALLER_STATUS:0" not in terminal_text(bytes(capture[stage_start:])):
                             raise RuntimeError("explicit slow caller did not return success")
                         event("typed-exit-returned-to-host-menu")
@@ -279,7 +286,7 @@ def main():
                             if marker.group(1) != b"0": raise RuntimeError("retained paired save/native shared bytes audit failed")
                             event("retained-paired-save-and-native-file-audit")
                             stage_start = len(capture); send(b"exit\n"); stage = "host-menu"
-                    if stage == "host-menu" and b"[r] resume" in terminal_text(bytes(capture[stage_start:])):
+                    if stage == "host-menu" and HOST_MENU in terminal_text(bytes(capture[stage_start:])):
                         send(b"p\n"); stage = "poweroff"
                     if process.poll() is not None:
                         if (stage == "poweroff" and process.returncode == 0
