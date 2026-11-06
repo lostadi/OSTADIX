@@ -3,7 +3,11 @@
 </p><h1>OSTADIX</h1>
 <p><em>By Lee Daghlar Ostadi</em></p>
 <p>The canonical repository for Ostadix-lang and O-core:
-<a href="https://github.com/lostadi/OSTADIX">lostadi/OSTADIX</a>.</p>
+<a href="https://github.com/lostadi/OSTADIX">lostadi/OSTADIX</a>.
+Development also takes place in
+<a href="https://github.com/lostadi/ostadix-BM">lostadi/ostadix-BM</a>. These are development
+lines of the same system. Identify a build by its repository and exact commit;
+the shared package version alone does not identify the source it contains.</p>
 <p><a href="https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml"><img src="https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml"><img src="https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml/badge.svg" alt="Parser fuzz campaign"></a></p>
 <blockquote>
@@ -41,6 +45,14 @@ and writes the rendered Markdown.</p>
 <tbody><tr>
 <td>Build and use it</td>
 <td><a href="#quickstart">Quickstart</a>, then the <a href="examples/literate_report.O">literate report source</a> and <a href="docs/HUMAN_LLM_WORKFLOWS.md">human/LLM workflow guide</a>.</td>
+</tr>
+<tr>
+<td>Compile native computation</td>
+<td><a href="#o-core-native-systems-language">O-core</a> for <code>.oc</code> source, typed MIR, and freestanding target objects.</td>
+</tr>
+<tr>
+<td>Compile original runtime components through O-core</td>
+<td><a href="tools/ocore-runtime/README.md">Source recipes</a>, then the <a href="tools/ocore-runtime/u9fs/README.md">original u9fs/musl component</a> for a concrete native integration.</td>
 </tr>
 <tr>
 <td>Boot the interactive O-Kernel system</td>
@@ -95,6 +107,26 @@ the architecture-specific resource and virtualization substrate. A governed
 <strong>World</strong> names the distributed identity, resource, namespace, and execution
 ontology. The first integrated-system release that satisfies the G0 through
 G13 qualification gates is named <strong>OSTADIX Alpha</strong>.</p>
+<h3>The system I am building</h3>
+<p>The nesting is the interface. I want the whole computation to remain visible:
+the original language, its evaluator, the values crossing the boundary, the
+resources it needs, and the execution that actually took place. O orchestration
+and O-core carry that structure from a composed program toward native execution.</p>
+<p>My compiler objective is to compile existing runtime and compiler
+implementations through O-core while preserving their original semantics.
+<code>olangc</code> should own the source recipe, frontend invocation, import, verification,
+ABI adaptation, dependencies, and final artifact. The result must contain the
+complete declared implementation and dependency closure, with the <code>.O</code> program
+and foreign scripts it executes. This objective includes x86-64, AArch64, and
+RV64GC; each execution profile needs its own evidence.</p>
+<p>The current <a href="tools/ocore-runtime/README.md">source-recipe interface</a> connects
+declared original builds to capture, import, and native lowering. The
+<a href="tools/ocore-runtime/u9fs/NATIVE_PEER.md">u9fs/musl integration</a> is a concrete
+component path: original codec and memory/string implementations become native
+O-core objects used by the monitor&#39;s 9P peer. Complete general runtime and
+compiler support remains the objective. Capturing an engine&#39;s source build,
+lowering selected modules, and qualifying that complete engine are separate
+results, and I keep them separate in the evidence.</p>
 <h3>Read the technical artifact set</h3>
 <ul>
 <li><a href="Ostadix-lang_Technical_Whitepaper.pdf">Technical whitepaper PDF</a></li>
@@ -572,6 +604,14 @@ include both packages; fuzz and MCP keep their independent roots and lockfiles.<
 <td>Bounded research implementation; see exact QEMU nonclaims</td>
 </tr>
 <tr>
+<td>Original runtime source recipes and native components</td>
+<td>Compiler-owned capture/import/lowering with explicit dependency closure; qualified components have their own receipts and tests</td>
+</tr>
+<tr>
+<td>Persistent O-core monitor package profile</td>
+<td>AArch64 QEMU integration with original Linux/Alpine userspace, native u9fs/musl codecs, shared namespace, mediated networking, and saved disk/namespace state</td>
+</tr>
+<tr>
 <td>O-Machine and elastic governed World</td>
 <td>Research direction with bounded offline records and milestone proofs</td>
 </tr>
@@ -580,6 +620,25 @@ include both packages; fuzz and MCP keep their independent roots and lockfiles.<
 compatibility, operational, and distributed guarantees are still being
 hardened around the supported hosted core. See
 <a href="docs/CLAIMS.md">claims and evidence</a> for the exact qualification boundary.</p>
+<h3>Boot the current integrated profile</h3>
+<p>The normal <a href="boot/README.md">boot entry</a> opens the persistent AArch64 O-core
+monitor profile. Original Linux and Alpine provide its shell, package manager,
+compiler tools, and guest programs. O-core mediates the virtual devices and
+runs the native namespace peer; the original u9fs/musl codecs in that peer are
+compiled through O-core. The shared store is mounted at <code>/n/okernel</code>.</p>
+<p>Follow the boot guide to prepare a new state from an existing verified saved
+generation or from pinned source inputs. Once that state is prepared:</p>
+<pre><code class="language-sh">./boot/boot.sh doctor
+./boot/boot.sh
+</code></pre>
+<p><code>Ctrl+]</code> requests a coordinated save of the guest disk and native namespace
+before exit. The separate native x86-64 console and baseline profiles remain
+available through <code>./boot/boot.sh native</code> and <code>./boot/boot.sh baseline</code>.
+Linux still executes as a guest in the integrated profile. Its working shell
+and packages establish that guest integration; complete Linux or Plan 9 kernel
+lowering and physical hardware qualification require their own implementations
+and evidence. See the <a href="docs/OKERNEL_PACKAGE_BOOT.md">package-system contract</a>
+and <a href="tools/ocore-runtime/u9fs/NATIVE_PEER.md">native codec qualification</a>.</p>
 <h3>Experimental operation and realization planning</h3>
 <p>The independent engine defines four canonical, authority-free semantic records:
 <code>OperationContractV1</code>, <code>OperationInterfaceV1</code>,
@@ -2849,8 +2908,12 @@ git check-ignore -v target/release/O c_cpp/O fuzz/artifacts/parser/crash
 in the canonical checkout. They do not invoke Cargo against the root Rust
 package; the release CLI contract may compile generated projects in temporary
 directories:</p>
-<pre><code class="language-bash"># Interpreter smoke; expect [number] 2
+<pre><code class="language-bash"># Minimal hosted smoke; expect [number] 2
+o eval &#39;python^( __oval_result__ = 1 + 1 )_python&#39;
+
+# Three-language greeting; requires Python, Common Lisp, and JavaScript engines
 O examples/hello.O &quot;$PWD/backends&quot;
+# hello from Python and Lisp and JavaScript!
 
 # Compiled compatibility coordinates; descriptive, not a runtime inventory
 O version --json
