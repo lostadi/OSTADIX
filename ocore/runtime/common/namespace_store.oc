@@ -366,9 +366,9 @@ unsafe fn bind(index: usize, handle: u64, number: u64, object: usize) -> void {
 
 // Canonical typed policy/effects below the wire adapter. These private helpers
 // do not admit a guest-selected grant or expose an object pointer. The only
-// external operation path in this checkpoint remains handle(). A future local
-// adapter must resolve its current session here too, and keep the same checked
-// prepare/commit boundary; wire reply capacity is reserved between those steps.
+// operation paths share these checks. The local adapter resolves its current
+// session too and retains the checked prepare/commit boundary. Each wrapper
+// reserves its own result capacity before effects; wire framing stays separate.
 unsafe fn current_grant(handle: u64) -> usize {
     if READY == 0 || handle == 0 { return GRANT_SLOTS; }
     let mut grant: usize = 1;
@@ -479,6 +479,137 @@ unsafe fn prepare_stat(grant: usize, handle: u64, number: u64, result: *mut usiz
     let index: usize = operation_fid(grant, handle, number); if index == FID_COUNT { return 4; }
     *result = F_OBJECT[index]; return 0;
 }
+// Trusted native-local adapter. The caller already owns these bounded kernel
+// buffers and serializes the entire operation with every wire/codec frontend.
+// Native session tokens are monitor-provisioned identities, never guest grants.
+// Codes1..9 retain the canonical policy categories. Code10 is an unsupported
+// directory operation in this regular-file boundary;11 is invalid typed result
+// capacity. Neither changes the existing wire error/framing contract.
+// QID/metadata words: type, version, identity, iounit, mode, atime, mtime, size.
+// Counts/negotiated MSIZE use word0. No mutable object pointer escapes.
+unsafe fn local_capacity(result: *mut u64, words: usize, required: usize) -> bool {
+    return words >= required && result as usize != 0 && result as usize % 8 == 0
+        && result as usize <= 0xffff_ffff_ffff_ffff - required * 8;
+}
+unsafe fn local_memory(memory: usize, count: usize) -> bool {
+    return count == 0 || (memory != 0 && memory <= 0xffff_ffff_ffff_ffff - count);
+}
+unsafe fn local_admission(handle: u64, size: usize) -> u64 {
+    let grant: usize = current_grant(handle);
+    if grant == GRANT_SLOTS { return 4; }
+    if VERSIONED[grant] == 0 || size > MSIZE[grant] { return 1; }
+    return 0;
+}
+unsafe fn metadata_word(object: usize, word: usize) -> u64 {
+    if word == 0 { return (field(object, 32) >> 24) & 255; }
+    if word == 1 { return field(object, 24); }
+    if word == 2 { return (field(object, 16) << 32) | object as u64; }
+    if word == 4 { return field(object, 32); }
+    if word == 5 || word == 6 { return field(object, 56); }
+    if word == 7 { return field(object, 40); }
+    return 0;
+}
+unsafe fn local_qid(object: usize, result: *mut u64) -> void {
+    let mut i: usize = 0;
+    while i < 3 { volatile_store(result + i, metadata_word(object, i)); i += 1; }
+}
+pub unsafe fn local_version(handle: u64, size: usize, result: *mut u64, words: usize) -> u64 {
+    let grant: usize = current_grant(handle); if grant == GRANT_SLOTS { return 4; }
+    if size < 256 || size > 0xffff_ffff { return 1; }
+    if !local_capacity(result, words, 1) { return 11; }
+    volatile_store(result, operation_version(grant, handle, size) as u64); return 0;
+}
+pub unsafe fn local_attach(handle: u64, number: u64, result: *mut u64, words: usize) -> u64 {
+    let admitted: u64 = local_admission(handle, 19); if admitted != 0 { return admitted; }
+    if number >= NOFID { return 1; }
+    let grant: usize = current_grant(handle); let mut index: usize = FID_COUNT;
+    let prepared: u64 = prepare_attach(grant, handle, number, &mut index); if prepared != 0 { return prepared; }
+    if !local_capacity(result, words, 3) { return 11; }
+    bind(index, handle, number, root_for(grant)); local_qid(F_OBJECT[index], result); return 0;
+}
+pub unsafe fn local_clone(handle: u64, number: u64, new_number: u64, result: *mut u64, words: usize) -> u64 {
+    let admitted: u64 = local_admission(handle, 17); if admitted != 0 { return admitted; }
+    if number > NOFID || new_number >= NOFID { return 1; }
+    let grant: usize = current_grant(handle); let mut prepared: [usize; 2] = [0; 2];
+    let status: u64 = prepare_walk(grant, handle, number, new_number, &mut prepared[0]); if status != 0 { return status; }
+    if !local_capacity(result, words, 1) { return 11; }
+    bind(prepared[0], handle, new_number, prepared[1]); volatile_store(result, 0); return 0;
+}
+pub unsafe fn local_walk_one(handle: u64, number: u64, new_number: u64, name: *const u8, length: usize, result: *mut u64, words: usize) -> u64 {
+    if length > 0xffff || !local_memory(name as usize, length) { return 1; }
+    let admitted: u64 = local_admission(handle, 19 + length); if admitted != 0 { return admitted; }
+    if number > NOFID || new_number >= NOFID { return 1; }
+    let grant: usize = current_grant(handle); let mut prepared: [usize; 2] = [0; 2];
+    let status: u64 = prepare_walk(grant, handle, number, new_number, &mut prepared[0]); if status != 0 { return status; }
+    let object: usize = walk_component(grant, prepared[1], name as usize, length); if object == 0 { return 3; }
+    if !local_capacity(result, words, 3) { return 11; }
+    bind(prepared[0], handle, new_number, object); local_qid(object, result); return 0;
+}
+unsafe fn local_opening(handle: u64, number: u64, creating: bool, name: *const u8, length: usize, permission: u64, mode: u64, result: *mut u64, words: usize) -> u64 {
+    if length > 0xffff || !local_memory(name as usize, length) || number > NOFID || permission > 0xffff_ffff
+        || (mode & 0xffff_ffff_ffff_ffec) != 0 { return 1; }
+    let mut size: usize = 12; if creating { size = 18 + length; }
+    let admitted: u64 = local_admission(handle, size); if admitted != 0 { return admitted; }
+    let grant: usize = current_grant(handle); let mut index: usize = FID_COUNT;
+    let prepared: u64 = prepare_open(grant, handle, number, creating, name as usize, length, permission, mode, &mut index);
+    if prepared != 0 { return prepared; }
+    // The common adapter resolves directories before open. The raw local API
+    // deliberately does not offer wire directory-open/enumeration semantics.
+    if (creating && (permission & DIR) != 0) || (!creating && directory(F_OBJECT[index])) { return 10; }
+    if !local_capacity(result, words, 4) { return 11; }
+    let applied: u64 = apply_open(index, handle, number, creating, name as usize, length, permission, mode);
+    if applied != 0 { return applied; }
+    F_MODE[index] = mode & 3; local_qid(F_OBJECT[index], result);
+    volatile_store(result + 3, (MSIZE[grant] - 24) as u64); return 0;
+}
+pub unsafe fn local_open(handle: u64, number: u64, mode: u64, result: *mut u64, words: usize) -> u64 {
+    return local_opening(handle, number, false, 0 as *const u8, 0, 0, mode, result, words);
+}
+pub unsafe fn local_create(handle: u64, number: u64, name: *const u8, length: usize, permission: u64, mode: u64, result: *mut u64, words: usize) -> u64 {
+    return local_opening(handle, number, true, name, length, permission, mode, result, words);
+}
+pub unsafe fn local_read(handle: u64, number: u64, offset: u64, memory: *mut u8, requested: usize, result: *mut u64, words: usize) -> u64 {
+    let admitted: u64 = local_admission(handle, 23); if admitted != 0 { return admitted; }
+    if number > NOFID || requested > 0xffff_ffff || !local_memory(memory as usize, requested) { return 1; }
+    let grant: usize = current_grant(handle); let mut object: usize = 0;
+    let status: u64 = prepare_read(grant, handle, number, &mut object); if status != 0 { return status; }
+    if directory(object) { return 10; }
+    if !local_capacity(result, words, 1) { return 11; }
+    let mut count: usize = requested; if count > MSIZE[grant] - 11 { count = MSIZE[grant] - 11; }
+    count = regular_read_count(object, offset, count);
+    if count != 0 { transfer(object, offset, memory as usize, count, false); }
+    volatile_store(result, count as u64); return 0;
+}
+pub unsafe fn local_write(handle: u64, number: u64, offset: u64, memory: *const u8, count: usize, result: *mut u64, words: usize) -> u64 {
+    let admitted: u64 = local_admission(handle, 23); if admitted != 0 { return admitted; }
+    let grant: usize = current_grant(handle);
+    if number > NOFID || count > MSIZE[grant] - 23 || !local_memory(memory as usize, count) { return 1; }
+    let mut object: usize = 0;
+    let prepared: u64 = prepare_write(grant, handle, number, offset, count, &mut object); if prepared != 0 { return prepared; }
+    if !local_capacity(result, words, 1) { return 11; }
+    let applied: u64 = apply_write(object, offset, memory as usize, count); if applied != 0 { return applied; }
+    volatile_store(result, count as u64); return 0;
+}
+pub unsafe fn local_stat(handle: u64, number: u64, result: *mut u64, words: usize) -> u64 {
+    let admitted: u64 = local_admission(handle, 11); if admitted != 0 { return admitted; }
+    if number > NOFID { return 1; }
+    let grant: usize = current_grant(handle); let mut object: usize = 0;
+    let prepared: u64 = prepare_stat(grant, handle, number, &mut object); if prepared != 0 { return prepared; }
+    if directory(object) { return 10; }
+    if !local_capacity(result, words, 8) { return 11; }
+    let mut i: usize = 0; while i < 8 { volatile_store(result + i, metadata_word(object, i)); i += 1; }
+    return 0;
+}
+pub unsafe fn local_clunk(handle: u64, number: u64, result: *mut u64, words: usize) -> u64 {
+    let admitted: u64 = local_admission(handle, 11); if admitted != 0 { return admitted; }
+    if number > NOFID { return 1; }
+    let index: usize = find_fid(handle, number); if index == FID_COUNT { return 4; }
+    if !local_capacity(result, words, 1) { return 11; }
+    // Stale object generations still clunk their session-local fid exactly as
+    // the wire path does; unrelated current clients keep their capabilities.
+    apply_clunk(index); volatile_store(result, 0); return 0;
+}
+
 unsafe fn take(width: usize) -> u64 {
     if BAD != 0 || width > REQUEST_LEN - POSITION { BAD = 1; return 0; }
     let result: u64 = le(REQUEST + POSITION, width); POSITION += width; return result;
@@ -497,8 +628,8 @@ unsafe fn emit(value: u64, width: usize) -> void { putle(RESPONSE + OUT, value, 
 unsafe fn emit_bytes(address: usize, count: usize) -> void { copy(RESPONSE + OUT, address, count); OUT += count; }
 unsafe fn emit_string(address: usize, count: usize) -> void { emit(count as u64, 2); emit_bytes(address, count); }
 unsafe fn qid(id: usize) -> void {
-    emit((field(id, 32) >> 24) & 255, 1);
-    emit(field(id, 24), 4); emit((field(id, 16) << 32) | id as u64, 8);
+    emit(metadata_word(id, 0), 1);
+    emit(metadata_word(id, 1), 4); emit(metadata_word(id, 2), 8);
 }
 unsafe fn error(code: u64) -> usize {
     let mut address: usize = (&ERR_PROTOCOL[0]) as usize; let mut count: usize = 14;
@@ -518,7 +649,7 @@ unsafe fn stat(id: usize) -> void {
     // 9P2000 stat including its own two-byte length. Owner strings are native
     // metadata labels; they never establish authority or select a grant.
     emit((stat_size(id) - 2) as u64, 2); emit(0, 2); emit(0, 4); qid(id);
-    emit(field(id, 32), 4); emit(field(id, 56), 4); emit(field(id, 56), 4); emit(field(id, 40), 8);
+    emit(metadata_word(id, 4), 4); emit(metadata_word(id, 5), 4); emit(metadata_word(id, 6), 4); emit(metadata_word(id, 7), 8);
     emit_string(node(id) + 72, field(id, 64) as usize);
     emit_string((&OWNER[0]) as usize, 5); emit_string((&OWNER[0]) as usize, 5);
     emit_string((&OWNER[0]) as usize, 5);

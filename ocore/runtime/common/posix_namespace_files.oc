@@ -3,8 +3,9 @@ module runtime::common::posix_namespace_files;
 // A bounded, synchronous native regular-file service, not a POSIX kernel or
 // application admission. All buffers are trusted native allocations, never
 // EL0/user pointers. A later IPC/memory-view boundary must validate user memory.
-// The original u9fs codec and musl dependency closure handles every 9P frame;
-// namespace_store remains the only object store and authority implementation.
+// Wire boundaries use the original u9fs codec and musl dependency closure.
+// Trusted init_backend may select direct native calls into the SAME store and
+// canonical policy; init retains wire default. No user argument selects it.
 // This service exclusively owns role 1. Do not link it beside legacy Linux's
 // role-1 transport. Owner/namespace labels come from trusted provisioning and
 // separate descriptor tables; they do not select another server grant/root.
@@ -27,6 +28,16 @@ use runtime::common::namespace_store::session_claim;
 use runtime::common::namespace_store::session_is_current;
 use runtime::common::namespace_store::revoke_if_current;
 use runtime::common::namespace_store::handle;
+use runtime::common::namespace_store::local_version;
+use runtime::common::namespace_store::local_attach;
+use runtime::common::namespace_store::local_clone;
+use runtime::common::namespace_store::local_walk_one;
+use runtime::common::namespace_store::local_open;
+use runtime::common::namespace_store::local_create;
+use runtime::common::namespace_store::local_read;
+use runtime::common::namespace_store::local_write;
+use runtime::common::namespace_store::local_stat;
+use runtime::common::namespace_store::local_clunk;
 use runtime::common::u9fs_codec::begin as codec_begin;
 use runtime::common::u9fs_codec::set_version;
 use runtime::common::u9fs_codec::set_attach;
@@ -68,6 +79,12 @@ const OPEN_FLAGS: u64 = 0x6c3; // access/create/exclusive/truncate/append
 static mut REQUEST: [u8; 8192] = [0; 8192];
 static mut RESPONSE: [u8; 8192] = [0; 8192];
 static mut NAME: [u8; 256] = [0; 256];
+static mut BACKEND: u64 = 0; //0wire(default),1trusted native-local
+static mut RESULT: [u64; 8] = [0; 8];
+static mut METADATA: [u64; 8] = [0; 8];
+static mut LAST_COUNT: u64 = 0;
+static mut LAST_UNIT: u64 = 0;
+static mut LAST_TYPE: u64 = 0;
 static mut SESSION: u64 = 0;
 static mut SERVICE_GENERATION: u64 = 0;
 static mut ACTIVE: u64 = 0;
@@ -131,9 +148,77 @@ unsafe fn exchange(expected: u64) -> i64 {
     }
     return -5;
 }
+unsafe fn local_error(code: u64) -> i64 {
+    if code == 0 { return 0; }
+    if code == 2 { return -13; } if code == 3 { return -2; }
+    if code == 4 { if session_is_current(1, SESSION) != 1 { invalidate(); } return -116; }
+    if code == 5 { return -28; } if code == 6 { return -17; }
+    if code == 7 { return -20; } if code == 10 { return -21; }
+    return -5;
+}
 unsafe fn clunk(fid: u64) -> i64 {
+    if BACKEND == 1 { return local_error(local_clunk(SESSION, fid, &mut RESULT[0], 8)); }
     begin(120); set_fid(fid as u32); let result: i64 = exchange(121);
     if result == 7 { return 0; } if result >= 0 { return -5; } return result;
+}
+unsafe fn clone_fid(fid: u64) -> i64 {
+    if BACKEND == 1 { return local_error(local_clone(SESSION, 1, fid, &mut RESULT[0], 8)); }
+    begin(110); set_walk(1, fid as u32, 0 as *const u8);
+    let result: i64 = exchange(111); if result < 0 { return result; }
+    if result != 9 || walk_count() != 0 { clunk(fid); return -5; } return 0;
+}
+unsafe fn walk_fid(fid: u64, length: usize) -> i64 {
+    if BACKEND == 1 {
+        let result: i64 = local_error(local_walk_one(SESSION, fid, fid, &NAME[0], length, &mut RESULT[0], 8));
+        if result == 0 { LAST_TYPE = RESULT[0]; } return result;
+    }
+    begin(110); set_walk(fid as u32, fid as u32, &NAME[0]);
+    let result: i64 = exchange(111); if result < 0 { return result; }
+    if result != 22 || walk_count() != 1 { return -5; }
+    LAST_TYPE = walk_type(); return 0;
+}
+unsafe fn create_fid(fid: u64, length: usize, permission: u64, mode: u64) -> i64 {
+    if BACKEND == 1 {
+        let result: i64 = local_error(local_create(SESSION, fid, &NAME[0], length, permission, mode, &mut RESULT[0], 8));
+        if result == 0 { LAST_UNIT = RESULT[3]; } return result;
+    }
+    begin(114); set_create(fid as u32, &NAME[0], permission as u32, mode as u8);
+    let result: i64 = exchange(115); if result < 0 { return result; }
+    if result != 24 { return -5; } LAST_UNIT = iounit(); return 0;
+}
+unsafe fn open_fid(fid: u64, mode: u64) -> i64 {
+    if BACKEND == 1 {
+        let result: i64 = local_error(local_open(SESSION, fid, mode, &mut RESULT[0], 8));
+        if result == 0 { LAST_UNIT = RESULT[3]; } return result;
+    }
+    begin(112); set_open(fid as u32, mode as u8); let result: i64 = exchange(113);
+    if result < 0 { return result; } if result != 24 { return -5; }
+    LAST_UNIT = iounit(); return 0;
+}
+unsafe fn read_fid(fid: u64, position: u64, output: *mut u8, wanted: usize) -> i64 {
+    if BACKEND == 1 {
+        let result: i64 = local_error(local_read(SESSION, fid, position, output, wanted, &mut RESULT[0], 8));
+        if result == 0 { LAST_COUNT = RESULT[0]; } return result;
+    }
+    begin(116); set_io(fid as u32, position, wanted as u32, 0 as *const u8);
+    let result: i64 = exchange(117); if result < 0 { return result; }
+    let received: usize = count() as usize;
+    if received > wanted || result != (received + 11) as i64 || received as u64 > MAX_POSITION - position { return -5; }
+    let bytes: usize = data() as usize; let base: usize = (&RESPONSE[0]) as usize;
+    if bytes < base || bytes > base + result as usize || received > base + result as usize - bytes { return -5; }
+    let mut i: usize = 0; while i < received { volatile_store(output + i, volatile_load((bytes + i) as *const u8)); i += 1; }
+    LAST_COUNT = received as u64; return 0;
+}
+unsafe fn write_fid(fid: u64, position: u64, input: *const u8, wanted: usize) -> i64 {
+    if BACKEND == 1 {
+        let result: i64 = local_error(local_write(SESSION, fid, position, input, wanted, &mut RESULT[0], 8));
+        if result == 0 { LAST_COUNT = RESULT[0]; } return result;
+    }
+    begin(118); set_io(fid as u32, position, wanted as u32, input);
+    let result: i64 = exchange(119); if result < 0 { return result; }
+    let written: usize = count() as usize;
+    if result != 11 || written > wanted { return -5; }
+    LAST_COUNT = written as u64; return 0;
 }
 unsafe fn context(owner: u64, namespace: u64, generation: u64) -> usize {
     let mut i: usize = 0; while i < CONTEXTS {
@@ -187,14 +272,28 @@ unsafe fn drop_context(slot: usize) -> i64 {
     ENABLED[slot] = 0; return result;
 }
 unsafe fn query_stat(fid: u64) -> i64 {
+    if BACKEND == 1 { return local_error(local_stat(SESSION, fid, &mut METADATA[0], 8)); }
     begin(124); set_fid(fid as u32); let result: i64 = exchange(125);
     if result < 0 { return result; }
-    if decode_stat() != 1 { return -5; } return 0;
+    if decode_stat() != 1 { return -5; }
+    METADATA[0] = (stat_mode() >> 24) & 255; METADATA[1] = stat_version(); METADATA[2] = stat_inode(); METADATA[3] = 0;
+    METADATA[4] = stat_mode(); METADATA[5] = stat_atime(); METADATA[6] = stat_mtime(); METADATA[7] = stat_length(); return 0;
 }
+unsafe fn metadata_length() -> u64 { return METADATA[7]; }
+unsafe fn metadata_mode() -> u64 { return METADATA[4]; }
+unsafe fn metadata_inode() -> u64 { return METADATA[2]; }
+unsafe fn metadata_version() -> u64 { return METADATA[1]; }
+unsafe fn metadata_atime() -> u64 { return METADATA[5]; }
+unsafe fn metadata_mtime() -> u64 { return METADATA[6]; }
 
 // Only trusted policy calls init/provision/revoke. Numeric return values are
 // Linux/POSIX-style negative errno values, not a claim of a syscall ABI.
-pub unsafe fn init(generation: u64) -> i64 {
+pub unsafe fn init(generation: u64) -> i64 { return init_backend(generation, 0); }
+// Trusted full-service initialization, never an application/syscall flag.
+// Selection cannot change an active description: a successful newer init
+// claims a new store session and invalidates ALL old contexts exactly as init.
+pub unsafe fn init_backend(generation: u64, backend: u64) -> i64 {
+    if backend > 1 { return -22; }
     if ACTIVE != 0 && session_is_current(1, SESSION) != 1 { invalidate(); }
     if generation == 0 { return -22; }
     if generation <= SERVICE_GENERATION { return -116; }
@@ -203,13 +302,18 @@ pub unsafe fn init(generation: u64) -> i64 {
     // slot; never replace a session provisioned by another native owner.
     if session == 0 && SESSION != 0 { session = session_claim(1, generation, 0); }
     if session == 0 { return -116; }
-    SESSION = session; SERVICE_GENERATION = generation; invalidate();
-    begin(100); set_version(WIRE_BYTES as u32, &VERSION[0]);
-    if exchange(101) != 19 || msize() != WIRE_BYTES as u64 { revoke_if_current(1, SESSION); return -5; }
-    let text: *const u8 = version(); let mut i: usize = 0;
-    while i < 7 { if volatile_load(text + i) != VERSION[i] { revoke_if_current(1, SESSION); return -5; } i += 1; }
-    begin(104); set_attach(1, 0xffff_ffff, &EMPTY[0], &EMPTY[0]);
-    if exchange(105) != 20 { revoke_if_current(1, SESSION); return -5; }
+    SESSION = session; SERVICE_GENERATION = generation; invalidate(); BACKEND = backend;
+    if BACKEND == 1 {
+        if local_version(SESSION, WIRE_BYTES, &mut RESULT[0], 8) != 0 || RESULT[0] != WIRE_BYTES as u64
+            || local_attach(SESSION, 1, &mut RESULT[0], 8) != 0 { revoke_if_current(1, SESSION); return -5; }
+    } else {
+        begin(100); set_version(WIRE_BYTES as u32, &VERSION[0]);
+        if exchange(101) != 19 || msize() != WIRE_BYTES as u64 { revoke_if_current(1, SESSION); return -5; }
+        let text: *const u8 = version(); let mut i: usize = 0;
+        while i < 7 { if volatile_load(text + i) != VERSION[i] { revoke_if_current(1, SESSION); return -5; } i += 1; }
+        begin(104); set_attach(1, 0xffff_ffff, &EMPTY[0], &EMPTY[0]);
+        if exchange(105) != 20 { revoke_if_current(1, SESSION); return -5; }
+    }
     ACTIVE = 1; return 0;
 }
 pub unsafe fn provision(owner: u64, namespace: u64, generation: u64) -> i64 {
@@ -276,9 +380,7 @@ pub unsafe fn open_file(owner: u64, namespace: u64, generation: u64, path: *cons
     let mut index: usize = 0; while index < DESCRIPTIONS { if DESCRIPTION_OWNER[index] == 0 { break; } index += 1; }
     if index == DESCRIPTIONS || NEXT_FID >= 0xffff_fffe { return -23; }
     NEXT_FID += 1; let fid: u64 = NEXT_FID;
-    begin(110); set_walk(1, fid as u32, 0 as *const u8);
-    let mut result: i64 = exchange(111); if result < 0 { return result; }
-    if result != 9 || walk_count() != 0 { clunk(fid); return -5; }
+    let mut result: i64 = clone_fid(fid); if result < 0 { return result; }
     let mut created: bool = false;
     i = 0;
     while i < length {
@@ -287,33 +389,30 @@ pub unsafe fn open_file(owner: u64, namespace: u64, generation: u64, path: *cons
             let start: usize = i; while i < length && volatile_load(path + i) != 47 { i += 1; }
             let size: usize = i - start; if size > 255 { clunk(fid); return -36; }
             let mut n: usize = 0; while n < size { NAME[n] = volatile_load(path + start + n); n += 1; } NAME[size] = 0;
-            begin(110); set_walk(fid as u32, fid as u32, &NAME[0]); result = exchange(111);
+            result = walk_fid(fid, size);
             if result == -2 && i == length && (flags & OPEN_CREATE) != 0 {
                 // Failed one-component in-place Twalk preserves the parent.
                 // The whole operation remains serialized with every frontend.
-                begin(114); set_create(fid as u32, &NAME[0], permissions as u32, access as u8);
-                result = exchange(115);
+                result = create_fid(fid, size, permissions, access);
                 if result < 0 { clunk(fid); return result; }
-                if result != 24 { clunk(fid); return -5; }
                 created = true;
             } else {
                 if result < 0 { clunk(fid); return result; }
-                if result != 22 || walk_count() != 1 { clunk(fid); return -5; }
-                if i < length && (walk_type() & 0x80) == 0 { clunk(fid); return -20; }
+                if i < length && (LAST_TYPE & 0x80) == 0 { clunk(fid); return -20; }
             }
         }
     }
     if !created {
         if (flags & (OPEN_CREATE | OPEN_EXCLUSIVE)) == (OPEN_CREATE | OPEN_EXCLUSIVE) { clunk(fid); return -17; }
         result = query_stat(fid); if result < 0 { clunk(fid); return result; }
-        if (stat_mode() & 0x8000_0000) != 0 { clunk(fid); return -21; }
+        if (metadata_mode() & 0x8000_0000) != 0 { clunk(fid); return -21; }
         if volatile_load(path + length - 1) == 47 { clunk(fid); return -20; }
-        if stat_length() > MAX_POSITION { clunk(fid); return -75; }
+        if metadata_length() > MAX_POSITION { clunk(fid); return -75; }
         let mut mode: u64 = access; if (flags & OPEN_TRUNCATE) != 0 { mode |= 16; }
-        begin(112); set_open(fid as u32, mode as u8); result = exchange(113);
-        if result < 0 { clunk(fid); return result; } if result != 24 { clunk(fid); return -5; }
+        result = open_fid(fid, mode);
+        if result < 0 { clunk(fid); return result; }
     }
-    let mut unit: u64 = iounit(); if unit == 0 || unit > (WIRE_BYTES - 11) as u64 { unit = (WIRE_BYTES - 11) as u64; }
+    let mut unit: u64 = LAST_UNIT; if unit == 0 || unit > (WIRE_BYTES - 11) as u64 { unit = (WIRE_BYTES - 11) as u64; }
     DESCRIPTION_OWNER[index] = (slot + 1) as u64; FID[index] = fid; POSITION[index] = 0; IO_UNIT[index] = unit;
     REFERENCES[index] = 1; FILE_FLAGS[index] = flags & (3 | OPEN_APPEND);
     FD_DESCRIPTION[slot * PER_CONTEXT + fd] = (index + 1) as u64; return (fd + 3) as i64;
@@ -331,25 +430,19 @@ pub unsafe fn read(owner: u64, namespace: u64, generation: u64, fd: i64, output:
     let mut completed: usize = 0;
     while completed < length {
         let mut wanted: usize = length - completed; if wanted > IO_UNIT[index] as usize { wanted = IO_UNIT[index] as usize; }
-        begin(116); set_io(FID[index] as u32, POSITION[index], wanted as u32, 0 as *const u8);
-        let result: i64 = exchange(117);
+        let result: i64 = read_fid(FID[index], POSITION[index], output + completed, wanted);
         if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } if completed != 0 { return completed as i64; } return result; }
-        let received: usize = count() as usize;
-        if received > wanted || result != (received + 11) as i64 || received as u64 > MAX_POSITION - POSITION[index] {
+        let received: usize = LAST_COUNT as usize;
+        if received > wanted || received as u64 > MAX_POSITION - POSITION[index] {
             if completed != 0 { return completed as i64; } return -5;
         }
-        let bytes: usize = data() as usize; let base: usize = (&RESPONSE[0]) as usize;
-        if bytes < base || bytes > base + result as usize || received > base + result as usize - bytes {
-            if completed != 0 { return completed as i64; } return -5;
-        }
-        let mut i: usize = 0; while i < received { volatile_store(output + completed + i, volatile_load((bytes + i) as *const u8)); i += 1; }
         completed += received; POSITION[index] += received as u64;
         if received < wanted { break; }
     } return completed as i64;
 }
 // Source is trusted native memory. The syscall adapter must copy a complete
 // chunk from user space BEFORE mutation. All successes are actual Twrite
-// acknowledgements from the shared store through the original codec.
+// acknowledgements from the shared store, through the selected trusted backend.
 pub unsafe fn write(owner: u64, namespace: u64, generation: u64, fd: i64, input: *const u8, length: usize) -> i64 {
     if !live() { return -116; }
     let index: usize = description(owner, namespace, generation, fd); if index == DESCRIPTIONS { return -9; }
@@ -362,8 +455,8 @@ pub unsafe fn write(owner: u64, namespace: u64, generation: u64, fd: i64, input:
     if (FILE_FLAGS[index] & OPEN_APPEND) != 0 {
         let result: i64 = query_stat(FID[index]);
         if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } return result; }
-        if stat_length() > MAX_POSITION { return -75; }
-        position = stat_length();
+        if metadata_length() > MAX_POSITION { return -75; }
+        position = metadata_length();
     }
     let mut completed: usize = 0;
     while completed < length {
@@ -371,11 +464,10 @@ pub unsafe fn write(owner: u64, namespace: u64, generation: u64, fd: i64, input:
         if wanted > IO_UNIT[index] as usize { wanted = IO_UNIT[index] as usize; }
         if wanted > WIRE_BYTES - 23 { wanted = WIRE_BYTES - 23; }
         if wanted as u64 > MAX_POSITION - position { if completed != 0 { return completed as i64; } return -75; }
-        begin(118); set_io(FID[index] as u32, position, wanted as u32, input + completed);
-        let result: i64 = exchange(119);
+        let result: i64 = write_fid(FID[index], position, input + completed, wanted);
         if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } if completed != 0 { return completed as i64; } return result; }
-        let written: usize = count() as usize;
-        if result != 11 || written > wanted { if completed != 0 { return completed as i64; } return -5; }
+        let written: usize = LAST_COUNT as usize;
+        if written > wanted { if completed != 0 { return completed as i64; } return -5; }
         completed += written; position += written as u64;
         if written != 0 { POSITION[index] = position; }
         if written < wanted { break; }
@@ -420,7 +512,7 @@ pub unsafe fn lseek(owner: u64, namespace: u64, generation: u64, fd: i64, offset
     if STALE_DESCRIPTION[index] != 0 { return -116; }
     let mut base: u64 = 0;
     if whence == 1 { base = POSITION[index]; }
-    else { if whence == 2 { let result: i64 = query_stat(FID[index]); if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } return result; } base = stat_length(); }
+    else { if whence == 2 { let result: i64 = query_stat(FID[index]); if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } return result; } base = metadata_length(); }
         else { if whence != 0 { return -22; } } }
     if base > MAX_POSITION { return -75; }
     let mut next: u64 = 0;
@@ -437,10 +529,10 @@ pub unsafe fn fstat(owner: u64, namespace: u64, generation: u64, fd: i64, record
     if words < 6 { return -22; }
     if record as usize == 0 || record as usize % 8 != 0 || record as usize > 0xffff_ffff_ffff_ffff - 48 { return -14; }
     let result: i64 = query_stat(FID[index]); if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } return result; }
-    if (stat_mode() & 0x8000_0000) != 0 || stat_length() > MAX_POSITION { return -75; }
-    volatile_store(record, stat_length()); volatile_store(record + 1, 0x8000 | (stat_mode() & 0x1ff));
-    volatile_store(record + 2, stat_inode()); volatile_store(record + 3, stat_version());
-    volatile_store(record + 4, stat_mtime()); volatile_store(record + 5, stat_atime()); return 0;
+    if (metadata_mode() & 0x8000_0000) != 0 || metadata_length() > MAX_POSITION { return -75; }
+    volatile_store(record, metadata_length()); volatile_store(record + 1, 0x8000 | (metadata_mode() & 0x1ff));
+    volatile_store(record + 2, metadata_inode()); volatile_store(record + 3, metadata_version());
+    volatile_store(record + 4, metadata_mtime()); volatile_store(record + 5, metadata_atime()); return 0;
 }
 pub unsafe fn close(owner: u64, namespace: u64, generation: u64, fd: i64) -> i64 {
     if !live() { return -116; }

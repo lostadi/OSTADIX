@@ -62,7 +62,7 @@ use runtime::common::u9fs_codec::tag;
 use runtime::common::u9fs_codec::count;
 use runtime::common::u9fs_codec::encodes;
 use runtime::common::u9fs_codec::decodes;
-use runtime::posix_file_syscalls::init as files_init;
+use runtime::posix_file_syscalls::init_backend as files_init_backend;
 use runtime::posix_file_syscalls::provision;
 use runtime::posix_file_syscalls::revoke_process;
 use runtime::posix_file_syscalls::dispatch;
@@ -93,6 +93,9 @@ static mut USER_COPY_FAULTS: u64 = 0;
 static mut CONTAINED: u64 = 0;
 static mut WINDOW: usize = 0;
 static mut WINDOWS: u64 = 0;
+const FILE_BACKEND: u64 = 0; // trusted isolated profile selection, not a syscall
+static mut CODEC_SEED: u64 = 0;
+static mut CODEC_FINAL: u64 = 0;
 static mut PRODUCER: u64 = 0;
 static mut REQUEST: [u8; 8192] = [0; 8192];
 static mut RESPONSE: [u8; 8192] = [0; 8192];
@@ -171,7 +174,8 @@ unsafe fn seed_store() -> void {
         if count() != 4096 { fail(0x141); } offset += 4096;
     }
     codec_begin(120,123); set_fid(2); exchange(121);
-    if files_init(1) != 0 { fail(0x142); }
+    CODEC_SEED = encodes();
+    if files_init_backend(1, FILE_BACKEND) != 0 { fail(0x142); }
     window_close();
 }
 unsafe fn owner_index() -> usize {
@@ -236,6 +240,8 @@ pub unsafe fn kernel_m6_phase_one_ready() -> u64 {
 pub unsafe fn kernel_m6_crash_continue() -> never {
     disable_interrupts();
     if kernel_m6_phase_one_ready() != 1 || ocore_current_cr3() != ocore_management_cr3() || encodes() == 0 || encodes() != decodes() { fail(0x170); }
+    CODEC_FINAL = encodes();
+    if FILE_BACKEND == 1 && CODEC_FINAL != CODEC_SEED { fail(0x172); }
     let mut i: usize = 0; while i < 4 { if !loaded_protections_hold(SPACES[i]) { fail(0x171); } i += 1; }
     write(&PREFIX[0],19); number(0x50415353); number(encodes()); number(USER_COPY_FAULTS); number(WINDOWS);
     loop { halt(); }

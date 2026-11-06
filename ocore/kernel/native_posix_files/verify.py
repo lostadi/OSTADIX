@@ -54,8 +54,9 @@ def main():
  parser.add_argument('--compiler',type=Path,default=ROOT/'target/debug/ocorec')
  parser.add_argument('--qemu',type=Path,default=Path.home()/'.local/opt/qemu-11.1.3/bin/qemu-system-x86_64')
  parser.add_argument('--timeout',type=float,default=90)
+ parser.add_argument('--backend',choices=['wire','local'],default='wire',help='Trusted isolated boot selection, never a user syscall flag')
  args=parser.parse_args();output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
- commands=[];result={'schema':'ostadix.native-posix-file-cpl3/v1','profile':PROFILE,'ok':False,'scope':'Production native O-core syscall/user-copy/process/AS/store code in isolated x86 QEMU CPL3 probe; fixture is not original application or Linux/Plan9 OS admission','selector_reuse':'25 for unchanged boot/router selection only; not canonical Mode25 corpus acceptance','platform':{'RAM_bytes':134217728,'CPUs':1,'reserved_native_volume_physical':[67108864,83886080],'volume_mapping':'Temporary supervisor-only RW/NX huge-page aperture during masked synchronous calls; absent on user/scheduler returns','copy_fault_injection':'One second-chunk user-data PTE temporarily absent during actual kernel copy, restored before return'},'commands':commands,'live_existing_vm_actions':[],'launcher_updates':[],'kernel_image_promotions':[]}
+ commands=[];result={'selected_backend':args.backend,'schema':'ostadix.native-posix-file-cpl3/v1','profile':PROFILE,'ok':False,'scope':'Production native O-core syscall/user-copy/process/AS/store code in isolated x86 QEMU CPL3 probe; fixture is not original application or Linux/Plan9 OS admission','selector_reuse':'25 for unchanged boot/router selection only; not canonical Mode25 corpus acceptance','platform':{'RAM_bytes':134217728,'CPUs':1,'reserved_native_volume_physical':[67108864,83886080],'volume_mapping':'Temporary supervisor-only RW/NX huge-page aperture during masked synchronous calls; absent on user/scheduler returns','copy_fault_injection':'One second-chunk user-data PTE temporarily absent during actual kernel copy, restored before return'},'commands':commands,'live_existing_vm_actions':[],'launcher_updates':[],'kernel_image_promotions':[]}
  def run(name,argv,timeout=120):
   argv=[str(a) for a in argv];start=time.monotonic();r=subprocess.run(argv,cwd=output,capture_output=True,text=True,timeout=timeout)
   log=output/(name+'.log');log.write_text(r.stdout+r.stderr);commands.append({'name':name,'argv':argv,'exit_code':r.returncode,'seconds':time.monotonic()-start,'log':info(log)})
@@ -81,6 +82,8 @@ def main():
   run('bind-image',['python3','-B',KERNEL/'bind-image.py',HERE/'probe.oc',image,output/'probe.oc','--prefix','PROBE_IMAGE_'])
   adapter_text=(output/'adapters.oc').read_text().replace('module kernel::m6;','').replace('use runtime::native_abi::ERR_NOT_IMPLEMENTED;','')
   probe_text=(output/'probe.oc').read_text().replace('module kernel::m6;','module kernel::m6;\nuse runtime::native_abi::ERR_NOT_IMPLEMENTED;')
+  if probe_text.count('const FILE_BACKEND: u64 = 0;')!=1:raise ValueError('expected one exact trusted backend selector')
+  probe_text=probe_text.replace('const FILE_BACKEND: u64 = 0;', 'const FILE_BACKEND: u64 = '+('1' if args.backend=='local' else '0')+';')
   (output/'probe.oc').write_text(probe_text+'\n'+adapter_text)
   built=[]
   for index in range(2):
@@ -134,13 +137,14 @@ def main():
        if 'error' in reply:raise ValueError(reply)
        if 'return' in reply:return reply['return']
      request('qmp_capabilities');request('stop');result['hardware_interrupt_trace']=info(output/'qemu-interrupts.log');observed={}
-     for name,bytes_ in [('WINDOW',8),('DONE',32),('CONTAINED',8),('USER_COPY_FAULTS',8),('WINDOWS',8)]:
+     for name,bytes_ in [('WINDOW',8),('DONE',32),('CONTAINED',8),('USER_COPY_FAULTS',8),('WINDOWS',8),('CODEC_SEED',8),('CODEC_FINAL',8)]:
       symbol='_O_kernel__m6__'+name
       if symbol not in symbols:raise ValueError('missing actual state symbol '+symbol)
       path=output/(name.lower()+'.bin');request('pmemsave',{'val':symbols[symbol],'size':bytes_,'filename':str(path)})
       raw=path.read_bytes();observed[name]=[int.from_bytes(raw[i:i+8],'little') for i in range(0,len(raw),8)]
      result['runtime_state']=observed
      if observed['WINDOW']!=[0] or observed['DONE']!=[1,1,1,1] or observed['CONTAINED']!=[1] or observed['USER_COPY_FAULTS']!=[1] or observed['WINDOWS'][0]<10:raise ValueError('actual runtime state mismatches '+str(observed))
+     if observed['CODEC_SEED'][0]==0 or (args.backend=='local' and observed['CODEC_FINAL']!=observed['CODEC_SEED']):raise ValueError('original codec local-bypass counters mismatch')
      result['registers']=request('human-monitor-command',{'command-line':'info registers'})
    finally:
     proc.terminate()
@@ -150,7 +154,7 @@ def main():
   if before!=after:raise ValueError('source changed during isolated qualification')
   for p in originals:
    target=output/'source'/p.relative_to(ROOT);target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(p.read_bytes());target.chmod(0o444)
-  result['checks']=['real CPL3 syscall entry and mapped user copies into same native store through original lowered codec','four private loaded CR3s; current-process descriptor isolation and unprovisioned denial','truthful copied argv/env/auxv and mapped program headers at actual fixture entry','supervisor-only transient volume aperture closed before every user/scheduler return','real recoverable kernel-copy page fault restores failing-chunk offset; only4096B returned','scoped process-context withdrawal and generation2 reprovision; other clients survive','production designated#UD fault containment and survivor quiescence','independent QMP reads completed state and no residual aperture; exact kernel double rebuild']
+  result['checks']=['real CPL3 syscall entry and mapped user copies into same native store through selected trusted backend (wire default)','four private loaded CR3s; current-process descriptor isolation and unprovisioned denial','truthful copied argv/env/auxv and mapped program headers at actual fixture entry','supervisor-only transient volume aperture closed before every user/scheduler return','real recoverable kernel-copy page fault restores failing-chunk offset; only4096B returned','scoped process-context withdrawal and generation2 reprovision; other clients survive','production designated#UD fault containment and survivor quiescence','independent QMP reads completed state and no residual aperture; exact kernel double rebuild']
   result['ok']=True
  except Exception as error:
   result['error']=str(error)

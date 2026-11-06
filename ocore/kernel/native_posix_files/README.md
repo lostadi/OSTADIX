@@ -156,3 +156,43 @@ exit, checks same-owner generation replay denial and rejection of premature
 retirement, and retains another process's descriptor/bytes across cleanup.
 The privileged architecture hooks are replaced in this carrier; it does not
 establish a hardware process-launch or general Linux exec lifecycle.
+
+## Explicit native-local qualification profile
+
+The default `init` entry still selects the original wire/codec backend. Trusted
+boot policy may instead call `init_backend(generation, 1)` for direct native
+regular-file operations into the same store and canonical policy helpers. This
+is full service reinitialization: it claims a new store session and invalidates
+old descriptor contexts. It is not a live-descriptor toggle, application option,
+or new grant. Unknown selections fail before changing the live binding.
+
+The isolated verifier exposes this boot choice only for qualification:
+
+```sh
+python3 -B ocore/kernel/native_posix_files/verify.py \
+  --backend local --output /NEW/PRIVATE/OUTPUT \
+  --compiler /PATH/TO/PINNED/ocorec --codec-manifest /PATH/TO/native-codec.json
+```
+
+The independent boot producer continues to use the original source-built codec.
+The local hardware profile requires its codec counter to remain unchanged
+between that completed seed operation and all subsequent native file calls.
+The existing four CPL3 principals, current-process authority, checked user
+copies, real recoverable copy fault, private aperture and isolation assertions
+remain active. `--backend wire` retains the comparison profile.
+
+Both variants share object/session/fid authority, metadata and the entire OFD
+algorithm. The local boundary returns bounded typed counts/QID/metadata instead
+of encoding, parsing and staging regular-file requests. Wire directory access
+and original transport boundaries retain their protocol implementations.
+Local regular-only directory/error/capacity categories are translated inside
+the common adapter to its existing caller-visible errors. Typed buffers are
+trusted kernel memory; this path never accepts an unchecked user pointer.
+
+Write transactions retain the existing8168-byte granularity and exact partial
+ENOSPC/version/time effects. This does not optimize byte-copy loops or linked
+block traversal. `tests.test_native_local_namespace_files` compares actual
+wire/local production objects, complete16MiB volumes and authoritative store
+and OFD state, while independently retained transport tests keep the existing
+wire framing/capacity contract. Matched component timings and code footprint
+must be reported separately; a codec bypass alone proves no system speedup.

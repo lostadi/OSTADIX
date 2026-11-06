@@ -21,7 +21,7 @@ use runtime::address_space::VM_READ;
 use runtime::user_memory::copy_from_user;
 use runtime::user_memory::copy_to_user;
 use runtime::user_memory::COPY_OK;
-use runtime::common::posix_namespace_files::init as files_init;
+use runtime::common::posix_namespace_files::init_backend as files_init_backend;
 use runtime::common::posix_namespace_files::provision as files_provision;
 use runtime::common::posix_namespace_files::revoke as files_revoke;
 use runtime::common::posix_namespace_files::retire as files_retire;
@@ -59,8 +59,10 @@ unsafe fn current() -> usize {
     return CONTEXTS;
 }
 
-pub unsafe fn init(service_generation: u64) -> i64 {
-    let result: i64 = files_init(service_generation);
+pub unsafe fn init(service_generation: u64) -> i64 { return init_backend(service_generation, 0); }
+// Trusted boot/full-service reinitialization only. No syscall selects backend.
+pub unsafe fn init_backend(service_generation: u64, backend: u64) -> i64 {
+    let result: i64 = files_init_backend(service_generation, backend);
     if result < 0 { return result; }
     let mut i: usize = 0; while i < CONTEXTS { ENABLED[i] = 0; i += 1; }
     return 0;
