@@ -1109,6 +1109,16 @@ fn noalias_graph_source(module: &NativeModule) -> Result<()> {
     }
     let mut roots = Vec::new();
     let mut attachment_order = Vec::new();
+    // Borrow the original keys and retain original inventory ordinals. Lookup
+    // removes repeated whole-inventory scans; map iteration never orders roots.
+    let mut attachments_by_block: HashMap<(&str, BlockId), Vec<(usize, &NoAliasAttachment)>> =
+        HashMap::new();
+    for (index, attachment) in module.noalias_metadata.attachments.iter().enumerate() {
+        attachments_by_block
+            .entry((attachment.site.function.as_str(), attachment.site.block))
+            .or_default()
+            .push((index, attachment));
+    }
     // Merge by actual original instruction ordinal inside public function and
     // block order. Never group declarations separately from access attachments.
     for function in &module.functions {
@@ -1131,8 +1141,9 @@ fn noalias_graph_source(module: &NativeModule) -> Result<()> {
                     }
                 }
             }
-            for (index, attachment) in module.noalias_metadata.attachments.iter().enumerate() {
-                if attachment.site.function == function.name && attachment.site.block == block.id {
+            if let Some(attachments) = attachments_by_block.get(&(function.name.as_str(), block.id))
+            {
+                for &(index, attachment) in attachments {
                     if events
                         .entry(attachment.site.source_instruction)
                         .or_default()
