@@ -431,6 +431,9 @@ impl<'a> Prepared<'a> {
                                 prepared.scalar_operand(function_id, arg)?;
                             }
                         }
+                        Operation::LinuxSyscall { .. } => {
+                            return Err(fail("Linux platform effects cannot execute in the scalar reference interpreter"));
+                        }
                         Operation::FloatBinary { .. }
                         | Operation::FloatNeg { .. }
                         | Operation::FloatAbs { .. }
@@ -828,6 +831,7 @@ mod tests {
                 atomic_profile: None,
                 wide_volatile_profile: None,
                 strict_fp_profile: None,
+                linux_syscall_profile: None,
                 data_layout: "e-p:64:64-i64:64-i128:128".into(),
                 pointer_bits: 64,
                 little_endian: true,

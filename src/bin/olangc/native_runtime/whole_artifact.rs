@@ -218,6 +218,9 @@ impl SourceGroup {
                 .check_module_order(&order.fresh_module_order(inputs)?)
         })
     }
+    pub(super) fn required_platform_interfaces(&self) -> Result<Vec<Value>> {
+        self.module_set.required_platform_interfaces()
+    }
     fn check(&self) -> Result<()> {
         if !is_format(&self.format)
             || self.root != self.module_set.name
@@ -658,6 +661,9 @@ pub(super) fn compile_package_selected_membership(
                     fresh.display().to_string(),
                 ];
                 let module = native.verify()?;
+                if module.target.linux_syscall_profile.is_some() {
+                    args.extend(["--linux-syscall-profile".into(), "linux-user-raw-v1".into()]);
+                }
                 if module.target.tls_profile.is_some() {
                     args.extend([
                         "--tls-profile".into(),
@@ -713,10 +719,14 @@ pub(super) fn compile_package_selected_membership(
         }
     }
     let complete = issues.is_empty();
-    let receipt = json!({"schema":"ocore-source-group-readmission-v1","source_group_sha256":digest(bytes),"units":records,"issues":issues,
+    let mut receipt = json!({"schema":"ocore-source-group-readmission-v1","source_group_sha256":digest(bytes),"units":records,"issues":issues,
         "metadata_diagnostics_capability":metadata_capability,
         "included_original_ir_body_consistency":complete,"original_checkout_build_reverified":false,
         "artifact_complete":false,"platform_resource_closure_complete":false,"native_execution_qualified":false,"runtime_complete":false});
+    let required_platforms = group.module_set.required_platform_interfaces()?;
+    if !required_platforms.is_empty() {
+        receipt["required_platform_interfaces"] = json!(required_platforms);
+    }
     fs::write(
         output.join("source-readmission.json"),
         serde_json::to_vec_pretty(&receipt)?,

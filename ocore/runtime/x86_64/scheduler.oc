@@ -29,6 +29,7 @@ use runtime::thread::commit_next;
 use runtime::thread::cspace_for_thread;
 use runtime::thread::defer_next;
 use runtime::thread::current_handle as current_thread_handle;
+use runtime::thread::current_linux_tid;
 use runtime::thread::domain_for_thread;
 use runtime::thread::frame_pointer;
 use runtime::thread::identity_matches_process;
@@ -71,6 +72,7 @@ static mut PENDING_SLEEP_DELTA: u64 = 0;
 static mut PENDING_REQUEST: u64 = 0;
 static mut PENDING_RESULT: u64 = 0;
 static mut PENDING_EXIT_STATUS: u64 = 0;
+static mut PENDING_LINUX_EXIT: u8 = 0;
 // Trusted, boot-only opt-in for the loaded Linux-personality scheduler. A
 // syscall-entry token binds every control action to this exact masked entry,
 // never to a return-value sentinel or an application-provided frame pointer.
@@ -181,6 +183,7 @@ pub unsafe fn init() -> void {
     PENDING_REQUEST = 0;
     PENDING_RESULT = 0;
     PENDING_EXIT_STATUS = 0;
+    PENDING_LINUX_EXIT = 0;
     IDLE_POLICY = 0;
     SYSCALL_PHASE = 0;
     SYSCALL_SERIAL = 0;
@@ -231,7 +234,7 @@ pub unsafe fn enable_personality_idle() -> u64 {
         || CONTEXT_SWITCHES != 0 || LAST_TICK != 0 || IDLE_TICKS != 0
         || current_thread_handle() != 0 || current_process_handle() != 0
         || runnable_count() != 4 || blocked_count() != 0
-        || PENDING_ACTION != 0 || SYSCALL_PHASE != 0
+        || PENDING_ACTION != 0 || PENDING_LINUX_EXIT != 0 || SYSCALL_PHASE != 0
         || !queue_invariants_hold() { return 0; }
     let mut i: usize = 0;
     while i < 4 {
@@ -296,7 +299,7 @@ pub unsafe fn kernel_scheduler_syscall_enter(frame: usize) -> u64 {
         || ACTIVE != 1 || FAILED != 0 || COMPLETE != 0
         || SCHEDULER_KIND != SCHEDULER_KIND_PERSONALITY
         || SYSCALL_PHASE != 0 || SYSCALL_IDLE_DISPOSITION != 0
-        || PENDING_ACTION != 0 || PENDING_SERIAL != 0
+        || PENDING_ACTION != 0 || PENDING_SERIAL != 0 || PENDING_LINUX_EXIT != 0
         || SYSCALL_SERIAL == 0xffff_ffff_ffff_ffff
         || current_thread_handle() == 0 || current_process_handle() == 0
         || current_personality_id() != PERSONALITY_LINUX_MINIMAL
@@ -325,7 +328,7 @@ unsafe fn syscall_request_allowed() -> bool {
     if IDLE_POLICY == 0 { return true; }
     return IDLE_POLICY == 1 && ACTIVE == 1 && FAILED == 0
         && SYSCALL_PHASE == 1 && PENDING_ACTION == 0
-        && PENDING_SERIAL == 0 && syscall_identity_holds();
+        && PENDING_SERIAL == 0 && PENDING_LINUX_EXIT == 0 && syscall_identity_holds();
 }
 
 unsafe fn bind_pending_entry() -> void {
@@ -343,7 +346,7 @@ pub unsafe fn kernel_scheduler_syscall_route(result: u64) -> u64 {
         || !syscall_identity_holds() || !queue_invariants_hold() {
         fail_syscall_transaction(); return 3;
     }
-    if PENDING_ACTION == 0 && PENDING_SERIAL == 0 {
+    if PENDING_ACTION == 0 && PENDING_SERIAL == 0 && PENDING_LINUX_EXIT == 0 {
         clear_syscall_entry(); return 1;
     }
     if PENDING_ACTION == 0 || PENDING_SERIAL != SYSCALL_SERIAL
@@ -358,7 +361,7 @@ unsafe fn empty_idle_eligible() -> bool {
     return IDLE_POLICY == 1 && ocore_interrupts_masked() == 1
         && ACTIVE == 1 && FAILED == 0 && COMPLETE == 0
         && COMPLETION_KIND == 0 && SCHEDULER_KIND == SCHEDULER_KIND_PERSONALITY
-        && PENDING_ACTION == 0 && PENDING_SERIAL == 0
+        && PENDING_ACTION == 0 && PENDING_SERIAL == 0 && PENDING_LINUX_EXIT == 0
         && current_thread_handle() == 0 && current_process_handle() == 0
         && runnable_count() == 0 && M2_PENDING_NT_THREAD == 0
         && queue_invariants_hold();
@@ -450,13 +453,55 @@ pub unsafe fn request_process_exit(status: u64) -> u64 {
     }
     PENDING_ACTION = 4;
     bind_pending_entry();
+    PENDING_LINUX_EXIT = 0;
     PENDING_EXIT_STATUS = status;
     return SYSCALL_CONTROL_SCHEDULE;
+}
+
+// A distinct trusted boot admission for the Linux terminal-exit provider.
+// Identity/TID startup admission by itself never enables this policy.
+pub unsafe fn can_admit_linux_exit_policy() -> u64 {
+    return (IDLE_POLICY == 1 && ACTIVE == 1 && FAILED == 0 && COMPLETE == 0
+        && SCHEDULER_KIND == SCHEDULER_KIND_PERSONALITY && COMPLETION_KIND == 0
+        && CONTEXT_SWITCHES == 0 && LAST_TICK == 0 && IDLE_TICKS == 0
+        && current_thread_handle() == 0 && current_process_handle() == 0
+        && runnable_count() == 4 && blocked_count() == 0
+        && PENDING_ACTION == 0 && PENDING_SERIAL == 0 && PENDING_LINUX_EXIT == 0
+        && SYSCALL_PHASE == 0 && queue_invariants_hold()
+        && ocore_management_context_ready() == 1) as u64;
+}
+
+// Only the actual60/231 entry of an admitted sole Linux leader can publish a
+// never-resumed terminal action. The compatibility component normalizes the
+// status and verifies its independently admitted trusted cleanup provider.
+pub unsafe fn request_linux_process_exit(number: u64, status: u64) -> u64 {
+    if IDLE_POLICY != 1 || !syscall_request_allowed()
+        || (number != 60 && number != 231) || SYSCALL_NUMBER != number
+        || current_linux_tid() == 0 || status > 0xff00 || (status & 255) != 0
+        || (volatile_load((SYSCALL_FRAME as *const u64) + 19) & 2) == 0 {
+        return ERR_NOT_IMPLEMENTED;
+    }
+    let result: u64 = request_process_exit(status);
+    if result == SYSCALL_CONTROL_SCHEDULE { PENDING_LINUX_EXIT = 1; }
+    return result;
+}
+
+// Pure cleanup-boundary authority check, before PCB/TCB retirement. Source
+// user RIP/RSP is not a future return target for this Linux noreturn action.
+pub unsafe fn linux_process_exit_cleanup_ready(status: u64) -> u64 {
+    return (IDLE_POLICY == 1 && ACTIVE == 1 && FAILED == 0
+        && SYSCALL_PHASE == 3 && syscall_identity_holds()
+        && PENDING_ACTION == 4 && PENDING_LINUX_EXIT == 1
+        && PENDING_SERIAL == SYSCALL_SERIAL && PENDING_EXIT_STATUS == status
+        && (SYSCALL_NUMBER == 60 || SYSCALL_NUMBER == 231)
+        && current_linux_tid() != 0 && status <= 0xff00 && (status & 255) == 0
+        && (volatile_load((SYSCALL_FRAME as *const u64) + 19) & 2) != 0) as u64;
 }
 
 unsafe fn clear_pending_action() -> void {
     PENDING_ACTION = 0;
     PENDING_SERIAL = 0;
+    PENDING_LINUX_EXIT = 0;
     PENDING_SLEEP_DELTA = 0;
     PENDING_REQUEST = 0;
     PENDING_RESULT = 0;
@@ -539,9 +584,17 @@ pub unsafe fn kernel_scheduler_syscall(frame: *mut u64) -> usize {
     }
     let source_thread: u64 = current_thread_handle();
     let running_process: u64 = current_process_handle();
-    if save_current(frame as *const u64) == 0 {
-        clear_syscall_entry();
-        return contain_invalid_current_frame(source_thread, running_process);
+    let terminal_linux_exit: bool = PENDING_LINUX_EXIT != 0;
+    if terminal_linux_exit {
+        if PENDING_LINUX_EXIT != 1
+            || linux_process_exit_cleanup_ready(PENDING_EXIT_STATUS) != 1 {
+            fail_syscall_transaction(); return 0;
+        }
+    } else {
+        if save_current(frame as *const u64) == 0 {
+            clear_syscall_entry();
+            return contain_invalid_current_frame(source_thread, running_process);
+        }
     }
     if PENDING_ACTION == 4 {
         let status: u64 = PENDING_EXIT_STATUS;
@@ -1721,7 +1774,8 @@ pub unsafe fn on_timer(frame: *mut u64, now: u64, from_user: bool) -> usize {
         if from_user || current_process_handle() != 0
             || (IDLE_POLICY != 0
                 && (IDLE_POLICY != 1 || SYSCALL_PHASE != 0
-                    || PENDING_ACTION != 0 || SYSCALL_IDLE_DISPOSITION != 0
+                    || PENDING_ACTION != 0 || PENDING_LINUX_EXIT != 0
+                    || SYSCALL_IDLE_DISPOSITION != 0
                     || ocore_management_context_ready() != 1)) {
             if IDLE_POLICY != 0 { fail_syscall_transaction(); }
             FAILED = 1;

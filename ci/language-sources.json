@@ -753,6 +753,36 @@
       ]
     },
     {
+      "id": "ocore-native-linux-sole-task-exit-kernel",
+      "category": "kernel-module",
+      "reason": "Dedicated protected Linux60/231 lifecycle profile compiled with the native runtime and its trusted policy/cleanup provider; not a standalone program.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native_linux_exit/verify.py",
+          "kind": "runtime",
+          "conditions": "Explicit trusted opt-in x86-64 bootCPU loaded sole-task/sole-mm leader profile; actual CPL3 exit60/231, native owner file cleanup and final management idle, original codec closure and QEMU. Authored carrier, not libc/application source lowering, clone/shared-mm/futex/wait/signals/SMP or full OS acceptance."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/native_linux_exit/probe.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-linux-sole-task-exit-runtime",
+      "category": "runtime-module",
+      "reason": "Native Linux compatibility boundary requires current registry generations, token-bound scheduler and an independently admitted trusted cleanup provider.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native_linux_exit/verify.py",
+          "kind": "runtime",
+          "conditions": "Protected actual CPL3 policy/status/cleanup/terminal-frame profile with per-attempt captured inputs; no default Linux exit enablement or full process ABI claim."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/linux_process_syscalls.oc"
+      ]
+    },
+    {
       "id": "ocore-native-thread-fs-kernel",
       "category": "kernel-module",
       "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
@@ -882,6 +912,26 @@
       ],
       "sources": [
         "ocore/runtime/x86_64/exec_startup_capture.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-linux-credential-reads",
+      "category": "runtime-module",
+      "reason": "Immutable Linux compatibility identities belong to a trusted generation-bound process-start policy; numeric IDs grant no object/capability/permission authority.",
+      "coverage": [
+        {
+          "path": "tests/test_linux_credentials.py",
+          "kind": "runtime",
+          "conditions": "Actual native x86-64 registry/loader carrier with image delivery and privileged hooks supplied by host; immutable policy, auxv, generation teardown/reuse and semantic negatives. No original libc or full provider closure."
+        },
+        {
+          "path": "ocore/kernel/native_credentials/verify.py",
+          "kind": "runtime",
+          "conditions": "Actual four-principal CPL3 getters against matching configured auxv before/after scheduler preemption/idle; supports explicit unadmitted-role negatives. QEMU1CPU is separate from physical hardware, original program and broad Linux ABI acceptance."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/linux_credentials.oc"
       ]
     }
   ],

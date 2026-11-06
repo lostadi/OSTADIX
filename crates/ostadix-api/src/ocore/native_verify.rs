@@ -2242,6 +2242,7 @@ fn opaque_declarations(module: &NativeModule) -> Result<()> {
 
 /// Validate a complete module before target-specific support checks/emission.
 pub fn verify(module: &NativeModule) -> Result<()> {
+    super::native_platform::verify(module)?;
     if module.format != FORMAT {
         return Err(fail("format", "unsupported native module format"));
     }
@@ -2446,7 +2447,7 @@ pub fn verify(module: &NativeModule) -> Result<()> {
 pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
     match module.target.strict_fp_profile {
         None => return Ok(()),
-        Some(StrictFpProfile::IntegerOnlyV1) => {}
+        Some(StrictFpProfile::IntegerOnlyV1 | StrictFpProfile::IntegerLinuxSyscallV1) => {}
     }
     fn value_type(module: &NativeModule, ty: TypeId) -> Result<()> {
         match module.types.get(ty) {
@@ -2586,6 +2587,12 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
                         | AtomicRmwOp::UsubCond
                         | AtomicRmwOp::UsubSat => {}
                     },
+                    Operation::LinuxSyscall { source, .. } => {
+                        if module.target.strict_fp_profile != Some(StrictFpProfile::IntegerLinuxSyscallV1) {
+                            return Err(fail("strict_fp_profile", "integer_only_v1 excludes Linux platform operations"));
+                        }
+                        signature(module, &source.signature)?;
+                    }
                     Operation::Call {
                         signature: call, ..
                     } => signature(module, call)?,
@@ -3753,6 +3760,12 @@ impl<'a> Verifier<'a> {
                 .ok_or_else(|| fail(context, "instruction requires an SSA result"))
         };
         match &instruction.operation {
+            Operation::LinuxSyscall { number, arguments, source } => {
+                self.same_type(result()?, source.signature.result, context)?;
+                for (value, ty) in std::iter::once(number).chain(arguments).zip(&source.signature.params) {
+                    self.same_type(operand(value)?, *ty, context)?;
+                }
+            }
             Operation::NoAliasScopeDecl { scope_list, .. } => {
                 if instruction.result.is_some() {
                     return Err(fail(
@@ -4682,6 +4695,7 @@ impl<'a> Verifier<'a> {
 
 pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
     match operation {
+        Operation::LinuxSyscall { number, arguments, .. } => std::iter::once(number).chain(arguments).collect(),
         Operation::Assume { condition } => vec![condition],
         Operation::Lifetime { pointer, .. } => vec![pointer],
         Operation::MemorySet {

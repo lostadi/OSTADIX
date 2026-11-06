@@ -153,6 +153,14 @@ class LLVM:
             "LLVMGetAtomicRMWBinOp": (B, [P]), "LLVMGetWeak": (B, [P]),
             "LLVMGetCmpXchgSuccessOrdering": (B, [P]),
             "LLVMGetCmpXchgFailureOrdering": (B, [P]),
+            "LLVMIsAInlineAsm": (P, [P]),
+            "LLVMGetInlineAsmAsmString": (P, [P, C.POINTER(S)]),
+            "LLVMGetInlineAsmConstraintString": (P, [P, C.POINTER(S)]),
+            "LLVMGetInlineAsmDialect": (U, [P]),
+            "LLVMGetInlineAsmFunctionType": (P, [P]),
+            "LLVMGetInlineAsmHasSideEffects": (B, [P]),
+            "LLVMGetInlineAsmNeedsAlignedStack": (B, [P]),
+            "LLVMGetInlineAsmCanUnwind": (B, [P]),
             "LLVMGetCalledValue": (P, [P]), "LLVMGetCalledFunctionType": (P, [P]),
             "LLVMGetNumArgOperands": (U, [P]),
             "LLVMGetInstructionCallConv": (U, [P]), "LLVMGetNumOperandBundles": (U, [P]),
@@ -181,6 +189,7 @@ class LLVM:
             "LLVMGetNamedMetadataName": (P, [P, C.POINTER(S)]),
             "LLVMGetNamedMetadataNumOperands": (U, [P, C.c_char_p]),
             "LLVMGetNamedMetadataOperands": (None, [P, C.c_char_p, C.POINTER(P)]),
+            "LLVMMDNodeInContext2": (P, [P, C.POINTER(P), S]),
             "LLVMGetMDNodeNumOperands": (U, [P]), "LLVMGetMDNodeOperands": (None, [P, C.POINTER(P)]),
             "LLVMGetMDString": (P, [P, C.POINTER(U)]),
         }
@@ -300,8 +309,13 @@ class Importer:
                 "nontemporal", "invariant.load", "invariant.group", "llvm.loop", "prof",
                 "align", "dereferenceable", "dereferenceable_or_null", "unpredictable"}
 
-    def __init__(self, api: LLVM, context, module, tls_profile=None, atomic_profile=None, wide_volatile_profile=None):
+    def __init__(self, api: LLVM, context, module, tls_profile=None, atomic_profile=None, wide_volatile_profile=None, linux_syscall_profile=None):
         self.a, self.context, self.module = api, context, module
+        if linux_syscall_profile not in {None, "linux-user-raw-v1"}:
+            raise ImportFailure("unsupported Linux syscall realization profile")
+        self.linux_syscall_profile = linux_syscall_profile
+        self.linux_locations, self.linux_srcloc = {}, {}
+        self.srcloc_metadata_kind = None
         if tls_profile not in {None, self.TLS_PROFILE}:
             raise ImportFailure(f"unsupported TLS profile {tls_profile}")
         self.tls_profile = tls_profile
@@ -349,6 +363,8 @@ class Importer:
         self.metadata_names = {api.GetMDKindIDInContext(context, name.encode(), len(name)): name for name in self.METADATA}
         self.noundef_metadata_kind = api.GetMDKindIDInContext(context, b"noundef", 7)
         self.callees_metadata_kind = api.GetMDKindIDInContext(context, b"callees", 7)
+        if self.linux_syscall_profile is not None:
+            self.srcloc_metadata_kind = api.GetMDKindIDInContext(context, b"srcloc", 6)
         self.call_target_constraints = []
 
     def reject(self, message):
@@ -580,7 +596,12 @@ class Importer:
                     self.reject("strictfp requires an enum-zero function-slot attribute")
                 site = "callsite" if call else "function"
                 self.strict_fp_sites.add((self.symbol, site, index))
-                self.refinements.add(f"{self.symbol}: strictfp-integer-v1 {site} attribute index {index}: preserve ambient floating-point rounding/control and exception state through independently audited integer/pointer operations; retain ordered original calls and their provider effects; no floating SSA/ABI, constrained operation, vector execution or inline assembly admitted; no floating operation or fixed rounding introduced; dependency providers remain separate obligations")
+                if self.linux_syscall_profile is not None:
+                    self.refinements.add("strictfp-integer-linux-syscall-v1: separately audited ordered opaque Linux operation allowed; original provider effects and ambient FP state remain external obligations; not integer_only_v1 ASM admission")
+                realization = f"{self.symbol}: strictfp-integer-v1 {site} attribute index {index}: preserve ambient floating-point rounding/control and exception state through independently audited integer/pointer operations; retain ordered original calls and their provider effects; no floating SSA/ABI, constrained operation, vector execution or inline assembly admitted; no floating operation or fixed rounding introduced; dependency providers remain separate obligations"
+                if self.linux_syscall_profile is not None:
+                    realization = realization.replace("strictfp-integer-v1", "strictfp-integer-linux-syscall-v1").replace("or inline assembly admitted", "admitted; only the explicit Linux raw-syscall operation has an independently audited opaque-provider realization")
+                self.refinements.add(realization)
                 continue
             pointer_indices = {1} if intrinsic and intrinsic.startswith("llvm.memset.") else {1, 2}
             if intrinsic == "llvm.threadlocal.address.p0" and name == "align":
@@ -1406,6 +1427,96 @@ class Importer:
             self.reject("noalias scope declaration requires a list containing exactly one scope")
         return node["id"]
 
+    def linux_source_location(self, metadata):
+        a = self.a
+        value = a.MetadataAsValue(self.context, metadata) if metadata else None
+        if not value or a.GetMetadataKind(metadata) != 4 or not a.IsAMDNode(value):
+            self.reject("Linux raw-syscall srcloc requires an actual MDTuple")
+        count = a.GetMDNodeNumOperands(value)
+        if not count:
+            self.reject("Linux raw-syscall srcloc requires a nonempty constant-integer tuple")
+        operands = (P * count)()
+        a.GetMDNodeOperands(value, operands)
+        integers = []
+        for operand in operands:
+            if not operand or not a.IsAConstantInt(operand):
+                self.reject("Linux raw-syscall srcloc only admits typed constant integers")
+            width = a.GetIntTypeWidth(a.TypeOf(operand))
+            if not 1 <= width <= 64:
+                self.reject("Linux raw-syscall srcloc integer width must be 1..64")
+            integers.append({"width": width, "bits": str(a.ConstIntGetZExtValue(operand))})
+        # Reconstruct only an interned tuple in the same context, without
+        # changing any module attachment. Identity against this uniqued node
+        # distinguishes original distinct storage; parsed verified source has
+        # no temporary nodes. Single-constant MetadataAsValue printers unwrap
+        # tuples, so no printer text or context numeric kind is used here.
+        members = (P * count)(*(a.ValueAsMetadata(operand) for operand in operands))
+        interned = a.MDNodeInContext2(self.context, members, count)
+        storage = "uniqued" if interned == metadata else "distinct"
+        if metadata not in self.linux_locations:
+            self.linux_locations[metadata] = len(self.linux_locations)
+        return {"node": self.linux_locations[metadata], "storage": storage, "operands": integers}
+
+    def linux_syscall(self, value, callee, signature, args):
+        a = self.a
+        if self.linux_syscall_profile != "linux-user-raw-v1":
+            self.reject("InlineAsm requires explicit audited --linux-syscall-profile linux-user-raw-v1")
+        triple = a.GetTarget(self.module).decode()
+        fields = triple.split("-")
+        if "linux" not in fields:
+            self.reject("Linux syscall profile requires the original Linux source target")
+        arch = fields[0]
+        descriptors = {
+            "x86_64": (b"syscall", ["={ax}", "{ax}"], ["{di}", "{si}", "{dx}", "{r10}", "{r8}", "{r9}"], ["~{rcx}", "~{r11}", "~{memory}", "~{dirflag}", "~{fpsr}", "~{flags}"]),
+            "aarch64": (b"svc 0", ["={x0}", "{x8}"], ["{x0}", "{x1}", "{x2}", "{x3}", "{x4}", "{x5}"], ["~{memory}", "~{cc}"]),
+            "riscv64": (b"ecall\n\t", ["={x10}", "{x17}"], ["{x10}", "{x11}", "{x12}", "{x13}", "{x14}", "{x15}"], ["~{memory}"]),
+        }
+        if arch not in descriptors or not 1 <= len(args) <= 7:
+            self.reject("unsupported Linux raw-syscall ISA/arity")
+        template, fixed, registers, clobbers = descriptors[arch]
+        def raw(getter):
+            size = S()
+            pointer = getter(callee, C.byref(size))
+            return C.string_at(pointer, size.value) if size.value else b""
+        assembly = raw(a.GetInlineAsmAsmString)
+        constraints = raw(a.GetInlineAsmConstraintString)
+        expected = ",".join(fixed + registers[:len(args)-1] + clobbers).encode()
+        source_type = a.GetInlineAsmFunctionType(callee)
+        if (assembly != template or constraints != expected
+                or not a.GetInlineAsmHasSideEffects(callee)
+                or a.GetInlineAsmNeedsAlignedStack(callee) or a.GetInlineAsmDialect(callee) != 0
+                or a.GetInlineAsmCanUnwind(callee) or a.GetInstructionCallConv(value) != 0
+                or a.GetTailCallKind(value) not in {0, 1, 3}
+                or source_type != a.GetCalledFunctionType(value)
+                or a.IsFunctionVarArg(source_type)
+                or signature["abi"] != "c" or signature["variadic"]
+                or any(self.types[ty] != {"kind": "int", "bits": 64}
+                       for ty in [signature["result"], *signature["params"]])
+                or len(signature["params"]) != len(args)
+                or signature.get("return_storage") is not None
+                or signature.get("result_attributes")
+                or any(signature.get("param_attributes", []))):
+            self.reject("unsupported exact Linux raw-syscall InlineAsm/signature/constraint contract")
+        attributes = []
+        for index in [0, *range(1, len(args)+1), 0xffffffff]:
+            for attribute in self.attribute_records(value, index, True):
+                if not a.IsEnumAttribute(attribute):
+                    self.reject("raw-syscall source attributes require supported enum-zero witnesses")
+                name = self.attribute_names.get(a.GetEnumAttributeKind(attribute))
+                if ((index == 0xffffffff and name not in {"nounwind", "strictfp"})
+                        or index != 0xffffffff and name != "noundef"
+                        or a.GetEnumAttributeValue(attribute) != 0):
+                    self.reject("unsupported exact raw-syscall callsite attribute witness")
+                attributes.append({"index": index, "name": name, "value": 0})
+        attributes.sort(key=lambda item: (item["index"], item["name"]))
+        witness = {"schema": "ocore.llvm-linux-syscall-source/v1", "site": {key: self.source_sites[value][key] for key in ("function", "block", "source_instruction")},
+                   "assembly": list(assembly), "constraints": list(constraints),
+                   "side_effects": True, "align_stack": False, "dialect": 0, "can_unwind": False,
+                   "calling_convention": 0, "tail_kind": a.GetTailCallKind(value),
+                   "signature": signature, "attributes": attributes, "srcloc": self.linux_srcloc.get(value)}
+        self.refinements.add("linux-user-raw-v1: original Linux target, exact fixed-register i64 operands/result, ordered opaque memory/platform effects, source constraints/clobbers/flags/call attributes and contextual typed srcloc witness retained; own ISA syscall instruction only; no number translation, syscall purity, errno wrapper, provider implementation or resource closure inferred")
+        return {"op": "linux_syscall", "number": args[0], "arguments": args[1:], "source": witness}
+
     def metadata(self, value, global_value=False):
         a, count = self.a, S()
         entries = (a.GlobalCopyAllMetadata if global_value else a.InstructionGetAllMetadataOtherThanDebugLoc)(value, C.byref(count))
@@ -1413,6 +1524,12 @@ class Importer:
         try:
             for i in range(count.value):
                 kind = a.ValueMetadataEntriesGetKind(entries, i)
+                if kind == self.srcloc_metadata_kind and self.linux_syscall_profile is not None:
+                    if (global_value or a.GetInstructionOpcode(value) != 45
+                            or not a.IsAInlineAsm(a.GetCalledValue(value))):
+                        self.reject("srcloc realization is limited to the exact supported InlineAsm call")
+                    self.linux_srcloc[value] = self.linux_source_location(a.ValueMetadataEntriesGetMetadata(entries, i))
+                    continue
                 if kind == self.noundef_metadata_kind:
                     if global_value or a.GetInstructionOpcode(value) != 27:
                         self.reject("noundef metadata requires a LoadInst owner")
@@ -2507,7 +2624,9 @@ class Importer:
                     [self.operand(a.GetOperand(value, i)) for i in range(a.GetNumArgOperands(value))])
             if intrinsic:
                 self.intrinsic_signature(intrinsic, signature)
-            if intrinsic == self.NOALIAS_INTRINSIC:
+            if a.IsAInlineAsm(callee) and self.linux_syscall_profile is not None:
+                operation = self.linux_syscall(value, callee, signature, args)
+            elif intrinsic == self.NOALIAS_INTRINSIC:
                 argument = a.GetOperand(value, 0)
                 if a.GetTypeKind(a.TypeOf(argument)) != 14:
                     self.reject("noalias scope declaration requires a compiler-only metadata argument")
@@ -3073,7 +3192,9 @@ class Importer:
                 self.audit_strict_fp_integer_operations(functions)
             target = {"triple": triple, "data_layout": layout, "pointer_bits": 64, "little_endian": True}
             if self.strict_fp_sites:
-                target["strict_fp_profile"] = "integer_only_v1"
+                target["strict_fp_profile"] = ("integer_linux_syscall_v1" if self.linux_syscall_profile else "integer_only_v1")
+            if self.linux_syscall_profile is not None:
+                target["linux_syscall_profile"] = "linux_user_raw_v1"
             if self.target_abi is not None:
                 target["abi"] = self.target_abi
             if self.tls_profile is not None:
@@ -3154,6 +3275,8 @@ class Importer:
                 operations.append(block["terminator"])
                 for operation in operations:
                     name = operation["op"]
+                    if name == "linux_syscall" and self.linux_syscall_profile == "linux-user-raw-v1":
+                        continue
                     if name not in self.STRICT_FP_INTEGER_OPERATIONS:
                         self.reject(f"strictfp-integer-v1 has no audited environment-preserving realization for {name}")
                     if name == "binary" and operation["kind"] not in {
@@ -3409,7 +3532,7 @@ def normalize_legacy_lifetime_artifacts(a, context, module, audit):
 
 def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                   frontend="LLVM IR", frontend_version="producer version not declared", tls_profile=None,
-                  atomic_profile=None, wide_volatile_profile=None, metadata_diagnostics=None):
+                  atomic_profile=None, wide_volatile_profile=None, linux_syscall_profile=None, metadata_diagnostics=None):
     """Return a fully traversed supported module; reject unsupported whole units."""
     path = Path(path)
     data = path.read_bytes()
@@ -3440,7 +3563,7 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
             a.DisposeMessage(message)
         if invalid:
             raise ImportFailure(detail or "LLVM verification failed", "llvm-verify")
-        importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile, wide_volatile_profile=wide_volatile_profile)
+        importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile, wide_volatile_profile=wide_volatile_profile, linux_syscall_profile=linux_syscall_profile)
         importer.module_metadata()
         importer.check_target_profile()
         audit = audit_verified_module(a, module)
@@ -3521,6 +3644,7 @@ def main():
     parser.add_argument("--wide-volatile-profile")
     parser.add_argument("--metadata-diagnostics", type=Path,
                         help="retain raw process-specific LLVM metadata printer diagnostics separately")
+    parser.add_argument("--linux-syscall-profile", choices=["linux-user-raw-v1"])
     args = parser.parse_args()
     diagnostics = {}
     diagnostic_path_safe = False
@@ -3541,6 +3665,7 @@ def main():
                                frontend=args.frontend, frontend_version=args.frontend_version,
                                tls_profile=args.tls_profile, atomic_profile=args.atomic_profile,
                                wide_volatile_profile=args.wide_volatile_profile,
+                               linux_syscall_profile=args.linux_syscall_profile,
                                metadata_diagnostics=diagnostics if args.metadata_diagnostics else None)
         if args.metadata_diagnostics:
             _publish_json(args.metadata_diagnostics, diagnostics)

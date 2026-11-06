@@ -33,7 +33,7 @@ struct Cli {
 
     /// Print the canonical target catalog as JSON without compiling or executing.
     /// Catalog membership alone does not qualify target health or semantics.
-    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "llvm_metadata_diagnostics", "check"])]
+    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "linux_syscall_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "llvm_metadata_diagnostics", "check"])]
     list_targets: bool,
 
     /// Input representation. Imported IR is verified before all output.
@@ -71,6 +71,10 @@ struct Cli {
     /// ordered parts are permitted; MMIO and atomicity are excluded.
     #[arg(long, value_parser = ["ordinary-ram-split-v1"], conflicts_with_all = ["verify_native", "check"])]
     wide_volatile_profile: Option<String>,
+
+    /// Ordered raw Linux userspace syscalls with a required external Linux provider.
+    #[arg(long, value_parser = ["linux-user-raw-v1"], conflicts_with_all = ["verify_native", "check"])]
+    linux_syscall_profile: Option<String>,
 
     /// Verify a complete native module without generating machine code.
     #[arg(long, conflicts_with = "check")]
@@ -201,6 +205,10 @@ fn main() {
     }
     if cli.wide_volatile_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
         eprintln!("ocorec: --wide-volatile-profile selects LLVM import; native IR preserves its own explicit profile");
+        std::process::exit(2);
+    }
+    if cli.linux_syscall_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
+        eprintln!("ocorec: --linux-syscall-profile selects LLVM import; native IR preserves its own explicit profile");
         std::process::exit(2);
     }
     if cli.verify_native {
@@ -479,6 +487,9 @@ fn import_llvm(cli: &Cli) -> anyhow::Result<ImportedFile> {
     if let Some(profile) = &cli.wide_volatile_profile {
         command.arg("--wide-volatile-profile").arg(profile);
     }
+    if let Some(profile) = &cli.linux_syscall_profile {
+        command.arg("--linux-syscall-profile").arg(profile);
+    }
     let mut child = command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -555,7 +566,7 @@ fn verify_native(inputs: &[PathBuf], receipt: Option<&std::path::Path>) -> anyho
             "name": f.name, "definition": f.entry.is_some(), "managed_method": f.managed_method,
             "intrinsic": f.intrinsic
         })).collect();
-        let record = serde_json::json!({
+        let mut record = serde_json::json!({
             "format": "ocore-native-verification-v1",
             "module_sha256": sha256,
             "verifier": "ocore-native-v1",
@@ -565,6 +576,10 @@ fn verify_native(inputs: &[PathBuf], receipt: Option<&std::path::Path>) -> anyho
             "global_count": module.globals.len(),
             "target": module.target,
         });
+        if let Some(requirement) = o_lang::ocore::native_platform::requirement(&module)? {
+            record["required_platform_interfaces"] = serde_json::json!([requirement]);
+            record["platform_resource_closure_complete"] = serde_json::json!(false);
+        }
         std::fs::write(path, serde_json::to_vec_pretty(&record)?)
             .context("write native verification receipt")?;
     }

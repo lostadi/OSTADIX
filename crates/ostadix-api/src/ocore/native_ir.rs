@@ -280,6 +280,9 @@ pub struct TargetLayout {
     /// reject an unknown required profile rather than erase the source contract.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub strict_fp_profile: Option<StrictFpProfile>,
+    /// Explicit Linux userspace raw-syscall ABI; never a native-kernel provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_syscall_profile: Option<LinuxSyscallProfile>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -288,6 +291,60 @@ pub enum StrictFpProfile {
     /// Audited scalar integer/pointer operations preserve ambient FP state;
     /// ordered original provider calls retain their own observable effects.
     IntegerOnlyV1,
+    /// IntegerOnlyV1 plus the separately audited opaque Linux platform operation.
+    /// The original Linux provider remains an external execution obligation.
+    IntegerLinuxSyscallV1,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LinuxSyscallProfile {
+    LinuxUserRawV1,
+}
+
+/// Complete supported InlineAsm source contract. Machine emission never copies
+/// these bytes. Fresh-source comparison authenticates the witness; structural
+/// verification alone is not proof that a claimed source produced this packet.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LinuxSyscallSource {
+    pub schema: String,
+    pub site: LlvmMetadataSourceSite,
+    pub assembly: Vec<u8>,
+    pub constraints: Vec<u8>,
+    pub side_effects: bool,
+    pub align_stack: bool,
+    pub dialect: u32,
+    pub can_unwind: bool,
+    pub calling_convention: u32,
+    pub tail_kind: u32,
+    pub signature: Signature,
+    pub attributes: Vec<LinuxSyscallAttribute>,
+    pub srcloc: Option<LinuxSyscallSourceLocation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LinuxSyscallAttribute {
+    pub index: u32,
+    pub name: String,
+    pub value: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LinuxSyscallSourceLocation {
+    /// Module-local source-order node identity, not a context kind or printer slot.
+    pub node: usize,
+    pub storage: NoAliasNodeStorage,
+    pub operands: Vec<LinuxSyscallLocationInteger>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LinuxSyscallLocationInteger {
+    pub width: u16,
+    pub bits: String,
 }
 
 /// Original function subtarget strings, not replacement executable IR. Their
@@ -734,6 +791,14 @@ pub enum Operand {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Operation {
+    /// Ordered opaque Linux provider effect, with raw signed-error return bits.
+    /// May block, signal, create tasks or never return; never pure/speculatable.
+    LinuxSyscall {
+        number: Operand,
+        arguments: Vec<Operand>,
+        // Metadata stays off the hot enum storage used by every ordinary op.
+        source: Box<LinuxSyscallSource>,
+    },
     /// Unconditionally end the executing path with the target's explicit LLVM
     /// trap instruction. This has no result and must never be erased as an
     /// assumption or replaced by an ordinary unresolved runtime call.

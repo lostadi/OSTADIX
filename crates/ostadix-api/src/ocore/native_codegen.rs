@@ -341,6 +341,17 @@ fn emit_impl(
         )
         .unwrap();
     }
+    if let Some(requirement) = super::native_platform::requirement(module)? {
+        // Allocated ELF note carries the mandatory external provider interface
+        // even when ordinary ELF symbol resolution reports zero UND symbols.
+        let payload = serde_json::to_vec(&requirement)
+            .map_err(|error| error_diagnostic(format!("Linux platform note: {error}")))?;
+        writeln!(out, ".section .note.ocore.platform,\"a\",@note\n.p2align 2\n.long 6\n.long {}\n.long 1\n.byte 79,99,111,114,101,0\n.p2align 2", payload.len()).unwrap();
+        for chunk in payload.chunks(32) {
+            writeln!(out, ".byte {}", chunk.iter().map(u8::to_string).collect::<Vec<_>>().join(",")).unwrap();
+        }
+        out.push_str(".p2align 2\n");
+    }
     out.push_str(".section .note.GNU-stack,\"\",@progbits\n");
     if target == Target::Riscv64UnknownNone {
         out.push_str(".option pop\n");
@@ -2492,6 +2503,29 @@ impl<'a> Emitter<'a> {
             | Operation::AtomicCompareExchange { .. } => {
                 self.atomic_instruction(out, instruction)?;
                 return Ok(());
+            }
+            Operation::LinuxSyscall { number, arguments, .. } => {
+                // Every input comes from fixed SSA/PHI spills or a constant.
+                // Loading through scratch0 cannot clobber any earlier ABI arg.
+                let registers: &[&str] = match self.target {
+                    Target::X86_64UnknownNone => &["rdi", "rsi", "rdx", "r10", "r8", "r9"],
+                    Target::Aarch64UnknownNone => &["x0", "x1", "x2", "x3", "x4", "x5"],
+                    Target::Riscv64UnknownNone => &["a0", "a1", "a2", "a3", "a4", "a5"],
+                };
+                for (argument, register) in arguments.iter().zip(registers) {
+                    self.operand(out, 0, argument);
+                    match self.target {
+                        Target::X86_64UnknownNone => writeln!(out, "  mov {register}, rax").unwrap(),
+                        Target::Aarch64UnknownNone => writeln!(out, "  mov {register}, x9").unwrap(),
+                        Target::Riscv64UnknownNone => writeln!(out, "  mv {register}, t0").unwrap(),
+                    }
+                }
+                self.operand(out, 0, number);
+                out.push_str(match self.target {
+                    Target::X86_64UnknownNone => "  syscall\n",
+                    Target::Aarch64UnknownNone => "  mov x8, x9\n  svc #0\n  mov x9, x0\n",
+                    Target::Riscv64UnknownNone => "  mv a7, t0\n  ecall\n  mv t0, a0\n",
+                });
             }
             Operation::Trap {} => {
                 out.push_str(match self.target {

@@ -49,6 +49,7 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         include_str!("../ocore/native_exception_codegen.rs"),
     ),
     ("native_ir.rs", include_str!("../ocore/native_ir.rs")),
+    ("native_platform.rs", include_str!("../ocore/native_platform.rs")),
     ("native_machine_ir.rs", include_str!("../ocore/native_machine_ir.rs")),
     ("native_machine_verify.rs", include_str!("../ocore/native_machine_verify.rs")),
     ("native_machine_asm_reader.rs", include_str!("../ocore/native_machine_asm_reader.rs")),

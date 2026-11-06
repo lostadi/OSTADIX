@@ -1,0 +1,96 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-musl-1.2.5-getuid-x86_64",
+  "source": {
+    "url": "https://git.musl-libc.org/git/musl",
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "complete-explicit-original-getuid-component",
+  "intended_execution_profile": "external-linux-user-process-v1; no native-kernel provider",
+  "intended_targets": [
+    "x86_64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_getuid.py",
+    "sha256": "b9707ebf1e191390356c45cb7d1899ca71eda2524009a209ef0c87402f56bdf3"
+  },
+  "commands": [
+    {
+      "name": "build-original-getuid",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_getuid.py",
+        "build",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "b9707ebf1e191390356c45cb7d1899ca71eda2524009a209ef0c87402f56bdf3"
+      ]
+    },
+    {
+      "name": "inventory-original-getuid",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_getuid.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "b9707ebf1e191390356c45cb7d1899ca71eda2524009a209ef0c87402f56bdf3"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "obj/src/unistd/getuid.o",
+      "component-build.json",
+      "unit-inventory.json",
+      "obj/include/bits/alltypes.h",
+      "obj/include/bits/syscall.h"
+    ],
+    "required_units": [
+      {
+        "id": "original-getuid",
+        "kind": "clang",
+        "source": "src/unistd/getuid.c",
+        "role": "runtime",
+        "build_step": "build-original-getuid"
+      }
+    ]
+  },
+  "dependencies": [],
+  "remaining_runtime_requirements": [
+    "external Linux userspace syscall provider with original ISA ABI; zero ordinary ELF UND does not discharge this effect interface",
+    "reference CRT/driver/Linux/QEMU are test-only externals, not lowered implementation closure"
+  ],
+  "scope_limits": [
+    "Complete getuid component only; not full libc, original ASM units, native kernel services or a unified OS.",
+    "Original source/headers/Makefile unchanged; reference objects are capture evidence, only O-core generated objects are deliverable code.",
+    "The allocated Ocore ELF platform note and module-set requirement must survive admission; privileged native-kernel use is unsupported."
+  ],
+  "env": {
+    "CFLAGS": "",
+    "CPPFLAGS": "",
+    "LDFLAGS": ""
+  }
+}

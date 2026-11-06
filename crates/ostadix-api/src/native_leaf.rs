@@ -123,6 +123,9 @@ fn audit(text: &str) -> Result<Audited> {
     // effect footprint, rather than mistaking structural IR validity for purity.
     let module =
         NativeModule::from_json(&module_bytes).map_err(|e| anyhow::anyhow!("{}", e.message))?;
+    if crate::ocore::native_platform::requirement(&module).map_err(|e| anyhow::anyhow!(e.message))?.is_some() {
+        bail!("native scalar leaf excludes external Linux platform effects; an ELF with zero undefined C symbols is not a closed effect footprint");
+    }
     if !module.globals.is_empty() || !module.aliases.is_empty() || !module.comdats.is_empty() {
         bail!("native scalar leaf does not admit globals, aliases or COMDAT selection");
     }

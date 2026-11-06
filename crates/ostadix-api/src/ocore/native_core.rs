@@ -15,6 +15,8 @@ pub mod native_eh;
 mod native_exception_codegen;
 #[path = "native_floating_helpers.rs"]
 pub mod native_floating_helpers;
+#[path = "native_platform.rs"]
+pub mod native_platform;
 #[path = "native_ir.rs"]
 pub mod native_ir;
 #[path = "native_machine_ir.rs"]

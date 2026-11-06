@@ -25,7 +25,7 @@ import traceback
 
 SCHEMA = "ocore-original-runtime-acceptance-v1"
 TOOL_SCHEMA = "ocore-original-runtime-toolchain-v1"
-IMPORT_PROFILE_OPTIONS = frozenset({"--atomic-profile", "--tls-profile", "--wide-volatile-profile"})
+IMPORT_PROFILE_OPTIONS = frozenset({"--atomic-profile", "--tls-profile", "--wide-volatile-profile", "--linux-syscall-profile"})
 RAW_METADATA_OPTION = "--llvm-metadata-diagnostics"
 RAW_METADATA_SCHEMA = "ocore.raw-llvm-metadata-diagnostics/v1"
 

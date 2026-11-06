@@ -48,7 +48,7 @@ class ProviderGroupSourceClosureTests(unittest.TestCase):
         self.assertTrue(referenced)
     def test_embedded_inventory_is_the_exact_reviewed_independent_source(self):
         self.assertEqual(hashlib.sha256((ROOT/ASSET).read_bytes()).hexdigest(),
-            '49361561a16cfd4e4109a0bc16f0500e09d6f251597ad76c5412481a7035c5bd')
+            'b3c0b62682b56fa28e5eaefb806d752c46aa4588c0ad0dba3b5490b64fe05052')
         self.assertEqual((ROOT/ASSET).read_bytes(),(ROOT/'tests/ocore_llvm_source_inventory.py').read_bytes())
     def test_production_inventory_driver_is_valid_python_without_test_imports(self):
         source=(ROOT/'src/bin/olangc/native_runtime/provider_group.rs').read_text()

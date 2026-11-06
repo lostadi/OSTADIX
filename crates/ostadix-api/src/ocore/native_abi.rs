@@ -1771,6 +1771,7 @@ mod tests {
                 atomic_profile: None,
                 wide_volatile_profile: None,
                 strict_fp_profile: None,
+                linux_syscall_profile: None,
             },
             semantics: Semantics::LlvmDefinedBehaviorV1,
             types: vec![

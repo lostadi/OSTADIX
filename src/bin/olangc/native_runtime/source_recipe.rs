@@ -319,6 +319,11 @@ pub(super) fn compile_impl(
         let coverage = lowered.join("coverage.json");
         if coverage.is_file() {
             receipt["lowering_receipt"] = artifact_record(&coverage)?;
+            let coverage_value: Value = serde_json::from_slice(&fs::read(&coverage)?)?;
+            if coverage_value["required_platform_interfaces"].as_array().is_some_and(|items| !items.is_empty()) {
+                receipt["required_platform_interfaces"] = coverage_value["required_platform_interfaces"].clone();
+                receipt["platform_resource_closure_complete"] = json!(false);
+            }
         }
         let replay = lowered.join("capture-reverification.json");
         if replay.is_file() {
@@ -468,7 +473,7 @@ mod tests {
                 let output = directory.path().join(format!("output-{stage_only}-{scenario}"));
                 let mut import = NativeImportOptions {
                     llvm_library: None, llvm_sha256: None, tls_profile: None,
-                    atomic_profile: None, wide_volatile_profile: None, dependencies: &[],
+                    atomic_profile: None, wide_volatile_profile: None, linux_syscall_profile: None, dependencies: &[],
                 };
                 let mut options = NativeSourceOptions { source: Some(&source), ..Default::default() };
                 let expected = match scenario {

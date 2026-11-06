@@ -54,6 +54,76 @@ def json_record(record: dict, resolver=checked) -> tuple[dict, bytes]:
     return result, data
 
 
+def require_kernel_platform_record(value) -> None:
+    """No Linux-user syscall/credential provider exists in this native monitor.
+
+    Inspect both independently bound records and embedded IR; zero ordinary
+    undefined symbols cannot satisfy an external userspace execution interface.
+    This is not a generic loader for future kernel platform contracts.
+    """
+    pending = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, dict):
+            if (item.get("linux_syscall_profile") is not None
+                    or "required_platform_interfaces" in item and (not isinstance(item["required_platform_interfaces"], list) or item["required_platform_interfaces"])
+                    or item.get("op") == "linux_syscall"):
+                raise ValueError("Linux userspace platform effects cannot bind to the native kernel/monitor")
+            for key_, child in item.items():
+                if key_ == "native_ir" and isinstance(child, str):
+                    try:
+                        module = json.loads(child)
+                        if not isinstance(module, dict) or module.get("format") != "ocore-native-module-v1":
+                            raise ValueError("embedded native IR has no supported module shape")
+                        pending.append(module)
+                    except (ValueError, TypeError) as error:
+                        raise ValueError("embedded native IR cannot be inspected for kernel platform requirements") from error
+                else:
+                    pending.append(child)
+        elif isinstance(item, list):
+            pending.extend(item)
+
+
+def require_kernel_platform_object(data: bytes) -> None:
+    """Reject allocated Ocore platform-interface notes before privileged link."""
+    if len(data) < 64 or data[:7] != b"\x7fELF\x02\x01\x01":
+        raise ValueError("kernel platform check needs an ELF64 little-endian object")
+    shoff = struct.unpack_from("<Q", data, 40)[0]
+    stride, count = struct.unpack_from("<HH", data, 58)
+    if count == 0 and shoff:
+        # ELF extended numbering stores the real count in SHT_NULL.sh_size.
+        # Never interpret zero e_shnum as an empty table when one is present.
+        if stride != 64 or shoff + 64 > len(data) or struct.unpack_from("<I", data, shoff + 4)[0] != 0:
+            raise ValueError("kernel platform check found invalid extended ELF section geometry")
+        count = struct.unpack_from("<Q", data, shoff + 32)[0]
+        if not count:
+            raise ValueError("kernel platform check found an empty extended ELF section table")
+    if not count or not shoff or stride != 64 or shoff + count * stride > len(data):
+        raise ValueError("kernel platform check found invalid ELF section geometry")
+    for index in range(count):
+        header = shoff + index * stride
+        kind = struct.unpack_from("<I", data, header + 4)[0]
+        if kind != 7:
+            continue
+        offset, size = struct.unpack_from("<QQ", data, header + 24)
+        if offset + size > len(data):
+            raise ValueError("kernel platform note exceeds object bytes")
+        notes = data[offset:offset + size]
+        cursor = 0
+        while cursor < len(notes):
+            if cursor + 12 > len(notes):
+                raise ValueError("truncated kernel platform ELF note")
+            names, description, _ = struct.unpack_from("<III", notes, cursor)
+            name_start = cursor + 12
+            desc_start = name_start + (names + 3) // 4 * 4
+            end = desc_start + (description + 3) // 4 * 4
+            if end > len(notes):
+                raise ValueError("invalid kernel platform ELF note extent")
+            if notes[name_start:name_start + names] == b"Ocore\0":
+                raise ValueError("Linux userspace platform object cannot bind to the native kernel/monitor")
+            cursor = end
+
+
 def validate(manifest_path: Path, isa: str, *, resolver=checked) -> dict:
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise ValueError("native codec manifest must be a regular file")
@@ -77,6 +147,7 @@ def validate(manifest_path: Path, isa: str, *, resolver=checked) -> dict:
     bound_coverage = []
     for item in manifest["source_recipe_receipts"]:
         value, data = json_record(item, resolver)
+        require_kernel_platform_record(value)
         if value.get("schema") != "ocore-native-source-recipe-v1" or value.get("stage") != "complete" or value.get("requested_target") != isa + "-unknown-none" or value.get("output_kind") != "obj" or not all(value.get(name) is True for name in ("success", "capture_complete", "lowering_complete")):
             raise ValueError("native source recipe did not complete for the selected target")
         if key(value["lowering_receipt"]) not in coverage_ids:
@@ -88,6 +159,7 @@ def validate(manifest_path: Path, isa: str, *, resolver=checked) -> dict:
     bound_modules = []
     for item in manifest["coverage_receipts"]:
         value, data = json_record(item, resolver)
+        require_kernel_platform_record(value)
         if value.get("schema") != "ocore-runtime-lowering-v1" or value.get("architecture") != isa or value.get("requested_target") != isa + "-unknown-none" or value.get("output_kind") != "obj" or not all(value.get(name) is True for name in ("capture_complete", "module_set_complete", "native_module_dependency_closure_complete", "symbol_closure_complete")):
             raise ValueError("native coverage/module dependency closure is incomplete")
         if key(value["module_set_artifact"]) not in module_ids:
@@ -104,6 +176,7 @@ def validate(manifest_path: Path, isa: str, *, resolver=checked) -> dict:
         raise ValueError("native objects differ from compiler-owned lowered unit identities")
     for item in manifest["native_module_sets"]:
         value, data = json_record(item, resolver)
+        require_kernel_platform_record(value)
         if value.get("format") != "ocore-native-module-set-v1":
             raise ValueError("invalid native module-set artifact")
         receipts.append((item, data))
@@ -130,6 +203,7 @@ def validate(manifest_path: Path, isa: str, *, resolver=checked) -> dict:
         path, data = resolver(item)
         if len(data) < 64 or data[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<HH", data, 16) != (1, machine):
             raise ValueError("native object is not relocatable ELF64 for the selected ISA")
+        require_kernel_platform_object(data)
         # Inspect the exact frozen bytes, not a source path that could change
         # between digest validation and symbol inventory.
         with tempfile.NamedTemporaryFile(suffix=".o") as frozen:

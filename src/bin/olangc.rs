@@ -380,6 +380,10 @@ struct Cli {
     #[arg(long, requires = "native_runtime", value_parser = ["ordinary-ram-split-v1"])]
     wide_volatile_profile: Option<String>,
 
+    /// Explicit Linux userspace raw-syscall platform effect; provider remains external.
+    #[arg(long, requires = "native_runtime", value_parser = ["linux-user-raw-v1"])]
+    linux_syscall_profile: Option<String>,
+
     /// Compilation target
     #[arg(long, value_enum, default_value_t = CompileTarget::Binary)]
     target: CompileTarget,
@@ -553,6 +557,7 @@ fn run_cli() -> Result<()> {
                 tls_profile: cli.tls_profile.as_deref(),
                 atomic_profile: cli.atomic_profile.as_deref(),
                 wide_volatile_profile: cli.wide_volatile_profile.as_deref(),
+                linux_syscall_profile: cli.linux_syscall_profile.as_deref(),
                 dependencies: &cli.native_runtime_dependency,
             },
             native_runtime::NativeSourceOptions {

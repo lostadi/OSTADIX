@@ -62,10 +62,26 @@ class Reader:
             "GetIncomingValue": (P, [P, U]),
             "GetFirstInstruction": (P, [P]), "GetNextInstruction": (P, [P]),
             "GetInstructionOpcode": (U, [P]), "GetCalledValue": (P, [P]),
+            "IsAInlineAsm": (P, [P]),
+            "GetInlineAsmAsmString": (P, [P, c.POINTER(Z)]),
+            "GetInlineAsmConstraintString": (P, [P, c.POINTER(Z)]),
+            "GetInlineAsmDialect": (U, [P]),
+            "GetInlineAsmFunctionType": (P, [P]),
+            "GetInlineAsmHasSideEffects": (c.c_int, [P]),
+            "GetInlineAsmNeedsAlignedStack": (c.c_int, [P]),
+            "GetInlineAsmCanUnwind": (c.c_int, [P]),
+            "GetTailCallKind": (U, [P]),
+            "ConstIntGetZExtValue": (Q, [P]),
             "GetCalledFunctionType": (P, [P]), "GetInstructionCallConv": (U, [P]),
             "GetMDKindIDInContext": (U, [P, c.c_char_p, U]),
             "GetMetadata": (P, [P, U]), "IsAMDNode": (P, [P]),
             "GetMDNodeNumOperands": (U, [P]),
+            "InstructionGetAllMetadataOtherThanDebugLoc": (P, [P, c.POINTER(Z)]),
+            "ValueMetadataEntriesGetKind": (U, [P, U]),
+            "ValueMetadataEntriesGetMetadata": (P, [P, U]),
+            "DisposeValueMetadataEntries": (None, [P]),
+            "MetadataAsValue": (P, [P, P]), "ValueAsMetadata": (P, [P]),
+            "MDNodeInContext2": (P, [P, c.POINTER(P), Z]),
             "GetMDNodeOperands": (None, [P, c.POINTER(P)]),
             "GetIntrinsicID": (U, [P]), "GetFunctionCallConv": (U, [P]),
             "GetAttributeCountAtIndex": (U, [P, U]),
@@ -569,10 +585,79 @@ class Reader:
         return {"block":block_id, "result_id":values.get(instruction),
                 "result_type":self.shape(self.TypeOf(instruction)), "operation":operation}
 
+    def linux_syscall_site(self, instruction, callee, function, block, ordinal, values):
+        # Independent CAPI inventory. No production recognizer, operation schema
+        # classifier, source extractor or code generator is imported here.
+        def bytes_(getter):
+            count = c.c_size_t()
+            value = getter(callee, c.byref(count))
+            return list(c.string_at(value, count.value)) if count.value else []
+        attributes = []
+        names = {self.GetEnumAttributeKindForName(name.encode(), len(name)): name
+                 for name in ("nounwind", "strictfp", "noundef")}
+        count = self.GetNumArgOperands(instruction)
+        for slot in [0, *range(1, count+1), 0xffffffff]:
+            number = self.GetCallSiteAttributeCount(instruction, slot)
+            entries = (c.c_void_p * number)()
+            self.GetCallSiteAttributes(instruction, slot, entries)
+            for entry in entries:
+                if not self.IsEnumAttribute(entry) or self.GetEnumAttributeKind(entry) not in names:
+                    raise InventoryMismatch("unsupported raw syscall attribute source witness")
+                attributes.append({"index":slot, "name":names[self.GetEnumAttributeKind(entry)],
+                                   "value":self.GetEnumAttributeValue(entry)})
+        attributes.sort(key=lambda item:(item["index"],item["name"]))
+        kind = self.GetMDKindIDInContext(self.context, b"srcloc", 6)
+        attachment_count = c.c_size_t()
+        attachments = self.InstructionGetAllMetadataOtherThanDebugLoc(instruction,c.byref(attachment_count))
+        metadata = None
+        try:
+            for index in range(attachment_count.value):
+                if self.ValueMetadataEntriesGetKind(attachments,index) == kind:
+                    if metadata is not None:
+                        raise InventoryMismatch("duplicate contextual srcloc attachment")
+                    metadata = self.ValueMetadataEntriesGetMetadata(attachments,index)
+        finally:
+            if attachments: self.DisposeValueMetadataEntries(attachments)
+        node = self.MetadataAsValue(self.context,metadata) if metadata else None
+        location = None
+        if node:
+            if not self.IsAMDNode(node):
+                raise InventoryMismatch("raw syscall srcloc must be an actual tuple")
+            entries = (c.c_void_p * self.GetMDNodeNumOperands(node))()
+            self.GetMDNodeOperands(node, entries)
+            integers = []
+            for entry in entries:
+                if not entry or not self.IsAConstantInt(entry):
+                    raise InventoryMismatch("raw syscall srcloc must contain constant integers")
+                width = self.GetIntTypeWidth(self.TypeOf(entry))
+                if not 1 <= width <= 64:
+                    raise InventoryMismatch("unsupported raw syscall srcloc integer width")
+                integers.append({"width":width, "bits":str(self.ConstIntGetZExtValue(entry))})
+            if not integers:
+                raise InventoryMismatch("empty raw syscall srcloc tuple")
+            members = (c.c_void_p * len(entries))(*(self.ValueAsMetadata(entry) for entry in entries))
+            storage = "uniqued" if self.MDNodeInContext2(self.context,members,len(entries)) == metadata else "distinct"
+            if metadata not in self.platform_locations:
+                self.platform_locations[metadata] = len(self.platform_locations)
+            location = {"node":self.platform_locations[metadata], "storage":storage, "operands":integers}
+        return {"site":{"function":function,"block":block,"source_instruction":ordinal},
+                "assembly":bytes_(self.GetInlineAsmAsmString),
+                "constraints":bytes_(self.GetInlineAsmConstraintString),
+                "side_effects":bool(self.GetInlineAsmHasSideEffects(callee)),
+                "align_stack":bool(self.GetInlineAsmNeedsAlignedStack(callee)),
+                "dialect":self.GetInlineAsmDialect(callee), "can_unwind":bool(self.GetInlineAsmCanUnwind(callee)),
+                "calling_convention":self.GetInstructionCallConv(instruction),
+                "tail_kind":self.GetTailCallKind(instruction), "attributes":attributes,"srcloc":location,
+                "signature":self.shape(self.GetInlineAsmFunctionType(callee)),
+                "extension_attributes":self.extension_vectors(instruction,call=True),
+                "args":[self.operand(self.GetOperand(instruction,index),values) for index in range(count)],
+                "result_id":values[instruction],"result_type":self.shape(self.TypeOf(instruction))}
+
     def read(self, path):
         source = artifact(path)
         raw = Path(path).read_bytes()
         self.context = self.ContextCreate()
+        self.platform_locations = {}
         module, error = c.c_void_p(), c.c_void_p()
         buffer = self.CreateMemoryBufferWithMemoryRangeCopy(raw, len(raw), b"independent-inventory")
         self.layout = None
@@ -601,7 +686,7 @@ class Reader:
                             values[instruction] = len(values)
                 sites, direct_calls, references, indirect, phis, code_sites, control_calls = [], [], set(), [], [], [], []
                 primitive_counts, gep_counts = Counter(), Counter()
-                ssa_calls, vector_sites = [], []
+                ssa_calls, vector_sites, linux_syscalls = [], [], []
                 if self.HasPersonalityFn(function):
                     references.add(self.address(self.GetPersonalityFn(function))[0])
                 for block_id, block in enumerate(blocks):
@@ -678,6 +763,8 @@ class Reader:
                         if self.GetInstructionOpcode(instruction) in (5, 45, 67):
                             output["strict_fp_required"] |= self.strict_fp(instruction, call=True)
                             callee = self.GetCalledValue(instruction)
+                            if self.IsAInlineAsm(callee):
+                                linux_syscalls.append(self.linux_syscall_site(instruction, callee, name, block_id, ordinal, values))
                             if self.IsAFunction(callee) and not self.GetIntrinsicID(callee):
                                 args = [self.GetOperand(instruction, index) for index in range(self.GetNumArgOperands(instruction))]
                                 witnesses = {}
@@ -711,7 +798,7 @@ class Reader:
                                     "args": [self.operand(value, values) for value in args],
                                     "z_ext_producers": witnesses, "callees": direct_targets})
 
-                            if not (self.IsAFunction(callee) and self.GetIntrinsicID(callee)):
+                            if not self.IsAInlineAsm(callee) and not (self.IsAFunction(callee) and self.GetIntrinsicID(callee)):
                                 control_calls.append({"op": {45: "call", 5: "invoke", 67: "call_br"}[self.GetInstructionOpcode(instruction)],
                                     "block": block_id, "callee": self.operand(callee, values),
                                     "result_id": values.get(instruction),
@@ -764,7 +851,7 @@ class Reader:
                     "gep_offset_graph_counts": dict(gep_counts), "symbol_references": sorted(references),
                     "control_effects": self.control_effects(function), "control_call_sites": control_calls,
                     "block_ids": list(range(len(blocks))), "indirect_branches": indirect, "phis": phis,
-                    "block_address_sites": code_sites, "ssa_indirect_calls": ssa_calls, "vector_sites": vector_sites,
+                    "block_address_sites": code_sites, "ssa_indirect_calls": ssa_calls, "vector_sites": vector_sites, "linux_syscalls": linux_syscalls,
                     **self.contract(function)}
             opaque_groups = {}
             for global_ in self.sequence(self.GetFirstGlobal, self.GetNextGlobal, module):
@@ -1481,6 +1568,35 @@ def check_call_target_constraints(original, function, types):
     return proofs
 
 
+def check_linux_syscall_sites(original, translated, types):
+    sites = original.get("linux_syscalls", [])
+    operations = [(block["id"], item) for block in translated["blocks"] for item in block["instructions"]
+                  if item["operation"]["op"] == "linux_syscall"]
+    if len(operations) != len(sites):
+        raise InventoryMismatch("missing/extra Linux syscall operation sites")
+    proofs = []
+    for site, (block, item) in zip(sites, operations):
+        operation = item["operation"]
+        witness = dict(operation["source"])
+        if witness.pop("schema",None) != "ocore.llvm-linux-syscall-source/v1":
+            raise InventoryMismatch("Linux syscall source schema changed")
+        signature = witness.pop("signature")
+        shape = {"kind":"function", "params":[native_shape(types,ty) for ty in signature["params"]],
+                 "result":native_shape(types,signature["result"]),"variadic":signature["variadic"]}
+        expected = {key:value for key,value in site.items() if key not in {"signature","extension_attributes","args","result_id","result_type"}}
+        if (witness != expected or shape != site["signature"]
+                or signature["abi"] != {0:"c",8:"fastcc"}.get(site["calling_convention"])
+                or native_extension_vectors(signature) != site["extension_attributes"]
+                or block != site["site"]["block"] or item.get("result") is None
+                or item["result"]["id"] != site["result_id"]
+                or native_shape(types,item["result"]["ty"]) != site["result_type"]
+                or [native_operand(value,types) for value in [operation["number"],*operation["arguments"]]] != site["args"]):
+            raise InventoryMismatch("Linux syscall original operands/signature/constraints/effects/attributes/srcloc/site changed")
+        proofs.append({"site":site["site"],"arity":len(operation["arguments"]),
+                       "required_provider":"linux-user-raw-v1","source_witness_complete":True})
+    return proofs
+
+
 def check_inventory(source, module):
     """Fail closed on a missing or changed source interface/static datum.
 
@@ -1492,7 +1608,8 @@ def check_inventory(source, module):
         if not condition:
             raise InventoryMismatch(message)
     if source.get("strict_fp_required"):
-        require(module["target"].get("strict_fp_profile") == "integer_only_v1",
+        expected_strict = ("integer_linux_syscall_v1" if module["target"].get("linux_syscall_profile") == "linux_user_raw_v1" else "integer_only_v1")
+        require(module["target"].get("strict_fp_profile") == expected_strict,
                 "original strictfp requires its independently verified integer-only realization profile")
     types = module["types"]
     # TypeIds, not a fabricated common name or empty field list, distinguish
@@ -1535,6 +1652,7 @@ def check_inventory(source, module):
                 require(native_extension_vectors(signature) == original["extension_attributes"],
                         f"function integer extension attributes changed: {name}")
                 mappings["declaration_extension_vectors"].append({"function": name, "extensions": original["extension_attributes"]})
+                check_linux_syscall_sites(original, translated, types)
                 check_vector_sites(original, translated, types)
                 calls, consumed_calls, candidates = check_direct_call_extensions(original, translated, types)
                 ordinary_names = {symbol for symbol, item in source["functions"].items() if not item["intrinsic_id"]}

@@ -496,6 +496,7 @@ pub(super) fn compile(
                     tls_profile: imports.tls_profile,
                     atomic_profile: imports.atomic_profile,
                     wide_volatile_profile: imports.wide_volatile_profile,
+                    linux_syscall_profile: imports.linux_syscall_profile,
                     dependencies: &[],
                 },
                 NativeSourceOptions {
@@ -541,6 +542,7 @@ pub(super) fn compile(
         records.push(record);
     }
     let mut package = None;
+    let mut required_platforms = Vec::new();
     if issues.is_empty() {
         let result = (|| -> Result<Value> {
             let resolved_order = prepared_order.take().map(|order| {
@@ -620,6 +622,7 @@ pub(super) fn compile(
                     &plan.root, digest(&plan_bytes), module_set, evidence,
                 )?,
             }};
+            required_platforms = group.required_platform_interfaces()?;
             let bytes = serde_json::to_vec_pretty(&group)?;
             whole_artifact::SourceGroup::from_bytes(&bytes)?;
             let path = output.join(whole_artifact::FILE_NAME);
@@ -682,6 +685,7 @@ pub(super) fn compile(
                 tls_profile: imports.tls_profile,
                 atomic_profile: imports.atomic_profile,
                 wide_volatile_profile: imports.wide_volatile_profile,
+                    linux_syscall_profile: imports.linux_syscall_profile,
                 dependencies: &[],
             },
             order.as_ref(),
@@ -706,12 +710,15 @@ pub(super) fn compile(
         }),
     )?;
     let complete = issues.is_empty() && package.is_some();
-    let receipt = json!({"schema":"ocore-native-provider-group-v1","plan_sha256":digest(&plan_bytes),"components":records,"issues":issues,
+    let mut receipt = json!({"schema":"ocore-native-provider-group-v1","plan_sha256":digest(&plan_bytes),"components":records,"issues":issues,
         "source_group_complete":ir_complete,"lowering_complete":complete,"source_group_artifact":package,
         "requested_output_kind":output_kind,"object_reemission_complete":object_reemission_complete,
         "artifact_complete":false,"original_program_graph_complete":false,"platform_resource_closure_complete":false,
         "native_execution_qualified":false,"runtime_complete":false,
         "scope":"original source-library group capture, bounded independent source inventory and verified native IR symbol/ABI closure; no complete program/CRT/platform/resource or runtime qualification"});
+    if !required_platforms.is_empty() {
+        receipt["required_platform_interfaces"] = json!(required_platforms);
+    }
     fs::write(
         output.join("provider-group.json"),
         serde_json::to_vec_pretty(&receipt)?,

@@ -391,7 +391,7 @@ fn compound_legacy_compile_wrapper_requires_selection_before_tools_for_ir_and_ob
             &raw, "x86_64-unknown-none", kind, &output, &compiler, &python, &library,
             NativeImportOptions {
                 llvm_library: None, llvm_sha256: None, tls_profile: None,
-                atomic_profile: None, wide_volatile_profile: None, dependencies: &[],
+                atomic_profile: None, wide_volatile_profile: None, linux_syscall_profile: None, dependencies: &[],
             },
             None,
         ), "separately selected membership policy required");

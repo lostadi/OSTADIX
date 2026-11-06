@@ -252,7 +252,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/mod.rs",
                     "module_path": ["ocore"],
-                    "child_modules": ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_floating_helpers", "native_ir", "native_machine_asm_reader", "native_machine_emit", "native_machine_emit_rv64", "native_machine_ir", "native_machine_lift", "native_machine_lift_aarch64", "native_machine_lift_dispatch", "native_machine_lift_rv64", "native_machine_lift_x86_64", "native_machine_unit", "native_machine_verify", "native_map", "native_nonlocal", "native_verify"],
+                    "child_modules": ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_floating_helpers", "native_ir", "native_machine_asm_reader", "native_machine_emit", "native_machine_emit_rv64", "native_machine_ir", "native_machine_lift", "native_machine_lift_aarch64", "native_machine_lift_dispatch", "native_machine_lift_rv64", "native_machine_lift_x86_64", "native_machine_unit", "native_machine_verify", "native_map", "native_nonlocal", "native_platform", "native_verify"],
                 },
                 {
                     "path": "crates/ostadix-api/src/ocore/native_float_layout.rs",

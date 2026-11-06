@@ -2717,3 +2717,95 @@ fn mutable_global_requires_allocated_writable_storage() {
 }
 #[path = "noalias_tests.rs"]
 mod noalias_tests;
+
+pub(super) fn linux_platform_module(arch: &str) -> NativeModule {
+    use o_lang::ocore::native_ir::{Instruction, LinuxSyscallProfile, Operation, Value};
+    use o_lang::ocore::native_platform::LinuxArchitecture;
+    let architecture = match arch {
+        "x86_64" => LinuxArchitecture::X86_64,
+        "aarch64" => LinuxArchitecture::Aarch64,
+        "riscv64" => LinuxArchitecture::Riscv64,
+        _ => unreachable!(),
+    };
+    let mut module = module();
+    module.target.triple = format!("{arch}-unknown-linux-musl");
+    module.target.abi = (arch == "riscv64").then(|| "lp64d".into());
+    module.target.linux_syscall_profile = Some(LinuxSyscallProfile::LinuxUserRawV1);
+    let operation: Operation = serde_json::from_value(json!({"op":"linux_syscall",
+        "number":{"kind":"int","ty":1,"bits":if arch == "x86_64" {"102"} else {"174"}},"arguments":[],
+        "source":{"schema":"ocore.llvm-linux-syscall-source/v1","site":{"function":"f","block":0,"source_instruction":0},
+            "assembly":architecture.assembly(),"constraints":architecture.constraints(0).as_bytes(),
+            "side_effects":true,"align_stack":false,"dialect":0,"can_unwind":false,"calling_convention":0,"tail_kind":0,
+            "signature":{"params":[1],"result":1,"abi":"c","variadic":false,"param_attributes":[[]],"result_attributes":[]},
+            "attributes":[],"srcloc":null}})).unwrap();
+    module.functions[0].blocks[0].instructions.push(Instruction {result:Some(Value{id:0,ty:1}),operation});
+    module.functions[0].blocks[0].terminator = o_lang::ocore::native_ir::Terminator::Return {value:Some(o_lang::ocore::native_ir::Operand::Value{id:0})};
+    o_lang::ocore::native_verify::verify(&module).unwrap();
+    module
+}
+
+#[test]
+fn linux_user_interface_note_is_required_even_with_zero_undefined_elf_symbols() {
+    for (machine, arch) in [(62,"x86_64"),(183,"aarch64"),(243,"riscv64")] {
+        let module = linux_platform_module(arch);
+        let mut elf = Elf::new(machine,8,8);
+        if arch == "riscv64" { put32(&mut elf.bytes,48,4); }
+        assert!(object_inventory(&elf.bytes,arch,&module).unwrap_err().to_string().contains("mandatory Linux platform note"));
+        let required = o_lang::ocore::native_platform::requirement(&module).unwrap().unwrap();
+        let payload = serde_json::to_vec(&required).unwrap();
+        // Independent ELF note framing, not this compiler's assembly emitter.
+        let mut note = Vec::new();
+        note.extend_from_slice(&6_u32.to_le_bytes());
+        note.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        note.extend_from_slice(&1_u32.to_le_bytes());
+        note.extend_from_slice(b"Ocore\0\0\0");
+        note.extend_from_slice(&payload);
+        while note.len()%4 != 0 {note.push(0);}
+        let index = elf.append_section(7,2,&note,0,0,4,0);
+        let proof = object_inventory(&elf.bytes,arch,&module).unwrap();
+        assert_eq!(proof["required_platform_interfaces"],json!([required]));
+        assert_eq!(proof["platform_resource_closure_complete"],false);
+        assert_eq!(proof["undefined_symbols"],json!([]));
+        let mut duplicate = elf.clone();
+        duplicate.append_section(7,2,&note,0,0,4,0);
+        assert!(object_inventory(&duplicate.bytes,arch,&module).is_err());
+        for flags in [0,3,6] {
+            let mut wrong = elf.clone();wrong.section64(index,8,flags);
+            assert!(object_inventory(&wrong.bytes,arch,&module).is_err());
+        }
+        let mut altered = elf.clone();
+        let offset = altered.section_value(index,24) as usize;
+        altered.bytes[offset+20] ^= 1;
+        assert!(object_inventory(&altered.bytes,arch,&module).is_err());
+        let mut missing = elf.clone();missing.section32(index,4,1);
+        assert!(object_inventory(&missing.bytes,arch,&module).is_err());
+    }
+}
+
+#[test]
+fn linux_platform_note_cannot_hide_after_an_unrelated_note_or_malformed_record() {
+    let module = module();
+    let mut elf = Elf::new(62,8,8);
+    let required = o_lang::ocore::native_platform::requirement(&linux_platform_module("x86_64")).unwrap().unwrap();
+    let payload = serde_json::to_vec(&required).unwrap();
+    let mut platform = Vec::new();
+    platform.extend_from_slice(&6_u32.to_le_bytes());
+    platform.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+    platform.extend_from_slice(&1_u32.to_le_bytes());
+    platform.extend_from_slice(b"Ocore\0\0\0");platform.extend_from_slice(&payload);
+    while platform.len()%4 != 0 {platform.push(0);}
+    let foreign = [4_u32.to_le_bytes(),0_u32.to_le_bytes(),99_u32.to_le_bytes(),*b"GNU\0"].concat();
+    let index = elf.append_section(7,2,&foreign,0,0,4,0);
+    assert!(object_inventory(&elf.bytes,"x86_64",&module).is_ok());
+    let combined = [foreign.clone(),platform].concat();
+    elf.replace_section_payload(index,&combined,4);
+    assert!(object_inventory(&elf.bytes,"x86_64",&module).unwrap_err().to_string().contains("mandatory Linux platform note"));
+    for field in [0,4] {
+        let mut corrupted = combined.clone();put32(&mut corrupted,field,u32::MAX);
+        let mut wrong = elf.clone();wrong.replace_section_payload(index,&corrupted,4);
+        assert!(object_inventory(&wrong.bytes,"x86_64",&module).is_err());
+    }
+    let mut truncated = Elf::new(62,8,8);
+    truncated.append_section(7,2,&foreign[..8],0,0,4,0);
+    assert!(object_inventory(&truncated.bytes,"x86_64",&module).is_err());
+}

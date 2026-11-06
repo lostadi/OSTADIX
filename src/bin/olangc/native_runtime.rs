@@ -1117,6 +1117,10 @@ fn function_dependencies(
     for block in &function.blocks {
         for instruction in &block.instructions {
             match &instruction.operation {
+                Operation::LinuxSyscall { number, arguments, .. } => {
+                    operand(number);
+                    for argument in arguments { operand(argument); }
+                }
                 Operation::Assume { condition } => operand(condition),
                 Operation::Lifetime { pointer, .. }
                 | Operation::Load { pointer, .. }
@@ -2095,6 +2099,44 @@ fn object_inventory_with_reproduction(
             stride: u64_at(offset + 56)?,
         });
     }
+    let linux_requirement = o_lang::ocore::native_platform::requirement(module)
+        .map_err(|e| anyhow::anyhow!(e.message))?;
+    let expected_platform_note = linux_requirement.as_ref().map(|requirement| -> Result<Vec<u8>> {
+        let payload = serde_json::to_vec(requirement)?;
+        let mut note = Vec::new();
+        note.extend_from_slice(&6_u32.to_le_bytes());
+        note.extend_from_slice(&u32::try_from(payload.len())?.to_le_bytes());
+        note.extend_from_slice(&1_u32.to_le_bytes());
+        note.extend_from_slice(b"Ocore\0\0\0");
+        note.extend_from_slice(&payload);
+        while note.len() % 4 != 0 { note.push(0); }
+        Ok(note)
+    }).transpose()?;
+    let mut actual_platform_notes = Vec::new();
+    for section in sections.iter().filter(|section| section.kind == 7) {
+        let data = &bytes[section.offset as usize..(section.offset + section.size) as usize];
+        let mut cursor = 0usize;
+        while cursor < data.len() {
+            let header_end = cursor.checked_add(12).context("ELF note header overflow")?;
+            if header_end > data.len() { bail!("truncated ELF platform note header"); }
+            let names = u32::from_le_bytes(data[cursor..cursor + 4].try_into()?) as usize;
+            let description = u32::from_le_bytes(data[cursor + 4..cursor + 8].try_into()?) as usize;
+            let align = |length: usize| length.checked_add(3).map(|n| n & !3).context("ELF note padding overflow");
+            let name_end = header_end.checked_add(names).context("ELF note name overflow")?;
+            let desc_start = header_end.checked_add(align(names)?).context("ELF note owner padding overflow")?;
+            let end = desc_start.checked_add(align(description)?).context("ELF note description overflow")?;
+            if name_end > data.len() || end > data.len() { bail!("ELF platform note record exceeds its section"); }
+            if &data[header_end..name_end] == b"Ocore\0" {
+                actual_platform_notes.push((section, &data[cursor..end]));
+            }
+            cursor = end;
+        }
+    }
+    match (&expected_platform_note, actual_platform_notes.as_slice()) {
+        (None, []) => {},
+        (Some(expected), [(section, data)]) if data == expected && section.flags == 2 && section.alignment == 4 => {},
+        _ => bail!("ELF mandatory Linux platform note differs from verified operations"),
+    }
     let mut definitions = BTreeMap::new();
     let floating_helpers = floating_requirements(module)?;
     let floating_helper_names: BTreeSet<_> = floating_helpers
@@ -2918,6 +2960,10 @@ fn object_inventory_with_reproduction(
             "generated_floating_helper_requirements":floating_helpers,
             "thread_local_storage":tls_inventory,
             "code_and_cfi_relocations":"structural_only" });
+    if let Some(requirement) = linux_requirement {
+        inventory["required_platform_interfaces"] = json!([requirement]);
+        inventory["platform_resource_closure_complete"] = json!(false);
+    }
     if !weak_undefined_symbols.is_empty() {
         inventory["weak_undefined_symbols"] = json!(weak_undefined_symbols);
     }
@@ -3038,6 +3084,7 @@ pub(super) struct NativeImportOptions<'a> {
     pub(super) tls_profile: Option<&'a str>,
     pub(super) atomic_profile: Option<&'a str>,
     pub(super) wide_volatile_profile: Option<&'a str>,
+    pub(super) linux_syscall_profile: Option<&'a str>,
     pub(super) dependencies: &'a [PathBuf],
 }
 
@@ -3080,6 +3127,7 @@ fn compile_with_compiler(
             || import_options.tls_profile.is_some()
             || import_options.atomic_profile.is_some()
             || import_options.wide_volatile_profile.is_some()
+            || import_options.linux_syscall_profile.is_some()
             || !import_options.dependencies.is_empty()
         {
             bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
@@ -3147,6 +3195,7 @@ fn lower_held_capture_with_compiler(
         tls_profile,
         atomic_profile,
         wide_volatile_profile,
+        linux_syscall_profile,
         dependencies: dependency_paths,
     } = import_options;
     let expected_tls_profile = match tls_profile {
@@ -3165,6 +3214,11 @@ fn lower_held_capture_with_compiler(
         None => None,
         Some("ordinary-ram-split-v1") => Some(WideVolatileProfile::OrdinaryRamSplitV1),
         Some(_) => bail!("unsupported native wide volatile realization profile"),
+    };
+    let expected_linux_syscall_profile = match linux_syscall_profile {
+        None => None,
+        Some("linux-user-raw-v1") => Some(o_lang::ocore::native_ir::LinuxSyscallProfile::LinuxUserRawV1),
+        Some(_) => bail!("unsupported native Linux syscall realization profile"),
     };
     let arch = architecture(target)?;
     if !matches!(output_kind, "ir" | "obj") {
@@ -3355,6 +3409,9 @@ fn lower_held_capture_with_compiler(
             if let Some(profile) = atomic_profile {
                 arguments.extend(["--atomic-profile".into(), profile.into()]);
             }
+            if let Some(profile) = linux_syscall_profile {
+                arguments.extend(["--linux-syscall-profile".into(), profile.into()]);
+            }
             if let Some(profile) = wide_volatile_profile {
                 arguments.extend(["--wide-volatile-profile".into(), profile.into()]);
             }
@@ -3378,6 +3435,7 @@ fn lower_held_capture_with_compiler(
                 || module.target.tls_profile != expected_tls_profile
                 || module.target.atomic_profile != expected_atomic_profile
                 || module.target.wide_volatile_profile != expected_wide_volatile_profile
+                || module.target.linux_syscall_profile != expected_linux_syscall_profile
             {
                 bail!("imported module provenance/target differs from the captured input");
             }
@@ -3446,6 +3504,10 @@ fn lower_held_capture_with_compiler(
             // This exact-file inventory grants no provider or frame admission.
             record["nonlocal_control_requirements"] =
                 serde_json::to_value(control_inventory::collect(id, &imported_bytes)?)?;
+            if let Some(requirement) = o_lang::ocore::native_platform::requirement(&module).map_err(|e| anyhow::anyhow!(e.message))? {
+                record["required_platform_interfaces"] = json!([requirement]);
+                record["platform_resource_closure_complete"] = json!(false);
+            }
             record["generated_floating_helper_requirements"] =
                 json!(floating_requirements(&module)?);
             record["module"] = json!({"path":imported,"sha256":digest(&imported_bytes),"target":module.target,
@@ -3644,6 +3706,13 @@ fn lower_held_capture_with_compiler(
             .iter()
             .filter(|record| record["required_for_lowering"] == true)
             .all(|record| record["lowered"] == true);
+    let required_platforms = records.iter().filter_map(|record| record.get("required_platform_interfaces")
+        .filter(|interfaces| interfaces.as_array().is_some_and(|items| !items.is_empty()))
+        .map(|interfaces| json!({"unit":record["id"],"interfaces":interfaces}))).collect::<Vec<_>>();
+    if !required_platforms.is_empty() {
+        closure["required_platform_interfaces"] = json!(required_platforms);
+        closure["platform_resource_closure_complete"] = json!(false);
+    }
     closure["source_inventory_complete"] = json!(unit_complete);
     closure["inventory_complete"] = json!(unit_complete && provider_admission_complete);
     if !unit_complete || !provider_admission_complete {
@@ -3688,7 +3757,7 @@ fn lower_held_capture_with_compiler(
     issues.sort();
     issues.dedup();
     // Build each value separately so receipt growth does not deepen json! recursion.
-    let receipt = serde_json::Map::from_iter([
+    let mut receipt = serde_json::Map::from_iter([
         ("schema".to_owned(), json!(RECEIPT_FORMAT)),
         ("capture_report".to_owned(), json!(report)),
         ("capture_sha256".to_owned(), json!(digest(&bytes))),
@@ -3739,6 +3808,13 @@ fn lower_held_capture_with_compiler(
         ("remaining_runtime_requirements".to_owned(), json!(capture["remaining_runtime_requirements"])),
         ("scope".to_owned(), json!("self-contained verified native module-set and own-emitter relocatable objects; no script/runtime orchestration or native qualification")),
     ]);
+    if expected_linux_syscall_profile.is_some() {
+        receipt.insert("linux_syscall_profile".into(), json!(expected_linux_syscall_profile));
+    }
+    if !required_platforms.is_empty() {
+        receipt.insert("required_platform_interfaces".into(), json!(required_platforms));
+        receipt.insert("platform_resource_closure_complete".into(), json!(false));
+    }
     let receipt_path = output.join("coverage.json");
     fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
     if !complete && !stage_only {
@@ -5020,7 +5096,7 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
-                wide_volatile_profile: None,
+                wide_volatile_profile: None, linux_syscall_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run")
