@@ -47,7 +47,7 @@ void probe(U *sp) {
  CHECK(sc(0,fd,0x04000000,4,0)==-14&&sc(8,fd,0,1,0)==0);
  CHECK(sc(257,-100,0x04000000,0,0)==-14);
  CHECK(sc(0,fd,~0UL-3,4,0)==-14&&sc(8,fd,0,1,0)==0);
- CHECK(sc(0,fd,0,0,0)==0&&sc(1,1,(U)input,4,0)==-38&&sc(5,fd,(U)buffer,0,0)==-38);
+ CHECK(sc(0,fd,0,0,0)==0&&sc(1,1,(U)input,4,0)==-9&&sc(5,fd,(U)buffer,0,0)==-38);
  CHECK(sc(8,fd,1UL<<63,0,0)==-22&&sc(8,fd,0,1,0)==0);
  if(role==0){
   for(U i=0;i<12288;i++)buffer[i]=0xa5;
@@ -66,5 +66,24 @@ void probe(U *sp) {
   CHECK(sc(2,(U)input,0,0,0)==3&&sc(0,3,(U)buffer,17,0)==17);pattern(0,17);
   CHECK(sc(3,3,0,0,0)==0);sc(24,0,0,0,0);
  }}
+ if(role==2){
+  static const char output[]="/work/output";
+  CHECK(sc(257,-100,(U)output,2|64|128,0600)==3);
+  for(U i=0;i<12288;i++)buffer[i]=(unsigned char)((i*73)^(i>>8));
+  CHECK(sc(1,3,(U)buffer,12288,0)==12288&&sc(32,3,0,0,0)==4);
+  CHECK(sc(8,4,0,0,0)==0&&sc(0,3,(U)buffer,12288,0)==12288);pattern(0,12288);
+  CHECK(sc(3,3,0,0,0)==0&&sc(1,4,(U)input,4,0)==4&&sc(8,4,0,1,0)==12292);
+  CHECK(sc(33,4,10,0,0)==10&&sc(3,4,0,0,0)==0&&sc(33,10,10,0,0)==10);
+  CHECK(sc(1,10,0,4,0)==-14&&sc(1,10,0x04000000,4,0)==-14&&sc(8,10,0,1,0)==12292);
+  CHECK(sc(8,10,12288,0,0)==12288&&sc(0,10,(U)buffer,4,0)==4);
+  for(U i=0;i<4;i++)CHECK(buffer[i]==input[i]);
+  CHECK(sc(3,10,0,0,0)==0&&sc(257,-100,(U)output,2|64|128,0600)==-17);
+  CHECK(sc(257,-100,(U)output,1|512,0)==3&&sc(0,3,(U)buffer,1,0)==-9);
+  CHECK(sc(1,3,(U)input,4,0)==4&&sc(3,3,0,0,0)==0);
+  CHECK(sc(257,-100,(U)output,0,0)==3&&sc(0,3,(U)buffer,12,0)==4);
+  for(U i=0;i<4;i++)CHECK(buffer[i]==input[i]);
+  CHECK(sc(3,3,0,0,0)==0);
+ }
+
  done();
 }

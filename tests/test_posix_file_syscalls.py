@@ -101,7 +101,8 @@ int main(void){
  puts("production registries and shared original-codec service: binary empty/4K/1MiB reads PASS");
  strcpy((char*)path,"/work/small");
  assert(K(dispatch)(2,(uintptr_t)path,0,0,0)==3&&K(read)(3,(uintptr_t)dest,4)==4&&!memcmp(dest,payload,4));
- assert(K(close)(3)==0&&K(dispatch)(2,(uintptr_t)path,1,0,0)==-22);
+ assert(K(close)(3)==0&&K(dispatch)(2,(uintptr_t)path,1,0,0)==3);
+ assert(K(read)(3,0,1)==-9&&K(dispatch)(1,3,0,0,0)==0&&K(close)(3)==0);
  assert(K(dispatch)(2,0,0,0,0)==-14); // SYS_open uses the same checked user-copy path.
  int64_t fd=open_path("/work/large");assert(fd==3&&K(lseek)(fd,0,1)==0);
  assert(K(read)(999,0,1)==-9); // Invalid fd wins over an invalid destination.
@@ -118,10 +119,10 @@ int main(void){
  assert(K(lseek)(fd,0,1)==8192&&K(lseek)(fd,INT64_MIN,0)==-22&&K(lseek)(fd,0,1)==8192);
  assert(K(native_metadata)(fd,(uintptr_t)dest+1)==0);assert(get(dest+1,8)==max&&get(dest+9,8)==(0100000|0664));
  assert(K(native_metadata)(fd,0x01100000)==-14&&K(dispatch)(5,fd,(uintptr_t)dest,0,0)==-38);
- assert(K(dispatch)(262,0,0,0,0)==-38&&K(dispatch)(1,fd,(uintptr_t)dest,1,0)==-38);
+ assert(K(dispatch)(262,0,0,0,0)==-38&&K(dispatch)(1,fd,(uintptr_t)dest,1,0)==-9);
  assert(K(close)(fd)==0);puts("mapped ranges, output permissions, fault rollback/partial progress and honest unsupported ABI PASS");
  strcpy((char*)path,"/work/small");assert(K(openat)(999,(uintptr_t)path,0x8000,0)==3&&K(close)(3)==0);
- assert(K(openat)(-100,(uintptr_t)path,1,0)==-22&&K(openat)(-100,(uintptr_t)path,0x80000,0)==-22);
+ assert(K(openat)(-100,(uintptr_t)path,1,0)==3&&K(close)(3)==0&&K(openat)(-100,(uintptr_t)path,0x80000,0)==-22);
  strcpy((char*)path,"relative");assert(K(openat)(-100,(uintptr_t)path,0,0)==-38);
  path[0]=0;assert(K(openat)(-100,(uintptr_t)path,0,0)==-2);
  memset(path,'x',4096);assert(K(openat)(-100,(uintptr_t)path,0,0)==-36);

@@ -55,6 +55,40 @@ remaining file data is read successfully. The private result counter is
 inferred from that operation; the separate QEMU trace is the architectural
 fault evidence.
 
+## Linked writable files and shared open descriptions
+
+The native common file provider now implements regular-file read/write access,
+creation/exclusive creation, truncation and append through the same shared
+store and original source-built u9fs codec. Kernel writes copy each user chunk
+before changing the file; earlier acknowledged chunks remain the only reported
+progress if a later copy fails. Read-only user mappings are valid write sources.
+Access-mode errors are checked before user-memory access.
+
+`dup` and `dup2` within this provider's reserved regular-file pool3–10 share
+one native open description: offset, access/append flags and server fid.
+Closing an alias keeps the description alive; its final close or process
+withdrawal clunks the fid exactly once. Descriptors0–2 await composition with
+the terminal/pipe provider and cannot be replaced by this component. Append
+selects the current shared EOF and commits the offset only after positive
+write acknowledgement, under complete-call serialization with all store
+frontends. This is not SMP append synchronization.
+
+The protected fixture additionally creates a distinct output file, writes and
+reads12KiB binary data, shares offsets through aliases, closes the original
+before using an alias, writes from read-only text, rejects supervisor/invalid
+pointers, checks exclusive creation and observes truncation. Host component
+regressions inject first/later copy failures and fill the actual shared volume
+to verify ENOSPC partial progress. Those injected copy-from failures are not
+additional architectural page-fault evidence; the original copy-to hardware
+fault check remains independently retained.
+
+These operations add no invented credentials or persistence. Trusted policy
+supplies creation permission metadata; process umask, UID/GID checks and
+close-on-exec are not implemented. Unlinked-open objects still report ESTALE
+under the unchanged store contract. Linux `stat`, `fsync`, relative cwd/dirfd,
+pipes and a complete POSIX ABI remain unsupported. No success is fabricated for
+these operations.
+
 ## Explicit platform memory grant
 
 The unchanged native volume format requires16MiB. This probe reserves physical
@@ -92,8 +126,8 @@ existing static-loaded user windows, retaining the gap, exact copy-instruction,
 direction and CPU-local-operation checks. It does not implement arbitrary
 `mmap` recovery, signals or Linux process memory semantics.
 
-Remaining work includes full file metadata, writable/open-unlink/dup/fsync
-semantics, a real exec input-copy and entropy/credential policy, complete
+Remaining work includes full file metadata, open-unlink/fsync and composed
+stdio/pipe/exec descriptor semantics, a real exec input-copy and entropy/credential policy, complete
 original application/libc lowering, drivers, package managers, native Plan9
 ABI, persistent interactive packaging and matched whole-system measurements.
 The fixture's private control operations must never be exposed as a finished

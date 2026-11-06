@@ -1,10 +1,11 @@
 module runtime::posix_file_syscalls;
 
-// Kernel-mediated read-only file ABI component. This is not yet installed in
-// the architectural syscall trap or an application/EL0 qualification. The
+// Kernel-mediated regular-file ABI component. Isolated protected probes wire
+// this into the architectural syscall trap; the module alone does not admit
+// an original application. The
 // trusted dispatcher must serialize every complete call with the underlying
 // service and all store/codec users; address-space mutation is excluded during
-// a call. No SMP, per-process rooted namespace, cwd, or writable-file claim.
+// a call. No SMP, per-process rooted namespace, cwd or full POSIX ABI claim.
 // Only trusted kernel policy calls init/provision/revoke_process. Syscall
 // arguments never select process, address space, namespace, or generation.
 use runtime::process::current_process_handle;
@@ -15,13 +16,17 @@ use runtime::address_space::is_live as space_is_live;
 use runtime::address_space::allows;
 use runtime::address_space::VM_USER;
 use runtime::address_space::VM_WRITE;
+use runtime::address_space::VM_READ;
 use runtime::user_memory::copy_from_user;
 use runtime::user_memory::copy_to_user;
 use runtime::user_memory::COPY_OK;
 use runtime::common::posix_namespace_files::init as files_init;
 use runtime::common::posix_namespace_files::provision as files_provision;
 use runtime::common::posix_namespace_files::revoke as files_revoke;
-use runtime::common::posix_namespace_files::open_read as files_open;
+use runtime::common::posix_namespace_files::open_file as files_open;
+use runtime::common::posix_namespace_files::write as files_write;
+use runtime::common::posix_namespace_files::duplicate as files_duplicate;
+use runtime::common::posix_namespace_files::duplicate_to as files_duplicate_to;
 use runtime::common::posix_namespace_files::read as files_read;
 use runtime::common::posix_namespace_files::lseek as files_lseek;
 use runtime::common::posix_namespace_files::fstat as files_fstat;
@@ -93,11 +98,12 @@ pub unsafe fn revoke_process(owner: u64) -> i64 {
     return -9;
 }
 
-// Absolute existing regular paths only. Relative cwd/dirfd resolution and
-// all flags except O_RDONLY/legacy O_LARGEFILE await explicit implementations.
+// Absolute regular paths only. No cwd/relative-dirfd, umask or UID/GID policy
+// is invented. Supported access/create/exclusive/truncate/append flags have
+// real common-service effects; other flags remain explicitly rejected.
 pub unsafe fn openat(dirfd: i64, path: usize, flags: u64, mode: u64) -> i64 {
     let slot: usize = current(); if slot == CONTEXTS { return -13; }
-    if (flags & 0xffff_ffff_ffff_7fff) != 0 { return -22; }
+    if (flags & ~0x86c3) != 0 { return -22; }
     let mut length: usize = 0;
     while length < 4096 {
         if path > 0xffff_ffff_ffff_ffff - length { return -14; }
@@ -105,7 +111,7 @@ pub unsafe fn openat(dirfd: i64, path: usize, flags: u64, mode: u64) -> i64 {
         if PATH[length] == 0 {
             if length == 0 { return -2; }
             if PATH[0] != 47 { return -38; }
-            return files_open(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], &PATH[0], length);
+            return files_open(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], &PATH[0], length, flags & ~0x8000, mode);
         }
         length += 1;
     }
@@ -117,6 +123,8 @@ pub unsafe fn read(fd: i64, destination: usize, count: usize) -> i64 {
     if count > 0x7fff_ffff_ffff_ffff { return -22; }
     let mut length: usize = count; if length > MAX_COUNT { length = MAX_COUNT; }
     if length == 0 { return files_read(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &mut BUFFER[0], 0); }
+    let readable: i64 = files_read(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &mut BUFFER[0], 0);
+    if readable < 0 { return readable; }
     // Validate descriptor and current service authority before inspecting the
     // destination. An invalid descriptor must still report EBADF when the
     // caller also supplies an invalid pointer; withdrawal reports ESTALE.
@@ -147,6 +155,35 @@ pub unsafe fn read(fd: i64, destination: usize, count: usize) -> i64 {
     return delivered as i64;
 }
 
+pub unsafe fn write(fd: i64, source: usize, count: usize) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    if count > 0x7fff_ffff_ffff_ffff { return -22; }
+    let mut length: usize = count; if length > MAX_COUNT { length = MAX_COUNT; }
+    let checked: i64 = files_write(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &BUFFER[0], 0);
+    if checked < 0 || length == 0 { return checked; }
+    if !allows(SPACES[slot], source, length, VM_USER | VM_READ) { return -14; }
+    let mut completed: usize = 0;
+    while completed < length {
+        let mut bytes: usize = length - completed; if bytes > CHUNK { bytes = CHUNK; }
+        if copy_from_user(SPACES[slot], &mut BUFFER[0], (source + completed) as *const u8, bytes) != COPY_OK {
+            if completed != 0 { return completed as i64; } return -14;
+        }
+        let result: i64 = files_write(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &BUFFER[0], bytes);
+        if result <= 0 { if completed != 0 { return completed as i64; } return result; }
+        completed += result as usize;
+        if result as usize < bytes { return completed as i64; }
+    }
+    return completed as i64;
+}
+pub unsafe fn duplicate(fd: i64) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    return files_duplicate(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd);
+}
+pub unsafe fn duplicate_to(fd: i64, target: i64) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    return files_duplicate_to(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, target);
+}
+
 pub unsafe fn lseek(fd: i64, offset: i64, whence: u64) -> i64 {
     let slot: usize = current(); if slot == CONTEXTS { return -13; }
     return files_lseek(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, offset, whence);
@@ -172,6 +209,9 @@ pub unsafe fn native_metadata(fd: i64, destination: usize) -> i64 {
 // x86-64 Linux scalar calling convention only; trap-frame routing is separate.
 pub unsafe fn dispatch(number: u64, first: u64, second: u64, third: u64, fourth: u64) -> i64 {
     if number == 0 { return read(first as i64, second as usize, third as usize); }
+    if number == 1 { return write(first as i64, second as usize, third as usize); }
+    if number == 32 { return duplicate(first as i64); }
+    if number == 33 { return duplicate_to(first as i64, second as i64); }
     // Original x86-64 libc uses SYS_open when available. Both entry points
     // share the same checked path/context implementation and bounded policy.
     if number == 2 { return openat(-100, first as usize, second, third); }
