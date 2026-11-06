@@ -852,6 +852,21 @@
         "ocore/runtime/x86_64/linux_tls_syscalls.oc",
         "ocore/runtime/x86_64/posix_file_syscalls.oc"
       ]
+    },
+    {
+      "id": "ocore-native-exec-input-capture",
+      "category": "runtime-module",
+      "reason": "Checked current-process argument capture prepares an explicitly selected native ELF plan; this is not a standalone program or Linux execve trap.",
+      "coverage": [
+        {
+          "path": "tests/test_exec_startup_capture.py",
+          "kind": "runtime",
+          "conditions": "Built x86-64 ocorec and clang; production registries/loader execute in a native host carrier with five architecture hooks and image delivery replaced. No kernel exec transaction or original application admission claim."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/exec_startup_capture.oc"
+      ]
     }
   ],
   "expected_parse_failures": {
