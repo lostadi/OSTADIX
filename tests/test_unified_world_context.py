@@ -27,12 +27,13 @@ extern void uw_vgic_hcr_write(uint64_t,uint64_t),uw_vgic_vmcr_write(uint64_t,uin
 extern void uw_vgic_lr_write(uint64_t,uint64_t,uint64_t);
 extern void uw_timer_write(uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t uw_timer_read(uint64_t,uint64_t,uint64_t);
+extern uint64_t uw_timer_deadline(uint64_t,uint64_t),uw_idle_until(uint64_t),uw_vgic_running_priority(uint64_t);
 extern uint8_t guest_begin[],guest_end[];
 void *memset(void *,int,size_t);
 void *memcpy(void *,const void *,size_t);
 static uint64_t deadline,period,visits[2],previous[2];
 #ifdef RESET_STRESS
-static uint64_t recycled,*target_context;
+static uint64_t recycled,*target_context,*survivor_context;
 static uint8_t survivor_copy[4096],target_copy[4096];
 static int same(const void *a,const void *b,size_t n){const uint8_t*x=a,*y=b;while(n--)if(*x++!=*y++)return 0;return 1;}
 static void tables(uint64_t pa) {
@@ -54,6 +55,11 @@ void uw_unexpected_exit(uint64_t esr,uint64_t far,uint64_t pc) {
 }
 uint64_t uw_init(void) {
     period=uw_counter_frequency()/100;
+    uint64_t idle_deadline=uw_counter_read()+period;
+    if(uw_idle_until(idle_deadline)!=26 || uw_counter_read()<idle_deadline) {
+        out("UNIFIED_CORE_BOUNDED_IDLE_FAIL\n");return 0;
+    }
+    out("UNIFIED_CORE_BOUNDED_IDLE_PASS\n");
     memcpy((void *)0x48000000,guest_begin,guest_end-guest_begin);
     memcpy((void *)0xb0000000,guest_begin,guest_end-guest_begin);
 #ifdef RESET_STRESS
@@ -68,6 +74,15 @@ uint64_t uw_init(void) {
         uw_timer_write(d,0,0,uw_counter_read()+1000000000+d*100000);
         uw_timer_write(d,0,1,3);
         uw_timer_write(d,1,0,0x12340000+d);uw_timer_write(d,1,1,0);
+        if(uw_timer_deadline(d,0)!=UINT64_MAX || uw_timer_deadline(d,1)!=UINT64_MAX) {
+            out("UNIFIED_CORE_MASKED_TIMER_DEADLINE_FAIL\n");return 0;
+        }
+        uw_timer_write(d,1,1,1);
+        if(uw_timer_deadline(d,1)!=0x12340000+d) {out("UNIFIED_CORE_CNTP_DEADLINE_FAIL\n");return 0;}
+        uw_timer_write(d,1,1,0);
+        uw_timer_write(d,0,1,1);
+        if(uw_timer_deadline(d,0)!=uw_timer_read(d,0,0)) {out("UNIFIED_CORE_CNTV_DEADLINE_FAIL\n");return 0;}
+        uw_timer_write(d,0,1,3);
     }
     out("UNIFIED_CORE_STRESS_START\n");deadline=uw_counter_read()+period;return 1;
 }
@@ -77,6 +92,12 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
 #ifdef RESET_STRESS
     if(d && recycled)marker=0x33;
 #endif
+    // The saved virtual timer deadline is in its offset counter domain;
+    // native idle must convert it back without changing the retained bank.
+    uint64_t original_offset=f[61],virtual_cval=uw_timer_read(d,0,0);
+    f[61]=1234;uw_timer_write(d,0,1,1);
+    if(uw_timer_deadline(d,0)!=virtual_cval+1234){out("UNIFIED_CORE_CNTVOFF_DEADLINE_FAIL\n");return 2;}
+    f[61]=original_offset;uw_timer_write(d,0,1,3);
     uint64_t native_fpcr,native_fpsr,native_claim;__asm__ volatile("mrs %0,fpcr" : "=r"(native_fpcr));__asm__ volatile("mrs %0,fpsr" : "=r"(native_fpsr));__asm__ volatile("mrs %0,dbgclaimclr_el1" : "=r"(native_claim));
     if(native_fpcr || native_fpsr) {out("UNIFIED_CORE_NATIVE_FP_ENV_FAIL\n");return 2;}
     if(reason!=1) {
@@ -111,7 +132,7 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
         out("UNIFIED_CORE_PMU_DEBUG_LOCK_FAIL ");hex(d);out(" ");hex(f[68]);out(" ");hex(f[69]);out(" ");hex(f[79]);out("\n");return 2;
     }
 #ifdef VIRTUAL_IRQ_STRESS
-    if(f[11]!=27 || f[13]!=0x80 || !f[94] || (f[100]>>62)!=2) {
+    if(uw_vgic_running_priority(d)!=0x80 || f[11]!=27 || f[13]!=0x80 || !f[94] || (f[100]>>62)!=2) {
         out("UNIFIED_CORE_ACTIVE_IRQ_FAIL ");hex(d);out(" ");hex(f[11]);out(" ");hex(f[13]);out(" ");hex(f[94]);out(" ");hex(f[100]);out("\n");return 2;
     }
 #endif
@@ -119,16 +140,20 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
     if(!(f[35]&1) || (f[41]>>48)!=0x2a || f[12]!=(d&&recycled?UINT64_C(0xaaaabbbbccccdddd):UINT64_C(0x1111222233334444))) {
         out("UNIFIED_CORE_RESET_TRANSLATION_FAIL ");hex(d);out(" ");hex(f[12]);out(" ");hex(f[41]);out("\n");return 2;
     }
-    if(d)target_context=f;
+    if(d)target_context=f;else survivor_context=f;
 #endif
     previous[d]=f[10];visits[d]++;
 #ifdef RESET_STRESS
+#ifdef SELF_RESET
+    if(d && !recycled && visits[0]>=5 && visits[1]>=5) {
+#else
     if(!d && !recycled && visits[1]>=5) {
+#endif
         // Target1 is not running. Keep its old ASID and TTBR addresses, but
         // change an already-used non-global translation before recycling it.
         ((uint64_t *)0xb1100000)[256]=0x44000f01;
         __asm__ volatile("dsb sy" ::: "memory");
-        memcpy(survivor_copy,f,4096);memcpy(target_copy,target_context,4096);
+        memcpy(survivor_copy,survivor_context,4096);memcpy(target_copy,target_context,4096);
         if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(1,0x20000000,0x33,0x3c5)!=0
            || !same(target_copy,target_context,4096) || uw_domain_reset(1,0x40000000,0x33,0x3c5)!=1) {
             out("UNIFIED_CORE_RESET_ADMISSION_FAIL\n");return 2;
@@ -139,7 +164,7 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
             if(n==35)expected=0x30d00800;if(n==37)expected=0x300000;if(n==64)expected=1;
             if(target_context[n]!=expected){out("UNIFIED_CORE_RESET_DIRTY_BANK_FAIL ");hex(n);out("\n");return 2;}
         }
-        if(!same(survivor_copy,f,4096) || uw_current_domain()!=0){out("UNIFIED_CORE_RESET_SURVIVOR_FAIL\n");return 2;}
+        if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d){out("UNIFIED_CORE_RESET_SURVIVOR_FAIL\n");return 2;}
         recycled=1;previous[1]=0;visits[1]=0;
         uw_vgic_hcr_write(1,1);uw_vgic_vmcr_write(1,(UINT64_C(255)<<24)|2);
         uw_timer_write(1,0,0,uw_counter_read()+1000000000);uw_timer_write(1,0,1,3);
@@ -203,7 +228,10 @@ class UnifiedContextTests(unittest.TestCase):
         self.assertGreater(reset_code.index("msr vttbr_el2, x6"),reset_code.index("tlbi vmalls12e1is"))
         self.exercise(False, reset=True)
 
-    def exercise(self, virtual_irq, reset=False):
+    def test_reset_of_last_current_domain_reselects_fresh_context_after_saved_el2_boundary(self):
+        self.exercise(False, reset=True, self_reset=True)
+
+    def exercise(self, virtual_irq, reset=False, self_reset=False):
         clang, linker, qemu = map(shutil.which, ("clang", "ld.lld", "qemu-system-aarch64"))
         if not all((clang, linker, qemu)):
             self.skipTest("AArch64 clang/lld and QEMU required")
@@ -212,7 +240,7 @@ class UnifiedContextTests(unittest.TestCase):
         (output / "guest.S").write_text(guest_source(virtual_irq,reset))
         commands = [[clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(CORE / "monitor.S"), "-o", str(output / "core.o")],
                     [clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(output / "guest.S"), "-o", str(output / "guest.o")],
-                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
+                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
                     [linker, "-m", "aarch64elf", "-nostdlib", "--build-id=none", "-T", str(CORE / "linker.ld"), "-o", str(output / "test.elf"), str(output / "core.o"), str(output / "guest.o"), str(output / "fixture.o")]]
         for command in commands:
             result = subprocess.run(command, capture_output=True, text=True, timeout=30)

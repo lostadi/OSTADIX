@@ -8,12 +8,16 @@ use runtime::aarch64::plan9_namespace_uart::mmio_write as plan9_wire_write;
 use runtime::aarch64::plan9_namespace_uart::healthy as plan9_wire_healthy;
 use runtime::aarch64::plan9_namespace_uart::diagnostic as plan9_wire_diagnostic;
 use runtime::aarch64::plan9_namespace_uart::revoke as plan9_wire_revoke;
+use runtime::aarch64::plan9_namespace_uart::request_count as plan9_wire_requests;
+use runtime::aarch64::plan9_namespace_uart::request_byte_count as plan9_wire_request_bytes;
+use runtime::aarch64::plan9_namespace_uart::reply_byte_count as plan9_wire_reply_bytes;
 use runtime::aarch64::unified_gic::init as gic_init;
 use runtime::aarch64::unified_gic::reset as gic_reset;
 use runtime::aarch64::unified_gic::mmio_read as gic_read;
 use runtime::aarch64::unified_gic::mmio_write as gic_write;
 use runtime::aarch64::unified_gic::set_level;
 use runtime::aarch64::unified_gic::poll as gic_poll;
+use runtime::aarch64::unified_gic::wake_pending as gic_wake_pending;
 use runtime::aarch64::unified_gic::send_sgi;
 use runtime::aarch64::coordinator_uart::init as coordinator_init;
 use runtime::aarch64::coordinator_uart::mmio_read as coordinator_read;
@@ -30,6 +34,8 @@ extern "ocore" fn uw_irq_eoi(irq: u64) -> void;
 extern "ocore" fn uw_timer_pending(domain: u64, kind: u64) -> u64;
 extern "ocore" fn uw_timer_read(domain: u64, kind: u64, field: u64) -> u64;
 extern "ocore" fn uw_timer_write(domain: u64, kind: u64, field: u64, value: u64) -> u64;
+extern "ocore" fn uw_timer_deadline(domain: u64, kind: u64) -> u64;
+extern "ocore" fn uw_idle_until(deadline: u64) -> u64;
 extern "ocore" fn uw_serial_putc(value: u64) -> void;
 extern "ocore" fn uw_serial_try_read() -> u64;
 extern "ocore" fn uw_memory_barrier() -> void;
@@ -40,6 +46,8 @@ static ONLINE: [u8; 35] = b"KW unified Linux/Plan9 EL2: online\n";
 static FAIL: [u8; 27] = b"KW unified domain failure: ";
 static P9READY: [u8; 11] = b"bootargs is";
 static mut LIVE: [u64; 2] = [0; 2];
+static mut BLOCKED: [u64; 2] = [0; 2];
+static mut IDLE_WAITS: u64 = 0;
 static mut DEADLINE: u64 = 0;
 static mut PERIOD: u64 = 0;
 static mut RTC_FLOOR: u64 = 0;
@@ -100,7 +108,7 @@ unsafe fn hex(value: u64) -> void {
 unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
     emit((&FAIL[0]), 27); hex(domain); control_putc(32);
     hex(esr); control_putc(32); hex(ipa); control_putc(32); hex(pc); control_putc(10);
-    if domain < 2 { LIVE[domain as usize] = 0; }
+    if domain < 2 { LIVE[domain as usize] = 0; BLOCKED[domain as usize] = 0; }
     if domain == 1 { plan9_wire_revoke(); set_level(1, 33, 0); }
 }
 unsafe fn record_status() -> void {
@@ -114,6 +122,11 @@ unsafe fn record_status() -> void {
     volatile_store(0x6d00_0058 as *mut u64, LAST_ESR[1]);
     volatile_store(0x6d00_0060 as *mut u64, CONSOLE_MODE);
     volatile_store(0x6d00_0068 as *mut u64, INPUT_DROPPED);
+    volatile_store(0x6d00_00a0 as *mut u64, BLOCKED[0] | (BLOCKED[1] << 1));
+    volatile_store(0x6d00_00a8 as *mut u64, IDLE_WAITS);
+    volatile_store(0x6d00_00b0 as *mut u64, plan9_wire_requests());
+    volatile_store(0x6d00_00b8 as *mut u64, plan9_wire_request_bytes());
+    volatile_store(0x6d00_00c0 as *mut u64, plan9_wire_reply_bytes());
 }
 
 @export
@@ -251,14 +264,52 @@ pub unsafe fn uw_init() -> u64 {
     busy(1);
     if volatile_load(0xb000_0000 as *const u32) != 0xedfe_0dd0
         || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 { return 0; }
-    LIVE[0] = 1; LIVE[1] = 1; UART[0x30 / 4] = 0x301;
+    LIVE[0] = 1; LIVE[1] = 1; BLOCKED[0] = 0; BLOCKED[1] = 0; UART[0x30 / 4] = 0x301;
     record_status(); emit((&ONLINE[0]), 35);
     busy(0); return 1;
 }
 
 @export
 @no_mangle
-pub unsafe fn uw_next_deadline() -> u64 { return DEADLINE; }
+pub unsafe fn uw_next_deadline() -> u64 {
+    return earlier_timer(DEADLINE, uw_counter_read());
+}
+
+// Saved timer CVALs are converted to the physical counter by the assembly
+// hook; disabled/IMASK timers return MAX. An expired but CPU-interface-masked
+// timer is already sampled by progress and must not cause an EL2 busy loop.
+unsafe fn earlier_timer(limit: u64, now: u64) -> u64 {
+    let mut result: u64 = limit;
+    let mut domain: u64 = 0;
+    while domain < 2 {
+        if LIVE[domain as usize] == 1 {
+            let mut kind: u64 = 0;
+            while kind < 2 {
+                let deadline: u64 = uw_timer_deadline(domain, kind);
+                if deadline > now && deadline < result { result = deadline; }
+                kind += 1;
+            }
+        }
+        domain += 1;
+    }
+    return result;
+}
+
+unsafe fn wake_blocked() -> void {
+    let mut domain: u64 = 0;
+    while domain < 2 {
+        if LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 1 {
+            let pending: u64 = gic_wake_pending(domain);
+            if pending == MAX { contain(domain, 0x805, domain, LAST_PC[domain as usize]); }
+            else { if pending == 1 { BLOCKED[domain as usize] = 0; } }
+        }
+        domain += 1;
+    }
+}
+
+unsafe fn runnable(domain: u64) -> bool {
+    return LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 0;
+}
 
 @export
 @no_mangle
@@ -397,13 +448,17 @@ unsafe fn native_control() -> void {
     let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
     let mut result: u64 = 0;
     if operation == 1 && LIVE[0] == 1 {
-        LIVE[1] = 0; PLAN9_WITHDRAWN = 1;
+        LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1;
         plan9_wire_revoke();
         set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
         RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
         result = 1;
     }
-    if operation == 2 && PLAN9_WITHDRAWN == 1 && LIVE[1] == 0 && uw_current_domain() == 0 {
+    // Both EL1 contexts have been saved before progress enters this mailbox.
+    // A withdrawn Plan9 may still be named by uw_current_domain while Linux
+    // is parked. No old frame writes occur after progress; assembly selects
+    // the freshly reset context from this dispatcher's return value.
+    if operation == 2 && PLAN9_WITHDRAWN == 1 && LIVE[1] == 0 {
         let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
         let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
         if kernel_bytes != 0 && kernel_bytes <= 0x0100_0000 && dtb_bytes != 0 && dtb_bytes <= 0x0001_0000
@@ -429,7 +484,7 @@ unsafe fn native_control() -> void {
                 UART[0x30 / 4] = 0x301;
                 RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
                 INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
-                PLAN9_WITHDRAWN = 0; LIVE[1] = 1; result = 1;
+                PLAN9_WITHDRAWN = 0; BLOCKED[1] = 0; LIVE[1] = 1; result = 1;
             }
         }
     }
@@ -459,7 +514,12 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
         yield_now = true;
     } else {
         let mut accepted: bool = false;
-        if ec == 1 { volatile_store(frame + 31, pc + 4); accepted = true; yield_now = true; }
+        if ec == 1 {
+            volatile_store(frame + 31, pc + 4); accepted = true; yield_now = true;
+            // ISS.TI distinguishes WFE from WFI. WFE is permitted to complete
+            // as a hint; a virtual event register is not an IRQ-only wait.
+            if (esr & 1) == 0 { BLOCKED[domain as usize] = 1; }
+        }
         else { if ec == 0x18 { accepted = system_register(domain, frame, esr); }
         else { if ec == 0x16 || ec == 0x17 { accepted = psci(frame, ec); }
         else { if ec == 0x24 {
@@ -476,14 +536,29 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
         if !accepted { contain(domain, esr, ipa, pc); }
     }
     progress();
-    let now: u64 = uw_counter_read();
+    // Marking blocked precedes device/timer resampling and the IRQ check.
+    // Native progress is serialized here; arrivals during the sleep are
+    // bounded by its physical timer and resampled before any guest restore.
+    wake_blocked();
+    let mut now: u64 = uw_counter_read();
+    while !runnable(0) && !runnable(1) && (LIVE[0] == 1 || LIVE[1] == 1) {
+        record_status(); busy(0);
+        IDLE_WAITS += 1;
+        // Physical UART/SPIs are intentionally masked: keep native mailbox,
+        // console and backend I/O responsive within 5 ms, or an earlier guest
+        // timer. This parks the physical CPU rather than re-entering idle EL1.
+        let irq: u64 = uw_idle_until(earlier_timer(now + FREQUENCY / 200, now));
+        busy(1);
+        if irq != 26 && irq != 1023 { contain(domain, 0x806, irq, pc); record_status(); busy(0); return MAX; }
+        progress(); wake_blocked(); now = uw_counter_read();
+    }
     let mut next: u64 = domain;
-    if yield_now || now >= DEADLINE || LIVE[domain as usize] == 0 {
+    if yield_now || now >= DEADLINE || !runnable(domain) {
         let other: u64 = domain ^ 1;
-        if LIVE[other as usize] == 1 { next = other; }
+        if runnable(other) { next = other; }
         DEADLINE = now + PERIOD;
     }
-    if LIVE[next as usize] == 0 { record_status(); busy(0); return MAX; }
+    if !runnable(next) { record_status(); busy(0); return MAX; }
     if next != domain { SWITCHES += 1; }
     if gic_poll(next) != 1 { contain(next, 0x804, next, pc); record_status(); busy(0); return MAX; }
     record_status(); busy(0); return next;

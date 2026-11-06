@@ -42,6 +42,37 @@ USERLAND_COEXISTENCE_SHA = "cb50edb12fd4e9d526d01e28318c7990a3ee6eee8d9700a447c5
 SERVICE_SOURCE_SHA = "3606d5182bfb7e03b296e93b84bd5712c63b0cfd1076b21926331a8839a2df98"
 STARTUP_SHA = "f5f77df25eca46543906e49c80ab6e1a2cd937077a123b2b8a2fe88b2bac79f8"
 SERVICE_SHA = "a53dd1cc3874881524f41be0441b4f2b5396b12585f65bda600225235f4a1675"
+IDLE_SCHEDULER = {"schema": "ostadix.unified-idle-scheduler/v1",
+                  "blocked_mask_address": 0x6d0000a0, "idle_waits_address": 0x6d0000a8,
+                  "plan9_9p_requests_address": 0x6d0000b0,
+                  "plan9_9p_request_bytes_address": 0x6d0000b8,
+                  "plan9_9p_reply_bytes_address": 0x6d0000c0,
+                  "native_poll_frequency_divisor": 200,
+                  "policy": "park WFI until waking virtual interrupt; WFE remains a hint"}
+
+
+def qualified_userland_policy(receipt_sha: str) -> dict:
+    """Select an explicitly qualified provider; self-consistent files do not admit one."""
+    if receipt_sha == USERLAND_RECEIPT_SHA:
+        return {"revision": "build7", "frozen_sha": USERLAND_FROZEN_SHA,
+                "source_sha": SERVICE_SOURCE_SHA, "startup_sha": STARTUP_SHA,
+                "service_sha": SERVICE_SHA, "unchanged_from_build5": True,
+                "prior_service_sha": SERVICE_SHA,
+                "qualification_relative": "qualification-7/result.json",
+                "qualification_sha": USERLAND_QUALIFICATION_SHA,
+                "coexistence_sha": USERLAND_COEXISTENCE_SHA}
+    if receipt_sha == "b128b0df09e80318576282c6c2799a4bdde00980ffaddee37c6ac83d326dbbbf":
+        return {"revision": "traffic-20261106-build2",
+                "frozen_sha": "66fc0080bde1f8a0a17bf2b819320359146e8609c528ba38e5def9dd8eca5f4e",
+                "source_sha": "e3e85652ce83159882f14b84a72a9cbaf55085d14f228a9c50b2433f5eb143f3",
+                "startup_sha": STARTUP_SHA,
+                "service_sha": "701d9c32373d41f145b4d4b5fb346f626ee65ddd3d06581bace87f2290b79942",
+                "unchanged_from_build5": False, "prior_service_sha": SERVICE_SHA,
+                "qualification_relative": "okernel-plan9-traffic-20261106-qualification-1/result.json",
+                "qualification_sha": "0d46c69d9074a8ebc7b04fa0bd2d9c25125310ecbe8e42b077d6480696006d95",
+                "coexistence_sha": "b4d69a906424e7a8842f05f639f49f480062104a9e22a18465f29a5fb4786d7d",
+                "fresh_behavior": True}
+    raise ValueError("Plan9 userland receipt differs from qualified build7 pin or a qualified successor")
 
 
 def fingerprint(path: Path) -> str:
@@ -85,18 +116,19 @@ def capture_expected(item: dict, target: Path) -> None:
 
 
 def admit_userland_derivation(receipt: Path, kernel_identity: dict) -> dict:
-    """Admit only the separately qualified build7, without weakening old pins.
+    """Admit a separately qualified provider without weakening preceding pins.
 
     Receipt pins are observed provenance, not signatures or source bootstrap.
     Validation reads captured exports without extracting, executing a supplied
     controller, creating temporary files or launching a VM.
     """
     receipt_id = identity(receipt)
-    if receipt.is_symlink() or receipt_id["sha256"] != USERLAND_RECEIPT_SHA:
-        raise ValueError("Plan9 userland receipt differs from qualified build7 pin")
+    if receipt.is_symlink():
+        raise ValueError("Plan9 userland receipt must be a regular nonsymlink file")
+    policy = qualified_userland_policy(receipt_id["sha256"])
     document = json.loads(receipt.read_text())
     frozen_path = receipt.parent / "FROZEN.json"
-    if frozen_path.is_symlink() or fingerprint(frozen_path) != USERLAND_FROZEN_SHA:
+    if frozen_path.is_symlink() or fingerprint(frozen_path) != policy["frozen_sha"]:
         raise ValueError("Plan9 userland FROZEN receipt differs from its qualified pin")
     frozen = json.loads(frozen_path.read_text())
     if (document.get("schema") != "ostadix.original9front-userland-builder/v1" or document.get("ok") is not True
@@ -110,13 +142,13 @@ def admit_userland_derivation(receipt: Path, kernel_identity: dict) -> dict:
         checked_identity(expected)
     if any(kernel_identity[key] != artifacts["KERNEL.U"][key] for key in ("bytes", "sha256")):
         raise ValueError("Plan9 kernel differs from qualified userland kernel")
-    if (artifacts["SERVICE"]["sha256"] != SERVICE_SHA
-            or document["inputs"]["P9CMDSRV.C"]["sha256"] != SERVICE_SOURCE_SHA
-            or document["inputs"]["START.RC"]["sha256"] != STARTUP_SHA
+    if (artifacts["SERVICE"]["sha256"] != policy["service_sha"]
+            or document["inputs"]["P9CMDSRV.C"]["sha256"] != policy["source_sha"]
+            or document["inputs"]["START.RC"]["sha256"] != policy["startup_sha"]
             or frozen["source"] != document["inputs"]["P9CMDSRV.C"]
             or frozen["startup"] != document["inputs"]["START.RC"]
-            or frozen.get("service_unchanged_from_build5") is not True
-            or frozen["prior_service"]["sha256"] != SERVICE_SHA):
+            or frozen.get("service_unchanged_from_build5") is not policy["unchanged_from_build5"]
+            or frozen["prior_service"]["sha256"] != policy["prior_service_sha"]):
         raise ValueError("Plan9 service/background startup identity is not qualified")
     for group in ("inputs", "platform_artifacts", "host_tools"):
         for item in document[group].values():
@@ -174,26 +206,43 @@ def admit_userland_derivation(receipt: Path, kernel_identity: dict) -> dict:
         raise ValueError("complete Plan9 original closure differs from qualified inventory")
     if fingerprint(validator_path) != document["inputs"]["builder.py"]["sha256"]:
         raise ValueError("Plan9 archive validator changed during admission")
-    qualification_path = receipt.parent.parent / "qualification-7/result.json"
-    if qualification_path.is_symlink() or fingerprint(qualification_path) != USERLAND_QUALIFICATION_SHA:
+    qualification_path = receipt.parent.parent / policy["qualification_relative"]
+    if qualification_path.is_symlink() or fingerprint(qualification_path) != policy["qualification_sha"]:
         raise ValueError("Plan9 command-provider qualification differs from its approved pin")
     qualification = json.loads(qualification_path.read_text())
     coexistence_id = qualification["coexistence_gate"]
     checked_identity(coexistence_id)
     coexistence = json.loads(Path(coexistence_id["path"]).read_text())
     if (qualification.get("ok") is not True or qualification["build"] != receipt_id
-            or coexistence_id["sha256"] != USERLAND_COEXISTENCE_SHA or coexistence.get("ok") is not True
+            or coexistence_id["sha256"] != policy["coexistence_sha"] or coexistence.get("ok") is not True
             or coexistence["builder_receipt"] != receipt_id or coexistence["service"] != artifacts["SERVICE"]
             or coexistence["vm"]["kernel_source"] != artifacts["KERNEL.U"]):
         raise ValueError("Plan9 console/service qualification is not bound to this provider")
     copies = {"FROZEN.json": identity(frozen_path), "qualification.json": identity(qualification_path),
               "coexistence.json": coexistence_id, "console.log": document["console"],
               "admission-verifier.py": verifier_id}
+    if policy.get("fresh_behavior"):
+        gates = qualification.get("behavior_gates", {})
+        if (qualification.get("behavior_cases") != 22
+                or set(gates) != {"foreground", "cancel-active", "cancel-before", "cancel-truncated", "timeout"}
+                or qualification.get("service_equivalence", {}).get("byte_for_byte_equal") is not False):
+            raise ValueError("new Plan9 service lacks its fresh complete behavior qualification")
+        for name, item in gates.items():
+            checked_identity(item)
+            gate = json.loads(Path(item["path"]).read_text())
+            if (gate.get("ok") is not True or gate.get("builder_receipt") != receipt_id
+                    or gate.get("service") != artifacts["SERVICE"]
+                    or gate.get("vm", {}).get("kernel_source") != artifacts["KERNEL.U"]):
+                raise ValueError("new Plan9 behavior gate does not bind this service: " + name)
+            copies["behavior/" + name + ".json"] = item
+        for name in ("unit_tests", "native_polling_fixture"):
+            checked_identity(qualification[name])
+            copies[name + ".json"] = qualification[name]
     for group in ("inputs", "platform_artifacts", "artifacts"):
         copies.update({group + "/" + name: item for name, item in document[group].items()})
     return {**document, "admission_kind": "qualified-original-userland", "admitted_receipt": receipt_id,
             "admission_copies": copies,
-            "provider_admission": {"service": artifacts["SERVICE"], "startup": frozen["startup"],
+            "provider_admission": {"revision": policy["revision"], "service": artifacts["SERVICE"], "startup": frozen["startup"],
                                    "service_guest_path": "/arm64/bin/p9cmdsrv", "startup_guest_path": "/rc/bin/okernel-start",
                                    "kernel": artifacts["KERNEL.U"], "paq": artifacts["USER.PAQ"],
                                    "files": len(declared), "bytes": document["provider_bytes"],
@@ -421,6 +470,7 @@ pub const NAMESPACE: u64 = 1;
                 "distributor": [0x08000000, 0x08010000],
                 "redistributor": [0x080a0000, 0x080c0000],
                 "native_quantum_irq": 26, "quantum_counter_divisor": 100, "lpi_authority": False},
+        "idle_scheduler": dict(IDLE_SCHEDULER),
         "artifacts": artifacts, "tools": {name: identity(path) for name, path in tools.items()},
         "source_sha256": before, "source_artifacts": captured_sources,
         "plan9_source_commit": admitted["source_commit"],

@@ -13,6 +13,7 @@ builder = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(builder)
 QUALIFIED = Path.home() / ".cache/okernel-plan9-userland/build-7"
 OLD = Path.home() / ".local/state/ostadix/okernel/plan9-native-rebuild-20261102-r3"
+TRAFFIC = Path.home() / ".cache/okernel-plan9-traffic-20261106-build-2"
 
 
 class AdmissionBoundaryTests(unittest.TestCase):
@@ -121,6 +122,31 @@ class QualifiedUserlandTests(unittest.TestCase):
         kernel = builder.identity(OLD / "patched-1/artifacts/NATIVE.U")
         admitted = builder.admit_plan9_derivation(receipt, kernel, old)
         self.assertEqual(admitted["admission_kind"], "original-kernel")
+
+
+@unittest.skipUnless((TRAFFIC / "FROZEN.json").is_file(), "qualified traffic-provider cache unavailable")
+class QualifiedTrafficProviderTests(unittest.TestCase):
+    def test_new_service_requires_and_captures_fresh_original_behavior_gates(self):
+        receipt = TRAFFIC / "result.json"
+        admitted = builder.admit_userland_derivation(receipt, builder.identity(TRAFFIC / "artifacts/KERNEL.U"))
+        provider = admitted["provider_admission"]
+        self.assertEqual(provider["revision"], "traffic-20261106-build2")
+        self.assertEqual((provider["files"], provider["bytes"]), (239, 13164572))
+        self.assertEqual(provider["service"]["sha256"], "701d9c32373d41f145b4d4b5fb346f626ee65ddd3d06581bace87f2290b79942")
+        self.assertNotEqual(provider["service"]["sha256"], builder.SERVICE_SHA)
+        for name in ("foreground", "cancel-active", "cancel-before", "cancel-truncated", "timeout"):
+            self.assertIn("behavior/" + name + ".json", admitted["admission_copies"])
+
+    def test_missing_or_changed_fresh_gate_cannot_reuse_old_service_qualification(self):
+        changed = Path.home() / ".cache/okernel-plan9-traffic-20261106-timeout-1/result.json"
+        original = builder.fingerprint
+        with mock.patch.object(builder, "fingerprint", side_effect=lambda path: "0" * 64 if Path(path) == changed else original(path)):
+            with self.assertRaisesRegex(ValueError, "frozen Plan9 derivation evidence changed"):
+                builder.admit_userland_derivation(TRAFFIC / "result.json", builder.identity(TRAFFIC / "artifacts/KERNEL.U"))
+
+    def test_new_kernel_does_not_borrow_build7_receipt(self):
+        with self.assertRaisesRegex(ValueError, "kernel differs"):
+            builder.admit_userland_derivation(QUALIFIED / "result.json", builder.identity(TRAFFIC / "artifacts/KERNEL.U"))
 
 
 if __name__ == "__main__":

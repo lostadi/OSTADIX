@@ -126,8 +126,11 @@ uw_domain_init:
 
 // Trusted stopped-domain recycling. All architectural state, including SIMD,
 // PMU/debug/locks and active virtual interrupts, is discarded. The caller must
-// first withdraw the domain and replace its private RAM while QEMU is stopped.
-// Native code cannot use this as an in-place reset of a running guest frame.
+// first withdraw the domain, then replace its private RAM at this quiescent
+// native EL2 boundary with the complete EL1 context already saved. The last
+// current-domain ID may still name it; no EL1 code is running during reset.
+// The dispatcher must not write that old saved frame after this call, and
+// uw_exception must reselect the returned domain's fresh context before eret.
 .global uw_domain_reset
 uw_domain_reset:
     cmp x0, #2
@@ -307,6 +310,26 @@ uw_timer_rearm:
     msr cnthp_ctl_el2, x0
     isb
     ret
+.global uw_idle_until
+uw_idle_until:
+    // Called only with both EL1 contexts saved and DAIF masked. A physical
+    // PPI26 wakes WFI regardless of PSTATE.I; no same-EL IRQ handler can enter
+    // halfway through the native scheduler. The caller bounds every wait.
+    msr cnthp_cval_el2, x0
+    mov x0, #1
+    msr cnthp_ctl_el2, x0
+    dsb sy
+    isb
+    wfi
+    // Claim before deasserting the level, then EOI, just as uw_lower_irq does.
+    mrs x0, icc_iar1_el1
+    msr cnthp_ctl_el2, xzr
+    isb
+    cmp x0, #1020
+    b.hs 1f
+    msr icc_eoir1_el1, x0
+    isb
+1:  ret
 .global uw_counter_read
 .global kw_counter_read
 uw_counter_read:
@@ -441,6 +464,38 @@ uw_vgic_vmcr_write:
     str x1, [x2, #712]
     ret
 
+.global uw_vgic_running_priority
+uw_vgic_running_priority:
+    cmp x0, #2
+    b.hs uw_halt
+    adrp x1, uw_contexts
+    add x1, x1, :lo12:uw_contexts
+    add x1, x1, x0, lsl #12
+    add x1, x1, #UW_AP0
+    adrp x2, uw_apr_count
+    ldr x2, [x2, :lo12:uw_apr_count]
+    mov x3, #0
+1:  cmp x3, x2
+    b.hs 3f
+    ldr x4, [x1, x3, lsl #3]
+    add x5, x1, #32
+    ldr x5, [x5, x3, lsl #3]
+    orr w4, w4, w5
+    cbnz w4, 2f
+    add x3, x3, #1
+    b 1b
+2:  rbit w4, w4
+    clz w4, w4
+    add x4, x4, x3, lsl #5
+    // APR count is 1/2/4 for 5/6/7 implemented preemption bits. Each
+    // active-priority bit therefore represents 8/4/2 priority values.
+    mov x5, #8
+    udiv x5, x5, x2
+    mul x0, x4, x5
+    ret
+3:  mov x0, #255
+    ret
+
 .global uw_timer_read
 uw_timer_read:
     cmp x0, #2
@@ -514,6 +569,29 @@ uw_timer_pending:
     cmp x0, #5
     cset x0, eq
     ldp x29, x30, [sp], #16
+    ret
+
+.global uw_timer_deadline
+uw_timer_deadline:
+    cmp x0, #2
+    b.hs uw_halt
+    cmp x1, #2
+    b.hs uw_halt
+    adrp x2, uw_contexts
+    add x2, x2, :lo12:uw_contexts
+    add x2, x2, x0, lsl #12
+    add x2, x2, #UW_CNTV_CTL
+    add x2, x2, x1, lsl #4
+    ldr x3, [x2]
+    and x3, x3, #3
+    cmp x3, #1 // enabled and unmasked; timer ISTATUS is computed separately
+    b.ne 2f
+    ldr x0, [x2, #8]
+    cbnz x1, 1f
+    ldr x3, [x2, #32] // CNTVOFF relative to CNTV_CTL
+    add x0, x0, x3
+1:  ret
+2:  mov x0, #-1
     ret
 
 .macro UW_SYS_SAVE reg, offset

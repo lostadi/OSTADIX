@@ -50,6 +50,7 @@ uint64_t uw_vgic_lr_read(uint64_t d,uint64_t i){assert(d<2&&i<count);reads[which
 void uw_vgic_lr_write(uint64_t d,uint64_t i,uint64_t v){assert(d<2&&i<count);writes[which]++;banks[which][d][i]=v;}
 uint64_t uw_vgic_vmcr_read(uint64_t d){assert(d<2);return vmcr[which][d];}
 void uw_vgic_vmcr_write(uint64_t d,uint64_t v){assert(d<2);vmcr[which][d]=v;}
+uint64_t uw_vgic_running_priority(uint64_t d){assert(d<2);return 255;}
 uint64_t uw_vgic_hcr_read(uint64_t d){assert(d<2);return hcr[which][d];}
 void uw_vgic_hcr_write(uint64_t d,uint64_t v){assert(d<2);hcr[which][d]=v;}
 static void equal(uint64_t a,uint64_t b,const char *kind,unsigned d,unsigned index){

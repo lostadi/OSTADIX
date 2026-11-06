@@ -58,6 +58,8 @@ uint64_t uw_counter_read(void){return now+=10001;}
 uint64_t uw_counter_frequency(void){return 1000000;}
 uint64_t uw_irq_ack(void){return 26;}
 void uw_irq_eoi(uint64_t irq){assert(irq==26);}
+uint64_t uw_timer_deadline(uint64_t d,uint64_t kind){assert(d<2&&kind<2);return UINT64_MAX;}
+uint64_t uw_idle_until(uint64_t deadline){(void)deadline;fputs("unexpected idle in mux fixture\n",stderr);abort();}
 uint64_t uw_timer_pending(uint64_t d,uint64_t kind){assert(d<2&&kind<2);return 0;}
 uint64_t uw_timer_read(uint64_t d,uint64_t kind,uint64_t field){assert(d<2&&kind<2&&field<3);return 0;}
 uint64_t uw_timer_write(uint64_t d,uint64_t kind,uint64_t field,uint64_t v){(void)v;assert(d<2&&kind<2&&field<3);return 1;}
@@ -68,11 +70,12 @@ void uw_halt(void){fputs("unexpected production halt\n",stderr);abort();}
 uint64_t uw_vgic_lr_count(void){return 4;}
 uint64_t uw_vgic_lr_read(uint64_t d,uint64_t i){assert(d<2&&i<4);return bank[d][i];}
 void uw_vgic_lr_write(uint64_t d,uint64_t i,uint64_t v){assert(d<2&&i<4);bank[d][i]=v;}
+uint64_t uw_vgic_running_priority(uint64_t d){assert(d<2);return 255;}
 uint64_t uw_vgic_hcr_read(uint64_t d){assert(d<2);return hcr[d];}
 void uw_vgic_hcr_write(uint64_t d,uint64_t v){assert(d<2);hcr[d]=v;}
 uint64_t uw_vgic_vmcr_read(uint64_t d){assert(d<2);return vmcr[d];}
 void uw_vgic_vmcr_write(uint64_t d,uint64_t v){assert(d<2);vmcr[d]=v;}
-static void tick(void){current=0;frame[31]=0x40001000;assert(uw_handle_exit((uintptr_t)frame,0,UINT64_C(1)<<26,0,0)<2);assert(word(CONTROL+8)==0&&word(CONTROL+0x20)==3);}
+static void tick(void){current=0;frame[31]=0x40001000;assert(uw_handle_exit((uintptr_t)frame,0,(UINT64_C(1)<<26)|1,0,0)<2);assert(word(CONTROL+8)==0&&word(CONTROL+0x20)==3);}
 static void input(const void *p,size_t n){assert(!physical_count&&n<=sizeof(physical));memcpy(physical,p,n);physical_head=0;physical_count=n;while(physical_count)tick();}
 static uint64_t mode(void){return word(CONTROL+0x60);}
 static uint64_t dropped(void){return word(CONTROL+0x68);}

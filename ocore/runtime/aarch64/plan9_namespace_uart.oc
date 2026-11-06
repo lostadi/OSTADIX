@@ -37,6 +37,19 @@ static mut COUNT: usize = 0;
 static mut REQUEST: [u8; 8192] = [0; 8192];
 static mut RESPONSE: [u8; 8192] = [0; 8192];
 static mut OUTPUT: [u8; 65536] = [0; 65536];
+// Monitor-only lifetime observations. Guest resets/revocation do not reset
+// them, and no MMIO offset exposes or changes them. Saturate on exhaustion.
+static mut COMPLETED_REQUESTS: u64 = 0;
+static mut COMPLETED_REQUEST_BYTES: u64 = 0;
+static mut ENQUEUED_REPLY_BYTES: u64 = 0;
+
+fn add_count(value: u64, amount: u64) -> u64 {
+    if amount > MAX - value { return MAX; }
+    return value + amount;
+}
+pub unsafe fn request_count() -> u64 { return COMPLETED_REQUESTS; }
+pub unsafe fn request_byte_count() -> u64 { return COMPLETED_REQUEST_BYTES; }
+pub unsafe fn reply_byte_count() -> u64 { return ENQUEUED_REPLY_BYTES; }
 
 fn little32(bytes: *const u8) -> usize {
     unsafe {
@@ -145,6 +158,9 @@ unsafe fn transmit(value: u8) -> u64 {
             || (RESPONSE[4] != 107 && RESPONSE[4] as u64 != REQUEST[4] as u64 + 1) {
             return fail(23);
         }
+        COMPLETED_REQUESTS = add_count(COMPLETED_REQUESTS, 1);
+        COMPLETED_REQUEST_BYTES = add_count(COMPLETED_REQUEST_BYTES, REQUEST_BYTES as u64);
+        ENQUEUED_REPLY_BYTES = add_count(ENQUEUED_REPLY_BYTES, reply as u64);
         index = 0;
         while index < reply {
             OUTPUT[(HEAD + COUNT + index) % FIFO] = RESPONSE[index];

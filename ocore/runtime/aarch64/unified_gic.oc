@@ -10,6 +10,7 @@ extern "ocore" fn uw_vgic_vmcr_read(domain: u64) -> u64;
 extern "ocore" fn uw_vgic_vmcr_write(domain: u64, value: u64) -> void;
 extern "ocore" fn uw_vgic_hcr_read(domain: u64) -> u64;
 extern "ocore" fn uw_vgic_hcr_write(domain: u64, value: u64) -> void;
+extern "ocore" fn uw_vgic_running_priority(domain: u64) -> u64;
 
 const BAD: u64 = 0xffff_ffff_ffff_ffff;
 const PENDING: u64 = 0x4000_0000_0000_0000;
@@ -213,6 +214,38 @@ pub unsafe fn poll(domain: u64) -> u64 {
     }
     DIRTY[domain as usize] = 0;
     return 1;
+}
+
+// WFI resumes when the private CPU interface would assert a virtual IRQ,
+// even if PSTATE.I prevents taking that exception. Health/poll success alone
+// is not a wake event. This profile admits Group1 software LRs only, with no
+// NMI/LPI/HW extensions. Actual APR banks, not LR active state, determine the
+// running priority (EOImode can keep those states distinct).
+// BAD denotes corrupt native state; 0 and 1 mean asleep and IRQ asserted.
+pub unsafe fn wake_pending(domain: u64) -> u64 {
+    if poll(domain) != 1 { return BAD; }
+    if (uw_vgic_hcr_read(domain) & 1) == 0 { return 0; }
+    let vmcr: u64 = uw_vgic_vmcr_read(domain);
+    if (vmcr & 2) == 0 { return 0; }
+    let pmr: u64 = (vmcr >> 24) & 255;
+    let running: u64 = uw_vgic_running_priority(domain);
+    if running > 255 { return BAD; }
+    let mut bits: u64 = (vmcr >> 18) & 7;
+    if (vmcr & 16) != 0 { bits = ((vmcr >> 21) & 7) + 1; }
+    // VBPR1 has a minimum implementation value of at least 1. A reset bank
+    // can still contain zero before its first hardware restore; using 1 is
+    // conservative and agrees with the smallest architectural VBPR1 value.
+    if bits == 0 { bits = 1; }
+    let mask: u64 = (255 << (bits as usize)) & 255;
+    let mut lr: u64 = 0;
+    while lr < LRS {
+        let value: u64 = uw_vgic_lr_read(domain, lr);
+        let priority: u64 = (value >> 48) & 255;
+        if (value >> 62) == 1 && (value & GROUP1) != 0 && priority < pmr
+            && (running == 255 || (priority & mask) < (running & mask)) { return 1; }
+        lr += 1;
+    }
+    return 0;
 }
 
 pub unsafe fn set_level(domain: u64, irq: u64, asserted: u64) -> u64 {

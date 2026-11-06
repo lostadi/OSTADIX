@@ -24,6 +24,9 @@ extern uint64_t U(mmio_write)(uint64_t,uint64_t);
 extern uint64_t U(healthy)(void);
 extern uint64_t U(diagnostic)(void);
 extern uint64_t U(revoke)(void);
+extern uint64_t U(request_count)(void);
+extern uint64_t U(request_byte_count)(void);
+extern uint64_t U(reply_byte_count)(void);
 extern uint64_t S(init)(uintptr_t,uintptr_t,uint64_t);
 extern uint64_t S(session_init)(uint64_t,uint64_t);
 extern uintptr_t S(handle)(uint64_t,const uint8_t*,uintptr_t,uint8_t*,uintptr_t);
@@ -76,6 +79,7 @@ static void reset_like_original_driver(void) {
     w(0x2c,U(mmio_read)(0x2c)&~16ull);w(0x38,0x30);w(0x2c,U(mmio_read)(0x2c)|16);w(0x30,0x301);
 }
 int main(void) {
+    assert(U(request_count)()==0 && U(request_byte_count)()==0 && U(reply_byte_count)()==0);
     void *volume=mmap(NULL,16777216,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
     assert(volume!=MAP_FAILED && S(init)((uintptr_t)volume,16777216,7)==1);
     assert(U(init)(0)==0 && U(healthy)()==0 && U(mmio_write)(0x30,0)==0);
@@ -86,7 +90,9 @@ int main(void) {
     w(0x44,0x20);assert(irq==0);
     w(0x38,0x10);version();finish();
     transmit(position-1);assert(U(mmio_read)(0x18)&0x10);assert(irq==0);
+    assert(U(request_count)()==0 && U(request_byte_count)()==0 && U(reply_byte_count)()==0);
     w(0,request[position-1]);assert(irq==1 && (U(mmio_read)(0x3c)&0x50)==0x50);
+    assert(U(request_count)()==1 && U(request_byte_count)()==position && U(reply_byte_count)()==19);
     w(0x44,0x7ff);assert(irq==1 && U(mmio_read)(0x40)==0x10); // RX stays level asserted.
     assert(receive()==19 && response[4]==101 && irq==0);
     w(0x38,0x40);attach(1);finish();transmit(position);assert(irq==1);
@@ -135,7 +141,9 @@ int main(void) {
     // undone by guest register resets, protocol versions or attach/create.
     read_(3,0,1);finish();transmit(position);assert(!(U(mmio_read)(0x18)&0x10));
     write_(3,0,binary,8);finish();transmit(10);
+    uint64_t requests_before=U(request_count)(), bytes_before=U(request_byte_count)(), replies_before=U(reply_byte_count)();
     assert(U(revoke)()==1 && U(healthy)()==0 && U(diagnostic)()==2 && irq==0);
+    assert(U(request_count)()==requests_before && U(request_byte_count)()==bytes_before && U(reply_byte_count)()==replies_before);
     uint8_t *snapshot=malloc(16777216);assert(snapshot);memcpy(snapshot,volume,16777216);
     assert(U(mmio_read)(0x18)==0x90 && U(mmio_read)(0)==0 && U(mmio_read)(0x3c)==0);
     assert(U(mmio_write)(0x30,0)==0 && U(mmio_write)(0x30,0x301)==0 && U(mmio_write)(0x38,0x7ff)==0);
@@ -145,7 +153,9 @@ int main(void) {
     assert(!memcmp(snapshot,volume,16777216));free(snapshot);
     read_(51,0,1);direct(117);assert(peer_response[11]==changed); // Peer grant2 was not withdrawn.
     // Only trusted reinitialization can provision the same bounded role again.
-    assert(U(init)(100)==1);reset_like_original_driver();version();exchange(101);
+    assert(U(init)(100)==1);reset_like_original_driver();
+    assert(U(request_count)()==requests_before && U(request_byte_count)()==bytes_before && U(reply_byte_count)()==replies_before);
+    version();exchange(101);assert(U(request_count)()==requests_before+1);
     read_(3,0,1);exchange(107);attach(1);exchange(105);walk(1,4,"work",NULL);exchange(111);
     create(4,"trusted-rearmed");exchange(115);write_(4,0,binary,8);exchange(119);
     read_(4,0,8);exchange(117);assert(!memcmp(response+11,binary,8));

@@ -458,5 +458,56 @@ class UnifiedConsoleCompletionTests(unittest.TestCase):
             domain.command("false")
 
 
+class IdleObservationTests(unittest.TestCase):
+    def test_builder_and_runner_bind_identical_private_idle_geometry(self):
+        self.assertEqual(BUILDER.IDLE_SCHEDULER, RUNNER.IDLE_SCHEDULER)
+        idle = BUILDER.IDLE_SCHEDULER
+        self.assertEqual(idle["blocked_mask_address"], 0x6d0000a0)
+        self.assertEqual(idle["idle_waits_address"], idle["blocked_mask_address"] + 8)
+        self.assertGreaterEqual(idle["blocked_mask_address"],
+                                EXPECTED_RECOVERY["control_address"] + EXPECTED_RECOVERY["control_bytes"])
+
+    def observe(self, idle, blocked=3):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        domain = RUNNER.UnifiedDomain.__new__(RUNNER.UnifiedDomain)
+        domain.session = Path(temporary.name)
+        domain.idle_scheduler = idle
+        domain.qmp = mock.Mock()
+
+        def export(command, arguments):
+            self.assertEqual(command, "pmemsave")
+            if arguments["val"] == 0x6d000020:
+                self.assertEqual(arguments["size"], 80)
+                data = struct.pack("<10Q", 3, 40, 5, 7, 0x1234, 0x5678, 1, 2, 0, 0)
+            else:
+                self.assertEqual((arguments["val"], arguments["size"]), (0x6d0000a0, 40))
+                data = struct.pack("<5Q", blocked, 31, 44, 3014, 2000)
+            Path(arguments["filename"]).write_bytes(data)
+        domain.qmp.execute.side_effect = export
+        return domain, domain.counters
+
+    def test_new_monitor_reports_blocking_and_native_waits(self):
+        domain, observe = self.observe(RUNNER.IDLE_SCHEDULER)
+        result = observe()
+        self.assertEqual((result["blocked_domains"], result["native_idle_waits"]), (3, 31))
+        self.assertEqual((result["linux_exits"], result["plan9_exits"]), (5, 7))
+        self.assertEqual((result["plan9_9p_requests"], result["plan9_9p_request_bytes"],
+                          result["plan9_9p_reply_bytes"]), (44, 3014, 2000))
+        self.assertEqual(domain.qmp.execute.call_count, 2)
+
+    def test_original_monitor_does_not_read_unbound_extension(self):
+        domain, observe = self.observe(None)
+        result = observe()
+        self.assertNotIn("blocked_domains", result)
+        self.assertNotIn("native_idle_waits", result)
+        self.assertEqual(domain.qmp.execute.call_count, 1)
+
+    def test_invalid_domain_bits_are_rejected(self):
+        _, observe = self.observe(RUNNER.IDLE_SCHEDULER, blocked=4)
+        with self.assertRaisesRegex(RuntimeError, "idle scheduler state"):
+            observe()
+
+
 if __name__ == "__main__":
     unittest.main()

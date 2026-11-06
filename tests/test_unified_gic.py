@@ -42,6 +42,7 @@ uint64_t uw_vgic_lr_read(uint64_t d,uint64_t i){assert(d<2&&i<count);return bank
 void uw_vgic_lr_write(uint64_t d,uint64_t i,uint64_t v){assert(d<2&&i<count&&d!=forbidden_domain);banks[d][i]=v;writes++;}
 uint64_t uw_vgic_vmcr_read(uint64_t d){assert(d<2);return vmcr[d];}
 void uw_vgic_vmcr_write(uint64_t d,uint64_t v){assert(d<2&&d!=forbidden_domain);vmcr[d]=v;}
+uint64_t uw_vgic_running_priority(uint64_t d){assert(d<2);return 255;}
 uint64_t uw_vgic_hcr_read(uint64_t d){assert(d<2);return hcr[d];}
 void uw_vgic_hcr_write(uint64_t d,uint64_t v){assert(d<2&&d!=forbidden_domain);hcr[d]=v;}
 static uint64_t read_(unsigned d,uint64_t a,unsigned width){return G(mmio_read)(d,a,width);}

@@ -47,6 +47,13 @@ RECOVERY = {"control_address": 0x6d000070, "control_bytes": 48,
 COORDINATOR_UART = {"guest_address": 0x09001000, "guest_irq": 51,
                     "input_address": 0x6d060000, "input_bytes": 8192,
                     "output_address": 0x6d080000, "output_bytes": 65536}
+IDLE_SCHEDULER = {"schema": "ostadix.unified-idle-scheduler/v1",
+                  "blocked_mask_address": 0x6d0000a0, "idle_waits_address": 0x6d0000a8,
+                  "plan9_9p_requests_address": 0x6d0000b0,
+                  "plan9_9p_request_bytes_address": 0x6d0000b8,
+                  "plan9_9p_reply_bytes_address": 0x6d0000c0,
+                  "native_poll_frequency_divisor": 200,
+                  "policy": "park WFI until waking virtual interrupt; WFE remains a hint"}
 
 
 COORDINATOR_START = "mkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /usr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/okernel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :"
@@ -110,6 +117,8 @@ def validate_profile(profile: dict) -> None:
                                              "inputs/plan9-recovery.dtb": 0xd1000000})
     if "coordinator_uart" in profile:
         required["coordinator_uart"] = COORDINATOR_UART
+    if "idle_scheduler" in profile:
+        required["idle_scheduler"] = IDLE_SCHEDULER
     if any(profile.get(key) != value for key, value in required.items()):
         raise ValueError("expected the exact isolated two-domain memory/interrupt grant")
 
@@ -187,6 +196,7 @@ class UnifiedDomain:
             manifest_file = self.build / "monitor-profile.json"
             manifest = json.loads(manifest_file.read_text())
             validate_profile(manifest)
+            self.idle_scheduler = manifest.get("idle_scheduler")
             common.write_json(self.session / "monitor-profile.json", manifest)
             artifacts = {}
             snapshots = self.session / "inputs"
@@ -694,9 +704,19 @@ class UnifiedDomain:
         path = self.session / "native-status.bin"
         self.qmp.execute("pmemsave", {"val": 0x6d000020, "size": 80, "filename": str(path)})
         live, switches, linux, plan9, linux_pc, plan9_pc, linux_esr, plan9_esr, console, dropped = struct.unpack("<10Q", path.read_bytes())
-        return {"live_domains": live, "switches": switches, "linux_exits": linux, "plan9_exits": plan9,
+        result = {"live_domains": live, "switches": switches, "linux_exits": linux, "plan9_exits": plan9,
                 "linux_pc": hex(linux_pc), "plan9_pc": hex(plan9_pc), "linux_esr": hex(linux_esr), "plan9_esr": hex(plan9_esr),
                 "console": console, "input_dropped": dropped}
+        if getattr(self, "idle_scheduler", None) is not None:
+            self.qmp.execute("pmemsave", {"val": IDLE_SCHEDULER["blocked_mask_address"], "size": 40,
+                                         "filename": str(path)})
+            blocked, waits, requests, sent, received = struct.unpack("<5Q", path.read_bytes())
+            if blocked & ~3:
+                raise RuntimeError("invalid native idle scheduler state")
+            result.update(blocked_domains=blocked, native_idle_waits=waits,
+                          plan9_9p_requests=requests, plan9_9p_request_bytes=sent,
+                          plan9_9p_reply_bytes=received)
+        return result
 
     def save(self):
         # Confirm that the original Plan9 console accepts commands too. DEL is
