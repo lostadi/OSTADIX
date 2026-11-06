@@ -577,6 +577,43 @@ def clang_inputs(args: list[str], cwd: Path) -> list[Path]:
     return result
 
 
+def clang_languages(args: list[str]) -> list[str]:
+    """Retain ordered -x LANG and -xLANG selections, excluding option values."""
+    result, index = [], 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "-x" and index + 1 < len(args):
+            result.append(args[index + 1])
+            index += 2
+        elif arg.startswith("-x") and len(arg) > 2:
+            result.append(arg[2:])
+            index += 1
+        elif arg in PAIR_OPTIONS | {"-l", "-L"}:
+            index += 2
+        else:
+            index += 1
+    return result
+
+
+def clang_stdin_input(args: list[str]) -> bool:
+    """Recognize a positional stdin input, not an option's '-' value."""
+    index = 0
+    while index < len(args):
+        if args[index] in PAIR_OPTIONS | {"-l", "-L"}:
+            index += 2
+        elif args[index] == "-":
+            return True
+        else:
+            index += 1
+    return False
+
+
+def clang_driver_query(args: list[str]) -> bool:
+    """Driver-only queries never read translation-unit stdin."""
+    return any(arg in {"--version", "-V", "-vV", "-###"}
+               or arg.startswith(("--print", "-print", "-dump")) for arg in args)
+
+
 def clang_header_compile(args: list[str], inputs: list[Path]) -> bool:
     """A frontend AST cache has no independent executable translation unit."""
     language = option_value(args, "-x")
@@ -597,7 +634,7 @@ def clang_compiler_inputs(args: list[str], cwd: Path) -> list[dict]:
 
 
 def clang_replay(args: list[str], source: Path, inputs: list[Path], cwd: Path,
-                 output: Path, depfile: Path) -> list[str]:
+                 output: Path, depfile: Path, stdin_source: Path | None = None) -> list[str]:
     result, i = [], 0
     remove_pairs = {"-o", "-MF", "-MT", "-MQ", "-Xlinker", "-L", "-l"}
     remove_single = {"-c", "-S", "-emit-llvm", "-MD", "-MMD", "-MP", "-MG",
@@ -617,6 +654,9 @@ def clang_replay(args: list[str], source: Path, inputs: list[Path], cwd: Path,
             result.extend(args[i:i + 2])
             i += 2
             continue
+        if arg == "-" and stdin_source is not None:
+            i += 1
+            continue
         if not arg.startswith("-"):
             path = (cwd / arg).resolve()
             if path in input_paths or path.suffix in {".o", ".obj", ".a", ".so", ".dylib"}:
@@ -627,6 +667,8 @@ def clang_replay(args: list[str], source: Path, inputs: list[Path], cwd: Path,
     # Keep the original spelling: absolute replay paths change __FILE__/__BASE_FILE__.
     source_arg = next((arg for arg in args if not arg.startswith("-")
                        and (cwd / arg).resolve() == source), str(source))
+    if source == stdin_source:
+        source_arg = "-"
     return [*result, "-S", "-emit-llvm", "-MD", "-MF", str(depfile),
             "-o", str(output), source_arg]
 
@@ -757,7 +799,8 @@ def option_value(args: list[str], option: str) -> str | None:
     return None
 
 
-def native_outputs(kind: str, args: list[str], inputs: list[Path], cwd: Path) -> list[Path]:
+def native_outputs(kind: str, args: list[str], inputs: list[Path], cwd: Path,
+                   stdin_source: Path | None = None) -> list[Path]:
     explicit = option_value(args, "-o")
     if explicit:
         return [(cwd / explicit).resolve()]
@@ -765,8 +808,8 @@ def native_outputs(kind: str, args: list[str], inputs: list[Path], cwd: Path) ->
         if clang_header_compile(args, inputs):
             return [Path(str(path) + ".gch") for path in inputs]
         if "-c" in args or "-S" in args:
-            suffix = ".s" if "-S" in args else ".o"
-            return [cwd / (path.stem + suffix) for path in inputs]
+            suffix = (".ll" if "-S" in args else ".bc") if "-emit-llvm" in args else (".s" if "-S" in args else ".o")
+            return [cwd / (("-" if path == stdin_source else path.stem) + suffix) for path in inputs]
         return [cwd / "a.out"] if inputs else []
     directory = (cwd / (option_value(args, "--out-dir") or ".")).resolve()
     name = option_value(args, "--crate-name") or (inputs[0].stem if inputs else None)
@@ -1472,6 +1515,17 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
         # to turn a response-file NUL into an OS filesystem path.
         inputs = [] if argfile_gap is not None else (clang_inputs(args, cwd) if kind == "clang" else [
             (cwd / arg).resolve() for arg in args if not arg.startswith("-") and arg.endswith(".rs")])
+        stdin_source = None
+        stdin_bytes = None
+        if kind == "clang" and clang_stdin_input(args) and not clang_driver_query(args):
+            # Save exactly once, then feed identical bytes to both invocations.
+            # Keep '-' in argv: replacing it with the snapshot filename changes
+            # __FILE__, __BASE_FILE__, language inference and quoted includes.
+            stdin_bytes = sys.stdin.buffer.read()
+            stdin_source = directory / "stdin-source"
+            stdin_source.write_bytes(stdin_bytes)
+            event["stdin_source"] = file_info(stdin_source)
+            inputs.append(stdin_source)
         event["sources"] = [file_info(path) for path in inputs]
         executed_args = original_args
         if rust_policy is not None:
@@ -1525,9 +1579,10 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                 event["selected_linker"] = tool_info(links[0][0], "native-tool")
                 native_environment["OCORE_CAPTURE_LINKER_IDENTITY"] = json.dumps(event["selected_linker"])
                 write_json(event_path, event)
-        native_code = subprocess.run([program, *executed_args], env=native_environment).returncode
+        native_code = subprocess.run([program, *executed_args], env=native_environment,
+                                     **({"input": stdin_bytes} if stdin_source is not None else {})).returncode
         event["exit_code"] = native_code
-        query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV"}
+        query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV", "-###"}
                     or arg.startswith(("--print", "-print", "-dump")) for arg in args)
         metadata_only = kind == "rustc" and option_value(args, "--emit") is not None and not any(
             item.split("=", 1)[0] in {"link", "obj", "asm", "llvm-ir", "llvm-bc"}
@@ -1545,10 +1600,8 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                     if child.get("parent_invocation_id") == event_id and child.get("kind") == "linker"]
                 if not event["native_tool_invocation_ids"]:
                     event["capture_errors"].append("actual driver linker bypassed the pinned native-tool wrapper; linkage remains uninstrumented")
-        if native_code == 0 and not query and "-" in args:
-            event["capture_errors"].append("stdin translation units require replayable source capture and are unsupported")
         if native_code == 0 and not query:
-            for path in native_outputs(kind, args, inputs, cwd):
+            for path in native_outputs(kind, args, inputs, cwd, stdin_source):
                 if path.is_file():
                     item = file_info(path)
                     if header_compile:
@@ -1573,14 +1626,24 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                             item["archive_members"] = native_archive_members(path)
         if native_code == 0 and event["translation_required"]:
             if kind == "clang":
-                for index, source in enumerate(inputs):
+                replay_inputs = inputs
+                languages = clang_languages(args)
+                if stdin_source is not None and (len(inputs) != 1 or len(languages) != 1 or args.count("-") != 1):
+                    event["capture_errors"].append("stdin LLVM replay requires one source and one explicit language selection")
+                    replay_inputs = []
+                for index, source in enumerate(replay_inputs):
+                    if source == stdin_source and languages[0] not in {
+                            "c", "c++", "objective-c", "objective-c++"}:
+                        event["capture_errors"].append("stdin LLVM replay requires an explicit supported C-family language")
+                        continue
                     if source.suffix in ASM_SUFFIXES:
                         event["capture_errors"].append(f"assembly translation unit requires an explicit target-specific importer: {source}")
                         continue
                     output, depfile = directory / f"unit-{index}.ll", directory / f"unit-{index}.d"
-                    replay = [program, *clang_replay(args, source, inputs, cwd, output, depfile)]
+                    replay = [program, *clang_replay(args, source, inputs, cwd, output, depfile, stdin_source)]
                     with (directory / f"unit-{index}.stderr").open("wb") as stderr:
-                        result = subprocess.run(replay, stdout=stderr, stderr=stderr)
+                        result = subprocess.run(replay, stdout=stderr, stderr=stderr,
+                            **({"input": stdin_bytes} if source == stdin_source else {}))
                     item = {"id": f"{event_id}:{index}", "source": file_info(source), "kind": kind,
                             "frontend_version": event["frontend"]["version"], "replay_argv": replay,
                             "replay_exit_code": result.returncode}

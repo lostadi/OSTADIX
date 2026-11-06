@@ -215,6 +215,17 @@ class Importer:
     VISIBILITY = {0: "default", 1: "hidden", 2: "protected"}
     TLS_PROFILE = "linux-elf-static-nonpreemptive-v1"
     ATOMIC_PROFILE = "coherent-ram-v1"
+    # Explicitly bounded strictfp realization. Expanding the normal importer
+    # with floating operations must not silently expand this environment contract.
+    STRICT_FP_INTEGER_OPERATIONS = {
+        "alloca", "assume", "binary", "cast", "i_cmp", "select", "freeze",
+        "extract_value", "insert_value", "gep", "load", "store", "call",
+        "phi", "memory_copy", "memory_set", "lifetime", "no_alias_scope_decl",
+        "integer_overflow", "integer_min_max", "thread_local_address", "trap",
+        "atomic_load", "atomic_store", "atomic_fence", "atomic_compare_exchange", "atomic_rmw",
+        "landing_pad", "eh_type_id", "invoke", "resume", "return", "jump", "branch",
+        "switch", "unreachable",
+    }
     ATOMIC_ORDERINGS = {1: "unordered", 2: "monotonic", 4: "acquire", 5: "release",
                         6: "acq_rel", 7: "seq_cst"}
     # Public LLVMAtomicRMWBinOp differs from the internal C++ enum after14.
@@ -245,7 +256,7 @@ class Importer:
     CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
     CMP = dict(zip(range(32, 42), ("eq", "ne", "ugt", "uge", "ult", "ule", "sgt", "sge", "slt", "sle")))
     LINKAGES = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak",
-                6: "weak_odr", 8: "internal", 9: "private"}
+                6: "weak_odr", 8: "internal", 9: "private", 12: "extern_weak"}
     BITCODE_LINKAGES = {0: 0, 2: 18, 3: 19, 5: 16, 6: 17, 8: 3, 9: 9}
     MERGEABLE_DEFINITIONS = {"linkonce", "linkonce_odr", "weak", "weak_odr"}
     # These assumptions may be erased because emission never uses them to optimize.
@@ -290,12 +301,13 @@ class Importer:
         self.metadata_personalities = set()
         self.exception_handling = None
         self.symbol = ""
+        self.strict_fp_sites = set()
         self.attribute_names = {}
         for name in self.ERASED | self.ERASED_RESTRICTIONS | {
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
                 "immarg", "dead_on_unwind", "dead_on_return", "allockind", "allocsize", "allocalign", "allocptr",
                 "writable", "returned", "builtin", "sret",
-                "nocreateundeforpoison"}:
+                "nocreateundeforpoison", "strictfp"}:
             kind = api.GetEnumAttributeKindForName(name.encode(), len(name))
             if kind:
                 self.attribute_names[kind] = name
@@ -482,6 +494,14 @@ class Importer:
                 self.reject(f"unsupported string attribute {key}={text}")
             kind = a.GetEnumAttributeKind(attribute)
             name = self.attribute_names.get(kind)
+            if name == "strictfp":
+                if (index != 0xffffffff or not a.IsEnumAttribute(attribute)
+                        or a.GetEnumAttributeValue(attribute) != 0):
+                    self.reject("strictfp requires an enum-zero function-slot attribute")
+                site = "callsite" if call else "function"
+                self.strict_fp_sites.add((self.symbol, site, index))
+                self.refinements.add(f"{self.symbol}: strictfp-integer-v1 {site} attribute index {index}: preserve ambient floating-point rounding/control and exception state through nonoptimizing integer/pointer operations; retain ordered original calls and their provider effects; no floating arithmetic, conversion, SSA/ABI, constrained intrinsic or inline assembly admitted; no floating operation introduced or fixed rounding assumed; dependency providers remain separate obligations")
+                continue
             pointer_indices = {1} if intrinsic and intrinsic.startswith("llvm.memset.") else {1, 2}
             if intrinsic == "llvm.threadlocal.address.p0" and name == "align":
                 if (not a.IsEnumAttribute(attribute) or index not in {0, 1}
@@ -1117,6 +1137,14 @@ class Importer:
                 self.reject(f"{linkage} linkage requires a definition; mergeable declarations require separate resolution")
         if linkage == "weak":
             self.refinements.add(f"{self.symbol}: preserved ordinary weak definition (LLVMWeakAnyLinkage=5); native STB_WEAK binding and qualified closure/link selection required; no ODR or COMDAT contract inferred")
+        elif linkage == "extern_weak":
+            definition = (a.GetFirstBasicBlock(value) if a.IsAFunction(value)
+                          else a.GetInitializer(value))
+            if definition or comdat is not None or (not a.IsAFunction(value) and a.IsThreadLocal(value)):
+                self.reject("extern_weak requires a non-TLS declaration without COMDAT membership")
+            if self.symbol.startswith("llvm."):
+                self.reject("extern_weak does not apply to LLVM intrinsics")
+            self.refinements.add(f"{self.symbol}: preserved external weak declaration (LLVMExternalWeakLinkage=12); ELF STB_WEAK undefined binding resolves absent providers to zero; native linkage and execution qualification remain required")
         elif linkage in self.MERGEABLE_DEFINITIONS:
             self.refinements.add(f"{self.symbol}: preserved exact LLVM {linkage} definition linkage; no collapse to ordinary weak or inferred COMDAT membership; native binding, qualified closure and whole-group selection remain explicit")
         if comdat is not None:
@@ -1126,7 +1154,9 @@ class Importer:
             self.refinements.add(f"{self.symbol}: unnamed-address identity optimization assumption erased")
         if visibility != "default":
             elf_code = 2 if visibility == "hidden" else 3
-            self.refinements.add(f"{self.symbol}: preserved {visibility} symbol visibility as ELF st_other={elf_code}; required own-emitter visibility directives on definitions and declarations within the static, non-preemptive native linkage profile; nondefault external symbols must resolve within the included native image")
+            resolution = ("optional external weak providers may be absent and resolve to zero" if linkage == "extern_weak"
+                          else "nondefault external symbols must resolve within the included native image")
+            self.refinements.add(f"{self.symbol}: preserved {visibility} symbol visibility as ELF st_other={elf_code}; required own-emitter visibility directives on definitions and declarations within the static, non-preemptive native linkage profile; {resolution}")
         self.metadata(value, global_value=True)
         return linkage, visibility, alignment, comdat
 
@@ -1933,6 +1963,8 @@ class Importer:
         linkage, visibility, alignment, comdat = self.global_contract(value)
         intrinsic = None
         if a.GetIntrinsicID(value) or self.symbol.startswith("llvm."):
+            if self.symbol.startswith("llvm.experimental.constrained."):
+                self.reject(f"constrained floating-point intrinsic {self.symbol} requires explicit lowering preserving its rounding-mode and exception-behavior metadata; floating value/ABI and environment support are not implemented")
             if self.symbol not in self.INTRINSICS or not a.GetIntrinsicID(value):
                 self.reject(f"intrinsic {self.symbol} requires explicit lowering")
             intrinsic = self.symbol
@@ -2169,6 +2201,9 @@ class Importer:
                     self.refinements.add(f"{self.symbol}: retained TLS storage and original access model {tls_model} (LLVM mode {mode}); original type, template initializer, alignment, linkage, visibility and COMDAT retained; own local-exec realization requires complete executable-local nonpreemptive bindings and genuine TLS image/thread-pointer lifecycle providers; no relaxation, interposition or provider closure inferred")
                 globals_.append(global_)
             functions = [self.function(value) for value in source_functions]
+            if self.strict_fp_sites:
+                self.audit_strict_fp_integer_operations(functions)
+                self.refinements.add("strictfp-integer-v1 is bounded by an independent whole-module integer/pointer value, ABI and operation audit; future floating support requires a separate environment realization; binary128 raw storage alone does not establish floating execution")
             definitions = {value for value in source_functions if a.GetFirstBasicBlock(value)}
             definitions.update(value for value in source_globals if a.GetInitializer(value))
             aliases = [self.alias(value, definitions) for value in source_aliases]
@@ -2176,6 +2211,8 @@ class Importer:
                 frontend_version = "self-reported !llvm.ident: " + "; ".join(self.producer_ident)
             self.refinements.add("LLVM poison/undef may be refined deterministically; dropped assumptions are never used for optimization")
             target = {"triple": triple, "data_layout": layout, "pointer_bits": 64, "little_endian": True}
+            if self.strict_fp_sites:
+                target["strict_fp_profile"] = "integer_only_v1"
             if self.target_abi is not None:
                 target["abi"] = self.target_abi
             if self.tls_profile is not None:
@@ -2204,6 +2241,58 @@ class Importer:
                                    "refinements": sorted(self.refinements)}}
         finally:
             a.DisposeTargetData(self.layout)
+
+    def audit_strict_fp_integer_operations(self, functions):
+        """Bound the strictfp realization independently of future IR expansion."""
+        def value_type(ident):
+            record = self.types[ident]
+            if record["kind"] in {"void", "int", "pointer", "metadata"}:
+                return
+            if record["kind"] == "struct":
+                for field in record["fields"]:
+                    value_type(field)
+                return
+            if record["kind"] == "array":
+                value_type(record["element"])
+                return
+            self.reject("strictfp-integer-v1 excludes floating-point and unsupported first-class value/ABI types")
+
+        def values(record):
+            if isinstance(record, dict):
+                for key, child in record.items():
+                    if key == "ty":
+                        value_type(child)
+                    elif key == "signature":
+                        signature(child)
+                    else:
+                        values(child)
+            elif isinstance(record, list):
+                for child in record:
+                    values(child)
+
+        def signature(record):
+            value_type(record["result"])
+            for parameter in record["params"]:
+                value_type(parameter)
+
+        for function in functions:
+            self.symbol = function["name"]
+            signature(function["signature"])
+            for block in function["blocks"]:
+                values(block)
+                operations = [item["operation"] for item in block["instructions"]]
+                operations.append(block["terminator"])
+                for operation in operations:
+                    name = operation["op"]
+                    if name not in self.STRICT_FP_INTEGER_OPERATIONS:
+                        self.reject(f"strictfp-integer-v1 has no audited environment-preserving realization for {name}")
+                    if name == "binary" and operation["kind"] not in {
+                            "add", "sub", "mul", "u_div", "s_div", "u_rem", "s_rem",
+                            "shl", "l_shr", "a_shr", "and", "or", "xor"}:
+                        self.reject("strictfp-integer-v1 requires integer-only binary operations")
+                    if name == "cast" and operation["kind"] not in {
+                            "trunc", "z_ext", "s_ext", "ptr_to_int", "int_to_ptr", "bitcast"}:
+                        self.reject("strictfp-integer-v1 requires integer/pointer-only casts")
 
 
 def preflight_scoped_alias_metadata(a, context, module):
