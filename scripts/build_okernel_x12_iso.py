@@ -606,11 +606,12 @@ def build(args, output: Path, record: dict) -> None:
     record["seed"] = saved_seed(args.state_seed, root / "opt/okernel/seed")
     for source, destination in (("init", "usr/sbin/init"), ("session", "usr/local/sbin/okernel-live-session"),
                                  ("network", "usr/local/sbin/okernel-network"), ("dhcp", "usr/lib/okernel/dhcp"),
+                                 ("interface.py", "usr/lib/okernel/interface.py"),
                                  ("seed.py", "usr/lib/okernel/seed.py")):
         target = root / destination; target.parent.mkdir(parents=True, exist_ok=True)
         if target.is_symlink(): target.unlink()
         shutil.copyfile(LIVE / source, target); target.chmod(0o555)
-    record.update(release=data["release"], kernel=data["copied_kernel"], source_payloads={name: identity(LIVE / name) for name in ("init", "session", "seed.py", "bootstrap-init", "network", "dhcp")},
+    record.update(release=data["release"], kernel=data["copied_kernel"], source_payloads={name: identity(LIVE / name) for name in ("init", "session", "seed.py", "bootstrap-init", "network", "dhcp", "interface.py")},
                   scope=__doc__, physical_hardware_qualified=False, native_driver_lowering=False,
                   root_mounts="read-only ISO and SquashFS, tmpfs overlay; internal NVMe/SATA never mounted",
                   persistence="volatile RAM state and packages; no durable installation or automatic disk selection")
@@ -726,7 +727,7 @@ def main() -> int:
         source_capture = output / "source-inputs"
         source_capture.mkdir()
         sources = [Path(__file__).resolve(), *(LIVE / name for name in
-                    ("bootstrap-init", "init", "session", "seed.py", "network", "dhcp", "README.md"))]
+                    ("bootstrap-init", "init", "session", "seed.py", "network", "dhcp", "interface.py", "README.md"))]
         if args.action in ("build", "repack"):
             sources.extend([ROOT / "scripts/okernel_package_domain.py", ROOT / "scripts/ostadix_xorriso_reproducible.py"])
         sources.append(ROOT / "scripts/ostadix_boot_iso.py")

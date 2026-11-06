@@ -106,8 +106,17 @@ QEMU automation. Secure Boot/signature qualification and physical boot remain
 separate from a successful UEFI QEMU test.
 
 Boot offers an eight-second `n` choice for host networking, then starts the
-unified console. Normal OKernel save/exit returns to a host menu with resume,
-network, diagnostic-shell and poweroff choices. Poweroff discards the volatile
+unified console. Type `i` at that same prompt to open the lightweight local
+interface instead. It runs in userspace on the physical machine's existing
+Linux text terminal, with no browser or desktop dependency. The menu opens or
+reconnects to OKernel, shows session status and local display/input/network
+diagnostics, configures networking, explains commands and safely saves/stops.
+Its poweroff action asks for `POWER OFF`, waits for a successful managed stop,
+then powers off. A save failure blocks that action and leaves the panel open.
+Normal OKernel save/exit returns to a host menu whose visible `i` choice opens
+the same interface; opening and exiting its managed console returns to the panel.
+The legacy host menu also retains resume, networking, diagnostic-shell and
+poweroff choices. Poweroff discards the volatile
 RAM session. A paired save within this boot supports resume during this boot;
 it does not make the ISO writable or persist across a physical reboot.
 

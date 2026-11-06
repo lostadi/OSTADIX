@@ -41,32 +41,38 @@ fi
 printf '\nOKernel X12 Linux-hosted O-core development ISO\n' >"$console"
 printf 'State and package changes are in RAM and disappear on poweroff.\n' >"$console"
 printf 'Internal disks are not mounted. See /usr/share/okernel/image.json.\n\n' >"$console"
+printf 'Local controls: type i at the boot prompt, or exit the terminal then choose i.\n' >"$console"
 if ! /usr/bin/python3 -B /usr/lib/okernel/seed.py > /run/okernel/seed.log 2>&1; then
     cat /run/okernel/seed.log >"$console"
     exec setsid cttyhack sh <"$console" >"$console" 2>&1
 fi
 cat /run/okernel/seed.log >"$console"
-printf '\nType n within eight seconds to configure host networking; Enter starts OKernel: ' >"$console"
+printf '\nType n within eight seconds to configure host networking; i opens the local interface; Enter starts OKernel: ' >"$console"
 answer=
 IFS= read -r -t 8 answer <"$console" || true
-if [ "$answer" = n ]; then
-    setsid cttyhack /usr/local/sbin/okernel-network <"$console" >"$console" 2>&1 || true
-fi
+case "$answer" in
+    n) setsid cttyhack /usr/local/sbin/okernel-network <"$console" >"$console" 2>&1 || true ;;
+    i|I) setsid cttyhack /usr/bin/python3 -B /usr/lib/okernel/interface.py <"$console" >"$console" 2>&1 || true ;;
+esac
 while :; do
     setsid cttyhack /usr/local/sbin/okernel-live-session <"$console" >"$console" 2>&1 || true
     printf '\nOKernel console stopped. RAM state remains available.\n' >"$console"
+    printf '[i] Local interface: terminal, status, devices/drivers, help and safe poweroff.\n' >"$console"
     while :; do
         printf '[r] resume  [p] power off  [n] networking  [s] host diagnostic shell: ' >"$console"
         answer=
-        IFS= read -r answer <"$console" || answer=p
+        if ! IFS= read -r answer <"$console"; then
+            printf '\nConsole input disconnected. RAM state remains available; reconnect to continue.\n' >"$console"
+            sleep 1
+            continue
+        fi
         case "$answer" in
             r|R) break ;;
             n|N) setsid cttyhack /usr/local/sbin/okernel-network <"$console" >"$console" 2>&1 || true ;;
+            i|I) setsid cttyhack /usr/bin/python3 -B /usr/lib/okernel/interface.py <"$console" >"$console" 2>&1 || true ;;
             s|S) setsid cttyhack sh <"$console" >"$console" 2>&1 || true ;;
             p|P|exit|poweroff|shutdown)
-                sync
-                printf 'OKERNEL X12 POWEROFF\n' >"$console"
-                poweroff -f
+                /usr/bin/python3 -B /usr/lib/okernel/interface.py --poweroff <"$console" >"$console" 2>&1 || true
                 ;;
             *) ;;
         esac
