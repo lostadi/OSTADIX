@@ -320,6 +320,9 @@ pub struct LinuxSyscallSource {
     pub tail_kind: u32,
     pub signature: Signature,
     pub attributes: Vec<LinuxSyscallAttribute>,
+    /// Separate non-enum source payloads. Empty preserves the exact V1 wire.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub constant_ranges: Vec<LinuxSyscallConstantRangeAttribute>,
     pub srcloc: Option<LinuxSyscallSourceLocation>,
 }
 
@@ -329,6 +332,20 @@ pub struct LinuxSyscallAttribute {
     pub index: u32,
     pub name: String,
     pub value: u64,
+}
+
+/// Exact original callslot ConstantRange. Outside-range values become poison;
+/// this witness introduces no ABI change, optimizer assumption or provider.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LinuxSyscallConstantRangeAttribute {
+    pub index: u32,
+    pub name: String,
+    pub schema: String,
+    pub storage: String,
+    pub width: u16,
+    pub lower: String,
+    pub upper: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -87,6 +87,7 @@ class Reader:
             "GetAttributeCountAtIndex": (U, [P, U]),
             "GetAttributesAtIndex": (None, [P, U, c.POINTER(P)]),
             "IsStringAttribute": (c.c_int, [P]),
+            "IsTypeAttribute": (c.c_int, [P]),
             "GetStringAttributeKind": (P, [P, c.POINTER(U)]),
             "GetStringAttributeValue": (P, [P, c.POINTER(U)]),
             "HasPersonalityFn": (c.c_int, [P]), "GetPersonalityFn": (P, [P]),
@@ -98,6 +99,7 @@ class Reader:
             "GetNumIndices": (U, [P]), "GetIndices": (c.POINTER(U), [P]),
             "GetCallSiteAttributeCount": (U, [P, U]),
             "GetCallSiteAttributes": (None, [P, U, c.POINTER(P)]),
+            "CreateConstantRangeAttribute": (P, [P, U, U, c.POINTER(Q), c.POINTER(Q)]),
             "IsEnumAttribute": (c.c_int, [P]), "GetEnumAttributeKind": (U, [P]),
             "GetEnumAttributeValue": (Q, [P]),
             "GetEnumAttributeKindForName": (U, [c.c_char_p, Z]),
@@ -592,7 +594,7 @@ class Reader:
             count = c.c_size_t()
             value = getter(callee, c.byref(count))
             return list(c.string_at(value, count.value)) if count.value else []
-        attributes = []
+        attributes, constant_ranges = [], []
         names = {self.GetEnumAttributeKindForName(name.encode(), len(name)): name
                  for name in ("nounwind", "strictfp", "noundef")}
         count = self.GetNumArgOperands(instruction)
@@ -601,11 +603,17 @@ class Reader:
             entries = (c.c_void_p * number)()
             self.GetCallSiteAttributes(instruction, slot, entries)
             for entry in entries:
+                if (not self.IsEnumAttribute(entry) and not self.IsStringAttribute(entry)
+                        and not self.IsTypeAttribute(entry)
+                        and self.GetEnumAttributeKind(entry) == self.GetEnumAttributeKindForName(b"range", 5)):
+                    constant_ranges.append(self.linux_constant_range(instruction, slot, entry))
+                    continue
                 if not self.IsEnumAttribute(entry) or self.GetEnumAttributeKind(entry) not in names:
                     raise InventoryMismatch("unsupported raw syscall attribute source witness")
                 attributes.append({"index":slot, "name":names[self.GetEnumAttributeKind(entry)],
                                    "value":self.GetEnumAttributeValue(entry)})
         attributes.sort(key=lambda item:(item["index"],item["name"]))
+        constant_ranges.sort(key=lambda item:item["index"])
         kind = self.GetMDKindIDInContext(self.context, b"srcloc", 6)
         attachment_count = c.c_size_t()
         attachments = self.InstructionGetAllMetadataOtherThanDebugLoc(instruction,c.byref(attachment_count))
@@ -648,10 +656,75 @@ class Reader:
                 "dialect":self.GetInlineAsmDialect(callee), "can_unwind":bool(self.GetInlineAsmCanUnwind(callee)),
                 "calling_convention":self.GetInstructionCallConv(instruction),
                 "tail_kind":self.GetTailCallKind(instruction), "attributes":attributes,"srcloc":location,
+                **({"constant_ranges":constant_ranges} if constant_ranges else {}),
                 "signature":self.shape(self.GetInlineAsmFunctionType(callee)),
                 "extension_attributes":self.extension_vectors(instruction,call=True),
                 "args":[self.operand(self.GetOperand(instruction,index),values) for index in range(count)],
                 "result_id":values[instruction],"result_type":self.shape(self.TypeOf(instruction))}
+
+    def linux_constant_range(self, instruction, slot, original):
+        """Independent actual-slot identity proof, not a production decoder."""
+        count = self.GetNumArgOperands(instruction)
+        if slot == 0xffffffff or type(slot) is not int or slot < 0 or slot > count:
+            raise InventoryMismatch("source ConstantRange has no result/argument slot")
+        ty = self.TypeOf(instruction) if slot == 0 else self.TypeOf(self.GetOperand(instruction, slot - 1))
+        if self.GetTypeKind(ty) != 8 or self.GetIntTypeWidth(ty) != 64:
+            raise InventoryMismatch("source raw-syscall ConstantRange is not its original i64 slot")
+        kind = self.GetEnumAttributeKindForName(b"range", 5)
+        if (not kind or self.IsStringAttribute(original) or self.IsTypeAttribute(original)
+                or self.IsEnumAttribute(original) or self.GetEnumAttributeKind(original) != kind):
+            raise InventoryMismatch("source ConstantRange kind/storage mismatch")
+        # Quoted source identifiers and strings cannot contribute candidates.
+        text, pieces, start = self.printed(instruction), [], 0
+        while start < len(text):
+            quote = text.find('"', start)
+            if quote < 0:
+                pieces.append(text[start:]);break
+            pieces.append(text[start:quote]);index = quote + 1
+            while index < len(text) and text[index] != '"':
+                if text[index] == "\\":
+                    if not re.fullmatch(r"[A-Fa-f0-9]{2}", text[index + 1:index + 3]):
+                        raise InventoryMismatch("unknown independent range transport escape")
+                    index += 3
+                else:index += 1
+            if index >= len(text):
+                raise InventoryMismatch("unterminated independent range transport quote")
+            pieces.append(" ");start = index + 1
+        candidates = set()
+        for segment in pieces:
+            for hit in re.finditer(r"(?<![A-Za-z0-9_.$@%])range\(", segment):
+                parsed = re.match(r"range\(i([1-9][0-9]*) (-?(?:0|[1-9][0-9]*)), (-?(?:0|[1-9][0-9]*))\)", segment[hit.start():])
+                if parsed is None or len(parsed[1]) > 3:
+                    raise InventoryMismatch("unknown independent range candidate syntax")
+                width = int(parsed[1])
+                if not (1 <= width <= 64 or width == 128):
+                    raise InventoryMismatch("independent range width outside native integer profile")
+                spellings = parsed[2], parsed[3]
+                if any(len(part.lstrip('-')) > len(str(1 << (width - 1))) for part in spellings):
+                    raise InventoryMismatch("independent range candidate exceeds source integer width")
+                endpoints = tuple(int(part) for part in spellings)
+                if any(str(number) != spelling or not -(1 << (width - 1)) <= number < (1 << (width - 1))
+                       for number, spelling in zip(endpoints,spellings)):
+                    raise InventoryMismatch("noncanonical independent range printer bits")
+                lower, upper = (number % (1 << width) for number in endpoints)
+                if lower == upper and lower != 0:
+                    raise InventoryMismatch("independent range rejects full/invalid equal bounds")
+                candidates.add((width,lower,upper))
+        matches = []
+        for width, lower, upper in sorted(candidates):
+            if width != 64:continue
+            limbs = (width + 63) // 64
+            word = c.c_ulonglong
+            lows = (word * limbs)(*((lower >> (64 * i)) & ((1 << 64) - 1) for i in range(limbs)))
+            highs = (word * limbs)(*((upper >> (64 * i)) & ((1 << 64) - 1) for i in range(limbs)))
+            if self.CreateConstantRangeAttribute(self.context, kind, width, lows, highs) == original:
+                matches.append((lower,upper))
+        if len(matches) != 1:
+            raise InventoryMismatch("independent range lacks unique original callslot AttributeRef identity")
+        lower, upper = matches[0]
+        return {"index":slot,"name":"range","schema":"ocore.llvm-constant-range-attribute/v1",
+                "storage":"context_uniqued_constant_range_attribute","width":64,
+                "lower":str(lower),"upper":str(upper)}
 
     def read(self, path):
         source = artifact(path)
@@ -1578,7 +1651,9 @@ def check_linux_syscall_sites(original, translated, types):
     for site, (block, item) in zip(sites, operations):
         operation = item["operation"]
         witness = dict(operation["source"])
-        if witness.pop("schema",None) != "ocore.llvm-linux-syscall-source/v1":
+        expected_schema = ("ocore.llvm-linux-syscall-source/v2" if site.get("constant_ranges")
+                           else "ocore.llvm-linux-syscall-source/v1")
+        if witness.pop("schema",None) != expected_schema:
             raise InventoryMismatch("Linux syscall source schema changed")
         signature = witness.pop("signature")
         shape = {"kind":"function", "params":[native_shape(types,ty) for ty in signature["params"]],

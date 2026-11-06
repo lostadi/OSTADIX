@@ -3,7 +3,8 @@
 
 This is a deliberately fail-closed scalar importer, not a runtime coverage claim.
 The consumer must run the independent NativeModule verifier before emission.
-No LLVM object emitter or printed-IR parser is used. Running the CLI isolates
+No LLVM object emitter or printed-IR semantic inference is used. ConstantRange
+printer candidates require exact original C API constructor identity. The CLI isolates
 LLVM's native parser and its handle lifetimes from the compiler process.
 """
 
@@ -44,6 +45,53 @@ class ImportFailure(Exception):
 def _digest(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def constant_range_candidates(text):
+    """Untrusted printer transport only; C API identity proves any payload.
+
+    Skip quoted LLVM strings/names. The pinned writer emits signed decimal
+    APInts, so reject noncanonical syntax and bounds before any native call.
+    """
+    masked, quoted, index = list(text), False, 0
+    while index < len(text):
+        char = text[index]
+        if char == '"':
+            quoted = not quoted
+            masked[index] = " "
+        elif quoted:
+            if char == "\\":
+                if not re.fullmatch(r"[0-9A-Fa-f]{2}", text[index + 1:index + 3]):
+                    raise ImportFailure("unknown quoted ConstantRange candidate transport escape")
+                masked[index:index + 3] = [" "] * 3
+                index += 3
+                continue
+            masked[index] = " "
+        index += 1
+    if quoted:
+        raise ImportFailure("unterminated quoted ConstantRange candidate transport")
+    masked = "".join(masked)
+    result = set()
+    for start in re.finditer(r"(?<![A-Za-z0-9_.$@%])range\(", masked):
+        found = re.match(r"range\(i([1-9][0-9]*) (-?(?:0|[1-9][0-9]*)), (-?(?:0|[1-9][0-9]*))\)", masked[start.start():])
+        if not found or len(found[1]) > 3:
+            raise ImportFailure("unsupported ConstantRange candidate transport syntax")
+        width = int(found[1])
+        if not (1 <= width <= 64 or width == 128):
+            raise ImportFailure("unsupported ConstantRange candidate integer width")
+        # This semantic bound prevents unbounded integer parsing/shift work.
+        maximum_digits = len(str(1 << (width - 1)))
+        if any(len(part.lstrip('-')) > maximum_digits for part in (found[2], found[3])):
+            raise ImportFailure("ConstantRange candidate endpoint exceeds source width")
+        signed = [int(found[2]), int(found[3])]
+        if any(not -(1 << (width - 1)) <= item < (1 << (width - 1))
+               or str(item) != spelling for item, spelling in zip(signed, (found[2], found[3]))):
+            raise ImportFailure("ConstantRange candidates require canonical signed printer bits")
+        lower, upper = (item % (1 << width) for item in signed)
+        if lower == upper and lower != 0:
+            raise ImportFailure("ConstantRange equal endpoints require empty [0,0); full attributes are invalid")
+        result.add((width, lower, upper))
+    return sorted(result)
 
 
 def discover_library() -> Path:
@@ -123,6 +171,7 @@ class LLVM:
             "LLVMGetAttributesAtIndex": (None, [P, U, C.POINTER(P)]),
             "LLVMGetCallSiteAttributeCount": (U, [P, U]),
             "LLVMGetCallSiteAttributes": (None, [P, U, C.POINTER(P)]),
+            "LLVMCreateConstantRangeAttribute": (P, [P, U, U, C.POINTER(Q), C.POINTER(Q)]),
             "LLVMGetEnumAttributeKindForName": (U, [C.c_char_p, S]),
             "LLVMGetEnumAttributeKind": (U, [P]), "LLVMGetEnumAttributeValue": (Q, [P]),
             "LLVMIsEnumAttribute": (B, [P]), "LLVMIsStringAttribute": (B, [P]),
@@ -870,6 +919,11 @@ class Importer:
             elif name in self.ERASED and a.IsEnumAttribute(attribute):
                 self.refinements.add(f"{self.symbol}: attribute index {index}: erased optimization assumption {name}={a.GetEnumAttributeValue(attribute)}")
             elif name in self.ERASED_RESTRICTIONS:
+                if (name == "range" and call and self.linux_syscall_profile is not None
+                        and a.IsAInlineAsm(a.GetCalledValue(value))):
+                    # Signature storage is unchanged; the complete typed
+                    # payload is proved and retained by linux_syscall_source.
+                    continue
                 self.refinements.add(f"{self.symbol}: attribute index {index}: erased {name} restriction payload; no native optimization assumes it")
             else:
                 self.reject(f"unsupported attribute kind {kind} at index {index}")
@@ -1497,10 +1551,14 @@ class Importer:
                 or signature.get("result_attributes")
                 or any(signature.get("param_attributes", []))):
             self.reject("unsupported exact Linux raw-syscall InlineAsm/signature/constraint contract")
-        attributes = []
+        attributes, constant_ranges = [], []
         for index in [0, *range(1, len(args)+1), 0xffffffff]:
             for attribute in self.attribute_records(value, index, True):
                 if not a.IsEnumAttribute(attribute):
+                    if (not a.IsStringAttribute(attribute) and not a.IsTypeAttribute(attribute)
+                            and a.GetEnumAttributeKind(attribute) == a.GetEnumAttributeKindForName(b"range", 5)):
+                        constant_ranges.append(self.linux_constant_range(value, index, attribute))
+                        continue
                     self.reject("raw-syscall source attributes require supported enum-zero witnesses")
                 name = self.attribute_names.get(a.GetEnumAttributeKind(attribute))
                 if ((index == 0xffffffff and name not in {"nounwind", "strictfp"})
@@ -1509,13 +1567,59 @@ class Importer:
                     self.reject("unsupported exact raw-syscall callsite attribute witness")
                 attributes.append({"index": index, "name": name, "value": 0})
         attributes.sort(key=lambda item: (item["index"], item["name"]))
-        witness = {"schema": "ocore.llvm-linux-syscall-source/v1", "site": {key: self.source_sites[value][key] for key in ("function", "block", "source_instruction")},
+        constant_ranges.sort(key=lambda item: item["index"])
+        witness = {"schema": "ocore.llvm-linux-syscall-source/v2" if constant_ranges else "ocore.llvm-linux-syscall-source/v1", "site": {key: self.source_sites[value][key] for key in ("function", "block", "source_instruction")},
                    "assembly": list(assembly), "constraints": list(constraints),
                    "side_effects": True, "align_stack": False, "dialect": 0, "can_unwind": False,
                    "calling_convention": 0, "tail_kind": a.GetTailCallKind(value),
                    "signature": signature, "attributes": attributes, "srcloc": self.linux_srcloc.get(value)}
+        if constant_ranges:
+            witness["constant_ranges"] = constant_ranges
+            self.refinements.add("linux raw-syscall source/v2: exact typed ConstantRange callslot endpoints retained through same-context original AttributeRef constructor identity; unsigned modular lower-inclusive/upper-exclusive range, empty [0,0), poison outside; no value-in-range assumption, optimization, ABI narrowing, purity, no-return or provider discharge")
         self.refinements.add("linux-user-raw-v1: original Linux target, exact fixed-register i64 operands/result, ordered opaque memory/platform effects, source constraints/clobbers/flags/call attributes and contextual typed srcloc witness retained; own ISA syscall instruction only; no number translation, syscall purity, errno wrapper, provider implementation or resource closure inferred")
         return {"op": "linux_syscall", "number": args[0], "arguments": args[1:], "source": witness}
+
+    def linux_constant_range(self, instruction, slot, original):
+        a = self.a
+        count = a.GetNumArgOperands(instruction)
+        # Reject before GetOperand: the native C API must never see an invalid
+        # function slot or out-of-bounds operand, even on a forged caller.
+        if slot == 0xffffffff or not 0 <= slot <= count:
+            self.reject("ConstantRange requires an actual call result/argument slot")
+        llvm_type = a.TypeOf(instruction) if slot == 0 else a.TypeOf(a.GetOperand(instruction, slot - 1))
+        if a.GetTypeKind(llvm_type) != 8:
+            self.reject("ConstantRange raw-syscall slot requires an integer type")
+        width = a.GetIntTypeWidth(llvm_type)
+        if width != 64:
+            self.reject("ConstantRange raw-syscall slot requires its original i64 type")
+        kind = a.GetEnumAttributeKindForName(b"range", 5)
+        if (not kind or a.IsEnumAttribute(original) or a.IsStringAttribute(original)
+                or a.IsTypeAttribute(original) or a.GetEnumAttributeKind(original) != kind):
+            self.reject("ConstantRange requires its actual non-enum source attribute kind")
+        message = a.PrintValueToString(instruction)
+        try:
+            text = C.string_at(message).decode()
+        finally:
+            a.DisposeMessage(message)
+        try:
+            candidates = constant_range_candidates(text)
+        except ImportFailure as error:
+            self.reject(str(error))
+        matches = []
+        for bits, lower, upper in candidates:
+            if bits != width:
+                continue
+            words = (width + 63) // 64
+            lo = (Q * words)(*((lower >> (64 * index)) & ((1 << 64) - 1) for index in range(words)))
+            hi = (Q * words)(*((upper >> (64 * index)) & ((1 << 64) - 1) for index in range(words)))
+            if a.CreateConstantRangeAttribute(self.context, kind, width, lo, hi) == original:
+                matches.append((lower, upper))
+        if len(matches) != 1:
+            self.reject("ConstantRange candidate lacks unique exact original callslot AttributeRef identity")
+        lower, upper = matches[0]
+        return {"index": slot, "name": "range", "schema": "ocore.llvm-constant-range-attribute/v1",
+                "storage": "context_uniqued_constant_range_attribute", "width": width,
+                "lower": str(lower), "upper": str(upper)}
 
     def metadata(self, value, global_value=False):
         a, count = self.a, S()

@@ -117,7 +117,12 @@ pub fn verify(module: &NativeModule) -> Result<()> {
             for instruction in &block.instructions {
                 let Operation::LinuxSyscall { arguments, source, .. } = &instruction.operation else { continue };
                 let arch = arch.ok_or_else(|| fail("Linux platform operation requires explicit linux_user_raw_v1"))?;
-                if arguments.len() > 6 || source.schema != "ocore.llvm-linux-syscall-source/v1"
+                let source_schema = if source.constant_ranges.is_empty() {
+                    "ocore.llvm-linux-syscall-source/v1"
+                } else {
+                    "ocore.llvm-linux-syscall-source/v2"
+                };
+                if arguments.len() > 6 || source.schema != source_schema
                     || source.site.function != function.name || source.site.block != block.id
                     || !source_sites.insert((source.site.function.as_str(), source.site.block, source.site.source_instruction))
                     || source.assembly != arch.assembly()
@@ -147,6 +152,38 @@ pub fn verify(module: &NativeModule) -> Result<()> {
                 }
                 if source.attributes.windows(2).any(|pair| (pair[0].index, &pair[0].name) >= (pair[1].index, &pair[1].name)) {
                     return Err(fail("raw-syscall attributes require deterministic source slot/name order"));
+                }
+                let mut range_slots = BTreeSet::new();
+                for range in &source.constant_ranges {
+                    // Check slot bounds before indexing the original signature.
+                    if range.index == u32::MAX || range.index as usize > signature.params.len()
+                        || !range_slots.insert(range.index)
+                        || range.name != "range"
+                        || range.schema != "ocore.llvm-constant-range-attribute/v1"
+                        || range.storage != "context_uniqued_constant_range_attribute" {
+                        return Err(fail("unsupported raw-syscall ConstantRange source position/schema/storage"));
+                    }
+                    let ty = if range.index == 0 { signature.result }
+                        else { signature.params[range.index as usize - 1] };
+                    if !matches!(module.types.get(ty), Some(Type::Int { bits }) if *bits == range.width)
+                        || range.width != 64 {
+                        return Err(fail("raw-syscall ConstantRange width must match its original i64 slot"));
+                    }
+                    for endpoint in [&range.lower, &range.upper] {
+                        let bits = BigUint::parse_bytes(endpoint.as_bytes(), 10)
+                            .ok_or_else(|| fail("ConstantRange endpoints require canonical unsigned decimal bits"))?;
+                        if bits.bits() > u64::from(range.width) || bits.to_str_radix(10) != *endpoint {
+                            return Err(fail("ConstantRange endpoint width/bits mismatch"));
+                        }
+                    }
+                    // LLVM range attributes permit empty [0,0), not full or
+                    // another equal-bound encoding. Never infer noundef here.
+                    if range.lower == range.upper && range.lower != "0" {
+                        return Err(fail("ConstantRange equal bounds require the empty [0,0) encoding"));
+                    }
+                }
+                if source.constant_ranges.windows(2).any(|pair| pair[0].index >= pair[1].index) {
+                    return Err(fail("raw-syscall ConstantRange witnesses require source slot order"));
                 }
                 if source.attributes.iter().any(|a| a.name == "strictfp")
                     && module.target.strict_fp_profile != Some(StrictFpProfile::IntegerLinuxSyscallV1) {
@@ -232,5 +269,61 @@ mod tests {
         module.target.triple="x86_64-unknown-linux-musl".into();
         module.target.linux_syscall_profile=None;
         assert!(crate::ocore::native_verify::verify(&module).is_err());
+    }
+
+    #[test]
+    fn typed_constant_range_source_v2_retains_opaque_user_provider() {
+        let mut module = module();
+        let Operation::LinuxSyscall { source, .. } = &mut module.functions[0].blocks[0].instructions[0].operation else { unreachable!() };
+        source.schema = "ocore.llvm-linux-syscall-source/v2".into();
+        source.constant_ranges.push(LinuxSyscallConstantRangeAttribute {
+            index: 1, name: "range".into(), schema: "ocore.llvm-constant-range-attribute/v1".into(),
+            storage: "context_uniqued_constant_range_attribute".into(), width: 64,
+            lower: "1".into(), upper: "1000".into(),
+        });
+        crate::ocore::native_verify::verify(&module).unwrap();
+        assert_eq!(requirement(&module).unwrap().unwrap().privilege, LinuxProviderPrivilege::UserModeOnly);
+        assert!(crate::ocore::native_interpret::evaluate(&module,"raw0",&[]).is_err());
+        let Operation::LinuxSyscall { source, .. } = &mut module.functions[0].blocks[0].instructions[0].operation else { unreachable!() };
+        source.constant_ranges[0].lower = "0".into();
+        source.constant_ranges[0].upper = "0".into();
+        // Empty source range is representable, not positive execution proof.
+        crate::ocore::native_verify::verify(&module).unwrap();
+    }
+
+    #[test]
+    fn typed_constant_range_rejects_forged_slot_schema_width_and_endpoint_geometry() {
+        let mut value = serde_json::to_value(module()).unwrap();
+        let source = &mut value["functions"][0]["blocks"][0]["instructions"][0]["operation"]["source"];
+        source["schema"] = json!("ocore.llvm-linux-syscall-source/v2");
+        source["constant_ranges"] = json!([{
+            "index":1,"name":"range","schema":"ocore.llvm-constant-range-attribute/v1",
+            "storage":"context_uniqued_constant_range_attribute","width":64,"lower":"1","upper":"1000"
+        }]);
+        let original = value.clone();
+        let accepted: NativeModule = serde_json::from_value(original.clone()).unwrap();
+        crate::ocore::native_verify::verify(&accepted).unwrap();
+        for (field, bad) in [
+            ("index",json!(u32::MAX)),("index",json!(2)),("width",json!(32)),
+            ("name",json!("noundef")),("schema",json!("unknown")),("storage",json!("distinct")),
+            ("lower",json!("-1")),("lower",json!("01")),("lower",json!("18446744073709551616")),
+        ] {
+            let mut changed = original.clone();
+            changed["functions"][0]["blocks"][0]["instructions"][0]["operation"]["source"]["constant_ranges"][0][field] = bad;
+            let changed: NativeModule = serde_json::from_value(changed).unwrap();
+            assert!(crate::ocore::native_verify::verify(&changed).is_err(),"{field}");
+        }
+        for equal in ["1", "18446744073709551615"] {
+            let mut changed = original.clone();
+            let range = &mut changed["functions"][0]["blocks"][0]["instructions"][0]["operation"]["source"]["constant_ranges"][0];
+            range["lower"] = json!(equal);range["upper"] = json!(equal);
+            assert!(crate::ocore::native_verify::verify(&serde_json::from_value(changed).unwrap()).is_err());
+        }
+        let mut changed = original.clone();
+        changed["functions"][0]["blocks"][0]["instructions"][0]["operation"]["source"]["schema"] = json!("ocore.llvm-linux-syscall-source/v1");
+        assert!(crate::ocore::native_verify::verify(&serde_json::from_value(changed).unwrap()).is_err());
+        let mut changed = original;
+        changed["functions"][0]["blocks"][0]["instructions"][0]["operation"]["source"]["constant_ranges"] = json!([]);
+        assert!(crate::ocore::native_verify::verify(&serde_json::from_value(changed).unwrap()).is_err());
     }
 }

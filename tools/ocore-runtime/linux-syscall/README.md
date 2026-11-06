@@ -47,6 +47,32 @@ semantics, resources, process/context and lifecycle before binding it. Current
 native monitor/kernel admission rejects these requirements. The scalar native
 interpreter and pure `.O` leaf also refuse this effect before execution.
 
+Supported scalar callsite `range` attributes use a separate typed source
+witness. The importer obtains the actual owner, argument/result slot, integer
+type and attribute kind from the pinned LLVM C API. The complete call printer
+supplies candidate endpoint bits only: reconstruction with the public
+constant-range constructor in that same context must return the exact original
+attribute handle. An independent source reader repeats this proof. Numeric
+kind IDs are never a source contract.
+
+Endpoints retain their unsigned, width-specific lower-inclusive/upper-exclusive
+modular representation, including wrapping ranges and the empty `0,0` form.
+Other equal endpoints and unsupported storage, slots or types are refused
+before the constructor or native operand access. Outside-range source values
+are poison; preserving the witness does not establish that callers satisfy
+its precondition. It does not narrow the raw syscall ABI, optimize the call,
+infer purity or discharge the Linux-compatible userspace requirement. Source
+schema V2 is used exactly when the constant-range vector is nonempty; legacy
+V1 packets and enum-only attributes keep their prior canonical bytes. Full
+fresh-source equality includes the complete typed range vector.
+
+The unchanged original musl `_Exit` unit is a source-compilation witness for
+the sign-extended `i32` range on both original raw syscall calls. Its source,
+loop and flags are preserved. Separately authored range-bearing LLVM fixtures
+exercise all seven arities, result/argument association, defined memory effects
+and floating-point environment preservation. These fixtures are not original
+musl source or a replacement libc implementation.
+
 Execution tests bind their actual external Linux kernel, static Clang test
 driver/bootstrap and guarded foreign-ISA emulator separately. They preserve raw
 results, errors, file/memory effects and defined FP control/sticky state. Those
