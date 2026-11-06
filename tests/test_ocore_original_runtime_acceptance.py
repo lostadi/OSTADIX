@@ -258,15 +258,22 @@ class OriginalRuntimeAcceptanceControls(unittest.TestCase):
         module = {"target": target["native_target"],
                   "provenance": {"input_sha256": acceptance.digest(raw)}}
         claimed = directory / "claimed.json"; claimed.write_text(json.dumps(module))
+        compiler = directory / "inert-compiler"; compiler.write_bytes(b"inert command test double, never executed")
+        parser = directory / "inert-parser"; parser.write_bytes(b"inert parser test double, never executed")
         class Reader:
             def read(self, path): return {"inert_reader": True}
         class Inventory:
             def check_inventory(self, original, canonical): return {"inert_inventory": True}
         class Harness:
-            tools = {"ocorec": {"path": "/inert/compiler"},
-                     "llvm_library": {"path": "/inert/parser", "sha256": "0" * 64}}
+            tools = {"ocorec": acceptance.artifact(compiler),
+                     "llvm_library": acceptance.artifact(parser)}
             reader = Reader(); inventory = Inventory()
             def command(self, argv, cwd, label):
+                if argv[1:] == ["--help"]:
+                    stdout = cwd / (label + ".stdout"); stdout.write_text("legacy inert compiler help\n")
+                    stderr = cwd / (label + ".stderr"); stderr.write_bytes(b"")
+                    return {"exit_code": 0, "inert_command": True,
+                            "stdout": acceptance.artifact(stdout), "stderr": acceptance.artifact(stderr)}
                 if "--verify-native" in argv:
                     output = Path(argv[argv.index("--receipt") + 1])
                     output.write_text(json.dumps({"verified": True,
@@ -464,7 +471,8 @@ for name,value in [('capture/report.json',capture),('lowered/coverage.json',cove
                 helper.write_text("class Reader:\n def __init__(self,*args): pass\n def read(self,path): return {}\ndef check_inventory(*args): return {'synthetic_control_only':True}\n")
                 core.write_text(
                     "#!/usr/bin/python3\nimport sys,pathlib,json,hashlib\na=sys.argv\n"
-                    "if '--verify-native' in a:\n"
+                    "if a[1:]==['--help']: print('legacy synthetic compiler help')\n"
+                    "elif '--verify-native' in a:\n"
                     " p=pathlib.Path(a[a.index('--receipt')+1]);p.write_text(json.dumps({'verified':True,'module_sha256':hashlib.sha256(pathlib.Path(a[1]).read_bytes()).hexdigest()}))\n"
                     "elif '--emit' in a:\n"
                     " p=pathlib.Path(a[a.index('-o')+1])\n"
@@ -553,6 +561,9 @@ for name,value in [('capture/report.json',capture),('lowered/coverage.json',cove
             self.assertFalse(report["all_isa_identity_qualified"])
             forbidden = [command for command in report["commands"] if command["argv"][0] == str(core) and command["argv"][1:] != ["--list-targets"]]
             if partial_valid:
+                help_commands = [command for command in forbidden if command["argv"][1:] == ["--help"]]
+                self.assertEqual(len(help_commands), 1, "actual selected helper capability is discovered once across units")
+                forbidden = [command for command in forbidden if command["argv"][1:] != ["--help"]]
                 self.assertEqual(len(forbidden), 5 * target_count, "only explicitly synthetic verify/canonicalize/import/verify/emit doubles were exercised")
                 self.assertTrue(all(command["exit_code"] == 0 for command in forbidden))
                 self.assertEqual(sum("--verify-native" in command["argv"] for command in forbidden), 2 * target_count)

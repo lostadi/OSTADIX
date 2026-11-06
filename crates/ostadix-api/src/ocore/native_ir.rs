@@ -169,6 +169,84 @@ pub struct NoAliasAttachment {
     pub site: NoAliasSite,
     pub alias_scope: Option<usize>,
     pub noalias: Option<usize>,
+    /// Actual LLVM enumeration order of the noalias-relevant access attachments
+    /// at this instruction, not the order of unrelated/debug metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_order: Option<Vec<NoAliasAttachmentKind>>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum NoAliasAttachmentKind {
+    #[serde(rename = "alias_scope")]
+    AliasScope,
+    #[serde(rename = "noalias")]
+    NoAlias,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum LlvmMetadataGraphSchema {
+    #[serde(rename = "ocore.llvm-metadata-graph/v1")]
+    V1,
+}
+
+/// Deterministic, typed serialization of the actual parsed LLVM metadata graph.
+/// IDs are local traversal identities, never LLVM display slots or pointers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlvmMetadataGraphSource {
+    pub schema: LlvmMetadataGraphSchema,
+    pub nodes: Vec<LlvmMetadataSourceNode>,
+    pub alias_bindings: Vec<LlvmMetadataAliasBinding>,
+    pub roots: Vec<LlvmMetadataSourceRoot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum LlvmMetadataSourceNode {
+    Tuple {
+        id: usize,
+        metadata_kind: u32,
+        storage: NoAliasNodeStorage,
+        operands: Vec<usize>,
+    },
+    String {
+        id: usize,
+        metadata_kind: u32,
+        bytes: Vec<u8>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlvmMetadataAliasBinding {
+    pub alias_id: usize,
+    pub node: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlvmMetadataSourceSite {
+    pub function: String,
+    pub block: BlockId,
+    pub source_instruction: usize,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum LlvmMetadataSourceRootKind {
+    #[serde(rename = "scope_declaration")]
+    ScopeDeclaration,
+    #[serde(rename = "alias_scope")]
+    AliasScope,
+    #[serde(rename = "noalias")]
+    NoAlias,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlvmMetadataSourceRoot {
+    pub kind: LlvmMetadataSourceRootKind,
+    pub site: LlvmMetadataSourceSite,
+    pub node: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -354,6 +432,11 @@ pub struct Provenance {
     /// never portable graph IDs or executable addresses.
     #[serde(default)]
     pub noalias_metadata_source: Vec<NoAliasNodeSource>,
+    /// Versioned deterministic graph source. Raw LLVM printer diagnostics are
+    /// retained separately; they are not part of this canonical representation.
+    /// Legacy packets omit this field and retain their exact old evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noalias_metadata_graph_source: Option<LlvmMetadataGraphSource>,
     pub refinements: Vec<String>,
 }
 

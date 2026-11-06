@@ -941,7 +941,306 @@ fn noalias_metadata(module: &NativeModule) -> Result<HashMap<usize, &NoAliasScop
                 .ok_or_else(|| fail(context, "source instruction range overflows"))?;
         }
     }
+    noalias_graph_source(module)?;
     Ok(lists)
+}
+
+/// Reconstruct the independently captured source graph from typed metadata and
+/// real source instruction ordinals. This is internal consistency, not source
+/// authentication: strict fresh-source readmission still compares the complete
+/// verified module, including every one of these fields.
+fn noalias_graph_source(module: &NativeModule) -> Result<()> {
+    let context = "noalias metadata graph source";
+    let Some(source) = &module.provenance.noalias_metadata_graph_source else {
+        if module
+            .noalias_metadata
+            .attachments
+            .iter()
+            .any(|a| a.source_order.is_some())
+        {
+            return Err(fail(
+                context,
+                "attachment source order requires canonical graph source",
+            ));
+        }
+        return Ok(()); // exact legacy verification remains separately supported
+    };
+    if !module.provenance.noalias_metadata_source.is_empty() {
+        return Err(fail(
+            context,
+            "mixed canonical graph and legacy raw printer source",
+        ));
+    }
+    #[derive(Clone)]
+    enum Operand {
+        Alias(usize),
+        Bytes(Vec<u8>),
+    }
+    #[derive(Clone)]
+    struct Tuple {
+        storage: NoAliasNodeStorage,
+        operands: Vec<Operand>,
+    }
+    struct Builder {
+        tuples: BTreeMap<usize, Tuple>,
+        aliases: HashMap<usize, usize>,
+        strings: HashMap<Vec<u8>, usize>,
+        uniqued: HashSet<Vec<usize>>,
+        nodes: Vec<Option<LlvmMetadataSourceNode>>,
+    }
+    impl Builder {
+        fn string(&mut self, bytes: &[u8]) -> usize {
+            if let Some(id) = self.strings.get(bytes) {
+                return *id;
+            }
+            let id = self.nodes.len();
+            self.strings.insert(bytes.to_vec(), id);
+            self.nodes.push(Some(LlvmMetadataSourceNode::String {
+                id,
+                metadata_kind: 0,
+                bytes: bytes.to_vec(),
+            }));
+            id
+        }
+        fn tuple(&mut self, alias: usize) -> Result<usize> {
+            if let Some(id) = self.aliases.get(&alias) {
+                return Ok(*id);
+            }
+            let tuple = self.tuples.get(&alias).cloned().ok_or_else(|| {
+                fail(
+                    "noalias metadata graph source",
+                    "unknown alias node reference",
+                )
+            })?;
+            let id = self.nodes.len();
+            self.aliases.insert(alias, id);
+            self.nodes.push(None); // register before following self cycles
+            let mut operands = Vec::new();
+            for operand in &tuple.operands {
+                operands.push(match operand {
+                    Operand::Alias(target) => self.tuple(*target)?,
+                    Operand::Bytes(bytes) => self.string(bytes),
+                });
+            }
+            if tuple.storage == NoAliasNodeStorage::Uniqued
+                && !self.uniqued.insert(operands.clone())
+            {
+                return Err(fail(
+                    "noalias metadata graph source",
+                    "distinct alias IDs duplicate a uniqued tuple",
+                ));
+            }
+            self.nodes[id] = Some(LlvmMetadataSourceNode::Tuple {
+                id,
+                metadata_kind: 4,
+                storage: tuple.storage,
+                operands,
+            });
+            Ok(id)
+        }
+    }
+    fn identity(id: usize, value: &NoAliasIdentity) -> Operand {
+        match value {
+            NoAliasIdentity::SelfReference {} => Operand::Alias(id),
+            NoAliasIdentity::Bytes { bytes } => Operand::Bytes(bytes.clone()),
+        }
+    }
+    let mut builder = Builder {
+        tuples: BTreeMap::new(),
+        aliases: HashMap::new(),
+        strings: HashMap::new(),
+        uniqued: HashSet::new(),
+        nodes: Vec::new(),
+    };
+    for node in &module.noalias_metadata.domains {
+        let mut operands = vec![identity(node.id, &node.identity)];
+        if let Some(bytes) = &node.description {
+            operands.push(Operand::Bytes(bytes.clone()));
+        }
+        builder.tuples.insert(
+            node.id,
+            Tuple {
+                storage: node.storage,
+                operands,
+            },
+        );
+    }
+    for node in &module.noalias_metadata.scopes {
+        let mut operands = vec![
+            identity(node.id, &node.identity),
+            Operand::Alias(node.domain),
+        ];
+        if let Some(bytes) = &node.description {
+            operands.push(Operand::Bytes(bytes.clone()));
+        }
+        builder.tuples.insert(
+            node.id,
+            Tuple {
+                storage: node.storage,
+                operands,
+            },
+        );
+    }
+    for node in &module.noalias_metadata.lists {
+        builder.tuples.insert(
+            node.id,
+            Tuple {
+                storage: node.storage,
+                operands: node.scopes.iter().copied().map(Operand::Alias).collect(),
+            },
+        );
+    }
+    if builder.tuples.is_empty() {
+        return Err(fail(
+            context,
+            "canonical graph source requires actual alias metadata",
+        ));
+    }
+    if builder.tuples.keys().copied().ne(0..builder.tuples.len()) {
+        return Err(fail(
+            context,
+            "canonical alias traversal IDs must be contiguous",
+        ));
+    }
+    #[derive(Default)]
+    struct Event<'a> {
+        declaration: Option<usize>,
+        attachment: Option<(usize, &'a NoAliasAttachment)>,
+    }
+    let mut roots = Vec::new();
+    let mut attachment_order = Vec::new();
+    // Merge by actual original instruction ordinal inside public function and
+    // block order. Never group declarations separately from access attachments.
+    for function in &module.functions {
+        for block in &function.blocks {
+            let mut events: BTreeMap<usize, Event<'_>> = BTreeMap::new();
+            for instruction in &block.instructions {
+                if let Operation::NoAliasScopeDecl {
+                    scope_list,
+                    source_instruction,
+                } = &instruction.operation
+                {
+                    if events
+                        .entry(*source_instruction)
+                        .or_default()
+                        .declaration
+                        .replace(*scope_list)
+                        .is_some()
+                    {
+                        return Err(fail(context, "duplicate source declaration root"));
+                    }
+                }
+            }
+            for (index, attachment) in module.noalias_metadata.attachments.iter().enumerate() {
+                if attachment.site.function == function.name && attachment.site.block == block.id {
+                    if events
+                        .entry(attachment.site.source_instruction)
+                        .or_default()
+                        .attachment
+                        .replace((index, attachment))
+                        .is_some()
+                    {
+                        return Err(fail(context, "duplicate source access root site"));
+                    }
+                }
+            }
+            for (source_instruction, event) in events {
+                let site = LlvmMetadataSourceSite {
+                    function: function.name.clone(),
+                    block: block.id,
+                    source_instruction,
+                };
+                // The declaration metadata is an instruction operand, preceding
+                // that instruction's access attachments in original source order.
+                if let Some(alias) = event.declaration {
+                    roots.push(LlvmMetadataSourceRoot {
+                        kind: LlvmMetadataSourceRootKind::ScopeDeclaration,
+                        site: site.clone(),
+                        node: builder.tuple(alias)?,
+                    });
+                }
+                if let Some((index, attachment)) = event.attachment {
+                    attachment_order.push(index);
+                    let order = attachment.source_order.as_ref().ok_or_else(|| {
+                        fail(
+                            context,
+                            "canonical access root lacks source attachment order",
+                        )
+                    })?;
+                    let required = usize::from(attachment.alias_scope.is_some())
+                        + usize::from(attachment.noalias.is_some());
+                    if order.len() != required {
+                        return Err(fail(context, "source attachment order inventory mismatch"));
+                    }
+                    let mut seen = Vec::new();
+                    for kind in order {
+                        if seen.contains(kind) {
+                            return Err(fail(context, "duplicate source attachment order kind"));
+                        }
+                        seen.push(*kind);
+                        let (root_kind, alias) = match kind {
+                            NoAliasAttachmentKind::AliasScope => (
+                                LlvmMetadataSourceRootKind::AliasScope,
+                                attachment.alias_scope,
+                            ),
+                            NoAliasAttachmentKind::NoAlias => {
+                                (LlvmMetadataSourceRootKind::NoAlias, attachment.noalias)
+                            }
+                        };
+                        let alias = alias.ok_or_else(|| {
+                            fail(
+                                context,
+                                "source attachment order names an absent attachment",
+                            )
+                        })?;
+                        roots.push(LlvmMetadataSourceRoot {
+                            kind: root_kind,
+                            site: site.clone(),
+                            node: builder.tuple(alias)?,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    if attachment_order
+        .into_iter()
+        .ne(0..module.noalias_metadata.attachments.len())
+    {
+        return Err(fail(
+            context,
+            "access attachment inventory is not in actual source order",
+        ));
+    }
+    if builder.aliases.len() != builder.tuples.len() {
+        return Err(fail(
+            context,
+            "canonical source graph contains unrooted alias nodes",
+        ));
+    }
+    let alias_bindings = builder
+        .tuples
+        .keys()
+        .map(|alias_id| LlvmMetadataAliasBinding {
+            alias_id: *alias_id,
+            node: builder.aliases[alias_id],
+        })
+        .collect();
+    let nodes = builder
+        .nodes
+        .into_iter()
+        .map(|node| node.ok_or_else(|| fail(context, "incomplete canonical source graph node")))
+        .collect::<Result<Vec<_>>>()?;
+    let expected = LlvmMetadataGraphSource {
+        schema: LlvmMetadataGraphSchema::V1,
+        nodes,
+        alias_bindings,
+        roots,
+    };
+    if source != &expected {
+        return Err(fail(context, "typed graph, identities, ordered roots or opaque bytes differ from canonical source graph"));
+    }
+    Ok(())
 }
 
 fn symbol_name(name: &str, context: &str) -> Result<()> {
@@ -11870,6 +12169,7 @@ mod tests {
             ],
             attachments: vec![
                 NoAliasAttachment {
+                    source_order: None,
                     site: NoAliasSite {
                         function: "choose".into(),
                         block: 10,
@@ -11881,6 +12181,7 @@ mod tests {
                     noalias: Some(203),
                 },
                 NoAliasAttachment {
+                    source_order: None,
                     site: NoAliasSite {
                         function: "choose".into(),
                         block: 20,
@@ -11892,6 +12193,7 @@ mod tests {
                     noalias: None,
                 },
                 NoAliasAttachment {
+                    source_order: None,
                     site: NoAliasSite {
                         function: "choose".into(),
                         block: 40,
@@ -12168,6 +12470,7 @@ mod tests {
         // source order, while preserving the separately retained source IDs.
         let mut valid = m;
         valid.noalias_metadata.attachments.push(NoAliasAttachment {
+            source_order: None,
             site: NoAliasSite {
                 function: "choose".into(),
                 block: 10,
@@ -12179,6 +12482,7 @@ mod tests {
             noalias: None,
         });
         valid.noalias_metadata.attachments.push(NoAliasAttachment {
+            source_order: None,
             site: NoAliasSite {
                 function: "choose".into(),
                 block: 10,
@@ -12198,6 +12502,7 @@ mod tests {
             },
         });
         valid.noalias_metadata.attachments.push(NoAliasAttachment {
+            source_order: None,
             site: NoAliasSite {
                 function: "choose".into(),
                 block: 999,

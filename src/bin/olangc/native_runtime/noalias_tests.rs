@@ -61,6 +61,7 @@ fn noalias_module(arch: &str) -> NativeModule {
             scopes: vec![1],
         }],
         attachments: vec![NoAliasAttachment {
+            source_order: None,
             site: NoAliasSite {
                 function: "f".into(),
                 block: 0,

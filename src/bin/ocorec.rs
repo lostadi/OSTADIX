@@ -33,7 +33,7 @@ struct Cli {
 
     /// Print the canonical target catalog as JSON without compiling or executing.
     /// Catalog membership alone does not qualify target health or semantics.
-    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "check"])]
+    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "llvm_metadata_diagnostics", "check"])]
     list_targets: bool,
 
     /// Input representation. Imported IR is verified before all output.
@@ -47,6 +47,12 @@ struct Cli {
     /// SHA-256 pin for an explicitly selected LLVM parser library.
     #[arg(long, requires = "llvm_library")]
     llvm_sha256: Option<String>,
+
+    /// Retain exact raw LLVM metadata printer diagnostics in a separate JSON
+    /// sidecar. These process-specific bytes never enter canonical module
+    /// equality and do not constitute native or runtime admission.
+    #[arg(long, conflicts_with_all = ["verify_native", "check", "verify_native_map"])]
+    llvm_metadata_diagnostics: Option<PathBuf>,
 
     /// Explicit native TLS realization for a complete static Linux ELF image.
     /// Requested LLVM models remain in IR; genuine TLS storage/providers and
@@ -152,6 +158,15 @@ fn main() {
                 .expect("target catalog is serializable")
         );
         return;
+    }
+    if cli.llvm_metadata_diagnostics.is_some()
+        && (cli.input_kind != InputKind::LlvmIr
+            || !matches!(cli.emit, Emit::Mir | Emit::Asm | Emit::Obj))
+    {
+        eprintln!(
+            "ocorec: --llvm-metadata-diagnostics requires LLVM import with --emit mir, asm or obj"
+        );
+        std::process::exit(2);
     }
     if cli.input_kind != InputKind::Ocore && (cli.function_sections || cli.data_sections) {
         eprintln!("ocorec: imported native function/data sections are not implemented");
@@ -272,6 +287,35 @@ fn main() {
         output,
         keep_assembly: cli.keep_asm,
     };
+    if let Some(diagnostics) = &cli.llvm_metadata_diagnostics {
+        let mut reserved = cli.inputs.clone();
+        if let Some(library) = &cli.llvm_library {
+            reserved.push(library.clone());
+        }
+        if let Ok(executable) = std::env::current_exe() {
+            reserved.push(executable);
+        }
+        reserved.push(options.output.clone());
+        if options.keep_assembly {
+            reserved.push(options.output.with_extension("s"));
+        }
+        if let Some(map) = &cli.native_map {
+            reserved.push(map.clone());
+        }
+        let valid = resolved_import_output(diagnostics).and_then(|destination| {
+            for path in reserved {
+                if destination == resolved_import_output(&path)? {
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput,
+                        "metadata diagnostics must not replace source, selected tools, module, assembly or map output"));
+                }
+            }
+            Ok(())
+        });
+        if let Err(error) = valid {
+            eprintln!("ocorec: invalid metadata diagnostic destination: {error}");
+            std::process::exit(2);
+        }
+    }
     if let Some(map) = &cli.native_map {
         if let Err(error) =
             o_lang::ocore::driver::prepare_native_map_output(&cli.inputs, &options, map)
@@ -346,6 +390,44 @@ fn main() {
     }
 }
 
+// Resolve existing prefixes, including symlinks, without creating artifacts.
+// Ambiguous nonexistent '..' paths are rejected rather than guessed.
+fn resolved_import_output(path: &std::path::Path) -> std::io::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let mut ancestor = absolute.as_path();
+    let mut tail = Vec::new();
+    loop {
+        match ancestor.canonicalize() {
+            Ok(mut resolved) => {
+                for name in tail.iter().rev() {
+                    resolved.push(name);
+                }
+                return Ok(resolved);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let name = ancestor.file_name().ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "cannot resolve diagnostic output path",
+                    )
+                })?;
+                tail.push(name.to_os_string());
+                ancestor = ancestor.parent().ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "diagnostic output has no parent",
+                    )
+                })?;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 struct ImportedFile(PathBuf);
 impl Drop for ImportedFile {
     fn drop(&mut self) {
@@ -384,6 +466,9 @@ fn import_llvm(cli: &Cli) -> anyhow::Result<ImportedFile> {
     }
     if let Some(digest) = &cli.llvm_sha256 {
         command.arg("--llvm-sha256").arg(digest);
+    }
+    if let Some(diagnostics) = &cli.llvm_metadata_diagnostics {
+        command.arg("--metadata-diagnostics").arg(diagnostics);
     }
     if let Some(profile) = &cli.tls_profile {
         command.arg("--tls-profile").arg(profile);

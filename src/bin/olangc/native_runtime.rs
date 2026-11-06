@@ -3,7 +3,8 @@
 
 use anyhow::{bail, Context, Result};
 use o_lang::ocore::native_ir::{
-    AtomicProfile, NativeModule, Signature, TlsProfile, Type, Visibility, WideVolatileProfile,
+    AtomicProfile, LlvmMetadataGraphSource, LlvmMetadataSourceNode, NativeModule, NoAliasNodeSource,
+    NoAliasNodeStorage, Signature, TlsProfile, Type, Visibility, WideVolatileProfile,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -63,6 +64,10 @@ mod floating_helper_tests;
 #[cfg(test)]
 #[path = "native_runtime/blockaddress_inventory_tests.rs"]
 mod blockaddress_inventory_tests;
+
+#[cfg(test)]
+#[path = "native_runtime/raw_metadata_receipt_tests.rs"]
+mod raw_metadata_receipt_tests;
 
 fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -1604,6 +1609,178 @@ fn invoke(compiler: &Path, args: &[String], log: &Path) -> Result<()> {
     Ok(())
 }
 
+const RAW_METADATA_SCHEMA: &str = "ocore.raw-llvm-metadata-diagnostics/v1";
+const RAW_METADATA_OPTION: &str = "--llvm-metadata-diagnostics";
+
+// Capability discovery only selects the invocation spelling. Neither help
+// output nor the raw printer diagnostics replace native verification or fresh
+// source readmission of the complete canonical module.
+fn metadata_diagnostics_capability(compiler: &Path, output: &Path) -> Result<(bool, Value)> {
+    let compiler_sha256 = digest(&fs::read(compiler)?);
+    let result = Command::new(compiler).arg("--help").output()?;
+    let stdout = output.join("metadata-diagnostics-help.stdout");
+    let stderr = output.join("metadata-diagnostics-help.stderr");
+    fs::write(&stdout, &result.stdout)?;
+    fs::write(&stderr, &result.stderr)?;
+    let supported = result.status.success()
+        && String::from_utf8_lossy(&result.stdout)
+            .split_ascii_whitespace()
+            .any(|token| token == RAW_METADATA_OPTION);
+    if digest(&fs::read(compiler)?) != compiler_sha256 {
+        bail!("selected compiler changed during metadata diagnostic capability discovery");
+    }
+    Ok((supported, json!({"program":compiler,"sha256":compiler_sha256,
+        "argv":["--help"],"status":result.status.code(),"supported":supported,
+        "stdout":{"path":stdout,"bytes":result.stdout.len(),"sha256":digest(&result.stdout)},
+        "stderr":{"path":stderr,"bytes":result.stderr.len(),"sha256":digest(&result.stderr)},
+        "scope":"dispatch capability only; not source or semantic qualification"})))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawMetadataParser {
+    version: [u32; 3],
+    sha256: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawMetadataDiagnostics {
+    schema: String,
+    input_sha256: String,
+    input_bytes: usize,
+    import_complete: bool,
+    parser: RawMetadataParser,
+    alias_nodes: Vec<NoAliasNodeSource>,
+    // Required even when null; absent and empty diagnostic evidence differ.
+    graph_source: Value,
+}
+
+fn retained_metadata_diagnostics(path: &Path) -> Value {
+    match fs::read(path) {
+        Ok(bytes) => json!({"path":path,"sha256":digest(&bytes),"bytes":bytes.len(),
+            "validated":false,"scope":"raw failed/unvalidated attempt evidence only"}),
+        Err(error) => json!({"path":path,"validated":false,"unavailable":error.to_string()}),
+    }
+}
+
+fn validate_metadata_diagnostics(
+    path: Option<&Path>,
+    module: &NativeModule,
+    input: &[u8],
+    selected_parser_sha256: Option<&str>,
+) -> Result<Value> {
+    o_lang::ocore::native_verify::verify(module).map_err(|error| anyhow::anyhow!(error.message))?;
+    if module.provenance.input_sha256 != digest(input) {
+        bail!("LLVM metadata receipt module differs from original source bytes");
+    }
+    let Some(path) = path else {
+        if module.provenance.noalias_metadata_graph_source.is_some() {
+            bail!("canonical LLVM metadata graph requires separately retained raw diagnostics");
+        }
+        return Ok(json!({"mode":"legacy_embedded_provenance","validated":false,
+            "deterministic_graph_source_gate":false,
+            "scope":"existing independent structural verification; selected compiler lacks raw sidecar capability"}));
+    };
+    let bytes = fs::read(path).context("read requested raw LLVM metadata diagnostics")?;
+    let raw: RawMetadataDiagnostics = serde_json::from_slice(&bytes)
+        .context("decode complete raw LLVM metadata diagnostics")?;
+    if raw.schema != RAW_METADATA_SCHEMA || !raw.import_complete
+        || raw.input_bytes != input.len() || raw.input_sha256 != digest(input)
+        || raw.input_sha256 != module.provenance.input_sha256
+    {
+        bail!("raw LLVM metadata schema/input/completion binding mismatch");
+    }
+    if raw.parser.version != [22, 1, 6]
+        || raw.parser.sha256.len() != 64
+        || !raw.parser.sha256.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || !module.provenance.importer_version.ends_with(&format!(
+            "; LLVM 22.1.6; library-sha256={}", raw.parser.sha256))
+        || selected_parser_sha256.is_some_and(|selected| selected != raw.parser.sha256)
+    {
+        bail!("raw LLVM metadata parser version/hash differs from the selected import");
+    }
+    let graph: Option<LlvmMetadataGraphSource> = serde_json::from_value(raw.graph_source)
+        .context("decode raw diagnostic canonical graph binding")?;
+    if graph != module.provenance.noalias_metadata_graph_source {
+        bail!("raw LLVM metadata graph differs from the independently verified canonical module");
+    }
+    let mut expected = BTreeMap::new();
+    if let Some(graph) = &graph {
+        let tuple_storage: BTreeMap<_, _> = graph.nodes.iter().filter_map(|node| match node {
+            LlvmMetadataSourceNode::Tuple { id, metadata_kind: 4, storage, .. } => Some((*id, *storage)),
+            _ => None,
+        }).collect();
+        for binding in &graph.alias_bindings {
+            let storage = *tuple_storage.get(&binding.node)
+                .context("raw metadata binding must name a canonical MDTuple")?;
+            if expected.insert(binding.alias_id, storage).is_some() {
+                bail!("duplicate raw LLVM metadata binding");
+            }
+        }
+    } else {
+        // Legacy modules retain printer evidence in the canonical packet. Do
+        // not discard it or manufacture a deterministic source graph for them.
+        if serde_json::to_value(&raw.alias_nodes)?
+            != serde_json::to_value(&module.provenance.noalias_metadata_source)?
+        {
+            bail!("raw LLVM metadata differs from legacy embedded printer evidence");
+        }
+        for (id, storage) in module.noalias_metadata.domains.iter().map(|n| (n.id, n.storage))
+            .chain(module.noalias_metadata.scopes.iter().map(|n| (n.id, n.storage)))
+            .chain(module.noalias_metadata.lists.iter().map(|n| (n.id, n.storage)))
+        {
+            expected.insert(id, storage);
+        }
+    }
+    if raw.alias_nodes.len() != expected.len() {
+        bail!("raw LLVM metadata tuple inventory differs from canonical graph");
+    }
+    let mut seen = BTreeSet::new();
+    for source in &raw.alias_nodes {
+        let storage = expected.get(&source.id).context("unknown raw LLVM metadata alias ID")?;
+        if !seen.insert(source.id) || source.metadata_kind != 4
+            || source.printer_sha256 != digest(&source.printer_bytes)
+        {
+            bail!("raw LLVM metadata duplicate/kind/printer digest mismatch");
+        }
+        let separator = source.printer_bytes.windows(3).position(|bytes| bytes == b" = ")
+            .context("invalid raw LLVM metadata printer header")?;
+        let label = &source.printer_bytes[..separator];
+        let slot = label.strip_prefix(b"!").is_some_and(|digits|
+            !digits.is_empty() && digits.iter().all(u8::is_ascii_digit));
+        let pointer = label.strip_prefix(b"<0x").and_then(|label| label.strip_suffix(b">"))
+            .is_some_and(|digits| !digits.is_empty() && digits.iter().all(u8::is_ascii_hexdigit));
+        let body = &source.printer_bytes[separator + 3..];
+        let correct_storage = match storage {
+            NoAliasNodeStorage::Uniqued => body.starts_with(b"!{"),
+            NoAliasNodeStorage::Distinct => body.starts_with(b"distinct !{"),
+        };
+        if !(slot || pointer) || !correct_storage {
+            bail!("raw LLVM metadata printer header/storage does not match canonical tuple");
+        }
+    }
+    Ok(json!({"path":path,"sha256":digest(&bytes),"bytes":bytes.len(),"validated":true,
+        "schema":raw.schema,"input_sha256":raw.input_sha256,"input_bytes":raw.input_bytes,
+        "parser":{"version":raw.parser.version,"sha256":raw.parser.sha256},
+        "explicit_parser_pin_checked":selected_parser_sha256.is_some(),
+        "tuple_count":raw.alias_nodes.len(),"canonical_graph_source":graph.is_some(),
+        "scope":"raw diagnostics separately bound; complete canonical module remains independently verified and exactly compared"}))
+}
+
+fn metadata_diagnostics_postguard(receipt: &Value) -> Result<()> {
+    if receipt.get("validated").and_then(Value::as_bool) == Some(true) {
+        let path = Path::new(string(receipt, "path")?);
+        let bytes = fs::read(path)?;
+        if digest(&bytes) != string(receipt, "sha256")?
+            || receipt.get("bytes").and_then(Value::as_u64) != Some(bytes.len() as u64)
+        {
+            bail!("validated raw LLVM metadata diagnostics changed during lowering");
+        }
+    }
+    Ok(())
+}
+
 struct Section {
     kind: u32,
     flags: u64,
@@ -3069,6 +3246,22 @@ fn lower_held_capture_with_compiler(
     } else {
         None
     };
+    let mut metadata_capability = Value::Null;
+    let metadata_sidecars = if preflight_ok {
+        match metadata_diagnostics_capability(compiler, &output) {
+            Ok((supported, receipt)) => {
+                metadata_capability = receipt;
+                supported
+            }
+            Err(error) => {
+                issues.push(format!("metadata diagnostic capability discovery: {error}"));
+                preflight_ok = false;
+                false
+            }
+        }
+    } else {
+        false
+    };
     let mut provider_admission_complete = false;
     let mut provider_admission_issue = None;
     let dependencies = if preflight_ok && !stage_only {
@@ -3165,8 +3358,16 @@ fn lower_held_capture_with_compiler(
             if let Some(profile) = wide_volatile_profile {
                 arguments.extend(["--wide-volatile-profile".into(), profile.into()]);
             }
+            let diagnostics = metadata_sidecars.then(|| directory.join("llvm-metadata-diagnostics.json"));
+            if let Some(path) = &diagnostics {
+                arguments.extend([RAW_METADATA_OPTION.into(), path.display().to_string()]);
+            }
             record["import_argv"] = json!(arguments);
-            invoke(compiler, &arguments, &directory.join("import.log"))?;
+            let import_result = invoke(compiler, &arguments, &directory.join("import.log"));
+            if let Some(path) = &diagnostics {
+                record["metadata_diagnostics"] = retained_metadata_diagnostics(path);
+            }
+            import_result?;
             let imported_bytes = fs::read(&imported)?;
             let module = NativeModule::from_json(&imported_bytes).map_err(|error| {
                 anyhow::anyhow!("independent native verification: {}", error.message)
@@ -3180,6 +3381,9 @@ fn lower_held_capture_with_compiler(
             {
                 bail!("imported module provenance/target differs from the captured input");
             }
+            record["metadata_diagnostics"] = validate_metadata_diagnostics(
+                diagnostics.as_deref(), &module, &input_bytes, llvm_sha256,
+            )?;
             let mut triple = module.target.triple.split('-');
             let architecture = triple.next().unwrap_or_default();
             let _vendor = triple.next();
@@ -3292,6 +3496,7 @@ fn lower_held_capture_with_compiler(
             if digest(&fs::read(&imported)?) != digest(&imported_bytes) {
                 bail!("imported module changed during lowering");
             }
+            metadata_diagnostics_postguard(&record["metadata_diagnostics"])?;
             if stage_only {
                 consumed_original_inputs.insert(id.to_owned(), (unit["ir"].clone(), input_bytes));
             }
@@ -3499,6 +3704,7 @@ fn lower_held_capture_with_compiler(
         ("output_kind".to_owned(), json!(output_kind)),
         ("compiler".to_owned(), json!(compiler)),
         ("compiler_sha256".to_owned(), json!(compiler_digest)),
+        ("metadata_diagnostics_capability".to_owned(), metadata_capability),
         ("source".to_owned(), json!(capture["source"])),
         ("manifest".to_owned(), json!(capture["manifest"])),
         ("capture_reverification".to_owned(), json!(capture_reverification)),

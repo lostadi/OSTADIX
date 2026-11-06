@@ -320,6 +320,10 @@ class Importer:
         self.noalias_metadata = {"domains": [], "scopes": [], "lists": [], "attachments": []}
         self.noalias_nodes = {}
         self.noalias_node_sources = []
+        # Raw LLVM identities live only while this parsed module is alive.
+        # Serialize an independently traversed typed graph, not display labels.
+        self.noalias_source_roots = []
+        self.noalias_graph_source = None
         self.producer_ident = []
         self.target_abi = None
         self.metadata_checked = False
@@ -1215,6 +1219,92 @@ class Importer:
                 return a.GetEnumAttributeValue(attribute)
         return 1
 
+    def capture_noalias_source_roots(self, functions):
+        """Read original source order before instruction lowering changes ranges.
+
+        A declaration's metadata argument is an instruction operand; access
+        attachments follow it in LLVM's actual attachment enumeration order.
+        Only noalias-relevant attachment order is recorded here.
+        """
+        a = self.a
+        for function in functions:
+            function_name = a.name(function)
+            for block_index, block in enumerate(a.sequence(a.GetFirstBasicBlock, a.GetNextBasicBlock, function)):
+                for ordinal, value in enumerate(a.sequence(a.GetFirstInstruction, a.GetNextInstruction, block)):
+                    site = {"function": function_name, "block": block_index,
+                            "source_instruction": ordinal}
+                    if a.GetInstructionOpcode(value) == 45:
+                        callee = a.GetCalledValue(value)
+                        if (callee and a.IsAFunction(callee) and a.name(callee) == self.NOALIAS_INTRINSIC
+                                and a.GetNumArgOperands(value) == 1):
+                            argument = a.GetOperand(value, 0)
+                            if a.GetTypeKind(a.TypeOf(argument)) == 14:
+                                self.noalias_source_roots.append({"kind": "scope_declaration", "site": site,
+                                                                  "metadata": a.ValueAsMetadata(argument)})
+                    count = S()
+                    entries = a.InstructionGetAllMetadataOtherThanDebugLoc(value, C.byref(count))
+                    try:
+                        seen = set()
+                        for index in range(count.value):
+                            name = self.metadata_names.get(a.ValueMetadataEntriesGetKind(entries, index))
+                            if name not in {"alias.scope", "noalias"}:
+                                continue
+                            if name in seen:
+                                self.reject("duplicate scoped alias source attachment kind")
+                            seen.add(name)
+                            self.noalias_source_roots.append({
+                                "kind": "alias_scope" if name == "alias.scope" else "noalias",
+                                "site": site,
+                                "metadata": a.ValueMetadataEntriesGetMetadata(entries, index)})
+                    finally:
+                        if entries:
+                            a.DisposeValueMetadataEntries(entries)
+
+    def build_noalias_graph_source(self):
+        """Serialize actual tuple/string identities with deterministic graph IDs.
+
+        Pre-registration preserves sharing and cycles. No raw LLVM printer
+        address or slot is parsed as an identity, renamed, stripped, or emitted.
+        Raw MDString bytes are opaque, including NULs and address-like text.
+        """
+        if not self.noalias_nodes:
+            if self.noalias_source_roots:
+                self.reject("scoped alias source roots lack a parsed graph")
+            return None
+        nodes, identities = [], {}
+        def visit(metadata):
+            if not metadata:
+                self.reject("null scoped alias source graph operand")
+            if metadata in identities:
+                return identities[metadata]
+            kind = self.a.GetMetadataKind(metadata)
+            node_id = len(nodes)
+            identities[metadata] = node_id
+            nodes.append(None)  # register before following self cycles
+            if kind == 0:
+                nodes[node_id] = {"kind": "string", "id": node_id, "metadata_kind": kind,
+                                  "bytes": self.noalias_bytes(metadata)}
+            elif kind == 4:
+                alias = self.noalias_nodes.get(metadata)
+                if alias is None:
+                    self.reject("source metadata tuple is outside the admitted alias graph")
+                _, operands = self.noalias_tuple(metadata)
+                nodes[node_id] = {"kind": "tuple", "id": node_id, "metadata_kind": kind,
+                                  "storage": alias["storage"],
+                                  "operands": [visit(operand) for operand in operands]}
+            else:
+                self.reject("unsupported metadata subclass in scoped alias source graph")
+            return node_id
+        roots = [{"kind": root["kind"], "site": root["site"], "node": visit(root["metadata"])}
+                 for root in self.noalias_source_roots]
+        bindings = []
+        for metadata, alias in sorted(self.noalias_nodes.items(), key=lambda item: item[1]["id"]):
+            if metadata not in identities:
+                self.reject("unrooted node in scoped alias source inventory")
+            bindings.append({"alias_id": alias["id"], "node": identities[metadata]})
+        return {"schema": "ocore.llvm-metadata-graph/v1", "nodes": nodes,
+                "alias_bindings": bindings, "roots": roots}
+
     def noalias_tuple(self, metadata):
         """Validate the real metadata subclass before assertion-based getters."""
         a = self.a
@@ -1372,12 +1462,16 @@ class Importer:
                     if global_value or value not in self.source_sites:
                         self.reject("scoped alias access metadata requires an original instruction site")
                     metadata = a.ValueMetadataEntriesGetMetadata(entries, i)
-                    alias_roots["alias_scope" if name == "alias.scope" else "noalias"] = metadata
+                    key = "alias_scope" if name == "alias.scope" else "noalias"
+                    if key in alias_roots:
+                        self.reject("duplicate scoped alias access attachment kind")
+                    alias_roots[key] = metadata
                     self.refinements.add(f"{self.symbol}: retained original scoped alias access graph and source/native instruction range; all original memory operations retained; no alias-based optimization, purity or runtime effect inferred")
                 else:
                     self.refinements.add(f"erased non-codegen metadata {name}")
             if alias_roots:
-                attachment = {"site": self.source_sites[value], "alias_scope": None, "noalias": None}
+                attachment = {"site": self.source_sites[value], "alias_scope": None, "noalias": None,
+                              "source_order": list(alias_roots)}
                 # A fixed name order avoids depending on context metadata IDs.
                 for key in ("alias_scope", "noalias"):
                     if key in alias_roots:
@@ -2421,7 +2515,7 @@ class Importer:
                 operation = {"op": "no_alias_scope_decl", "scope_list": scope_list,
                              "source_instruction": self.instruction_positions[value][1]}
                 self.refinements.add(f"{self.symbol}: retained llvm.experimental.noalias.scope.decl as an exact compiler-only scope marker; original list/scope/domain identity and declaration placement retained; no runtime instruction, metadata ABI, alias-based optimization, purity or memory-effect inference")
-                self.refinements.add("scoped alias metadata graph uses actual parsed metadata identity and deterministic module-local traversal IDs; trusted LLVM printer records attest post-parse storage only; raw pointer fallback labels remain provenance bytes, never graph IDs; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
+                self.refinements.add("scoped alias metadata graph uses actual parsed tuple/string identity, ordered source roots and deterministic local traversal IDs; trusted LLVM printer prefixes classify storage while exact raw diagnostics remain separate from canonical graph source; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
             elif intrinsic and self.vector_reduce_add_name(intrinsic) is not None:
                 operation = {"op": "vector_reduce_add", "value": args[0]}
                 self.refinements.add("owned fixed integer vector reduction retains exact original declaration, typed input lanes and element-width modular sum; no helper/provider forwarding or vector call ABI inferred")
@@ -2966,7 +3060,9 @@ class Importer:
                     global_["tls_model"] = tls_model
                     self.refinements.add(f"{self.symbol}: retained TLS storage and original access model {tls_model} (LLVM mode {mode}); original type, template initializer, alignment, linkage, visibility and COMDAT retained; own local-exec realization requires complete executable-local nonpreemptive bindings and genuine TLS image/thread-pointer lifecycle providers; no relaxation, interposition or provider closure inferred")
                 globals_.append(global_)
+            self.capture_noalias_source_roots(source_functions)
             functions = [self.function(value) for value in source_functions]
+            self.noalias_graph_source = self.build_noalias_graph_source()
             definitions = {value for value in source_functions if a.GetFirstBasicBlock(value)}
             definitions.update(value for value in source_globals if a.GetInitializer(value))
             aliases = [self.alias(value, definitions) for value in source_aliases]
@@ -2993,7 +3089,7 @@ class Importer:
                 self.refinements.add("atomic synchronization scopes retain exact parsed LLVM context-local IDs and arbitrary name bytes from verified LLVM bitcode serialization; original input_sha256 binds reader scope-ID normalization; IDs are not global linkage or capability identities")
                 if self.atomic_profile is None:
                     self.refinements.add("original atomic operations preserved as source IR without an inferred atomic profile; own native backend requires an explicit coherent-ram-v1 realization contract")
-            return {"format": FORMAT, "name": a.string(a.GetModuleIdentifier, self.module),
+            result = {"format": FORMAT, "name": a.string(a.GetModuleIdentifier, self.module),
                     "target": target,
                     "semantics": "llvm_defined_behavior_v1", "types": self.types, "globals": globals_, "functions": functions, "aliases": aliases,
                     "comdats": self.comdats,
@@ -3005,8 +3101,11 @@ class Importer:
                                    "source_function_count": len(source_functions), "source_global_count": len(source_globals),
                                    "source_alias_count": len(source_aliases),
                                    "referenced_comdat_count": len(self.comdats),
-                                   "noalias_metadata_source": self.noalias_node_sources,
+                                   "noalias_metadata_source": [],
                                    "refinements": sorted(self.refinements)}}
+            if self.noalias_graph_source is not None:
+                result["provenance"]["noalias_metadata_graph_source"] = self.noalias_graph_source
+            return result
         finally:
             a.DisposeTargetData(self.layout)
 
@@ -3310,12 +3409,21 @@ def normalize_legacy_lifetime_artifacts(a, context, module, audit):
 
 def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                   frontend="LLVM IR", frontend_version="producer version not declared", tls_profile=None,
-                  atomic_profile=None, wide_volatile_profile=None):
+                  atomic_profile=None, wide_volatile_profile=None, metadata_diagnostics=None):
     """Return a fully traversed supported module; reject unsupported whole units."""
     path = Path(path)
     data = path.read_bytes()
+    if metadata_diagnostics is not None:
+        metadata_diagnostics.clear()
+        metadata_diagnostics.update({"schema": "ocore.raw-llvm-metadata-diagnostics/v1",
+                                     "input_sha256": hashlib.sha256(data).hexdigest(),
+                                     "input_bytes": len(data), "import_complete": False,
+                                     "parser": None, "alias_nodes": [], "graph_source": None})
     a = LLVM(Path(library_path) if library_path else discover_library(), expected_sha256)
+    if metadata_diagnostics is not None:
+        metadata_diagnostics["parser"] = {"version": list(a.version), "sha256": a.digest}
     context, module, buffer = a.ContextCreate(), P(), None
+    importer = None
     try:
         buffer = a.CreateMemoryBufferWithMemoryRangeCopy(data, len(data), os.fsencode(path))
         message = P()
@@ -3372,13 +3480,32 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                 or audit["alias_count"] != len(result["aliases"])
                 or audit["comdat_count"] != len(result["comdats"])):
             raise ImportFailure("LLVM bitcode audit and C API inventories disagree", "bitcode-audit")
+        if metadata_diagnostics is not None:
+            metadata_diagnostics["import_complete"] = True
         return result
     finally:
+        if metadata_diagnostics is not None and importer is not None:
+            # Plainly raw, process-specific LLVM printer diagnostics. They are
+            # not serialized into, or excluded from equality of, NativeModule.
+            metadata_diagnostics["alias_nodes"] = importer.noalias_node_sources
+            metadata_diagnostics["graph_source"] = importer.noalias_graph_source
         if module:
             a.DisposeModule(module)
         if buffer:
             a.DisposeMemoryBuffer(buffer)  # ParseIRInContext2 borrows this buffer.
         a.ContextDispose(context)
+
+
+def _publish_json(path, value):
+    encoded = json.dumps(value, indent=2) + "\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as stream:
+        temporary = Path(stream.name)
+        stream.write(encoded)
+    try:
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def main():
@@ -3392,28 +3519,49 @@ def main():
     parser.add_argument("--tls-profile")
     parser.add_argument("--atomic-profile")
     parser.add_argument("--wide-volatile-profile")
+    parser.add_argument("--metadata-diagnostics", type=Path,
+                        help="retain raw process-specific LLVM metadata printer diagnostics separately")
     args = parser.parse_args()
+    diagnostics = {}
+    diagnostic_path_safe = False
     try:
-        module = import_module(args.input, args.llvm_library, expected_sha256=args.llvm_sha256,
+        selected_library = args.llvm_library
+        if args.metadata_diagnostics:
+            destination = args.metadata_diagnostics.resolve()
+            selected_library = selected_library or discover_library()
+            reserved = [args.input, selected_library]
+            if args.output:
+                reserved.append(args.output)
+            if "__file__" in globals() and Path(__file__).is_file():
+                reserved.append(Path(__file__))
+            if any(destination == path.resolve() for path in reserved):
+                raise ImportFailure("metadata diagnostics must not replace input, selected LLVM library, worker or module output", "command")
+            diagnostic_path_safe = True
+        module = import_module(args.input, selected_library, expected_sha256=args.llvm_sha256,
                                frontend=args.frontend, frontend_version=args.frontend_version,
                                tls_profile=args.tls_profile, atomic_profile=args.atomic_profile,
-                               wide_volatile_profile=args.wide_volatile_profile)
-        encoded = json.dumps(module, indent=2) + "\n"
+                               wide_volatile_profile=args.wide_volatile_profile,
+                               metadata_diagnostics=diagnostics if args.metadata_diagnostics else None)
+        if args.metadata_diagnostics:
+            _publish_json(args.metadata_diagnostics, diagnostics)
         if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            # Publish only after the entire input has been successfully traversed.
-            with tempfile.NamedTemporaryFile("w", dir=args.output.parent, delete=False, encoding="utf-8") as stream:
-                temporary = Path(stream.name)
-                stream.write(encoded)
-            try:
-                temporary.replace(args.output)
-            finally:
-                temporary.unlink(missing_ok=True)
+            # Publish the whole module last, only after complete traversal and
+            # successful requested diagnostic retention. This is not native
+            # verification or complete runtime admission.
+            _publish_json(args.output, module)
         else:
-            sys.stdout.write(encoded)
+            sys.stdout.write(json.dumps(module, indent=2) + "\n")
         return 0
     except (ImportFailure, OSError, ValueError) as error:
         failure = {"stage": getattr(error, "stage", "io"), "symbol": getattr(error, "symbol", ""), "message": str(error)}
+        if args.metadata_diagnostics and diagnostic_path_safe:
+            diagnostics.setdefault("schema", "ocore.raw-llvm-metadata-diagnostics/v1")
+            diagnostics["import_complete"] = False
+            diagnostics["error"] = failure
+            try:
+                _publish_json(args.metadata_diagnostics, diagnostics)
+            except OSError as diagnostic_error:
+                failure["diagnostic_output_error"] = str(diagnostic_error)
         print(json.dumps({"error": failure}), file=sys.stderr)
         return 1
 

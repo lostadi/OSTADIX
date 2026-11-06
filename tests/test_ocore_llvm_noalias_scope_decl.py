@@ -1,8 +1,9 @@
 """Complete original scoped-alias metadata at the LLVM source/API boundary.
 
-These checks retain metadata identities and all ordinary memory effects. They
-do not execute native code or establish the mandatory NativeModule dominance
-gate, optimizer correctness, provider closure, or complete runtime support.
+These checks retain metadata identities and all ordinary memory effects.
+Selected supported whole producer units also pass standalone NativeVerifier;
+intentionally dominated source cases still require its separate rejection.
+There is no native execution, optimizer, provider-closure or runtime claim.
 """
 
 import ctypes as C
@@ -124,7 +125,7 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
         neither descriptions nor addresses/printed slot numbers become IDs.
         """
         a = self.api
-        result = {"nodes": {}, "markers": [], "attachments": [], "sites": {}}
+        result = {"nodes": {}, "markers": [], "attachments": [], "sites": {}, "roots": []}
         with self.original(path) as (context, module):
             kinds = {name: a.GetMDKindIDInContext(context, name.encode(), len(name))
                      for name in ("alias.scope", "noalias")}
@@ -203,8 +204,11 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
                             callee = a.GetCalledValue(instruction)
                             if a.IsAFunction(callee) and a.name(callee) == INTRINSIC:
                                 self.assertEqual(a.GetNumArgOperands(instruction), 1)
+                                scope_list = node_id(a.GetOperand(instruction, 0), "list")
                                 result["markers"].append({"function": name, "block": block_id,
-                                    "source_instruction": ordinal, "scope_list": node_id(a.GetOperand(instruction, 0), "list")})
+                                    "source_instruction": ordinal, "scope_list": scope_list})
+                                result["roots"].append({"kind": "scope_declaration", "node": scope_list,
+                                    "site": {"function": name, "block": block_id, "source_instruction": ordinal}})
                         count = importer.S()
                         entries = a.InstructionGetAllMetadataOtherThanDebugLoc(instruction, C.byref(count))
                         try:
@@ -217,16 +221,19 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
                                         node = a.MetadataAsValue(context, raw)
                                         self.assertEqual(a.ValueAsMetadata(node), raw)
                                         attached[key] = node_id(node, "list")
+                                        result["roots"].append({"kind": key.replace(".", "_"), "node": attached[key],
+                                            "site": {"function": name, "block": block_id, "source_instruction": ordinal}})
                             if attached:
                                 result["attachments"].append({"function": name, "block": block_id,
                                     "source_instruction": ordinal, "alias_scope": attached.get("alias.scope"),
-                                    "noalias": attached.get("noalias")})
+                                    "noalias": attached.get("noalias"),
+                                    "source_order": [key.replace(".", "_") for key in attached]})
                         finally:
                             if entries:
                                 a.DisposeValueMetadataEntries(entries)
         return result
 
-    def assert_graph(self, original, module):
+    def assert_graph(self, original, module, diagnostics):
         graph = module.get("noalias_metadata", {"domains": [], "scopes": [], "lists": [], "attachments": []})
         self.assertEqual(set(graph), {"domains", "scopes", "lists", "attachments"})
         rows = {}
@@ -281,16 +288,69 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
             function = self.function(module, site["function"])
             block = next(row for row in function["blocks"] if row["id"] == site["block"])
             self.assertLessEqual(site["instruction"] + site["instruction_count"], len(block["instructions"]))
+            self.assertEqual(native["source_order"], source["source_order"])
             for field in ("alias_scope", "noalias"):
                 self.assertEqual(native[field] is None, source[field] is None)
                 if source[field] is not None:
                     compare(source[field], native[field], "list")
         self.assertEqual(len(mapping), len(original["nodes"]))
         self.assertEqual(len(rows), len(original["nodes"]), "the complete referenced graph must survive")
-        provenance = module["provenance"].get("noalias_metadata_source", [])
-        self.assertEqual({row["id"] for row in provenance}, set(rows))
-        self.assertEqual(len(provenance), len(rows))
-        for row in provenance:
+        # New packets retain actual graph identities and bytes canonically;
+        # process-specific printer labels stay only in the explicit sidecar.
+        self.assertEqual(module["provenance"]["noalias_metadata_source"], [])
+        canonical = module["provenance"]["noalias_metadata_graph_source"]
+        self.assertEqual(set(canonical), {"schema", "nodes", "alias_bindings", "roots"})
+        self.assertEqual(canonical["schema"], "ocore.llvm-metadata-graph/v1")
+        nodes = {row["id"]: row for row in canonical["nodes"]}
+        self.assertEqual(len(nodes), len(canonical["nodes"]))
+        self.assertEqual([row["id"] for row in canonical["nodes"]], list(range(len(nodes))))
+        bindings = {row["alias_id"]: row["node"] for row in canonical["alias_bindings"]}
+        self.assertEqual(len(bindings), len(canonical["alias_bindings"]))
+        self.assertEqual(set(bindings), set(rows))
+        self.assertEqual(len(set(bindings.values())), len(bindings), "actual distinct tuple identities must not merge")
+        strings, string_ids, visited = {}, {}, set()
+
+        def string_node(ident, expected):
+            node = nodes[ident]
+            self.assertEqual(set(node), {"kind", "id", "metadata_kind", "bytes"})
+            self.assertEqual((node["kind"], node["metadata_kind"], node["bytes"]), ("string", 0, expected))
+            value = bytes(expected)
+            if value in strings:
+                self.assertEqual(ident, strings[value], "equal actual MDStrings share one identity")
+            if ident in string_ids:
+                self.assertEqual(value, string_ids[ident], "different MDString bytes cannot alias")
+            strings[value], string_ids[ident] = ident, value
+            visited.add(ident)
+
+        for source_id, native_id in mapping.items():
+            source = original["nodes"][str(source_id)]
+            ident = bindings[native_id]
+            node = nodes[ident]
+            self.assertEqual(set(node), {"kind", "id", "metadata_kind", "storage", "operands"})
+            self.assertEqual((node["kind"], node["metadata_kind"], node["storage"]),
+                             ("tuple", 4, source["storage"]))
+            visited.add(ident)
+            if source["role"] == "list":
+                self.assertEqual(node["operands"], [bindings[mapping[child]] for child in source["scopes"]])
+                continue
+            count = 1 if source["role"] == "domain" else 2
+            self.assertEqual(len(node["operands"]), count + int(source["description"] is not None))
+            if source["identity"]["kind"] == "self_reference":
+                self.assertEqual(node["operands"][0], ident)
+            else:
+                string_node(node["operands"][0], source["identity"]["bytes"])
+            if source["role"] == "scope":
+                self.assertEqual(node["operands"][1], bindings[mapping[source["domain"]]])
+            if source["description"] is not None:
+                string_node(node["operands"][-1], source["description"])
+        self.assertEqual(visited, set(nodes), "canonical source graph must contain exactly the referenced tuples and strings")
+        self.assertEqual(canonical["roots"], [{"kind": root["kind"], "site": root["site"],
+            "node": bindings[mapping[root["node"]]]} for root in original["roots"]])
+        self.assertEqual(diagnostics["graph_source"], canonical)
+        raw = diagnostics["alias_nodes"]
+        self.assertEqual({row["id"] for row in raw}, set(rows))
+        self.assertEqual(len(raw), len(rows))
+        for row in raw:
             self.assertEqual(row["metadata_kind"], 4)
             printed = bytes(row["printer_bytes"])
             self.assertEqual(hashlib.sha256(printed).hexdigest(), row["printer_sha256"])
@@ -299,7 +359,7 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
             self.assertEqual("distinct" if match.group(1) else "uniqued", rows[row["id"]]["storage"])
         return graph, markers
 
-    def assert_original(self, path, module):
+    def assert_original(self, path, module, diagnostics):
         original, metadata = self.oracle(path), self.metadata_oracle(path)
         self.assertEqual(module["provenance"]["input_sha256"], noundef.artifact(path)["sha256"])
         for singular, plural in (("function", "functions"), ("global", "globals"), ("alias", "aliases")):
@@ -344,18 +404,31 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
                 expected.append(op)
             owned = {"no_alias_scope_decl", "assume", "trap", "lifetime", "memory_set", "memory_copy"}
             self.assertEqual([op["op"] for op in self.operations(function) if op["op"] in owned], expected)
-        graph, markers = self.assert_graph(metadata, module)
+        self.assertEqual(set(diagnostics), {"schema", "input_sha256", "input_bytes", "import_complete",
+                                           "parser", "alias_nodes", "graph_source"})
+        self.assertEqual(diagnostics["schema"], "ocore.raw-llvm-metadata-diagnostics/v1")
+        self.assertEqual((diagnostics["input_sha256"], diagnostics["input_bytes"]),
+                         (noundef.artifact(path)["sha256"], path.stat().st_size))
+        # Traversal completion is not the separate mandatory NativeVerifier
+        # dominance gate, including the intentionally dominated source cases.
+        self.assertIs(diagnostics["import_complete"], True)
+        self.assertEqual(diagnostics["parser"], {"version": [22, 1, 6], "sha256": self.library_artifact["sha256"]})
+        graph, markers = self.assert_graph(metadata, module, diagnostics)
         return {"inventory": original, "metadata": metadata, "marker_count": len(markers),
                 "attachment_count": len(graph["attachments"])}
 
     def accept(self, path):
         before = noundef.artifact(path)
-        module = importer.import_module(path, library_path=self.library)
-        original = self.assert_original(path, module)
+        diagnostics = {}
+        module = importer.import_module(path, library_path=self.library, metadata_diagnostics=diagnostics)
+        sidecar = path.with_name(path.name + ".metadata-diagnostics.json")
+        sidecar.write_text(json.dumps(diagnostics, indent=2) + "\n")
+        original = self.assert_original(path, module, json.loads(sidecar.read_text()))
         output = path.with_name(path.name + ".native.json")
         output.write_text(json.dumps(module, indent=2) + "\n")
         self.assertEqual(noundef.artifact(path), before)
-        self.records.append({"input": before, "outcome": "accepted", "module": noundef.artifact(output), "original": original})
+        self.records.append({"input": before, "outcome": "accepted", "module": noundef.artifact(output),
+                             "metadata_diagnostics": noundef.artifact(sidecar), "original": original})
         return module
 
     def reject(self, path, stage="import", diagnostic=None):
@@ -379,8 +452,10 @@ class LlvmNoAliasScopeDeclTests(unittest.TestCase):
                 self.reject(path, diagnostic=diagnostic)
             return []
         modules = [self.accept(path) for path in paths]
-        # Raw trusted-printer fallback addresses are explicitly provenance and
-        # may change between contexts. Exact graph bytes/edges/storage remain.
+        # Raw trusted-printer labels remain in separate bound sidecars. The
+        # complete canonical tuple/string graph is stable across LL/BC readers.
+        self.assertEqual(modules[0]["provenance"]["noalias_metadata_graph_source"],
+                         modules[1]["provenance"]["noalias_metadata_graph_source"])
         self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
         return modules
 
@@ -827,7 +902,51 @@ unwind: %ex = landingpad {ptr, i32} cleanup
         self.assertEqual(completed.returncode, 0, completed.stderr)
         return output
 
-    def test_actual_untouched_clang22_restrict_inline_loops_whole_units_and_unused_float_tls_abi_guards_all_three_isas_ll_bc(self):
+    def verify_native_unit(self, path, module):
+        compiler = Path(os.environ.get("OCOREC_BIN", str(baseline.ROOT / "target/debug/ocorec"))).resolve()
+        self.assertTrue(compiler.is_file(), "the supported variadic producer profile requires actual NativeVerifier")
+        before = noundef.artifact(compiler)
+        native = path.with_name(path.name + ".native.json")
+        self.assertEqual(json.loads(native.read_text()), module)
+        receipt = path.with_name(path.name + ".verification.json")
+        command = [str(compiler), str(native), "--input-kind", "native-ir", "--verify-native", "--receipt", str(receipt)]
+        result = subprocess.run(command, cwd=baseline.ROOT, capture_output=True, timeout=60)
+        stdout, stderr = path.with_name(path.name + ".verify.stdout"), path.with_name(path.name + ".verify.stderr")
+        stdout.write_bytes(result.stdout)
+        stderr.write_bytes(result.stderr)
+        self.records.append({"outcome": "standalone-whole-unit-native-verification", "input": noundef.artifact(path),
+            "module": noundef.artifact(native), "compiler": before, "command": command,
+            "exit_code": result.returncode, "stdout": noundef.artifact(stdout), "stderr": noundef.artifact(stderr),
+            "receipt": noundef.artifact(receipt) if receipt.exists() else None,
+            "native_execution_verified": False, "runtime_complete": False})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(noundef.artifact(compiler), before)
+
+    def assert_identity_body(self, path, module, name):
+        # The extra supported definition is not selected away: independently
+        # observe its entire original one-block return, then require the exact
+        # same fixed-parameter result and no native instructions or effects.
+        a = self.api
+        with self.original(path) as (_, original):
+            source = next(row for row in a.sequence(a.GetFirstFunction, a.GetNextFunction, original) if a.name(row) == name)
+            parameters = (importer.P * a.CountParams(source))()
+            a.GetParams(source, parameters)
+            self.assertEqual(len(parameters), 1)
+            blocks = list(a.sequence(a.GetFirstBasicBlock, a.GetNextBasicBlock, source))
+            self.assertEqual(len(blocks), 1)
+            instructions = list(a.sequence(a.GetFirstInstruction, a.GetNextInstruction, blocks[0]))
+            self.assertEqual(len(instructions), 1)
+            self.assertEqual(a.GetInstructionOpcode(instructions[0]), 1)  # LLVMRet
+            self.assertEqual(a.GetNumOperands(instructions[0]), 1)
+            self.assertEqual(a.GetOperand(instructions[0], 0), parameters[0])
+        function = self.function(module, name)
+        self.assertEqual(len(function["params"]), 1)
+        self.assertEqual(len(function["blocks"]), 1)
+        self.assertEqual(function["blocks"][0]["instructions"], [])
+        self.assertEqual(function["blocks"][0]["terminator"],
+                         {"op": "return", "value": {"kind": "value", "id": function["params"][0]["id"]}})
+
+    def test_actual_untouched_clang22_whole_variadic_units_and_returned_float_default_tls_guards_all_three_isas_ll_bc(self):
         clang, version = baseline.LlvmImportTests.clang22_frontend(self)
         original = '''typedef unsigned long word;
 static inline __attribute__((always_inline)) word step(word *restrict a, word *restrict b) {
@@ -858,14 +977,25 @@ word unused_cold(word value) { return value + 3; }
                     parsed = self.metadata_oracle(path)
                     self.assertGreater(len(parsed["markers"]), 0, "unchanged frontend must actually generate scoped declarations")
                     self.assertGreater(len(parsed["attachments"]), 0)
-                    if extra:
-                        self.reject(path)
+                    if label == "float":
+                        self.reject(path, diagnostic="returned requires a supported scalar fixed parameter/call argument with enum payload zero")
+                    elif label == "tls":
+                        self.reject(path, diagnostic="TLS globals require explicit --tls-profile linux-elf-static-nonpreemptive-v1")
                     else:
                         module = self.accept(path)
-                        self.assertEqual(len([row for row in module["functions"] if row["entry"] is not None]), 2)
+                        self.assertEqual(len([row for row in module["functions"] if row["entry"] is not None]), 3 if label == "abi" else 2)
+                        if label == "abi":
+                            added = self.function(module, "unused_variadic")
+                            self.assertIs(added["signature"]["variadic"], True)
+                            self.assertEqual(self.shape(module, added["signature"]["result"]), {"kind": "int", "bits": 64})
+                            self.assertEqual([self.shape(module, ty) for ty in added["signature"]["params"]], [{"kind": "int", "bits": 64}])
+                            self.assert_identity_body(path, module, "unused_variadic")
+                            self.verify_native_unit(path, module)
                         modules.append(module)
                 if modules:
                     self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
+                    self.assertEqual(modules[0]["provenance"]["noalias_metadata_graph_source"],
+                                     modules[1]["provenance"]["noalias_metadata_graph_source"])
             self.assertEqual(noundef.artifact(source), before)
         self.records.append({"outcome": "producer-identity", "frontend": "clang", "version": version})
 

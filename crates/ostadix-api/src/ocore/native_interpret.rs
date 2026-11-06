@@ -856,6 +856,7 @@ mod tests {
                 source_alias_count: 0,
                 referenced_comdat_count: 0,
                 noalias_metadata_source: vec![],
+                noalias_metadata_graph_source: None,
                 refinements: vec![],
             },
         }

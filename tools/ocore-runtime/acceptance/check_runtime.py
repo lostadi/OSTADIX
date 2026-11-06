@@ -26,6 +26,8 @@ import traceback
 SCHEMA = "ocore-original-runtime-acceptance-v1"
 TOOL_SCHEMA = "ocore-original-runtime-toolchain-v1"
 IMPORT_PROFILE_OPTIONS = frozenset({"--atomic-profile", "--tls-profile", "--wide-volatile-profile"})
+RAW_METADATA_OPTION = "--llvm-metadata-diagnostics"
+RAW_METADATA_SCHEMA = "ocore.raw-llvm-metadata-diagnostics/v1"
 
 
 class Unmet(AssertionError):
@@ -322,6 +324,106 @@ def original_ir(unit, input_sha256):
     return list(sorted(matches.values(), key=lambda row: row["path"]))
 
 
+def exact_json(value):
+    # Unlike Python's ==, this also distinguishes bool/int and int/float.
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode()
+
+
+def unique_json(data):
+    def pairs(items):
+        result = {}
+        for name, value in items:
+            require(name not in result, "duplicate raw LLVM metadata field: " + name)
+            result[name] = value
+        return result
+    return json.loads(data, object_pairs_hook=pairs, parse_constant=lambda _: (_ for _ in ()).throw(Unmet("nonfinite raw metadata JSON")))
+
+
+def retained_metadata_diagnostics(path):
+    """Retain exact attempt bytes; this alone never admits a native module."""
+    try:
+        path = Path(path).resolve(strict=True)
+        data = path.read_bytes()
+        return {"path": str(path), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+                "validated": False, "scope": "raw failed/unvalidated attempt evidence only"}
+    except OSError as error:
+        return {"path": str(path), "validated": False, "unavailable": str(error)}
+
+
+def validate_metadata_diagnostics(path, module, input_pin, parser_pin):
+    """Bind diagnostics to an independently verified/readmitted whole module.
+
+    Raw printer labels/bodies never replace the typed graph or authorize a
+    comparison exclusion. Module admission and exact full equality are separate.
+    """
+    original, original_bytes = pinned_isa_buffer(input_pin)
+    parser = checked(parser_pin)
+    provenance = module["provenance"]
+    require(provenance["input_sha256"] == original["sha256"], "metadata module/source SHA mismatch")
+    graph = provenance.get("noalias_metadata_graph_source")
+    if path is None:
+        require(graph is None, "canonical LLVM metadata graph requires separately retained raw diagnostics")
+        return {"mode": "legacy_embedded_provenance", "validated": False,
+                "deterministic_graph_source_gate": False,
+                "scope": "existing independent native verification; no new deterministic metadata gate claimed"}
+    path = Path(path).resolve(strict=True)
+    data = path.read_bytes()
+    raw = unique_json(data)
+    exact_keys(raw, ["schema", "input_sha256", "input_bytes", "import_complete", "parser", "alias_nodes", "graph_source"], "raw LLVM metadata")
+    require(raw["schema"] == RAW_METADATA_SCHEMA and raw["import_complete"] is True
+            and type(raw["input_bytes"]) is int and raw["input_bytes"] == len(original_bytes)
+            and raw["input_sha256"] == original["sha256"], "raw LLVM metadata source/header/completion mismatch")
+    exact_keys(raw["parser"], ["version", "sha256"], "raw LLVM metadata parser")
+    version = raw["parser"]["version"]
+    require(isinstance(version, list) and all(type(x) is int for x in version) and version == [22, 1, 6]
+            and raw["parser"]["sha256"] == parser["sha256"]
+            and isinstance(provenance.get("importer_version"), str)
+            and provenance["importer_version"].endswith("; LLVM 22.1.6; library-sha256=" + parser["sha256"]),
+            "raw LLVM metadata parser differs from selected library/module")
+    require(exact_json(raw["graph_source"]) == exact_json(graph), "raw LLVM metadata graph differs from canonical module")
+    expected = {}
+    if graph is not None:
+        tuples = {node["id"]: node for node in graph["nodes"] if node["kind"] == "tuple"}
+        for binding in graph["alias_bindings"]:
+            node = tuples.get(binding["node"])
+            require(node is not None and node["metadata_kind"] == 4
+                    and binding["alias_id"] not in expected, "invalid raw canonical tuple binding")
+            expected[binding["alias_id"]] = node["storage"]
+    else:
+        require(exact_json(raw["alias_nodes"]) == exact_json(provenance.get("noalias_metadata_source", [])),
+                "raw metadata differs from legacy embedded printer evidence")
+        for table in ["domains", "scopes", "lists"]:
+            for node in module.get("noalias_metadata", {}).get(table, []):
+                require(node["id"] not in expected, "duplicate legacy metadata tuple identity")
+                expected[node["id"]] = node["storage"]
+    aliases = raw["alias_nodes"]
+    require(isinstance(aliases, list) and len(aliases) == len(expected), "raw LLVM metadata tuple inventory mismatch")
+    seen = set()
+    for source in aliases:
+        exact_keys(source, ["id", "metadata_kind", "printer_bytes", "printer_sha256"], "raw LLVM metadata tuple")
+        alias = source["id"]
+        require(type(alias) is int and alias >= 0 and alias in expected and alias not in seen
+                and type(source["metadata_kind"]) is int and source["metadata_kind"] == 4,
+                "raw LLVM metadata alias/kind/duplicate mismatch")
+        seen.add(alias)
+        printer = source["printer_bytes"]
+        require(isinstance(printer, list) and all(type(byte) is int and 0 <= byte <= 255 for byte in printer),
+                "raw LLVM metadata printer must contain exact bytes")
+        printer = bytes(printer)
+        require(source["printer_sha256"] == hashlib.sha256(printer).hexdigest(), "raw LLVM metadata printer SHA mismatch")
+        label, separator, body = printer.partition(b" = ")
+        require(separator and (re.fullmatch(rb"![0-9]+", label) or re.fullmatch(rb"<0x[0-9a-fA-F]+>", label)),
+                "raw LLVM metadata printer header mismatch")
+        storage = expected[alias]
+        require(storage in {"uniqued", "distinct"} and body.startswith(b"!{" if storage == "uniqued" else b"distinct !{"),
+                "raw LLVM metadata storage classification mismatch")
+    return {"path": str(path), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+            "validated": True, "schema": raw["schema"], "input_sha256": raw["input_sha256"],
+            "input_bytes": raw["input_bytes"], "parser": raw["parser"], "tuple_count": len(aliases),
+            "canonical_graph_source": graph is not None,
+            "scope": "raw diagnostics separately bound; complete canonical module comparison remains exact"}
+
+
 class Runner:
     def __init__(self, profile, toolchain, output):
         self.profile = validate_profile(profile)
@@ -438,6 +540,22 @@ class Runner:
         require(definition.get("coverage", {}).get("require_full_unit_inventory") is True, "recipe does not require full original build inventory")
         return {"source": str(source), "revision": impl["revision"], "tree": git("rev-parse", "HEAD^{tree}"), "origin": git("remote", "get-url", "origin"), "recipe": recipe}
 
+    def metadata_diagnostics_capability(self, directory):
+        # The unit-only CLI intentionally uses __new__; initialize lazily.
+        compiler = checked(self.tools["ocorec"])
+        cached = getattr(self, "_metadata_diagnostics_capability", None)
+        if cached is not None:
+            require(cached["compiler"] == compiler, "metadata diagnostic compiler changed after discovery")
+            return cached
+        command = self.command([compiler["path"], "--help"], directory, "metadata-diagnostics-help")
+        stdout = checked(command["stdout"])
+        supported = command["exit_code"] == 0 and RAW_METADATA_OPTION in Path(stdout["path"]).read_text(errors="replace").split()
+        require(checked(compiler) == compiler, "metadata diagnostic compiler changed during help discovery")
+        cached = {"compiler": compiler, "command": command, "supported": supported,
+                  "scope": "dispatch capability only; not module admission or semantic qualification"}
+        self._metadata_diagnostics_capability = cached
+        return cached
+
     def readmit_unit(self, original_unit, claimed_record, target, directory):
         """Re-import original bytes; neither hashes nor symbol lists prove a body."""
         claimed = checked({key: claimed_record[key] for key in ("path", "sha256", "bytes") if key in claimed_record})
@@ -460,19 +578,32 @@ class Runner:
         for filename, value in (("original.json", original), ("preservation.json", proof)):
             (directory / filename).write_text(json.dumps(value, indent=2) + "\n")
         fresh = directory / "fresh-original.native-ir.json"
+        capability = Runner.metadata_diagnostics_capability(self, directory)
+        diagnostics = directory / "fresh-original.llvm-metadata-diagnostics.json" if capability["supported"] else None
+        diagnostic_receipt = directory / "llvm-metadata-diagnostics.receipt.json"
         argv = [self.tools["ocorec"]["path"], inputs[0]["path"], "--input-kind", "llvm-ir", "--emit", "mir", "--target", target["target"], "--llvm-library", self.tools["llvm_library"]["path"], "--llvm-sha256", self.tools["llvm_library"]["sha256"], "-o", fresh]
         for flag, value in target["import_profiles"].items():
             argv += [flag, value]
-        imported = self.command(argv, directory, "import-original")
+        if diagnostics is not None:
+            argv += [RAW_METADATA_OPTION, diagnostics]
+        try:
+            imported = self.command(argv, directory, "import-original")
+        finally:
+            raw_record = retained_metadata_diagnostics(diagnostics) if diagnostics is not None else {"validated": False, "requested": False}
+            diagnostic_receipt.write_text(json.dumps({"capability": capability, "diagnostics": raw_record}, indent=2) + "\n")
         require(imported["exit_code"] == 0 and fresh.is_file(), "fresh import of exact original LLVM unit failed")
         fresh_module = json.loads(fresh.read_text())
         check_target(fresh_module, target["native_target"])
+        raw_record = validate_metadata_diagnostics(diagnostics, fresh_module, inputs[0], self.tools["llvm_library"])
+        diagnostic_receipt.write_text(json.dumps({"capability": capability, "diagnostics": raw_record}, indent=2) + "\n")
         # The selected compiler parses/verifies/serializes the claimed NativeModule.
         # Compare every typed field, including provenance. No field is hand-erased.
         encode = lambda value: json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode()
         same = encode(canonical_module) == encode(fresh_module)
         admission_path = directory / "readmission.json"
         admission = {"schema": "ocore-original-unit-body-readmission-v1", "method": "fresh selected O-core import and complete typed NativeModule identity; not a formal compiler-correctness proof", "original_inputs": inputs, "claimed_module": claimed, "claimed_verification": artifact(claimed_receipt), "claimed_typed_canonical": artifact(canonical), "fresh_module": artifact(fresh), "fresh_import_command": imported, "same_typed_module": same, "canonicalization": "actual selected NativeModule parse/verify/serialization; all resulting fields compared", "compiler": self.tools["ocorec"], "parser": self.tools["llvm_library"], "runtime_accepted": False}
+        admission["metadata_diagnostics"] = raw_record
+        admission["metadata_diagnostic_receipt"] = artifact(diagnostic_receipt)
         admission_path.write_text(json.dumps(admission, indent=2) + "\n")
         require(same, "fresh original LLVM import does not match claimed typed NativeModule")
         fresh_pin = artifact(fresh)
@@ -488,6 +619,11 @@ class Runner:
         require(checked(claimed) == claimed and artifact(fresh) == fresh_pin and all(checked(item) == item for item in inputs), "unit inputs/regenerated bytes changed during readmission")
         object_pin = {key: object_identity[key] for key in ("path", "bytes", "sha256")}
         result = {"status": "GREEN", "original_inputs": inputs, "claimed_module": claimed, "module": fresh_pin, "original_ir_readmission": artifact(admission_path), "source_inventory": artifact(directory / "original.json"), "preservation": artifact(directory / "preservation.json"), "claimed_verification": artifact(claimed_receipt), "verification": artifact(verification), "fresh_owned_diagnostic_object": object_pin, "diagnostic_object_profile": object_identity, "complete_olangc_artifact": False}
+        result["metadata_diagnostics"] = raw_record
+        result["metadata_diagnostic_receipt"] = artifact(diagnostic_receipt)
+        if raw_record.get("validated") is True:
+            require(checked({key: raw_record[key] for key in ("path", "bytes", "sha256")})
+                    == {key: raw_record[key] for key in ("path", "bytes", "sha256")}, "raw diagnostics changed during readmission")
         # This final check binds the returned pin to the exact validated ELF stream.
         # Prepare all other receipt identities first; do not reopen the object later.
         require(checked(object_pin) == object_pin,

@@ -615,8 +615,10 @@ pub(super) fn compile_package_selected_membership(
     )?;
     let mut records = Vec::new();
     let mut issues = Vec::new();
+    let (metadata_sidecars, metadata_capability) = metadata_diagnostics_capability(compiler, &output)?;
     for (component_index, component) in group.components.iter().enumerate() {
         for (unit_index, unit) in component.units.iter().enumerate() {
+            let mut diagnostic_record = Value::Null;
             let result = (|| -> Result<Value> {
                 let directory = output.join(format!("source-{component_index:06}-{unit_index:06}"));
                 fs::create_dir(&directory)?;
@@ -671,31 +673,48 @@ pub(super) fn compile_package_selected_membership(
                         "ordinary-ram-split-v1".into(),
                     ]);
                 }
+                let diagnostics = metadata_sidecars.then(|| directory.join("llvm-metadata-diagnostics.json"));
+                if let Some(path) = &diagnostics {
+                    args.extend([RAW_METADATA_OPTION.into(), path.display().to_string()]);
+                }
                 fs::write(
                     directory.join("import-command.json"),
                     serde_json::to_vec_pretty(
                         &json!({"program":compiler,"sha256":digest(&fs::read(compiler)?),"argv":args}),
                     )?,
                 )?;
-                invoke(compiler, &args, &directory.join("import.log"))?;
+                let import_result = invoke(compiler, &args, &directory.join("import.log"));
+                if let Some(path) = &diagnostics {
+                    diagnostic_record = retained_metadata_diagnostics(path);
+                }
+                import_result?;
                 let fresh = NativeModule::from_json(&fs::read(fresh)?)
                     .map_err(|e| anyhow::anyhow!(e.message))?;
+                diagnostic_record = validate_metadata_diagnostics(
+                    diagnostics.as_deref(), &fresh, &original, Some(&library.sha256),
+                )?;
                 let diagnostic_name = compare_relocated_import(fresh, &module, &original_path)?;
+                metadata_diagnostics_postguard(&diagnostic_record)?;
                 Ok(
                     json!({"component":component.name,"id":unit.id,"source_inventory":inventory,
-                        "diagnostic_name_rebinding":diagnostic_name,"fresh_typed_import_match":true}),
+                        "diagnostic_name_rebinding":diagnostic_name,"fresh_typed_import_match":true,
+                        "metadata_diagnostics":diagnostic_record}),
                 )
             })();
             match result {
                 Ok(record) => records.push(record),
                 Err(error) => {
                     issues.push(format!("{}:{}: {error:#}", component.name, unit.id));
+                    records.push(json!({"component":component.name,"id":unit.id,
+                        "fresh_typed_import_match":false,"failure":format!("{error:#}"),
+                        "metadata_diagnostics":diagnostic_record}));
                 }
             }
         }
     }
     let complete = issues.is_empty();
     let receipt = json!({"schema":"ocore-source-group-readmission-v1","source_group_sha256":digest(bytes),"units":records,"issues":issues,
+        "metadata_diagnostics_capability":metadata_capability,
         "included_original_ir_body_consistency":complete,"original_checkout_build_reverified":false,
         "artifact_complete":false,"platform_resource_closure_complete":false,"native_execution_qualified":false,"runtime_complete":false});
     fs::write(
