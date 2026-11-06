@@ -19,6 +19,7 @@ use runtime::process::can_issue_operations;
 use runtime::process::cspace_for;
 use runtime::process::current_address_space_handle;
 use runtime::process::current_process_handle;
+use runtime::process::process_id_for;
 use runtime::process::domain_for;
 use runtime::process::is_live as process_is_live;
 use runtime::process::process_state;
@@ -94,6 +95,10 @@ static mut STACK_ORDINALS: [u8; 4] = [0xff; 4];
 static mut USER_STACK_TOPS: [usize; 4] = [0; 4];
 static mut USER_FS_BASES: [u64; 4] = [0; 4];
 static mut USER_FS_SELECTORS: [u16; 4] = [0; 4];
+// An explicitly admitted, loaded sole-task Linux startup profile. These are
+// TCB metadata, never an additional user-memory grant or a futex service.
+static mut LINUX_SINGLE_TASK: [u8; 4] = [0; 4];
+static mut CLEAR_CHILD_TIDS: [u64; 4] = [0; 4];
 static mut ROLES: [u8; 4] = [0; 4];
 static mut PRIORITIES: [u8; 4] = [0; 4];
 static mut QUANTUM_LEFT: [u8; 4] = [0; 4];
@@ -175,6 +180,8 @@ unsafe fn clear_slot(slot: usize) -> void {
     USER_STACK_TOPS[slot] = 0;
     USER_FS_BASES[slot] = 0;
     USER_FS_SELECTORS[slot] = 0;
+    LINUX_SINGLE_TASK[slot] = 0;
+    CLEAR_CHILD_TIDS[slot] = 0;
     ROLES[slot] = 0;
     PRIORITIES[slot] = 0;
     QUANTUM_LEFT[slot] = 0;
@@ -470,13 +477,16 @@ pub unsafe fn queue_invariants_hold() -> bool {
     while slot < MAX_THREADS {
         let state: u8 = STATES[slot];
         if !valid_user_fs_base(USER_FS_BASES[slot])
-            || !valid_user_fs_selector(USER_FS_SELECTORS[slot] as u64) {
+            || !valid_user_fs_selector(USER_FS_SELECTORS[slot] as u64)
+            || LINUX_SINGLE_TASK[slot] > 1
+            || (LINUX_SINGLE_TASK[slot] == 0 && CLEAR_CHILD_TIDS[slot] != 0) {
             return false;
         }
         if state == THREAD_EMPTY || state == THREAD_RETIRED {
             if QUEUE_KINDS[slot] != QUEUE_KIND_NONE
                 || PROCESS_REF_HELD[slot] != 0
-                || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0 {
+                || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0
+                || LINUX_SINGLE_TASK[slot] != 0 || CLEAR_CHILD_TIDS[slot] != 0 {
                 return false;
             }
         } else {
@@ -527,7 +537,8 @@ pub unsafe fn queue_invariants_hold() -> bool {
                     || runnable_hits != 0
                     || blocked_hits != 0
                     || PROCESS_REF_HELD[slot] != 0
-                    || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0 {
+                    || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0
+                    || LINUX_SINGLE_TASK[slot] != 0 || CLEAR_CHILD_TIDS[slot] != 0 {
                     return false;
                 }
             }
@@ -935,6 +946,72 @@ unsafe fn current_fs_slot() -> usize {
     return slot;
 }
 
+unsafe fn linux_single_task_eligible(slot: usize) -> bool {
+    if slot >= MAX_THREADS || !active_state(STATES[slot])
+        || PROCESS_REF_HELD[slot] != 1
+        || STACK_ORDINALS[slot] != LOADED_STACK_ORDINAL
+        || !address_space_is_loaded(ADDRESS_SPACE_HANDLES[slot])
+        || !stack_identity_holds(slot)
+        || !identity_matches_process(make_handle(slot))
+        || !domain_is_live(DOMAIN_HANDLES[slot])
+        || !cspace_is_live(CSPACE_HANDLES[slot])
+        || !can_issue_operations(PROCESS_HANDLES[slot])
+        || process_thread_refs(PROCESS_HANDLES[slot]) != 1 {
+        return false;
+    }
+    let tid: u64 = THREAD_IDS[slot];
+    return tid != 0 && tid <= 0x7fff_ffff
+        && tid == process_id_for(PROCESS_HANDLES[slot]);
+}
+
+// Trusted admission only, not a syscall or a change to ordinary native IDs.
+// A loaded AS can have only one owning PCB and one active loaded TCB. Require
+// its existing positive pid_t identity to be the process leader as well.
+pub unsafe fn admit_linux_single_task(handle: u64) -> u64 {
+    let slot: usize = checked_thread(handle);
+    if !linux_single_task_eligible(slot) { return 0; }
+    LINUX_SINGLE_TASK[slot] = 1;
+    return 1;
+}
+
+pub unsafe fn current_linux_tid() -> u64 {
+    let slot: usize = current_fs_slot();
+    if slot >= MAX_THREADS || LINUX_SINGLE_TASK[slot] == 0
+        || !linux_single_task_eligible(slot) { return 0; }
+    return THREAD_IDS[slot];
+}
+
+// Linux registration stores the complete raw address without probing it or
+// writing a TID. NULL unregisters; invalid, unaligned and kernel-valued raw
+// arguments are also retained. They are never dereferenced by this profile.
+pub unsafe fn set_current_clear_child_tid(address: u64) -> u64 {
+    let tid: u64 = current_linux_tid();
+    if tid == 0 { return 0; }
+    CLEAR_CHILD_TIDS[handle_index(CURRENT_THREAD)] = address;
+    return tid;
+}
+
+// Trusted diagnostics of generation-owned metadata, not memory authority.
+pub unsafe fn linux_single_task_for(handle: u64) -> u64 {
+    let slot: usize = checked_thread(handle);
+    if slot >= MAX_THREADS { return 0; }
+    return LINUX_SINGLE_TASK[slot] as u64;
+}
+
+pub unsafe fn clear_child_tid_for(handle: u64) -> u64 {
+    let slot: usize = checked_thread(handle);
+    if slot >= MAX_THREADS { return 0; }
+    return CLEAR_CHILD_TIDS[slot];
+}
+
+unsafe fn discard_linux_single_task(slot: usize) -> void {
+    // The admitted task is the sole mm user. Linux's corresponding mm-release
+    // path drops registration without a user write or futex wake. Shared-mm
+    // clear/wake and Linux thread/group-exit syscalls are not implemented here.
+    LINUX_SINGLE_TASK[slot] = 0;
+    CLEAR_CHILD_TIDS[slot] = 0;
+}
+
 // Trusted kernel metadata operations. Hardware access is confined to boot.S,
 // after the user register frame is saved and before its eventual IRETQ.
 pub unsafe fn set_current_user_fs_base(base: u64) -> u64 {
@@ -1033,6 +1110,7 @@ pub unsafe fn terminate_current() -> u64 {
     }
     CURRENT_THREAD = 0;
     STATES[slot] = THREAD_EXITED;
+    discard_linux_single_task(slot);
     USER_FS_BASES[slot] = 0;
     USER_FS_SELECTORS[slot] = 0;
     QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
@@ -1429,6 +1507,7 @@ pub unsafe fn terminate_process(process_handle: u64) -> u64 {
     while slot < MAX_THREADS {
         if PROCESS_HANDLES[slot] == process_handle && active_state(STATES[slot]) {
             STATES[slot] = THREAD_EXITED;
+            discard_linux_single_task(slot);
             USER_FS_BASES[slot] = 0;
             USER_FS_SELECTORS[slot] = 0;
             QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
@@ -1470,6 +1549,7 @@ pub unsafe fn cancel(handle: u64) -> u64 {
         return 0;
     }
     STATES[slot] = THREAD_EXITED;
+    discard_linux_single_task(slot);
     USER_FS_BASES[slot] = 0;
     USER_FS_SELECTORS[slot] = 0;
     QUEUE_KINDS[slot] = QUEUE_KIND_NONE;

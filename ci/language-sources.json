@@ -849,6 +849,7 @@
         }
       ],
       "sources": [
+        "ocore/runtime/x86_64/linux_thread_syscalls.oc",
         "ocore/runtime/x86_64/linux_tls_syscalls.oc",
         "ocore/runtime/x86_64/posix_file_syscalls.oc"
       ]

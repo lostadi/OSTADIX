@@ -54,7 +54,12 @@ def main():
  parser.add_argument('--compiler',type=Path,default=ROOT/'target/debug/ocorec')
  parser.add_argument('--qemu',type=Path,default=Path.home()/'.local/opt/qemu-11.1.3/bin/qemu-system-x86_64')
  parser.add_argument('--timeout',type=float,default=90)
- args=parser.parse_args();output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
+ parser.add_argument('--linux-task-startup',action='store_true',help='Explicit loaded sole-task PID/TID registration profile, not Linux exit/clone/futex')
+ parser.add_argument('--linux-task-id-base',type=int,default=4101,help='Trusted four-task fixture identity base, including explicit rejection controls')
+ args=parser.parse_args()
+ if not 0<=args.linux_task_id_base<=(1<<64)-4:parser.error('four fixture identities must fit u64')
+ if not args.linux_task_startup and args.linux_task_id_base!=4101:parser.error('custom task identities require --linux-task-startup')
+ output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
  commands=[];result={'schema':'ostadix.native-thread-fs-cpl3/v1','profile':PROFILE,'ok':False,'scope':'Production native O-core per-TCB FS selector/base capture and restore, ARCH_SET_FS/GET_FS and file/syscall boundary in isolated x86 QEMU CPL3; not original libc/application or Linux/Plan9 OS admission','selector_reuse':'25 for unchanged boot/router selection only; not canonical Mode25 corpus acceptance','platform':{'RAM_bytes':134217728,'CPUs':1,'reserved_native_volume_physical':[67108864,83886080],'volume_mapping':'Temporary supervisor-only RW/NX huge-page aperture during masked synchronous calls; absent on user/scheduler returns','copy_fault_injection':'One second-chunk user-data PTE temporarily absent during actual kernel copy, restored before return'},'commands':commands,'live_existing_vm_actions':[],'launcher_updates':[],'kernel_image_promotions':[]}
  def run(name,argv,timeout=120):
   argv=[str(a) for a in argv];start=time.monotonic();r=subprocess.run(argv,cwd=output,capture_output=True,text=True,timeout=timeout)
@@ -65,13 +70,19 @@ def main():
   clang=Path(shutil.which('clang') or '');lld=Path(shutil.which('ld.lld') or '');nm=Path(shutil.which('nm') or '')
   for p in [args.compiler,args.qemu,clang,lld,nm]:
    if not p.is_file():raise ValueError('missing explicit tool '+str(p))
-  sources=[RUNTIME/(n+'.oc') for n in RUNTIME_NAMES]+[KERNEL/(n+'.oc') for n in KERNEL_NAMES]+[KERNEL/'x86_64/boot_info_stub.oc']+[COMMON/(n+'.oc') for n in ['namespace_store','u9fs_codec','posix_namespace_files']]
+  sources=[RUNTIME/(n+'.oc') for n in RUNTIME_NAMES+['linux_thread_syscalls']]+[KERNEL/(n+'.oc') for n in KERNEL_NAMES]+[KERNEL/'x86_64/boot_info_stub.oc']+[COMMON/(n+'.oc') for n in ['namespace_store','u9fs_codec','posix_namespace_files']]
+  result['linux_task_startup']=args.linux_task_startup
+  result['linux_task_id_base']=args.linux_task_id_base
+  if args.linux_task_startup:
+   result['profile']='native-thread-startup-single-task-x86_64'
+   result['scope']+='; explicit sole-task identity/raw registration and native lifecycle metadata only, no shared-mm clear/wake'
   originals=sources+[KERNEL/'boot.S',KERNEL/'linker.ld',KERNEL/'m6_stub.oc',KERNEL/'bind-image.py',ROOT/'ocore/user/pack_ovfs.py',ROOT/'ocore/user/verify_ovfs.py',ROOT/'scripts/okernel_native_codec.py',HERE/'probe.oc',HERE/'fixture.c',HERE/'entry.S',HERE/'platform.S',HERE/'user.ld',Path(__file__)]
   before=[info(p) for p in originals];result['source_before']=before;result['tools']=[info(p) for p in [args.compiler,args.qemu,clang,lld,nm]]
   spec=importlib.util.spec_from_file_location('native_file_codec_stage',ROOT/'scripts/okernel_native_codec.py');codec=importlib.util.module_from_spec(spec);spec.loader.exec_module(codec)
   frozen=codec.stage(args.codec_manifest.resolve(),output/'codec','x86_64');result['codec_manifest']=info(args.codec_manifest);result['codec_objects']=frozen['objects']
   (output/'adapters.oc').write_text(adapters((KERNEL/'m6_stub.oc').read_text()))
-  run('fixture-compile',[clang,'-O2','-ffreestanding','-fno-builtin','-fno-stack-protector','-fno-pic','-fno-pie','-mno-sse','-mno-sse2','-mno-red-zone','-c',HERE/'fixture.c','-o',output/'fixture.o'])
+  fixture_flags=['-DOCORE_LINUX_TASK_STARTUP=1',f'-DOCORE_LINUX_TASK_ID_BASE={args.linux_task_id_base}UL'] if args.linux_task_startup else []
+  run('fixture-compile',[clang,*fixture_flags,'-O2','-ffreestanding','-fno-builtin','-fno-stack-protector','-fno-pic','-fno-pie','-mno-sse','-mno-sse2','-mno-red-zone','-c',HERE/'fixture.c','-o',output/'fixture.o'])
   run('fixture-entry',[clang,'-c',HERE/'entry.S','-o',output/'entry.o'])
   run('fixture-link',[lld,'-m','elf_x86_64','-nostdlib','--build-id=none','-z','max-page-size=0x1000','-T',HERE/'user.ld','-o',output/'fixture.elf',output/'entry.o',output/'fixture.o'])
   run('pack-ovfs',['python3','-B',ROOT/'ocore/user/pack_ovfs.py',output/'images','--entry','/bin/probe.elf',output/'fixture.elf','3'])
@@ -81,6 +92,11 @@ def main():
   run('bind-image',['python3','-B',KERNEL/'bind-image.py',HERE/'probe.oc',image,output/'probe.oc','--prefix','PROBE_IMAGE_'])
   adapter_text=(output/'adapters.oc').read_text().replace('module kernel::m6;','').replace('use runtime::native_abi::ERR_NOT_IMPLEMENTED;','')
   probe_text=(output/'probe.oc').read_text().replace('module kernel::m6;','module kernel::m6;\nuse runtime::native_abi::ERR_NOT_IMPLEMENTED;')
+  if args.linux_task_startup:
+   if probe_text.count('const LINUX_TASK_STARTUP: bool = false;')!=1:raise ValueError('missing exact trusted startup selector')
+   probe_text=probe_text.replace('const LINUX_TASK_STARTUP: bool = false;','const LINUX_TASK_STARTUP: bool = true;')
+   if probe_text.count('const LINUX_TASK_ID_BASE: u64 = 4101;')!=1:raise ValueError('missing exact trusted task identity base')
+   probe_text=probe_text.replace('const LINUX_TASK_ID_BASE: u64 = 4101;',f'const LINUX_TASK_ID_BASE: u64 = {args.linux_task_id_base};')
   (output/'probe.oc').write_text(probe_text+'\n'+adapter_text)
   built=[]
   for index in range(2):
@@ -148,6 +164,12 @@ def main():
       path=output/(name.lower()+'.bin');request('pmemsave',{'val':symbols['_O_runtime__thread__'+name],'size':size,'filename':str(path)})
       raw=path.read_bytes();observed['THREAD_'+name]=[int.from_bytes(raw[i:i+width],'little') for i in range(0,len(raw),width)]
      expected_bases=list(observed['TLS_EXPECTED_BASES']);expected_bases[1]=0
+     if args.linux_task_startup:
+      expected_bases=[0]*4
+      for name,size,width in [('LINUX_SINGLE_TASK',4,1),('CLEAR_CHILD_TIDS',32,8)]:
+       path=output/(name.lower()+'.bin');request('pmemsave',{'val':symbols['_O_runtime__thread__'+name],'size':size,'filename':str(path)})
+       raw=path.read_bytes();observed['THREAD_'+name]=[int.from_bytes(raw[i:i+width],'little') for i in range(0,len(raw),width)]
+      if observed['THREAD_LINUX_SINGLE_TASK']!=[0]*4 or observed['THREAD_CLEAR_CHILD_TIDS']!=[0]*4:raise ValueError('startup TCB metadata survives exit/reap')
      if observed['THREAD_USER_FS_BASES']!=expected_bases or observed['THREAD_USER_FS_SELECTORS']!=[0,0,0,0]:raise ValueError('actual TCB FS lifecycle state mismatch '+str(observed))
      timers={}
      for event in re.finditer(r'(?m)^.*v=20.*cpl=3.*$',trace):
@@ -175,6 +197,7 @@ def main():
    target=output/'source'/p.relative_to(ROOT);target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(p.read_bytes());target.chmod(0o444)
   result['checks']=['real CPL3 syscall entry and mapped user copies into same native store through original lowered codec','four private loaded CR3s; current-process descriptor isolation and unprovisioned denial','truthful copied argv/env/auxv and mapped program headers at actual fixture entry','supervisor-only transient volume aperture closed before every user/scheduler return','real recoverable kernel-copy page fault restores failing-chunk offset; only4096B returned','scoped process-context withdrawal and generation2 reprovision; other clients survive','production designated#UD fault containment and survivor quiescence','independent QMP reads completed state and no residual aperture; exact kernel double rebuild']
   result['checks'] += ['real user FS canaries at four distinct virtual bases survive syscall yields and actual timer preemption','all eight legal DPL3 descriptor RPL variants survive actual MOV-to-FS, GET_FS, yield and timer capture/restore in all four TCBs; QMP exact captured selector arrays and independent hardware timer traces','ARCH_SET_FS null-selector behavior','GET_FS checked copy and invalid-base/unsupported-operation failure without changing TLS','kernel/management hardware FS zero, faulted TCB state cleared; hosted fixture separately covers reaped generation reuse']
+  if args.linux_task_startup:result['checks'] += ['opt-in actual native positive PID==TID, original nonleader4101/4201 rejected before equal-ID loaded-task admission','sys186/218 exact identity and raw NULL/invalid/unaligned-pointer registration without memory modification across real syscall yields; no Linux exit60/231 claimed','four isolated registration values, current containment/cancel/process-termination metadata discard, stale reaped handles and boot-only re-init rejection; actual QMP TCB flags/registrations zero','declared sole-mm-user path only, no shared-mm clear/wake or original musl/application admission']
   result['ok']=True
  except Exception as error:
   result['error']=str(error)

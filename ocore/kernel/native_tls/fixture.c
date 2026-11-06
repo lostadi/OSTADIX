@@ -24,6 +24,26 @@ static U fs_word(unsigned offset) {
  return value;
 }
 static unsigned fs_selector(void){unsigned short value;__asm__ volatile("mov %%fs,%0":"=r"(value));return value;}
+#ifdef OCORE_LINUX_TASK_STARTUP
+#ifndef OCORE_LINUX_TASK_ID_BASE
+#define OCORE_LINUX_TASK_ID_BASE 4101UL
+#endif
+static void check_linux_task_startup(void){
+ U tid=OCORE_LINUX_TASK_ID_BASE+role;
+ volatile U sentinel=0x12345678abcdef01UL;
+ U addresses[]={0,1,(U)&sentinel,(U)&sentinel+1,0x03000000UL,0xffff800000000000UL,~0UL};
+ CHECK(sc(186,0,0,0,0)==(S)tid);
+ for(unsigned i=0;i<sizeof(addresses)/sizeof(addresses[0]);i++){
+  CHECK(sc(218,addresses[i],0,0,0)==(S)tid);
+  CHECK(sentinel==0x12345678abcdef01UL);
+  CHECK((U)sc(CONTROL,7,0,0,0)==addresses[i]);
+  CHECK(sc(24,0,0,0,0)==0&&sc(186,0,0,0,0)==(S)tid);
+  CHECK((U)sc(CONTROL,7,0,0,0)==addresses[i]);
+ }
+ CHECK(sc(218,~(U)role,0,0,0)==(S)tid);
+ CHECK(sc(60,0,0,0,0)==-38&&sc(231,0,0,0,0)==-38);
+}
+#endif
 static void check_tls(void){
  U result=~0UL;U *area=tls_blocks[role];U marker=0x4f434f5245000000UL+role;
  CHECK(sc(158,0x1003,(U)&result,0,0)==0&&result==0&&fs_selector()==0);
@@ -59,7 +79,12 @@ static void check_tls(void){
  CHECK(sc(158,0x1002,0xffff800000000000UL,0,0)==-1&&fs_word(8)==marker);
  CHECK(sc(158,0x1003,0,0,0)==-14&&fs_word(8)==marker);
  CHECK(sc(158,0x1003,(U)input,0,0)==-14&&fs_word(8)==marker);
- CHECK(sc(158,0x1001,0,0,0)==-22&&sc(218,0,0,0,0)==-38);
+ CHECK(sc(158,0x1001,0,0,0)==-22);
+#ifdef OCORE_LINUX_TASK_STARTUP
+ check_linux_task_startup();
+#else
+ CHECK(sc(218,0,0,0,0)==-38);
+#endif
  CHECK(sc(158,0x1002,0x03000000,0,0)==0);
  CHECK(sc(158,0x1003,(U)&result,0,0)==0&&result==0x03000000);
  CHECK(sc(158,0x1002,(U)area,0,0)==0&&fs_word(0)==(U)area&&fs_word(8)==marker);

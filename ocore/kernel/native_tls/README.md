@@ -104,3 +104,37 @@ This is the kernel FS-register substrate needed by original runtime startup.
 It does not implement original musl TLS construction, admit its assembly or
 module assembly, provide allocation/process/exit semantics, or lower a complete
 original application through O-core.
+
+## Opt-in single-task Linux startup services
+
+Add `--linux-task-startup` to the verifier command to exercise syscall 186
+(`gettid`) and 218 (`set_tid_address`) alongside the existing protected TLS and
+regular-file checks. This is one loaded task per address space; the fixture
+runs four independent spaces. The ordinary TLS profile retains its native
+4101/4201 process/thread identities and rejects 218 as unsupported.
+
+Trusted kernel policy admits a generation-valid loaded TCB only when its
+existing positive 32-bit thread ID equals its owning process ID and it holds
+the sole thread reference. Syscalls recheck the current TCB, PCB, address
+space, CSpace, domain and operation authority. IDs are not translated or
+fabricated. The startup fixture rejects the ordinary nonleader IDs before
+installing actual equal process/thread IDs.
+
+Registration retains the raw pointer, including NULL, unaligned, unmapped and
+noncanonical values. It neither probes the address nor writes a TID there.
+Each task's registration survives syscall yields independently. Committed
+native containment, cancellation and process termination discard registration
+before reap; reaped handles cannot authorize a new task. Boot-only registry
+initialization remains nonrepeatable. These are the sole-mm-user semantics
+of the declared profile, consistent with [Linux v6.12 fork.c](https://raw.githubusercontent.com/torvalds/linux/v6.12/kernel/fork.c).
+Shared-mm clearing and futex wake are not implemented by this component.
+
+`--linux-task-id-base 2147483644` exercises the largest permitted `pid_t` in
+the fourth task. Base 2147483645 must instead reject that task before any user
+dispatch. This is an expected negative gate, not a successful application run.
+Both options are trusted test configuration and grant no user authority.
+
+Linux exit syscalls 60/231, clone, futex, robust lists, multi-thread groups and PID
+namespaces remain unsupported here. This does not admit original musl startup
+or any complete original application. The original engines and their required
+assembly/provider closure remain separate source-lowering obligations.

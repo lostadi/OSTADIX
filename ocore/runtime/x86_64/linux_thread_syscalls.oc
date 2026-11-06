@@ -1,0 +1,26 @@
+module runtime::linux_thread_syscalls;
+
+// Opt-in loaded single-task x86-64 Linux startup services. Kernel policy must
+// admit the existing TCB/PCB identity through thread::admit_linux_single_task.
+// No PID translation, clone, shared-mm/futex, thread/group exit or original
+// libc/application admission is supplied by this component.
+use runtime::thread::current_linux_tid;
+use runtime::thread::set_current_clear_child_tid;
+
+pub unsafe fn gettid() -> i64 {
+    let tid: u64 = current_linux_tid();
+    if tid == 0 { return -3; }
+    return tid as i64;
+}
+
+pub unsafe fn set_tid_address(address: u64) -> i64 {
+    let tid: u64 = set_current_clear_child_tid(address);
+    if tid == 0 { return -3; }
+    return tid as i64;
+}
+
+pub unsafe fn dispatch(number: u64, first: u64) -> i64 {
+    if number == 186 { return gettid(); }
+    if number == 218 { return set_tid_address(first); }
+    return -38;
+}
