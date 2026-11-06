@@ -933,6 +933,21 @@
       "sources": [
         "ocore/runtime/x86_64/linux_credentials.oc"
       ]
+    },
+    {
+      "id": "ocore-native-original-process-user-kernel",
+      "category": "kernel-module",
+      "reason": "Authored trusted native x86 USER component integration provider/bootstrap compiled with the production native runtime, never a standalone program or original libc replacement.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native_original_process/verify.py",
+          "kind": "runtime",
+          "conditions": "Complete original getuid/_Exit two-unit O-core source artifact and fresh detached readmission, two RO mandatory USER notes, explicit native sole-task102/60/231 workload provider, originalcodecclosure, named1CPU QEMU. Integer-only source execution/resource/status checks; opaque returning FENV/wholeLinux/CRT/runtime/provider and physical-driver obligations remain unmet."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/native_original_process/probe.oc"
+      ]
     }
   ],
   "expected_parse_failures": {

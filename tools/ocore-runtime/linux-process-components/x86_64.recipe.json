@@ -1,0 +1,104 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-musl-1.2.5-getuid-exit-x86_64",
+  "source": {
+    "url": "https://git.musl-libc.org/git/musl",
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "complete-explicit-original-getuid-exit-components",
+  "intended_execution_profile": "Linux-compatible USER; selected native x86_64 or declared external Linux process; not a complete provider",
+  "intended_targets": [
+    "x86_64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_components.py",
+    "sha256": "951371b2d0421cc01ef5c2922a0e2342e7b7bdc07a70aeb4d1f8fa7baeffc9a4"
+  },
+  "commands": [
+    {
+      "name": "build-original-components",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_components.py",
+        "build",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "951371b2d0421cc01ef5c2922a0e2342e7b7bdc07a70aeb4d1f8fa7baeffc9a4"
+      ]
+    },
+    {
+      "name": "inventory-original-components",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_components.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "951371b2d0421cc01ef5c2922a0e2342e7b7bdc07a70aeb4d1f8fa7baeffc9a4"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "obj/src/unistd/getuid.o",
+      "obj/src/exit/_Exit.o",
+      "component-build.json",
+      "unit-inventory.json",
+      "obj/include/bits/alltypes.h",
+      "obj/include/bits/syscall.h"
+    ],
+    "required_units": [
+      {
+        "id": "original-getuid",
+        "kind": "clang",
+        "source": "src/unistd/getuid.c",
+        "role": "runtime",
+        "build_step": "build-original-components"
+      },
+      {
+        "id": "original-exit",
+        "kind": "clang",
+        "source": "src/exit/_Exit.c",
+        "role": "runtime",
+        "build_step": "build-original-components"
+      }
+    ]
+  },
+  "dependencies": [],
+  "remaining_runtime_requirements": [
+    "external Linux userspace syscall provider with original ISA ABI; zero ordinary ELF UND does not discharge this effect interface",
+    "reference CRT/driver/Linux/QEMU are test-only externals, not lowered implementation closure"
+  ],
+  "scope_limits": [
+    "Complete declared getuid/_Exit two-unit component only; not full musl/CRT, arbitrary syscall services, original ASM closure or a unified OS.",
+    "Original implementation/header/Makefile bytes unchanged. Only fresh O-core output enters the owned USER ELF; reference objects are separate capture/reference evidence.",
+    "Keep allocated mandatory Ocore Linux-user notes and module-set platform requirements. Kernel/CPL0 or native-codec admission remains unsupported."
+  ],
+  "env": {
+    "CFLAGS": "",
+    "CPPFLAGS": "",
+    "LDFLAGS": ""
+  }
+}

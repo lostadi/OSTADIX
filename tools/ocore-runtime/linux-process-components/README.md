@@ -1,0 +1,37 @@
+# Original musl process components
+
+These recipes select the unchanged `src/unistd/getuid.c` and `src/exit/_Exit.c`
+from musl 1.2.5 commit `0784374d561435f7c787a555aeab8ede699ed298`.
+`olangc` owns source capture, the original Makefile invocation, import,
+independent verification, object emission and detached fresh source-group
+readmission. The pinned helper evaluates the original complete `LIBC_OBJS`
+list and requires both selected targets exactly once. It does not rewrite the
+implementations, headers or inline assembly. Original compiler objects are
+reference products; they are not O-core-lowered implementations.
+
+The declared component has two source units and its original generated-header
+and build dependencies. It is not a whole-musl, CRT, startup, dynamic-loader,
+complete Linux provider or arbitrary-application closure. Static Linux syscall
+requirements remain on the emitted USER objects. They must be linked into a
+separate user ELF with those mandatory notes retained and an explicitly
+qualified provider; zero undefined symbols does not close that boundary.
+
+All three recipes use their actual original target/header ABI: x86-64,
+AArch64 and RV64GC. Their source syscall sets are respectively getuid 102,
+exit 60 and exit_group 231; or getuid 174, exit 93 and exit_group 94. Every
+getuid site has zero arguments and each exit site one argument. `_Exit(int)`
+retains the original call of exit_group followed by the infinite exit fallback.
+No syscall number translation, handwritten replacement or supplied original
+binary establishes component lowering.
+
+The optimized original `_Exit` exposes a typed LLVM argument range
+attribute not admitted by the earlier enum-only source witness. A separately
+staged typed-range compiler candidate now passes complete original two-unit
+source import and detached fresh readmission on all three actual ISAs. That original
+O2 input and failed two-unit source receipt are retained. The old group remains
+incomplete; the newer candidate groups bind the unchanged optimized attribute
+through a versioned typed witness and independent source verification. Selecting only the passing
+getuid unit, stripping the range, or changing optimization is not completion.
+A newer compiler must qualify the entire two-unit recipe and fresh readmission
+on each actual ISA. Runtime/platform completeness flags remain false until
+those separate obligations are satisfied.
