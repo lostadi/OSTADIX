@@ -10,6 +10,7 @@ typed exit, return to the host menu and clean outer poweroff.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -79,6 +80,33 @@ def raw_application_assertions(token, shared_digest):
         line = re.escape((shared_digest + "  " + name).encode())
         code += "assert re.search(" + repr(rb"(?:^|\n)" + line + rb"\n") + ",b);"
     return code
+
+
+def audit_shell_command(source, marker):
+    """Send exact Python bytes through a bounded-line BusyBox ash heredoc.
+
+    The captured interactive ash cuts long physical input lines near1024B.
+    Base64 avoids shell quoting expansion, and a digest rejects any lost input
+    before executing the unchanged independent saved-state assertions.
+    """
+    if not isinstance(source, str) or not isinstance(marker, str):
+        raise ValueError("audit source and marker must be text")
+    if re.fullmatch(r"[A-Za-z0-9_]{1,128}", marker) is None:
+        raise ValueError("invalid audit completion marker")
+    data = source.encode("utf-8")
+    digest = hashlib.sha256(data).hexdigest()
+    delimiter = "OKERNEL_AUDIT_BASE64_" + digest[:20]
+    encoded = base64.b64encode(data).decode("ascii")
+    decoder = ('import base64,hashlib,sys;d=base64.b64decode(b"".join(sys.stdin.buffer.read().split()),validate=True);'
+               'assert hashlib.sha256(d).hexdigest()=="' + digest + '";'
+               'exec(compile(d,"<okernel-saved-audit>","exec"))')
+    command = ("python3 -B -c " + shlex.quote(decoder) + " <<'" + delimiter + "'\n"
+               + "\n".join(encoded[index:index+76] for index in range(0, len(encoded), 76))
+               + "\n" + delimiter + "\n"
+               + "_audit_rc=$?; printf '\\n" + marker + ":%s\\n' \"$_audit_rc\"\n")
+    if max(len(line.encode("ascii")) for line in command.splitlines()) >= 512:
+        raise ValueError("audit transport exceeded its physical line bound")
+    return command
 
 
 def main():
@@ -308,8 +336,7 @@ def main():
                             "assert v.get('/work/iso-" + token + "')==bytes.fromhex('" + expected_shared.hex() + "');"
                             + raw_application_assertions(token, shared_digest) +
                             "print(json.dumps({'saved_disk':h['disk']['sha256'],'saved_namespace':h['namespace']['sha256'],'flags':True}))")
-                        command = ("python3 -B -c " + shlex.quote(audit)
-                            + "; _audit_rc=$?; printf '\\nOKERNEL_ISO_SAVE_AUDIT_" + token + ":%s\\n' \"$_audit_rc\"\n")
+                        command = audit_shell_command(audit, "OKERNEL_ISO_SAVE_AUDIT_" + token)
                         send(command.encode()); stage = "host-audit"
                     if stage == "host-audit":
                         marker = re.search(rb"OKERNEL_ISO_SAVE_AUDIT_" + token.encode() + rb":([0-9]+)", text)
