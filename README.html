@@ -1494,6 +1494,29 @@ cargo run -- examples/hello.O
 ./c_cpp/O examples/hello.O ./backends
 python3 -m o_lang examples/hello.O
 </code></pre>
+<h4>Recovering stale Nix profile backups</h4>
+<p>When Nix is selected, setup checks for leftover <code>.backup-before-nix</code> files
+before installing packages or editor support. These files can remain after an
+uninstall and stop the official installer. An existing Nix executable is reused,
+including one in its standard installation path outside the current <code>PATH</code>;
+its normal profile backups are left in place. Setup verifies the executable
+with <code>nix --version</code> and a network-free evaluation of <code>1 + 1</code>.</p>
+<p>For recognized leftovers, inspect the proposed recovery first, then request it
+explicitly:</p>
+<pre><code class="language-bash">./setup.sh --full --repair-nix-profiles --dry-run
+./setup.sh --full --repair-nix-profiles
+</code></pre>
+<p>Recovery moves the original profiles and backups into a private, uniquely
+named <code>/etc/nix-profile-recovery-*</code> directory and records their original paths
+and SHA-256 hashes in a manifest. It accepts only empty affected files or the
+recognized standard Nix startup blocks. Custom shell configuration, symbolic
+links, changed files, or evidence of a remaining Nix installation require
+manual inspection. Recovery does not restore an old backup over a current
+profile or delete a Nix store or volume.</p>
+<p><code>--yes</code> alone does not enable this repair. <code>--check</code> and <code>--dry-run</code> leave the
+profiles untouched; <code>--no-nix</code> excludes the Nix dependency profile from setup.
+See the <a href="setup/os/README.md#recovering-stale-nix-profile-backups">platform setup recovery guide</a>
+for the recovery scope and the location of preserved originals.</p>
 <h3>Option B: Manual Rust setup</h3>
 <pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
 cd OSTADIX
