@@ -60,6 +60,7 @@ fn record_symbols(operand: &Operand, names: &mut BTreeSet<String>) {
             Operand::Symbol { name, .. } | Operand::SymbolOffset { name, .. } => {
                 names.insert(name.clone());
             }
+            Operand::PointerToInteger { pointer, .. } => pending.push(pointer),
             Operand::Aggregate { elements, .. } => pending.extend(elements),
             _ => {}
         }

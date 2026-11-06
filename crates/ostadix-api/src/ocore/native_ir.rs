@@ -763,6 +763,13 @@ pub enum Operand {
         ty: TypeId,
         bits: String,
     },
+    /// An executable LLVM scalar constant-expression pointer conversion.
+    /// Keep the original pointer/provenance and linker dependency; this is
+    /// neither an absolute integer initializer nor a host address resolver.
+    PointerToInteger {
+        ty: TypeId,
+        pointer: Box<Operand>,
+    },
     Null {
         ty: TypeId,
     },

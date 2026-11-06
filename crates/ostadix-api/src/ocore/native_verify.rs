@@ -1882,6 +1882,24 @@ impl<'a> Verifier<'a> {
                 }
                 *ty
             }
+            Operand::PointerToInteger { ty, pointer } => {
+                if !self.literal_pointer_profile {
+                    return Err(fail(context, "constant ptrtoint requires the integral AS0 little-endian 64-bit pointer/index profile"));
+                }
+                if !matches!(self.ty(*ty, context)?, Type::Int { bits: 1..=64 | 128 }) {
+                    return Err(fail(context, "constant ptrtoint requires a supported scalar integer result"));
+                }
+                if !matches!(pointer.as_ref(), Operand::Symbol { .. }
+                    | Operand::SymbolOffset { .. } | Operand::BlockAddress { .. }
+                    | Operand::PointerBits { .. } | Operand::Null { .. }) {
+                    return Err(fail(context, "constant ptrtoint requires an exact constant pointer child, not SSA or symbolic integer reconstruction"));
+                }
+                let child = self.operand(pointer, definitions, context)?;
+                if !matches!(self.ty(child, context)?, Type::Pointer { address_space: 0 }) {
+                    return Err(fail(context, "constant ptrtoint child must retain its AS0 pointer type"));
+                }
+                *ty
+            }
             Operand::Null { ty } => {
                 if !matches!(self.ty(*ty, context)?, Type::Pointer { .. }) {
                     return Err(fail(context, "null requires pointer type"));
@@ -1992,6 +2010,10 @@ impl<'a> Verifier<'a> {
                             );
                         }
                         Type::Array { element, len } | Type::Vector { element, len } => {
+                            if matches!(self.ty(*ty, context)?, Type::Vector { .. })
+                                && elements.iter().any(|value| matches!(value, Operand::PointerToInteger { .. })) {
+                                return Err(fail(context, "symbolic constant ptrtoint packed-vector lanes require a separate lowering"));
+                            }
                             if u64::try_from(elements.len()).ok() != Some(*len) {
                                 return Err(fail(
                                     context,
@@ -2475,6 +2497,10 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
     fn operand(module: &NativeModule, value: &Operand) -> Result<()> {
         match value {
             Operand::Value { .. } => Ok(()),
+            Operand::PointerToInteger { ty, pointer } => {
+                value_type(module, *ty)?;
+                operand(module, pointer)
+            }
             Operand::Aggregate { ty, elements } => {
                 value_type(module, *ty)?;
                 for element in elements {
@@ -4937,6 +4963,40 @@ mod tests {
             }],
             "provenance": {"input_sha256":"0000000000000000000000000000000000000000000000000000000000000000","frontend":"test","frontend_version":"1","importer":"test","importer_version":"1","source_function_count":1,"source_global_count":0,"refinements":[]}
         })).unwrap()
+    }
+
+    #[test]
+    fn executable_constant_ptrtoint_requires_a_typed_integral_constant_child() {
+        let mut m = module();
+        m.functions[0].blocks.truncate(1);
+        m.functions[0].blocks[0].instructions.clear();
+        m.functions[0].blocks[0].terminator = Terminator::Return {
+            value: Some(Operand::PointerToInteger {
+                ty: 2,
+                pointer: Box::new(Operand::PointerBits { ty: 3, bits: "9223372036854775809".into() }),
+            }),
+        };
+        verify(&m).unwrap();
+        let roundtrip = NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+        assert_eq!(roundtrip.to_json().unwrap(), m.to_json().unwrap());
+        for child in [
+            Operand::Value { id: 7 },
+            Operand::Int { ty: 2, bits: "1".into() },
+            Operand::Undef { ty: 3 },
+            Operand::Poison { ty: 3 },
+            Operand::PointerBits { ty: 2, bits: "1".into() },
+        ] {
+            let mut bad = m.clone();
+            bad.functions[0].blocks[0].terminator = Terminator::Return {
+                value: Some(Operand::PointerToInteger { ty: 2, pointer: Box::new(child) }),
+            };
+            assert!(verify(&bad).is_err());
+        }
+        for layout in ["e-p:32:32", "e-p:64:64:64:32", "e-p:64:64-ni:0", "e-p:64:64-G1"] {
+            let mut bad = m.clone();
+            bad.target.data_layout = layout.into();
+            assert!(verify(&bad).is_err(), "{layout}");
+        }
     }
 
     #[test]

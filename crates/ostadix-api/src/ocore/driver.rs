@@ -407,6 +407,7 @@ fn native_block_labels_required(module: &super::native_ir::NativeModule) -> bool
         while let Some(value) = pending.pop() {
             match value {
                 Operand::BlockAddress { .. } => return true,
+                Operand::PointerToInteger { pointer, .. } => pending.push(pointer),
                 Operand::Aggregate { elements, .. } => pending.extend(elements),
                 _ => {}
             }

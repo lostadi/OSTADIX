@@ -2056,6 +2056,11 @@ class Importer:
             return {"kind": "int", "ty": ty, "bits": str(self.integer_bits(value))}
         if a.IsAConstantPointerNull(value):
             return {"kind": "null", "ty": ty}
+        if a.IsAConstantExpr(value) and a.GetConstOpcode(value) == 39:
+            self.constant_pointer_integer_profile(value)
+            pointer = self.operand(a.GetOperand(value, 0))
+            self.refinements.add(f"{self.symbol}: executable constant ptrtoint retains exact AS0 pointer object/provenance and linker dependency; low representation bits truncate for narrower integers and zero-extend for i128, without a numeric-address, initializer, dereference, lifetime, alias or purity inference")
+            return {"kind": "pointer_to_integer", "ty": ty, "pointer": pointer}
         block = self.block_constant(value)
         if block is not None:
             function, target, addend = block
@@ -2335,6 +2340,31 @@ class Importer:
                     self.reject("symbolic bitcast requires a pointer-to-pointer cast")
                 return self.symbol_constant(a.GetOperand(value, 0))
         self.reject("unsupported symbolic initializer (only symbol, pointer bitcast and constant GEP are supported)")
+
+    def constant_pointer_integer_profile(self, value):
+        """Check the exact executable scalar cast before native C API access."""
+        a = self.a
+        if (not a.IsAConstantExpr(value) or a.GetConstOpcode(value) != 39
+                or a.GetNumOperands(value) != 1
+                or a.GetTypeKind(a.TypeOf(value)) != 8):
+            self.reject("constant ptrtoint requires one original scalar pointer and integer result")
+        width = a.GetIntTypeWidth(a.TypeOf(value))
+        if not (1 <= width <= 64 or width == 128):
+            self.reject("constant ptrtoint requires a native scalar integer width")
+        pointer = a.TypeOf(a.GetOperand(value, 0))
+        layout = (a.GetDataLayoutStr(self.module) or b"").decode()
+        if (a.GetTypeKind(pointer) != 12 or a.GetPointerAddressSpace(pointer) != 0
+                or a.ABISizeOfType(self.layout, pointer) != 8 or not layout.startswith("e")):
+            self.reject("constant ptrtoint requires integral little-endian AS0 64-bit pointer/index layout")
+        for token in layout.split("-"):
+            if token.startswith(("p:", "p0:")):
+                fields = token.split(":")
+                if fields[1] != "64" or (len(fields) >= 5 and fields[4] != "64"):
+                    self.reject("constant ptrtoint requires equal 64-bit pointer and index widths")
+            if token.startswith("ni:") and "0" in token.split(":")[1:]:
+                self.reject("constant ptrtoint requires integral AS0 pointers")
+            if token[:1] in {"A", "G", "P"} and token[1:] != "0":
+                self.reject("constant ptrtoint requires default address spaces")
 
     def pointer_literal_bits(self, value):
         """Fold only an immediate integral AS0 inttoptr constant, exactly."""

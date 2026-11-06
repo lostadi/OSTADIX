@@ -547,6 +547,7 @@ impl<'a> Prepared<'a> {
                 "aggregate constants are not implemented by the scalar reference interpreter",
             )),
             Operand::Null { .. }
+            | Operand::PointerToInteger { .. }
             | Operand::Symbol { .. }
             | Operand::SymbolOffset { .. }
             | Operand::BlockAddress { .. }
@@ -927,6 +928,21 @@ mod tests {
             },
         );
         module
+    }
+
+    #[test]
+    fn hidden_constant_pointer_conversion_is_not_a_pure_integer_reference() {
+        let mut module = binary_module(64, BinaryOp::Add);
+        module.functions[0].blocks[0].instructions.clear();
+        module.functions[0].blocks[0].terminator = Terminator::Return {
+            value: Some(Operand::PointerToInteger {
+                ty: 2,
+                pointer: Box::new(Operand::PointerBits { ty: 3, bits: "17".into() }),
+            }),
+        };
+        super::super::native_verify::verify(&module).unwrap();
+        let error = evaluate(&module, "calculate", &[0u8.into(), 0u8.into()]).unwrap_err();
+        assert!(error.message.contains("pointer/symbol scalar values are not implemented"), "{error:?}");
     }
 
     #[test]

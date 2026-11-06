@@ -254,6 +254,8 @@ class Reader:
                     raise InventoryMismatch("independent aggregate/vector literal requires exact typed lanes")
                 elements.append(self.operand(lane, values))
             return {"kind": "aggregate", "type": ty, "elements": elements}
+        if self.IsAConstantExpr(value) and self.GetConstOpcode(value) == 39:
+            return self.constant_pointer_integer(value, values)
         block = self.code_address(value)
         if block is not None:
             return {"kind": "block_address", "type": ty, **block}
@@ -275,10 +277,132 @@ class Reader:
             return {"kind": "compiler_metadata", "printed_sha256": hashlib.sha256(self.printed(value).encode()).hexdigest()}
         raise InventoryMismatch("independent inventory has no intrinsic operand mapping")
 
+    def constant_pointer_integer(self, value, values):
+        """Independent actual C API scalar constant conversion reconstruction."""
+        if (not self.IsAConstantExpr(value) or self.GetConstOpcode(value) != 39
+                or self.GetNumOperands(value) != 1
+                or self.GetTypeKind(self.TypeOf(value)) != 8):
+            raise InventoryMismatch("constant ptrtoint inventory requires one pointer and integer result")
+        width = self.GetIntTypeWidth(self.TypeOf(value))
+        if not (1 <= width <= 64 or width == 128):
+            raise InventoryMismatch("constant ptrtoint inventory requires a supported integer width")
+        child = self.GetOperand(value, 0)
+        ty = self.TypeOf(child)
+        layout = self.source_data_layout
+        if (self.GetTypeKind(ty) != 12 or self.GetPointerAddressSpace(ty) != 0
+                or self.ABISizeOfType(self.layout, ty) != 8 or not layout.startswith("e")):
+            raise InventoryMismatch("constant ptrtoint inventory requires integral little-endian AS0 64-bit pointers")
+        for piece in layout.split("-"):
+            if piece.startswith(("p:", "p0:")):
+                numbers = piece.split(":")
+                if numbers[1] != "64" or (len(numbers) >= 5 and numbers[4] != "64"):
+                    raise InventoryMismatch("constant ptrtoint inventory pointer/index width mismatch")
+            if piece.startswith("ni:") and "0" in piece.split(":")[1:]:
+                raise InventoryMismatch("constant ptrtoint inventory requires integral pointers")
+            if piece[:1] in {"A", "P", "G"} and piece[1:] != "0":
+                raise InventoryMismatch("constant ptrtoint inventory requires default address spaces")
+        return {"kind": "pointer_to_integer", "type": self.shape(self.TypeOf(value)),
+                "pointer": self.operand(child, values)}
+
+    def instruction_constant_pointer_integers(self, instruction, values, blocks):
+        """Exact typed tree, SSA owner/edge/field path and ordered use sites.
+
+        This primitive proof supplements dependency and full fresh body equality;
+        it does not replace the latter with an instruction-count approximation.
+        Unknown expression-bearing contexts fail closed rather than omit a site.
+        """
+        def leaves(value, path):
+            if value in values:
+                return []
+            if self.IsAConstantExpr(value):
+                if self.GetConstOpcode(value) == 39:
+                    return [{"path": path, "value": self.constant_pointer_integer(value, values)}]
+                if any(leaves(self.GetOperand(value, i), []) for i in range(self.GetNumOperands(value))):
+                    raise InventoryMismatch("unmapped enclosing constant ptrtoint expression")
+                return []
+            kind = self.GetTypeKind(self.TypeOf(value))
+            if kind in (10, 11, 13) and not (self.IsAConstantAggregateZero(value)
+                    or self.IsAUndefValue(value) or self.IsAPoisonValue(value)):
+                ty = self.TypeOf(value)
+                count = self.CountStructElementTypes(ty) if kind == 10 else (self.GetVectorSize(ty) if kind == 13 else self.GetArrayLength2(ty))
+                output = []
+                for index in range(count):
+                    if index > 0xffffffff:
+                        raise InventoryMismatch("constant ptrtoint aggregate C API index overflow")
+                    item = self.GetAggregateElement(value, index)
+                    if not item:
+                        raise InventoryMismatch("constant ptrtoint aggregate element absent")
+                    found = leaves(item, path + ["elements", index])
+                    if kind == 13 and found:
+                        raise InventoryMismatch("symbolic constant ptrtoint packed-vector lanes are unsupported")
+                    output.extend(found)
+                return output
+            return []
+        direct = [leaves(self.GetOperand(instruction, i), []) for i in range(self.GetNumOperands(instruction))]
+        if not any(direct):
+            return None
+        opcode = self.GetInstructionOpcode(instruction)
+        fields = {1: ("return", ["value"]), 3: ("switch", ["value"]),
+                  27: ("load", ["pointer"]), 28: ("store", ["value", "pointer"]),
+                  29: ("gep", ["base"]), 42: ("i_cmp", ["lhs", "rhs"]),
+                  46: ("select", ["condition", "on_true", "on_false"]),
+                  53: ("extract_value", ["aggregate"]), 54: ("insert_value", ["aggregate", "value"]),
+                  68: ("freeze", ["value"])}
+        if opcode == 2 and self.GetNumSuccessors(instruction) == 2:
+            fields[2] = ("branch", ["condition"])
+        if opcode in (8, 10, 12, 14, 15, 17, 18, 20, 21, 22, 23, 24, 25):
+            fields[opcode] = ("binary", ["lhs", "rhs"])
+        if opcode in (30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 60):
+            fields[opcode] = ("cast", ["value"])
+        if opcode == 44:
+            found, predecessors = [], {}
+            for index in range(self.CountIncoming(instruction)):
+                block = blocks.index(self.GetIncomingBlock(instruction, index))
+                if block not in predecessors:
+                    predecessors[block] = len(predecessors)
+                    found.extend(leaves(self.GetIncomingValue(instruction, index), ["incoming", predecessors[block], "value"]))
+            return "phi", found
+        if opcode in (5, 45):
+            callee = self.GetCalledValue(instruction)
+            if self.IsAFunction(callee) and self.GetIntrinsicID(callee):
+                raise InventoryMismatch("constant ptrtoint intrinsic-graph arguments require a separate exact mapping")
+            if self.IsAInlineAsm(callee):
+                if opcode != 45:
+                    raise InventoryMismatch("constant ptrtoint InlineAsm only supports owned raw call")
+                found = leaves(self.GetOperand(instruction, 0), ["number"])
+                for index in range(1, self.GetNumArgOperands(instruction)):
+                    found.extend(leaves(self.GetOperand(instruction, index), ["arguments", index-1]))
+                return "linux_syscall", found
+            found = leaves(callee, ["callee"])
+            for index in range(self.GetNumArgOperands(instruction)):
+                found.extend(leaves(self.GetOperand(instruction, index), ["args", index]))
+            return ("invoke" if opcode == 5 else "call"), found
+        if opcode not in fields:
+            raise InventoryMismatch(f"unmapped constant ptrtoint instruction context {opcode}")
+        operation, names = fields[opcode]
+        found = []
+        for index, group in enumerate(direct):
+            if group:
+                if index >= len(names):
+                    raise InventoryMismatch("unmapped constant ptrtoint operand role")
+                found.extend({"path": [names[index], *item["path"]], "value": item["value"]} for item in group)
+        return operation, found
+
     def contract(self, value):
-        linkage = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak", 6: "weak_odr", 8: "internal", 9: "private"}
+        # The producer/core already admit this exact public LLVM linkage only
+        # on optional declarations. Keep original linkage, type, storage and
+        # visibility; do not confuse it with a weak definition or a provider.
+        actual_linkage = self.GetLinkage(value)
+        if actual_linkage == 12:
+            declaration = ((self.IsAFunction(value) and not self.GetFirstBasicBlock(value)
+                            and not self.GetIntrinsicID(value) and not self.name(value).startswith("llvm."))
+                           or (self.IsAGlobalVariable(value) and not self.GetInitializer(value)
+                               and not self.IsThreadLocal(value)))
+            if not declaration:
+                raise InventoryMismatch("extern_weak source inventory requires an ordinary nonTLS declaration")
+        linkage = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak", 6: "weak_odr", 8: "internal", 9: "private", 12: "extern_weak"}
         visibility = {0: "default", 1: "hidden", 2: "protected"}
-        return {"linkage": linkage.get(self.GetLinkage(value), "unsupported"),
+        return {"linkage": linkage.get(actual_linkage, "unsupported"),
                 "visibility": visibility.get(self.GetVisibility(value), "unsupported"),
                 "alignment": 0 if self.IsAGlobalAlias(value) else self.GetAlignment(value)}
 
@@ -458,6 +582,8 @@ class Reader:
             if address is not None:
                 return [{"path": path, "value": {"kind": "block_address",
                          "type": self.shape(self.TypeOf(value)), **address}}]
+            if self.IsAConstantExpr(value) and self.GetConstOpcode(value) == 39:
+                return leaves(self.GetOperand(value, 0), path + ["pointer"])
             if self.IsAConstantExpr(value):
                 nested = [leaf for index in range(self.GetNumOperands(value))
                           for leaf in leaves(self.GetOperand(value, index), [])]
@@ -486,6 +612,10 @@ class Reader:
                   29: ("gep", ["base"]), 42: ("i_cmp", ["lhs", "rhs"]),
                   46: ("select", ["condition", "on_true", "on_false"]),
                   68: ("freeze", ["value"])}
+        if opcode == 2 and self.GetNumSuccessors(instruction) == 2:
+            fields[2] = ("branch", ["condition"])
+        if opcode in (8, 10, 12, 14, 15, 17, 18, 20, 21, 22, 23, 24, 25):
+            fields[opcode] = ("binary", ["lhs", "rhs"])
         if opcode in (30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 60):
             fields[opcode] = ("cast", ["value"])
         if opcode == 44:
@@ -498,7 +628,15 @@ class Reader:
                     addresses.extend(leaves(value, ["incoming", seen[block], "value"]))
             return "phi", addresses
         if opcode in (5, 45):
-            addresses = leaves(self.GetCalledValue(instruction), ["callee"])
+            callee = self.GetCalledValue(instruction)
+            if self.IsAInlineAsm(callee):
+                if opcode != 45:
+                    raise InventoryMismatch("unmapped block-address InlineAsm context")
+                addresses = leaves(self.GetOperand(instruction, 0), ["number"])
+                for index in range(1, self.GetNumArgOperands(instruction)):
+                    addresses.extend(leaves(self.GetOperand(instruction, index), ["arguments", index-1]))
+                return "linux_syscall", addresses
+            addresses = leaves(callee, ["callee"])
             for index in range(self.GetNumArgOperands(instruction)):
                 addresses.extend(leaves(self.GetOperand(instruction, index), ["args", index]))
             return ("invoke" if opcode == 5 else "call"), addresses
@@ -739,6 +877,7 @@ class Reader:
                 raise InventoryMismatch("independent LLVM parse failed")
             if self.VerifyModule(module, 2, c.byref(error)):
                 raise InventoryMismatch("independent LLVM verifier rejected source")
+            self.source_data_layout = self.GetDataLayoutStr(module).decode()
             self.layout = self.CreateTargetData(self.GetDataLayoutStr(module))
             output = {"source": source, "llvm_library": self.library, "data_layout": self.GetDataLayoutStr(module).decode(),
                       "target_triple": (self.GetTarget(module) or b"").decode(),
@@ -759,7 +898,7 @@ class Reader:
                             values[instruction] = len(values)
                 sites, direct_calls, references, indirect, phis, code_sites, control_calls = [], [], set(), [], [], [], []
                 primitive_counts, gep_counts = Counter(), Counter()
-                ssa_calls, vector_sites, linux_syscalls = [], [], []
+                ssa_calls, vector_sites, linux_syscalls, pointer_integer_sites = [], [], [], []
                 if self.HasPersonalityFn(function):
                     references.add(self.address(self.GetPersonalityFn(function))[0])
                 for block_id, block in enumerate(blocks):
@@ -817,6 +956,11 @@ class Reader:
                             elif self.IsAConstantExpr(value) or (value not in values and self.GetTypeKind(self.TypeOf(value)) in (10, 11)):
                                 pending.extend(self.GetOperand(value, index) for index in range(self.GetNumOperands(value)))
                         opcode = self.GetInstructionOpcode(instruction)
+                        pointer_site = self.instruction_constant_pointer_integers(instruction, values, blocks)
+                        if pointer_site:
+                            pointer_op, conversions = pointer_site
+                            pointer_integer_sites.append({"block": block_id, "result_id": values.get(instruction),
+                                "op": pointer_op, "conversions": sorted(conversions, key=lambda item: repr(item["path"]))})
                         code_site = self.instruction_code_addresses(instruction, values, blocks)
                         if code_site:
                             operation, addresses = code_site
@@ -924,7 +1068,7 @@ class Reader:
                     "gep_offset_graph_counts": dict(gep_counts), "symbol_references": sorted(references),
                     "control_effects": self.control_effects(function), "control_call_sites": control_calls,
                     "block_ids": list(range(len(blocks))), "indirect_branches": indirect, "phis": phis,
-                    "block_address_sites": code_sites, "ssa_indirect_calls": ssa_calls, "vector_sites": vector_sites, "linux_syscalls": linux_syscalls,
+                    "block_address_sites": code_sites, "constant_pointer_integer_sites": pointer_integer_sites, "ssa_indirect_calls": ssa_calls, "vector_sites": vector_sites, "linux_syscalls": linux_syscalls,
                     **self.contract(function)}
             opaque_groups = {}
             for global_ in self.sequence(self.GetFirstGlobal, self.GetNextGlobal, module):
@@ -974,6 +1118,8 @@ def native_operand(operand, types):
     output = dict(operand)
     if "ty" in output:
         output["type"] = native_shape(types, output.pop("ty"))
+    if output.get("kind") == "pointer_to_integer":
+        output["pointer"] = native_operand(output["pointer"], types)
     if "elements" in output:
         output["elements"] = [native_operand(element, types) for element in output["elements"]]
     return output
@@ -1781,6 +1927,26 @@ def check_inventory(source, module):
                         if addresses:
                             native_code_sites.append({"block": block["id"], "result_id": result_id,
                                 "op": operation["op"], "addresses": sorted(addresses, key=lambda item: repr(item["path"]))})
+                def pointer_integer_leaves(item, path=()):
+                    if isinstance(item, dict):
+                        if item.get("kind") == "pointer_to_integer":
+                            return [{"path": list(path), "value": native_operand(item, types)}]
+                        return [leaf for key, value in item.items() for leaf in pointer_integer_leaves(value, (*path, key))]
+                    if isinstance(item, list):
+                        return [leaf for index, value in enumerate(item) for leaf in pointer_integer_leaves(value, (*path, index))]
+                    return []
+                native_pointer_sites = []
+                for block in translated["blocks"]:
+                    for result_id, operation in [
+                            *((instruction["result"]["id"] if instruction.get("result") else None,
+                               instruction["operation"]) for instruction in block["instructions"]),
+                            ((block["terminator"].get("result") or {}).get("id"), block["terminator"])]:
+                        conversions = pointer_integer_leaves(operation)
+                        if conversions:
+                            native_pointer_sites.append({"block": block["id"], "result_id": result_id,
+                                "op": operation["op"], "conversions": sorted(conversions, key=lambda item: repr(item["path"]))})
+                require(native_pointer_sites == original.get("constant_pointer_integer_sites", []),
+                        f"constant ptrtoint tree/type/source SSA/edge/operand position changed: {name}")
                 require(native_code_sites == original.get("block_address_sites", []),
                         f"code-block address operand identity/position changed: {name}")
                 native_indirect = [{"block": block["id"],

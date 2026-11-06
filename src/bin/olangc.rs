@@ -238,6 +238,16 @@ const GENERATED_RUNTIME_UNUSED_FEATURE_EDGES: &[(&str, &str)] = &[
     ("winnow", "memchr"),
 ];
 
+// LLVM/native data hashing keeps digest 0.10. Ed25519 3 additionally brings
+// digest 0.11.3, whose workspace HKDF/MAC union enables these optional edges.
+// The generated Ed25519 default profile selects only block-api/default, as
+// independently checked by Cargo's selected feature graph. A new version
+// requires a fresh audit; do not drop these edges for arbitrary digest builds.
+const GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES: &[(&str, &str, &str)] = &[
+    ("digest", "0.11.3", "const-oid"),
+    ("digest", "0.11.3", "ctutils"),
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3811,6 +3821,8 @@ fn strip_unused_workspace_feature_edges(lock: &mut toml::Value) -> Result<()> {
         else {
             continue;
         };
+        let package_version = package.get("version")
+            .and_then(toml::Value::as_str).map(str::to_owned);
         let Some(dependencies) = package
             .get_mut("dependencies")
             .and_then(toml::Value::as_array_mut)
@@ -3827,6 +3839,13 @@ fn strip_unused_workspace_feature_edges(lock: &mut toml::Value) -> Result<()> {
                     .and_then(|coordinate| coordinate.split(' ').next())
                     != Some(excluded_dependency)
             });
+        }
+        for &(target_package, version, excluded_dependency) in GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES {
+            if package_name != target_package || package_version.as_deref() != Some(version) {
+                continue;
+            }
+            dependencies.retain(|dependency| dependency.as_str()
+                .and_then(|coordinate| coordinate.split(' ').next()) != Some(excluded_dependency));
         }
     }
     Ok(())
@@ -3947,7 +3966,7 @@ which      = "8"
 semver     = {{ version = "1", features = ["serde"] }}
 sha2       = "0.10"
 hex        = "0.4"
-ed25519-dalek = "2"
+ed25519-dalek = "3"
 num-bigint = {{ version = "0.5", features = ["serde"] }}
 num-traits = "0.2"
 bitflags   = "2"
@@ -3958,7 +3977,7 @@ clap       = {{ version = "4", features = ["derive"] }}
 {ignore_dep}
 [target.'cfg(unix)'.dependencies]
 libc       = "0.2"
-signal-hook = "0.3"
+signal-hook = "0.4"
 
 [profile.release]
 opt-level     = 3
@@ -5446,9 +5465,71 @@ mod tests {
             RUNTIME_WORLD_RECEIPT_CODEC_RS,
             "generated runtimes must receive the signed receipt codec verbatim"
         );
-        assert!(generate_cargo_toml("generated-runtime", false).contains("ed25519-dalek = \"2\""));
-
         fs::remove_dir_all(build_dir).unwrap();
+    }
+
+    #[test]
+    fn generated_runtime_dependencies_match_current_canonical_manifests_and_lock() {
+        let api: toml::Value = toml::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"), "/crates/ostadix-api/Cargo.toml"
+        ))).unwrap();
+        let root: toml::Value = toml::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"
+        ))).unwrap();
+        for include_project in [false, true] {
+            let generated: toml::Value = toml::from_str(
+                &generate_cargo_toml("dependency-contract", include_project)
+            ).unwrap();
+            let mut names = GENERATED_RUNTIME_DEPENDENCY_NAMES.to_vec();
+            if include_project { names.push("ignore"); }
+            for name in names {
+                let api_declares = api.get("dependencies").and_then(toml::Value::as_table)
+                    .is_some_and(|table| table.contains_key(name))
+                    || api.get("target").and_then(toml::Value::as_table).is_some_and(|targets|
+                        targets.values().any(|target| target.get("dependencies")
+                            .and_then(toml::Value::as_table).is_some_and(|table| table.contains_key(name))));
+                let current = generated_dependency_requirement(if api_declares { &api } else { &root }, name)
+                    .unwrap_or_else(|error| panic!("canonical dependency {name}: {error:#}"));
+                let selected = generated_dependency_requirement(&generated, name).unwrap();
+                assert_eq!(selected, current,
+                    "generated {name} must follow the authoritative current dependency contract, including major-version changes");
+            }
+            // Presence of an old transitive version cannot excuse a stale
+            // generated direct requirement. The unchanged resolver must also
+            // project this exact workspace lock without missing/ambiguous
+            // direct coordinates or package substitution.
+            generate_cargo_lock(include_project).unwrap();
+        }
+    }
+
+    #[test]
+    fn generated_runtime_versioned_feature_policy_preserves_required_and_other_versions() {
+        let mut lock = toml::from_str::<toml::Value>(r#"
+[[package]]
+name = "digest"
+version = "0.11.3"
+dependencies = ["block-buffer 0.12.1", "const-oid", "crypto-common 0.2.2", "ctutils"]
+[[package]]
+name = "digest"
+version = "0.11.4"
+dependencies = ["const-oid", "ctutils", "required-future-feature"]
+[[package]]
+name = "digest"
+version = "0.10.7"
+dependencies = ["const-oid", "ctutils"]
+[[package]]
+name = "other-provider"
+version = "0.11.3"
+dependencies = ["const-oid", "ctutils"]
+"#).unwrap();
+        let before = lock.clone();
+        strip_unused_workspace_feature_edges(&mut lock).unwrap();
+        let packages = lock["package"].as_array().unwrap();
+        assert_eq!(packages[0]["dependencies"].as_array().unwrap(),
+            &[toml::Value::String("block-buffer 0.12.1".into()),
+                toml::Value::String("crypto-common 0.2.2".into())]);
+        assert_eq!(&packages[1..], &before["package"].as_array().unwrap()[1..],
+            "required edges, other owners and future/old digest versions need their own feature proof");
     }
 
     #[test]
@@ -5829,7 +5910,8 @@ mod tests {
                     generated_dependency_requirement(&manifest, name).unwrap();
                 let selected = packages
                     .iter()
-                    .filter(|package| package["name"].as_str() == Some(package_name.as_str()))
+                    .filter(|package| package["name"].as_str() == Some(package_name.as_str())
+                        && requirement.matches(&semver::Version::parse(package["version"].as_str().unwrap()).unwrap()))
                     .collect::<Vec<_>>();
                 assert_eq!(selected.len(), 1, "ambiguous generated {name} dependency");
                 let version =
@@ -5839,13 +5921,35 @@ mod tests {
                     "incompatible generated {name}"
                 );
             }
-            assert!(packages.iter().all(|package| {
-                let name = package["name"].as_str().unwrap();
-                !matches!(name, "hkdf" | "hmac" | "spake2")
-                    && (name != "sha2" || package["version"].as_str().unwrap().starts_with("0.10."))
-                    && (name != "rand_core"
-                        || package["version"].as_str().unwrap().starts_with("0.6."))
-            }));
+            assert!(packages.iter().all(|package| !matches!(
+                package["name"].as_str().unwrap(), "hkdf" | "hmac" | "spake2"
+            )));
+            // A transitive dependency may legitimately need a second SHA2 or
+            // RNG generation (e.g. Ed25519's provider). It must be an exact
+            // current locked package, never a fabricated or upgraded record.
+            for package in packages.iter().filter(|package|
+                package["name"].as_str() != Some(GENERATED_PACKAGE_NAME)) {
+                let matches = workspace_lock["package"].as_array().unwrap().iter()
+                    .filter(|original| original["name"] == package["name"]
+                        && original["version"] == package["version"])
+                    .collect::<Vec<_>>();
+                assert_eq!(matches.len(), 1, "projected package identity must be unique");
+                let mut expected = matches[0].clone();
+                let expected_table = expected.as_table_mut().unwrap();
+                let name = expected_table["name"].as_str().unwrap().to_owned();
+                let version = expected_table["version"].as_str().unwrap().to_owned();
+                if let Some(dependencies) = expected_table.get_mut("dependencies")
+                    .and_then(toml::Value::as_array_mut) {
+                    dependencies.retain(|dependency| {
+                        let edge = dependency.as_str().unwrap().split(' ').next();
+                        !GENERATED_RUNTIME_UNUSED_FEATURE_EDGES.iter().any(|(owner, unused)|
+                            *owner == name && edge == Some(*unused))
+                            && !GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES.iter().any(|(owner, pin, unused)|
+                                *owner == name && *pin == version && edge == Some(*unused))
+                    });
+                }
+                assert_eq!(*package, expected, "projected package bytes/edges must preserve the current workspace record");
+            }
         }
     }
 

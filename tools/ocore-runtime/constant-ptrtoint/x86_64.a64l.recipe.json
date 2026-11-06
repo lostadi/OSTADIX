@@ -1,0 +1,96 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-musl-1.2.5-a64l-x86_64",
+  "source": {
+    "url": "https://git.musl-libc.org/git/musl",
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "complete-explicit-original-two-function-a64l-unit",
+  "intended_execution_profile": "external test bootstrap and declared original libc strchr provider; no runtime closure",
+  "intended_targets": [
+    "x86_64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_a64l.py",
+    "sha256": "2eaa8c17d02b780b5673f03e9eb211d529df8b1d2186b36b822f197f9eeff2d4"
+  },
+  "commands": [
+    {
+      "name": "build-original-a64l",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_a64l.py",
+        "build",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "2eaa8c17d02b780b5673f03e9eb211d529df8b1d2186b36b822f197f9eeff2d4"
+      ]
+    },
+    {
+      "name": "inventory-original-a64l",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_a64l.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "2eaa8c17d02b780b5673f03e9eb211d529df8b1d2186b36b822f197f9eeff2d4"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "obj/src/misc/a64l.o",
+      "component-build.json",
+      "unit-inventory.json",
+      "obj/include/bits/alltypes.h",
+      "obj/include/bits/syscall.h"
+    ],
+    "required_units": [
+      {
+        "id": "original-a64l",
+        "kind": "clang",
+        "source": "src/misc/a64l.c",
+        "role": "runtime",
+        "build_step": "build-original-a64l"
+      }
+    ]
+  },
+  "dependencies": [],
+  "remaining_runtime_requirements": [
+    "Original source unit defines BOTH a64l and l64a. Strong strchr dependency is retained; component does not supply its implementation.",
+    "Reference original libc archives plus test bootstrap/Linux/QEMU are explicit test-only externals, not lowered original implementation closure."
+  ],
+  "scope_limits": [
+    "Complete original a64l.c unit with BOTH functions, original headers/Makefile unchanged; no function filtering, source rewrite or original compiler replacement.",
+    "Reference object/archive providers are capture/execution evidence; O-core generated unit is the owned component.",
+    "Executable scalar pointer constants only; no absolute-integer initializer/TLS/general-runtime/OS admission."
+  ],
+  "env": {
+    "CFLAGS": "",
+    "CPPFLAGS": "",
+    "LDFLAGS": ""
+  }
+}

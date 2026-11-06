@@ -69,6 +69,7 @@ fn operand_type(
         Operand::Int { ty, .. }
         | Operand::Float { ty, .. }
         | Operand::PointerBits { ty, .. }
+        | Operand::PointerToInteger { ty, .. }
         | Operand::Null { ty }
         | Operand::Symbol { ty, .. }
         | Operand::SymbolOffset { ty, .. }

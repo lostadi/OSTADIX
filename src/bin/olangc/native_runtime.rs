@@ -1104,6 +1104,7 @@ fn function_dependencies(
                 } => {
                     block_references.insert((function.clone(), *block));
                 }
+                Operand::PointerToInteger { pointer, .. } => pending.push(pointer),
                 Operand::Aggregate { elements, .. } => pending.extend(elements),
                 _ => {}
             }
@@ -4959,6 +4960,26 @@ mod tests {
                     .collect::<BTreeSet<_>>()
             );
         }
+    }
+
+    #[test]
+    fn constant_ptrtoint_dependencies_retain_nested_symbol_and_block_identity() {
+        use o_lang::ocore::native_ir::{Operand, Terminator};
+        let mut function = object_inventory_tests::module().functions.remove(0);
+        function.exception_handling = None;
+        function.blocks.truncate(1);
+        function.blocks[0].instructions.clear();
+        // Scanner-only aggregate: exact types are separately verified by the
+        // native verifier. No reference can disappear inside the boxed child.
+        function.blocks[0].terminator = Terminator::Return {
+            value: Some(Operand::Aggregate { ty: 0, elements: vec![
+                Operand::PointerToInteger { ty: 0, pointer: Box::new(Operand::Symbol { ty: 0, name: "required_or_optional".into() }) },
+                Operand::PointerToInteger { ty: 0, pointer: Box::new(Operand::BlockAddress { ty: 0, function: "code_owner".into(), block: 7, addend: -4 }) },
+            ] }),
+        };
+        let (symbols, blocks) = function_dependencies(&function);
+        assert_eq!(symbols, BTreeSet::from(["required_or_optional".into()]));
+        assert_eq!(blocks, BTreeSet::from([("code_owner".into(), 7)]));
     }
 
     #[test]

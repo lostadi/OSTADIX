@@ -531,6 +531,7 @@ fn constant_type(value: &Operand) -> Option<TypeId> {
         Operand::Float { ty, .. }
         | Operand::Int { ty, .. }
         | Operand::PointerBits { ty, .. }
+        | Operand::PointerToInteger { ty, .. }
         | Operand::Null { ty }
         | Operand::Symbol { ty, .. }
         | Operand::SymbolOffset { ty, .. }
@@ -794,6 +795,7 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                             Operand::Float { ty, .. }
                             | Operand::Int { ty, .. }
                             | Operand::PointerBits { ty, .. }
+                            | Operand::PointerToInteger { ty, .. }
                             | Operand::Null { ty }
                             | Operand::Symbol { ty, .. }
                             | Operand::SymbolOffset { ty, .. }
@@ -1404,6 +1406,7 @@ impl<'a> Emitter<'a> {
             Operand::Float { ty, .. }
             | Operand::Int { ty, .. }
             | Operand::PointerBits { ty, .. }
+            | Operand::PointerToInteger { ty, .. }
             | Operand::Null { ty }
             | Operand::Symbol { ty, .. }
             | Operand::SymbolOffset { ty, .. }
@@ -1612,6 +1615,27 @@ impl<'a> Emitter<'a> {
             | Operand::AggregateZero { .. }
             | Operand::Undef { .. }
             | Operand::Poison { .. } => self.immediate(out, reg, 0),
+            Operand::PointerToInteger { ty, pointer } => {
+                if bit_offset >= 64 {
+                    // AS0 has exactly64 representation bits, including when
+                    // bit63 is set. Widening always supplies a zero high word.
+                    self.immediate(out, reg, 0);
+                } else {
+                    self.operand(out, reg, pointer);
+                    let Type::Int { bits } = self.module.types[*ty] else {
+                        unreachable!("verified constant ptrtoint integer result");
+                    };
+                    self.mask(out, reg, bits.min(64));
+                    if bit_offset != 0 {
+                        let register = self.reg(reg);
+                        match self.target {
+                            Target::X86_64UnknownNone => writeln!(out, "  shr {register}, {bit_offset}").unwrap(),
+                            Target::Aarch64UnknownNone => writeln!(out, "  lsr {register}, {register}, #{bit_offset}").unwrap(),
+                            Target::Riscv64UnknownNone => writeln!(out, "  srli {register}, {register}, {bit_offset}").unwrap(),
+                        }
+                    }
+                }
+            }
             Operand::Symbol { name, .. } => self.symbol_address(out, reg, name, 0),
             Operand::SymbolOffset { name, addend, .. } => {
                 self.symbol_address(out, reg, name, *addend)

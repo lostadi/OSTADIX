@@ -1266,6 +1266,23 @@ mod tests {
     }
 
     #[test]
+    fn scalar_leaf_does_not_hide_pointer_effects_inside_an_integer_operand() {
+        let mut descriptor: serde_json::Value = serde_json::from_str(&test_descriptor(1, false)).unwrap();
+        descriptor["module"]["types"].as_array_mut().unwrap().push(
+            serde_json::json!({"kind":"pointer","address_space":0}));
+        let block = &mut descriptor["module"]["functions"][0]["blocks"][0];
+        block["instructions"] = serde_json::json!([]);
+        block["terminator"] = serde_json::json!({"op":"return","value":{
+            "kind":"pointer_to_integer","ty":1,
+            "pointer":{"kind":"pointer_bits","ty":3,"bits":"17"}}});
+        let module: NativeModule = serde_json::from_value(descriptor["module"].clone()).unwrap();
+        crate::ocore::native_verify::verify(&module).unwrap();
+        assert!(module.globals.is_empty(), "the operand audit must close the hidden-global shortcut");
+        let error = validate_descriptor(&descriptor.to_string(), 1).unwrap_err();
+        assert!(format!("{error:#}").contains("operand"), "{error:#}");
+    }
+
+    #[test]
     fn native_leaf_audits_every_function_and_rejects_cycles_and_supplied_code() {
         let good = test_descriptor(1, false);
         validate_descriptor(&good, 1).unwrap();

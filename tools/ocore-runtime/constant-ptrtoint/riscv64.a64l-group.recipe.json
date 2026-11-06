@@ -1,0 +1,120 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-musl-1.2.5-a64l-string-group-riscv64",
+  "source": {
+    "url": "https://git.musl-libc.org/git/musl",
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "complete-explicit-original-four-unit-a64l-string-component",
+  "intended_execution_profile": "external test bootstrap and declared original libc strchr provider; no runtime closure",
+  "intended_targets": [
+    "riscv64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_a64l_group.py",
+    "sha256": "df36f5ef79ab3ef0fbd744d7482d4a21f2479eec34fdf2ed9c36b774f106302b"
+  },
+  "commands": [
+    {
+      "name": "build-original-a64l-string-group",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_a64l_group.py",
+        "build",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "riscv64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "df36f5ef79ab3ef0fbd744d7482d4a21f2479eec34fdf2ed9c36b774f106302b"
+      ]
+    },
+    {
+      "name": "inventory-original-a64l-string-group",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_a64l_group.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "riscv64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "df36f5ef79ab3ef0fbd744d7482d4a21f2479eec34fdf2ed9c36b774f106302b"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "obj/src/misc/a64l.o",
+      "obj/src/string/strchr.o",
+      "obj/src/string/strchrnul.o",
+      "obj/src/string/strlen.o",
+      "component-build.json",
+      "unit-inventory.json",
+      "obj/include/bits/alltypes.h",
+      "obj/include/bits/syscall.h"
+    ],
+    "required_units": [
+      {
+        "id": "original-a64l",
+        "kind": "clang",
+        "source": "src/misc/a64l.c",
+        "role": "runtime",
+        "build_step": "build-original-a64l-string-group"
+      },
+      {
+        "id": "original-strchr",
+        "kind": "clang",
+        "source": "src/string/strchr.c",
+        "role": "runtime",
+        "build_step": "build-original-a64l-string-group"
+      },
+      {
+        "id": "original-strchrnul",
+        "kind": "clang",
+        "source": "src/string/strchrnul.c",
+        "role": "runtime",
+        "build_step": "build-original-a64l-string-group"
+      },
+      {
+        "id": "original-strlen",
+        "kind": "clang",
+        "source": "src/string/strlen.c",
+        "role": "runtime",
+        "build_step": "build-original-a64l-string-group"
+      }
+    ]
+  },
+  "dependencies": [],
+  "remaining_runtime_requirements": [
+    "Finite four-unit original source component only; source symbol closure does not qualify arbitrary full libc/CRT/platform/runtime behavior.",
+    "Clang test bootstrap/Linux/QEMU remain separately declared test environment, not lowered original runtime closure."
+  ],
+  "scope_limits": [
+    "All original a64l.c/strchr.c/strchrnul.c/strlen.c function definitions, declarations, alias and original Makefile/header graph retained; no source or captured invocation rewrite.",
+    "Original reference objects are build evidence; owned emitted artifacts contain only generated O-core objects.",
+    "No absolute integer initializer/TLS/complete-libc/whole-OS or physical-driver admission."
+  ],
+  "env": {
+    "CFLAGS": "",
+    "CPPFLAGS": "",
+    "LDFLAGS": ""
+  }
+}
