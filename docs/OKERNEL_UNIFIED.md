@@ -47,6 +47,38 @@ host; failed saves retain the running VM for inspection and an explicit retry.
 Both typed logout forms, terminal restoration and saved-file reopening passed
 the real two-boot `scripts/verify_okernel_console_exit.py` check on 2026-11-05.
 
+## X12 live image
+
+The [development ISO](/home/ustad/okernel-x12-20261105.iso) and
+[boot guide](/home/ustad/okernel-x12-20261105.README.md) use the original
+`7.0.14-ustad-native-20261031` Linux kernel, all 6,900 matching modules and the
+complete captured firmware tree. Linux hosts the frozen O-core compatibility
+environment. Physical X12 peripheral operation and native driver lowering
+remain unqualified.
+
+This is a live system with RAM storage. Its paired save supports reopening
+within the same boot; poweroff discards workspace and package changes. The
+installed host console described above keeps its saved pair on the host disk.
+
+Fresh assembly reproduced the complete ISO byte-for-byte. The explicit UEFI
+USB HID test passed actual visible-console input with PS/2 disabled and the
+legacy USB keyboard fallback excluded. Its recorded keys exercised original
+`usbhid`/`hid-generic` child-driver loading after the hotplug helper was enabled.
+
+The instruction-clock ISO test exchanged binary files through original Plan 9
+and ran the original Linux compiler/program workflow with status 0. Its outer
+screen parser then rejected a source-output marker split by tmux redraws;
+that failed receipt remains preserved. ISO save, typed exit and poweroff were
+not reached in that run and remain unqualified. Ordinary nested startup also
+missed both the 180-second and 900-second budgets. These results are separate
+from the passing installed-host logout checks.
+
+The [image builder guide](../ocore/guest/x12-live/README.md) describes captured
+inputs, reproduction and the distinct boot profiles. This image is an
+intermediate development environment for the native-system target above.
+
+## Running programs
+
 From the Linux console, use ordinary Linux commands and `p9 NAME` for original
 Plan 9 programs. Both resolve files in the shared workspace:
 

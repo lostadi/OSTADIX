@@ -42,6 +42,21 @@ def terminal_text(data):
     return data.replace(b"\r", b"")
 
 
+def application_output_ready(text, token, shared_digest):
+    """Advance on status/checksums; final source proof uses the saved raw log.
+
+    tmux can redraw in the middle of the source program's output, so stripping
+    terminal escapes does not reliably produce that contiguous literal here.
+    """
+    # Echo contains the literal %s, never this decimal status.
+    marker = re.search(rb"OKERNEL_ISO_COMMAND_" + token.encode() + rb":([0-9]+)", text)
+    if marker is None:
+        return False
+    if marker.group(1) != b"0" or text.count(shared_digest.encode()) < 2:
+        raise RuntimeError("shared-file/source-build command failed")
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--iso", type=Path, required=True)
@@ -243,16 +258,10 @@ def main():
                             + " && cc /n/okernel/work/iso-" + token + ".c -o /work/iso-" + token
                             + " && /work/iso-" + token + "; _iso_rc=$?; printf '\\nOKERNEL_ISO_COMMAND_" + token + ":%s\\n' \"$_iso_rc\"\n")
                         send(command.encode()); stage = "application"
-                    if stage == "application":
-                        # Echo contains the literal %s, never this decimal status.
+                    if stage == "application" and application_output_ready(text, token, shared_digest):
                         # Full raw domain logs are independently checked after save.
-                        marker = re.search(rb"OKERNEL_ISO_COMMAND_" + token.encode() + rb":([0-9]+)", text)
-                        if marker:
-                            if (marker.group(1) != b"0" or text.count(shared_digest.encode()) < 2
-                                    or b"OKERNEL_ISO_SOURCE_" + token.encode() not in text):
-                                raise RuntimeError("shared-file/source-build command failed")
-                            event("original-plan9-shared-read-and-original-linux-source-build")
-                            stage_start = len(capture); send(b"exit\n"); stage = "exit"
+                        event("original-plan9-shared-read-and-original-linux-source-build")
+                        stage_start = len(capture); send(b"exit\n"); stage = "exit"
                     if stage == "exit" and HOST_MENU in terminal_text(bytes(capture[stage_start:])):
                         if slow_launched and b"OKERNEL_ISO_SLOW_CALLER_STATUS:0" not in terminal_text(bytes(capture[stage_start:])):
                             raise RuntimeError("explicit slow caller did not return success")
