@@ -1605,6 +1605,36 @@ cargo run -- examples/hello.O
 python3 -m o_lang examples/hello.O
 ```
 
+#### Recovering stale Nix profile backups
+
+When Nix is selected, setup checks for leftover `.backup-before-nix` files
+before installing packages or editor support. These files can remain after an
+uninstall and stop the official installer. An existing Nix executable is reused,
+including one in its standard installation path outside the current `PATH`;
+its normal profile backups are left in place. Setup verifies the executable
+with `nix --version` and a network-free evaluation of `1 + 1`.
+
+For recognized leftovers, inspect the proposed recovery first, then request it
+explicitly:
+
+```bash
+./setup.sh --full --repair-nix-profiles --dry-run
+./setup.sh --full --repair-nix-profiles
+```
+
+Recovery moves the original profiles and backups into a private, uniquely
+named `/etc/nix-profile-recovery-*` directory and records their original paths
+and SHA-256 hashes in a manifest. It accepts only empty affected files or the
+recognized standard Nix startup blocks. Custom shell configuration, symbolic
+links, changed files, or evidence of a remaining Nix installation require
+manual inspection. Recovery does not restore an old backup over a current
+profile or delete a Nix store or volume.
+
+`--yes` alone does not enable this repair. `--check` and `--dry-run` leave the
+profiles untouched; `--no-nix` excludes the Nix dependency profile from setup.
+See the [platform setup recovery guide](setup/os/README.md#recovering-stale-nix-profile-backups)
+for the recovery scope and the location of preserved originals.
+
 ### Option B: Manual Rust setup
 
 ```bash
