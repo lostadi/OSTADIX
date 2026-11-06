@@ -1,0 +1,239 @@
+{
+  "schema": "ostadix.qemu-r7-source-package/v1",
+  "files": [
+    {
+      "relative": "LICENSES/COPYING",
+      "bytes": 17880,
+      "sha256": "dd3ce02338c3a48abb6ba59b48809f7108a8bd242cb0cc8be90daafa30707c28",
+      "executable": false
+    },
+    {
+      "relative": "LICENSES/COPYING.LIB",
+      "bytes": 26415,
+      "sha256": "31c90ce76b6f5aab90a205851e71d5c27e31c0aa3d7017a4383b98a6fe3f1faa",
+      "executable": false
+    },
+    {
+      "relative": "README.md",
+      "bytes": 4430,
+      "sha256": "daa0c9241abe1876f0ec34daf1759aa98f3881889c9e33e5828cd0c84466695a",
+      "executable": false
+    },
+    {
+      "relative": "UPSTREAM-NOTICES.md",
+      "bytes": 1453,
+      "sha256": "ab15d8fd673feb873cf642ac62e978d39c4c5e30571805f38a9dd5961dd9b81c",
+      "executable": false
+    },
+    {
+      "relative": "qualification-index.json",
+      "bytes": 2338,
+      "sha256": "77666c51587f2ab44fe3a09ba423270e114d84dddf29420a897162e480bbffaf",
+      "executable": false
+    },
+    {
+      "relative": "recipe-error-paths.py",
+      "bytes": 6343,
+      "sha256": "fac249b2820b1910ed192202a5ab4c0d4df4f9320279b992af944457aafae680",
+      "executable": false
+    },
+    {
+      "relative": "recipe-schema-controls.py",
+      "bytes": 4311,
+      "sha256": "9574043b42ccd89b9c6a1992de713d07e7adfcfea786028e4e68311d4c6e06a5",
+      "executable": false
+    },
+    {
+      "relative": "recipe-structural-checks.py",
+      "bytes": 2808,
+      "sha256": "da2f6b018ca786e61b0382eb63c23f788140dad79f91c23d4bb63512cee7934d",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/README.md",
+      "bytes": 4748,
+      "sha256": "9adfddb72793d176b49b47dbc54fa6c51998920713bb34e22b9096f745110e9a",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/build.py",
+      "bytes": 7689,
+      "sha256": "e697d0735d2f830a936249f8be9bc92d5dadd01310506b5ea1ac5a79d0ca5f2f",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/migration-controls/description.json",
+      "bytes": 602,
+      "sha256": "18c736b346c4342ddea7ef7737fa453ec3ee7ff24e6411669a917161c06a1be1",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/migration-controls/make_source.py",
+      "bytes": 3802,
+      "sha256": "0ad923d301fb25ef8d2f28e4ccb0b9c8b6b47aa2ae81c4de2e9621c75088e6c5",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/migration-controls/migration.S",
+      "bytes": 4740,
+      "sha256": "3243cfc7b526e4230baa169665a239301a3fb13c91287a00aae0ee248b068522",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/migration-controls/run.py",
+      "bytes": 9181,
+      "sha256": "10199cdcb3682dacb25d2513bbedcb55ab12c90ebf75e82c0fb0a15f11584133",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/migration-stream-controls/run_r6.py",
+      "bytes": 6544,
+      "sha256": "49af261d948534ca9c8b3f5dc91dd22f7a3ec06e5041d12f951b9c1699e2762d",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/pointer/checker.py",
+      "bytes": 10397,
+      "sha256": "f375e1d7d13c312bb913a7397c5d1eea8c570728906810acb92774b7bfa40008",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/pointer/probe.S",
+      "bytes": 8668,
+      "sha256": "af1913f05fcfa3fbc1d9a557bde9ddf5b596f8883d506b76bbf4629df4f194ad",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/pointer/run.py",
+      "bytes": 6410,
+      "sha256": "1c4bcc1985a83fb8770e8dd8aaf7010c80e05c1db6d19d6392c21b2f9097dc68",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/real-env-controls/boot.S",
+      "bytes": 335,
+      "sha256": "29e3cab0e8f87ff07a67076a9915ec672bc683a75e5df5a17bfbd2d0d09fbd48",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/real-env-controls/real.S",
+      "bytes": 2419,
+      "sha256": "d125f673fcbcad69c5d8ad1efafcd2c09c62980e0aec98fbffd8ca5a57d04847",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/real-env-controls/run.py",
+      "bytes": 6650,
+      "sha256": "e8a8c91d02a0e6a47be3e6de989191d840ad28ea60f44fcf1bedf903cdc1c920",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/system-controls/checker.py",
+      "bytes": 7152,
+      "sha256": "9f99948af81de79739dabcfee7e560c16eac8a889a0ca668628651b8c9ae26b1",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/system-controls/controls.S",
+      "bytes": 17585,
+      "sha256": "6433ab4323466de7c5e64813be8d4e54f5d1364a52960daee92d851df5479059",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/system-controls/description.json",
+      "bytes": 1971,
+      "sha256": "1fb8d16a0ce9a9723bf96be4f0dd29ca7cf3f8477a84045d8e42fc014f8f0f8e",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/system-controls/make_source.py",
+      "bytes": 11410,
+      "sha256": "983b5c4c316025d76f242452aa03ab56e2617acf956c37f7fddff9cc9ac93859",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/system-controls/run.py",
+      "bytes": 4794,
+      "sha256": "a5aad58538b42697251e67d959702d1832aab4289c4794c3eb0fd074c30c2a55",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/xsave-controls/checker.py",
+      "bytes": 4837,
+      "sha256": "861c29517a124a7fb0d253d80d0202ae050825dc4bfdc0cc56e162f881095e50",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/xsave-controls/description.json",
+      "bytes": 1234,
+      "sha256": "8a70a6df787ac01bc4609ad21780256618ffe65c19f00f25dd444b20f59db88f",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/xsave-controls/make_source.py",
+      "bytes": 4529,
+      "sha256": "3daf3cdeb99e9baa060daafeaa8de9b1e4c2b591ac9c64853f33dae5ae70111a",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/xsave-controls/run.py",
+      "bytes": 4792,
+      "sha256": "7e045832cb3f0483c916e156b7d24ffe7f2fed9c6e3bcc58a473b89f6d8f7ac4",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/fixtures/xsave-controls/xsave.S",
+      "bytes": 16429,
+      "sha256": "a0e444f80032b1b3cd7fb6f2d9d69ea8ecc941f2601d8fb79d6d321f6d1ac4e0",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/pins.json",
+      "bytes": 3236,
+      "sha256": "72cf05ff6389ac6d93d78d14a13b8ed9028ec6952cb6a214046e8820b6403c56",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/prepare_source.py",
+      "bytes": 4053,
+      "sha256": "f788cc2443fb0c174c4ee251ebcb8c627f0bd057d3bb1021e14fd654ab42f25d",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/qemu-fp-v1.patch",
+      "bytes": 31555,
+      "sha256": "86404ab957dbd51e3e59ad35245b3d4aefa63a11ee94315c8a68b98fea5bbe23",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/source-freeze.json",
+      "bytes": 1407,
+      "sha256": "775fc0f57a4b5d2b8760c107d9b91683fc1ba67743fba71dcfc50d02165b9821",
+      "executable": false
+    },
+    {
+      "relative": "recipe-v2/verify.py",
+      "bytes": 4999,
+      "sha256": "8c00225a418335d5102aca05baae4a842c5eb5ac2accc596def1b1833dd03df2",
+      "executable": false
+    },
+    {
+      "relative": "run-controls.py",
+      "bytes": 14583,
+      "sha256": "3e79c5d12731b7e635c45ee4f178e85f8f02270af9f360fbe35dfbc3e000294e",
+      "executable": false
+    },
+    {
+      "relative": "schema-inputs.json",
+      "bytes": 1210,
+      "sha256": "d86584726012615c82f1f0f63bbc88705ac11be907439895457a58ae48ae3ca8",
+      "executable": false
+    },
+    {
+      "relative": "test_run_controls.py",
+      "bytes": 9504,
+      "sha256": "a4171b09f7a1b5ed759f89b8b704e7d961f8e811db5b11559e3414caf227c895",
+      "executable": false
+    }
+  ]
+}

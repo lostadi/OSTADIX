@@ -1,0 +1,41 @@
+{
+  "source": "/home/ustad/.cache/okernel-qemu-fp-correction-rbp99mt4/source/qemu-11.1.3",
+  "paths": [
+    {
+      "relative": "target/i386/cpu.h",
+      "bytes": 110256,
+      "sha256": "46d2541889d5e95ff21ed7c391ab5a6aa5c762e8ee9f9bc8c0e4295152a5e648"
+    },
+    {
+      "relative": "target/i386/helper.h",
+      "bytes": 8175,
+      "sha256": "1b9266fbd52c8ed787d10b4023b448f32561668348e2ec79a6e8542f4e74034a"
+    },
+    {
+      "relative": "target/i386/tcg/emit.c.inc",
+      "bytes": 153557,
+      "sha256": "e845248f25b3c7340d2792b6fc778f840c1e3409d206c14a7102faf6cf194ea5"
+    },
+    {
+      "relative": "target/i386/tcg/fpu_helper.c",
+      "bytes": 120403,
+      "sha256": "9d8bbcf647deb20af681a220e80bd8082c7e29ffbf7ff25d509059b590e6b6cb"
+    },
+    {
+      "relative": "target/i386/tcg/translate.c",
+      "bytes": 117993,
+      "sha256": "83be37928dda0510d853ec0e32435f9370baeec3670e90dd89dca28ed6c9da57"
+    },
+    {
+      "relative": "linux-user/i386/signal.c",
+      "bytes": 28007,
+      "sha256": "cd008c780e0ffd9789d41e748e38ec629c40ff4d485a594062c0857f0b7d2567"
+    },
+    {
+      "relative": "target/i386/machine.c",
+      "bytes": 57244,
+      "sha256": "01450a7482eb4da6c9aaded3e547639caf39c7dc6b46d7ef33c5cafadc177465"
+    }
+  ],
+  "scope": "Private R7 native-i386 FX-onlysigreturn localcopy/MXCSRmaskABI; x86_64/actualXSAVE/core guards preserved. Arithmeticv2/fullnativeFPunmet."
+}

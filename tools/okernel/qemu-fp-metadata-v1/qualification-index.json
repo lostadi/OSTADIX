@@ -1,0 +1,53 @@
+{
+  "schema": "ostadix.qemu-r7-source-evidence-index/v1",
+  "base_head": "2634a9b16d0fbf1d0fc92af9cf570789a6e61b9d",
+  "base_tree": "7ec70486d47b8335106c93a30054e6c3a86e9d6e",
+  "external_evidence_root_diagnostic": "/home/ustad/.cache/okernel-qemu-fp-correction-rbp99mt4",
+  "external_records": [
+    {
+      "role": "corrected_recipe",
+      "path": "/home/ustad/.cache/okernel-qemu-fp-correction-rbp99mt4/recipe-v2-addendum-r2/result.json",
+      "bytes": 2580,
+      "sha256": "480efd3cfdae21e6a01f820e2866560ab8cf2bfc6a617576c6726e3e3a8ce20e"
+    },
+    {
+      "role": "fourteen_error_controls",
+      "path": "/home/ustad/.cache/okernel-qemu-fp-correction-rbp99mt4/recipe-error-paths-bxy7lumn/result.json",
+      "bytes": 22724,
+      "sha256": "8a0c733b6b2f64c7926d4fcfaa28a7cbabb02adbbde50eaf8b787422ff08de4b"
+    },
+    {
+      "role": "generators_and_owned_child",
+      "path": "/home/ustad/.cache/okernel-qemu-fp-correction-rbp99mt4/recipe-structural-h2i1g8yr/result.json",
+      "bytes": 9061,
+      "sha256": "dc05ee543b1f3340ce39ba5cee2537328d72780bdbb05ad352f663d98913ccf4"
+    },
+    {
+      "role": "six_schema_and_constructor_controls",
+      "path": "/home/ustad/.cache/okernel-qemu-fp-correction-rbp99mt4/recipe-schema-controls-i1h9xpv8/result.json",
+      "bytes": 8976,
+      "sha256": "b32b71e9c1a2c0404e235162839fa690752d0a48a436ee90e688952278dbb581"
+    }
+  ],
+  "historical_schema_inputs": "schema-inputs.json",
+  "patch_sha256": "86404ab957dbd51e3e59ad35245b3d4aefa63a11ee94315c8a68b98fea5bbe23",
+  "source_freeze_sha256": "775fc0f57a4b5d2b8760c107d9b91683fc1ba67743fba71dcfc50d02165b9821",
+  "independent_recipe_code_review": {
+    "path": "/home/ustad/.cache/okernel-qemu-v1-recipe-code-review-bn_htwty/REVIEW-v2.json",
+    "bytes": 7149,
+    "sha256": "dfba1c31a332d3fd531b70dc736ab67980742dee3a45a686f3e32885a75e9183"
+  },
+  "scope": "Historical R7 metadata evidence and corrected recipe controls are distinct. No new emulator execution is implied by schema replay. External absolute paths are diagnostic, not selectors.",
+  "unqualified": [
+    "arithmetic_V2",
+    "full_Intel_FP",
+    "native_Ocore_FP_provider",
+    "full_native_OS",
+    "physical_drivers",
+    "final_native_ISO",
+    "whole_system_efficiency",
+    "default_QEMU_override",
+    "upload"
+  ],
+  "publisher_signature_verified": false
+}

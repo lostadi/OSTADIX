@@ -1,0 +1,78 @@
+{
+  "schema": "ostadix.qemu-fp-metadata-recipe/v1",
+  "scope": "Private boundedTCGmetadata/format/error/reset/migrationv1; arithmeticv2/fullIntelFPU/nativeFP/OSunadmitted",
+  "original_archive": {
+    "url": "https://download.qemu.org/qemu-11.1.3.tar.xz",
+    "bytes": 141819712,
+    "sha256": "5a8289c7940dc77d3873c81a6c29ba3afe1446fc9d36e77fa1658cdbecb84b22",
+    "signature_verified": false
+  },
+  "patch": {
+    "path": "recipe-v2/qemu-fp-v1.patch",
+    "bytes": 31555,
+    "sha256": "86404ab957dbd51e3e59ad35245b3d4aefa63a11ee94315c8a68b98fea5bbe23"
+  },
+  "source_freeze": {
+    "path": "recipe-v2/source-freeze.json",
+    "bytes": 1407,
+    "sha256": "775fc0f57a4b5d2b8760c107d9b91683fc1ba67743fba71dcfc50d02165b9821"
+  },
+  "qualified_build": {
+    "path": "v1r7-build.json",
+    "bytes": 5582,
+    "sha256": "a7b392bbdd8965b0fa86dfc0b78e82951edda22bee6085733b3af8b6f6aceb47"
+  },
+  "portable_predecessor": {
+    "path": "portable-v1-build-2/result.json",
+    "bytes": 12231,
+    "sha256": "1afd4ae3eea6ca7f87e6b09b88c3aeab7f8e9081f11a6662d6542a5b5ad8d760"
+  },
+  "baseline": {
+    "path": "baseline-build.json",
+    "bytes": 4176,
+    "sha256": "e6a5a1a93c691efab53a0f10ef7adc11e388b67cc89f6782f17b2e260fdccbdd"
+  },
+  "models": {
+    "base": "Nehalem-v1,+x2apic (Intel6/26/3)",
+    "standard_xsave_subset": "SandyBridge-v1,+x2apic (XCR0=3,FP+SSEonly)"
+  },
+  "external_dependencies": [
+    "Linuxhost GCC13.3/GNUbinutils/devheaders/libraries asrecorded",
+    "Python3.12+stdlib/systempip/setuptools/wheel",
+    "ninja/pkg-config/git",
+    "LLVM22.1.6 SDK exact recordedtools",
+    "OVMF4M CODE/VARS exactrecordedbytes",
+    "mtools+mkfs.vfat",
+    "qemu-img forqcow2snapshotfixture"
+  ],
+  "primary_source_review": {
+    "path": "/home/ustad/.cache/okernel-qemu-r6-source-build-review-af06zfxk/source-build-review.json",
+    "bytes": 4862,
+    "sha256": "0e62cc265e76641dd7c555340b1b5733f6e6f02957eb339326454a0864260ed7"
+  },
+  "source_symlink_normalization": [
+    {
+      "relative": "subprojects/libvduse/linux-headers/linux",
+      "archive_target": "../../../linux-headers/linux/",
+      "extracted_target": "../../../linux-headers/linux",
+      "raw_target_bytes_identical": false,
+      "both_targets_resolve_same_existing_directory": true
+    },
+    {
+      "relative": "subprojects/libvduse/standard-headers/linux",
+      "archive_target": "../../../include/standard-headers/linux/",
+      "extracted_target": "../../../include/standard-headers/linux",
+      "raw_target_bytes_identical": false,
+      "both_targets_resolve_same_existing_directory": true
+    }
+  ],
+  "limits": [
+    "No complete originalQEMUROM sourcebootstrap",
+    "No cross-build-directory binaryequality claim: sourcefilenames/relocations differ",
+    "Nativei386 signalABI vs x86_64compatFOP distinguished; native32referencekernelunexecuted",
+    "ExtendedAVX/PKRU/supervisor/generalFPexceptiondeliveryunqualified",
+    "Unmaskedarithmeticresult/writebackcorrection REQUIREDv2, not completefrommetadataPASS",
+    "FP/SSEsignalentry initialized aftersavedframe/handlerCS; native32FX-onlyMXCSRmasked viahostlocalcopy, actualXSAVE/64corestrict."
+  ],
+  "original_files_sha256": "9533e917f4995101dfbf0e5153000b814c638e877970894d0502d37f13e8353c"
+}

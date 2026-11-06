@@ -1,0 +1,23 @@
+# Original QEMU FP metadata correction recipe (private v1, recipe revision2)
+
+This rebuilds a declared test realization from the original QEMU 11.1.3 release plus a seven-file patch. It does not install QEMU, replace the user's emulator, change any native O-core source, or admit a full FP/OS profile. Do not vendor the upstream archive into Git.
+
+The release is pinned by HTTPS-fetched SHA-256 and size in pins.json. GPG signature verification is not claimed. Original regular source bytes remain intact except the seven patch files. Python's data_filter removes a trailing slash from exactly two equivalent in-tree directory symlink targets; pins.json records the raw/extracted mapping. One upstream EDK2 absolute symlink is preserved opaque and never traversed or built. Embedded firmware binaries are original release inputs; a whole firmware-source bootstrap is not claimed.
+
+Use a fresh output for every command. Supply the archive, LLVM 22.1.6 SDK, OVMF 4 MiB images and Linux build prerequisites recorded in pins.json. The builder uses only the three Python wheels inside the original release, with downloads disabled. GCC/binutils, development headers/libraries, Python/stdlib/pip/setuptools/wheel, ninja, pkg-config and git are external host dependencies. This is not a hermetic toolchain bootstrap. Every build records actual tools, configuration and source inventories. Different build directories can change diagnostic strings and ELF relocation layout; no cross-path binary-equality claim is made.
+
+```
+python3 -B prepare_source.py --archive /path/qemu-11.1.3.tar.xz --output /fresh/prepared
+python3 -B build.py --source /fresh/prepared/qemu-11.1.3 --base-manifest /fresh/prepared/original-source.json --freeze source-freeze.json --output /fresh/built --prefix /fresh/private-prefix
+python3 -B verify.py --bin-dir /fresh/built/bin --source /fresh/prepared/qemu-11.1.3 --sdk /path/LLVM-22.1.6-Linux-X64/bin --output /fresh/verification
+```
+
+The fixed verifier copies the reviewed fixtures/controllers into its new output, records all location-only adaptations, and starts only its own bounded VMs sequentially. Program bytes and check laws remain explicit. ROM lookup is bound to the original release's pc-bios directory. Compiler/firmware/tool identities in a new environment still require review; build success is not runtime admission.
+
+The initial CPU profile is named Nehalem-v1,+x2apic (actual Intel 6/26/3). The separate standard XSAVE test uses SandyBridge-v1,+x2apic with XCR0=3 and qualifies only the declared x87/SSE format/init/error subset. AVX, XSAVEOPT optimization, other components/vendors/accelerators and full FPU behavior remain unqualified.
+
+The patch retains actual FIP/FDP/FOP, distinct W/non-W layouts, real ENV14/28, fresh per-operation exception provenance, fault-before-mutation guards, reset semantics, and additive migration selector state. Linux-user signal entry initializes baseline FP/SSE after successful frame capture and handler CS selection. Native i386's FX-only signal ABI masks unsupported MXCSR bits in a local copy; x86_64, valid XSAVE images and architectural FXRSTOR remain strict. Native-i386 and x86_64-compat-i386 FOP conversions differ; native32 reference-kernel execution is not claimed. AVX/PKRU/supervisor/full signal semantics remain unmet.
+
+The separate root-authored signal fixtures and immutable receipts accompany the evidence packet; they are not replaced by the system controls here. Most importantly, unmasked arithmetic result/writeback suppression is a REQUIRED subsequent v2 correction: metadata and preserved emulator-state checks do not establish arithmetic correctness. Full Intel FPU, native task FP state, physical boot and the user's complete native OS remain unadmitted.
+
+Recipe revision2 preserves the immutable v1 build/runtime evidence and corrects only orchestration: caught errors exit nonzero; final source/tool/fixture stability and child postguards are mandatory; the canonical complete original-file inventory and reviewed replacement freeze are joined to pins.json; two relocated source generators are parenthesized correctly. Each newly copied VM controller installs Linux parent-death SIGKILL before exec and checks the exact parent PID, so an outer timeout cannot leave its own VM orphaned. This is Linux-specific containment, not authority over existing processes. A separate real non-QEMU owned-child test and synthetic command/error tests qualify these driver paths; the old actual333 checks remain evidence for original program bytes/exact tools, not an execution of the revised wrapper. New generated assembly/description bytes are checked against the already executed fixtures. No build or QEMU rerun was needed for these recipe-only corrections.

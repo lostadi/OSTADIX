@@ -1,0 +1,35 @@
+{
+  "schema": "ostadix.qemu-r7-schema-replay-inputs/v1",
+  "files": [
+    {
+      "relative": "recipe-all-v1-r7/work/pointer/attempt-5/result.json",
+      "bytes": 26457,
+      "sha256": "f05579d3981b98c17c40e515dcaf521d0913df3bdf69b97294a7a510fff40267"
+    },
+    {
+      "relative": "system-controls/final-r6-attempt-1/result.json",
+      "bytes": 15390,
+      "sha256": "3a03d683f9e147bbee8188847d8c9d2b6b3df8313368ae320926e2b8f6684c83"
+    },
+    {
+      "relative": "real-env-controls/final-r6-attempt-1/result.json",
+      "bytes": 24586,
+      "sha256": "7691873ce3dbf1834379cabfb22fc1ad80b5b3625a90eb67a1576c35bbc3b45a"
+    },
+    {
+      "relative": "xsave-controls/final-r6-attempt-1/result.json",
+      "bytes": 14815,
+      "sha256": "3e822cf39aabe79ddfdad30e005660bf434b527dcf3eee717a7c4a2879ec0341"
+    },
+    {
+      "relative": "migration-controls/final-r6-attempt-1/result.json",
+      "bytes": 48382,
+      "sha256": "b4eae5113e26fdfe2c25808f50055ea5f8809b247299f86082f8baf899278f60"
+    },
+    {
+      "relative": "migration-stream-controls/final-r6-attempt-1/result.json",
+      "bytes": 16866,
+      "sha256": "3330ae9e8282dc11ed9b05630f5c7edcd4067fcd7c595de2dd868cd024c28cbb"
+    }
+  ]
+}

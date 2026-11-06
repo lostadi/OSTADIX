@@ -1,0 +1,35 @@
+{
+  "exports": [
+    "efi_main",
+    "image",
+    "command_loop",
+    "actual_w",
+    "actual_l",
+    "actual_env",
+    "state"
+  ],
+  "state_seeds": {
+    "H": {
+      "fop": 1077,
+      "fip": 4600387192,
+      "fdp": 9181685632,
+      "fcs": 0,
+      "fds": 0
+    },
+    "S": {
+      "fop": 1077,
+      "fip": 305419896,
+      "fdp": 591751040,
+      "fcs": 4660,
+      "fds": 22136
+    },
+    "Z": {
+      "fop": 0,
+      "fip": 0,
+      "fdp": 0,
+      "fcs": 0,
+      "fds": 0
+    }
+  },
+  "scope": "Authored soleCPU emulator metadata snapshot fixture; no nativekernel orfullFPU qualification"
+}
