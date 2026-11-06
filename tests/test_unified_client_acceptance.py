@@ -75,6 +75,13 @@ class ForegroundClientOracleTests(unittest.TestCase):
                 GATE.typed(Terminal(), text)
         compile(GATE.GUEST_HELPER, "typed-private-result-assertions.py", "exec")
 
+    def test_idle_traffic_monitor_cannot_borrow_a_preceding_profile(self):
+        self.assertEqual(GATE.admitted_monitor_revision(GATE.R10_MONITOR,
+                         "fa30ee495211844c299173b9c079119e73c333d2716bdc85fd1e0899e8719ca5"),
+                         "R10-idle-traffic")
+        with self.assertRaisesRegex(ValueError, "profile/input identity"):
+            GATE.admitted_monitor_revision(GATE.R10_MONITOR, GATE.MONITOR_PROFILES[GATE.R9_MONITOR])
+
     def test_actual_setup_helper_cannot_satisfy_completion_wait(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)

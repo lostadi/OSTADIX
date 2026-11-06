@@ -28,10 +28,12 @@ from okernel_unified_world import Volume, checked, common, validate_profile
 ROOT = Path(__file__).resolve().parents[1]
 R8_MONITOR = "f221ef2150dfbe0446cf6650fb4f4c9677ac95df9adc34e517e83d8b81134089"
 R9_MONITOR = "dfea381c44dc59910d418303c0419d58d66780b93f475017508841db8dd65c0b"
-MONITOR_REVISIONS = {R8_MONITOR: "R8", R9_MONITOR: "R9"}
+R10_MONITOR = "faff09c75e79cfbc5f4baf42bdbb030e5018e75fe683673d7c84b1bc19804ba1"
+MONITOR_REVISIONS = {R8_MONITOR: "R8", R9_MONITOR: "R9", R10_MONITOR: "R10-idle-traffic"}
 MONITOR_PROFILES = {
     R8_MONITOR: "de9938bb381d7db3613cabedc1fdbf0d18b3eb65b4318a8cee7a26f7292bee2c",
     R9_MONITOR: "d16d00728c1c52ba46c04485c9c0a564f4836ec9cd72a8e913622023eeabccba",
+    R10_MONITOR: "fa30ee495211844c299173b9c079119e73c333d2716bdc85fd1e0899e8719ca5",
 }
 
 # This assertion helper runs only as typed Linux test code. It observes the
