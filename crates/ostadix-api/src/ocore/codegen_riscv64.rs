@@ -31,9 +31,18 @@ pub(crate) fn emit_assembly_with_function_sections(
     mir: &MirProgram,
     function_sections: bool,
 ) -> Result<String, Diagnostic> {
+    emit_assembly_with_object_sections(hir, mir, function_sections, false)
+}
+
+pub(crate) fn emit_assembly_with_object_sections(
+    hir: &HirProgram,
+    mir: &MirProgram,
+    function_sections: bool,
+    data_sections: bool,
+) -> Result<String, Diagnostic> {
     let mut out = String::new();
     out.push_str(".file \"ocore\"\n.option push\n.option norelax\n");
-    emit_statics(hir, &mut out)?;
+    emit_statics(hir, &mut out, data_sections)?;
     for function in &mir.functions {
         FunctionCodegen::new(hir, function)?.emit(&mut out, function_sections)?;
     }
@@ -41,16 +50,27 @@ pub(crate) fn emit_assembly_with_function_sections(
     Ok(out)
 }
 
-fn emit_statics(hir: &HirProgram, out: &mut String) -> Result<(), Diagnostic> {
+fn emit_statics(hir: &HirProgram, out: &mut String, data_sections: bool) -> Result<(), Diagnostic> {
     for static_ in &hir.statics {
-        let section = static_.attrs.link_section.as_deref().unwrap_or({
-            if static_.mutable {
-                ".data"
+        if let Some(section) = static_.attrs.link_section.as_deref() {
+            // An explicit section is part of the source's placement contract.
+            writeln!(out, ".section {section}").unwrap();
+        } else if data_sections {
+            let (section, flags) = if static_.mutable {
+                (".data", "aw")
             } else {
-                ".rodata"
-            }
-        });
-        writeln!(out, ".section {section}").unwrap();
+                (".rodata", "a")
+            };
+            writeln!(
+                out,
+                ".section {section}.ocore_static.{},\"{flags}\"",
+                static_.symbol
+            )
+            .unwrap();
+        } else {
+            let section = if static_.mutable { ".data" } else { ".rodata" };
+            writeln!(out, ".section {section}").unwrap();
+        }
         let align = static_
             .attrs
             .align

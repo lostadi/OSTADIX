@@ -27,12 +27,13 @@ esac
 LINK_GC_FLAGS=()
 OCOREC_FUNCTION_SECTION_FLAGS=()
 if (( PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 \
-    || PROBE_MODE == 30 || PROBE_MODE == 32 )); then
-  # Live-personality and receipt probes carry the largest reachable kernels.
-  # Keep the fixed bootstrap reserve intact by discarding only unreachable,
-  # separately sectioned helpers; ordinary builds retain monolithic .text.
+    || PROBE_MODE == 30 || PROBE_MODE == 32 || PROBE_MODE == 16 || PROBE_MODE == 23 \
+    || PROBE_MODE == 27 || PROBE_MODE == 29 || PROBE_MODE == 34 )); then
+  # These probes carry the largest kernels. Preserve the fixed bootstrap
+  # reserve by letting linker reachability discard unreferenced functions and
+  # statics. All source inputs and explicit source link sections remain intact.
   LINK_GC_FLAGS=(--gc-sections)
-  OCOREC_FUNCTION_SECTION_FLAGS=(--function-sections)
+  OCOREC_FUNCTION_SECTION_FLAGS=(--function-sections --data-sections)
 fi
 
 BOOT_INFO_ENABLED="${OCORE_BOOT_INFO_ENABLED:-}"

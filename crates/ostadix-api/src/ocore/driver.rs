@@ -97,18 +97,21 @@ pub fn compile_native_module_with_map(
             "imported native modules have no .oc AST/HIR; use --emit mir",
         ));
     }
-    let (assembly, map, nonlocal_control) = if map_output.is_some()
-        && module.has_nonlocal_control_effects()
-    {
-        let (assembly, map, report) =
-            super::native_codegen::emit_with_map_and_nonlocal_report(&module, options.target)?;
-        (assembly, Some(map), Some(report))
-    } else if map_output.is_some() {
-        let (assembly, map) = super::native_codegen::emit_with_map(&module, options.target)?;
-        (assembly, Some(map), None)
-    } else {
-        (super::native_codegen::emit(&module, options.target)?, None, None)
-    };
+    let (assembly, map, nonlocal_control) =
+        if map_output.is_some() && module.has_nonlocal_control_effects() {
+            let (assembly, map, report) =
+                super::native_codegen::emit_with_map_and_nonlocal_report(&module, options.target)?;
+            (assembly, Some(map), Some(report))
+        } else if map_output.is_some() {
+            let (assembly, map) = super::native_codegen::emit_with_map(&module, options.target)?;
+            (assembly, Some(map), None)
+        } else {
+            (
+                super::native_codegen::emit(&module, options.target)?,
+                None,
+                None,
+            )
+        };
     let output = if options.emit == EmitKind::Assembly {
         write_text(&options.output, &assembly)?;
         CompileOutput {
@@ -236,10 +239,14 @@ pub fn verify_native_artifact_map(
     let assembly = std::str::from_utf8(&assembly_bytes)
         .map_err(|error| driver_error(format!("native assembly is not UTF-8: {error}")))?;
     record.assembly.verify(&module, target, assembly)?;
-    match (&record.nonlocal_control, module.has_nonlocal_control_effects()) {
+    match (
+        &record.nonlocal_control,
+        module.has_nonlocal_control_effects(),
+    ) {
         (Some(report), true) => {
-            let raw = serde_json::to_vec(report)
-                .map_err(|error| driver_error(format!("invalid native nonlocal report: {error}")))?;
+            let raw = serde_json::to_vec(report).map_err(|error| {
+                driver_error(format!("invalid native nonlocal report: {error}"))
+            })?;
             super::native_nonlocal::verify_report_json(&raw, &module, target, assembly)?;
         }
         (None, false) => {}
@@ -304,8 +311,25 @@ pub fn compile_with_function_sections(
     options: &CompileOptions,
     function_sections: bool,
 ) -> Result<CompileOutput, Diagnostic> {
+    compile_with_object_sections(inputs, options, function_sections, false)
+}
+
+/// Compile ordinary O-core with optional ELF section granularity. Explicit
+/// source link sections retain their names and placement. Linker roots and
+/// reachability, not source visibility, decide what a later GC link retains.
+pub fn compile_with_object_sections(
+    inputs: &[PathBuf],
+    options: &CompileOptions,
+    function_sections: bool,
+    data_sections: bool,
+) -> Result<CompileOutput, Diagnostic> {
     if inputs.is_empty() {
         return Err(driver_error("at least one .oc input is required"));
+    }
+    if data_sections && !matches!(options.emit, EmitKind::Assembly | EmitKind::Object) {
+        return Err(driver_error(
+            "data sections require assembly or object output",
+        ));
     }
     let mut parsed = Vec::new();
     for path in inputs {
@@ -346,15 +370,24 @@ pub fn compile_with_function_sections(
     }
 
     let assembly = match options.target {
-        Target::X86_64UnknownNone => {
-            codegen::emit_assembly_with_function_sections(&hir, &mir, function_sections)?
-        }
-        Target::Aarch64UnknownNone => {
-            codegen_aarch64::emit_assembly_with_function_sections(&hir, &mir, function_sections)?
-        }
-        Target::Riscv64UnknownNone => {
-            codegen_riscv64::emit_assembly_with_function_sections(&hir, &mir, function_sections)?
-        }
+        Target::X86_64UnknownNone => codegen::emit_assembly_with_object_sections(
+            &hir,
+            &mir,
+            function_sections,
+            data_sections,
+        )?,
+        Target::Aarch64UnknownNone => codegen_aarch64::emit_assembly_with_object_sections(
+            &hir,
+            &mir,
+            function_sections,
+            data_sections,
+        )?,
+        Target::Riscv64UnknownNone => codegen_riscv64::emit_assembly_with_object_sections(
+            &hir,
+            &mir,
+            function_sections,
+            data_sections,
+        )?,
     };
     if options.emit == EmitKind::Assembly {
         write_text(&options.output, &assembly)?;
@@ -1052,6 +1085,70 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn ordinary_object_section_api_preserves_old_wrappers_and_explicit_sections() {
+        let scratch = PrivateScratch::new().unwrap();
+        let source = scratch.0.join("sections.oc");
+        fs::write(
+            &source,
+            r#"module api_sections;
+@export @no_mangle static READONLY: u64 = 17;
+@export @no_mangle static mut MUTABLE: u64 = 23;
+@link_section(".data.exact") static mut EXACT: u64 = 31;
+@export @no_mangle fn entry() -> u64 { return READONLY; }
+"#,
+        )
+        .unwrap();
+        for target in Target::ALL {
+            let options = CompileOptions {
+                target: *target,
+                emit: EmitKind::Assembly,
+                output: scratch.0.join("sections.s"),
+                keep_assembly: false,
+            };
+            compile(&[source.clone()], &options).unwrap();
+            let ordinary = fs::read(&options.output).unwrap();
+            compile_with_object_sections(&[source.clone()], &options, false, false).unwrap();
+            assert_eq!(ordinary, fs::read(&options.output).unwrap());
+            compile_with_function_sections(&[source.clone()], &options, true).unwrap();
+            let functions = fs::read(&options.output).unwrap();
+            compile_with_object_sections(&[source.clone()], &options, true, false).unwrap();
+            assert_eq!(functions, fs::read(&options.output).unwrap());
+            compile_with_object_sections(&[source.clone()], &options, true, true).unwrap();
+            let data = fs::read_to_string(&options.output).unwrap();
+            assert!(data.contains(".section .rodata.ocore_static.READONLY,\"a\""));
+            assert!(data.contains(".section .data.ocore_static.MUTABLE,\"aw\""));
+            assert!(data.contains(".section .data.exact\n"));
+            assert!(!data.contains("ocore_static._O_api_sections__EXACT"));
+        }
+    }
+
+    #[test]
+    fn object_section_api_rejects_non_machine_output_before_reading_input() {
+        let scratch = PrivateScratch::new().unwrap();
+        for emit in [EmitKind::Ast, EmitKind::Hir, EmitKind::Mir] {
+            let output = scratch.0.join("must-not-exist");
+            let options = CompileOptions {
+                target: Target::X86_64UnknownNone,
+                emit,
+                output: output.clone(),
+                keep_assembly: false,
+            };
+            let error = compile_with_object_sections(
+                &[scratch.0.join("nonexistent-input.oc")],
+                &options,
+                false,
+                true,
+            )
+            .unwrap_err();
+            assert_eq!(
+                error.message,
+                "data sections require assembly or object output"
+            );
+            assert!(!output.exists());
+        }
+    }
 
     #[test]
     fn compiles_an_elf64_relocatable_object() {

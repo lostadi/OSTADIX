@@ -19,7 +19,8 @@ pub mod parser;
 pub mod typeck;
 
 pub use driver::{
-    compile, compile_with_function_sections, CompileOptions, CompileOutput, EmitKind,
+    compile, compile_with_function_sections, compile_with_object_sections, CompileOptions,
+    CompileOutput, EmitKind,
 };
 
 include!("native_core.rs");

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
-use o_lang::ocore::{compile_with_function_sections, CompileOptions, EmitKind, Target};
+use o_lang::ocore::{compile_with_object_sections, CompileOptions, EmitKind, Target};
 use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -33,7 +33,7 @@ struct Cli {
 
     /// Print the canonical target catalog as JSON without compiling or executing.
     /// Catalog membership alone does not qualify target health or semantics.
-    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "check"])]
+    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "check"])]
     list_targets: bool,
 
     /// Input representation. Imported IR is verified before all output.
@@ -96,7 +96,7 @@ struct Cli {
     native_map: Option<PathBuf>,
 
     /// Verify a native map against its module, exact assembly and artifact.
-    #[arg(long, requires_all = ["map_assembly", "map_artifact"], conflicts_with_all = ["check", "verify_native", "native_map", "output", "emit", "keep_asm", "function_sections"])]
+    #[arg(long, requires_all = ["map_assembly", "map_artifact"], conflicts_with_all = ["check", "verify_native", "native_map", "output", "emit", "keep_asm", "function_sections", "data_sections"])]
     verify_native_map: Option<PathBuf>,
 
     /// Exact generated assembly associated with --verify-native-map.
@@ -111,8 +111,13 @@ struct Cli {
     #[arg(long)]
     function_sections: bool,
 
+    /// Place ordinary O-core statics in separate ELF sections for linker GC.
+    /// Explicit source link sections are preserved exactly.
+    #[arg(long, conflicts_with = "verify_native")]
+    data_sections: bool,
+
     /// Parse each input module without typechecking, executing, or writing artifacts.
-    #[arg(long, conflicts_with_all = ["emit", "target", "output", "keep_asm", "function_sections"])]
+    #[arg(long, conflicts_with_all = ["emit", "target", "output", "keep_asm", "function_sections", "data_sections"])]
     check: bool,
 }
 
@@ -147,6 +152,14 @@ fn main() {
                 .expect("target catalog is serializable")
         );
         return;
+    }
+    if cli.input_kind != InputKind::Ocore && (cli.function_sections || cli.data_sections) {
+        eprintln!("ocorec: imported native function/data sections are not implemented");
+        std::process::exit(2);
+    }
+    if cli.data_sections && !matches!(cli.emit, Emit::Asm | Emit::Obj) {
+        eprintln!("ocorec: --data-sections requires --emit asm or obj");
+        std::process::exit(2);
     }
     if cli.native_map.is_some() && cli.input_kind == InputKind::Ocore {
         eprintln!("ocorec: native maps currently require --input-kind native-ir or llvm-ir");
@@ -293,17 +306,18 @@ fn main() {
             eprintln!("ocorec: native IR input requires exactly one complete module");
             std::process::exit(2);
         }
-        if cli.function_sections {
-            eprintln!("ocorec: imported native function sections are not implemented");
-            std::process::exit(2);
-        }
         o_lang::ocore::driver::compile_native_module_with_map(
             native_input,
             &options,
             cli.native_map.as_deref(),
         )
     } else {
-        compile_with_function_sections(&cli.inputs, &options, cli.function_sections)
+        compile_with_object_sections(
+            &cli.inputs,
+            &options,
+            cli.function_sections,
+            cli.data_sections,
+        )
     };
     match compiled {
         Ok(result) => {
