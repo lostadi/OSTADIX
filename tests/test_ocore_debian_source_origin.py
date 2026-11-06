@@ -7,8 +7,22 @@ import argparse, ast, contextlib, hashlib, io, json, os
 from pathlib import Path
 import stat, subprocess, tarfile, tempfile, types, unittest
 from unittest import mock
-WORKER_SHA='0c7bac46b423a5e4421bb08775581bc2cc4745dd894e59d7fab6562c9e586720'
-GIT_VERIFY_AST="FunctionDef(name='verify_source', args=arguments(args=[arg(arg='recipe', annotation=Name(id='dict', ctx=Load())), arg(arg='source', annotation=Name(id='Path', ctx=Load()))]), body=[Assign(targets=[Name(id='head', ctx=Store())], value=Call(func=Name(id='run_text', ctx=Load()), args=[List(elts=[Constant(value='git'), Constant(value='rev-parse'), Constant(value='HEAD')], ctx=Load()), Name(id='source', ctx=Load())])), If(test=Compare(left=Name(id='head', ctx=Load()), ops=[NotEq()], comparators=[Subscript(value=Subscript(value=Name(id='recipe', ctx=Load()), slice=Constant(value='source'), ctx=Load()), slice=Constant(value='revision'), ctx=Load())]), body=[Raise(exc=Call(func=Name(id='CaptureError', ctx=Load()), args=[JoinedStr(values=[Constant(value='source commit mismatch: expected '), FormattedValue(value=Subscript(value=Subscript(value=Name(id='recipe', ctx=Load()), slice=Constant(value='source'), ctx=Load()), slice=Constant(value='revision'), ctx=Load()), conversion=-1), Constant(value=', got '), FormattedValue(value=Name(id='head', ctx=Load()), conversion=-1)])]))]), Assign(targets=[Name(id='dirty', ctx=Store())], value=Call(func=Name(id='run_text', ctx=Load()), args=[List(elts=[Constant(value='git'), Constant(value='status'), Constant(value='--porcelain'), Constant(value='--untracked-files=normal')], ctx=Load()), Name(id='source', ctx=Load())])), If(test=Name(id='dirty', ctx=Load()), body=[Raise(exc=Call(func=Name(id='CaptureError', ctx=Load()), args=[JoinedStr(values=[Constant(value='source checkout must be clean before capture:\\n'), FormattedValue(value=Name(id='dirty', ctx=Load()), conversion=-1)])]))]), Assign(targets=[Name(id='submodules', ctx=Store())], value=Call(func=Name(id='run_text', ctx=Load()), args=[List(elts=[Constant(value='git'), Constant(value='submodule'), Constant(value='status'), Constant(value='--recursive')], ctx=Load()), Name(id='source', ctx=Load())])), If(test=Call(func=Name(id='any', ctx=Load()), args=[GeneratorExp(elt=Call(func=Attribute(value=Name(id='line', ctx=Load()), attr='startswith', ctx=Load()), args=[Tuple(elts=[Constant(value='-'), Constant(value='+'), Constant(value='U')], ctx=Load())]), generators=[comprehension(target=Name(id='line', ctx=Store()), iter=Call(func=Attribute(value=Name(id='submodules', ctx=Load()), attr='splitlines', ctx=Load())), is_async=0)])]), body=[Raise(exc=Call(func=Name(id='CaptureError', ctx=Load()), args=[Constant(value='source submodules must be initialized at their pinned commits')]))]), Return(value=Dict(keys=[Constant(value='path'), Constant(value='url'), Constant(value='revision'), Constant(value='commit_timestamp'), Constant(value='submodules'), Constant(value='clean_at_start')], values=[Call(func=Name(id='str', ctx=Load()), args=[Name(id='source', ctx=Load())]), Subscript(value=Subscript(value=Name(id='recipe', ctx=Load()), slice=Constant(value='source'), ctx=Load()), slice=Constant(value='url'), ctx=Load()), Name(id='head', ctx=Load()), Call(func=Name(id='run_text', ctx=Load()), args=[List(elts=[Constant(value='git'), Constant(value='show'), Constant(value='-s'), Constant(value='--format=%ct'), Constant(value='HEAD')], ctx=Load()), Name(id='source', ctx=Load())]), Call(func=Attribute(value=Name(id='submodules', ctx=Load()), attr='splitlines', ctx=Load())), Constant(value=True)]))], returns=Name(id='dict', ctx=Load()))"
+WORKER_SHA='758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36'
+# Parse the frozen legacy source with the selected Python so optional AST
+# dump-field formatting differences across recipient Python versions are harmless.
+GIT_VERIFY_SOURCE = r'''def verify_source(recipe: dict, source: Path) -> dict:
+    head = run_text(["git", "rev-parse", "HEAD"], source)
+    if head != recipe["source"]["revision"]:
+        raise CaptureError(f"source commit mismatch: expected {recipe['source']['revision']}, got {head}")
+    dirty = run_text(["git", "status", "--porcelain", "--untracked-files=normal"], source)
+    if dirty:
+        raise CaptureError(f"source checkout must be clean before capture:\n{dirty}")
+    submodules = run_text(["git", "submodule", "status", "--recursive"], source)
+    if any(line.startswith(("-", "+", "U")) for line in submodules.splitlines()):
+        raise CaptureError("source submodules must be initialized at their pinned commits")
+    return {"path": str(source), "url": recipe["source"]["url"], "revision": head,
+            "commit_timestamp": run_text(["git", "show", "-s", "--format=%ct", "HEAD"], source),
+            "submodules": submodules.splitlines(), "clean_at_start": True}'''
 ROOT=Path(__file__).resolve().parents[1]
 WORKER=ROOT/'scripts/ocore_runtime_capture.py'
 raw=WORKER.read_bytes()
@@ -164,7 +178,8 @@ class DebianSourceOriginTests(unittest.TestCase):
                 with self.assertRaisesRegex(capture.CaptureError,'complete source tree'): capture.verify_source_origin(self.recipe,root,context=state)
     def test_git_verifier_ast_and_epoch_behavior_are_preserved(self):
         tree=ast.parse(raw); node=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='verify_source')
-        self.assertEqual(ast.dump(node,include_attributes=False),GIT_VERIFY_AST)
+        self.assertEqual(ast.dump(node,include_attributes=False),
+                         ast.dump(ast.parse(GIT_VERIFY_SOURCE).body[0],include_attributes=False))
         env={}; capture.source_default_epoch(env,{'commit_timestamp':'123'}); self.assertEqual(env,{'SOURCE_DATE_EPOCH':'123'})
         env={'SOURCE_DATE_EPOCH':'999'}; capture.source_default_epoch(env,{'commit_timestamp':'123'}); self.assertEqual(env['SOURCE_DATE_EPOCH'],'999')
         capture.source_default_epoch(env,{'kind':'debian-source-v1'}); self.assertNotIn('SOURCE_DATE_EPOCH',env)
@@ -302,5 +317,29 @@ class DebianSourceOriginTests(unittest.TestCase):
                 else: self.assertIs(type(receipt['errors']),dict); self.assertEqual(receipt['errors'],{})
                 with self.assertRaisesRegex(capture.CaptureError,'materialization errors must be an actual empty list'):
                     capture.verify_source_origin(self.recipe,Path(state['path']),context=state)
+
+    def test_legacy_git_actual_checkout_revision_and_dirty_guards(self):
+        root=self.root/'original-git-fixture'; root.mkdir()
+        source=root/'main.c'; source.write_text('int main(void){return 0;}\n')
+        def git(*args):
+            result=subprocess.run(['git',*args],cwd=root,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            self.assertEqual(result.returncode,0,result.stderr.decode(errors='replace'))
+            return result.stdout.decode().strip()
+        git('init','-q'); git('add','main.c')
+        git('-c','user.name=Lee Daghlar Ostadi','-c','user.email=ostadi.lee@gmail.com',
+            '-c','commit.gpgsign=false','commit','-qm','Authored Git source-origin fixture')
+        revision=git('rev-parse','HEAD')
+        recipe={'source':{'revision':revision,'url':'https://example.invalid/authored-fixture'}}
+        self.assertTrue(capture.verify_source(recipe,root)['clean_at_start'])
+        wrong={'source':{**recipe['source'],'revision':'0'*40}}
+        with self.assertRaisesRegex(capture.CaptureError,'source commit mismatch'):
+            capture.verify_source(wrong,root)
+        source.write_text('int main(void){return 1;}\n')
+        with self.assertRaisesRegex(capture.CaptureError,'source checkout must be clean'):
+            capture.verify_source(recipe,root)
+        source.write_text('int main(void){return 0;}\n')
+        (root/'unexpected.c').write_text('untracked source\n')
+        with self.assertRaisesRegex(capture.CaptureError,'source checkout must be clean'):
+            capture.verify_source(recipe,root)
 
 if __name__=='__main__': unittest.main()
