@@ -43,18 +43,42 @@ def terminal_text(data):
 
 
 def application_output_ready(text, token, shared_digest):
-    """Advance on status/checksums; final source proof uses the saved raw log.
+    """Advance on command status; all application proof uses the saved raw log.
 
-    tmux can redraw in the middle of the source program's output, so stripping
-    terminal escapes does not reliably produce that contiguous literal here.
+    tmux can redraw in the middle of any output, including a digest or nonce.
+    Removing redraw newlines here is only a liveness check. It cannot qualify
+    either checksum or source execution; raw_application_assertions does that.
+    shared_digest remains in the call signature for existing fixture callers.
     """
     # Echo contains the literal %s, never this decimal status.
-    marker = re.search(rb"OKERNEL_ISO_COMMAND_" + token.encode() + rb":([0-9]+)", text)
+    marker = re.search(rb"OKERNEL_ISO_COMMAND_" + token.encode() + rb":([0-9]+)",
+                       text.replace(b"\n", b""))
     if marker is None:
         return False
-    if marker.group(1) != b"0" or text.count(shared_digest.encode()) < 2:
+    if marker.group(1) != b"0":
         raise RuntimeError("shared-file/source-build command failed")
     return True
+
+
+def raw_application_assertions(token, shared_digest):
+    """Generate the exact independent application oracle run after paired save.
+
+    p is the saved inner session directory in the outer diagnostic shell.
+    That closed raw log contains guest bytes, without tmux's screen redraws.
+    """
+    if not isinstance(token, str) or re.fullmatch(r"[0-9a-f]{20}", token) is None:
+        raise ValueError("invalid application nonce")
+    if not isinstance(shared_digest, str) or re.fullmatch(r"[0-9a-f]{64}", shared_digest) is None:
+        raise ValueError("invalid shared-file digest")
+    command = rb"(?:^|\n)OKERNEL_ISO_COMMAND_" + token.encode() + rb":0\n"
+    source = b"\nOKERNEL_ISO_SOURCE_" + token.encode() + b"\n"
+    code = ("b=(p/'linux-console.log').read_bytes().replace(b'\\r\\n',b'\\n');"
+            + "assert re.search(" + repr(command) + ",b);"
+            + "assert " + repr(source) + " in b;")
+    for name in ("/n/okernel/work/iso-" + token, "/work/iso-p9-" + token):
+        line = re.escape((shared_digest + "  " + name).encode())
+        code += "assert re.search(" + repr(rb"(?:^|\n)" + line + rb"\n") + ",b);"
+    return code
 
 
 def main():
@@ -282,9 +306,7 @@ def main():
                             "assert e['request_id'] in h.get('console_exit_consumed',[]);"
                             "v=Volume.from_file(h['namespace']['path']);"
                             "assert v.get('/work/iso-" + token + "')==bytes.fromhex('" + expected_shared.hex() + "');"
-                            "b=(p/'linux-console.log').read_bytes().replace(b'\\r\\n',b'\\n');"
-                            "assert re.search(rb'(?:^|\\n)OKERNEL_ISO_COMMAND_" + token + ":0\\n',b);"
-                            "assert b'\\nOKERNEL_ISO_SOURCE_" + token + "\\n' in b;"
+                            + raw_application_assertions(token, shared_digest) +
                             "print(json.dumps({'saved_disk':h['disk']['sha256'],'saved_namespace':h['namespace']['sha256'],'flags':True}))")
                         command = ("python3 -B -c " + shlex.quote(audit)
                             + "; _audit_rc=$?; printf '\\nOKERNEL_ISO_SAVE_AUDIT_" + token + ":%s\\n' \"$_audit_rc\"\n")

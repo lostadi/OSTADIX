@@ -2,6 +2,8 @@
 import hashlib
 import importlib.util
 from pathlib import Path
+import re
+import tempfile
 import unittest
 
 
@@ -51,11 +53,16 @@ class X12ApplicationScreenGate(unittest.TestCase):
                 text = self.text().replace(marker, marker[:-1] + str(status).encode())
                 verifier.application_output_ready(text, TOKEN, DIGEST)
 
-    def test_missing_either_checksum_still_fails(self):
+    def test_screen_checksums_are_not_the_completion_oracle(self):
         for count in (0, 1):
-            with self.subTest(checksum_count=count), self.assertRaisesRegex(RuntimeError, "command failed"):
+            with self.subTest(checksum_count=count):
                 text = self.text().replace(DIGEST.encode(), b"wrong checksum", 2 - count)
-                verifier.application_output_ready(text, TOKEN, DIGEST)
+                self.assertTrue(verifier.application_output_ready(text, TOKEN, DIGEST))
+
+    def test_redraw_may_split_the_numeric_completion_nonce(self):
+        marker = ("OKERNEL_ISO_COMMAND_" + TOKEN + ":0").encode()
+        self.assertTrue(verifier.application_output_ready(
+            self.text().replace(marker, marker[:29] + b"\n" + marker[29:]), TOKEN, DIGEST))
 
     def test_echo_and_another_nonce_do_not_complete_the_command(self):
         text = self.text()
@@ -63,6 +70,47 @@ class X12ApplicationScreenGate(unittest.TestCase):
         self.assertFalse(verifier.application_output_ready(
             text.replace(marker, marker[:-1] + b"%s"), TOKEN, DIGEST))
         self.assertFalse(verifier.application_output_ready(text, "another-nonce", DIGEST))
+
+
+class X12SavedRawApplicationOracle(unittest.TestCase):
+    def raw(self):
+        return ("boot\r\n" + DIGEST + "  /n/okernel/work/iso-" + TOKEN + "\r\n"
+                + DIGEST + "  /work/iso-p9-" + TOKEN + "\r\n"
+                + "OKERNEL_ISO_SOURCE_" + TOKEN + "\r\n"
+                + "OKERNEL_ISO_COMMAND_" + TOKEN + ":0\r\n").encode()
+
+    def check(self, raw):
+        with tempfile.TemporaryDirectory() as directory:
+            p = Path(directory)
+            (p / "linux-console.log").write_bytes(raw)
+            # Execute the actual generated oracle used inside the saved audit.
+            exec(verifier.raw_application_assertions(TOKEN, DIGEST), {"p": p, "re": re})
+
+    def test_both_original_file_digest_lines_source_and_success_are_required(self):
+        self.check(self.raw())
+        raw = self.raw()
+        lines = raw.splitlines(keepends=True)
+        for index in range(1, len(lines)):
+            with self.subTest(missing=index), self.assertRaises(AssertionError):
+                self.check(b"".join(lines[:index] + lines[index+1:]))
+
+    def test_wrong_digest_path_status_or_nonce_cannot_pass(self):
+        for old, new in ((DIGEST.encode(), b"0"*64),
+                         (b"/work/iso-p9-", b"/work/other-"),
+                         ((TOKEN+":0").encode(), (TOKEN+":1").encode()),
+                         (TOKEN.encode(), b"0"*20)):
+            with self.subTest(old=old), self.assertRaises(AssertionError):
+                self.check(self.raw().replace(old, new))
+
+    def test_source_command_echo_is_not_original_execution(self):
+        source = ("OKERNEL_ISO_SOURCE_" + TOKEN).encode()
+        with self.assertRaises(AssertionError):
+            self.check(self.raw().replace(b"\r\n"+source+b"\r\n", b'\r\nprintf("'+source+b'")\r\n'))
+
+    def test_nonce_and_digest_cannot_inject_a_diagnostic_program(self):
+        for token, digest in ((TOKEN+"';pass", DIGEST), (TOKEN, DIGEST+";pass"), (None, DIGEST)):
+            with self.subTest(token=token, digest=digest), self.assertRaises(ValueError):
+                verifier.raw_application_assertions(token, digest)
 
 
 if __name__ == "__main__": unittest.main()
