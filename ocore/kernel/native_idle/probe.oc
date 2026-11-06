@@ -1,0 +1,472 @@
+module kernel::m6;
+use runtime::serial::write;
+use runtime::address_space::create_loaded_for_owner;
+use runtime::address_space::loaded_entry;
+use runtime::address_space::loaded_stack_pointer;
+use runtime::address_space::root_cr3;
+use runtime::address_space::isolation_physical;
+use runtime::address_space::loaded_protections_hold;
+use runtime::capability::cspace_handle_for_slot;
+use runtime::domain::create_domain;
+use runtime::domain_namespace::init as namespaces_init;
+use runtime::domain_namespace::create as create_namespace;
+use runtime::domain_namespace::bind_process;
+use runtime::elf_loader::init as elf_init;
+use runtime::elf_loader::validate;
+use runtime::elf_loader::configure_startup;
+use runtime::elf_loader::release_plan;
+use runtime::image_vfs::init as vfs_init;
+use runtime::image_vfs::begin_image;
+use runtime::image_vfs::append_image_bytes;
+use runtime::image_vfs::verify_image_sha256;
+use runtime::image_vfs::import_ovfs_image;
+use runtime::image_vfs::publish_image;
+use runtime::image_vfs::OVFS_IMPORT_OK;
+use runtime::image_vfs::mount_root;
+use runtime::image_vfs::lookup;
+use runtime::image_vfs::retain_object;
+use runtime::memory_object::set_quota_for_owner;
+use runtime::native_abi::LINUX_MINIMAL_ABI_V1;
+use runtime::personality::PERSONALITY_LINUX_MINIMAL;
+use runtime::process::install_for_owner;
+use runtime::process::current_process_handle;
+use runtime::process::current_address_space_handle;
+use runtime::thread::init as threads_init;
+use runtime::thread::install_loaded;
+use runtime::scheduler::arm_personality;
+use runtime::scheduler::request_yield;
+use runtime::common::namespace_store::init as store_init;
+use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::handle;
+use runtime::common::namespace_store::provision_clock;
+use runtime::common::u9fs_codec::reset as codec_reset;
+use runtime::common::u9fs_codec::begin as codec_begin;
+use runtime::common::u9fs_codec::set_version;
+use runtime::common::u9fs_codec::set_attach;
+use runtime::common::u9fs_codec::set_walk;
+use runtime::common::u9fs_codec::set_create;
+use runtime::common::u9fs_codec::set_io;
+use runtime::common::u9fs_codec::set_fid;
+use runtime::common::u9fs_codec::encode;
+use runtime::common::u9fs_codec::decode;
+use runtime::common::u9fs_codec::kind;
+use runtime::common::u9fs_codec::tag;
+use runtime::common::u9fs_codec::count;
+use runtime::common::u9fs_codec::encodes;
+use runtime::common::u9fs_codec::decodes;
+use runtime::posix_file_syscalls::init as files_init;
+use runtime::posix_file_syscalls::provision;
+use runtime::posix_file_syscalls::revoke_process;
+use runtime::posix_file_syscalls::dispatch;
+use runtime::linux_tls_syscalls::arch_prctl;
+use runtime::thread::user_fs_selector_for;
+use runtime::thread::admit_linux_single_task;
+use runtime::thread::clear_child_tid_for;
+use runtime::thread::linux_single_task_for;
+use runtime::thread::cancel as thread_cancel;
+use runtime::thread::reap as thread_reap;
+use runtime::thread::terminate_process as threads_terminate_process;
+use runtime::linux_thread_syscalls::dispatch as thread_dispatch;
+use runtime::scheduler::enable_personality_idle;
+use runtime::scheduler::kernel_scheduler_take_idle;
+use runtime::scheduler::request_sleep;
+use runtime::scheduler::request_process_exit;
+use runtime::scheduler::idle_ticks;
+use runtime::scheduler::hostile_frame_containments;
+use runtime::thread::state as thread_state;
+use runtime::scheduler::failed as scheduler_failed;
+use runtime::scheduler::completion_kind;
+use runtime::thread::current_handle as current_thread_handle;
+use runtime::thread::runnable_count;
+use runtime::thread::blocked_count;
+use runtime::thread::queue_invariants_hold;
+use runtime::thread::user_fs_base_for;
+use runtime::process::process_state;
+use runtime::process::exit_code_for;
+use runtime::process::PROCESS_STATE_REAPABLE;
+
+// Isolated native-posix-files-x86_64 acceptance, not the historical Mode25
+// corpus. Mode25 supplies boot/router machinery only. Test-control calls are
+// private to this fixture. Four loaded principals exercise real CPL3/CR3,
+// SYSCALL, fault-recovering copies and current-process native file authority.
+// The fixed16MiB volume is a declared physical grant at64..80MiB in128MiB RAM.
+// A supervisor RW/NX aperture exists ONLY during masked synchronous service
+// operations. No extra mappings survive a user/scheduler return. No SMP claim.
+
+const LINUX_TASK_STARTUP: bool = false;
+const IDLE_ENABLED: bool = true;
+const NEGATIVE_CASE: u64 = 0;
+static mut READY: [u64; 4] = [0; 4];
+static mut CALLS: [u64; 4] = [0; 4];
+static mut USER_BASES: [u64; 4] = [0; 4];
+static mut MALFORMED_TICKS: u64 = 0;
+static mut MALFORMED_SURVIVOR: u64 = 0;
+static mut SLEPT: [u64; 4] = [0; 4];
+static mut WOKE: [u64; 4] = [0; 4];
+static mut EXITS: [u64; 4] = [0; 4];
+static mut SLEEP_IDLE_TICKS: u64 = 0;
+static mut FINAL_IDLE_TICKS: u64 = 0;
+static mut IDLE_CR3: u64 = 0;
+static mut IDLE_STACK: u64 = 0;
+static mut IDLE_GS: u64 = 0;
+static mut IDLE_KERNEL_GS: u64 = 0;
+static mut ACCEPTED: u64 = 0;
+static mut NEGATIVE_READY: u64 = 0;
+static mut ADMISSION_BEFORE: [u64; 8] = [0; 8];
+static mut ADMISSION_AFTER: [u64; 8] = [0; 8];
+static mut FORCE_PREPARE_FAILURE: u64 = 0;
+static mut NEGATIVE_RETURN: u64 = 0;
+extern "sysv64" fn ocore_restore_management_context() -> void;
+extern "sysv64" fn ocore_management_stack_top() -> usize;
+extern "sysv64" fn ocore_tss_rsp0() -> usize;
+extern "sysv64" fn ocore_entry_stack_top() -> usize;
+extern "sysv64" fn idle_probe_gs_base() -> u64;
+extern "sysv64" fn idle_probe_kernel_gs_base() -> u64;
+extern "sysv64" fn idle_probe_stack_pointer() -> usize;
+extern "sysv64" fn idle_probe_set_gs(value: u64) -> void;
+extern "sysv64" fn idle_probe_set_fs(value: u64) -> void;
+extern "sysv64" fn idle_probe_bad_stack_enable(top: usize) -> u64;
+const LINUX_TASK_ID_BASE: u64 = 4101;
+const PROBE_IMAGE_LENGTH: usize = 1;
+const PROBE_IMAGE_ID: u64 = 1;
+const PROBE_IMAGE_DIGEST_0: u64 = 0;
+const PROBE_IMAGE_DIGEST_1: u64 = 0;
+const PROBE_IMAGE_DIGEST_2: u64 = 0;
+const PROBE_IMAGE_DIGEST_3: u64 = 0;
+const PROBE_IMAGE_SHA_0: u64 = 0;
+const PROBE_IMAGE_SHA_1: u64 = 0;
+const PROBE_IMAGE_SHA_2: u64 = 0;
+const PROBE_IMAGE_SHA_3: u64 = 0;
+const TEST_CONTROL: u64 = 0x7fff0000;
+const VOLUME: usize = 0x04000000;
+const VOLUME_END: usize = 0x05000000;
+const PHYSICAL_MASK: u64 = 0x000ffffffffff000;
+const VOLUME_FLAGS: u64 = 0x8000000000000083;
+static mut OWNERS: [u64; 4] = [0; 4];
+static mut SPACES: [u64; 4] = [0; 4];
+static mut THREADS: [u64; 4] = [0; 4];
+static mut PHYSICALS: [usize; 4] = [0; 4];
+static mut DONE: [u64; 4] = [0; 4];
+static mut TLS_TESTED: [u64; 4] = [0; 4];
+static mut TLS_TIMER_CALLBACKS: [u64; 4] = [0; 4];
+static mut TLS_EXPECTED_BASES: [u64; 4] = [0; 4];
+static mut TLS_SELECTOR_MASKS: [u64; 4] = [0; 4];
+static mut TLS_SELECTOR_TIMER_MASKS: [u64; 4] = [0; 4];
+static mut TLS_OBSERVED_SELECTORS: [u64; 32] = [0; 32];
+static mut GENERATIONS: [u64; 4] = [1; 4];
+static mut FAULT_ARMED: u64 = 0;
+static mut USER_COPY_FAULTS: u64 = 0;
+static mut CONTAINED: u64 = 0;
+static mut WINDOW: usize = 0;
+static mut WINDOWS: u64 = 0;
+static mut PRODUCER: u64 = 0;
+static mut REQUEST: [u8; 8192] = [0; 8192];
+static mut RESPONSE: [u8; 8192] = [0; 8192];
+static mut PAYLOAD: [u8; 4096] = [0; 4096];
+static mut CONFIG: [u64; 15] = [0; 15];
+static mut ARGS: [u8; 21] = [110, 97, 116, 105, 118, 101, 45, 112, 111, 115, 105, 120, 45, 102, 105, 108, 101, 115, 0, 48, 0];
+static ENV: [u8; 7] = b"LANG=C\0";
+static EXECFN: [u8; 15] = b"/bin/probe.elf\0";
+// Deterministic explicit test bytes, NOT a platform entropy provider.
+static RANDOM: [u8; 16] = [0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f];
+static VERSION: [u8; 7] = b"9P2000\0";
+static EMPTY: [u8; 1] = b"\0";
+static WORK: [u8; 5] = b"work\0";
+static INPUT: [u8; 6] = b"input\0";
+static HEX: [u8; 16] = b"0123456789abcdef";
+static PREFIX: [u8; 19] = b"NATIVE IDLE PROBE: ";
+static NEWLINE: [u8; 1] = b"\n";
+extern "sysv64" fn ocore_current_cr3() -> usize;
+extern "sysv64" fn ocore_management_cr3() -> usize;
+extern "sysv64" fn ocore_process_kernel_stack_top(slot: usize) -> usize;
+extern "sysv64" fn ocore_m6_linux_image_start() -> usize;
+extern "sysv64" fn ocore_m6_linux_image_end() -> usize;
+extern "sysv64" fn posix_probe_flush(root: usize) -> void;
+extern "sysv64" fn posix_probe_flags() -> u64;
+extern "sysv64" fn tls_probe_cpu_fs_base() -> u64;
+extern "sysv64" fn tls_probe_cpu_fs_selector() -> u64;
+
+unsafe fn number(value: u64) -> void {
+    let mut bytes: [u8; 16] = [0; 16]; let mut i: usize = 0;
+    while i < 16 { bytes[i] = HEX[((value >> (60 - i * 4)) & 15) as usize]; i += 1; }
+    write(&bytes[0], 16); write(&NEWLINE[0], 1);
+}
+unsafe fn fail(code: u64) -> never { write(&PREFIX[0], 19); number(code); disable_interrupts(); loop { halt(); } }
+unsafe fn p2(root: usize) -> *mut u64 {
+    if root == 0 || (root & 4095) != 0 { fail(0x101); }
+    let third: usize = (volatile_load(root as *const u64) & PHYSICAL_MASK) as usize;
+    if third == 0 { fail(0x102); }
+    let second: usize = (volatile_load(third as *const u64) & PHYSICAL_MASK) as usize;
+    if second == 0 { fail(0x103); }
+    return second as *mut u64;
+}
+unsafe fn window_open() -> void {
+    if WINDOW != 0 || (posix_probe_flags() & 512) != 0 { fail(0x110); }
+    let root: usize = ocore_current_cr3(); let entries: *mut u64 = p2(root);
+    let owner: u64 = current_process_handle();
+    if owner != 0 && !loaded_protections_hold(current_address_space_handle()) { fail(0x111); }
+    let mut i: usize = 32; while i < 40 { if volatile_load(entries + i) != 0 { fail(0x112); } i += 1; }
+    i = 32; while i < 40 { volatile_store(entries + i, (i * 2097152) as u64 | VOLUME_FLAGS); i += 1; }
+    WINDOW = root; WINDOWS += 1; posix_probe_flush(root);
+}
+unsafe fn window_close() -> void {
+    if WINDOW == 0 || WINDOW != ocore_current_cr3() || (posix_probe_flags() & 512) != 0 { fail(0x120); }
+    let entries: *mut u64 = p2(WINDOW); let mut i: usize = 32;
+    while i < 40 {
+        if (volatile_load(entries + i) & 0xffffffffffffff9f) != ((i * 2097152) as u64 | VOLUME_FLAGS) { fail(0x121); }
+        volatile_store(entries + i, 0); i += 1;
+    }
+    posix_probe_flush(WINDOW); WINDOW = 0;
+    if current_process_handle() != 0 && !loaded_protections_hold(current_address_space_handle()) { fail(0x122); }
+}
+unsafe fn exchange(expected: u64) -> void {
+    let size: usize = encode(&mut REQUEST[0], 8192);
+    let received: usize = handle(PRODUCER, &REQUEST[0], size, &mut RESPONSE[0], 8192);
+    if received < 7 || decode(&mut RESPONSE[0], received) != received || kind() != expected || tag() != 123 { fail(0x130 + expected); }
+}
+unsafe fn seed_store() -> void {
+    window_open();
+    if store_init(VOLUME, VOLUME_END - VOLUME, 1) != 1 || provision_clock(1700000000) != 1 { fail(0x140); }
+    codec_reset(); PRODUCER = session_init(4, 1);
+    codec_begin(100,123); set_version(8192,&VERSION[0]); exchange(101);
+    codec_begin(104,123); set_attach(1,0xffffffff,&EMPTY[0],&EMPTY[0]); exchange(105);
+    codec_begin(110,123); set_walk(1,2,&WORK[0]); exchange(111);
+    codec_begin(114,123); set_create(2,&INPUT[0],0x1a4,1); exchange(115);
+    let mut offset: usize = 0;
+    while offset < 12288 {
+        let mut i: usize = 0; while i < 4096 { PAYLOAD[i] = (((offset + i) * 73) ^ ((offset + i) >> 8)) as u8; i += 1; }
+        codec_begin(118,123); set_io(2,offset as u64,4096,&PAYLOAD[0]); exchange(119);
+        if count() != 4096 { fail(0x141); } offset += 4096;
+    }
+    codec_begin(120,123); set_fid(2); exchange(121);
+    if files_init(1) != 0 { fail(0x142); }
+    window_close();
+}
+unsafe fn owner_index() -> usize {
+    let owner: u64 = current_process_handle(); let mut i: usize = 0;
+    while i < 4 { if OWNERS[i] == owner && owner != 0 { return i; } i += 1; } return 4;
+}
+fn selector_index(selector: u64) -> usize {
+    if selector >= 0x18 && selector <= 0x1b { return (selector - 0x18) as usize; }
+    if selector >= 0x20 && selector <= 0x23 { return (selector - 0x1c) as usize; }
+    return 8;
+}
+unsafe fn user_leaf(address: usize) -> *mut u64 {
+    if address < 0x02000000 || address >= 0x02100000 || (address & 4095) != 0 { fail(0x150); }
+    let second: *mut u64 = p2(ocore_current_cr3());
+    let table: usize = (volatile_load(second + 16) & PHYSICAL_MASK) as usize;
+    if table == 0 { fail(0x151); }
+    return (table as *mut u64) + ((address - 0x02000000) / 4096);
+}
+unsafe fn capture_admission(words: *mut u64) -> void {
+    volatile_store(words, ocore_current_cr3() as u64);
+    volatile_store(words + 1, ocore_tss_rsp0() as u64);
+    volatile_store(words + 2, ocore_entry_stack_top() as u64);
+    volatile_store(words + 3, tls_probe_cpu_fs_base());
+    volatile_store(words + 4, tls_probe_cpu_fs_selector());
+    volatile_store(words + 5, idle_probe_gs_base());
+    volatile_store(words + 6, idle_probe_kernel_gs_base());
+    volatile_store(words + 7, idle_probe_stack_pointer() as u64);
+}
+unsafe fn negative_action(kind: u64) -> u64 { return 0; }
+unsafe fn four(values: *const u64) -> bool {
+    return volatile_load(values) == 1 && volatile_load(values + 1) == 1
+        && volatile_load(values + 2) == 1 && volatile_load(values + 3) == 1;
+}
+@export
+@no_mangle
+pub unsafe fn kernel_m6_linux_syscall(n: u64, a: u64, b: u64, c: u64, d: u64, e: u64, f: u64) -> u64 {
+    let index: usize = owner_index();
+    if index == 4 || WINDOW != 0 || tls_probe_cpu_fs_base() != 0
+        || tls_probe_cpu_fs_selector() != 0 { fail(0x400); }
+    CALLS[index] += 1;
+    if n == 158 {
+        let result: i64 = arch_prctl(a,b);
+        if a == 0x1002 && result == 0 { USER_BASES[index] = b; }
+        return result as u64;
+    }
+    if n == 24 { return request_yield(); }
+    if n == TEST_CONTROL {
+        if NEGATIVE_CASE != 0 && (NEGATIVE_CASE <= 10 || NEGATIVE_CASE >= 19) && index == 0 && a == 20 {
+            if NEGATIVE_CASE == 7 { FORCE_PREPARE_FAILURE = 1; }
+            NEGATIVE_RETURN = negative_action(NEGATIVE_CASE);
+            NEGATIVE_READY = 1; write(&PREFIX[0],19); number(0x4e45474154495645);
+            disable_interrupts(); loop { halt(); }
+        }
+        if a == 99 { fail(0x10000 + b); }
+        if a == 0 { READY[index] = 1; return 0; }
+        if a == 1 { return four(&READY[0]) as u64; }
+        if a == 2 {
+            if !four(&READY[0]) || SLEPT[index] != 0 { fail(0x401); }
+            SLEPT[index] = 1; return request_sleep(30);
+        }
+        if a == 3 {
+            if SLEPT[index] != 1 || WOKE[index] != 0 || SLEEP_IDLE_TICKS == 0 { fail(0x402); }
+            WOKE[index] = 1; return 0;
+        }
+        if a == 4 { return four(&WOKE[0]) as u64; }
+        if a == 5 {
+            if !four(&WOKE[0]) || (index == 3 && (EXITS[0] == 0 || EXITS[1] == 0 || EXITS[2] == 0)) { fail(0x403); }
+            return request_process_exit(0xa0 + index as u64);
+        }
+        if a == 6 { return (EXITS[0] != 0 && EXITS[1] != 0 && EXITS[2] != 0) as u64; }
+        if a == 23 { return request_sleep(1); }
+        if a == 20 { return 0xffff_ffff_ffff_ffe1; }
+        if a == 21 { return 0xffff_ffff_ffff_ffe0; }
+        if a == 22 {
+            let first: u64 = request_sleep(2); let second: u64 = request_yield();
+            if first != 0xffff_ffff_ffff_ffe1 || second != 0xffff_ffff_ffff_fff8 { fail(0x404); }
+            return first;
+        }
+        fail(0x405);
+    }
+    window_open(); let result: i64 = dispatch(n,a,b,c,d); window_close();
+    return result as u64;
+}
+@export
+@no_mangle
+pub unsafe fn kernel_m6_linux_process_exit(owner: u64, status: u64) -> u64 {
+    let index: usize = owner_index();
+    if index == 4 || owner != OWNERS[index] || status != 0xa0 + index as u64
+        || EXITS[index] != 0 || WOKE[index] != 1 || WINDOW != 0 { return 0; }
+    if index != 1 {
+        window_open(); let result: i64 = revoke_process(owner); window_close();
+        if result != 0 { return 0; }
+    }
+    EXITS[index] = status; return 1;
+}
+@export
+@no_mangle
+pub unsafe fn kernel_m6_prepare_bounded_resume(thread: u64, result: *mut u64) -> u64 {
+    if NEGATIVE_CASE == 7 && FORCE_PREPARE_FAILURE == 1 { return 2; }
+    return 0;
+}
+@export
+@no_mangle
+pub unsafe fn kernel_m6_service_fault(owner: u64) -> u64 { return 0; }
+@export
+@no_mangle
+pub unsafe fn kernel_m6_phase_one_ready() -> u64 {
+    // A deliberately true bounded predicate after setup proves the explicit
+    // opt-in policy does not enter old bounded harness completion.
+    return four(&READY[0]) as u64;
+}
+@export
+@no_mangle
+pub unsafe fn kernel_m6_crash_continue() -> never { fail(0x406); }
+@export
+@no_mangle
+pub unsafe fn kernel_m6_expire_requests(now: u64) -> u64 {
+    if WINDOW != 0 || tls_probe_cpu_fs_base() != 0 || tls_probe_cpu_fs_selector() != 0 { fail(0x407); }
+    if NEGATIVE_CASE == 16 && thread_state(THREADS[0]) == 4
+        && current_thread_handle() != 0 && current_thread_handle() != THREADS[0]
+        && user_fs_base_for(current_thread_handle()) != 0 {
+        if hostile_frame_containments() != 1 || scheduler_failed()
+            || !queue_invariants_hold() || user_fs_base_for(THREADS[0]) != 0 { fail(0x417); }
+        MALFORMED_TICKS += 1; MALFORMED_SURVIVOR = current_thread_handle();
+        if MALFORMED_TICKS >= 3 {
+            NEGATIVE_READY = 1; NEGATIVE_RETURN = hostile_frame_containments();
+            write(&PREFIX[0],19); number(0x4e45474154495645);
+            disable_interrupts(); loop { halt(); }
+        }
+    }
+    if current_thread_handle() == 0 && current_process_handle() == 0 {
+        if ocore_current_cr3() != ocore_management_cr3()
+            || ocore_tss_rsp0() != ocore_management_stack_top()
+            || ocore_entry_stack_top() != ocore_management_stack_top()
+            || idle_probe_kernel_gs_base() != 0 || idle_probe_gs_base() == 0 { fail(0x408); }
+        IDLE_CR3 = ocore_current_cr3() as u64; IDLE_STACK = idle_probe_stack_pointer() as u64;
+        IDLE_GS = idle_probe_gs_base(); IDLE_KERNEL_GS = idle_probe_kernel_gs_base();
+        if runnable_count() == 0 && blocked_count() == 4 && four(&SLEPT[0]) { SLEEP_IDLE_TICKS += 1; }
+        if EXITS[0] != 0 && EXITS[1] != 0 && EXITS[2] != 0 && EXITS[3] != 0 {
+            if runnable_count() != 0 || blocked_count() != 0 || !queue_invariants_hold()
+                || scheduler_failed() || completion_kind() != 0 { fail(0x409); }
+            let mut i: usize = 0;
+            while i < 4 {
+                if process_state(OWNERS[i]) != PROCESS_STATE_REAPABLE
+                    || exit_code_for(OWNERS[i]) != EXITS[i]
+                    || user_fs_base_for(THREADS[i]) != 0
+                    || user_fs_selector_for(THREADS[i]) != 0 { fail(0x410 + i as u64); }
+                i += 1;
+            }
+            FINAL_IDLE_TICKS += 1;
+            if FINAL_IDLE_TICKS >= 5 && ACCEPTED == 0 {
+                if SLEEP_IDLE_TICKS < 2 || idle_ticks() < 2 || !four(&WOKE[0]) { fail(0x414); }
+                ACCEPTED = 1; write(&PREFIX[0],19); number(0x50415353);
+            }
+        }
+    }
+    return 1;
+}
+pub unsafe fn start(mode: u64, native_domain: u64) -> never {
+    disable_interrupts();
+    if mode != 25 || native_domain == 0 || threads_init() != 1 || namespaces_init() != 1 || vfs_init() != 1 || elf_init() != 1 { fail(0x180); }
+    seed_store();
+    let image_start: usize = ocore_m6_linux_image_start(); let image_end: usize = ocore_m6_linux_image_end();
+    if image_end - image_start != PROBE_IMAGE_LENGTH { fail(0x181); }
+    let image: u64 = begin_image(0,PROBE_IMAGE_ID,PROBE_IMAGE_LENGTH,PROBE_IMAGE_DIGEST_0,PROBE_IMAGE_DIGEST_1,PROBE_IMAGE_DIGEST_2,PROBE_IMAGE_DIGEST_3);
+    if image == 0 || append_image_bytes(image,image_start as *const u8,PROBE_IMAGE_LENGTH) != 1
+        || verify_image_sha256(image,PROBE_IMAGE_SHA_0,PROBE_IMAGE_SHA_1,PROBE_IMAGE_SHA_2,PROBE_IMAGE_SHA_3) != 1
+        || import_ovfs_image(image) != OVFS_IMPORT_OK || publish_image(image) != 1 { fail(0x182); }
+    let mut index: usize = 0;
+    while index < 4 {
+        let mut personality: u64 = PERSONALITY_LINUX_MINIMAL;
+        if NEGATIVE_CASE == 14 && index == 0 { personality = 1; }
+        let domain: u64 = create_domain(1 + index, 4001 + index as u64, personality, LINUX_MINIMAL_ABI_V1);
+        let namespace: u64 = create_namespace(index,domain);
+        if domain == 0 || namespace == 0 || mount_root(namespace,image) == 0 { fail(0x190 + index as u64); }
+        let object: u64 = lookup(namespace,0x9b3bb75a33bed2bd);
+        if object == 0 || retain_object(namespace,object) != 1 { fail(0x1a0 + index as u64); }
+        let plan: u64 = validate(object);
+        ARGS[19] = 48 + index as u8;
+        CONFIG[0] = (&ARGS[0]) as u64; CONFIG[1] = 21; CONFIG[2] = 2;
+        CONFIG[3] = (&ENV[0]) as u64; CONFIG[4] = 7; CONFIG[5] = 1;
+        CONFIG[6] = (&EXECFN[0]) as u64; CONFIG[7] = 15;
+        CONFIG[8] = (&RANDOM[0]) as u64; CONFIG[9] = 16;
+        CONFIG[10] = 1000; CONFIG[11] = 1000; CONFIG[12] = 1000; CONFIG[13] = 1000; CONFIG[14] = 0;
+        if plan == 0 || configure_startup(plan,&CONFIG[0],15) != 1 { fail(0x1b0 + index as u64); }
+        let cspace: u64 = cspace_handle_for_slot(index);
+        if cspace == 0 || set_quota_for_owner(cspace,48) != 1 { fail(0x1c0 + index as u64); }
+        SPACES[index] = create_loaded_for_owner(cspace,plan);
+        if SPACES[index] == 0 || !loaded_protections_hold(SPACES[index]) || root_cr3(SPACES[index]) == ocore_management_cr3() || release_plan(plan) != 1 { fail(0x1d0 + index as u64); }
+        PHYSICALS[index] = isolation_physical(SPACES[index]);
+        let mut process_id: u64 = 4101 + index as u64;
+        if LINUX_TASK_STARTUP { process_id = LINUX_TASK_ID_BASE + index as u64; }
+        OWNERS[index] = install_for_owner(index,process_id,domain,SPACES[index],cspace,ocore_process_kernel_stack_top(index),loaded_entry(SPACES[index]),loaded_stack_pointer(SPACES[index]));
+        if OWNERS[index] == 0 || bind_process(namespace,OWNERS[index]) != 1 { fail(0x1e0 + index as u64); }
+        if index != 1 { window_open(); let result: i64 = provision(OWNERS[index],100 + index as u64,1); window_close(); if result != 0 { fail(0x1f0 + index as u64); } }
+        THREADS[index] = install_loaded(index,4201 + index as u64,OWNERS[index],loaded_entry(SPACES[index]),loaded_stack_pointer(SPACES[index]),ocore_process_kernel_stack_top(index),0,0,1,1);
+        if THREADS[index] == 0 { fail(0x200 + index as u64); }
+        if LINUX_TASK_STARTUP {
+            // The unchanged native4101/4201 identities are intentionally not
+            // Linux leaders. Reject them, then install real equal PID/TID IDs.
+            if admit_linux_single_task(THREADS[index]) != 0 || thread_cancel(THREADS[index]) != 1
+                || thread_reap(THREADS[index]) != 1 { fail(0x360 + index as u64); }
+            THREADS[index] = install_loaded(index,process_id,OWNERS[index],loaded_entry(SPACES[index]),loaded_stack_pointer(SPACES[index]),ocore_process_kernel_stack_top(index),0,0,1,1);
+            if THREADS[index] == 0 || admit_linux_single_task(THREADS[index]) != 1
+                || admit_linux_single_task(THREADS[index]) != 1 { fail(0x364 + index as u64); }
+        }
+        index += 1;
+    }
+    if arm_personality(THREADS[0],OWNERS[0],PHYSICALS[0],THREADS[1],OWNERS[1],PHYSICALS[1],THREADS[2],OWNERS[2],PHYSICALS[2],THREADS[3],OWNERS[3],PHYSICALS[3]) != 1 { fail(0x210); }
+    ocore_restore_management_context();
+    if (NEGATIVE_CASE >= 11 && NEGATIVE_CASE <= 15) || NEGATIVE_CASE == 18 {
+        if NEGATIVE_CASE == 11 { idle_probe_set_gs(0x12340000); }
+        if NEGATIVE_CASE == 12 { idle_probe_set_fs(0x98765000); }
+        capture_admission(&mut ADMISSION_BEFORE[0]);
+        if NEGATIVE_CASE == 18 { NEGATIVE_RETURN = negative_action(18); }
+        else { if NEGATIVE_CASE == 13 { NEGATIVE_RETURN = idle_probe_bad_stack_enable(ocore_process_kernel_stack_top(0)); }
+        else {
+            if NEGATIVE_CASE == 15 { NEGATIVE_RETURN = kernel_scheduler_take_idle(0); }
+            else { NEGATIVE_RETURN = enable_personality_idle(); }
+        }
+        }
+        capture_admission(&mut ADMISSION_AFTER[0]);
+        NEGATIVE_READY = 1; write(&PREFIX[0],19); number(0x4e45474154495645);
+        disable_interrupts(); loop { halt(); }
+    }
+    if IDLE_ENABLED && enable_personality_idle() != 1 { fail(0x415); }
+    if IDLE_ENABLED && request_sleep(1) != 0xffff_ffff_ffff_fff8 { fail(0x416); }
+    write(&PREFIX[0],19); number(0x41524d4544);
+    enable_interrupts(); loop { halt(); }
+}

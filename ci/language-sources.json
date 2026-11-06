@@ -738,6 +738,21 @@
       ]
     },
     {
+      "id": "ocore-native-empty-runqueue-kernel",
+      "category": "kernel-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native_idle/verify.py",
+          "kind": "runtime",
+          "conditions": "Explicit trusted opt-in x86-64 bootCPU syscall/empty-runqueue/management-idle/timer-wake profile with original lowered codec closure. Owned CPL3 fixtures and same-module negative fragments are scoped tests, not Linux exit60/231, upstream application, SMP, other-ISA or final OS qualification."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/native_idle/probe.oc"
+      ]
+    },
+    {
       "id": "ocore-native-thread-fs-kernel",
       "category": "kernel-module",
       "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",

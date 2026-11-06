@@ -396,6 +396,9 @@ percpu_entry:
 .extern kernel_timer_dispatch
 .extern kernel_timer_rearm
 .extern kernel_scheduler_complete_continue
+.extern kernel_scheduler_syscall_enter
+.extern kernel_scheduler_syscall_route
+.extern kernel_scheduler_take_idle
 .extern kernel_scheduler_syscall
 #if OCORE_BOOT_INFO_ENABLED == 1
 .extern ocore_boot_info_aperture_closed
@@ -1446,6 +1449,120 @@ ocore_svm_vmrun:
   ret
 .size ocore_svm_vmrun, .-ocore_svm_vmrun
 
+.globl ocore_interrupts_masked
+.type ocore_interrupts_masked, @function
+ocore_interrupts_masked:
+  pushfq
+  pop rax
+  shr rax, 9
+  and eax, 1
+  xor eax, 1
+  ret
+.size ocore_interrupts_masked, .-ocore_interrupts_masked
+
+// The opt-in syscall profile supports null user GS selector only. SWAPGS
+// exchanges bases, not selectors; reject unsupported selector state before
+// policy dispatch, and require actual kernel GS/zero-FS with IF masked.
+.globl ocore_syscall_context_ready
+.type ocore_syscall_context_ready, @function
+ocore_syscall_context_ready:
+  pushfq
+  pop rax
+  test eax, 0x200
+  jnz .syscall_context_not_ready
+  mov ax, gs
+  test ax, ax
+  jnz .syscall_context_not_ready
+  mov ax, fs
+  test ax, ax
+  jnz .syscall_context_not_ready
+  mov ecx, 0xc0000100
+  rdmsr
+  or eax, edx
+  jnz .syscall_context_not_ready
+  mov ecx, 0xc0000102
+  rdmsr
+  or eax, edx
+  jnz .syscall_context_not_ready
+  mov ecx, 0xc0000101
+  rdmsr
+  shl rdx, 32
+  or rax, rdx
+  lea r8, [rip + percpu_entry]
+  cmp rax, r8
+  jne .syscall_context_not_ready
+  mov eax, 1
+  ret
+.syscall_context_not_ready:
+  xor eax, eax
+  ret
+.size ocore_syscall_context_ready, .-ocore_syscall_context_ready
+
+// Read-only admission preflight for the opt-in owned management idle policy.
+// A wrong MSR/selector/stack is rejected without repairing it or enabling IF.
+.globl ocore_management_context_ready
+.type ocore_management_context_ready, @function
+ocore_management_context_ready:
+  pushfq
+  pop rax
+  test eax, 0x200
+  jnz .management_not_ready
+  mov ax, cs
+  cmp ax, 0x08
+  jne .management_not_ready
+  mov ax, ss
+  cmp ax, 0x10
+  jne .management_not_ready
+  mov ax, fs
+  test ax, ax
+  jnz .management_not_ready
+  mov ax, gs
+  test ax, ax
+  jnz .management_not_ready
+  lea r8, [rip + stack_bottom]
+  cmp rsp, r8
+  jb .management_not_ready
+  lea r8, [rip + stack_top]
+  cmp rsp, r8
+  jae .management_not_ready
+  cmp qword ptr [rip + tss64 + 4], r8
+  jne .management_not_ready
+  cmp qword ptr [rip + percpu_entry + 24], r8
+  jne .management_not_ready
+  cmp qword ptr [rip + percpu_entry], 0
+  jne .management_not_ready
+  cmp qword ptr [rip + percpu_entry + 8], 0
+  jne .management_not_ready
+  cmp qword ptr [rip + percpu_entry + 16], 0
+  jne .management_not_ready
+  cmp qword ptr [rip + percpu_entry + 32], 0
+  jne .management_not_ready
+  mov rax, cr3
+  lea r8, [rip + p4_table]
+  cmp rax, r8
+  jne .management_not_ready
+  mov ecx, 0xc0000100
+  rdmsr
+  or eax, edx
+  jnz .management_not_ready
+  mov ecx, 0xc0000102
+  rdmsr
+  or eax, edx
+  jnz .management_not_ready
+  mov ecx, 0xc0000101
+  rdmsr
+  shl rdx, 32
+  or rax, rdx
+  lea r8, [rip + percpu_entry]
+  cmp rax, r8
+  jne .management_not_ready
+  mov eax, 1
+  ret
+.management_not_ready:
+  xor eax, eax
+  ret
+.size ocore_management_context_ready, .-ocore_management_context_ready
+
 .globl ocore_management_cr3
 .type ocore_management_cr3, @function
 ocore_management_cr3:
@@ -1961,6 +2078,14 @@ ocore_syscall_entry:
 .syscall_entry_flags_validated:
 #endif
 
+  // The opt-in loaded-personality policy binds control to this exact masked
+  // frame before any dispatcher can arm a scheduler action. Legacy policy is
+  // a no-op; a dirty/reentrant/foreign entry fails before dispatch executes.
+  mov rdi, rsp
+  call kernel_scheduler_syscall_enter
+  cmp rax, 2
+  je .scheduler_complete
+
   mov rax, qword ptr [rsp + 48]
   mov rdi, qword ptr [rsp + 112]
   mov rsi, qword ptr [rsp + 64]
@@ -1972,14 +2097,28 @@ ocore_syscall_entry:
   mov qword ptr [rsp], rax
   call kernel_syscall_dispatch
   add rsp, 16
-  // SYS_EXIT is a kernel-private control transfer, not a value that can be
-  // observed at CPL3. Keep the saved process frame on its guarded stack until
-  // the management CR3 is active, then abandon it permanently.
+  // Opt-in control comes from this entry's kernel-owned pending disposition,
+  // not an errno or guest-selected value. Raw -31/-32 remain ordinary values
+  // there. Disabled policy preserves every legacy bounded-harness branch.
+  mov rbx, rax
+  mov rdi, rax
+  call kernel_scheduler_syscall_route
+  cmp rax, 2
+  je .schedule_from_syscall
+  cmp rax, 1
+  je .ordinary_syscall_result
+  test rax, rax
+  jnz .scheduler_complete
+  mov rax, rbx
+  // Legacy SYS_EXIT is enabled only with its own trusted lifecycle hook.
   cmp rax, -32
   je .abandon_process_context
   cmp rax, -31
   je .schedule_from_syscall
-
+  jmp .store_syscall_result
+.ordinary_syscall_result:
+  mov rax, rbx
+.store_syscall_result:
   mov qword ptr [rsp + 112], rax
 
   mov rdi, qword ptr [rsp + 136]
@@ -2004,9 +2143,15 @@ ocore_syscall_entry:
   mov qword ptr [rsp + 96], rax
   mov rdi, rsp
   call kernel_scheduler_syscall
-  test rax, rax
-  jz .scheduler_complete
   mov rbx, rax
+  mov rdi, rax
+  call kernel_scheduler_take_idle
+  cmp rax, 1
+  je ocore_scheduler_idle
+  test rax, rax
+  jnz .scheduler_complete
+  test rbx, rbx
+  jz .scheduler_complete
   mov rdi, qword ptr [rbx + 136]
   mov rsi, qword ptr [rbx + 160]
   call kernel_validate_user_return
@@ -2363,6 +2508,39 @@ ocore_exception_common:
   add rsp, 16
   iretq
 .size ocore_exception_common, .-ocore_exception_common
+
+// A syscall-selected empty runqueue has no user return frame. This dedicated
+// entry restores the complete owned management context before IF, abandoning
+// the old process entry stack permanently. GS stays kernel-active while idle;
+// the timer path swaps to the null user GS only when it selects a CPL3 frame.
+.globl ocore_scheduler_idle
+.type ocore_scheduler_idle, @function
+ocore_scheduler_idle:
+  cli
+  call ocore_restore_management_context
+  lea rsp, [rip + stack_top]
+  and rsp, -16
+  xor rbp, rbp
+  xor eax, eax
+  mov gs, ax
+  mov ecx, 0xc0000101
+  lea rax, [rip + percpu_entry]
+  mov rdx, rax
+  shr rdx, 32
+  wrmsr
+  mov ecx, 0xc0000102
+  xor eax, eax
+  xor edx, edx
+  wrmsr
+  // The source syscall may have consumed most of the old one-shot interval.
+  // Start a fresh bounded tick with IF still clear before the first sleep.
+  call kernel_timer_rearm
+.scheduler_idle_wait:
+  cli
+  sti
+  hlt
+  jmp .scheduler_idle_wait
+.size ocore_scheduler_idle, .-ocore_scheduler_idle
 
 .globl ocore_fault_idle
 .type ocore_fault_idle, @function

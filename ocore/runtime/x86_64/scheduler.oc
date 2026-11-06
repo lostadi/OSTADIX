@@ -1,6 +1,10 @@
 module runtime::scheduler;
 
 use runtime::address_space::root_cr3;
+use runtime::address_space::is_loaded;
+use runtime::domain::personality_for;
+use runtime::personality::PERSONALITY_LINUX_MINIMAL;
+use runtime::process::current_personality_id;
 use runtime::ipc_lifecycle::process_died as ipc_process_died;
 use runtime::ipc_wait::commit as commit_ipc_wait;
 use runtime::ipc_wait::sender_block_count;
@@ -67,6 +71,19 @@ static mut PENDING_SLEEP_DELTA: u64 = 0;
 static mut PENDING_REQUEST: u64 = 0;
 static mut PENDING_RESULT: u64 = 0;
 static mut PENDING_EXIT_STATUS: u64 = 0;
+// Trusted, boot-only opt-in for the loaded Linux-personality scheduler. A
+// syscall-entry token binds every control action to this exact masked entry,
+// never to a return-value sentinel or an application-provided frame pointer.
+static mut IDLE_POLICY: u8 = 0;
+static mut SYSCALL_PHASE: u8 = 0;
+static mut SYSCALL_SERIAL: u64 = 0;
+static mut SYSCALL_THREAD: u64 = 0;
+static mut SYSCALL_PROCESS: u64 = 0;
+static mut SYSCALL_FRAME: usize = 0;
+static mut SYSCALL_NUMBER: u64 = 0;
+static mut PENDING_SERIAL: u64 = 0;
+static mut SYSCALL_IDLE_DISPOSITION: u8 = 0;
+static mut IDLE_TRANSITIONS: u64 = 0;
 static mut HOSTILE_SYSCALL_SWITCHES: u64 = 0;
 static mut HOSTILE_FRAME_CONTAINMENTS: u64 = 0;
 static mut M2_PENDING_NT_THREAD: u64 = 0;
@@ -112,10 +129,14 @@ const LIVE_PKGD_RESTART_COMPLETE: u64 = 0x4d35_0000_0000_1003;
 const FRAME_RFLAGS_WORD: usize = 19;
 const RFLAGS_NT: u64 = 0x4000;
 
+extern "sysv64" fn ocore_interrupts_masked() -> u64;
+extern "sysv64" fn ocore_syscall_context_ready() -> u64;
+extern "sysv64" fn ocore_management_context_ready() -> u64;
 extern "sysv64" fn ocore_context_install(root: usize, stack: usize) -> u64;
 extern "sysv64" fn ocore_context_matches(root: usize, stack: usize) -> u64;
 extern "sysv64" fn ocore_restore_management_context() -> void;
 extern "sysv64" fn ocore_management_cr3() -> usize;
+extern "sysv64" fn ocore_current_cr3() -> usize;
 extern "sysv64" fn ocore_management_stack_top() -> usize;
 // M6A keeps policy and request bookkeeping out of the scheduler. These hooks
 // are implemented by the bounded kernel harness and validate exact service,
@@ -160,6 +181,16 @@ pub unsafe fn init() -> void {
     PENDING_REQUEST = 0;
     PENDING_RESULT = 0;
     PENDING_EXIT_STATUS = 0;
+    IDLE_POLICY = 0;
+    SYSCALL_PHASE = 0;
+    SYSCALL_SERIAL = 0;
+    SYSCALL_THREAD = 0;
+    SYSCALL_PROCESS = 0;
+    SYSCALL_FRAME = 0;
+    SYSCALL_NUMBER = 0;
+    PENDING_SERIAL = 0;
+    SYSCALL_IDLE_DISPOSITION = 0;
+    IDLE_TRANSITIONS = 0;
     HOSTILE_SYSCALL_SWITCHES = 0;
     HOSTILE_FRAME_CONTAINMENTS = 0;
     M2_PENDING_NT_THREAD = 0;
@@ -185,17 +216,191 @@ pub unsafe fn init() -> void {
     }
 }
 
+// Admission is not an application flag. The kernel calls it once, immediately
+// after arm_personality, before any task has run. Every admitted principal is
+// an independently loaded Linux personality, so legacy native SYS_EXIT cannot
+// execute under the new syscall control policy. Entry checks that again.
+pub unsafe fn enable_personality_idle() -> u64 {
+    if IDLE_POLICY != 0 || ocore_management_context_ready() != 1
+        || ocore_current_cr3() != ocore_management_cr3()
+        || ocore_context_matches(ocore_management_cr3(),
+            ocore_management_stack_top()) != 1
+        || ACTIVE != 1 || FAILED != 0 || COMPLETE != 0
+        || SCHEDULER_KIND != SCHEDULER_KIND_PERSONALITY
+        || COMPLETION_KIND != 0 || LOADED_COUNT != 4
+        || CONTEXT_SWITCHES != 0 || LAST_TICK != 0 || IDLE_TICKS != 0
+        || current_thread_handle() != 0 || current_process_handle() != 0
+        || runnable_count() != 4 || blocked_count() != 0
+        || PENDING_ACTION != 0 || SYSCALL_PHASE != 0
+        || !queue_invariants_hold() { return 0; }
+    let mut i: usize = 0;
+    while i < 4 {
+        if process_for(THREADS[i]) != LOADED_PROCESSES[i]
+            || !identity_matches_process(THREADS[i])
+            || !is_loaded(address_space_for_thread(THREADS[i]))
+            || personality_for(domain_for_thread(THREADS[i]))
+                != PERSONALITY_LINUX_MINIMAL { return 0; }
+        i += 1;
+    }
+    // Every fallible check is complete; rejection never changes architecture
+    // or policy. The trusted bootstrap normalizes management before admission.
+    IDLE_POLICY = 1;
+    return 1;
+}
+
+unsafe fn clear_syscall_entry() -> void {
+    SYSCALL_PHASE = 0; SYSCALL_THREAD = 0;
+    SYSCALL_PROCESS = 0; SYSCALL_FRAME = 0; SYSCALL_NUMBER = 0;
+}
+
+unsafe fn syscall_identity_holds() -> bool {
+    if ocore_interrupts_masked() != 1 || SYSCALL_SERIAL == 0
+        || SYSCALL_THREAD == 0 || SYSCALL_PROCESS == 0
+        || current_thread_handle() != SYSCALL_THREAD
+        || current_process_handle() != SYSCALL_PROCESS
+        || current_personality_id() != PERSONALITY_LINUX_MINIMAL
+        || !identity_matches_process(SYSCALL_THREAD)
+        || ocore_context_matches(root_cr3(address_space_for_thread(SYSCALL_THREAD)),
+            kernel_stack_for(SYSCALL_THREAD)) != 1
+        || kernel_stack_for(SYSCALL_THREAD) < 176
+        || SYSCALL_FRAME != kernel_stack_for(SYSCALL_THREAD) - 176 {
+        return false;
+    }
+    let frame: *const u64 = SYSCALL_FRAME as *const u64;
+    return volatile_load(frame + 15) == 0x100
+        && volatile_load(frame + 16) == 0
+        && volatile_load(frame + 18) == 0x23
+        && volatile_load(frame + 21) == 0x1b
+        && ((SYSCALL_PHASE == 1 && volatile_load(frame + 14) == SYSCALL_NUMBER)
+            || (SYSCALL_PHASE != 1 && volatile_load(frame + 14) == 0));
+}
+
+unsafe fn fail_syscall_transaction() -> void {
+    // Do not discard another transaction's pending request on an invalid or
+    // reentrant entry. Only this token's action may be cleared here.
+    if SYSCALL_SERIAL != 0 && PENDING_SERIAL == SYSCALL_SERIAL {
+        clear_pending_action();
+    }
+    clear_syscall_entry(); SYSCALL_IDLE_DISPOSITION = 0;
+    FAILED = 1; ACTIVE = 0;
+}
+
+// Assembly supplies its actual guarded 22-word syscall frame, before invoking
+// any policy dispatcher. 0 preserves legacy routing, 1 admits this new entry,
+// and 2 is terminal refusal. No guest-selected pointer is consumed here.
+@export
+@no_mangle
+pub unsafe fn kernel_scheduler_syscall_enter(frame: usize) -> u64 {
+    if IDLE_POLICY == 0 { return 0; }
+    if IDLE_POLICY != 1 || ocore_syscall_context_ready() != 1
+        || ACTIVE != 1 || FAILED != 0 || COMPLETE != 0
+        || SCHEDULER_KIND != SCHEDULER_KIND_PERSONALITY
+        || SYSCALL_PHASE != 0 || SYSCALL_IDLE_DISPOSITION != 0
+        || PENDING_ACTION != 0 || PENDING_SERIAL != 0
+        || SYSCALL_SERIAL == 0xffff_ffff_ffff_ffff
+        || current_thread_handle() == 0 || current_process_handle() == 0
+        || current_personality_id() != PERSONALITY_LINUX_MINIMAL
+        || !queue_invariants_hold() { fail_syscall_transaction(); return 2; }
+    let thread: u64 = current_thread_handle();
+    let top: usize = kernel_stack_for(thread);
+    if top < 176 || frame != top - 176
+        || !identity_matches_process(thread)
+        || ocore_context_matches(root_cr3(address_space_for_thread(thread)),
+            top) != 1 {
+        fail_syscall_transaction(); return 2;
+    }
+    let words: *const u64 = frame as *const u64;
+    if volatile_load(words + 15) != 0x100 || volatile_load(words + 16) != 0
+        || volatile_load(words + 18) != 0x23 || volatile_load(words + 21) != 0x1b {
+        fail_syscall_transaction(); return 2;
+    }
+    SYSCALL_NUMBER = volatile_load(words + 14);
+    SYSCALL_SERIAL += 1; SYSCALL_THREAD = thread;
+    SYSCALL_PROCESS = current_process_handle(); SYSCALL_FRAME = frame;
+    SYSCALL_PHASE = 1;
+    return 1;
+}
+
+unsafe fn syscall_request_allowed() -> bool {
+    if IDLE_POLICY == 0 { return true; }
+    return IDLE_POLICY == 1 && ACTIVE == 1 && FAILED == 0
+        && SYSCALL_PHASE == 1 && PENDING_ACTION == 0
+        && PENDING_SERIAL == 0 && syscall_identity_holds();
+}
+
+unsafe fn bind_pending_entry() -> void {
+    if IDLE_POLICY == 1 { PENDING_SERIAL = SYSCALL_SERIAL; }
+}
+
+// 0 = unchanged bounded/legacy control, 1 = ordinary syscall result (including
+// genuine Linux -31/-32), 2 = this entry's pending scheduling transaction,
+// 3 = terminal failed transaction. The returned user value never grants control.
+@export
+@no_mangle
+pub unsafe fn kernel_scheduler_syscall_route(result: u64) -> u64 {
+    if IDLE_POLICY == 0 { return 0; }
+    if IDLE_POLICY != 1 || ACTIVE != 1 || SYSCALL_PHASE != 1
+        || !syscall_identity_holds() || !queue_invariants_hold() {
+        fail_syscall_transaction(); return 3;
+    }
+    if PENDING_ACTION == 0 && PENDING_SERIAL == 0 {
+        clear_syscall_entry(); return 1;
+    }
+    if PENDING_ACTION == 0 || PENDING_SERIAL != SYSCALL_SERIAL
+        || result != SYSCALL_CONTROL_SCHEDULE {
+        fail_syscall_transaction(); return 3;
+    }
+    SYSCALL_PHASE = 2;
+    return 2;
+}
+
+unsafe fn empty_idle_eligible() -> bool {
+    return IDLE_POLICY == 1 && ocore_interrupts_masked() == 1
+        && ACTIVE == 1 && FAILED == 0 && COMPLETE == 0
+        && COMPLETION_KIND == 0 && SCHEDULER_KIND == SCHEDULER_KIND_PERSONALITY
+        && PENDING_ACTION == 0 && PENDING_SERIAL == 0
+        && current_thread_handle() == 0 && current_process_handle() == 0
+        && runnable_count() == 0 && M2_PENDING_NT_THREAD == 0
+        && queue_invariants_hold();
+}
+
+unsafe fn publish_syscall_idle() -> bool {
+    if !empty_idle_eligible() || SYSCALL_IDLE_DISPOSITION != 0
+        || IDLE_TRANSITIONS == 0xffff_ffff_ffff_ffff { return false; }
+    clear_syscall_entry(); SYSCALL_IDLE_DISPOSITION = 1;
+    return true;
+}
+
+// Consume exactly one kernel-owned idle disposition. A pointer, errno, old
+// disposition, failed switch or invalid queue cannot select a ring-0 target.
+// 0 leaves existing frame/completion routing, 1 enters idle, 2 fails closed.
+@export
+@no_mangle
+pub unsafe fn kernel_scheduler_take_idle(frame: usize) -> u64 {
+    let disposition: u8 = SYSCALL_IDLE_DISPOSITION;
+    SYSCALL_IDLE_DISPOSITION = 0;
+    if disposition == 0 { return 0; }
+    if disposition != 1 || frame != 0 || SYSCALL_PHASE != 0
+        || !empty_idle_eligible() {
+        fail_syscall_transaction(); return 2;
+    }
+    IDLE_TRANSITIONS += 1;
+    return 1;
+}
+
 pub unsafe fn request_yield() -> u64 {
+    if !syscall_request_allowed() { return ERR_NOT_IMPLEMENTED; }
     atomic_fetch_add((&mut YIELD_REQUESTS), 1, seq_cst);
     if ACTIVE != 0 {
         PENDING_ACTION = 1;
+        bind_pending_entry();
         return SYSCALL_CONTROL_SCHEDULE;
     }
     return 0;
 }
 
 pub unsafe fn request_sleep(delta: u64) -> u64 {
-    if ACTIVE == 0 {
+    if !syscall_request_allowed() || ACTIVE == 0 {
         return ERR_NOT_IMPLEMENTED;
     }
     if delta == 0
@@ -206,6 +411,7 @@ pub unsafe fn request_sleep(delta: u64) -> u64 {
         return ERR_NOT_IMPLEMENTED;
     }
     PENDING_ACTION = 2;
+    bind_pending_entry();
     PENDING_SLEEP_DELTA = delta;
     return SYSCALL_CONTROL_SCHEDULE;
 }
@@ -214,7 +420,7 @@ pub unsafe fn request_ipc_wait(
     request_handle: u64,
     resume_result: u64
 ) -> u64 {
-    if ACTIVE == 0
+    if !syscall_request_allowed() || ACTIVE == 0
         || request_handle == 0
         || resume_result == 0
         || current_thread_handle() == 0
@@ -222,6 +428,7 @@ pub unsafe fn request_ipc_wait(
         return ERR_NOT_IMPLEMENTED;
     }
     PENDING_ACTION = 3;
+    bind_pending_entry();
     PENDING_REQUEST = request_handle;
     PENDING_RESULT = resume_result;
     return SYSCALL_CONTROL_SCHEDULE;
@@ -233,7 +440,7 @@ pub unsafe fn request_ipc_wait(
 // scheduler syscall transaction; the Mode 25 harness performs the exact
 // foreign-resource cleanup immediately before process retirement.
 pub unsafe fn request_process_exit(status: u64) -> u64 {
-    if ACTIVE == 0
+    if !syscall_request_allowed() || ACTIVE == 0
         || (SCHEDULER_KIND != SCHEDULER_KIND_PERSONALITY
             && SCHEDULER_KIND != SCHEDULER_KIND_PERSONALITY_RESTART)
         || current_thread_handle() == 0
@@ -242,12 +449,14 @@ pub unsafe fn request_process_exit(status: u64) -> u64 {
         return ERR_NOT_IMPLEMENTED;
     }
     PENDING_ACTION = 4;
+    bind_pending_entry();
     PENDING_EXIT_STATUS = status;
     return SYSCALL_CONTROL_SCHEDULE;
 }
 
 unsafe fn clear_pending_action() -> void {
     PENDING_ACTION = 0;
+    PENDING_SERIAL = 0;
     PENDING_SLEEP_DELTA = 0;
     PENDING_REQUEST = 0;
     PENDING_RESULT = 0;
@@ -312,16 +521,26 @@ unsafe fn contain_invalid_current_frame(
 @export
 @no_mangle
 pub unsafe fn kernel_scheduler_syscall(frame: *mut u64) -> usize {
+    if IDLE_POLICY != 0 {
+        if IDLE_POLICY != 1 || SYSCALL_PHASE != 2
+            || !syscall_identity_holds() || frame as usize != SYSCALL_FRAME
+            || PENDING_ACTION == 0 || PENDING_SERIAL != SYSCALL_SERIAL {
+            fail_syscall_transaction(); return 0;
+        }
+        SYSCALL_PHASE = 3;
+    }
     if ACTIVE == 0
         || frame as usize == 0
         || PENDING_ACTION == 0
         || !queue_invariants_hold()
         || current_thread_handle() == 0 {
+        if IDLE_POLICY != 0 { fail_syscall_transaction(); }
         return 0;
     }
     let source_thread: u64 = current_thread_handle();
     let running_process: u64 = current_process_handle();
     if save_current(frame as *const u64) == 0 {
+        clear_syscall_entry();
         return contain_invalid_current_frame(source_thread, running_process);
     }
     if PENDING_ACTION == 4 {
@@ -333,12 +552,15 @@ pub unsafe fn kernel_scheduler_syscall(frame: *mut u64) -> usize {
             || mark_reapable(running_process) == 0
             || !queue_invariants_hold() {
             clear_pending_action();
+            clear_syscall_entry();
             FAILED = 1;
             ACTIVE = 0;
             return 0;
         }
         clear_pending_action();
         let next_frame: usize = dispatch_next(true);
+        if next_frame == 0 && publish_syscall_idle() { return 0; }
+        clear_syscall_entry();
         if next_frame == 0
             || !consume_m2_pending_selection(source_thread, next_frame) {
             FAILED = 1;
@@ -367,11 +589,14 @@ pub unsafe fn kernel_scheduler_syscall(frame: *mut u64) -> usize {
     if transitioned == 0
         || scheduler_deschedule_current() != running_process
         || !queue_invariants_hold() {
+        clear_syscall_entry();
         FAILED = 1;
         ACTIVE = 0;
         return 0;
     }
     let next_frame: usize = dispatch_next(true);
+    if next_frame == 0 && publish_syscall_idle() { return 0; }
+    clear_syscall_entry();
     if next_frame == 0
         || !consume_m2_pending_selection(source_thread, next_frame) {
         FAILED = 1;
@@ -1493,7 +1718,12 @@ pub unsafe fn on_timer(frame: *mut u64, now: u64, from_user: bool) -> usize {
 
     let current_thread: u64 = current_thread_handle();
     if current_thread == 0 {
-        if from_user || current_process_handle() != 0 {
+        if from_user || current_process_handle() != 0
+            || (IDLE_POLICY != 0
+                && (IDLE_POLICY != 1 || SYSCALL_PHASE != 0
+                    || PENDING_ACTION != 0 || SYSCALL_IDLE_DISPOSITION != 0
+                    || ocore_management_context_ready() != 1)) {
+            if IDLE_POLICY != 0 { fail_syscall_transaction(); }
             FAILED = 1;
             ACTIVE = 0;
             return 0;
@@ -1564,7 +1794,8 @@ pub unsafe fn on_timer(frame: *mut u64, now: u64, from_user: bool) -> usize {
                 return 0;
             }
         } else {
-            if SCHEDULER_KIND == SCHEDULER_KIND_PERSONALITY
+            if IDLE_POLICY == 0
+                && SCHEDULER_KIND == SCHEDULER_KIND_PERSONALITY
                 && kernel_m6_phase_one_ready() == 1 {
                 if !quiesce_personality_survivors(running_process) {
                     FAILED = 1;
