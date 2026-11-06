@@ -132,3 +132,27 @@ original application/libc lowering, drivers, package managers, native Plan9
 ABI, persistent interactive packaging and matched whole-system measurements.
 The fixture's private control operations must never be exposed as a finished
 operating-system API.
+
+## Final process-binding retirement
+
+The native syscall adapter reclaims file-context slots only after the real
+generation-tagged PCB has been fully reaped. Exited, stopped and restartable
+owners still retain their context generation high-water mark. Revocation and
+service restart do not reset it. This prevents dead process bindings from
+exhausting the eight-context profile over the system's lifetime while retaining
+the existing bound on concurrently represented owners.
+
+`retire_reaped_process` is a trusted native lifecycle entry, not a user syscall.
+The common service's terminal `retire(owner, namespace, generation)` requires
+the caller to establish that the exact owner identity can never become live
+again. It checks the expected binding, closes any remaining OFD aliases, and
+releases that metadata slot. The x86 adapter supplies that lifetime proof from
+the process registry; numeric namespace keys are not credentials. Retirement
+never revokes a replacement native session owned by another provider.
+
+`tests.test_posix_file_context_lifecycle` executes 64 real PCB/address-space/
+CSpace generations in the hosted native carrier. It leaves aliases open at
+exit, checks same-owner generation replay denial and rejection of premature
+retirement, and retains another process's descriptor/bytes across cleanup.
+The privileged architecture hooks are replaced in this carrier; it does not
+establish a hardware process-launch or general Linux exec lifecycle.

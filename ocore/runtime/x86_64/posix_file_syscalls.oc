@@ -12,6 +12,7 @@ use runtime::process::current_process_handle;
 use runtime::process::current_address_space_handle;
 use runtime::process::address_space_for;
 use runtime::process::can_issue_operations;
+use runtime::process::is_live as process_is_live;
 use runtime::address_space::is_live as space_is_live;
 use runtime::address_space::allows;
 use runtime::address_space::VM_USER;
@@ -23,6 +24,7 @@ use runtime::user_memory::COPY_OK;
 use runtime::common::posix_namespace_files::init as files_init;
 use runtime::common::posix_namespace_files::provision as files_provision;
 use runtime::common::posix_namespace_files::revoke as files_revoke;
+use runtime::common::posix_namespace_files::retire as files_retire;
 use runtime::common::posix_namespace_files::open_file as files_open;
 use runtime::common::posix_namespace_files::write as files_write;
 use runtime::common::posix_namespace_files::duplicate as files_duplicate;
@@ -68,6 +70,17 @@ pub unsafe fn provision(owner: u64, namespace: u64, generation: u64) -> i64 {
     if owner == 0 || !can_issue_operations(owner) { return -3; }
     let space: u64 = address_space_for(owner);
     if space == 0 || !space_is_live(space) { return -3; }
+    // Registry handles contain their PCB generation. Only a fully reaped
+    // identity may release its binding slot; exited/stopped processes remain
+    // live registry identities and keep their replay-protection high-water.
+    let mut retired: usize = 0;
+    while retired < CONTEXTS {
+        if OWNERS[retired] != 0 && !process_is_live(OWNERS[retired]) {
+            let result: i64 = retire_reaped_process(OWNERS[retired]);
+            if result < 0 { return result; }
+        }
+        retired += 1;
+    }
     let mut slot: usize = CONTEXTS; let mut free: usize = CONTEXTS; let mut i: usize = 0;
     while i < CONTEXTS {
         if OWNERS[i] == owner { slot = i; break; }
@@ -92,6 +105,26 @@ pub unsafe fn revoke_process(owner: u64) -> i64 {
         if OWNERS[i] == owner && ENABLED[i] != 0 {
             ENABLED[i] = 0;
             return files_revoke(owner, NAMESPACES[i], GENERATIONS[i]);
+        }
+        i += 1;
+    }
+    return -9;
+}
+
+// Trusted native process-lifecycle entry, never selected by a user syscall.
+// Finalizing a PCB advances its generation, so this exact owner token cannot
+// subsequently pass can_issue_operations even if the registry slot is reused.
+pub unsafe fn retire_reaped_process(owner: u64) -> i64 {
+    if owner == 0 { return -22; }
+    if process_is_live(owner) { return -16; }
+    let mut i: usize = 0;
+    while i < CONTEXTS {
+        if OWNERS[i] == owner {
+            let result: i64 = files_retire(owner, NAMESPACES[i], GENERATIONS[i]);
+            if result < 0 { return result; }
+            ENABLED[i] = 0; OWNERS[i] = 0; SPACES[i] = 0;
+            NAMESPACES[i] = 0; GENERATIONS[i] = 0;
+            return 0;
         }
         i += 1;
     }

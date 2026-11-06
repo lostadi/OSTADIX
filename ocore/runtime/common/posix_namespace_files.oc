@@ -232,6 +232,30 @@ pub unsafe fn revoke(owner: u64, namespace: u64, generation: u64) -> i64 {
     let slot: usize = context(owner, namespace, generation); if slot == CONTEXTS { return -9; }
     return drop_context(slot);
 }
+// Final trusted-owner destruction, distinct from revoke/reprovision. The
+// caller must establish that this owner identity can NEVER become live again.
+// Native process adapters enforce that using the retired PCB generation, not
+// a caller-supplied namespace label. Revoking a live/restartable owner must
+// continue to retain its generation high-water mark through revoke instead.
+// The expected binding prevents delayed cleanup from retiring a replacement.
+pub unsafe fn retire(owner: u64, namespace: u64, generation: u64) -> i64 {
+    if owner == 0 || namespace == 0 || generation == 0 { return -22; }
+    let mut slot: usize = 0;
+    while slot < CONTEXTS {
+        if OWNER[slot] == owner && NAMESPACE[slot] == namespace {
+            if GENERATION[slot] != generation { return -116; }
+            // Do not clunk through a session that another trusted owner has
+            // replaced. invalidate clears local descriptions, not that owner.
+            if ACTIVE != 0 && session_is_current(1, SESSION) != 1 { invalidate(); }
+            let result: i64 = drop_context(slot);
+            if result < 0 { return result; }
+            OWNER[slot] = 0; NAMESPACE[slot] = 0; GENERATION[slot] = 0;
+            return 0;
+        }
+        slot += 1;
+    }
+    return -9;
+}
 // Native flag profile mirrors the common Linux create/access/append bits.
 // No implicit umask or UID/GID policy is invented: trusted policy supplies
 // permission bits, and role1's existing native authority remains unchanged.
