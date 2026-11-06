@@ -1,0 +1,7 @@
+; O-core typed SSA MIR
+fn smoke::addition::add [_O_smoke__addition__add]
+  bb0:
+    %0 = load Place { base: Local(0), projections: [], ty: 8 }
+    %1 = load Place { base: Local(1), projections: [], ty: 8 }
+    %2 = Add %0, %1
+    return %2

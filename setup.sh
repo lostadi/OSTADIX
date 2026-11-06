@@ -24,6 +24,7 @@ cd "$PROJECT_ROOT"
 
 # --- Defaults ---
 MINIMAL=false
+RUNTIME_ONLY=false
 FULL=false
 YES=false
 VERIFY=false
@@ -71,6 +72,7 @@ O-lang setup script
 Options:
   -h, --help                  Show this help
   -m, --minimal               Minimal hosted build; explicit --with-* flags still compose
+  --runtime-only              Four core Rust commands + MCP; skip alternate editions and extras
   -f, --full                  Explicit complete profile (normal setup auto-selects host-supported components)
   -y, --yes                   Non-interactive for the profiles explicitly selected
   -v, --verify                Verify the hosted Rust, C17, AOT, and Python forms
@@ -127,6 +129,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage 0 ;;
     -m|--minimal) MINIMAL=true; shift ;;
+    --runtime-only) RUNTIME_ONLY=true; shift ;;
     -f|--full) FULL=true; shift ;;
     -y|--yes) YES=true; shift ;;
     -v|--verify) VERIFY=true; shift ;;
@@ -162,6 +165,11 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1" >&2; usage 2 ;;
   esac
 done
+
+if $RUNTIME_ONLY && { $MINIMAL || $FULL; }; then
+  echo "Error: --runtime-only cannot be combined with --minimal or --full" >&2
+  exit 2
+fi
 
 if $MINIMAL && $FULL; then
   echo "Error: --minimal and --full are mutually exclusive"
@@ -201,11 +209,18 @@ if $FULL; then
   fi
 fi
 
-if $MINIMAL; then
+if $MINIMAL || $RUNTIME_ONLY; then
   INSTALL_NOTEBOOK=false
   INSTALL_APPS=false
   INSTALL_JNI=false
   BUILD_WORKSPACE_TOOLS=false
+fi
+
+if $RUNTIME_ONLY; then
+  RUST_BIN_TARGETS=(O o-cli olangc ocorec)
+  # A small install never removes already-built tools from a full profile.
+  RUST_STALE_BINARIES=(O o o-cli olangc ocorec "$EVALUATOR_ALIAS")
+  INSTALL_EDITOR_SUPPORT=false
 fi
 
 if $INSTALL_NOTEBOOK; then
@@ -280,7 +295,7 @@ fi
 # Normal setup builds the complete hosted codebase. Dependency profiles are
 # selected only where this script has a concrete host package map; explicit
 # --with-* requests retain their strict platform validation below.
-if ! $MINIMAL; then
+if ! $MINIMAL && ! $RUNTIME_ONLY; then
   if ! $SKIP_NIX && [[ "$PLATFORM" == "macos" || "$PLATFORM" == "linux" ]]; then
     WITH_NIX=true
     if [[ "$PLATFORM" == "linux" && "${EUID:-$(id -u)}" -eq 0 && ! -d /run/systemd/system ]] && \
@@ -308,7 +323,7 @@ if [[ "$PLATFORM" == "windows" ]]; then
   echo "  [skip] workspace ostadix command: Unix-only source; use WSL for this component"
 fi
 
-echo "Options: minimal=$MINIMAL full=$FULL yes=$YES verify=$VERIFY nix=$WITH_NIX ocore=$WITH_OCORE ocore_media=$WITH_OCORE_MEDIA hosted_runtimes=$WITH_HOSTED_RUNTIMES linux_kernel_tools=$WITH_LINUX_KERNEL_TOOLS guest_tools=$WITH_GUEST_TOOLS ubuntu_vm=$WITH_UBUNTU_VM verify_ocore=$VERIFY_OCORE check=$CHECK_ONLY deps_only=$DEPS_ONLY env=$WRITE_ENV persist_env=$PERSIST_ENV local_bins=$INSTALL_LOCAL_BINS mcp=$INSTALL_MCP editor_support=$INSTALL_EDITOR_SUPPORT notebook=$INSTALL_NOTEBOOK apps=$INSTALL_APPS jni=$INSTALL_JNI dry_run=$DRY_RUN"
+echo "Options: minimal=$MINIMAL runtime_only=$RUNTIME_ONLY full=$FULL yes=$YES verify=$VERIFY nix=$WITH_NIX ocore=$WITH_OCORE ocore_media=$WITH_OCORE_MEDIA hosted_runtimes=$WITH_HOSTED_RUNTIMES linux_kernel_tools=$WITH_LINUX_KERNEL_TOOLS guest_tools=$WITH_GUEST_TOOLS ubuntu_vm=$WITH_UBUNTU_VM verify_ocore=$VERIFY_OCORE check=$CHECK_ONLY deps_only=$DEPS_ONLY env=$WRITE_ENV persist_env=$PERSIST_ENV local_bins=$INSTALL_LOCAL_BINS mcp=$INSTALL_MCP editor_support=$INSTALL_EDITOR_SUPPORT notebook=$INSTALL_NOTEBOOK apps=$INSTALL_APPS jni=$INSTALL_JNI dry_run=$DRY_RUN"
 
 if $WITH_NIX && [[ "$PLATFORM" != "macos" && "$PLATFORM" != "linux" ]]; then
   if $FULL && ! $NIX_EXPLICIT; then
@@ -426,6 +441,7 @@ refresh_cargo_bin_binaries() {
   echo ">>> Installing native Rust binaries in $CARGO_BIN_DIR..."
   # Bash 3.2 treats an empty array expansion as unset under `set -u`.
   local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR")
+  if ${RUNTIME_ONLY:-false}; then options+=(--runtime-only); fi
   if $DRY_RUN; then options+=(--dry-run); fi
   if $INSTALL_NOTEBOOK; then options+=(--include-notebook); fi
   if $BUILD_WORKSPACE_TOOLS; then options+=(--include-workspace-tools); fi
@@ -745,7 +761,7 @@ install_system_deps() {
 }
 
 install_rust() {
-  if has_cmd cargo && { $MINIMAL || has_cmd rustup; }; then
+  if has_cmd cargo && { $MINIMAL || $RUNTIME_ONLY || has_cmd rustup; }; then
     echo "Rust/Cargo already present."
   elif $DRY_RUN; then
     echo "[DRY] download the official rustup installer over TLS"
@@ -760,7 +776,7 @@ install_rust() {
   fi
 
   if has_cmd rustup || $DRY_RUN; then
-    if ! $MINIMAL; then
+    if ! $MINIMAL && ! $RUNTIME_ONLY; then
       run_cmd rustup component add rustfmt clippy
       run_cmd rustup target add wasm32-wasip1
     fi
@@ -1053,6 +1069,10 @@ install_editor_support() {
 }
 
 setup_host_components() {
+  if ${RUNTIME_ONLY:-false}; then
+    echo ">>> Runtime-only components: O, o-cli, olangc, ocorec; optional component builds skipped."
+    return
+  fi
   echo ">>> Independent component capability plan..."
   local options=(--repo-root "$PROJECT_ROOT")
   if ! $INSTALL_APPS; then options+=(--no-apps); fi
@@ -1111,7 +1131,8 @@ setup_python() {
 install_local_binaries() {
   if ! $INSTALL_LOCAL_BINS; then return; fi
   echo ">>> Installing native commands in ~/.local/bin..."
-  local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c)
+  local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin")
+  if ${RUNTIME_ONLY:-false}; then options+=(--runtime-only); else options+=(--include-c); fi
   if $DRY_RUN; then options+=(--dry-run); fi
   if $INSTALL_NOTEBOOK; then options+=(--include-notebook); fi
   if $BUILD_WORKSPACE_TOOLS; then options+=(--include-workspace-tools); fi
@@ -1657,8 +1678,21 @@ verify_python_smoke() (
   [[ "$output" == "2" || "$output" == "[number] 2" ]]
 )
 
+verify_runtime_only() {
+  if $DRY_RUN; then
+    echo "[DRY] Verify runtime-only native evaluator, plan, O-core help and MCP initialize/tools/list"
+    return
+  fi
+  local smoke_args=(--root "$PROJECT_ROOT" --bin-dir "$PROJECT_ROOT/target/release")
+  if $INSTALL_MCP; then
+    smoke_args+=(--mcp-bin "$PROJECT_ROOT/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp")
+  fi
+  python3 "$PROJECT_ROOT/scripts/runtime_bundle.py" smoke "${smoke_args[@]}"
+}
+
 verify_runnable() {
   if ! $VERIFY; then return; fi
+  if $RUNTIME_ONLY; then verify_runtime_only; return; fi
   if $DRY_RUN; then
     echo "[DRY] Would verify Rust, Rust-native backends, C, AOT, and Python runnable forms"
     return
@@ -1798,9 +1832,9 @@ persist_environment_hook
 
 if ! $DEPS_ONLY; then
   build_rust
-  build_c
+  if ! $RUNTIME_ONLY; then build_c; fi
   build_mcp_server
-  setup_python
+  if ! $RUNTIME_ONLY; then setup_python; fi
   install_local_binaries
   setup_host_components
   verify_runnable
@@ -1820,11 +1854,13 @@ fi
 echo
 echo "Quick starts:"
 echo "  o examples/hello.O                    # native Rust command"
-echo "  o-c examples/hello.O                  # C edition"
-echo "  cargo run --package o-lang -- examples/hello.O"
-echo "  ./c_cpp/O examples/hello.O ./backends"
-echo "  ./c_cpp/olangc examples/hello.O -o /tmp/h && /tmp/h"
-echo "  python3 -m o_lang examples/hello.O"
+if ! $RUNTIME_ONLY; then
+  echo "  o-c examples/hello.O                  # C edition"
+  echo "  cargo run --package o-lang -- examples/hello.O"
+  echo "  ./c_cpp/O examples/hello.O ./backends"
+  echo "  ./c_cpp/olangc examples/hello.O -o /tmp/h && /tmp/h"
+  echo "  python3 -m o_lang examples/hello.O"
+fi
 echo "  ostadix-mcp                           # MCP stdio server (capability discovery, full CLI access, jobs, and diagnostics)"
 echo "  ostadix-mcp-client --list-tools        # persistent local bridge for agent function callers"
 if $WRITE_ENV; then

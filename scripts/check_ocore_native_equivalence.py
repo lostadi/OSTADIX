@@ -27,6 +27,78 @@ TARGETS = {
     "aarch64": ("aarch64-unknown-none", "aarch64-unknown-linux-gnu", 183, []),
     "riscv64": ("riscv64-unknown-none", "riscv64-unknown-linux-gnu", 243, ["-march=rv64gc", "-mabi=lp64"]),
 }
+TARGET_CATALOG = ROOT / "crates/ostadix-api/src/ocore/common.rs"
+
+
+def canonical_target_coverage(profiles=None, catalog=TARGET_CATALOG) -> dict:
+    """Fail closed when canonical compiler targets outgrow execution profiles.
+
+    This reads the compiler's enum/name source, not a second target whitelist.
+    An unfamiliar catalog representation requires an explicit harness update.
+    """
+    profiles = TARGETS if profiles is None else profiles
+    source = Path(catalog).read_text()
+    invocations = list(re.finditer(r"^define_targets!\s*\{(.*?)^\}", source, re.M | re.S))
+    if invocations:
+        if len(invocations) != 1:
+            raise RuntimeError("unrecognized canonical O-core target catalog")
+        # Read every row of the compiler's actual declarative catalog. This
+        # deliberately accepts only its current literal grammar; skipping an
+        # unknown row/field would silently weaken the all-implemented-ISA gate.
+        literal = r'"([a-z0-9_-]+)"'
+        row = re.compile(
+            r'\s*(\w+)\s*\{\s*id:\s*'+literal+r'\s*,\s*architecture:\s*'+literal+
+            r'\s*,\s*name:\s*'+literal+r'\s*,\s*triple:\s*'+literal+
+            r'\s*,\s*aliases:\s*\[((?:\s*"[a-z0-9_-]+"\s*,?\s*)*)\]\s*\}')
+        body = invocations[0][1]
+        named, ids, architectures, triples, aliases = [], [], [], [], []
+        position = 0
+        while body[position:].strip():
+            match = row.match(body, position)
+            if match is None:
+                raise RuntimeError("unrecognized canonical O-core target catalog row")
+            variant, identity, architecture, name, triple, raw_aliases = match.groups()
+            # Multiple strings without commas are not valid Rust row syntax.
+            if raw_aliases.strip() and not re.fullmatch(
+                    r'\s*"[a-z0-9_-]+"(?:\s*,\s*"[a-z0-9_-]+")*\s*,?\s*', raw_aliases):
+                raise RuntimeError("unrecognized canonical O-core target aliases")
+            named.append((variant, name))
+            ids.append(identity)
+            architectures.append(architecture)
+            triples.append(triple)
+            aliases.extend([name, triple, *re.findall(r'"([a-z0-9_-]+)"', raw_aliases)])
+            position = match.end()
+            if body[position:].strip():
+                separator = re.match(r'\s*,', body[position:])
+                if separator is None:
+                    raise RuntimeError("unrecognized canonical O-core target row separator")
+                position += separator.end()
+        variants = [variant for variant, _ in named]
+        if not variants or any(len(set(values)) != len(values)
+                               for values in (ids, architectures, triples, aliases)):
+            raise RuntimeError("duplicate or empty canonical O-core target declarations")
+    else:
+        enum = re.search(r"pub enum Target\s*\{([^}]*)\}", source)
+        names = re.search(r"pub (?:const )?fn name\(self\) -> &'static str\s*\{\s*match self\s*\{([^}]*)\}\s*\}", source)
+        if enum is None or names is None:
+            raise RuntimeError("unrecognized canonical O-core target catalog")
+        entries = [line.strip() for line in enum[1].splitlines() if line.strip()]
+        if not entries or any(re.fullmatch(r"\w+,", line) is None for line in entries):
+            raise RuntimeError("unrecognized canonical O-core target enum")
+        variants = [line[:-1] for line in entries]
+        named = re.findall(r'Target::(\w+)\s*=>\s*"([^"]+)"\s*,', names[1])
+    mapping = dict(named)
+    if len(set(variants)) != len(variants) or len(mapping) != len(named) or set(mapping) != set(variants):
+        raise RuntimeError("canonical O-core target names do not cover its enum")
+    canonical = set(mapping.values())
+    selected = [profile[0] for profile in profiles.values()]
+    if len(canonical) != len(mapping) or len(set(selected)) != len(selected) or set(selected) != canonical:
+        raise RuntimeError("canonical backend/execution-profile coverage differs: missing="
+                           + repr(sorted(canonical - set(selected))) + "; extra="
+                           + repr(sorted(set(selected) - canonical)))
+    return {"source": file_identity(catalog), "variants": variants,
+            "canonical_targets": sorted(canonical),
+            "configured_execution_targets": sorted(selected)}
 
 
 def tool(value: str, label: str) -> str:
@@ -177,6 +249,7 @@ def no_core_dumps() -> None:
 
 
 def check(args: argparse.Namespace, directory: Path) -> dict:
+    catalog = canonical_target_coverage()
     compiler = tool(str(args.ocorec), "ocorec; build with cargo build --locked --bin ocorec")
     clang = tool(args.clang, "clang")
     assembler = tool("clang", "O-core assembler")
@@ -185,11 +258,13 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
                  for target in args.targets}
     corpus = ROOT / "tests/fixtures/ocore_native_equivalence.oc"
     harness = ROOT / "tests/fixtures/ocore_native_equivalence.c"
-    evidence = RunEvidence([__file__, corpus, harness],
+    evidence = RunEvidence([__file__, corpus, harness, TARGET_CATALOG],
                            {"ocorec": compiler, "clang": clang, "assembler_clang": assembler,
                             "linker": linker, **{isa: runner[0] for isa, runner in emulators.items() if runner}})
     run = evidence.checked_run
     report = {"schema": "ostadix.ocore-native-equivalence/v1", "targets": {}, "compiler": run([compiler, "--version"]).stdout.decode().strip(), "clang": run([clang, "--version"]).stdout.decode().splitlines()[0]}
+    report["backend_catalog"] = catalog
+    report["selected_native_targets"] = [TARGETS[target][0] for target in args.targets]
     report["assembler_clang"] = run([assembler, "--version"]).stdout.decode().splitlines()[0]
     report["source_sha256"] = hashlib.sha256(corpus.read_bytes()).hexdigest()
     report["reference_sha256"] = hashlib.sha256(harness.read_bytes()).hexdigest()
@@ -242,7 +317,8 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
             result["emulator"] = run([emulators[target][0], "--version"]).stdout.decode().splitlines()[0]
         report["targets"][target] = result
         print(f"{target}: PASS — {result['output']}; C ABI/memory/atomics; 6 synchronous fault cases; 2 never cases; reproducible object", flush=True)
-    report["equivalent"] = len(args.targets) == len(TARGETS)
+    report["executed_native_targets"] = [TARGETS[target][0] for target in report["targets"]]
+    report["equivalent"] = set(report["executed_native_targets"]) == set(catalog["canonical_targets"])
     report["provenance"] = evidence.finish()
     return report
 

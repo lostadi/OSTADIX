@@ -1336,6 +1336,13 @@ creation, build, run, test, benchmark, and validation work in this repository.
 Re-running setup after an update refreshes both the installed server and, on a
 Gemini-enabled machine, its registration.
 
+For editor and MCP onboarding, `./setup.sh --runtime-only --verify` selects
+four core executables and the MCP server. It leaves the larger installation
+profiles available. The [runtime onboarding guide](docs/MCP_RUNTIME_ONBOARDING.md)
+covers this profile, verified native bundles, exact runtime identity, and the
+opt-in watcher resources. ARM64 bundles require successful native release jobs;
+the presence of packaging scripts alone does not establish a published asset.
+
 For a build without the rest of setup, build the Ostadix commands used by
 the server and then the server itself:
 
@@ -1514,6 +1521,7 @@ The script supports composable setup profiles and non-installing checks:
 
 ```bash
 ./setup.sh --minimal                         # smaller hosted build and editor support
+./setup.sh --runtime-only --verify           # four core executables plus MCP
 ./setup.sh --verify                          # automatic host-supported setup + hosted checks
 ./setup.sh --with-nix --deps-only            # Nix plus environment, no builds
 ./setup.sh --with-ocore --verify-ocore       # tools + bounded x86 QEMU smoke

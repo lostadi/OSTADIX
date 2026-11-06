@@ -17,6 +17,8 @@ import fnmatch
 import hashlib
 import json
 import os
+import stat
+import tarfile
 from pathlib import Path
 import re
 import shlex
@@ -456,10 +458,13 @@ def validate_recipe(recipe: dict, registry: dict | None = None) -> None:
     if not isinstance(recipe.get("name"), str) or not recipe["name"]:
         raise CaptureError("recipe needs a nonempty name")
     source = recipe.get("source", {})
-    if not re.fullmatch(r"[0-9a-f]{40}", source.get("revision", "")):
-        raise CaptureError("source.revision must pin a full 40-digit Git commit")
-    if not isinstance(source.get("url"), str):
-        raise CaptureError("source.url must record its origin")
+    if source_origin_kind(source) == DEBIAN_ORIGIN:
+        validate_debian_source(source)
+    else:
+        if not re.fullmatch(r"[0-9a-f]{40}", source.get("revision", "")):
+            raise CaptureError("source.revision must pin a full 40-digit Git commit")
+        if not isinstance(source.get("url"), str):
+            raise CaptureError("source.url must record its origin")
     toolchain = recipe.get("toolchain", {})
     if any(key in owner for owner in (recipe, toolchain) for key in
            ("producer_registry", "producer_plugins", "producer_adapters")):
@@ -506,6 +511,336 @@ def verify_source(recipe: dict, source: Path) -> dict:
     return {"path": str(source), "url": recipe["source"]["url"], "revision": head,
             "commit_timestamp": run_text(["git", "show", "-s", "--format=%ct", "HEAD"], source),
             "submodules": submodules.splitlines(), "clean_at_start": True}
+
+
+# Versioned caller-pinned Debian origin. Archive pins are selected content,
+# never proof that a Debian signing key or source ownership was authenticated.
+DEBIAN_ORIGIN = "debian-source-v1"
+DEBIAN_TREE_SCHEMA = "ocore-debian-logical-source-tree-v1"
+
+def _debian_need(condition, message):
+    if not condition:
+        raise CaptureError("Debian source origin: " + message)
+
+def _debian_selected(pin, file_key="file"):
+    _debian_need(isinstance(pin, dict), "selected input descriptor is not an object")
+    _debian_need(set(pin) == {file_key, "bytes", "sha256"}, "selected input descriptor fields differ")
+    name=pin[file_key]
+    _debian_need(isinstance(name,str) and bool(name) and not any(ord(c)<32 for c in name), "invalid selected input name")
+    if file_key == "file":
+        _debian_need(name not in {".",".."} and "/" not in name and "\\" not in name, "archive filename is not a leaf")
+    else:
+        _debian_need(Path(name).is_absolute() and str(Path(name).resolve())==name, "extractor path is not canonical absolute")
+    _debian_need(type(pin["bytes"]) is int and pin["bytes"]>=0, "selected input length is not a nonnegative integer")
+    _debian_need(isinstance(pin["sha256"],str) and re.fullmatch(r"[0-9a-f]{64}",pin["sha256"]) is not None, "selected input SHA256 is malformed")
+
+def source_origin_kind(source):
+    _debian_need(isinstance(source,dict), "source descriptor is not an object")
+    if "kind" in source:
+        _debian_need(source["kind"] == DEBIAN_ORIGIN, "unsupported source origin tag")
+        return DEBIAN_ORIGIN
+    decisive={"dsc","archives","extractor","expected_tree_sha256"}
+    _debian_need(not (decisive & set(source)), "legacy Git source cannot carry Debian origin fields")
+    return "legacy-git"
+
+def validate_debian_source(source):
+    required={"kind","package","version","dsc","archives","extractor","expected_tree_sha256","authentication"}
+    _debian_need(isinstance(source,dict) and set(source)==required, "recipe source fields differ")
+    _debian_need(source["kind"]==DEBIAN_ORIGIN, "recipe source tag differs")
+    for key in ("package","version"):
+        _debian_need(isinstance(source[key],str) and bool(source[key]) and not any(c.isspace() or ord(c)<32 for c in source[key]), "invalid package/version")
+    _debian_selected(source["dsc"])
+    _debian_need(source["dsc"]["file"].endswith(".dsc"), "selected dsc filename differs")
+    _debian_need(isinstance(source["archives"],list) and bool(source["archives"]), "archive list is empty or absent")
+    for pin in source["archives"]: _debian_selected(pin)
+    names=[source["dsc"]["file"],*[p["file"] for p in source["archives"]]]
+    _debian_need(len(names)==len(set(names)), "duplicate selected package filename")
+    _debian_selected(source["extractor"],"path")
+    _debian_need(isinstance(source["expected_tree_sha256"],str) and re.fullmatch(r"[0-9a-f]{64}",source["expected_tree_sha256"]) is not None, "caller-held expected tree digest is missing or malformed")
+    _debian_need(source["authentication"]=={"mode":"caller-pinned"}, "only explicitly unauthenticated caller-pinned content is supported")
+
+def _debian_identity(st):
+    return {"device":st.st_dev,"inode":st.st_ino,"mode":st.st_mode,"nlink":st.st_nlink,
+            "uid":st.st_uid,"gid":st.st_gid,"bytes":st.st_size,"mtime_ns":st.st_mtime_ns,"ctime_ns":st.st_ctime_ns}
+
+def _debian_pin(path, expected=None):
+    path=Path(path)
+    _debian_need(path.is_absolute() and path.resolve()==path, "input path is not canonical absolute")
+    fd=os.open(path,os.O_RDONLY|os.O_CLOEXEC|os.O_NOFOLLOW)
+    try:
+        before=_debian_identity(os.fstat(fd))
+        _debian_need(stat.S_ISREG(before["mode"]), "input is not a regular file")
+        h=hashlib.sha256(); size=0
+        while True:
+            b=os.read(fd,1024*1024)
+            if not b: break
+            size+=len(b); h.update(b)
+        _debian_need(_debian_identity(os.fstat(fd))==before and _debian_identity(path.lstat())==before,
+                     "held/named input identity changed")
+        result={"path":str(path),**before,"sha256":h.hexdigest()}
+        _debian_need(size==before["bytes"], "input read length differs")
+        if expected is not None:
+            _debian_need(result["bytes"]==expected["bytes"] and result["sha256"]==expected["sha256"], "selected input bytes/SHA256 differ")
+        return result
+    finally:
+        os.close(fd)
+
+def _debian_snapshot(source, destination, expected):
+    original=_debian_pin(source,expected)
+    incoming=os.open(source,os.O_RDONLY|os.O_CLOEXEC|os.O_NOFOLLOW)
+    outgoing=None
+    try:
+        _debian_need(_debian_identity(os.fstat(incoming))=={k:original[k] for k in _debian_identity(os.fstat(incoming))}, "input changed before snapshot")
+        outgoing=os.open(destination,os.O_RDWR|os.O_CREAT|os.O_EXCL|os.O_CLOEXEC|os.O_NOFOLLOW,0o600)
+        h=hashlib.sha256(); size=0
+        while True:
+            b=os.read(incoming,1024*1024)
+            if not b: break
+            h.update(b); size+=len(b); view=memoryview(b)
+            while view:
+                n=os.write(outgoing,view)
+                _debian_need(n>0,"snapshot short write"); view=view[n:]
+        _debian_need(size==expected["bytes"] and h.hexdigest()==expected["sha256"],"selected input changed while snapshotting")
+        _debian_need(_debian_pin(source)==original,"original package input changed during snapshot")
+        os.fchmod(outgoing,0o400); os.fsync(outgoing)
+        sealed=_debian_identity(os.fstat(outgoing)); os.lseek(outgoing,0,os.SEEK_SET)
+        saved=hashlib.sha256(); saved_size=0
+        while True:
+            b=os.read(outgoing,1024*1024)
+            if not b: break
+            saved.update(b); saved_size+=len(b)
+        _debian_need(saved_size==size and saved.hexdigest()==h.hexdigest() and _debian_identity(os.fstat(outgoing))==sealed,"snapshot same-FD readback differs")
+        saved_pin={"path":str(destination),**sealed,"sha256":saved.hexdigest()}
+    finally:
+        errors=[]
+        for fd in (outgoing,incoming):
+            if fd is not None:
+                try: os.close(fd)
+                except OSError as e: errors.append(str(e))
+        _debian_need(not errors,"snapshot close failed: "+repr(errors))
+    _debian_need(_debian_pin(destination)==saved_pin,"created snapshot named identity differs")
+    return {"selected":expected,"original":original,"snapshot":saved_pin}
+
+def _debian_dsc(raw, source):
+    text=raw.decode("utf-8")
+    if text.startswith("-----BEGIN PGP SIGNED MESSAGE-----"):
+        lines=text.splitlines(); start=next((i for i,s in enumerate(lines) if i>0 and not s),None)
+        _debian_need(start is not None,"malformed clearsigned dsc")
+        finish=next((i for i in range(start+1,len(lines)) if lines[i]=="-----BEGIN PGP SIGNATURE-----"),None)
+        _debian_need(finish is not None and "-----END PGP SIGNATURE-----" in lines[finish:],"malformed signature armor")
+        text="\n".join(s[2:] if s.startswith("- ") else s for s in lines[start+1:finish])
+    fields={}; key=None
+    for line in text.splitlines():
+        if not line: continue
+        if line[0].isspace():
+            _debian_need(key is not None,"dsc continuation without field"); fields[key]+="\n"+line[1:]
+        else:
+            key,sep,value=line.partition(":")
+            _debian_need(bool(sep) and bool(key) and key not in fields,"malformed or duplicate dsc field")
+            fields[key]=value.lstrip()
+    _debian_need(fields.get("Format")=="3.0 (quilt)","unsupported source format (requires 3.0 (quilt))")
+    _debian_need(fields.get("Source")==source["package"] and fields.get("Version")==source["version"],"dsc package/version differ")
+    archives=[]
+    for line in fields.get("Checksums-Sha256","").splitlines():
+        if not line.strip(): continue
+        row=line.split(); _debian_need(len(row)==3,"malformed dsc Checksums-Sha256 row")
+        sha,size,name=row
+        _debian_need(re.fullmatch(r"0|[1-9][0-9]*",size) is not None,"malformed dsc archive length")
+        item={"file":name,"bytes":int(size),"sha256":sha}; _debian_selected(item); archives.append(item)
+    _debian_need(bool(archives) and len({p["file"] for p in archives})==len(archives),"missing/duplicate dsc archive row")
+    _debian_need(archives==source["archives"],"complete ordered dsc archive list differs from caller-held list")
+    return fields
+
+def _debian_archive_preflight(paths):
+    entries=[]; links={}; primary=0; packaging=0
+    for path in paths:
+        name=path.name
+        if ".debian.tar" in name: role="debian"; packaging+=1; component=""
+        elif ".orig.tar" in name: role="orig"; primary+=1; component=""
+        elif ".orig-" in name and ".tar" in name:
+            role="component"; component=name.split(".orig-",1)[1].split(".tar",1)[0]
+            _debian_need(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*",component) is not None,"unsafe orig component name")
+        else: raise CaptureError("Debian source origin: unsupported source archive filename")
+        rows=[]
+        try:
+            with tarfile.open(path,"r:*") as archive:
+                for member in archive:
+                    raw=member.name
+                    _debian_need(not raw.startswith("/") and "\\" not in raw and not any(ord(c)<32 for c in raw),"unsafe archive member path")
+                    parts=[p for p in raw.split("/") if p not in {"","."}]
+                    _debian_need(".." not in parts,"unsafe archive member path")
+                    if not parts: _debian_need(member.isdir(),"unsafe archive root entry"); continue
+                    _debian_need(member.isfile() or member.isdir() or member.issym(),"unsupported special/hardlink archive member")
+                    rows.append((parts,member.issym(),member.linkname,member.isdir()))
+        except (tarfile.TarError,EOFError) as e:
+            raise CaptureError("Debian source origin: unsupported or malformed tar archive: "+str(e)) from e
+        _debian_need(bool(rows),"source archive has no members")
+        if role!="debian":
+            tops={r[0][0] for r in rows}; _debian_need(len(tops)==1,"orig archive lacks one leading directory")
+        for parts,symlink,target,is_directory in rows:
+            if role=="debian": _debian_need(parts[0]=="debian","Debian tar member lies outside debian/")
+            else:
+                if len(parts)==1:
+                    _debian_need(is_directory,"non-directory orig leading-root member")
+                parts=([component] if component else [])+parts[1:]
+            if not parts: continue
+            logical="/".join(parts); entries.append(logical)
+            if symlink:
+                _debian_need(bool(target) and not target.startswith("/") and "\\" not in target and not any(ord(c)<32 for c in target),"unsafe archive symlink")
+                _debian_need(logical not in links or links[logical]==target,"ambiguous archive symlink replacement")
+                links[logical]=target
+    _debian_need(primary==1 and packaging==1,"requires exactly one primary orig and one Debian archive")
+    def resolve(parts):
+        pending=list(parts); stack=[]; seen=set()
+        while pending:
+            part=pending.pop(0)
+            if part in {"","."}: continue
+            if part=="..":
+                _debian_need(bool(stack),"escaping archive symlink"); stack.pop(); continue
+            stack.append(part); key="/".join(stack)
+            if key in links:
+                state=(key,tuple(pending)); _debian_need(state not in seen,"cyclic archive symlink")
+                seen.add(state); stack.pop(); pending=links[key].split("/")+pending
+        return stack
+    for name in entries: resolve(name.split("/"))
+    return {"archives":len(paths),"members":len(entries),"special_files_allowed":False,"escaping_links_allowed":False}
+
+def debian_source_tree(root):
+    root=Path(root); _debian_need(root.is_absolute() and root.resolve()==root and root.is_dir(),"materialized tree root differs")
+    logical=[]; physical=[]; pending=[root]
+    while pending:
+        directory=pending.pop(); before=_debian_identity(directory.lstat())
+        _debian_need(stat.S_ISDIR(before["mode"]),"tree directory became a link or special file")
+        children=sorted(directory.iterdir(),key=lambda p:p.name)
+        for path in children:
+            relative=path.relative_to(root).as_posix(); st=path.lstat(); mode=stat.S_IMODE(st.st_mode)
+            _debian_need(not any(ord(c)<32 for c in relative) and not (mode & 0o7000),"unsafe tree name/mode")
+            row={"path":relative,"mode":mode}
+            if stat.S_ISDIR(st.st_mode):
+                logical.append({**row,"kind":"directory"}); physical.append({"path":str(path),**_debian_identity(st)}); pending.append(path)
+            elif stat.S_ISREG(st.st_mode):
+                pin=_debian_pin(path); _debian_need(pin["nlink"]==1,"tree contains a hardlinked file")
+                logical.append({**row,"kind":"file","bytes":pin["bytes"],"sha256":pin["sha256"]}); physical.append(pin)
+            elif stat.S_ISLNK(st.st_mode):
+                target=os.readlink(path)
+                _debian_need(not Path(target).is_absolute() and path.resolve().is_relative_to(root),"escaping tree symlink")
+                _debian_need(_debian_identity(path.lstat())==_debian_identity(st) and os.readlink(path)==target,"tree symlink changed")
+                logical.append({**row,"kind":"symlink","target":target}); physical.append({"path":str(path),**_debian_identity(st),"target":target})
+            else: raise CaptureError("Debian source origin: unsupported special tree member")
+        _debian_need(_debian_identity(directory.lstat())==before,"tree directory changed during observation")
+    logical.sort(key=lambda x:x["path"]); physical.sort(key=lambda x:x["path"])
+    manifest={"schema":DEBIAN_TREE_SCHEMA,"entries":logical}
+    raw=json.dumps(manifest,sort_keys=True,separators=(",",":"),ensure_ascii=True).encode("ascii")
+    return {"sha256":hashlib.sha256(raw).hexdigest(),"manifest":manifest,"physical":physical,
+            "root_identity":_debian_identity(root.lstat())}
+
+def _debian_patch_evidence(root):
+    series=root/"debian/patches/series"; entries=[]
+    if series.exists():
+        series_pin=_debian_pin(series)
+        for line in series.read_text().splitlines():
+            row=shlex.split(line,comments=True)
+            if not row: continue
+            name=row[0]
+            _debian_need(not Path(name).is_absolute() and ".." not in name.split("/"),"unsafe quilt patch path")
+            path=(series.parent/name).resolve()
+            _debian_need(path.is_relative_to(series.parent.resolve()),"escaping quilt patch")
+            entries.append({"name":name,"options":row[1:],"file":_debian_pin(path)})
+        _debian_need(_debian_pin(series)==series_pin,"patch series changed")
+    else: series_pin=None
+    applied=root/".pc/applied-patches"
+    actual=applied.read_text().splitlines() if applied.exists() else []
+    _debian_need(actual==[p["name"] for p in entries],"applied quilt patch order differs from source series")
+    return {"series":series_pin,"entries":entries,"applied":actual,"applied_file":_debian_pin(applied) if applied.exists() else None}
+
+def _debian_materialize(recipe,input_root,directory):
+    source=recipe["source"]; validate_debian_source(source)
+    input_root=Path(input_root)
+    _debian_need(input_root.is_absolute() and input_root.resolve()==input_root and input_root.is_dir(),"package input root is not canonical")
+    owner=Path(directory)/"source-origin"
+    _debian_need(not owner.exists() and not owner.is_relative_to(input_root) and not input_root.is_relative_to(owner),"materialization owner overlaps package inputs or exists")
+    owner.mkdir(mode=0o700); snapshots=owner/"inputs"; snapshots.mkdir(mode=0o700); (owner/"tmp").mkdir(mode=0o700)
+    tree=owner/"source"; log=owner/"extract.log"; receipt_path=owner/"materialization.json"
+    receipt={"schema":"ocore-debian-source-materialization-v1","success":False,"input_root":str(input_root),"source_root":str(tree),
+             "caller_expected_tree_sha256":source["expected_tree_sha256"],"argv":None,"exit_code":None,"errors":[],
+             "signed_metadata_authentication_verified":False,"interpreter_helper_closure_qualified":False,
+             "source_ownership_qualified":False,"runtime_qualified":False}
+    write_json(receipt_path,receipt)
+    try:
+        inputs=[_debian_snapshot(input_root/p["file"],snapshots/p["file"],p) for p in [source["dsc"],*source["archives"]]]
+        dsc=snapshots/source["dsc"]["file"]; fields=_debian_dsc(dsc.read_bytes(),source)
+        safety=_debian_archive_preflight([snapshots/p["file"] for p in source["archives"]])
+        tool=_debian_pin(Path(source["extractor"]["path"]),source["extractor"])
+        _debian_need(tool["mode"] & 0o111,"selected extractor is not executable")
+        argv=[tool["path"],"--extract",str(dsc),str(tree)]
+        environment={"PATH":os.environ.get("PATH","/usr/bin:/bin"),"LANG":"C.UTF-8","LC_ALL":"C.UTF-8","TZ":"UTC",
+                     "HOME":os.environ.get("HOME","/nonexistent"),"TMPDIR":str(owner/"tmp")}
+        receipt.update({"inputs":inputs,"extractor":tool,"argv":argv,"environment":environment,"source_format":fields["Format"],"archive_safety":safety})
+        write_json(receipt_path,receipt)
+        with log.open("xb") as stream:
+            result=subprocess.run(argv,cwd=owner,env=environment,stdout=stream,stderr=stream)
+            stream.flush(); os.fsync(stream.fileno())
+        receipt["exit_code"]=result.returncode; receipt["log"]=_debian_pin(log); write_json(receipt_path,receipt)
+        for item in inputs:
+            _debian_need(_debian_pin(Path(item["original"]["path"]))==item["original"],"original package input postguard failed")
+            _debian_need(_debian_pin(Path(item["snapshot"]["path"]))==item["snapshot"],"package snapshot postguard failed")
+        _debian_need(_debian_pin(Path(tool["path"]))==tool,"extractor byte/identity postguard failed")
+        _debian_need(result.returncode==0,"extractor failed; retained materialization.json and extract.log")
+        observed=debian_source_tree(tree)
+        _debian_need(observed["sha256"]==source["expected_tree_sha256"],"materialized tree differs from caller-held expected digest")
+        patches=_debian_patch_evidence(tree)
+        receipt["success"]=True; receipt["actual_tree_sha256"]=observed["sha256"]; write_json(receipt_path,receipt)
+        return {"kind":DEBIAN_ORIGIN,"path":str(tree),"input_root":str(input_root),"package":source["package"],"version":source["version"],
+                "inputs":inputs,"extractor":tool,"tree":observed,"patches":patches,"materialization":_debian_pin(receipt_path),
+                "log":receipt["log"],"authentication":{"mode":"caller-pinned","signed_metadata_verified":False},
+                "interpreter_helper_closure_qualified":False,"source_ownership_qualified":False}
+    except BaseException as error:
+        receipt["errors"].append(str(error)); receipt["success"]=False
+        write_json(receipt_path,receipt)
+        raise
+
+def _debian_revalidate(recipe,source,context):
+    validate_debian_source(recipe["source"])
+    _debian_need(isinstance(context,dict) and context.get("kind")==DEBIAN_ORIGIN,"tagged materialized source record is missing")
+    _debian_need(context.get("path")==str(source) and Path(context["path"]).resolve()==source,"realized source path differs")
+    _debian_need(context.get("package")==recipe["source"]["package"] and context.get("version")==recipe["source"]["version"],"source package identity differs")
+    selected=[recipe["source"]["dsc"],*recipe["source"]["archives"]]
+    _debian_need(isinstance(context.get("inputs"),list) and len(context["inputs"])==len(selected),"source origin input list differs")
+    root=Path(context["input_root"])
+    for expected,item in zip(selected,context["inputs"]):
+        _debian_need(item["selected"]==expected and item["original"]["path"]==str(root/expected["file"]),"source input selection/root differs")
+        for key in ("original","snapshot"):
+            _debian_need(_debian_pin(Path(item[key]["path"]),expected)==item[key],"source origin input postguard failed")
+    _debian_dsc(Path(context["inputs"][0]["snapshot"]["path"]).read_bytes(),recipe["source"])
+    tool=_debian_pin(Path(recipe["source"]["extractor"]["path"]),recipe["source"]["extractor"])
+    _debian_need(tool==context["extractor"],"source extractor postguard failed")
+    _debian_need(_debian_pin(Path(context["materialization"]["path"]))==context["materialization"] and _debian_pin(Path(context["log"]["path"]))==context["log"],"materialization receipt/log changed")
+    receipt=read_json(Path(context["materialization"]["path"]))
+    _debian_need(receipt.get("schema")=="ocore-debian-source-materialization-v1","materialization receipt schema differs")
+    _debian_need(receipt.get("success") is True,"materialization did not complete successfully")
+    _debian_need(type(receipt.get("exit_code")) is int and receipt["exit_code"]==0,"materialization exit_code must be exact integer zero")
+    _debian_need(type(receipt.get("errors")) is list and receipt["errors"]==[],"materialization errors must be an actual empty list")
+    _debian_need(receipt.get("inputs")==context["inputs"] and receipt.get("extractor")==tool and receipt.get("source_root")==str(source),"materialization evidence join differs")
+    actual=debian_source_tree(source)
+    _debian_need(actual["sha256"]==recipe["source"]["expected_tree_sha256"] and actual==context["tree"],"complete source tree bytes/modes/membership/identity changed")
+    _debian_need(_debian_patch_evidence(source)==context["patches"],"source quilt patch evidence changed")
+    _debian_need(context.get("authentication")=={"mode":"caller-pinned","signed_metadata_verified":False} and context.get("source_ownership_qualified") is False and context.get("interpreter_helper_closure_qualified") is False,"source authentication/qualification claim differs")
+    return context
+
+def verify_source_origin(recipe, source, *, directory=None, context=None):
+    if source_origin_kind(recipe.get("source",{})) != DEBIAN_ORIGIN:
+        _debian_need(not isinstance(context,dict) or "kind" not in context,"legacy Git recipe/source origin tag differs")
+        return verify_source(recipe,source)
+    if directory is not None:
+        _debian_need(context is None,"ambiguous materialization/readmission request")
+        return _debian_materialize(recipe,source,directory)
+    return _debian_revalidate(recipe,source,context)
+
+def source_default_epoch(environment, source):
+    if source.get("kind")==DEBIAN_ORIGIN:
+        environment.pop("SOURCE_DATE_EPOCH",None)
+    else:
+        environment.setdefault("SOURCE_DATE_EPOCH",source["commit_timestamp"])
 
 
 def expand_response_files(args: list[str], cwd: Path, depth: int = 0,
@@ -578,6 +913,43 @@ def clang_inputs(args: list[str], cwd: Path) -> list[Path]:
     return result
 
 
+def clang_languages(args: list[str]) -> list[str]:
+    """Retain ordered -x LANG and -xLANG selections, excluding option values."""
+    result, index = [], 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "-x" and index + 1 < len(args):
+            result.append(args[index + 1])
+            index += 2
+        elif arg.startswith("-x") and len(arg) > 2:
+            result.append(arg[2:])
+            index += 1
+        elif arg in PAIR_OPTIONS | {"-l", "-L"}:
+            index += 2
+        else:
+            index += 1
+    return result
+
+
+def clang_stdin_input(args: list[str]) -> bool:
+    """Recognize a positional stdin input, not an option's '-' value."""
+    index = 0
+    while index < len(args):
+        if args[index] in PAIR_OPTIONS | {"-l", "-L"}:
+            index += 2
+        elif args[index] == "-":
+            return True
+        else:
+            index += 1
+    return False
+
+
+def clang_driver_query(args: list[str]) -> bool:
+    """Driver-only queries never read translation-unit stdin."""
+    return any(arg in {"--version", "-V", "-vV", "-###"}
+               or arg.startswith(("--print", "-print", "-dump")) for arg in args)
+
+
 def clang_header_compile(args: list[str], inputs: list[Path]) -> bool:
     """A frontend AST cache has no independent executable translation unit."""
     language = option_value(args, "-x")
@@ -598,7 +970,7 @@ def clang_compiler_inputs(args: list[str], cwd: Path) -> list[dict]:
 
 
 def clang_replay(args: list[str], source: Path, inputs: list[Path], cwd: Path,
-                 output: Path, depfile: Path) -> list[str]:
+                 output: Path, depfile: Path, stdin_source: Path | None = None) -> list[str]:
     result, i = [], 0
     remove_pairs = {"-o", "-MF", "-MT", "-MQ", "-Xlinker", "-L", "-l"}
     remove_single = {"-c", "-S", "-emit-llvm", "-MD", "-MMD", "-MP", "-MG",
@@ -618,6 +990,9 @@ def clang_replay(args: list[str], source: Path, inputs: list[Path], cwd: Path,
             result.extend(args[i:i + 2])
             i += 2
             continue
+        if arg == "-" and stdin_source is not None:
+            i += 1
+            continue
         if not arg.startswith("-"):
             path = (cwd / arg).resolve()
             if path in input_paths or path.suffix in {".o", ".obj", ".a", ".so", ".dylib"}:
@@ -628,6 +1003,8 @@ def clang_replay(args: list[str], source: Path, inputs: list[Path], cwd: Path,
     # Keep the original spelling: absolute replay paths change __FILE__/__BASE_FILE__.
     source_arg = next((arg for arg in args if not arg.startswith("-")
                        and (cwd / arg).resolve() == source), str(source))
+    if source == stdin_source:
+        source_arg = "-"
     return [*result, "-S", "-emit-llvm", "-MD", "-MF", str(depfile),
             "-o", str(output), source_arg]
 
@@ -758,7 +1135,8 @@ def option_value(args: list[str], option: str) -> str | None:
     return None
 
 
-def native_outputs(kind: str, args: list[str], inputs: list[Path], cwd: Path) -> list[Path]:
+def native_outputs(kind: str, args: list[str], inputs: list[Path], cwd: Path,
+                   stdin_source: Path | None = None) -> list[Path]:
     explicit = option_value(args, "-o")
     if explicit:
         return [(cwd / explicit).resolve()]
@@ -766,8 +1144,8 @@ def native_outputs(kind: str, args: list[str], inputs: list[Path], cwd: Path) ->
         if clang_header_compile(args, inputs):
             return [Path(str(path) + ".gch") for path in inputs]
         if "-c" in args or "-S" in args:
-            suffix = ".s" if "-S" in args else ".o"
-            return [cwd / (path.stem + suffix) for path in inputs]
+            suffix = (".ll" if "-S" in args else ".bc") if "-emit-llvm" in args else (".s" if "-S" in args else ".o")
+            return [cwd / (("-" if path == stdin_source else path.stem) + suffix) for path in inputs]
         return [cwd / "a.out"] if inputs else []
     directory = (cwd / (option_value(args, "--out-dir") or ".")).resolve()
     name = option_value(args, "--crate-name") or (inputs[0].stem if inputs else None)
@@ -1605,6 +1983,17 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
         # to turn a response-file NUL into an OS filesystem path.
         inputs = [] if argfile_gap is not None else (clang_inputs(args, cwd) if kind == "clang" else [
             (cwd / arg).resolve() for arg in args if not arg.startswith("-") and arg.endswith(".rs")])
+        stdin_source = None
+        stdin_bytes = None
+        if kind == "clang" and clang_stdin_input(args) and not clang_driver_query(args):
+            # Save exactly once, then feed identical bytes to both invocations.
+            # Keep '-' in argv: replacing it with the snapshot filename changes
+            # __FILE__, __BASE_FILE__, language inference and quoted includes.
+            stdin_bytes = sys.stdin.buffer.read()
+            stdin_source = directory / "stdin-source"
+            stdin_source.write_bytes(stdin_bytes)
+            event["stdin_source"] = file_info(stdin_source)
+            inputs.append(stdin_source)
         event["sources"] = [file_info(path) for path in inputs]
         executed_args = original_args
         if rust_policy is not None:
@@ -1658,9 +2047,10 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                 event["selected_linker"] = tool_info(links[0][0], "native-tool")
                 native_environment["OCORE_CAPTURE_LINKER_IDENTITY"] = json.dumps(event["selected_linker"])
                 write_json(event_path, event)
-        native_code = subprocess.run([program, *executed_args], env=native_environment).returncode
+        native_code = subprocess.run([program, *executed_args], env=native_environment,
+                                     **({"input": stdin_bytes} if stdin_source is not None else {})).returncode
         event["exit_code"] = native_code
-        query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV"}
+        query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV", "-###"}
                     or arg.startswith(("--print", "-print", "-dump")) for arg in args)
         metadata_only = kind == "rustc" and option_value(args, "--emit") is not None and not any(
             item.split("=", 1)[0] in {"link", "obj", "asm", "llvm-ir", "llvm-bc"}
@@ -1678,10 +2068,8 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                     if child.get("parent_invocation_id") == event_id and child.get("kind") == "linker"]
                 if not event["native_tool_invocation_ids"]:
                     event["capture_errors"].append("actual driver linker bypassed the pinned native-tool wrapper; linkage remains uninstrumented")
-        if native_code == 0 and not query and "-" in args:
-            event["capture_errors"].append("stdin translation units require replayable source capture and are unsupported")
         if native_code == 0 and not query:
-            for path in native_outputs(kind, args, inputs, cwd):
+            for path in native_outputs(kind, args, inputs, cwd, stdin_source):
                 if path.is_file():
                     item = file_info(path)
                     if header_compile:
@@ -1706,14 +2094,24 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                             item["archive_members"] = native_archive_members(path)
         if native_code == 0 and event["translation_required"]:
             if kind == "clang":
-                for index, source in enumerate(inputs):
+                replay_inputs = inputs
+                languages = clang_languages(args)
+                if stdin_source is not None and (len(inputs) != 1 or len(languages) != 1 or args.count("-") != 1):
+                    event["capture_errors"].append("stdin LLVM replay requires one source and one explicit language selection")
+                    replay_inputs = []
+                for index, source in enumerate(replay_inputs):
+                    if source == stdin_source and languages[0] not in {
+                            "c", "c++", "objective-c", "objective-c++"}:
+                        event["capture_errors"].append("stdin LLVM replay requires an explicit supported C-family language")
+                        continue
                     if source.suffix in ASM_SUFFIXES:
                         event["capture_errors"].append(f"assembly translation unit requires an explicit target-specific importer: {source}")
                         continue
                     output, depfile = directory / f"unit-{index}.ll", directory / f"unit-{index}.d"
-                    replay = [program, *clang_replay(args, source, inputs, cwd, output, depfile)]
+                    replay = [program, *clang_replay(args, source, inputs, cwd, output, depfile, stdin_source)]
                     with (directory / f"unit-{index}.stderr").open("wb") as stderr:
-                        result = subprocess.run(replay, stdout=stderr, stderr=stderr)
+                        result = subprocess.run(replay, stdout=stderr, stderr=stderr,
+                            **({"input": stdin_bytes} if source == stdin_source else {}))
                     item = {"id": f"{event_id}:{index}", "source": file_info(source), "kind": kind,
                             "frontend_version": event["frontend"]["version"], "replay_argv": replay,
                             "replay_exit_code": result.returncode}
@@ -1865,12 +2263,207 @@ def runtime_output_membership(recipe: dict, inventory: dict | None, events: list
             "complete": bool(roots) and not issues, "issues": sorted(set(issues))}
 
 
-def native_source_output(owner: dict, output: dict, identity_cache: dict | None = None) -> dict:
+class RustNativeLinkageContext:
+    """Private report-time context, never constructed from a report boolean.
+
+    make_report creates this only after verify_worker/registry reconstruction.
+    The returned evidence is embedded-byte provenance, not source production,
+    original-command equivalence, a frontend replay, or native equivalence.
+    """
+    def __init__(self, session, directory, registry, worker_artifact):
+        self.session, self.directory, self.registry = session, directory, registry
+        self.worker_artifact = worker_artifact
+        self.extractor = rust_payload_extractor(session, directory)
+        self.cache = {}
+
+    def _identities(self, owner):
+        if owner.get("capture_worker") != self.worker_artifact:
+            raise CaptureError("Rust native edge has mixed capture-worker identity")
+        for artifact in [self.worker_artifact, owner.get("frontend", {}), *owner.get("sources", [])]:
+            path = artifact.get("invoked_path", artifact.get("path"))
+            if not isinstance(path, str) or file_info(Path(path)) != {
+                    key: artifact.get(key) for key in ("path", "sha256", "bytes")}:
+                raise CaptureError("Rust native edge worker/frontend/source bytes changed")
+        if owner.get("compiler") != owner.get("frontend", {}).get("invoked_path"):
+            raise CaptureError("Rust native edge compiler differs from selected frontend")
+
+    def owner_edges(self, owner):
+        key = (owner.get("id"), hashlib.sha256(
+            json.dumps(owner, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+        if any(old[0] == key[0] and old != key for old in self.cache):
+            raise CaptureError("Rust native action identity reused with different evidence")
+        if key in self.cache:
+            return self.cache[key][1]
+        if (owner.get("kind") != "rustc" or owner.get("producer") != "rustc-llvm-v1"
+                or owner.get("driver_kind") != "rustc"):
+            raise CaptureError("registered Rust embedded producer differs")
+        producer = registered_producer("rustc", owner["producer"], self.registry)
+        if (producer.get("adapter") != "rustc"
+                or RUST_EMBEDDED_POLICY not in producer.get("capture", {}).get("policies", {})):
+            raise CaptureError("registered Rust embedded policy unavailable")
+        if (owner.get("state") != "finished" or type(owner.get("exit_code")) is not int
+                or owner["exit_code"] != 0 or owner.get("capture_errors") != []):
+            raise CaptureError("Rust native producing action is not complete")
+        if owner.get("cargo_parent_invocation_id") is not None:
+            raise CaptureError("Cargo parent semantic context unsupported; independently admitted observer action required")
+        if (owner.get("rust_capture", {}).get("policy") != RUST_EMBEDDED_POLICY
+                or owner.get("rust_capture", {}).get("applied") is not True):
+            raise CaptureError("Rust native edge requires applied embedded-bitcode capture")
+        self._identities(owner)
+        verify_rust_capture_event(owner, self.session, self.directory)
+        if owner.get("rust_cgu_gaps") != []:
+            raise CaptureError("Rust native complete owning-action byte-edge floor has gaps")
+        records, units = owner.get("saved_cgus"), owner.get("units")
+        if not isinstance(records, list) or not records or not isinstance(units, list) or len(records) != len(units):
+            raise CaptureError("Rust native complete saved-edge/unit floor differs")
+        rows, selectors = [], set()
+        for record in records:
+            try:
+                extracted = self.extractor["verify_saved_cgu"](record, owner)
+            except self.extractor["PayloadError"] as error:
+                raise CaptureError("Rust native edge readmission: " + error.kind + ": " + str(error)) from error
+            matches = [unit for unit in units if
+                       {key: unit.get("ir", {}).get(key) for key in ("path", "sha256", "bytes")} == record["bitcode"]]
+            if len(matches) != 1:
+                raise CaptureError("Rust native bitcode edge has ambiguous or absent admitted unit")
+            unit = matches[0]
+            if (unit.get("source") not in owner.get("sources", [])
+                    or unit.get("dependencies") != owner.get("sources")
+                    or unit.get("kind") != "rustc"
+                    or unit.get("producer") not in (None, owner["producer"])):
+                raise CaptureError("Rust native unit source/producer floor differs")
+            member = extracted["member"]
+            # These are RAW inputs to the existing general-helper selector.
+            # Only that consumer's selected Paths roots normalize the path.
+            selector_input = {
+                "profile": "native-container-member-name-v1",
+                "container": extracted["container"]["path"],
+                "member_name_bytes": None if member is None else member["name_bytes"],
+            }
+            selector_key = json.dumps(selector_input, sort_keys=True, separators=(",", ":"))
+            if selector_key in selectors:
+                raise CaptureError("ambiguous stable native output selector")
+            selectors.add(selector_key)
+            rows.append({
+                "compiler_invocation_id": owner["id"],
+                "cargo_parent_invocation_id": owner.get("cargo_parent_invocation_id"),
+                "unit_id": unit["id"],
+                "container": extracted["container"],
+                "member": member,
+                "object": record["object"],
+                "bitcode": record["bitcode"],
+                "edge": extracted["edge"],
+                "selector_input": selector_input,
+                "original_argv": owner["argv"],
+                "expanded_argv": owner["expanded_argv"],
+                "executed_argv": owner["executed_argv"],
+                "rust_capture": owner["rust_capture"],
+                "source_production_ownership_verified": False,
+                "native_machine_equivalence_verified": False,
+                "post_lto_equivalence_verified": False,
+                "scope": "verified-original-native-container-member-embedded-byte-edge",
+            })
+        self.cache[key] = (owner, rows)
+        return rows
+
+    def postguard(self):
+        # Verify the WHOLE owning action again, not only linked/passing CGUs.
+        # This also rereads every output/resource and retained argument file.
+        for key, (owner, rows) in self.cache.items():
+            current = hashlib.sha256(json.dumps(owner, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            if current != key[1]:
+                raise CaptureError("Rust native producing action changed during reconstruction")
+            self._identities(owner)
+            verify_rust_capture_event(owner, self.session, self.directory)
+
+
+def rust_native_source_output(owner, output, context, member=None):
+    result = {
+        "invocation_id": owner["id"],
+        "output": {key: output[key] for key in ("path", "sha256", "bytes")},
+        "native_source_owned": False, "llvm_replay_unit_ids": [], "llvm_replay_owned": False,
+        "native_embedded_bitcode_edge_verified": False,
+        "native_embedded_bitcode_edges": [],
+        "source_production_ownership_verified": False,
+        "native_machine_equivalence_verified": False, "post_lto_equivalence_verified": False,
+        "postguard_required": True,
+    }
+    try:
+        if not isinstance(context, RustNativeLinkageContext):
+            raise CaptureError("Rust native edge lacks verified report-time producer context")
+        # Match exact producer-container identity, never an enclosing crate or
+        # saved-CGU position. The numeric member position is a byte-range
+        # locator WITHIN this verified container, not a fresh-action selector.
+        edges = [edge for edge in context.owner_edges(owner)
+                 if all(edge["container"][key] == output[key] for key in ("path", "sha256", "bytes"))]
+        if member is not None:
+            edges = [edge for edge in edges if edge["member"] is not None
+                     and edge["member"]["index"] == member["index"]
+                     and edge["member"]["name"] == member["member"]
+                     and edge["member"]["sha256"] == member["sha256"]
+                     and edge["member"]["bytes"] == member["bytes"]]
+        if not edges:
+            raise CaptureError("Rust native output/member lacks an exact produced bitcode edge")
+        result["native_embedded_bitcode_edge_verified"] = True
+        result["native_embedded_bitcode_edges"] = edges
+        result["reason"] = "embedded byte edge verified; source production and frontend replay are not established"
+    except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
+        result["reason"] = str(error)
+    return result
+
+
+
+def rust_observed_byte_evidence(rows):
+    """Exactly one observed owner; content-only candidates cannot select it."""
+    observed = [row for row in rows if row.get("observed_input_match") is True]
+    valid = len(observed) == 1 and observed[0].get("native_embedded_bitcode_edge_verified") is True
+    return {"native_embedded_bitcode_edge_verified": valid,
+            "native_embedded_bitcode_edges": observed[0]["native_embedded_bitcode_edges"] if valid else [],
+            "rust_byte_edge_candidates": rows,
+            "rust_byte_edge_reason": "one observed native byte-edge producer" if valid else "absent or ambiguous observed native byte-edge producer",
+            "source_production_ownership_verified": False,
+            "native_machine_equivalence_verified": False,
+            "post_lto_equivalence_verified": False}
+
+
+def invalidate_rust_byte_evidence(value):
+    if isinstance(value, dict):
+        if "native_embedded_bitcode_edge_verified" in value:
+            value["native_embedded_bitcode_edge_verified"] = False
+            value["rust_byte_edge_postguard_passed"] = False
+        for item in value.values():
+            invalidate_rust_byte_evidence(item)
+    elif isinstance(value, list):
+        for item in value:
+            invalidate_rust_byte_evidence(item)
+
+
+def rust_context_evidence(context, postguards_passed):
+    return {"schema": "ocore-rust-native-embedded-byte-evidence-v1",
+            "selected_report_context": isinstance(context, RustNativeLinkageContext),
+            "postguards_passed": postguards_passed,
+            "owning_actions": [] if context is None else [
+                {"compiler_invocation_id": owner["id"], "edges": rows}
+                for owner, rows in context.cache.values()],
+            "scope": "same-producer-native-container-member-to-embedded-bitcode-bytes-only",
+            "authentic_link_or_archive_extraction_order_qualified": False,
+            "source_production_ownership_verified": False,
+            "original_flags_equivalence_verified": False,
+            "frontend_replay_ownership_verified": False,
+            "native_machine_equivalence_verified": False,
+            "post_lto_equivalence_verified": False,
+            "all_compiler_runtime_provider_artifact_ISA_qualification": False}
+
+
+
+def native_source_output(owner: dict, output: dict, identity_cache: dict | None = None, rust_context=None) -> dict:
     """Derive an ordinary source/object edge, never an enclosing-crate guess.
 
     The native output and its LLVM replay came from separate compiler commands.
     Their common source/command provenance does not prove O-core lowering.
     """
+    if owner.get("kind") == "rustc":
+        return rust_native_source_output(owner, output, rust_context)
     result = {"invocation_id": owner["id"], "output": {key: output[key] for key in ("path", "sha256", "bytes")},
               "native_source_owned": False, "llvm_replay_unit_ids": [], "llvm_replay_owned": False}
     try:
@@ -1956,7 +2549,7 @@ def native_source_output(owner: dict, output: dict, identity_cache: dict | None 
     return result
 
 
-def linkage_evidence(events: list[dict], membership: dict) -> dict:
+def linkage_evidence(events: list[dict], membership: dict, rust_context=None) -> dict:
     """Reconstruct member source origin and report LLVM replay separately."""
     issues, traces, unowned, replay_gaps, member_evidence, provider_evidence = [], [], [], [], [], []
     outputs_by_hash, source_cache, provider_cache, identity_cache = {}, {}, {}, {}
@@ -1980,7 +2573,7 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
         for owner, output in owners(artifact):
             key = (owner["id"], output["path"], output["sha256"], output["bytes"])
             if key not in source_cache:
-                source_cache[key] = native_source_output(owner, output, identity_cache)
+                source_cache[key] = native_source_output(owner, output, identity_cache, rust_context)
             row = dict(source_cache[key])
             row["observed_input_match"] = output["path"] == artifact["path"] and preceding(owner, consumer)
             rows.append(row)
@@ -2004,6 +2597,7 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
         # Content candidates remain visible even when no causal archive input
         # joins them. A matching name or an enclosing Rust CGU supplies no edge.
         result["candidate_outputs"] = candidates({**member, "path": ""}, None)
+        rust_candidates = []
         pending, seen = [(archive, member, consumer)], set()
         while pending:
             current, current_member, observed = pending.pop()
@@ -2013,6 +2607,10 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
                 continue
             seen.add(key)
             for owner, output in owners(current):
+                if owner.get("kind") == "rustc" and preceding(owner, observed):
+                    row = rust_native_source_output(owner, output, rust_context, current_member)
+                    row["observed_input_match"] = output["path"] == current["path"]
+                    rust_candidates.append(row)
                 trace = owner.get("native_linkage", {})
                 if (owner.get("kind") not in {"archive", "archive-index"}
                         or owner.get("state") != "finished" or owner.get("exit_code") != 0
@@ -2026,6 +2624,7 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
                     original = provider["original"]
                     if original["sha256"] == current_member["sha256"] and original["bytes"] == current_member["bytes"]:
                         matched = candidates(original, owner)
+                        rust_candidates.extend(matched)
                         edge = {"archive": current, "archive_member": current_member,
                                 "archive_producer_invocation_id": owner["id"], "provider_index": index,
                                 "provider": provider, "candidate_outputs": matched}
@@ -2044,6 +2643,7 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
                                         "provider_index": index, "provider": provider,
                                         "prior_archive_member": prior})
                                     pending.append((original, prior, owner))
+        result.update(rust_observed_byte_evidence(rust_candidates))
         result["complete"] = result["native_source_owned"]
         if not result["native_source_owned"]:
             result["reason"] = "archive member lacks an observed source/object input edge"
@@ -2077,6 +2677,7 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
         proof = {**identity, "candidate_outputs": rows, "native_source_owned": origin,
                  "llvm_replay_owned": replay, "propagated_linker_invocation_ids": containers,
                  "complete": bool(containers) or origin}
+        proof.update(rust_observed_byte_evidence(rows))
         provider_evidence.append(proof)
         if not proof["complete"]:
             unowned.append({**identity, "reason": "native provider lacks a source/object input edge"})
@@ -2130,6 +2731,14 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
             archive_ownership(root, Path(root["path"]), {"archive": root})
         else:
             ordinary_ownership(root, {"root": root})
+    rust_postguards = False
+    if rust_context is not None:
+        try:
+            rust_context.postguard()
+            rust_postguards = True
+        except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
+            issues.append("Rust native byte-edge postguard: " + str(error))
+            invalidate_rust_byte_evidence(member_evidence + provider_evidence)
     # Rehash each cached identity after the whole traversal. A file replaced
     # during reconstruction cannot leave an earlier candidate silently trusted.
     for path, cached in identity_cache.items():
@@ -2149,6 +2758,7 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
             "llvm_replay_ownership_complete": bool(traces) and not replay_gaps and not issues,
             "unmatched_llvm_replays": replay_gaps,
             "ownership_level": "observed-native-source-object-input-edges; LLVM-replay-coverage-separate",
+            "rust_native_embedded_bitcode_evidence": rust_context_evidence(rust_context, rust_postguards),
             "dependency_closure_complete": False,
             "scope": "actual-linker-archive-inputs; dynamic-platform-and-declared-source-closure-still-required"}
 
@@ -2274,6 +2884,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     source, build = Path(session["source"]["path"]), Path(session["build"])
     issues = list(session.get("issues", []))
     registry = None
+    worker = None
     try:
         worker = verify_worker(session, directory, expected_worker_sha256)
         registry = verified_producer_registry(session, directory)
@@ -2297,7 +2908,11 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     try:
         if file_info(Path(session["manifest"]["path"]))["sha256"] != session["manifest"]["sha256"]:
             issues.append("recipe bytes changed during capture")
-        if session["source"].get("clean_at_start"):
+        if source_origin_kind(recipe.get("source",{})) == DEBIAN_ORIGIN:
+            verify_source_origin(recipe, source, context=session["source"])
+        elif "kind" in session["source"]:
+            raise CaptureError("legacy Git recipe/source origin tag differs")
+        elif session["source"].get("clean_at_start"):
             if run_text(["git", "rev-parse", "HEAD"], source) != session["source"]["revision"]:
                 issues.append("source commit changed during capture")
             if run_text(["git", "status", "--porcelain", "--untracked-files=normal"], source):
@@ -2386,8 +3001,14 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
             issues.append(f"build log unavailable: {step['name']}: {error}")
     units = [unit for event in events for unit in event.get("units", []) if "ir" in unit]
     membership = runtime_output_membership(recipe, inventory, events, build)
+    rust_context = None
+    if worker is not None and registry is not None and any(event.get("kind") == "rustc" for event in events):
+        try:
+            rust_context = RustNativeLinkageContext(session, directory, registry, worker["artifact"])
+        except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
+            issues.append("Rust native report context: " + str(error))
     try:
-        linkage = linkage_evidence(events, membership)
+        linkage = linkage_evidence(events, membership, rust_context)
         issues.extend("native linkage: " + issue for issue in linkage["issues"])
     except (CaptureError, OSError, ValueError, KeyError) as error:
         linkage = {"schema": "ocore-native-linkage-evidence-v1", "provider_identity_complete": False,
@@ -2450,6 +3071,9 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                                "observed_files": list(dependency_files_by_path.values()),
                                "unresolved_symbols": sorted(undefined - defined), "closed": False},
               "remaining_runtime_requirements": recipe.get("blockers", [])}
+    if recipe.get("source",{}).get("kind") == DEBIAN_ORIGIN:
+        attempt=directory / "source-origin/materialization.json"
+        report["source_origin_attempt"] = file_info(attempt) if attempt.is_file() else None
     if persist:
         write_json(directory / "report.json", report)
     return report
@@ -2488,7 +3112,7 @@ def verify_report(report: dict, expected_worker_sha256: str | None = None) -> di
         raise CaptureError("full unit inventory differs from its finalized capture journal artifact")
     if session.get("inventory_path") != artifact["path"]:
         raise CaptureError("capture inventory path differs from its finalized journal artifact")
-    verify_source(original_recipe, Path(session["source"]["path"]))
+    verify_source_origin(original_recipe, Path(session["source"]["path"]), context=session["source"])
     for tool in [*session["tools"].values(), *session.get("native_tools", {}).values()]:
         for artifact in [tool, tool.get("executing_binary")]:
             if artifact is not None and file_info(Path(artifact["path"])) != {key: artifact[key] for key in ["path", "sha256", "bytes"]}:
@@ -2574,7 +3198,10 @@ def capture(arguments: argparse.Namespace) -> int:
     try:
         rust_policy = recipe["toolchain"].get("rust_capture_policy")
         session["capture_worker"] = snapshot_worker(output, rust_policy)
-        session["source"] = verify_source(recipe, source)
+        session["source"] = verify_source_origin(recipe, source, directory=output)
+        source = Path(session["source"]["path"])
+        if source == build or source in build.parents:
+            raise CaptureError("realized source requires an out-of-tree build directory")
         toolchain = recipe["toolchain"]
         for name, command, kind in [("clang", arguments.cc, "clang"), ("cxx", arguments.cxx, "clang"),
                                     ("nm", arguments.llvm_nm, "llvm-nm")]:
@@ -2618,7 +3245,7 @@ def capture(arguments: argparse.Namespace) -> int:
                   "rustc": session["tools"].get("rustc", {}).get("invoked_path", arguments.rustc)}
         session["audit_roots"] = [value.format_map(values) for value in recipe["coverage"].get("audit_roots", ["{build}"])]
         environment = dict(os.environ)
-        environment.setdefault("SOURCE_DATE_EPOCH", session["source"]["commit_timestamp"])
+        source_default_epoch(environment, session["source"])
         environment.update({"CC": values["cc"], "CXX": values["cxx"], "RUSTC_WRAPPER": values["rustc_wrapper"],
                             "AR": values["ar"], "RANLIB": values["ranlib"],
                             "RUSTC": values["rustc"], "CCACHE_DISABLE": "1", "SCCACHE_DISABLE": "1",

@@ -7,6 +7,10 @@ command arguments, and concurrent or interactive jobs.
 The server supplies an **absolute** `O_BACKENDS_DIR`, so relative `backends`
 and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 
+For a smaller editor/MCP installation, use `./setup.sh --runtime-only --verify`.
+The [onboarding guide](../../docs/MCP_RUNTIME_ONBOARDING.md) covers exact runtime
+provenance, platform-specific bundles, and the opt-in watcher resource contract.
+
 ## URL connectors
 
 Run `ostadix-mcp --transport http --token-file /path/to/token` to serve the same
@@ -54,9 +58,9 @@ introduced by this transport.
 | `o_job_read` | Read stdout or stderr by byte offset with a bounded page and continuation cursor |
 | `o_job_write` | Send input to a running job and optionally close its input |
 | `o_job_cancel` | Cancel one job and clean up its Unix process session, including nested process groups |
-| `o_env` | Print roots, `O` / `olangc` paths, shim presence, and the 30-backend runtime summary |
+| `o_env` | Report roots, tools, shim/runtime inventory, and structured identity of the actual process, compiled source, resolved checkout, and client configuration metadata |
 | `o_runtimes` | Report executable discovery and catalog value capabilities for every canonical backend and supported alternative runtime set |
-| `o_doctor` | Existence checks + shim inventory + complete runtime report + resolved external or bundled search corpus |
+| `o_doctor` | Inventory and structured runtime provenance; execution requires the explicit bounded check parameter |
 | `o_smoke` | Runs a private fixed Python `1 + 1` fixture through `O` with the resolved backends — expects `2`; independent of the public polyglot greeting |
 | `o_analyze_intent` | Nonexecutingly compute a stable execution intent and return a bounded, expiring, one-use opaque handle |
 | `o_execute_intent` | Consume that handle and require `O` to recompute the same source and execution-intent digests before fresh Graph V2/Evidence and Admission V6 dispatch |

@@ -1,0 +1,211 @@
+{
+ "name": "lua",
+ "files": 32,
+ "functions": 1124,
+ "instr": 68769,
+ "census_functions": {
+  "FUNCPTR": 49,
+  "FLOAT": 91,
+  "AGG_ABI": 0,
+  "VARARGS": 125,
+  "SETJMP": 2,
+  "ATOMIC": 0,
+  "I128": 0,
+  "ASM": 0,
+  "INDIRECTBR": 0,
+  "DYNALLOCA": 0,
+  "TLS": 0,
+  "VECTOR": 0
+ },
+ "census_instr": {
+  "FUNCPTR": 3114,
+  "FLOAT": 13192,
+  "AGG_ABI": 0,
+  "VARARGS": 9747,
+  "SETJMP": 131,
+  "ATOMIC": 0,
+  "I128": 0,
+  "ASM": 0,
+  "INDIRECTBR": 0,
+  "DYNALLOCA": 0,
+  "TLS": 0,
+  "VECTOR": 0
+ },
+ "info": {
+  "SWITCH": 96,
+  "MEMINTRIN": 75,
+  "BITINTRIN": 0,
+  "OVERFLOWINTRIN": 0
+ },
+ "exactly_one_feature_functions": {
+  "FLOAT": 80,
+  "VARARGS": 112,
+  "FUNCPTR": 45
+ },
+ "baseline_closed_ready": {
+  "functions": 278,
+  "instr": 13256
+ },
+ "greedy_order": [
+  {
+   "feature": "FLOAT",
+   "closed_ready_functions": 329,
+   "closed_ready_instr": 16087
+  },
+  {
+   "feature": "FUNCPTR",
+   "closed_ready_functions": 358,
+   "closed_ready_instr": 17036
+  },
+  {
+   "feature": "VARARGS",
+   "closed_ready_functions": 364,
+   "closed_ready_instr": 17276
+  },
+  {
+   "feature": "SETJMP",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "AGG_ABI",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "ATOMIC",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "I128",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "INDIRECTBR",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "DYNALLOCA",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "TLS",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  },
+  {
+   "feature": "VECTOR",
+   "closed_ready_functions": 1124,
+   "closed_ready_instr": 68769
+  }
+ ],
+ "extern_symbols": 76,
+ "libm_symbols": 15,
+ "extern_sample": [
+  "__ctype_b_loc",
+  "__errno_location",
+  "_longjmp",
+  "_setjmp",
+  "abort",
+  "acos",
+  "asin",
+  "atan2",
+  "clearerr",
+  "clock",
+  "close",
+  "cos",
+  "difftime",
+  "exit",
+  "exp",
+  "fclose",
+  "feof",
+  "ferror",
+  "fflush",
+  "fgets",
+  "flockfile",
+  "fmod",
+  "fopen64",
+  "fprintf",
+  "fread",
+  "free",
+  "freopen64",
+  "frexp",
+  "fseeko64",
+  "ftello64",
+  "funlockfile",
+  "fwrite",
+  "getc",
+  "getc_unlocked",
+  "getenv",
+  "gmtime_r",
+  "ldexp",
+  "localeconv",
+  "localtime_r",
+  "log",
+  "log10",
+  "log2",
+  "memchr",
+  "memcmp",
+  "mkstemp64",
+  "mktime",
+  "pclose",
+  "popen",
+  "pow",
+  "realloc",
+  "remove",
+  "rename",
+  "setlocale",
+  "setvbuf",
+  "sin",
+  "snprintf",
+  "sqrt",
+  "strchr",
+  "strcmp",
+  "strcoll",
+  "strcpy",
+  "strerror",
+  "strftime",
+  "strlen",
+  "strncmp",
+  "strpbrk",
+  "strspn",
+  "strstr",
+  "strtod",
+  "system",
+  "tan",
+  "time",
+  "tmpfile64",
+  "tolower",
+  "toupper",
+  "ungetc"
+ ],
+ "hot": {
+  "luaV_execute": {
+   "feats": [
+    "FLOAT"
+   ],
+   "instr": 7152,
+   "file": "ir/lua_nojt/lvm.ll"
+  },
+  "lua_pcallk": {
+   "feats": [
+    "FUNCPTR"
+   ],
+   "instr": 182,
+   "file": "ir/lua_nojt/lapi.ll"
+  },
+  "luaD_rawrunprotected": {
+   "feats": [
+    "FUNCPTR",
+    "SETJMP"
+   ],
+   "instr": 44,
+   "file": "ir/lua_nojt/ldo.ll"
+  }
+ },
+ "feature_free_functions": 872
+}

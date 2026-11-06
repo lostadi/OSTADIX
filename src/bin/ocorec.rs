@@ -28,8 +28,13 @@ enum Emit {
 )]
 struct Cli {
     /// .oc sources, or one complete imported native module.
-    #[arg(required_unless_present = "verify_native_map")]
+    #[arg(required_unless_present_any = ["verify_native_map", "list_targets"])]
     inputs: Vec<PathBuf>,
+
+    /// Print the canonical target catalog as JSON without compiling or executing.
+    /// Catalog membership alone does not qualify target health or semantics.
+    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "check"])]
+    list_targets: bool,
 
     /// Input representation. Imported IR is verified before all output.
     #[arg(long, value_enum, default_value_t = InputKind::Ocore)]
@@ -55,6 +60,11 @@ struct Cli {
     /// environment to provide LR/SC eventuality for that region.
     #[arg(long, value_parser = ["coherent-ram-v1"], conflicts_with_all = ["verify_native", "check"])]
     atomic_profile: Option<String>,
+
+    /// Explicit wide volatile ordinary-RAM access contract. Target-sized
+    /// ordered parts are permitted; MMIO and atomicity are excluded.
+    #[arg(long, value_parser = ["ordinary-ram-split-v1"], conflicts_with_all = ["verify_native", "check"])]
+    wide_volatile_profile: Option<String>,
 
     /// Verify a complete native module without generating machine code.
     #[arg(long, conflicts_with = "check")]
@@ -106,8 +116,38 @@ struct Cli {
     check: bool,
 }
 
+/// Descriptive inventory; acceptance binds the selected binary/source/build
+/// identities and separately checks target profiles, runners and semantic oracles.
+fn target_catalog() -> serde_json::Value {
+    let targets: Vec<_> = Target::ALL
+        .iter()
+        .map(|target| {
+            serde_json::json!({
+                "id": target.id(),
+                "architecture": target.architecture(),
+                "target": target.name(),
+                "assembler_triple": target.triple(),
+                "aliases": target.aliases(),
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "schema": "ocore-target-catalog-v1",
+        "scope": "canonical-target-declarations-only",
+        "targets": targets,
+    })
+}
+
 fn main() {
     let cli = Cli::parse();
+    if cli.list_targets {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&target_catalog())
+                .expect("target catalog is serializable")
+        );
+        return;
+    }
     if cli.native_map.is_some() && cli.input_kind == InputKind::Ocore {
         eprintln!("ocorec: native maps currently require --input-kind native-ir or llvm-ir");
         std::process::exit(2);
@@ -129,6 +169,10 @@ fn main() {
     }
     if cli.atomic_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
         eprintln!("ocorec: --atomic-profile selects LLVM import; native IR preserves its own explicit profile");
+        std::process::exit(2);
+    }
+    if cli.wide_volatile_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
+        eprintln!("ocorec: --wide-volatile-profile selects LLVM import; native IR preserves its own explicit profile");
         std::process::exit(2);
     }
     if cli.verify_native {
@@ -333,6 +377,9 @@ fn import_llvm(cli: &Cli) -> anyhow::Result<ImportedFile> {
     if let Some(profile) = &cli.atomic_profile {
         command.arg("--atomic-profile").arg(profile);
     }
+    if let Some(profile) = &cli.wide_volatile_profile {
+        command.arg("--wide-volatile-profile").arg(profile);
+    }
     let mut child = command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -465,6 +512,48 @@ fn default_output(input: &std::path::Path, emit: EmitKind) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn target_catalog_needs_no_fake_source_and_preserves_input_requirements() {
+        let cli = Cli::try_parse_from(["ocorec", "--list-targets"]).unwrap();
+        assert!(cli.list_targets);
+        assert!(cli.inputs.is_empty());
+        assert!(Cli::try_parse_from(["ocorec"]).is_err());
+        let ordinary = Cli::try_parse_from(["ocorec", "input.oc"]).unwrap();
+        assert!(!ordinary.list_targets);
+        assert_eq!(ordinary.inputs, vec![PathBuf::from("input.oc")]);
+        for args in [
+            vec!["ocorec", "--list-targets", "input.oc"],
+            vec![
+                "ocorec",
+                "--list-targets",
+                "--target",
+                "x86_64-unknown-none",
+            ],
+            vec!["ocorec", "--list-targets", "--emit", "mir"],
+            vec!["ocorec", "--list-targets", "--check"],
+            vec!["ocorec", "--list-targets", "--verify-native"],
+            vec!["ocorec", "--list-targets", "--input-kind", "llvm-ir"],
+        ] {
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+    }
+
+    #[test]
+    fn machine_readable_catalog_is_derived_from_every_canonical_target() {
+        let catalog = target_catalog();
+        assert_eq!(catalog["schema"], "ocore-target-catalog-v1");
+        assert_eq!(catalog["scope"], "canonical-target-declarations-only");
+        let rows = catalog["targets"].as_array().unwrap();
+        assert_eq!(rows.len(), Target::ALL.len());
+        for (&target, row) in Target::ALL.iter().zip(rows) {
+            assert_eq!(row["id"], target.id());
+            assert_eq!(row["architecture"], target.architecture());
+            assert_eq!(row["target"], target.name());
+            assert_eq!(row["assembler_triple"], target.triple());
+            assert_eq!(row["aliases"], serde_json::json!(target.aliases()));
+        }
+    }
 
     #[test]
     fn embedded_llvm_worker_streams_source_and_literal_paths_before_library_admission() {

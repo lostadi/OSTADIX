@@ -15,12 +15,13 @@ import shlex
 import subprocess
 
 MUSL_COMMIT = "0784374d561435f7c787a555aeab8ede699ed298"
-# The existing qualified compiler embeds the first worker. The second adds
-# noninterfering original-link-map capture. Both are independently pinned;
-# session metadata alone never selects arbitrary executable Python source.
+# Independently reviewed exact worker revisions: original, link-map capture,
+# and faithful C-family stdin capture. Session metadata alone never selects
+# arbitrary executable Python source or admits a different worker revision.
 WORKER_SHAS = frozenset({
     "a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779",
     "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059",
+    "758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36",
 })
 PROFILES = {
     "x86_64": {"triple": "x86_64-unknown-linux-musl", "flags": []},

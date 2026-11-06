@@ -1,0 +1,86 @@
+[
+    (
+        "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/bad.oc",
+        SourceModule {
+            name: [
+                "smoke",
+                "bad",
+            ],
+            uses: [],
+            items: [
+                Item {
+                    attrs: [],
+                    public: false,
+                    kind: Function(
+                        Function {
+                            name: "bad",
+                            unsafe_: false,
+                            abi: OCore,
+                            params: [],
+                            return_type: TypeExpr {
+                                kind: Named(
+                                    [
+                                        "i64",
+                                    ],
+                                ),
+                                span: Span {
+                                    start: 31,
+                                    end: 34,
+                                    line: 2,
+                                    column: 13,
+                                },
+                            },
+                            body: Some(
+                                Block {
+                                    stmts: [
+                                        Stmt {
+                                            kind: Return(
+                                                Some(
+                                                    Expr {
+                                                        kind: Bool(
+                                                            true,
+                                                        ),
+                                                        span: Span {
+                                                            start: 44,
+                                                            end: 48,
+                                                            line: 2,
+                                                            column: 26,
+                                                        },
+                                                    },
+                                                ),
+                                            ),
+                                            span: Span {
+                                                start: 37,
+                                                end: 49,
+                                                line: 2,
+                                                column: 19,
+                                            },
+                                        },
+                                    ],
+                                    span: Span {
+                                        start: 35,
+                                        end: 51,
+                                        line: 2,
+                                        column: 17,
+                                    },
+                                },
+                            ),
+                        },
+                    ),
+                    span: Span {
+                        start: 19,
+                        end: 51,
+                        line: 2,
+                        column: 1,
+                    },
+                },
+            ],
+            span: Span {
+                start: 0,
+                end: 52,
+                line: 1,
+                column: 1,
+            },
+        },
+    ),
+]

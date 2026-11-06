@@ -3,7 +3,7 @@
 These are compiler/linkage regressions, not a complete libc or OS qualification.
 Linux syscall carriers and QEMU user emulators only report backend test results.
 The retained whole original musl TLS unit is a diagnostic progression gate: its
-remaining strict-FP/assembly requirements must still reject, without partial IR.
+remaining metadata/assembly requirements must still reject, without partial IR.
 """
 import hashlib
 import json
@@ -225,9 +225,10 @@ class ExternWeakNativeTests(weak.WeakNativeTests):
         result = self.command([self.compiler, source, "--input-kind", "llvm-ir", "--target", "x86_64-unknown-none",
                                "--emit", "mir", "-o", normalized, *self.llvm_flags], success=False)
         diagnostic = result.stderr.decode(errors="replace")
-        self.assertNotEqual(result.returncode, 0, "whole TLS has additional real unsupported FP/asm contracts")
+        self.assertNotEqual(result.returncode, 0, "whole TLS has additional real unsupported metadata/asm contracts")
         self.assertNotIn("unsupported linkage 12", diagnostic)
-        self.assertIn("unsupported attribute kind 75", diagnostic)
+        self.assertNotIn("unsupported attribute kind 75", diagnostic)
+        self.assertIn("unsupported metadata kind 47", diagnostic)
         self.assertFalse(normalized.exists(), "an unsupported original unit cannot become a partial artifact")
         (self.directory/"original-musl-tls-progression.json").write_text(json.dumps({
             "scope": "whole unchanged original musl TLS diagnostic progression, not source admission",

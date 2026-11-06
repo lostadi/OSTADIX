@@ -30,10 +30,10 @@ the evaluated graph has 1,350 units (1,318 C and 32 assembly) and 1,345 ordered
 events prevent admission. This does not qualify original libc execution or
 full O-core lowering. The failed preceding attempt is retained at
 `/home/ustad/.cache/okernel-musl-source-before-9gbsub8u/`; it stopped at a stale
-inventory-worker digest. The helper now accepts exactly two pinned worker
+inventory-worker digest. That reproduction accepted exactly two pinned worker
 versions: `a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779`
 and `0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059`.
-All three recipes bind the updated helper digest. Both workers were checked
+All three recipes bound the corresponding helper digest. Both workers were checked
 against all 1,345 original archive member names and hashes; this preserves
 compatibility with the existing compiler's embedded worker. Earlier receipts
 and their qualification limits remain historical evidence.
@@ -47,6 +47,16 @@ binary was not rebuilt: its embedded worker remains the older pinned version.
 Using the updated standalone source worker and rebuilding a compiler that
 embeds it are separate operations. This change does not admit original assembly
 or resolve the unclassified producer events.
+
+The combined source now also accepts the independently reviewed C-family stdin
+capture worker, SHA-256
+`758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36`.
+The helper still admits only those three exact executable revisions, and every
+recipe binds the exact updated helper bytes. A self-consistent session record
+for any other worker is rejected before execution. Fourteen original-frontend
+stdin cases cover byte fidelity and unsupported/ambiguous capture boundaries;
+they do not qualify complete libc import. The older source-build counts and
+failures above remain historical receipts, not a rerun with the merged compiler.
 
 Prerequisites are GNU Make, a clean complete original source checkout at the pinned commit, the matching scoped LLVM 22.1.6 SDK and any installation-specific compatibility libraries. Headers come from the original source and its per-architecture Make generation; they require no manually supplied pthread definitions or POSIX ABI macros. A recipe and helper snapshot should be placed in a new empty directory before starting:
 

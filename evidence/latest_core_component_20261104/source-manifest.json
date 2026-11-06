@@ -1,0 +1,365 @@
+{
+  "schema": "ostadix-compiled-component-source-inventory/v1",
+  "scope": "44 rustc dep-info source records; not a qualified original-runtime dependency closure",
+  "qualification": false,
+  "source_base_tree": "cc18e2ea50f615bb81626c76005d06148174913b",
+  "compiled_source_count": 44,
+  "snapshot_source_count": 40,
+  "external_source_count": 4,
+  "input_manifest_sha256": "6243f5f0e191de43452171655c6d3321f3dd3607197fa724c1b49e56eef3b3f4",
+  "depfile_sha256": "9437eb0a07cd4d511c27fce679b341b1881ab86b37c0a1a15f8f7573e52ea408",
+  "sources": [
+    {
+      "original_path": "/tmp/Main-A-core-fresh-build-r2-20261102/core_component.rs",
+      "published_path": "evidence/latest_core_component_20261104/sources/core_component.rs",
+      "bytes": 1699,
+      "sha256": "96814e7461dd3abfe86460cd4bccfae990c79bc67355e715d1bed9b4239130fe",
+      "git_blob": "edadea4e6156b2bd98cf28dde847a752f2041c8f",
+      "external_override": true
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_interpret.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_interpret.rs",
+      "bytes": 95269,
+      "sha256": "7f8b4009e1eec4471ed60fbc470510ad6acb3947100ff0f1d410688e506c674d",
+      "git_blob": "a014bf342f18a40fcc9ec7ef76d916635fd937b2",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/ast.rs",
+      "published_path": "crates/ostadix-api/src/ocore/ast.rs",
+      "bytes": 5086,
+      "sha256": "64182406705caac44dd60dd22a0fd9583fe2d79487f1f64930f8a4ddccc8e0e0",
+      "git_blob": "f7a84c2c69d1a2b41cc8cf7b3a3e84a6706a1e0e",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/lexer.rs",
+      "published_path": "crates/ostadix-api/src/ocore/lexer.rs",
+      "bytes": 15552,
+      "sha256": "5591ca5309fcb020886cb62983a111f0c49edc3687216e0f957a6c0e668ae6a4",
+      "git_blob": "795f92e3b330018137706091f2d2b7fa41913c52",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/hir.rs",
+      "published_path": "crates/ostadix-api/src/ocore/hir.rs",
+      "bytes": 12252,
+      "sha256": "69bd778c06b8a59a7456188c2cc177d7594e08e5c6c57cbf8c50417aa8d7f7ed",
+      "git_blob": "2a00c2f9f9e0418565adcd991cea8ef86cb5552b",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/mir.rs",
+      "published_path": "crates/ostadix-api/src/ocore/mir.rs",
+      "bytes": 55305,
+      "sha256": "bda7b5b38d47b595bb602387bf3f798b5b8158ebbb170e40b0eba27e3149e6e1",
+      "git_blob": "737043825b2fc19936d41412e7e9da406e3c313e",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/parser.rs",
+      "published_path": "crates/ostadix-api/src/ocore/parser.rs",
+      "bytes": 35047,
+      "sha256": "794b5ac1eea9130da9b475be160f4580c146d5d53b23cd04467ef01bd9106245",
+      "git_blob": "5340afcc0854d5c5d8449fbd66f0716477e444d5",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/typeck.rs",
+      "published_path": "crates/ostadix-api/src/ocore/typeck.rs",
+      "bytes": 112233,
+      "sha256": "3f1e2043c2efc32013f500aec012a26f3a955b335f071ee4510f176dd5972422",
+      "git_blob": "d97423c3fceef71ec6baf7687b5f47541db6cf0a",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/codegen.rs",
+      "bytes": 85408,
+      "sha256": "6bc8441a0dee97111e30bb9b64faf03b9b7986d8c65a77a7f0e04de5c64e7920",
+      "git_blob": "8161b215f6fdc5b3eff3b46dd3c9605edbc7dd36",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/codegen_aarch64.rs",
+      "published_path": "crates/ostadix-api/src/ocore/codegen_aarch64.rs",
+      "bytes": 95412,
+      "sha256": "60d3592d280f6c4ca4a2090db2592340ce03053b83a4c6081aef01232b6d86d9",
+      "git_blob": "7b68b5facebce608b1f8e5720e96503349b9195d",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/codegen_riscv64.rs",
+      "published_path": "crates/ostadix-api/src/ocore/codegen_riscv64.rs",
+      "bytes": 82004,
+      "sha256": "850a42bfe160a0d2ff0fc945cb5f9c8e20312c51b225dced05cf28741e257822",
+      "git_blob": "b4d5a56815d08e095d85f40ec5502b1b47d1fe35",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/assembly-machine-selected-realization-SOURCE-r2-20261102/overlay/crates/ostadix-api/src/ocore/driver.rs",
+      "published_path": "evidence/latest_core_component_20261104/sources/selected_driver/driver.rs",
+      "bytes": 49872,
+      "sha256": "23296acb14e107eaba49f72aeabf9e8977881b3e1459a21e1ca9062ad8ca1825",
+      "git_blob": "432d4f6faa05858218e48dbbd8a9027618689dbe",
+      "external_override": true
+    },
+    {
+      "original_path": "/tmp/assembly-machine-selected-realization-SOURCE-r2-20261102/overlay/crates/ostadix-api/src/ocore/native_machine_object_diagnostic.rs",
+      "published_path": "evidence/latest_core_component_20261104/sources/selected_driver/native_machine_object_diagnostic.rs",
+      "bytes": 35308,
+      "sha256": "9c62d3130e44e01795a1c85ae4896554f0fe22a3817be06907fc5dea0ec24829",
+      "git_blob": "b14efa611b766adb0f5a7bb4bbfab9f1eaac8253",
+      "external_override": true
+    },
+    {
+      "original_path": "/tmp/ostadix-configured-assembly-unit-bridge-SOURCE-r3-20261101-actionjoin/native_machine_asm_unit.rs",
+      "published_path": "evidence/latest_core_component_20261104/sources/assembly_bridge/native_machine_asm_unit.rs",
+      "bytes": 44730,
+      "sha256": "b5e5d0166c69c98e4cbfc85d8c1d056374956ccf8805d19b794850a70a2c24ab",
+      "git_blob": "7bb6a7cd480c328d0ac077b2cfc5955aed7300f9",
+      "external_override": true
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_core.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_core.rs",
+      "bytes": 1511,
+      "sha256": "43bb956fece1fd3b5ec7a298c887e96acbce805d810525da7c26205760a17e85",
+      "git_blob": "95d5097368eaeae59224a8be0e22162cd40485d6",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/common.rs",
+      "published_path": "crates/ostadix-api/src/ocore/common.rs",
+      "bytes": 4726,
+      "sha256": "2ce16b2f6855d3f84fe976bc1d57ff54bfb4fb31ce8ed3987145fd754405684b",
+      "git_blob": "2780f09a5b7d1fed2a5d09c81756c5f5f28a9077",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_abi.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_abi.rs",
+      "bytes": 132745,
+      "sha256": "fda0130f47fdbb0b967bb6c432a5735f5f4a79ae3e9193ee89011fb93952aeb1",
+      "git_blob": "50ccde17cfe56f0838123c286701510628c93341",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_codegen.rs",
+      "bytes": 196252,
+      "sha256": "0e2ac6bfd714c67cf10471a56b3b648c192dbb590516ce8c8802019b0b063248",
+      "git_blob": "a669470cbfcc1e9a6807cbcdb2f00ad32d7a7d27",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_eh.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_eh.rs",
+      "bytes": 10470,
+      "sha256": "684f8b17d7f1587857267becb0f517a751cc310473dab5f64cce25c16cf57fc0",
+      "git_blob": "4b8f27092890f7cf6546553feb7bcb6d05a8268d",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_exception_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_exception_codegen.rs",
+      "bytes": 14892,
+      "sha256": "6bdce355aeef10d4a556a49aa9b0e92f6b3740208375e9c69eb3ecfd7d4cccf2",
+      "git_blob": "8c550fbb98e299a02da75ec6cb3b205845f816b4",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_floating_helpers.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_floating_helpers.rs",
+      "bytes": 29463,
+      "sha256": "66ecd37aa12a65fd0e16a8d5d2bdad590ac132be152fb1b4b7d0565bb7067d41",
+      "git_blob": "6f2650ff571ec833dc8d6c071851525afb5d7989",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_ir.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_ir.rs",
+      "bytes": 36050,
+      "sha256": "0fa777027d8d79f05f14fb3ce741176d14c83d69d3d5b1c424f8592686fc45a7",
+      "git_blob": "5f6cde15ada2003f8c59603596d46ab95f19a59d",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_ir.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_ir.rs",
+      "bytes": 12493,
+      "sha256": "cbe065bc651bf3036d2e93557615e3cfea152c7d17e09fae17a16ee46d2d1f72",
+      "git_blob": "9b01f93ee6cae43978a342aa39c36cfd576a5e9f",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_verify.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_verify.rs",
+      "bytes": 58858,
+      "sha256": "e472b521664a31c105ea2a9bacb7d576e33147a3ca7e5dfe4eca76e025d08b51",
+      "git_blob": "d105a476cb42cda1e2b61f8d56100725bd468042",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_asm_reader.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs",
+      "bytes": 76986,
+      "sha256": "e232c47f035bf19d569f9fd393b1670e350f2d3eb912f4a0a0de9d7245c88077",
+      "git_blob": "4ed816b89a9763de59a514cc1b188c868172d0b5",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_unit.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_unit.rs",
+      "bytes": 71127,
+      "sha256": "bd40307497349e135205a8e1f23cb61913b1e2688848a77f8b2717450ce603d9",
+      "git_blob": "de68d8b7c97eb36313b12e0c5bb81fec1b5be2a1",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_lift.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_lift.rs",
+      "bytes": 15645,
+      "sha256": "b0f7a962accb4f46977c98a65877e434b6af3931cbae3dd259783ac1c3d5f460",
+      "git_blob": "7352dbdc8638db145c5fdb8886de59f33e2bf7f5",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_lift_dispatch.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_lift_dispatch.rs",
+      "bytes": 2442,
+      "sha256": "b83c731d666ddeb2aa1cf4b4be958d4add8b2e2b11782db042975960f794db99",
+      "git_blob": "cdb394a97579ba3ff983d17064b7b5612f4f4402",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_lift_x86_64.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_lift_x86_64.rs",
+      "bytes": 17637,
+      "sha256": "f8abc3b43bea0f5ca357272eecf4c68f93bcf21d0e4019033a842740feafd52e",
+      "git_blob": "7978f47b6ece08e98d807bdbe035762804f34c72",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_lift_aarch64.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_lift_aarch64.rs",
+      "bytes": 23451,
+      "sha256": "08fc00d5a3ad8de8dadd886a15e82ebc4996106cc7ec2693d62f540548791fbf",
+      "git_blob": "1f11a4a509481e1b5d3a1cccf5beca93286305ea",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_lift_rv64.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_lift_rv64.rs",
+      "bytes": 15786,
+      "sha256": "dbaea269ed2c345f35839003171a6b0e134e002d527348f91562b931a3953df4",
+      "git_blob": "df5a24f47a43040fdd5f199774a032e5daff3235",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_map.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_map.rs",
+      "bytes": 24080,
+      "sha256": "4c3a8a1f5bdeff0762051c9f1b86e45ff82fdf2954370fc8f372ab4f6e33bfb2",
+      "git_blob": "ece77939c0cc10125fddbc6d47f4b48c71432087",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_nonlocal.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_nonlocal.rs",
+      "bytes": 24697,
+      "sha256": "376be842252ff3245c1f4b0ff98b28f9430b5d9d030f3a9bc8903bf8e288547c",
+      "git_blob": "4ec5986f6b905c0ad39ef05bb71071341d86ec3a",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_verify.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_verify.rs",
+      "bytes": 503505,
+      "sha256": "3d1334272c3f66ce5d11f358e315fb5677287527a3d86a1dd153267d1f5ef1b3",
+      "git_blob": "a9f26739a60a6baa566d2e92a7ea63f71b32763f",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_emit.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_emit.rs",
+      "bytes": 18807,
+      "sha256": "1b792aab6453e188009eb4005cb5b88bed20f5aab73e86494795ad129c76f2a7",
+      "git_blob": "cf215badc0b3411a13f7242a0861464f4bf5b3eb",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_machine_emit_rv64.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_machine_emit_rv64.rs",
+      "bytes": 23024,
+      "sha256": "921939bd0f6757c5b18a21cd8f15299c1ebd65d42bef191713567bcb219aec62",
+      "git_blob": "ab3a5e670dbd61aa5bd96273523f76761261c7aa",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+      "bytes": 56150,
+      "sha256": "2dcedb8da02f4e4debe18733368677dea590ac70ce67ceec5d998a25ceba8625",
+      "git_blob": "c0c2e7ac7a34898acad4a0d9773dedd9798cc575",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_float_layout.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_float_layout.rs",
+      "bytes": 15089,
+      "sha256": "1464c8b7a17035dee1965ecd5198973f84aa821f4f70371a1df81c9169770ef9",
+      "git_blob": "e339c09cefd1241d86b54c926e425daf190f560a",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+      "bytes": 6325,
+      "sha256": "c80b24bab4b87ca0ed3ebffbaafed046a22830482065fab97eda86ec946721a4",
+      "git_blob": "3ecada48146fc8f36bbca31c2dc7766c5cd251b7",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_floating_transport.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_floating_transport.rs",
+      "bytes": 10909,
+      "sha256": "8f01eed03d2ff07eac5d044073e668e9e34963af485247cd110818b16e5073c6",
+      "git_blob": "3b904fdc87e3ef01666f947505b2241a462f12a6",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_floating_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_floating_codegen.rs",
+      "bytes": 21109,
+      "sha256": "8da78d152be659939574dc2ce6a3578abcb4f785eb9ee0dddabefc3e61940570",
+      "git_blob": "0ec1989c3066989d471cf325c40802b6f2eb57af",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs",
+      "bytes": 22398,
+      "sha256": "6f6d6af01ffd855571bbc31f17c3fc842d3ddd700b811f91561ecf17afe6947e",
+      "git_blob": "2bd97a5a9605d4877f2673a03a959642e3cb4d32",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_wide_volatile_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_wide_volatile_codegen.rs",
+      "bytes": 5158,
+      "sha256": "a41406e3602f3372ab5456e2d00c610a4a543920c751d473a82755172d237665",
+      "git_blob": "12639577382ffa5e96feb91a432f9586c28dac60",
+      "external_override": false
+    },
+    {
+      "original_path": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api/src/ocore/native_vector_codegen.rs",
+      "published_path": "crates/ostadix-api/src/ocore/native_vector_codegen.rs",
+      "bytes": 15892,
+      "sha256": "88068ae80a1c21e59aeef10fe93d35f33ca24ac7c7b27c3db03335bba2ff52e3",
+      "git_blob": "a1febf5e781ce7bac23f8170e02ccacc2cb49d95",
+      "external_override": false
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "all_implemented_ISAs_required": true,
+  "frozen_compiler_source": "4a2e98da628609cacce84988616deb962be3a3c3",
+  "language_families": 14,
+  "new_cpp_rust_detached_controls": {
+    "passed": 14,
+    "scope": "authored producer fixtures only",
+    "skips": 0,
+    "tests": 14
+  },
+  "new_integer_unary": {
+    "cause": "fixture target-specific expected Clang ctlz poison flag; AArch64 original LLVM false; source-backed correction and authored LLVM true controls pending",
+    "failed": 2,
+    "passed": 10,
+    "tests": 12
+  },
+  "receipts": [
+    {
+      "bytes": 16810,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261020/compiled-detached-recipe-v5-r3/receipt.json",
+      "sha256": "bbe2727c66647cc23f7d0edcaf0c94b4bef94967f463e3809717589cbf470df5"
+    },
+    {
+      "bytes": 2202,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261020/scalar-intrinsic-inventory-r2/receipt.json",
+      "sha256": "44107ada8975f7a5988eef9df33d70ad657309b94e35e84c6455012a05f576e1"
+    },
+    {
+      "bytes": 93547,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261020/intrinsic-inventory-v5-independent-source-review-v2/review.json",
+      "sha256": "f56d636cd193ab29abbb059ee6d3a8168e09f5647512ed6b61eca631e3b3d204"
+    },
+    {
+      "bytes": 99494,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261020/retained-fp-eight-v5-r1/receipt.json",
+      "sha256": "e7dbcada2c4f8b9bfeb0a254d240b42c521c166108b136f8aeb30b4ef74856e0"
+    },
+    {
+      "bytes": 301,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261020/all-isa-import-harness-validation-final/root-review.json",
+      "sha256": "009a1548430cc6116be00971145b4271bb2d7465a9d8e3f04b4806a070892fb2"
+    }
+  ],
+  "retained_FP8": {
+    "cause": "original ptrmask call return alignment attribute kind89 unsupported",
+    "failed": 8,
+    "historical_V1_V2_preserved": true,
+    "pairings": 0,
+    "tests": 8
+  },
+  "reviewed_harness_source": "720eacb1a003da19ce097b28271564a421278a30",
+  "reviewed_harness_validation_integration": "b2da89d351e1268c249ed2484771910301fa6f77",
+  "runtime_accepted": false,
+  "scalar_inventory": {
+    "baseline": "one positive original LLVM import in setUpClass; deep-copy valid baseline for each mutant",
+    "methods": 6,
+    "mutants": 16,
+    "verified_mutants_rejected": 16
+  },
+  "schema": "ocore-private-validation-wip-checkpoint-v1",
+  "scope": "Recovery checkpoint; not complete-engine support or a release"
+}

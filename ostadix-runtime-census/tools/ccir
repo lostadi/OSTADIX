@@ -1,0 +1,26 @@
+#!/bin/bash
+# Compile like clang; for object compiles, also emit LLVM IR (-O0) next to the object.
+real=clang
+args=("$@")
+out=""; compile=0
+for ((i=0;i<${#args[@]};i++)); do
+  case "${args[$i]}" in
+    -c) compile=1;;
+    -o) out="${args[$((i+1))]}";;
+  esac
+done
+"$real" "${args[@]}" || exit $?
+if [ "$compile" = 1 ] && [ -n "$out" ] && [[ "$out" == *.o ]]; then
+  ir=(); skip=0
+  for ((i=0;i<${#args[@]};i++)); do
+    a="${args[$i]}"
+    if [ $skip -gt 0 ]; then skip=$((skip-1)); continue; fi
+    case "$a" in
+      -o|-MF|-MT|-MQ) skip=1; continue;;
+      -c|-g|-g[0-9]|-O*|-MD|-MMD|-MP|-pipe|-flto*) continue;;
+      *) ir+=("$a");;
+    esac
+  done
+  "$real" -S -emit-llvm -O0 -w "${ir[@]}" -o "${out%.o}.ll" 2>/dev/null || true
+fi
+exit 0

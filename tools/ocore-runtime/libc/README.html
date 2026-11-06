@@ -38,6 +38,41 @@
 </tbody></table>
 <p>Each graph also retains five startup objects and installs 218 original/generated target headers. Every source object passed ELF64 target-machine checks; RV objects retained LP64D flags. Archive member order and bytes, original source hashes, complete C LLVM input hashes, exact production invocation plans and generated-header provenance were verified. The immutable local receipt is <code>~/.cache/ostadix-runtime-captures/original-musl-0784374d-20261010/whole-source-build-observation-v1.json</code>, SHA-256 <code>f6df8192764741427588393d7386c6160ec92ee87b37c62edf633c0d667d3210</code>.</p>
 <p>All three capture reports remain incomplete: original assembly is a required unsupported import, and configure probes still require independently verified role exclusions. Original <code>LIBCC</code> selection was <code>-lgcc -lgcc_eh</code> on x86-64 and empty on the two cross targets where the matching helper libraries were unavailable; no override supplied those decisions. Full-archive symbol receipts retain required complex arithmetic helpers on x86-64, additional quad-precision arithmetic/conversion/comparison helpers on AArch64/RV64GC, and linker-owned <code>_DYNAMIC</code> and init/fini boundary symbols. Their source ownership and final-link applicability remain unresolved closure obligations. These source builds do not qualify libc/TLS/thread execution or any O-core provider, runtime/compiler or OSTADIX execution profile.</p>
+<p>On X12, the historical receipt path above is absent. A fresh x86-64 reproduction
+is retained at <code>/home/ustad/.cache/okernel-musl-source-current-soc9clfn/</code>.
+All seven configured recipe steps succeeded, including upstream <code>make all</code>,
+ordered archive validation and header installation. The source remained clean;
+the evaluated graph has 1,350 units (1,318 C and 32 assembly) and 1,345 ordered
+<code>libc.a</code> members. The generic capture command still exits 1 with
+<code>capture_complete: false</code>: required assembly and 56 unclassified frontend/probe
+events prevent admission. This does not qualify original libc execution or
+full O-core lowering. The failed preceding attempt is retained at
+<code>/home/ustad/.cache/okernel-musl-source-before-9gbsub8u/</code>; it stopped at a stale
+inventory-worker digest. That reproduction accepted exactly two pinned worker
+versions: <code>a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779</code>
+and <code>0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059</code>.
+All three recipes bound the corresponding helper digest. Both workers were checked
+against all 1,345 original archive member names and hashes; this preserves
+compatibility with the existing compiler&#39;s embedded worker. Earlier receipts
+and their qualification limits remain historical evidence.</p>
+<p>The new source worker preserves upstream GNU linker-map arguments and captures
+an immutable copy of the selected map; LLD uses independent dependency traces.
+Fifteen real-linker tests compare executable bytes, map output, streams and exit
+status with the original invocation. Unsupported map destinations still stop
+complete capture without changing upstream behavior. The installed compiler
+binary was not rebuilt: its embedded worker remains the older pinned version.
+Using the updated standalone source worker and rebuilding a compiler that
+embeds it are separate operations. This change does not admit original assembly
+or resolve the unclassified producer events.</p>
+<p>The combined source now also accepts the independently reviewed C-family stdin
+capture worker, SHA-256
+<code>758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36</code>.
+The helper still admits only those three exact executable revisions, and every
+recipe binds the exact updated helper bytes. A self-consistent session record
+for any other worker is rejected before execution. Fourteen original-frontend
+stdin cases cover byte fidelity and unsupported/ambiguous capture boundaries;
+they do not qualify complete libc import. The older source-build counts and
+failures above remain historical receipts, not a rerun with the merged compiler.</p>
 <p>Prerequisites are GNU Make, a clean complete original source checkout at the pinned commit, the matching scoped LLVM 22.1.6 SDK and any installation-specific compatibility libraries. Headers come from the original source and its per-architecture Make generation; they require no manually supplied pthread definitions or POSIX ABI macros. A recipe and helper snapshot should be placed in a new empty directory before starting:</p>
 <pre><code class="language-bash">export MUSL_SOURCE=/path/to/pinned/musl
 export MUSL_SDK=/path/to/LLVM-22.1.6-Linux-X64

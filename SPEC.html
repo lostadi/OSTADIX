@@ -519,6 +519,13 @@ non-Nix Request members MUST NOT require Nix, and inability to capture Nix MUST
 remain the affected member&#39;s result rather than suppress independent members.
 Actor identity in V6 is a serialization constraint only and MUST NOT close an
 unknown hosted footprint.</p>
+<p>An admitted <code>ocore_i64</code> native leaf (docs/OCORE.md, &quot;Admitted scalar native
+leaves in ordinary O&quot;) divides as NativeIR does. A zero divisor in <code>udiv</code>,
+<code>sdiv</code>, <code>urem</code> or <code>srem</code> traps at every integer width, and the leaf&#39;s
+operation fails. Signed minimum divided by <code>-1</code> does not trap: <code>sdiv</code> yields
+the minimum and <code>srem</code> yields <code>0</code>. This matches WebAssembly for division by
+zero and for <code>rem_s</code>. It differs only for <code>div_s</code> of minimum by <code>-1</code>, which
+traps in WebAssembly and yields the minimum here.</p>
 <p>Graph V2 and Evidence/Admission V6 bind the complete canonical
 <code>FidelityAssessmentV2</code>, including absence versus an explicit unsupported
 assessment. A present Graph V2 <code>fidelity_assessment</code> requires legacy
@@ -1315,6 +1322,12 @@ call-expression grammar, including <code>autonomous(batch(...))</code>, is not i
 <code>o_lang/backends/__init__.py::default_registry</code>, and add the tag to
 <code>REGISTERED_LANGUAGES</code> in <code>parser.py</code>.</p>
 <hr>
+<p>The teardown and session knobs, <code>O_BACKEND_SHUTDOWN_TIMEOUT_MS</code>,
+<code>O_BACKEND_MAX_OPEN_SESSIONS</code> and <code>O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND</code>,
+are validated when a backend starts, so a file that starts no backend ignores
+them. Surrounding whitespace is trimmed; any other malformed, zero or (for the
+shutdown budget) oversized value fails that start and every later use, never a
+silent default.</p>
 <h2>7. Known limitations / current status</h2>
 <ul>
 <li><strong><code>$var</code> splice</strong> is supported for top-level <code>let</code> bindings in both
@@ -1401,14 +1414,30 @@ first is order-dependent by design. If a block ends the session, for example thr
 a message saying the session ended, and the next block of that environment
 starts a fresh session. Bash error messages name the block as <code>bash: line N:</code> with the block&#39;s own line numbers. In bash blocks a bare <code>$name</code> is
 always an O splice, so a bash local or session variable must be written
-<code>\$name</code>. Each plain bash block runs in a fresh bash that its own backend
-helper process spawns before the block arrives; that helper, never the O
-process, is the subreaper of everything the block starts. The block ends at
+<code>\$name</code>. Each plain bash block runs in a fresh bash under one long-lived
+helper per pooled slot/session; the helper spawns the first block&#39;s bash at
+startup and the next block&#39;s bash before it answers, when the plan has
+another plain block ahead. That helper, never the O process, is the
+subreaper of everything the block starts. On a cancel, and when O dies (the
+helper&#39;s parent death signal), the helper gets SIGTERM, stops its bash and
+every job the same way, and exits. The block ends at
 the end-of-script sentinel line, not at stdout EOF, so a job holding stdout
 open cannot stall it: when the block ends, every background job it left,
 including ones detached with <code>setsid</code>, <code>nohup</code>, <code>disown</code>, or a double fork,
-is killed and reaped within 2 s, and stderr says <code>bash block left N background job(s); they were stopped</code>. A <code>bash[N]</code> session&#39;s jobs live until
-the session ends and are stopped the same way then. A descendant that makes
+is killed and reaped within 2 s, and stderr says <code>bash block left N background process(es); they were stopped</code>. N is the number of distinct
+live (non-zombie) processes below the helper other than the block&#39;s own
+bash, taken once, when the block&#39;s bash has exited and before anything is
+signalled, so <code>sleep 900 | sleep 901 &amp; setsid sleep 902 &amp;</code> gives 3 on every
+run. On a cancel the snapshot is taken when the helper&#39;s SIGTERM arrives,
+so it also counts the block&#39;s foreground command, and stderr says <code>bash block cancelled; stopped N process(es)</code>: the same block cancelled
+while <code>sleep 60</code> runs in the foreground gives 4. A process list that cannot
+be read fails the cleanup, but the walk still kills every job it can list.
+The line is written once the cleanup has finished. A process still
+alive after the 2 s, or a process list that cannot be read, fails the block
+with <code>bash job cleanup failed: ...</code>, which names the pids, and the helper is
+retired. A <code>bash[N]</code> session&#39;s jobs live until the session ends, and are
+stopped the same way then: on its shutdown, on a cancel, and when its stdin
+closes (O exiting, or killed), without a notice unless cleanup fails. A descendant that makes
 itself a subreaper, or one started by an external service manager, is not
 caught; only a cgroup could hold it. Effect ordering is unaffected: source
 sequence edges and resource-state chains are independent of these data

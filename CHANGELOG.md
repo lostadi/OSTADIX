@@ -9,6 +9,25 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- A runtime-only setup profile builds the evaluator, command front door,
+  orchestration compiler, native O-core compiler, and separately locked MCP
+  server. Native runtime bundle tooling retains exact source and build
+  manifests, verifies archived bytes, and prepares native ARM64 release jobs.
+  Release jobs must pass on the target platform before their assets are published.
+- Runtime provenance reports distinguish the running executable from its
+  compiled source and the currently resolved checkout. Doctor and MCP environment
+  reports include binary hashes, architecture, backend paths, configuration
+  metadata, and explicit bounded-execution status without exposing configuration
+  contents.
+- Four opt-in watcher MCP resources expose measurements, findings, proposed
+  actions, and qualification as separate versioned records. Missing data remains
+  unavailable; imported claims do not become verified observations. Qualification
+  accounts for reviewed false alarms and missed incidents without executing
+  proposed actions.
+- Architecture inventory now records the existing private variadic ABI codegen
+  fragment in its actual O-core module, preserving the compiler's dependency
+  boundaries without changing emitted code.
+
 - Default setup builds every root native command, including the notebook and
   kernel World utility, plus the supported workspace tools. It selects free
   hosted-runtime and O-core prerequisites for validated host platforms and

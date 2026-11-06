@@ -118,7 +118,7 @@ impl Emitter<'_> {
                     Target::X86_64UnknownNone => {
                         self.immediate(out, 0, (plan.named_gp * 8) as u64);
                         self.va_store(out, &args[0], 0, 4);
-                        self.immediate(out, 0, 48);
+                        self.immediate(out, 0, (48 + plan.named_fp * 16) as u64);
                         self.va_store(out, &args[0], 4, 4);
                         self.va_frame_pointer(out, stack_offset);
                         self.va_store(out, &args[0], 8, 8);
@@ -134,7 +134,7 @@ impl Emitter<'_> {
                         self.va_store(out, &args[0], 16, 8);
                         self.immediate(out, 0, (-((8 - plan.named_gp) as i64) * 8) as u64);
                         self.va_store(out, &args[0], 24, 4);
-                        self.immediate(out, 0, (-128i64) as u64);
+                        self.immediate(out, 0, (-((8 - plan.named_fp) as i64) * 16) as u64);
                         self.va_store(out, &args[0], 28, 4);
                     }
                 }

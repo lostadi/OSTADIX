@@ -1,0 +1,163 @@
+{
+ "name": "sqlite3",
+ "files": 1,
+ "functions": 2591,
+ "instr": 275094,
+ "census_functions": {
+  "FUNCPTR": 304,
+  "FLOAT": 78,
+  "AGG_ABI": 0,
+  "VARARGS": 278,
+  "SETJMP": 0,
+  "ATOMIC": 27,
+  "I128": 2,
+  "ASM": 0,
+  "INDIRECTBR": 0,
+  "DYNALLOCA": 0,
+  "TLS": 0,
+  "VECTOR": 0
+ },
+ "census_instr": {
+  "FUNCPTR": 56702,
+  "FLOAT": 26173,
+  "AGG_ABI": 0,
+  "VARARGS": 95485,
+  "SETJMP": 0,
+  "ATOMIC": 16318,
+  "I128": 55,
+  "ASM": 0,
+  "INDIRECTBR": 0,
+  "DYNALLOCA": 0,
+  "TLS": 0,
+  "VECTOR": 0
+ },
+ "info": {
+  "SWITCH": 78,
+  "MEMINTRIN": 333,
+  "BITINTRIN": 1,
+  "OVERFLOWINTRIN": 0
+ },
+ "exactly_one_feature_functions": {
+  "FUNCPTR": 256,
+  "ATOMIC": 17,
+  "FLOAT": 61,
+  "VARARGS": 217,
+  "I128": 2
+ },
+ "baseline_closed_ready": {
+  "functions": 683,
+  "instr": 32594
+ },
+ "greedy_order": [
+  {
+   "feature": "FUNCPTR",
+   "closed_ready_functions": 1114,
+   "closed_ready_instr": 49033
+  },
+  {
+   "feature": "ATOMIC",
+   "closed_ready_functions": 1276,
+   "closed_ready_instr": 60275
+  },
+  {
+   "feature": "FLOAT",
+   "closed_ready_functions": 1311,
+   "closed_ready_instr": 61871
+  },
+  {
+   "feature": "VARARGS",
+   "closed_ready_functions": 1324,
+   "closed_ready_instr": 63597
+  },
+  {
+   "feature": "I128",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  },
+  {
+   "feature": "AGG_ABI",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  },
+  {
+   "feature": "SETJMP",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  },
+  {
+   "feature": "INDIRECTBR",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  },
+  {
+   "feature": "DYNALLOCA",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  },
+  {
+   "feature": "TLS",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  },
+  {
+   "feature": "VECTOR",
+   "closed_ready_functions": 2591,
+   "closed_ready_instr": 275094
+  }
+ ],
+ "extern_symbols": 33,
+ "libm_symbols": 0,
+ "extern_sample": [
+  "__errno_location",
+  "free",
+  "fsync",
+  "getenv",
+  "getpid",
+  "gettimeofday",
+  "localtime",
+  "malloc",
+  "memchr",
+  "memcmp",
+  "nanosleep",
+  "open64",
+  "pthread_create",
+  "pthread_join",
+  "pthread_mutex_destroy",
+  "pthread_mutex_init",
+  "pthread_mutex_lock",
+  "pthread_mutex_trylock",
+  "pthread_mutex_unlock",
+  "pthread_mutexattr_destroy",
+  "pthread_mutexattr_init",
+  "pthread_mutexattr_settype",
+  "realloc",
+  "strchr",
+  "strcmp",
+  "strcspn",
+  "strlen",
+  "strncmp",
+  "strrchr",
+  "strspn",
+  "sysconf",
+  "time",
+  "utimes"
+ ],
+ "hot": {
+  "sqlite3VdbeExec": {
+   "feats": [
+    "ATOMIC",
+    "FLOAT",
+    "FUNCPTR",
+    "VARARGS"
+   ],
+   "instr": 12242,
+   "file": "ir/sqlite/sqlite3.ll"
+  },
+  "sqlite3_step": {
+   "feats": [],
+   "instr": 108,
+   "file": "ir/sqlite/sqlite3.ll"
+  }
+ },
+ "feature_free_functions": 1972
+}

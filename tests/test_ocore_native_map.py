@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 from test_ocore_native_import_backend import (
-    ROOT, TARGETS, I1, I64, function, instruction, integer, module, value,
+    ROOT, TARGETS, I1, I64, PTR, function, instruction, integer, module, value,
 )
 
 
@@ -42,6 +42,29 @@ def map_module(isa="x86_64"):
     declaration = function("declared_only")
     declaration.update(entry=None, blocks=[])
     return module(isa, [declaration, fn])
+
+
+def nonlocal_map_module(isa="x86_64", abi=None):
+    """Authored frame/correspondence fixture, with an unresolved original provider."""
+    declaration = function("original_checkpoint_provider",
+                           control_effects={"returns_twice": True})
+    declaration.update(entry=None, blocks=[])
+    caller = function("mapped_nonlocal_caller", params=(I64,), result=value(2),
+                      instructions=[
+                          instruction(1, I64, {
+                              "op": "call", "callee": {
+                                  "kind": "symbol", "ty": PTR,
+                                  "name": declaration["name"]},
+                              "signature": copy.deepcopy(declaration["signature"]),
+                              "args": [], "control_effects": {"returns_twice": True}}),
+                          instruction(2, I64, {
+                              "op": "binary", "kind": "add", "lhs": value(0),
+                              "rhs": value(1), "flags": []}),
+                      ])
+    native = module(isa, [declaration, caller])
+    if abi is not None:
+        native["target"]["abi"] = abi
+    return native
 
 
 class NativeMapTests(unittest.TestCase):
@@ -135,6 +158,67 @@ class NativeMapTests(unittest.TestCase):
                     self.assertLessEqual(site["assembly_start"], site["assembly_end"])
                     self.assertLessEqual(site["assembly_end"], assembly.stat().st_size)
                     previous_end = site["assembly_end"]
+
+    def test_nonlocal_maps_bind_computed_frames_without_admitting_original_providers(self):
+        # Four authored ABI profiles, three emitters; no provider/native execution.
+        for isa, abi in (("x86_64", None), ("aarch64", None),
+                         ("riscv64", "lp64"), ("riscv64", "lp64d")):
+            with self.subTest(isa=isa, abi=abi):
+                label = f"{isa}-{abi or 'default'}"
+                source = self.source(nonlocal_map_module(isa, abi), f"{label}.json")
+                assembly = self.directory / f"{label}.s"
+                plain = self.directory / f"{label}-plain.s"
+                sidecar = self.directory / f"{label}.map.json"
+                self.succeeded(self.compile_args(source, plain, isa=isa))
+                self.succeeded(self.compile_args(source, assembly, sidecar, isa))
+                self.assertEqual(plain.read_bytes(), assembly.read_bytes())
+                record = self.assert_bindings(source, assembly, assembly, sidecar, "assembly")
+                report = record["nonlocal_control"]
+                self.assertIs(report["provider_qualified"], False)
+                self.assertIs(report["library_exposure_admitted"], False)
+                self.assertTrue(report["functions"], "computed frame inventory missing")
+                self.assertTrue(report["original_provider_obligations"], "original provider obligation missing")
+
+    def test_nonlocal_map_rejects_missing_forged_or_spurious_control_reports(self):
+        source = self.source(nonlocal_map_module())
+        assembly, sidecar = self.directory / "nonlocal.s", self.directory / "nonlocal.map.json"
+        self.succeeded(self.compile_args(source, assembly, sidecar))
+        original = self.assert_bindings(source, assembly, assembly, sidecar, "assembly")
+        mutations = []
+        missing = copy.deepcopy(original)
+        del missing["nonlocal_control"]
+        mutations.append(("missing", missing, "nonlocal-control report presence mismatch"))
+        for key, wrong in (("functions", []), ("original_provider_obligations", []),
+                           ("provider_qualified", True),
+                           ("library_exposure_admitted", True)):
+            changed = copy.deepcopy(original)
+            changed["nonlocal_control"][key] = wrong
+            self.assertNotEqual(changed["nonlocal_control"][key], original["nonlocal_control"][key])
+            mutations.append((key, changed, "nonlocal report or assembly differs from canonical computed emission"))
+        unknown = copy.deepcopy(original)
+        unknown["nonlocal_control"]["invented_authority"] = True
+        mutations.append(("unknown", unknown, "unknown field"))
+        for label, changed, rejection in mutations:
+            with self.subTest(mutation=label):
+                self.assertNotEqual(changed, original)
+                sidecar.write_text(json.dumps(changed), encoding="utf-8")
+                self.assertEqual(json.loads(sidecar.read_bytes()), changed)
+                result = self.run_command(self.verify_args(source, sidecar, assembly, assembly))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(rejection, result.stderr)
+        # A valid nonlocal report cannot be transplanted into an ordinary map.
+        ordinary = self.source(map_module(), "ordinary.json")
+        ordinary_asm = self.directory / "ordinary.s"
+        ordinary_map = self.directory / "ordinary.map.json"
+        self.succeeded(self.compile_args(ordinary, ordinary_asm, ordinary_map))
+        record = self.assert_bindings(ordinary, ordinary_asm, ordinary_asm, ordinary_map, "assembly")
+        self.assertNotIn("nonlocal_control", record)
+        record["nonlocal_control"] = original["nonlocal_control"]
+        ordinary_map.write_text(json.dumps(record), encoding="utf-8")
+        self.assertEqual(json.loads(ordinary_map.read_bytes())["nonlocal_control"], original["nonlocal_control"])
+        result = self.run_command(self.verify_args(ordinary, ordinary_map, ordinary_asm, ordinary_asm))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("nonlocal-control report presence mismatch", result.stderr)
 
     def test_three_isa_object_maps_bind_real_assembler_outputs(self):
         clang = shutil.which("clang")

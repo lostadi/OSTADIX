@@ -1514,20 +1514,15 @@ fn link_files_with_options(
     for ordered_file in &ordered {
         let path = &ordered_file.path;
         let backend = file_backend(path, ext_map);
-        let mut content = fs::read_to_string(path)
+        let content = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
         let marker = marker_path(path, marker_root)?;
 
         let mut body = String::new();
 
         if backend.is_empty() {
-            // .O source: strip a shebang line and inline verbatim.
-            if content.starts_with("#!") {
-                content = content
-                    .find('\n')
-                    .map(|nl| content[nl + 1..].to_string())
-                    .unwrap_or_default();
-            }
+            // .O source is a literal section, including its original shebang.
+            // The optional executable wrapper belongs to the combined document.
             body.push_str(&content);
         } else {
             // `[*]` is an explicit fresh-environment request, not a logical

@@ -110,6 +110,11 @@ def write_minimal_tree(root: Path) -> None:
             'mod atomic { include!("native_atomic_codegen.rs"); }\n'
             'mod float_layout { include!("native_float_layout.rs"); }\n'
             'mod variadic { include!("native_variadic_codegen.rs"); }\n'
+            'mod floating_transport { include!("native_floating_transport.rs"); }\n'
+            'mod floating { include!("native_floating_codegen.rs"); }\n'
+            'mod wide_integer { include!("native_wide_integer_codegen.rs"); }\n'
+            'mod wide_volatile { include!("native_wide_volatile_codegen.rs"); }\n'
+            'mod vector { include!("native_vector_codegen.rs"); }\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -247,7 +252,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/mod.rs",
                     "module_path": ["ocore"],
-                    "child_modules": ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_ir", "native_map", "native_verify"],
+                    "child_modules": ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_floating_helpers", "native_ir", "native_machine_asm_reader", "native_machine_emit", "native_machine_emit_rv64", "native_machine_ir", "native_machine_lift", "native_machine_lift_aarch64", "native_machine_lift_dispatch", "native_machine_lift_rv64", "native_machine_lift_x86_64", "native_machine_unit", "native_machine_verify", "native_map", "native_nonlocal", "native_verify"],
                 },
                 {
                     "path": "crates/ostadix-api/src/ocore/native_float_layout.rs",
@@ -262,6 +267,36 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "module_path": ["ocore", "native_codegen", "variadic"],
                 },
                 {
+                    "path": "crates/ostadix-api/src/ocore/native_floating_transport.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "floating_transport"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_floating_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "floating"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "wide_integer"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_wide_volatile_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "wide_volatile"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_vector_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "vector"],
+                },
+                {
                     "path": "crates/ostadix-api/src/private_dir.inc.rs",
                     "owner": "shims",
                     "included_from": "crates/ostadix-api/src/shims.rs",
@@ -269,7 +304,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 },
             ],
         )
-        self.assertEqual(len(roots), 53)
+        self.assertEqual(len(roots), 54)
+        runtime_provenance_root = next(
+            root for root in roots if root["name"] == "runtime_provenance"
+        )
+        self.assertEqual(runtime_provenance_root["layer"], 0)
+        self.assertEqual(runtime_provenance_root["allowed_dependencies"], [])
         api_root = next(root for root in roots if root["name"] == "api")
         self.assertIn("ir", api_root["allowed_dependencies"])
         boot_object_root = next(root for root in roots if root["name"] == "boot_objects")
@@ -897,6 +937,11 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             ("crates/ostadix-api/src/ocore/native_core.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_float_layout.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_floating_transport.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_floating_codegen.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_wide_volatile_codegen.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_vector_codegen.rs", "ocore"),
             ("crates/ostadix-api/src/private_dir.inc.rs", "shims"),
         ):
             with self.subTest(fragment=relative):
@@ -1701,6 +1746,21 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         self.assertIn(
             "root edge `canonical_cbor -> value` is not declared", result.stderr
         )
+
+    def test_runtime_provenance_cannot_import_execution_or_authority(self) -> None:
+        for forbidden in ("eval", "runtime_exec", "world"):
+            with self.subTest(forbidden=forbidden), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                (root / "crates/ostadix-api/src/runtime_provenance.rs").write_text(
+                    f"use crate::{forbidden}::Boundary;\n", encoding="utf-8"
+                )
+                result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                f"root edge `runtime_provenance -> {forbidden}` is not declared",
+                result.stderr,
+            )
 
     def test_execution_fabric_protocol_root_cannot_import_authority_or_runtime_layers(
         self,

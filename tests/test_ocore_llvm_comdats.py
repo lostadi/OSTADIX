@@ -229,12 +229,57 @@ define i32 @entry() { ret i32 9 }
             "define linkonce_odr void @target(ptr byval(i64) %x) comdat($group) { ret void }\n",
             "define weak_odr void @target() naked comdat($group) { unreachable }\n",
             "define linkonce void @target() sanitize_address comdat($group) { ret void }\n",
-            "define weak_odr double @unused(double %x) cold comdat($group) { ret double %x }\n",
+            "define weak_odr half @unused(half %x) cold comdat($group) { ret half %x }\n",
             "@data = available_externally global i64 7\n",
         )
         for body in cases:
             with self.subTest(body=body):
                 self.reject_verified("$group = comdat any\ndefine i32 @entry() { ret i32 9 }\n" + body)
+
+    def test_supported_default_float_weak_group_keeps_unused_member_all_three_isas(self):
+        body = ("$group = comdat any\ndefine i32 @entry() { ret i32 9 }\n"
+                "define weak_odr double @unused(double %x) cold comdat($group) { ret double %x }\n")
+        for triple in TRIPLES:
+            for module in self.roundtrip(body, triple):
+                self.assertEqual(module["provenance"]["source_function_count"], 2)
+                member = self.function(module, "unused")
+                self.assertEqual(member["linkage"], "weak_odr")
+                self.assertEqual(member["comdat"], "group")
+                self.assertEqual(module["types"][member["signature"]["result"]], {"kind":"float","bits":64})
+
+    def test_unused_extern_weak_declaration_in_group_module_stays_undefined_weak_all_three_isas(self):
+        import json
+        import os
+        import tempfile
+        from pathlib import Path
+        from tests.test_ocore_native_extern_weak import TARGETS
+        from tests.test_ocore_native_weak import elf_symbols
+
+        compiler = Path(os.environ.get("OCOREC", str(baseline.ROOT / "target/debug/ocorec")))
+        if not compiler.is_file():
+            self.skipTest("built O-core compiler required")
+        body = ("$group = comdat any\n"
+                "define linkonce_odr i32 @member() comdat($group) { ret i32 1 }\n"
+                "define i32 @entry() { ret i32 9 }\n"
+                "declare extern_weak void @unused()\n")
+        with tempfile.TemporaryDirectory(prefix="ocore-comdat-weak-") as temporary:
+            directory = Path(temporary)
+            for isa, (target, triple, _, _) in TARGETS.items():
+                with self.subTest(isa=isa):
+                    module = self.import_ir(body, triple)
+                    self.assertEqual(self.groups(module), {"group": "any"})
+                    normalized = directory / (isa + ".json")
+                    normalized.write_text(json.dumps(module), encoding="utf-8")
+                    obj = directory / (isa + ".o")
+                    result = subprocess.run([str(compiler), str(normalized), "--input-kind", "native-ir",
+                                             "--target", target, "-o", str(obj)],
+                                            capture_output=True, text=True, timeout=90)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    symbol = elf_symbols(obj)["unused"]
+                    self.assertEqual(symbol["binding"], 2, "declaration must be STB_WEAK")
+                    self.assertEqual(symbol["type"], 2, "typed function declaration must retain STT_FUNC")
+                    self.assertEqual(symbol["section"], 0, "declaration must stay SHN_UNDEF")
+
 
     def test_verified_non_utf8_group_names_reject_at_the_fresh_bitcode_audit_boundary(self):
         self.reject_verified('$"bad\\FFgroup" = comdat any\n@data = global i64 7, comdat($"bad\\FFgroup")\n',

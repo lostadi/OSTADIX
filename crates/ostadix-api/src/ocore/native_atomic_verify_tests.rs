@@ -1072,10 +1072,29 @@ fn target_profiles_are_explicit_and_are_not_atomic_source_validity() {
     let mut bad_wire = serde_json::to_value(fixture(Family::Fence, I64)).unwrap();
     bad_wire["target"]["atomic_profile"] = json!("device_memory_v1");
     assert!(serde_json::from_value::<NativeModule>(bad_wire).is_err());
-    // No vector type is represented in this schema. A vector storage contract
-    // must fail at that explicit boundary, rather than become a scalar/array.
+    // Fixed vectors have a distinct wire representation. Admitting that type
+    // does not admit vector atomic memory effects or scalarize their storage.
     let vector: JsonValue = json!({"kind":"vector","element":I32,"len":2});
-    assert!(serde_json::from_value::<Type>(vector).is_err());
+    let vector_type: Type = serde_json::from_value(vector.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&vector_type).unwrap(), vector);
+    for arch in ["x86_64", "aarch64", "riscv64"] {
+        let mut baseline = module();
+        baseline.target.triple = format!("{arch}-unknown-none");
+        let vector_ty = add_type(&mut baseline, vector_type.clone());
+        accepted(&baseline);
+        for family in MEMORY_FAMILIES {
+            let mut invalid = baseline.clone();
+            let atomic = instruction(&mut invalid, family, vector_ty);
+            invalid.functions[0].blocks[0].instructions.push(atomic);
+            let reason = match family {
+                Family::CompareExchange => {
+                    "atomic compare-exchange value type requires integer or pointer"
+                }
+                _ => "atomic value type requires scalar integer, pointer or floating-point storage",
+            };
+            rejected(&invalid, reason);
+        }
+    }
 }
 
 #[test]

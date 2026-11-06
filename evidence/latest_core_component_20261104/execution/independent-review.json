@@ -1,0 +1,298 @@
+{
+  "schema": "ostadix-core-generated-execution-independent-review/v1",
+  "utc": "2026-11-04T10:15:37.842Z",
+  "reviewer": "/root/latest_build",
+  "status": "ACCEPT_BOUNDED_FOUR_CASE_THREE_ISA_EXECUTION_EVIDENCE",
+  "blocking_findings": [],
+  "evidence": {
+    "controller": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/run.py",
+      "bytes": 5139,
+      "sha256": "429a21dbc1c78ffc72c5b924eca8d27ab74758072068b47bbf7d2c131b2ad4d6"
+    },
+    "terminal": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/terminal.json",
+      "bytes": 23977,
+      "sha256": "502fa9631c3abe4463c8a204eb3a4874bb6420e622930877137aa99fd34b4750"
+    },
+    "compiler_smoke_terminal": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/terminal.json",
+      "bytes": 10672,
+      "sha256": "98e8b430cc830cd5cef6c989ce93a0b988de602158e8d340c3056c866865452c"
+    },
+    "build_finalization": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/finalization.json",
+      "bytes": 2245,
+      "sha256": "d5de6beceb1a9d418e32c968308e83292b9afa7d6939a2f24995079fc9c23067"
+    }
+  },
+  "checks": {
+    "target_count": 3,
+    "defined_positive_cases_per_target": 4,
+    "positive_executions_exit0": 3,
+    "wrong_final_expectation_executions_exit4": 3,
+    "assemble_and_link_exit0": 12,
+    "all36_tool_logs_empty_and_hash_matched": true,
+    "source_prefixes_currently_exact": true,
+    "all_six_executables_guarded": true,
+    "review_execution": false
+  },
+  "cases": [
+    [
+      19,
+      23,
+      42
+    ],
+    [
+      -7,
+      11,
+      4
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      1099511627776,
+      -3,
+      1099511627773
+    ]
+  ],
+  "artifacts": [
+    {
+      "target": "x86_64",
+      "negative": false,
+      "observed_exit": 0,
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/x86_64.s",
+        "bytes": 724,
+        "sha256": "28f619925b126a46aa21849482dbdb2f45678380fcbde6cc532501f4d6e7371d"
+      },
+      "assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.s",
+        "bytes": 1370,
+        "sha256": "f95f127b5616947a9a800b295eda1ac5f82f7da873aef289104462cda94e01f2"
+      },
+      "object": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive.o",
+        "bytes": 864,
+        "sha256": "9c9c596913844aeb69c6914fad40d3344cc6e1836f7b028e63d9e6fdc7e75cc5"
+      },
+      "executable": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-positive",
+        "bytes": 1176,
+        "sha256": "38fb17a9718e5aaa9fd4dad620dac13d329665bcb6cabd19232c7a636b0f7470"
+      },
+      "ELF64_little_ET_EXEC": true,
+      "machine": 62,
+      "entry": "2101616",
+      "entry_within_file_backed_executable_PT_LOAD": true,
+      "no_PT_INTERP": true,
+      "exact_original_prefix": true
+    },
+    {
+      "target": "x86_64",
+      "negative": true,
+      "observed_exit": 4,
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/x86_64.s",
+        "bytes": 724,
+        "sha256": "28f619925b126a46aa21849482dbdb2f45678380fcbde6cc532501f4d6e7371d"
+      },
+      "assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.s",
+        "bytes": 1370,
+        "sha256": "b40962dfc5bc49f2c968bc2bf38a4141a056a706578200ce8e80ea469e5ee691"
+      },
+      "object": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative.o",
+        "bytes": 864,
+        "sha256": "bba0462128defee495972237aac1383dece472e825955c39ac3d351966b87af7"
+      },
+      "executable": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/x86_64-negative",
+        "bytes": 1176,
+        "sha256": "7cdab733088a7e9fbc201c56e39e3bc0d31e396230edce70db534ffc67421256"
+      },
+      "ELF64_little_ET_EXEC": true,
+      "machine": 62,
+      "entry": "2101616",
+      "entry_within_file_backed_executable_PT_LOAD": true,
+      "no_PT_INTERP": true,
+      "exact_original_prefix": true,
+      "negative_single_line_mutation": [
+        {
+          "positive": "mov r10, 1099511627773",
+          "negative": "mov r10, 1099511627774"
+        }
+      ]
+    },
+    {
+      "target": "aarch64",
+      "negative": false,
+      "observed_exit": 0,
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/aarch64.s",
+        "bytes": 852,
+        "sha256": "1d5e14077d2abf7303c91bf644d20edf20da93600904787ede6ebd120e34eaeb"
+      },
+      "assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.s",
+        "bytes": 1715,
+        "sha256": "26579c84c48bee2b0fad602c03f9953226fce104754e98971e5e82dd173f0fbb"
+      },
+      "object": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive.o",
+        "bytes": 928,
+        "sha256": "36d403dabf309f265a012e36c6f354119ad42ff016e953042cf9b80bc623401c"
+      },
+      "executable": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-positive",
+        "bytes": 1248,
+        "sha256": "53408336f9a7e63d8a7531f4468605f44c1463fc1cc18ace17998c2d9ecdc6ba"
+      },
+      "ELF64_little_ET_EXEC": true,
+      "machine": 183,
+      "entry": "2163104",
+      "entry_within_file_backed_executable_PT_LOAD": true,
+      "no_PT_INTERP": true,
+      "exact_original_prefix": true
+    },
+    {
+      "target": "aarch64",
+      "negative": true,
+      "observed_exit": 4,
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/aarch64.s",
+        "bytes": 852,
+        "sha256": "1d5e14077d2abf7303c91bf644d20edf20da93600904787ede6ebd120e34eaeb"
+      },
+      "assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.s",
+        "bytes": 1715,
+        "sha256": "b8af52113f6479ac038a01e74f8b85ca1ccd1a4331da0b2a0d54d27bc50e9a19"
+      },
+      "object": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative.o",
+        "bytes": 928,
+        "sha256": "5bbc55dae4fd317c39be1cc5beccb7ff16adbba031c1211cb4e6349841eca48b"
+      },
+      "executable": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/aarch64-negative",
+        "bytes": 1248,
+        "sha256": "e075c1c2fafd0d71c225c272bd140c4c1dcc6054817d76ed3e6434b6ec4816aa"
+      },
+      "ELF64_little_ET_EXEC": true,
+      "machine": 183,
+      "entry": "2163104",
+      "entry_within_file_backed_executable_PT_LOAD": true,
+      "no_PT_INTERP": true,
+      "exact_original_prefix": true,
+      "negative_single_line_mutation": [
+        {
+          "positive": "movz x9, #65533",
+          "negative": "movz x9, #65534"
+        }
+      ]
+    },
+    {
+      "target": "riscv64",
+      "negative": false,
+      "observed_exit": 0,
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/riscv64.s",
+        "bytes": 1215,
+        "sha256": "14e7ae42b05de65b220b9366b56dd14c76de9ce63e8e1b3ae0444318a4e27ff6"
+      },
+      "assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.s",
+        "bytes": 1797,
+        "sha256": "f03ae9437a0595dc79d766315eb67835bbd7ebc5264e48531e62994ca6ef114b"
+      },
+      "object": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive.o",
+        "bytes": 1696,
+        "sha256": "faff5dc96bd0a5b15b6099274eeb010a34b66d29650fb17fb281a911ca607bc0"
+      },
+      "executable": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-positive",
+        "bytes": 1648,
+        "sha256": "19a2bef5c20413e74b9a4b2f6ab5d950a827b75b14d53eff871e4d673fffa68e"
+      },
+      "ELF64_little_ET_EXEC": true,
+      "machine": 243,
+      "entry": "70160",
+      "entry_within_file_backed_executable_PT_LOAD": true,
+      "no_PT_INTERP": true,
+      "exact_original_prefix": true
+    },
+    {
+      "target": "riscv64",
+      "negative": true,
+      "observed_exit": 4,
+      "original_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/riscv64.s",
+        "bytes": 1215,
+        "sha256": "14e7ae42b05de65b220b9366b56dd14c76de9ce63e8e1b3ae0444318a4e27ff6"
+      },
+      "assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.s",
+        "bytes": 1797,
+        "sha256": "89c4a089c0482f0b7a78bb85b2d82768aaa88b3907bcdeb60d5dfde8955bacfc"
+      },
+      "object": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative.o",
+        "bytes": 1696,
+        "sha256": "af27d732527adba50fe0b556131853cf9b02516a71dd6b8424807b82719586ef"
+      },
+      "executable": {
+        "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-native-execution-r1/riscv64-negative",
+        "bytes": 1648,
+        "sha256": "9479edf37f52223ce4de075e4348b68ad69e0b1941ec2b653a649b1f513bc371"
+      },
+      "ELF64_little_ET_EXEC": true,
+      "machine": 243,
+      "entry": "70160",
+      "entry_within_file_backed_executable_PT_LOAD": true,
+      "no_PT_INTERP": true,
+      "exact_original_prefix": true,
+      "negative_single_line_mutation": [
+        {
+          "positive": "li t0, 1099511627773",
+          "negative": "li t0, 1099511627774"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "severity": "nonblocking future-run robustness",
+      "location": "run.py run()",
+      "finding": "timeout=30 kills/waits for the direct subprocess; no private process group or descendant-quiescence proof is retained.",
+      "resolution": "Current completed synchronous assembler/linker/QEMU observations are accepted only for this bounded run. No child-process containment or descendant-quiescence claim; future general workloads need an owned process group."
+    },
+    {
+      "severity": "nonblocking future-run robustness",
+      "location": "run.py assertions",
+      "finding": "Python assertions contain assembler/linker calls and outcome guards; optimized Python would remove them.",
+      "resolution": "This completed record contains all18 expected commands and independently matching exits, so relevant calls ran. Require optimize0 explicitly or replace asserts before future generic reuse."
+    },
+    {
+      "severity": "scope and custody limitation",
+      "location": "run.py pin() and terminal publication",
+      "finding": "Controller uses path/stat pinning, writes a regular terminal without exclusive durable publication, and does not retain an FD-to-exec trace.",
+      "resolution": "Reviewer independently reopened regular nlink1 files without following symlinks, checked stable held/named metadata, exact hashes, source prefixes, logs and ELF headers. No stronger publication/admission/FD-exec claim."
+    }
+  ],
+  "bounded_conclusion": "Pinned O-core-generated assembly plus a separately authored Linux harness executed four defined nonoverflowing signed-i64 additions under matching x86-64/AArch64/RV64 QEMU. All four comparisons passed on each target; one wrong final expected result per target exited4. This is finite workload agreement, not general semantic equivalence.",
+  "qualification": {
+    "whole_runtime_ISA": false,
+    "original_foreign_runtime_lowering": false,
+    "complete_native_graph_HGraph_integration": false,
+    "full_API": false,
+    "full_compiler": false,
+    "all_trace_equivalence": false
+  },
+  "no_tests_or_compilers_rerun_by_reviewer": true
+}

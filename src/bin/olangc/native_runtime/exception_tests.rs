@@ -335,6 +335,7 @@ fn explicit_fixed_personality_is_an_ordinary_contract_without_metadata_adaptatio
         .push(Instruction {
             result: Some(NativeValue { id: 90, ty: 1 }),
             operation: Operation::Call {
+                control_effects: Default::default(),
                 callee: Operand::Symbol {
                     ty: 2,
                     name: "source_personality".into(),

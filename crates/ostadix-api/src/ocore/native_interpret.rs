@@ -154,6 +154,9 @@ pub fn evaluate_with_step_limit(
                             module.functions[frame.function].name, block.id
                         )));
                     }
+                    Terminator::IndirectBranch { .. } => {
+                        return Err(fail("code-block addresses and indirect branches are not implemented by the scalar reference interpreter"));
+                    }
                     Terminator::Invoke { .. } | Terminator::Resume { .. } => {
                         return Err(fail("exception execution is not implemented by the scalar reference interpreter"));
                     }
@@ -255,6 +258,11 @@ type SwitchDispatch = HashMap<BlockId, HashMap<BigUint, BlockId>>;
 impl<'a> Prepared<'a> {
     fn new(module: &'a NativeModule) -> Result<Self> {
         super::native_verify::verify(module)?;
+        if module.has_nonlocal_control_effects() {
+            return Err(fail(
+                "returns_twice nonlocal execution is not implemented by the reference interpreter",
+            ));
+        }
         if module
             .functions
             .iter()
@@ -295,6 +303,9 @@ impl<'a> Prepared<'a> {
             function.intrinsic.as_deref().is_some_and(|name| {
                 !matches!(name, "llvm.assume" | "llvm.trap" | NOALIAS_SCOPE_DECL)
                     && super::native_verify::integer_minmax_intrinsic(name).is_none()
+                    && super::native_verify::integer_unary_intrinsic(name).is_none()
+                    && super::native_verify::integer_population_count_intrinsic(name).is_none()
+                    && super::native_verify::integer_saturating_sub_intrinsic(name).is_none()
             }) || function.blocks.iter().any(|block| {
                 block.instructions.iter().any(|instruction| {
                     matches!(
@@ -304,6 +315,7 @@ impl<'a> Prepared<'a> {
                             | Operation::MemoryCopy { .. }
                             | Operation::Alloca { .. }
                             | Operation::Gep { .. }
+                            | Operation::PtrMask { .. }
                             | Operation::Load { .. }
                             | Operation::Store { .. }
                     )
@@ -311,7 +323,7 @@ impl<'a> Prepared<'a> {
             })
         }) {
             return Err(fail(
-                "memory operations and lifetime markers are not implemented",
+                "memory operations and lifetime markers are not implemented (including pointer masks)",
             ));
         }
         let mut prepared = Self {
@@ -391,7 +403,10 @@ impl<'a> Prepared<'a> {
                                 prepared.scalar_operand(function_id, operand)?;
                             }
                         }
-                        Operation::Freeze { value } => {
+                        Operation::IntegerPopulationCount { value }
+                        | Operation::IntegerCountLeadingZeros { value, .. }
+                        | Operation::IntegerAbs { value, .. }
+                        | Operation::Freeze { value } => {
                             prepared.scalar_operand(function_id, value)?;
                         }
                         Operation::Phi { incoming } => {
@@ -403,6 +418,7 @@ impl<'a> Prepared<'a> {
                             callee,
                             signature,
                             args,
+                            ..
                         } => {
                             prepared.signature(signature)?;
                             let Operand::Symbol { name, .. } = callee else {
@@ -415,10 +431,21 @@ impl<'a> Prepared<'a> {
                                 prepared.scalar_operand(function_id, arg)?;
                             }
                         }
+                        Operation::FloatBinary { .. }
+                        | Operation::FloatNeg { .. }
+                        | Operation::FloatAbs { .. }
+                        | Operation::FCmp { .. } => {
+                            return Err(fail("floating-point execution is not implemented by the integer reference interpreter"));
+                        }
                         Operation::IntegerOverflow { .. }
                         | Operation::ExtractValue { .. }
                         | Operation::InsertValue { .. } => {
                             return Err(fail("aggregate SSA is not implemented by the scalar reference interpreter"));
+                        }
+                        Operation::ExtractElement { .. }
+                        | Operation::InsertElement { .. }
+                        | Operation::VectorReduceAdd { .. } => {
+                            return Err(fail("fixed-vector execution is not implemented by the scalar reference interpreter"));
                         }
                         Operation::LandingPad { .. } | Operation::EhTypeId { .. } => {
                             return Err(fail("exception execution is not implemented by the scalar reference interpreter"));
@@ -426,12 +453,15 @@ impl<'a> Prepared<'a> {
                         Operation::Alloca { .. }
                         | Operation::ThreadLocalAddress { .. }
                         | Operation::Gep { .. }
+                        | Operation::PtrMask { .. }
                         | Operation::Load { .. }
                         | Operation::Store { .. }
                         | Operation::Lifetime { .. }
                         | Operation::MemorySet { .. }
                         | Operation::MemoryCopy { .. } => {
-                            return Err(fail("memory operations are not implemented"));
+                            return Err(fail(
+                                "memory operations and pointer masks are not implemented",
+                            ));
                         }
                         Operation::AtomicLoad { .. }
                         | Operation::AtomicStore { .. }
@@ -443,6 +473,9 @@ impl<'a> Prepared<'a> {
                     }
                 }
                 match &block.terminator {
+                    Terminator::IndirectBranch { .. } => {
+                        return Err(fail("code-block addresses and indirect branches are not implemented by the scalar reference interpreter"));
+                    }
                     Terminator::Invoke { .. } | Terminator::Resume { .. } => {
                         return Err(fail("exception execution is not implemented by the scalar reference interpreter"));
                     }
@@ -504,12 +537,16 @@ impl<'a> Prepared<'a> {
             Operand::Int { ty, .. } | Operand::Undef { ty } | Operand::Poison { ty } => {
                 self.width(*ty)
             }
+            Operand::Float { .. } => Err(fail(
+                "floating-point constants are not implemented by the integer reference interpreter",
+            )),
             Operand::Aggregate { .. } | Operand::AggregateZero { .. } => Err(fail(
                 "aggregate constants are not implemented by the scalar reference interpreter",
             )),
             Operand::Null { .. }
             | Operand::Symbol { .. }
             | Operand::SymbolOffset { .. }
+            | Operand::BlockAddress { .. }
             | Operand::PointerBits { .. } => {
                 Err(fail("pointer/symbol scalar values are not implemented"))
             }
@@ -596,6 +633,23 @@ impl<'a> Prepared<'a> {
                     lhs
                 } else {
                     rhs
+                }
+            }
+            Operation::IntegerPopulationCount { value } => {
+                let input = self.operand(frame, value)? & mask(width);
+                let count = (0..u64::from(width)).filter(|bit| input.bit(*bit)).count();
+                BigUint::from(count as u64)
+            }
+            Operation::IntegerCountLeadingZeros { value, .. } => {
+                let input = self.operand(frame, value)? & mask(width);
+                BigUint::from(u64::from(width) - input.bits())
+            }
+            Operation::IntegerAbs { value, .. } => {
+                let input = self.operand(frame, value)? & mask(width);
+                if input.bit(u64::from(width - 1)) {
+                    (BigUint::one() << usize::from(width)) - input
+                } else {
+                    input
                 }
             }
             Operation::ICmp {
@@ -772,6 +826,8 @@ mod tests {
                 abi: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
+                strict_fp_profile: None,
                 data_layout: "e-p:64:64-i64:64-i128:128".into(),
                 pointer_bits: 64,
                 little_endian: true,
@@ -833,6 +889,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -858,11 +915,53 @@ mod tests {
                     },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
         );
         module
+    }
+
+    #[test]
+    fn dead_scalar_results_do_not_bypass_vector_interpreter_preflight() {
+        for reduction in [false, true] {
+            let mut module = binary_module(64, BinaryOp::Add);
+            let vector = module.types.len();
+            module.types.push(Type::Vector { element: 2, len: 2 });
+            let operand = Operand::Aggregate {
+                ty: vector,
+                elements: vec![constant(2, 7), constant(2, 11)],
+            };
+            let operation = if reduction {
+                Operation::VectorReduceAdd { value: operand }
+            } else {
+                Operation::ExtractElement {
+                    vector: operand,
+                    index: constant(2, 0),
+                }
+            };
+            module.functions[0].blocks.push(Block {
+                id: 100,
+                instructions: vec![result(300, 2, operation)],
+                terminator: Terminator::Unreachable,
+            });
+            // Both new operations have scalar results. An earlier noninteger
+            // result-type rejection therefore cannot make this control pass.
+            super::super::native_verify::verify(&module).unwrap();
+            let error = evaluate_with_step_limit(
+                &module,
+                "calculate",
+                &[BigUint::one(), BigUint::one()],
+                0,
+            )
+            .unwrap_err();
+            assert!(
+                error.message.contains("fixed-vector execution"),
+                "{error:?}"
+            );
+        }
     }
 
     #[test]
@@ -935,6 +1034,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "llvm.trap".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -945,6 +1045,8 @@ mod tests {
                 entry: None,
                 blocks: vec![],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: Some("llvm.trap".into()),
                 exception_handling: None,
             },
@@ -994,6 +1096,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "caller".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1008,6 +1111,7 @@ mod tests {
                         2,
                         2,
                         Operation::Call {
+                            control_effects: Default::default(),
                             callee: Operand::Symbol {
                                 ty: 3,
                                 name: "facade".into(),
@@ -1021,6 +1125,8 @@ mod tests {
                     },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1068,6 +1174,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1109,6 +1216,8 @@ mod tests {
                     },
                 ],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1345,6 +1454,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1368,6 +1478,8 @@ mod tests {
                     },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1382,6 +1494,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1435,6 +1548,8 @@ mod tests {
                     },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1454,6 +1569,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1463,6 +1579,8 @@ mod tests {
                 params: vec![Value { id: 99, ty: 2 }],
                 entry: Some(10),
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
                 blocks: vec![
@@ -1607,6 +1725,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1616,6 +1735,8 @@ mod tests {
                 params: vec![Value { id: 10, ty: 2 }],
                 entry: Some(1),
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
                 blocks: vec![
@@ -1660,6 +1781,7 @@ mod tests {
                                 13,
                                 2,
                                 Operation::Call {
+                                    control_effects: Default::default(),
                                     callee: Operand::Symbol {
                                         ty: 3,
                                         name: "calculate".into(),
@@ -1705,6 +1827,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "noop".into(),
                 linkage: "internal".into(),
                 visibility: Visibility::Default,
@@ -1719,6 +1842,8 @@ mod tests {
                     terminator: Terminator::Return { value: None },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1726,6 +1851,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1739,6 +1865,7 @@ mod tests {
                     instructions: vec![Instruction {
                         result: None,
                         operation: Operation::Call {
+                            control_effects: Default::default(),
                             callee: Operand::Symbol {
                                 ty: 3,
                                 name: "noop".into(),
@@ -1752,6 +1879,8 @@ mod tests {
                     },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1766,6 +1895,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "calculate".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1787,6 +1917,8 @@ mod tests {
                     },
                 ],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1819,6 +1951,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "llvm.assume".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1829,6 +1962,8 @@ mod tests {
                 entry: None,
                 blocks: vec![],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: Some("llvm.assume".into()),
                 exception_handling: None,
             },
@@ -1866,6 +2001,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "unused_host".into(),
                 linkage: "external".into(),
                 visibility: Visibility::Default,
@@ -1876,6 +2012,8 @@ mod tests {
                 entry: None,
                 blocks: vec![],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },
@@ -1945,6 +2083,7 @@ mod tests {
                     function(
                         &mut module,
                         Function {
+                            control_effects: Default::default(),
                             name: "unused_pointer_comparison".into(),
                             linkage: "internal".into(),
                             visibility: Visibility::Default,
@@ -1955,6 +2094,8 @@ mod tests {
                             entry: Some(100),
                             blocks: vec![block],
                             managed_method: None,
+                            source_abi: None,
+                            call_target_constraints: Vec::new(),
                             intrinsic: None,
                             exception_handling: None,
                         },
@@ -1991,6 +2132,7 @@ mod tests {
             function(
                 &mut module,
                 Function {
+                    control_effects: Default::default(),
                     name: "unused_literal_address".into(),
                     linkage: "internal".into(),
                     visibility: Visibility::Default,
@@ -2018,6 +2160,8 @@ mod tests {
                         },
                     }],
                     managed_method: None,
+                    source_abi: None,
+                    call_target_constraints: Vec::new(),
                     intrinsic: None,
                     exception_handling: None,
                 },
@@ -2126,6 +2270,7 @@ mod tests {
                     function(
                         &mut module,
                         Function {
+                            control_effects: Default::default(),
                             name: "unused_memory".into(),
                             linkage: "internal".into(),
                             visibility: Visibility::Default,
@@ -2136,6 +2281,8 @@ mod tests {
                             entry: Some(100),
                             blocks: vec![block],
                             managed_method: None,
+                            source_abi: None,
+                            call_target_constraints: Vec::new(),
                             intrinsic: None,
                             exception_handling: None,
                         },
@@ -2178,6 +2325,7 @@ mod tests {
             function(
                 &mut module,
                 Function {
+                    control_effects: Default::default(),
                     name: name.into(),
                     linkage: "external".into(),
                     visibility: Visibility::Default,
@@ -2192,6 +2340,8 @@ mod tests {
                     entry: None,
                     blocks: vec![],
                     managed_method: None,
+                    source_abi: None,
+                    call_target_constraints: Vec::new(),
                     intrinsic: Some(name.into()),
                     exception_handling: None,
                 },
@@ -2231,6 +2381,7 @@ mod tests {
         function(
             &mut module,
             Function {
+                control_effects: Default::default(),
                 name: "float_noop".into(),
                 linkage: "internal".into(),
                 visibility: Visibility::Default,
@@ -2245,6 +2396,8 @@ mod tests {
                     terminator: Terminator::Return { value: None },
                 }],
                 managed_method: None,
+                source_abi: None,
+                call_target_constraints: Vec::new(),
                 intrinsic: None,
                 exception_handling: None,
             },

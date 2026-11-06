@@ -1,0 +1,346 @@
+{
+  "schema": "ostadix-latest-core-native-smoke/v3",
+  "success": true,
+  "qualification": false,
+  "full_API": false,
+  "full_compiler": false,
+  "cross_ISA_runtime_qualified": false,
+  "argv": [
+    "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+    "--crate-name",
+    "latest_core_smoke",
+    "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke.rs",
+    "--edition=2021",
+    "--target",
+    "riscv64gc-unknown-linux-gnu",
+    "-C",
+    "opt-level=0",
+    "-C",
+    "debuginfo=0",
+    "-C",
+    "codegen-units=1",
+    "-C",
+    "debug-assertions=yes",
+    "-C",
+    "overflow-checks=yes",
+    "-C",
+    "linker=/usr/bin/cc",
+    "--extern",
+    "o_lang=/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/libo_lang.rlib",
+    "-L",
+    "dependency=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps",
+    "-L",
+    "dependency=/tmp/Main-SourceL-API-component-build-r1/target/debug/deps",
+    "-o",
+    "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke"
+  ],
+  "library": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/libo_lang.rlib",
+    "bytes": 76976684,
+    "sha256": "b1b1bdbd3a71bf69c585927a96667ebcd001f19edb41cd9444421074ee132424",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691079",
+      "bytes": 76976684,
+      "mode": 438,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793784407819230964",
+      "ctime_ns": "1793784408519245200"
+    },
+    "first_eight_hex": "213c617263683e0a"
+  },
+  "source": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke.rs",
+    "bytes": 2075,
+    "sha256": "fb27c27108486f709d0d1441f08c4d1ff601b052e531c12950d964aed48b193e",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691105",
+      "bytes": 2075,
+      "mode": 438,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793786208476008606",
+      "ctime_ns": "1793786208476008606"
+    },
+    "first_eight_hex": "757365207374643a"
+  },
+  "previous_assembly_smoke": "core-library-native-smoke-r2: successful",
+  "resources_before": {
+    "root": 109965312,
+    "tmp": 53768192,
+    "memory": 1639596032
+  },
+  "errors": [],
+  "compile_pid": 398675,
+  "compile_exit_code": 0,
+  "binary": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke",
+    "bytes": 6377576,
+    "sha256": "a17e3bb978567196f679c810680d41d7ff2ef05b59b91ed963a4e2b04b80dbcb",
+    "metadata": {
+      "dev": "45826",
+      "ino": "2691115",
+      "bytes": 6377576,
+      "mode": 511,
+      "nlink": "1",
+      "uid": 1000,
+      "gid": 1000,
+      "mtime_ns": "1793786316508179792",
+      "ctime_ns": "1793786316508179792"
+    },
+    "first_eight_hex": "7f454c4602010100"
+  },
+  "runner": {
+    "host_machine": "riscv64",
+    "argv": [
+      "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/smoke"
+    ],
+    "direct_execution_only_when_machine_matches": true
+  },
+  "execute_pid": 398685,
+  "execute_exit_code": 0,
+  "result": {
+    "success": true,
+    "assembly_targets": 3,
+    "object_targets": 3,
+    "hir_emitted": true,
+    "mir_emitted": true,
+    "parse_accepts_type_error": true,
+    "type_error_rejected": true
+  },
+  "outputs": {
+    "add.mir": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/add.mir",
+      "bytes": 240,
+      "sha256": "3d96639355e18b069fad5f53147e1dddda9554dd698ad67f21adf407c040b495",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691120",
+        "bytes": 240,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320768265409",
+        "ctime_ns": "1793786320768265409"
+      },
+      "first_eight_hex": "3b204f2d636f7265"
+    },
+    "aarch64.s": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/aarch64.s",
+      "bytes": 852,
+      "sha256": "1d5e14077d2abf7303c91bf644d20edf20da93600904787ede6ebd120e34eaeb",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691113",
+        "bytes": 852,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320328256566",
+        "ctime_ns": "1793786320328256566"
+      },
+      "first_eight_hex": "2e66696c6520226f"
+    },
+    "x86_64.s": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/x86_64.s",
+      "bytes": 724,
+      "sha256": "28f619925b126a46aa21849482dbdb2f45678380fcbde6cc532501f4d6e7371d",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691112",
+        "bytes": 724,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786316818186022",
+        "ctime_ns": "1793786316818186022"
+      },
+      "first_eight_hex": "2e696e74656c5f73"
+    },
+    "x86_64-object.o": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/x86_64-object.o",
+      "bytes": 600,
+      "sha256": "797d91774633d613ca3e3e1d0ebaf1ae1e01b3e6ecd5e131ea0c80dcd1ab2509",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691114",
+        "bytes": 600,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320188253753",
+        "ctime_ns": "1793786320188253753"
+      },
+      "first_eight_hex": "7f454c4602010100"
+    },
+    "bad.ast": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/bad.ast",
+      "bytes": 3449,
+      "sha256": "a66cb50a2108758e05a81c1041fabca53c819c10ae72dc991391766df48313c1",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691122",
+        "bytes": 3449,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320768265409",
+        "ctime_ns": "1793786320768265409"
+      },
+      "first_eight_hex": "5b0a20202020280a"
+    },
+    "add.hir": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/add.hir",
+      "bytes": 153,
+      "sha256": "08406db6afc2ea4751aae34a6c49cfdd3f5d8774cc469551746b3fc2121905dc",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691118",
+        "bytes": 153,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320768265409",
+        "ctime_ns": "1793786320768265409"
+      },
+      "first_eight_hex": "3b204f2d636f7265"
+    },
+    "expected-type-error.txt": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/expected-type-error.txt",
+      "bytes": 213,
+      "sha256": "096debb0642ca5498a82b8fceedac2ef1713af96928fb2a3528ab4c7501498cb",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691123",
+        "bytes": 213,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320778265610",
+        "ctime_ns": "1793786320778265610"
+      },
+      "first_eight_hex": "446961676e6f7374"
+    },
+    "add.oc": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/add.oc",
+      "bytes": 72,
+      "sha256": "354cac62b5d509c284467ce88abd62c850808ecda532aa40ee4c7603984c9d89",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691111",
+        "bytes": 72,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786316818186022",
+        "ctime_ns": "1793786316818186022"
+      },
+      "first_eight_hex": "6d6f64756c652073"
+    },
+    "bad.oc": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/bad.oc",
+      "bytes": 52,
+      "sha256": "17d04d4846d6efe79cfea756f1eef3e4da7aaa7ad3e6bd2102470eb36806b57f",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691121",
+        "bytes": 52,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320768265409",
+        "ctime_ns": "1793786320768265409"
+      },
+      "first_eight_hex": "6d6f64756c652073"
+    },
+    "riscv64-object.o": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/riscv64-object.o",
+      "bytes": 1064,
+      "sha256": "36b9d6a1736595f87f9dc83a08f6c0aecdafa3c7d93d38de57f09fd0619be7fd",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691119",
+        "bytes": 1064,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320748265007",
+        "ctime_ns": "1793786320748265007"
+      },
+      "first_eight_hex": "7f454c4602010100"
+    },
+    "aarch64-object.o": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/aarch64-object.o",
+      "bytes": 680,
+      "sha256": "b2728481c0f99eaa744989de757d8198fb96ef8f695b06da6c8091d2044c366c",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691117",
+        "bytes": 680,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320568261390",
+        "ctime_ns": "1793786320568261390"
+      },
+      "first_eight_hex": "7f454c4602010100"
+    },
+    "riscv64.s": {
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-native-smoke-r3/cases/riscv64.s",
+      "bytes": 1215,
+      "sha256": "14e7ae42b05de65b220b9366b56dd14c76de9ce63e8e1b3ae0444318a4e27ff6",
+      "metadata": {
+        "dev": "45826",
+        "ino": "2691116",
+        "bytes": 1215,
+        "mode": 438,
+        "nlink": "1",
+        "uid": 1000,
+        "gid": 1000,
+        "mtime_ns": "1793786320608262194",
+        "ctime_ns": "1793786320608262194"
+      },
+      "first_eight_hex": "2e66696c6520226f"
+    }
+  },
+  "object_targets": {
+    "x86_64": {
+      "ELF_class": 64,
+      "machine": 62,
+      "type": "relocatable",
+      "executed": false
+    },
+    "aarch64": {
+      "ELF_class": 64,
+      "machine": 183,
+      "type": "relocatable",
+      "executed": false
+    },
+    "riscv64": {
+      "ELF_class": 64,
+      "machine": 243,
+      "type": "relocatable",
+      "executed": false
+    }
+  },
+  "resources_after": {
+    "root": 103522304,
+    "tmp": 53768192,
+    "memory": 1639206912
+  }
+}

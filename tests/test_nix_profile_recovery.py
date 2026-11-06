@@ -29,12 +29,13 @@ class NixProfileRecoveryTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix="nix recovery test ")
         self.addCleanup(self.temporary.cleanup)
         self.etc = Path(self.temporary.name).resolve() / "etc"
-        self.etc.mkdir()
+        self.etc.mkdir(mode=0o755)
 
     def write(self, name: str, data: bytes) -> Path:
         path = self.etc / name
-        path.parent.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
         path.write_bytes(data)
+        path.chmod(0o644)
         return path
 
     def snapshot(self) -> dict[str, bytes]:

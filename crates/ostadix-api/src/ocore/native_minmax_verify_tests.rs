@@ -405,6 +405,7 @@ fn ordinary_calls_and_global_relocations_cannot_escape_intrinsic_addresses() {
         let name = original.functions[1].name.clone();
         let mut invalid = original.clone();
         invalid.functions[0].blocks[0].instructions[0].operation = Operation::Call {
+            control_effects: Default::default(),
             callee: Operand::Symbol {
                 ty: PTR,
                 name: name.clone(),

@@ -8,7 +8,7 @@ schema_version = 1
 package_manifest = "crates/ostadix-api/Cargo.toml"
 source_root = "crates/ostadix-api/src"
 crate_root = "crates/ostadix-api/src/lib.rs"
-excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/ocore/native_core.rs", "crates/ostadix-api/src/ocore/native_float_layout.rs", "crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "crates/ostadix-api/src/private_dir.inc.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
+excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/ocore/native_core.rs", "crates/ostadix-api/src/ocore/native_float_layout.rs", "crates/ostadix-api/src/ocore/native_floating_codegen.rs", "crates/ostadix-api/src/ocore/native_floating_transport.rs", "crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "crates/ostadix-api/src/ocore/native_vector_codegen.rs", "crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs", "crates/ostadix-api/src/ocore/native_wide_volatile_codegen.rs", "crates/ostadix-api/src/private_dir.inc.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
 excluded_directories = []
 
 # Token fragments compiled with include!() are scanned under their owning root
@@ -37,7 +37,7 @@ path = "crates/ostadix-api/src/ocore/native_core.rs"
 owner = "ocore"
 included_from = "crates/ostadix-api/src/ocore/mod.rs"
 module_path = ["ocore"]
-child_modules = ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_ir", "native_map", "native_verify"]
+child_modules = ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_floating_helpers", "native_ir", "native_machine_asm_reader", "native_machine_emit", "native_machine_emit_rv64", "native_machine_ir", "native_machine_lift", "native_machine_lift_aarch64", "native_machine_lift_dispatch", "native_machine_lift_rv64", "native_machine_lift_x86_64", "native_machine_unit", "native_machine_verify", "native_map", "native_nonlocal", "native_verify"]
 
 [[compiled_fragment]]
 path = "crates/ostadix-api/src/ocore/native_float_layout.rs"
@@ -50,6 +50,36 @@ path = "crates/ostadix-api/src/ocore/native_variadic_codegen.rs"
 owner = "ocore"
 included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
 module_path = ["ocore", "native_codegen", "variadic"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_floating_transport.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "floating_transport"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_floating_codegen.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "floating"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "wide_integer"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_wide_volatile_codegen.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "wide_volatile"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_vector_codegen.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "vector"]
 
 [[compiled_fragment]]
 path = "crates/ostadix-api/src/private_dir.inc.rs"
@@ -331,6 +361,11 @@ allowed_dependencies = []
 name = "runtime_exec"
 layer = 7
 allowed_dependencies = ["backend_catalog", "ir", "native_leaf", "placement", "resource_identity"]
+
+[[root]]
+name = "runtime_provenance"
+layer = 0
+allowed_dependencies = []
 
 [[root]]
 name = "scheduler"

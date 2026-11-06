@@ -1,0 +1,5 @@
+; O-core resolved typed HIR
+; layouts
+; functions
+fn smoke::addition::add(a: i64, b: i64) -> i64 abi=OCore symbol=_O_smoke__addition__add
+; static types

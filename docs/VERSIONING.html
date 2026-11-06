@@ -37,6 +37,24 @@ authorized, that an information projection is fresh, or that a World is live.</p
 <td>Pinned compiler for release, formatting, Clippy, and generated-runtime evidence. This may advance without changing the MSRV.</td>
 </tr>
 <tr>
+<td>Runtime provenance</td>
+<td><code>ostadix.runtime-provenance/v1</code></td>
+<td><code>crates/ostadix-api/src/runtime_provenance.rs</code> <code>SCHEMA</code></td>
+<td>Describes the current process, compiled source, observed checkout, configuration metadata, and explicit probe status; does not attest to every backend.</td>
+</tr>
+<tr>
+<td>Native runtime packaging</td>
+<td><code>ostadix.runtime-build/v1</code>, <code>ostadix.runtime-bundle/v1</code>, <code>ostadix.runtime-smoke/v1</code></td>
+<td><code>scripts/runtime_bundle.py</code></td>
+<td>Platform-specific source/build/archive identities and the exact recorded smoke; not general cross-ISA or whole-runtime lowering qualification.</td>
+</tr>
+<tr>
+<td>Watcher snapshot and resources</td>
+<td><code>ostadix.watcher-snapshot/v1</code>, <code>ostadix.watcher-resource/v1</code></td>
+<td><code>mcp/ostadix_lang_mcp_server/src/watcher_resources.rs</code></td>
+<td>Opt-in descriptive snapshot import. Imported measurements, interpretations, proposed actions, and annotated detection counts confer no execution authority or automatic qualification.</td>
+</tr>
+<tr>
 <td>Execution intent</td>
 <td><code>oexec.execution-intent/v1</code></td>
 <td><code>crates/ostadix-api/src/evidence/intent.rs</code> <code>EXECUTION_INTENT_SCHEMA_V1</code></td>

@@ -1,0 +1,210 @@
+{
+  "schema": "ostadix-fresh-core-library-build/v1",
+  "success": false,
+  "full_API": false,
+  "full_compiler": false,
+  "qualification": false,
+  "trace_FD_exec_admission": false,
+  "compiler_dispatched": false,
+  "errors": [],
+  "resources_before": {
+    "root": 196161536,
+    "tmp": 53768192,
+    "memory": 1328680960
+  },
+  "build_profile_change": {
+    "old": "codegen-units=16",
+    "new": "codegen-units=1",
+    "reason": "Measured r4 memory cancellation; reduce parallel backend work.",
+    "semantic_qualification": false
+  },
+  "argv": [
+    "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+    "--crate-name",
+    "o_lang",
+    "--crate-type",
+    "rlib",
+    "/tmp/Main-A-core-fresh-build-r2-20261102/core_component.rs",
+    "--edition=2021",
+    "--target",
+    "riscv64gc-unknown-linux-gnu",
+    "-C",
+    "opt-level=0",
+    "-C",
+    "debuginfo=0",
+    "-C",
+    "codegen-units=1",
+    "-C",
+    "debug-assertions=yes",
+    "-C",
+    "overflow-checks=yes",
+    "-C",
+    "linker=/usr/bin/cc",
+    "--cfg",
+    "feature=\"default\"",
+    "--cfg",
+    "feature=\"graph_executor\"",
+    "--extern",
+    "serde=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libserde-c15bd480ada111ce.rlib",
+    "--extern",
+    "serde_json=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libserde_json-94dcc682effdbb93.rlib",
+    "--extern",
+    "sha2=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libsha2-cbe564e5a65ee1f6.rlib",
+    "--extern",
+    "hex=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libhex-0b9d5374f9508e05.rlib",
+    "--extern",
+    "num_bigint=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libnum_bigint-6ba002785b15fa5b.rlib",
+    "--extern",
+    "num_traits=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libnum_traits-944f462027d1a35c.rlib",
+    "--extern",
+    "proptest=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libproptest-8dd1ac398b59f234.rlib",
+    "--extern",
+    "which=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libwhich-8014057583d9bcbb.rlib",
+    "--extern",
+    "tempfile=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libtempfile-79a921c937bf41a3.rlib",
+    "--extern",
+    "anyhow=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/libanyhow-b1cdbc2a9f9568de.rlib",
+    "--extern",
+    "libc=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps/liblibc-7ba74b2a45e83221.rlib",
+    "-L",
+    "dependency=/tmp/Main-SourceL-API-component-build-r1/target/riscv64gc-unknown-linux-gnu/debug/deps",
+    "-L",
+    "dependency=/tmp/Main-SourceL-API-component-build-r1/target/debug/deps",
+    "--emit",
+    "link,dep-info=/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/api.d",
+    "-o",
+    "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/libo_lang.rlib"
+  ],
+  "environment": {
+    "PATH": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin:/usr/bin:/bin",
+    "HOME": "/home/orangepi",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC",
+    "TMPDIR": "/home/orangepi/ostadix-BM/target/oversight-20261104/core-library-fresh-r5/tmp",
+    "CARGO_MANIFEST_DIR": "/tmp/Main-SourceO-assembly-r1-20261101/source/crates/ostadix-api",
+    "CARGO_PKG_NAME": "ostadix-api",
+    "CARGO_PKG_VERSION": "0.4.0",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "declared_inputs": 3296,
+  "historical_metadata_differences": [
+    {
+      "path": "/usr/bin/python3.13",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-gcc-14",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-g++-14",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-ar",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-as",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/riscv64-linux-gnu-ld.bfd",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/libexec/gcc/riscv64-linux-gnu/14/cc1",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/libexec/gcc/riscv64-linux-gnu/14/cc1plus",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/libexec/gcc/riscv64-linux-gnu/14/collect2",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/node",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/env",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/bash",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/bin/sh",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/cc",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/as",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    },
+    {
+      "path": "/usr/bin/ld",
+      "changed_metadata": [
+        "uid",
+        "gid"
+      ]
+    }
+  ],
+  "resources_at_dispatch": {
+    "root": 196141056,
+    "tmp": 53768192,
+    "memory": 1301934080
+  }
+}

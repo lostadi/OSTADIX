@@ -141,3 +141,6 @@ big_iron_to_my_texas_red*
 /output/pdf/*.out
 /output/pdf/*.synctex.gz
 /output/pdf/*.toc
+
+# Keep private agent state out of source checkpoints.
+/.private-codex/

@@ -45,6 +45,16 @@ class InventoryWorkerIdentityTests(unittest.TestCase):
         with self.assertRaisesRegex(inventory.InventoryError, "provenance differs"):
             inventory.load_worker(self.capture)
 
+    def test_self_consistent_unreviewed_worker_is_rejected_before_execution(self):
+        marker = self.capture / "executed"
+        with self.worker.open("a") as stream:
+            stream.write(f"\nopen({str(marker)!r}, 'w').write('unexpected execution')\n")
+        self.session["capture_worker"]["artifact"] = inventory.info(self.worker)
+        self.write_session()
+        with self.assertRaisesRegex(inventory.InventoryError, "provenance differs"):
+            inventory.load_worker(self.capture)
+        self.assertFalse(marker.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

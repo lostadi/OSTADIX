@@ -53,6 +53,7 @@ pub mod registry;
 #[path = "world/identity.rs"]
 pub mod resource_identity;
 pub mod runtime_exec;
+pub mod runtime_provenance;
 pub mod scheduler;
 pub mod shims;
 pub(crate) mod step_knobs;

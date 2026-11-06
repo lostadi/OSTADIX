@@ -3,7 +3,7 @@
 
 use anyhow::{bail, Context, Result};
 use o_lang::ocore::native_ir::{
-    AtomicProfile, NativeModule, Signature, TlsProfile, Type, Visibility,
+    AtomicProfile, NativeModule, Signature, TlsProfile, Type, Visibility, WideVolatileProfile,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -21,6 +21,18 @@ mod artifact;
 #[path = "native_runtime/source_recipe.rs"]
 mod source_recipe;
 
+#[path = "native_runtime/provider_membership.rs"]
+mod provider_membership;
+#[path = "native_runtime/provider_order.rs"]
+mod provider_order;
+#[path = "native_runtime/source_action.rs"]
+mod source_action;
+
+#[path = "native_runtime/provider_group.rs"]
+mod provider_group;
+#[path = "native_runtime/whole_artifact.rs"]
+mod whole_artifact;
+
 pub(super) use source_recipe::NativeSourceOptions;
 
 #[cfg(test)]
@@ -33,6 +45,9 @@ mod exception_inventory;
 #[path = "native_runtime/tls_inventory.rs"]
 mod tls_inventory;
 
+#[path = "native_runtime/control_inventory.rs"]
+mod control_inventory;
+
 #[cfg(test)]
 #[path = "native_runtime/exception_tests.rs"]
 mod exception_tests;
@@ -41,20 +56,38 @@ mod exception_tests;
 #[path = "native_runtime/atomic_tests.rs"]
 mod atomic_tests;
 
+#[cfg(test)]
+#[path = "native_runtime/floating_helper_tests.rs"]
+mod floating_helper_tests;
+
+#[cfg(test)]
+#[path = "native_runtime/blockaddress_inventory_tests.rs"]
+mod blockaddress_inventory_tests;
+
 fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
 fn architecture(target: &str) -> Result<&'static str> {
-    match target {
-        "x86_64" | "x86_64-unknown-none" | "x86_64-unknown-none-elf" => Ok("x86_64"),
-        "aarch64" | "aarch64-unknown-none" | "aarch64-unknown-none-elf" => Ok("aarch64"),
-        "riscv64"
-        | "riscv64-unknown-none"
-        | "riscv64-unknown-none-elf"
-        | "riscv64gc-unknown-none-elf" => Ok("riscv64"),
-        _ => bail!("unsupported native ISA {target:?}"),
+    o_lang::ocore::Target::parse(target)
+        .or_else(|| o_lang::ocore::Target::from_architecture(target))
+        .map(o_lang::ocore::Target::architecture)
+        .with_context(|| format!("unsupported native ISA {target:?}"))
+}
+
+#[cfg(test)]
+#[test]
+fn native_isa_aliases_follow_canonical_registry() {
+    for &target in o_lang::ocore::Target::ALL {
+        assert_eq!(
+            architecture(target.architecture()).unwrap(),
+            target.architecture()
+        );
+        for &alias in target.aliases() {
+            assert_eq!(architecture(alias).unwrap(), target.architecture());
+        }
     }
+    assert!(architecture("not-a-canonical-architecture").is_err());
 }
 
 fn array<'a>(object: &'a Value, field: &str) -> Result<&'a Vec<Value>> {
@@ -85,8 +118,15 @@ fn checked_evidence(record: &Value) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Construct both evidence subprocesses from the explicitly selected interpreter.
+fn python_command(python: &Path) -> Command {
+    let mut command = Command::new(python);
+    command.arg("-I");
+    command
+}
+
 /// Independently recheck the exact runtime/probe partition before skipping units.
-fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
+fn lowering_partition(capture: &Value, python: &Path) -> Result<BTreeSet<String>> {
     if capture["unit_roles_complete"] != true
         || !array(capture, "unclassified_unit_ids")?.is_empty()
     {
@@ -256,7 +296,7 @@ fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
     }
     if !glob_checks.is_empty() {
         use std::io::Write;
-        let mut child = Command::new("python3").args(["-I", "-c",
+        let mut child = python_command(python).args(["-c",
             "import fnmatch,json,sys; pairs=json.load(sys.stdin); sys.exit(0 if all(fnmatch.fnmatchcase(s,p) for s,p in pairs) else 1)"])
             .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).spawn()?;
         child
@@ -272,6 +312,10 @@ fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
 }
 
 fn capture_admission(capture: &Value) -> Result<BTreeSet<String>> {
+    capture_admission_with_python(capture, Path::new("python3"))
+}
+
+fn capture_admission_with_python(capture: &Value, python: &Path) -> Result<BTreeSet<String>> {
     if capture.get("schema").and_then(Value::as_str) != Some(CAPTURE_FORMAT) {
         bail!("expected {CAPTURE_FORMAT}");
     }
@@ -350,12 +394,21 @@ fn capture_admission(capture: &Value) -> Result<BTreeSet<String>> {
     {
         bail!("capture unit list does not match the complete compiler invocation inventory");
     }
-    lowering_partition(capture)
+    lowering_partition(capture, python)
 }
 
 /// Reconstruct the partition from the original journal and hashed build artifacts.
 /// The embedded verifier only reads evidence; it never reruns the runtime build.
 fn reverify_capture(report: &Path, bytes: &[u8], output: &Path) -> Result<Value> {
+    reverify_capture_with_python(report, bytes, output, Path::new("python3"))
+}
+
+fn reverify_capture_with_python(
+    report: &Path,
+    bytes: &[u8],
+    output: &Path,
+    python: &Path,
+) -> Result<Value> {
     use std::io::Write;
     let source = include_str!("../../../scripts/ocore_runtime_capture.py");
     // Keep argv bounded even as the verifier grows. The exact original report
@@ -366,8 +419,8 @@ fn reverify_capture(report: &Path, bytes: &[u8], output: &Path) -> Result<Value>
         serde_json::to_string(source)?,
         serde_json::to_string(&digest(source.as_bytes()))?
     );
-    let mut child = Command::new("python3")
-        .args(["-I", "-c", program])
+    let mut child = python_command(python)
+        .args(["-c", program])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -432,7 +485,12 @@ fn captured_ir_format(ir: &Value) -> Result<&str> {
     }
 }
 
+#[cfg(test)]
 fn checked_ir(unit: &Value, arch: &str) -> Result<PathBuf> {
+    checked_ir_bytes(unit, arch).map(|(path, _)| path)
+}
+
+fn checked_ir_bytes(unit: &Value, arch: &str) -> Result<(PathBuf, Vec<u8>)> {
     let ir = &unit["ir"];
     let format = captured_ir_format(ir)?;
     let path = PathBuf::from(string(ir, "path")?);
@@ -461,7 +519,7 @@ fn checked_ir(unit: &Value, arch: &str) -> Result<PathBuf> {
     if string(ir, "data_layout")?.is_empty() {
         bail!("captured LLVM DataLayout is missing");
     }
-    Ok(path)
+    Ok((path, bytes))
 }
 
 fn type_contract(module: &NativeModule, id: usize, active: &mut BTreeSet<usize>) -> Result<Value> {
@@ -472,11 +530,15 @@ fn type_contract(module: &NativeModule, id: usize, active: &mut BTreeSet<usize>)
     let result = match ty {
         Type::Void => json!({"kind":"void"}),
         Type::Metadata {} => json!({"kind":"metadata"}),
+        Type::OpaqueStruct { name } => json!({"kind":"opaque_struct", "name":name, "type_id":id}),
         Type::Int { bits } => json!({"kind":"int", "bits":bits}),
         Type::Float { bits } => json!({"kind":"float", "bits":bits}),
         Type::Pointer { address_space } => json!({"kind":"pointer", "address_space":address_space}),
         Type::Array { element, len } => {
             json!({"kind":"array", "len":len, "element":type_contract(module,*element,active)?})
+        }
+        Type::Vector { element, len } => {
+            json!({"kind":"vector", "len":len, "element":type_contract(module,*element,active)?})
         }
         Type::Struct { fields, packed } => {
             let fields: Result<Vec<_>> = fields
@@ -549,6 +611,11 @@ fn storage_contract(
     let shape = match ty {
         Type::Array { element, len } => json!({"kind":"array", "len":len,
             "element":storage_contract(module,*element,active)?}),
+        // Vector lanes pack significant bits; scalar allocation stride and
+        // alignment are not lane layout. Size/alignment above belong to the
+        // complete vector under its actual DataLayout.
+        Type::Vector { element, len } => json!({"kind":"vector", "len":len,
+            "element":type_contract(module,*element,active)?}),
         Type::Struct { fields, packed } => {
             let fields: Result<Vec<_>> = fields
                 .iter()
@@ -559,12 +626,20 @@ fn storage_contract(
         Type::Int { bits } => json!({"kind":"int", "bits":bits}),
         Type::Float { bits } => json!({"kind":"float", "bits":bits}),
         Type::Pointer { address_space } => json!({"kind":"pointer", "address_space":address_space}),
-        Type::Void | Type::Metadata {} | Type::Function { .. } => {
+        Type::Void | Type::Metadata {} | Type::OpaqueStruct { .. } | Type::Function { .. } => {
             bail!("unsized return-storage type")
         }
     };
     active.remove(&id);
     Ok(json!({"shape":shape,"size":size,"alignment":alignment}))
+}
+
+/// Computed from the included native definition, never ELF st_size or an
+/// opaque declaration. Symbol is private and is not a deserializable input.
+#[derive(Clone, Debug, serde::Serialize)]
+struct StorageLayout {
+    size: u64,
+    abi_alignment: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -576,13 +651,206 @@ struct Symbol {
     definition: bool,
     contract: Value,
     alignment: u64,
+    storage_layout: Option<StorageLayout>,
+    storage_target: Option<Value>,
     intrinsic: Option<String>,
     alias_of: Option<String>,
     comdat: Option<GroupMembership>,
     references: BTreeSet<String>,
+    /// Original function-local blocks, never alias/provider symbol identities.
+    blocks: BTreeSet<usize>,
+    /// A code address retains its exact same-unit owner, including weak bodies.
+    block_references: BTreeSet<(String, usize)>,
     /// Source metadata ABI adaptation or an explicit compiler-generated helper
     /// interface. The original native module and signature remain unchanged.
     abi_adaptation: Option<Value>,
+}
+
+fn fast_float_plan_contract(
+    module: &NativeModule,
+    plan: &o_lang::ocore::native_abi::AbiPlan,
+) -> Result<Value> {
+    // Preserve the shared planner's complete physical map. Replace only local
+    // TypeIds by the existing canonical source type contracts for cross-unit
+    // comparison; this is serialization, not another placement classifier.
+    let mut value = serde_json::to_value(plan)?;
+    for category in ["args", "results"] {
+        for part in value[category]
+            .as_array_mut()
+            .context("missing ABI parts")?
+        {
+            let ty = usize::try_from(part["ty"].as_u64().context("missing ABI part type")?)?;
+            part["ty"] = type_contract(module, ty, &mut BTreeSet::new())?;
+        }
+    }
+    if let Some(storage) = value["storage"].as_object_mut() {
+        let ty = usize::try_from(storage["ty"].as_u64().context("missing ABI storage type")?)?;
+        storage.insert(
+            "ty".into(),
+            type_contract(module, ty, &mut BTreeSet::new())?,
+        );
+    }
+    Ok(value)
+}
+
+fn fast_float_source_contract(
+    module: &NativeModule,
+    function: &o_lang::ocore::native_ir::Function,
+) -> Result<Option<Value>> {
+    use o_lang::ocore::{
+        native_abi,
+        native_ir::{Operand, Operation},
+        Target,
+    };
+    if !native_abi::is_fast_float_signature(module, &function.signature) {
+        return Ok(None);
+    }
+    let arch = module.target.triple.split('-').next().unwrap_or("");
+    let target = Target::parse(&format!("{arch}-unknown-none"))
+        .context("unsupported original Fast floating architecture")?;
+    let implementation = if function.entry.is_some() {
+        Some(fast_float_plan_contract(
+            module,
+            &native_abi::plan_function(module, target, function)?,
+        )?)
+    } else {
+        None
+    };
+    let mut requirements = Vec::new();
+    for caller in &module.functions {
+        for block in &caller.blocks {
+            for (instruction, site) in block.instructions.iter().enumerate() {
+                let Operation::Call {
+                    callee: Operand::Symbol { name, .. },
+                    signature,
+                    ..
+                } = &site.operation
+                else {
+                    continue;
+                };
+                if name != &function.name || !native_abi::is_fast_float_signature(module, signature)
+                {
+                    continue;
+                }
+                // Module verification already checked the actual typed fixed
+                // operands. Classify under THIS caller, never the declaration.
+                let plan = native_abi::plan_call_from(
+                    module,
+                    target,
+                    caller,
+                    signature,
+                    &signature.params,
+                    &signature.param_attributes,
+                )?;
+                requirements.push(json!({"caller":caller.name,"block":block.id,"instruction":instruction,
+                    "caller_source_abi":caller.source_abi,"transport":fast_float_plan_contract(module,&plan)?}));
+            }
+        }
+    }
+    Ok(Some(
+        json!({"schema":"ocore-fast-float-symbol-transport-v1",
+        "definition":function.entry.is_some(),"source_abi":function.source_abi,
+        "original_target_triple":module.target.triple,
+        "implementation_transport":implementation,"outgoing_requirements":requirements}),
+    ))
+}
+
+/// Refine only an address-only opaque external declaration, never ordinary
+/// type equality or competing definition contracts. The selected provider must
+/// be the unique retained genuine definition; neither an ELF undefined symbol
+/// with st_size=0 nor another declaration establishes storage.
+fn opaque_declaration_refinement(
+    required: &Symbol,
+    provider: &Symbol,
+    unique: bool,
+) -> Option<Value> {
+    let layout = provider.storage_layout.as_ref()?;
+    let target = required.storage_target.as_ref()?;
+    if provider.storage_target.as_ref()? != target {
+        return None;
+    }
+    if !unique
+        || required.definition
+        || required.linkage != "external"
+        || required.alias_of.is_some()
+        || required.comdat.is_some()
+        || !provider.definition
+        || provider.alias_of.is_some()
+        || required.name != provider.name
+        || required.contract["kind"] != "global"
+        || provider.contract["kind"] != "global"
+        || required.contract["type"]["kind"] != "opaque_struct"
+        || provider.contract["type"]["kind"] != "struct"
+        || required.contract["thread_local"] != false
+        || provider.contract["thread_local"] != false
+        || layout.size == 0
+        || !layout.abi_alignment.is_power_of_two()
+        || !provider.alignment.is_power_of_two()
+        || provider.alignment < required.alignment
+    {
+        return None;
+    }
+    let mut from = required.contract.as_object()?.clone();
+    let mut to = provider.contract.as_object()?.clone();
+    from.remove("type");
+    to.remove("type");
+    if from != to {
+        return None;
+    }
+    Some(json!({"kind":"opaque_external_storage_refinement_v1",
+        "required_unit":required.unit,"required_contract":required.contract,
+        "provider_unit":provider.unit,"provider_contract":provider.contract,
+        "required_alignment":required.alignment,"provider_alignment":provider.alignment,
+        "provider_storage_layout":layout,"target_contract":target,"unique_retained_definition":true,
+        "layout_derivation":"included verified native global definition, not ELF st_size",
+        "source_type_rewritten":false,"opaque_layout_inferred":false}))
+}
+
+fn compatible_symbol_contract(required: &Value, provider: &Value) -> bool {
+    const KEY: &str = "source_fast_float_transport";
+    let (Some(from), Some(to)) = (required.get(KEY), provider.get(KEY)) else {
+        // Preserve the old exact contract comparison for every other ABI.
+        return required == provider;
+    };
+    if from["schema"] != "ocore-fast-float-symbol-transport-v1"
+        || to["schema"] != "ocore-fast-float-symbol-transport-v1"
+        || from["original_target_triple"] != to["original_target_triple"]
+        || to["definition"] != true
+        || !to["source_abi"].is_object()
+        || !to["implementation_transport"].is_object()
+    {
+        return false;
+    }
+    let (Some(mut base_from), Some(mut base_to)) =
+        (required.as_object().cloned(), provider.as_object().cloned())
+    else {
+        return false;
+    };
+    base_from.remove(KEY);
+    base_to.remove(KEY);
+    if base_from != base_to {
+        return false;
+    }
+    let Some(definition) = from["definition"].as_bool() else {
+        return false;
+    };
+    if definition != from["implementation_transport"].is_object() {
+        return false;
+    }
+    if !definition && !from["implementation_transport"].is_null() {
+        return false;
+    }
+    if definition && from["implementation_transport"] != to["implementation_transport"] {
+        return false;
+    }
+    let Some(requirements) = from["outgoing_requirements"].as_array() else {
+        return false;
+    };
+    requirements.iter().all(|site| {
+        site["caller_source_abi"].is_object()
+            && site["transport"].is_object()
+            && site["transport"] == to["implementation_transport"]
+    })
 }
 
 fn itanium_personality_contract() -> Value {
@@ -611,6 +879,29 @@ fn requires_unwind_resume(module: &NativeModule) -> bool {
         })
 }
 
+fn floating_requirements(
+    module: &NativeModule,
+) -> Result<Vec<o_lang::ocore::native_floating_helpers::HelperRequirement>> {
+    use o_lang::ocore::{native_floating_helpers, Target};
+    let target = match module.target.triple.split('-').next() {
+        Some("x86_64") => Target::X86_64UnknownNone,
+        Some("aarch64") => Target::Aarch64UnknownNone,
+        Some("riscv64") => Target::Riscv64UnknownNone,
+        _ => bail!("unsupported original architecture for floating helper inventory"),
+    };
+    native_floating_helpers::requirements(module, target).map_err(Into::into)
+}
+
+fn floating_helper_contract(
+    requirement: &o_lang::ocore::native_floating_helpers::HelperRequirement,
+) -> Value {
+    // Primitive types are not invented source TypeIds. The exact ordinary C
+    // signature also makes provider selection check each helper ABI normally.
+    json!({"kind":"function", "params":requirement.params,"result":requirement.result,
+        "abi":"c","variadic":false,"param_attributes":vec![Vec::<String>::new(); requirement.params.len()],
+        "result_attributes":[],"return_storage":null})
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 struct GroupMembership {
     name: String,
@@ -633,12 +924,21 @@ fn group_membership(module: &NativeModule, name: Option<&str>) -> Result<Option<
 }
 
 fn symbols(id: &str, module: &NativeModule) -> Result<Vec<Symbol>> {
+    if module.has_nonlocal_control_effects() {
+        bail!("returns_twice symbol closure requires verified cross-module control effects and original jump-provider compatibility; closure is not admitted");
+    }
+    o_lang::ocore::native_verify::verify(module)
+        .context("symbol contracts require a verified owned NativeModule")?;
     let mut result = Vec::new();
     let metadata_personalities =
         o_lang::ocore::native_eh::metadata_personality_declarations(module);
     for function in &module.functions {
-        let original_contract =
+        let (references, block_references) = function_dependencies(function);
+        let mut original_contract =
             signature_contract(module, &function.signature, &mut BTreeSet::new())?;
+        if let Some(transport) = fast_float_source_contract(module, function)? {
+            original_contract["source_fast_float_transport"] = transport;
+        }
         let metadata_personality = metadata_personalities.contains(&function.name);
         let noalias_declaration =
             function.intrinsic.as_deref() == Some(o_lang::ocore::native_ir::NOALIAS_SCOPE_DECL);
@@ -648,11 +948,15 @@ fn symbols(id: &str, module: &NativeModule) -> Result<Vec<Symbol>> {
             linkage: function.linkage.clone(),
             visibility: function.visibility,
             definition: function.entry.is_some(),
+            storage_layout: None,
+            storage_target: None,
             alignment: function.alignment,
             intrinsic: function.intrinsic.clone(),
             alias_of: None,
             comdat: group_membership(module, function.comdat.as_deref())?,
-            references: function_references(function),
+            references,
+            blocks: function.blocks.iter().map(|block| block.id).collect(),
+            block_references,
             contract: if metadata_personality {
                 itanium_personality_contract()
             } else {
@@ -672,14 +976,33 @@ fn symbols(id: &str, module: &NativeModule) -> Result<Vec<Symbol>> {
             },
         });
     }
+    let global_layouts = o_lang::ocore::native_verify::type_layouts(module)?;
     for global in &module.globals {
+        let opaque = matches!(module.types.get(global.ty), Some(Type::OpaqueStruct { .. }));
+        let storage_layout = if global.initializer.is_some() {
+            let (size, abi_alignment) = global_layouts
+                .get(global.ty)
+                .copied()
+                .flatten()
+                .context("global definition requires genuine sized native layout")?;
+            Some(StorageLayout {
+                size,
+                abi_alignment,
+            })
+        } else {
+            None
+        };
         result.push(Symbol { unit:id.into(), name:global.name.clone(), linkage:global.linkage.clone(), visibility:global.visibility, intrinsic:None, alias_of:None,
             comdat:group_membership(module,global.comdat.as_deref())?,
-            references:global.initializer.iter().flat_map(|init| init.relocations.iter().flat_map(|relocation|
+            references:global.initializer.iter().flat_map(|init| init.relocations.iter().filter(|relocation| relocation.block.is_none()).flat_map(|relocation|
                 std::iter::once(relocation.symbol.clone()).chain(relocation.relative_to.iter().cloned()))).collect(),
-            definition:global.initializer.is_some(), alignment:if global.alignment == 0 {
-                o_lang::ocore::native_verify::type_alignment(module, global.ty)?
-            } else { global.alignment },
+            blocks:BTreeSet::new(),
+            block_references:global.initializer.iter().flat_map(|init| init.relocations.iter().filter_map(|relocation|
+                relocation.block.as_ref().map(|block| (block.function.clone(),block.block)))).collect(),
+            definition:global.initializer.is_some(), storage_layout, storage_target:Some(json!(module.target)),
+            alignment:if global.alignment != 0 { global.alignment } else if opaque { 0 } else {
+                global_layouts.get(global.ty).copied().flatten().context("global declaration requires sized layout unless explicitly opaque")?.1
+            },
             abi_adaptation:global.thread_local.then(|| json!({
                 "kind":"static_nonpreemptive_tls_realization", "profile":module.target.tls_profile,
                 "source_access_model":global.tls_model,"native_access_model":"local_exec",
@@ -697,12 +1020,15 @@ fn symbols(id: &str, module: &NativeModule) -> Result<Vec<Symbol>> {
         symbol.linkage = alias.linkage.clone();
         symbol.visibility = alias.visibility;
         symbol.alias_of = Some(alias.aliasee.clone());
+        symbol.blocks.clear();
         result.push(symbol);
     }
     if requires_unwind_resume(module) {
         result.push(Symbol {
             unit: id.into(),
             name: "_Unwind_Resume".into(),
+            storage_layout: None,
+            storage_target: None,
             linkage: "external".into(),
             visibility: Visibility::Default,
             definition: false,
@@ -712,32 +1038,74 @@ fn symbols(id: &str, module: &NativeModule) -> Result<Vec<Symbol>> {
             alias_of: None,
             comdat: None,
             references: BTreeSet::new(),
+            blocks: BTreeSet::new(),
+            block_references: BTreeSet::new(),
             abi_adaptation: Some(
                 json!({"kind":"compiler_generated_interface", "profile":"itanium_dwarf_v1",
                 "source_operation":"resume", "source_function_inventory_changed":false}),
             ),
         });
     }
+    for requirement in floating_requirements(module)? {
+        result.push(Symbol {
+            unit: id.into(),
+            name: requirement.name.clone(),
+            storage_layout: None,
+            storage_target: None,
+            linkage: "external".into(),
+            visibility: Visibility::Default,
+            definition: false,
+            contract: floating_helper_contract(&requirement),
+            alignment: 0,
+            intrinsic: None,
+            alias_of: None,
+            comdat: None,
+            references: BTreeSet::new(),
+            blocks: BTreeSet::new(),
+            block_references: BTreeSet::new(),
+            abi_adaptation: Some(json!({"kind":"compiler_generated_floating_helper",
+                "requirement":requirement,"derivation":"original_verified_operations_and_target",
+                "source_function_inventory_changed":false,"provider_required":true})),
+        });
+    }
     Ok(result)
 }
 
+#[cfg(test)]
 fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSet<String> {
+    function_dependencies(function).0
+}
+
+fn function_dependencies(
+    function: &o_lang::ocore::native_ir::Function,
+) -> (BTreeSet<String>, BTreeSet<(String, usize)>) {
     use o_lang::ocore::native_ir::{Operand, Operation, Terminator};
     let mut references = BTreeSet::new();
+    let mut block_references = BTreeSet::new();
     let mut tls_references = BTreeSet::new();
-    fn constant_references(value: &Operand, references: &mut BTreeSet<String>) {
+    fn constant_references(
+        value: &Operand,
+        references: &mut BTreeSet<String>,
+        block_references: &mut BTreeSet<(String, usize)>,
+    ) {
         let mut pending = vec![value];
         while let Some(value) = pending.pop() {
             match value {
                 Operand::Symbol { name, .. } | Operand::SymbolOffset { name, .. } => {
                     references.insert(name.clone());
                 }
+                Operand::BlockAddress {
+                    function, block, ..
+                } => {
+                    block_references.insert((function.clone(), *block));
+                }
                 Operand::Aggregate { elements, .. } => pending.extend(elements),
                 _ => {}
             }
         }
     }
-    let mut operand = |value: &Operand| constant_references(value, &mut references);
+    let mut operand =
+        |value: &Operand| constant_references(value, &mut references, &mut block_references);
     if let Some(eh) = &function.exception_handling {
         operand(&eh.personality);
     }
@@ -769,13 +1137,35 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                     operand(length);
                 }
                 Operation::Binary { lhs, rhs, .. }
+                | Operation::FloatBinary { lhs, rhs, .. }
+                | Operation::FCmp { lhs, rhs, .. }
                 | Operation::IntegerOverflow { lhs, rhs, .. }
                 | Operation::IntegerMinMax { lhs, rhs, .. }
                 | Operation::ICmp { lhs, rhs, .. } => {
                     operand(lhs);
                     operand(rhs);
                 }
-                Operation::Cast { value, .. } | Operation::Freeze { value } => operand(value),
+                Operation::Cast { value, .. }
+                | Operation::FloatNeg { value, .. }
+                | Operation::FloatAbs { value, .. }
+                | Operation::IntegerPopulationCount { value }
+                | Operation::IntegerCountLeadingZeros { value, .. }
+                | Operation::IntegerAbs { value, .. }
+                | Operation::VectorReduceAdd { value }
+                | Operation::Freeze { value } => operand(value),
+                Operation::ExtractElement { vector, index } => {
+                    operand(vector);
+                    operand(index);
+                }
+                Operation::InsertElement {
+                    vector,
+                    value,
+                    index,
+                } => {
+                    operand(vector);
+                    operand(value);
+                    operand(index);
+                }
                 Operation::ExtractValue { aggregate, .. } => operand(aggregate),
                 Operation::InsertValue {
                     aggregate, value, ..
@@ -798,6 +1188,10 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                 | Operation::NoAliasScopeDecl { .. } => {}
                 Operation::ThreadLocalAddress { global } => {
                     tls_references.insert(global.clone());
+                }
+                Operation::PtrMask { pointer, mask, .. } => {
+                    operand(pointer);
+                    operand(mask);
                 }
                 Operation::Gep { base, offset, .. } => {
                     operand(base);
@@ -863,6 +1257,7 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
             Terminator::Branch { condition, .. } | Terminator::Switch { condition, .. } => {
                 operand(condition)
             }
+            Terminator::IndirectBranch { address, .. } => operand(address),
             Terminator::Jump { .. } | Terminator::Unreachable => {}
         }
     }
@@ -874,7 +1269,7 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
     {
         references.insert("_Unwind_Resume".into());
     }
-    references
+    (references, block_references)
 }
 
 fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
@@ -993,7 +1388,8 @@ fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
         // provider must satisfy those contracts as well as declarations.
         let compatible = winner.is_some_and(|winner| {
             candidates.iter().all(|candidate| {
-                candidate.contract == winner.contract && candidate.alignment <= winner.alignment
+                compatible_symbol_contract(&candidate.contract, &winner.contract)
+                    && candidate.alignment <= winner.alignment
             })
         });
         if winner.is_some() && !compatible {
@@ -1039,10 +1435,28 @@ fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
             && definitions
                 .get(declaration.name.as_str())
                 .is_none_or(|candidates| candidates.iter().all(|candidate| !retained(candidate)));
-        let compatible_provider = definition.is_some_and(|definition| {
-            definition.contract == declaration.contract
-                && definition.alignment >= declaration.alignment
+        let opaque = declaration.contract["kind"] == "global"
+            && declaration.contract["type"]["kind"] == "opaque_struct";
+        let refinement = definition.and_then(|definition| {
+            let unique = definitions
+                .get(declaration.name.as_str())
+                .is_some_and(|candidates| {
+                    candidates
+                        .iter()
+                        .filter(|candidate| retained(candidate))
+                        .count()
+                        == 1
+                });
+            opaque_declaration_refinement(declaration, definition, unique)
         });
+        let compatible_provider = if opaque {
+            refinement.is_some()
+        } else {
+            definition.is_some_and(|definition| {
+                compatible_symbol_contract(&declaration.contract, &definition.contract)
+                    && definition.alignment >= declaration.alignment
+            })
+        };
         let compatible = optional_weak || compatible_provider;
         if !compatible {
             issues.push(format!(
@@ -1054,6 +1468,7 @@ fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
                               "abi_adaptation":declaration.abi_adaptation,
                               "resolved_unit":definition.filter(|_|compatible_provider).map(|definition|&definition.unit),
                               "compatible":compatible});
+        reference["storage_refinement"] = json!(refinement);
         if declaration.linkage == "extern_weak" {
             reference["linkage"] = json!("extern_weak");
             reference["optional_weak"] = json!(optional_weak);
@@ -1128,13 +1543,36 @@ fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
             }
             definition_references.push(reference);
         }
+        for (owner, block) in &source.block_references {
+            // A selectable ordinary symbol with the same name is not a
+            // replacement for a source block address. Retain the exact body in
+            // this unit, and reject a reference into a discarded whole group.
+            let provider = symbols.iter().find(|symbol| {
+                symbol.unit == source.unit
+                    && symbol.name == *owner
+                    && symbol.definition
+                    && symbol.alias_of.is_none()
+                    && symbol.blocks.contains(block)
+                    && retained(symbol)
+            });
+            if provider.is_none() {
+                issues.push(format!(
+                    "retained definition {} in {} lost its owned code block {owner}:{block}",
+                    source.name, source.unit
+                ));
+            }
+            definition_references.push(json!({"unit":source.unit,"definition":source.name,
+                "kind":"owned_code_block","owner":owner,"block":block,
+                "resolved_unit":provider.map(|provider| &provider.unit),
+                "ordinary_provider_substitution":false,"resolved":provider.is_some()}));
+        }
     }
     let definitions: Vec<_> = symbols
         .iter()
         .filter(|symbol| symbol.definition)
         .map(|symbol| {
             json!({"unit":symbol.unit,"symbol":symbol.name,"linkage":symbol.linkage,
-               "contract":symbol.contract,"alignment":symbol.alignment,"alias_of":symbol.alias_of,
+               "contract":symbol.contract,"alignment":symbol.alignment,"storage_layout":symbol.storage_layout,"alias_of":symbol.alias_of,
                "comdat":symbol.comdat,"retained_group":retained(symbol)})
         })
         .collect();
@@ -1196,7 +1634,211 @@ struct ObjectSymbol {
     size: u64,
 }
 
+struct OwnedBlockBinding {
+    label: String,
+    section: usize,
+    value: u64,
+}
+
+/// Derive label names from a fresh verified emission/map, then bind them to
+/// retained local ELF identities. A supplied sidecar or success flag is never
+/// authority for a code address, nor is an offset from an ordinary provider.
+fn owned_block_bindings(
+    arch: &str,
+    module: &NativeModule,
+    definitions: &BTreeMap<String, Definition>,
+    sections: &[Section],
+    symbol_tables: &BTreeMap<usize, Vec<ObjectSymbol>>,
+) -> Result<(BTreeMap<(String, usize), OwnedBlockBinding>, Option<Value>)> {
+    use o_lang::ocore::native_ir::Terminator;
+    use o_lang::ocore::native_map::NativeAssemblySiteKind;
+    let mut required = BTreeSet::new();
+    for global in &module.globals {
+        for relocation in global.initializer.iter().flat_map(|init| &init.relocations) {
+            if let Some(block) = &relocation.block {
+                required.insert((block.function.clone(), block.block));
+            }
+        }
+    }
+    for function in &module.functions {
+        required.extend(function_dependencies(function).1);
+        for block in &function.blocks {
+            if let Terminator::IndirectBranch { destinations, .. } = &block.terminator {
+                required.extend(
+                    destinations
+                        .iter()
+                        .map(|&block| (function.name.clone(), block)),
+                );
+            }
+        }
+    }
+    if required.is_empty() {
+        return Ok((BTreeMap::new(), None));
+    }
+    let target = match arch {
+        "x86_64" => o_lang::ocore::Target::X86_64UnknownNone,
+        "aarch64" => o_lang::ocore::Target::Aarch64UnknownNone,
+        "riscv64" => o_lang::ocore::Target::Riscv64UnknownNone,
+        _ => bail!("unknown owned block-label ISA"),
+    };
+    let (assembly, map) = o_lang::ocore::native_codegen::emit_with_map(module, target)?;
+    let mut bindings = BTreeMap::new();
+    let mut identities = Vec::new();
+    for site in map
+        .sites
+        .iter()
+        .filter(|site| site.kind == NativeAssemblySiteKind::BlockLabel)
+    {
+        let block = site
+            .block
+            .context("generated BlockLabel site lacks a block")?;
+        let identity = (site.function.clone(), block);
+        if !required.contains(&identity) {
+            continue;
+        }
+        let owner = module
+            .functions
+            .get(site.function_index)
+            .context("generated BlockLabel site has no original owner")?;
+        if owner.name != site.function
+            || !owner.blocks.iter().any(|item| item.id == block)
+            || site.instruction.is_some()
+        {
+            bail!("generated BlockLabel site changed original owner/block identity");
+        }
+        let label = assembly
+            .get(site.assembly_start..site.assembly_end)
+            .and_then(|text| text.strip_suffix(":\n"))
+            .filter(|name| {
+                !name.is_empty() && !name.chars().any(|c| matches!(c, '\n' | '\r' | ':'))
+            })
+            .context("generated BlockLabel map slice is not one exact label")?;
+        let labels: Vec<_> = symbol_tables
+            .values()
+            .flatten()
+            .filter(|symbol| symbol.name == label)
+            .collect();
+        if labels.len() != 1 {
+            bail!(
+                "ELF requires one retained map-bound code block label: {}:{block} ({label})",
+                owner.name
+            );
+        }
+        let symbol = labels[0];
+        let definition = definitions
+            .get(&owner.name)
+            .context("ELF block owner has no definition")?;
+        let end = definition
+            .value
+            .checked_add(definition.size)
+            .context("ELF block owner extent overflow")?;
+        if symbol.kind != 0
+            || symbol.binding != 0
+            || symbol.visibility != 0
+            || symbol.size != 0
+            || symbol.section != definition.section
+            || symbol.value < definition.value
+            || symbol.value >= end
+            || sections
+                .get(symbol.section)
+                .is_none_or(|section| section.kind != 1 || section.flags & 4 == 0)
+        {
+            bail!(
+                "ELF block label identity/owner/extent differs from verified map: {}:{block}",
+                owner.name
+            );
+        }
+        identities.push(json!({"function":owner.name,"block":block,"label":label,
+            "section":symbol.section,"section_offset":symbol.value,
+            "owner_offset":symbol.value-definition.value,"ordinary_provider_substitution":false}));
+        if bindings
+            .insert(
+                identity,
+                OwnedBlockBinding {
+                    label: label.into(),
+                    section: symbol.section,
+                    value: symbol.value,
+                },
+            )
+            .is_some()
+        {
+            bail!("generated map repeats an owned code block identity");
+        }
+    }
+    if bindings.len() != required.len() {
+        bail!("generated map omitted a required owned code block identity");
+    }
+    Ok((
+        bindings,
+        Some(json!({"assembly_sha256":map.assembly_sha256,
+        "module_sha256":map.module_sha256,"identity_source":"fresh verified emission BlockLabel slices and retained local ELF symbols",
+        "blocks":identities,"machine_code_semantics_qualified":false})),
+    ))
+}
+
+fn object_target(arch: &str) -> Result<o_lang::ocore::Target> {
+    match arch {
+        "x86_64" => Ok(o_lang::ocore::Target::X86_64UnknownNone),
+        "aarch64" => Ok(o_lang::ocore::Target::Aarch64UnknownNone),
+        "riscv64" => Ok(o_lang::ocore::Target::Riscv64UnknownNone),
+        _ => bail!("unknown object reproduction ISA"),
+    }
+}
+
+fn needs_object_reproduction(module: &NativeModule) -> bool {
+    module.globals.iter().any(|global| {
+        global
+            .initializer
+            .iter()
+            .flat_map(|init| &init.relocations)
+            .any(|relocation| relocation.block.is_some())
+    }) || module.functions.iter().any(|function| {
+        !function_dependencies(function).1.is_empty()
+            || function.blocks.iter().any(|block| {
+                matches!(
+                    block.terminator,
+                    o_lang::ocore::native_ir::Terminator::IndirectBranch { .. }
+                )
+            })
+    })
+}
+
+fn reproduce_object_if_required(
+    directory: &Path,
+    arch: &str,
+    module: &NativeModule,
+    bytes: &[u8],
+) -> Result<Option<o_lang::ocore::driver::NativeObjectReproduction>> {
+    needs_object_reproduction(module)
+        .then(|| {
+            o_lang::ocore::driver::reproduce_native_object(
+                module,
+                object_target(arch)?,
+                bytes,
+                &directory.join("object-reproduction"),
+            )
+            .map_err(Into::into)
+        })
+        .transpose()
+}
+
 fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<Value> {
+    object_inventory_with_reproduction(bytes, arch, module, None)
+}
+
+fn object_inventory_with_reproduction(
+    bytes: &[u8],
+    arch: &str,
+    module: &NativeModule,
+    reproduction: Option<&o_lang::ocore::driver::NativeObjectReproduction>,
+) -> Result<Value> {
+    if needs_object_reproduction(module) {
+        reproduction
+            .context(
+                "new code-block object admission requires independent exact object reproduction",
+            )?
+            .verify(module, object_target(arch)?, bytes)?;
+    }
     fn field<const N: usize>(bytes: &[u8], offset: u64) -> Result<[u8; N]> {
         let start = usize::try_from(offset)?;
         let end = start.checked_add(N).context("ELF extent overflow")?;
@@ -1277,6 +1919,11 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
         });
     }
     let mut definitions = BTreeMap::new();
+    let floating_helpers = floating_requirements(module)?;
+    let floating_helper_names: BTreeSet<_> = floating_helpers
+        .iter()
+        .map(|requirement| requirement.name.as_str())
+        .collect();
     let mut known_symbols: BTreeMap<_, _> = module
         .functions
         .iter()
@@ -1317,6 +1964,11 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
     if requires_unwind_resume(module) {
         known_symbols
             .entry("_Unwind_Resume")
+            .or_insert((Visibility::Default, "external"));
+    }
+    for requirement in &floating_helpers {
+        known_symbols
+            .entry(requirement.name.as_str())
             .or_insert((Visibility::Default, "external"));
     }
     let mut undefined_symbols = BTreeSet::new();
@@ -1397,6 +2049,9 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 bail!("ELF gives a compiler-only metadata declaration a runtime symbol: {name}");
             }
             if section == 0 {
+                if floating_helper_names.contains(name) && !matches!(info & 15, 0 | 2) {
+                    bail!("ELF floating helper dependency is not an ordinary function: {name}");
+                }
                 let (expected_visibility, linkage) =
                     known_symbols.get(name).with_context(|| {
                         format!("ELF introduces an undeclared native dependency: {name}")
@@ -1438,6 +2093,14 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                     weak_undefined_symbols.insert(name.to_owned());
                 }
                 continue;
+            }
+            if floating_helper_names.contains(name)
+                && !module
+                    .functions
+                    .iter()
+                    .any(|function| function.name == name && function.entry.is_some())
+            {
+                bail!("ELF defines a generated floating helper without a verified source body: {name}");
             }
             if !matches!(info & 15, 1 | 2 | 6) {
                 if info >> 4 != 0 {
@@ -1599,6 +2262,8 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
             );
         }
     }
+    let (block_bindings, block_inventory) =
+        owned_block_bindings(arch, module, &definitions, &sections, &symbol_tables)?;
     // Initializers have an exact source contract. RELA overwrites each declared
     // eight-byte pointer slot, so compare all other bytes and then check the
     // relocation's type, destination, symbol identity and explicit addend.
@@ -1652,6 +2317,13 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
         relocations.sort_by_key(|relocation| relocation.offset);
         let mut cursor = 0usize;
         for relocation in relocations {
+            if relocation.block.is_some()
+                && (relocation.width != 64
+                    || relocation.relative_to.is_some()
+                    || !relocation.symbol.is_empty())
+            {
+                bail!("owned code block initializer requires an explicit absolute64 block target, not an ordinary symbol");
+            }
             if !matches!(
                 (relocation.width, relocation.relative_to.is_some()),
                 (64, false) | (32, true)
@@ -1869,6 +2541,49 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                     if section.kind != 4 {
                         bail!("ELF initializer requires explicit-addend RELA relocation");
                     }
+                    if let Some(block) = &expected.block {
+                        let kind = info as u32;
+                        let absolute_type = match arch {
+                            "x86_64" => 1,
+                            "aarch64" => 257,
+                            "riscv64" => 2,
+                            _ => unreachable!(),
+                        };
+                        if kind != absolute_type {
+                            bail!(
+                                "ELF code block initializer relocation differs from verified ABS64"
+                            );
+                        }
+                        let binding = block_bindings
+                            .get(&(block.function.clone(), block.block))
+                            .context(
+                                "ELF initializer has no independently bound original code block",
+                            )?;
+                        let symbol = &table[(info >> 32) as usize];
+                        let addend = u64_at(section.offset + offset + 16)?;
+                        let direct = symbol.name == binding.label
+                            && symbol.kind == 0
+                            && symbol.binding == 0
+                            && symbol.visibility == 0
+                            && symbol.size == 0
+                            && symbol.section == binding.section
+                            && symbol.value == binding.value
+                            && addend == expected.addend as u64;
+                        let folded = symbol.kind == 3
+                            && symbol.binding == 0
+                            && symbol.visibility == 0
+                            && symbol.size == 0
+                            && symbol.value == 0
+                            && symbol.section == binding.section
+                            && addend == binding.value.wrapping_add(expected.addend as u64);
+                        if !(direct || folded) {
+                            bail!("ELF initializer code block owner/label/addend differs from verified map");
+                        }
+                        if !matched_relocations.insert((key, kind)) {
+                            bail!("duplicate ELF initializer code block relocation");
+                        }
+                        continue;
+                    }
                     let kind = info as u32;
                     let (expected_symbol, expected_addend) = if let Some(base_name) =
                         &expected.relative_to
@@ -2021,7 +2736,9 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 "absolute_relocations":expected_relocations.values().filter(|r|r.relative_to.is_none()).count(),
                 "relative32_initializers":relative_initializer_count,"resolved_relative32_initializers":resolved_relative_initializers,
                 "relocation_records":matched_relocations.len(),"scope":"source_defined_globals"},
+            "owned_code_blocks":block_inventory,
             "exception_tables":exception_inventory.receipt,
+            "generated_floating_helper_requirements":floating_helpers,
             "thread_local_storage":tls_inventory,
             "code_and_cfi_relocations":"structural_only" });
     if !weak_undefined_symbols.is_empty() {
@@ -2074,6 +2791,7 @@ pub(super) fn compile_runtime(
     #[derive(serde::Deserialize)]
     struct InputSchema {
         schema: Option<String>,
+        format: Option<String>,
     }
     // Probe only the dispatch tag; large embedded packages are independently
     // parsed by their existing importer without retaining another full copy.
@@ -2088,9 +2806,41 @@ pub(super) fn compile_runtime(
             .parent()
             .context("olangc executable has no parent")?
             .join("ocorec");
+        if let Some(plan) = source_options.provider_plan {
+            return provider_group::compile(
+                plan,
+                input,
+                &bytes,
+                target,
+                output_kind,
+                output,
+                import_options,
+                source_options,
+                &compiler,
+            );
+        }
         return source_recipe::compile(
             input,
             &bytes,
+            target,
+            output_kind,
+            output,
+            import_options,
+            source_options,
+            &compiler,
+        );
+    }
+    if document
+        .format
+        .as_deref()
+        .is_some_and(whole_artifact::is_format)
+    {
+        let compiler = std::env::current_exe()?
+            .parent()
+            .context("olangc executable has no parent")?
+            .join("ocorec");
+        return provider_group::read_package(
+            input,
             target,
             output_kind,
             output,
@@ -2110,7 +2860,24 @@ pub(super) struct NativeImportOptions<'a> {
     pub(super) llvm_sha256: Option<&'a str>,
     pub(super) tls_profile: Option<&'a str>,
     pub(super) atomic_profile: Option<&'a str>,
+    pub(super) wide_volatile_profile: Option<&'a str>,
     pub(super) dependencies: &'a [PathBuf],
+}
+
+/// Private result of actual capture replay/import/verification. This type cannot
+/// be deserialized from a claimed coverage receipt. Provider groups finalize it
+/// only after the independent original-source inventory and whole-group closure.
+pub(super) struct StagedComponent {
+    pub(super) capture_path: PathBuf,
+    pub(super) capture_bytes: Vec<u8>,
+    pub(super) capture: Value,
+    pub(super) selected: BTreeSet<String>,
+    pub(super) modules: Vec<(String, Vec<u8>)>,
+    pub(super) original_inputs: BTreeMap<String, (Value, Vec<u8>)>,
+    pub(super) source_capture_complete: bool,
+    pub(super) unit_lowering_complete: bool,
+    pub(super) compiler_sha256: Option<String>,
+    pub(super) coverage_path: PathBuf,
 }
 
 fn compile_with_compiler(
@@ -2121,11 +2888,88 @@ fn compile_with_compiler(
     import_options: NativeImportOptions<'_>,
     compiler: &Path,
 ) -> Result<()> {
+    if import_options.llvm_library.is_some() != import_options.llvm_sha256.is_some() {
+        bail!("explicit LLVM parser library and SHA-256 must be supplied together");
+    }
+    #[derive(serde::Deserialize)]
+    struct PackageTag {
+        format: Option<String>,
+    }
+    let tag: PackageTag = serde_json::from_reader(std::io::BufReader::new(
+        fs::File::open(report).context("read native runtime input")?,
+    ))?;
+    if tag.format.as_deref() == Some(artifact::FORMAT) {
+        if import_options.llvm_library.is_some()
+            || import_options.tls_profile.is_some()
+            || import_options.atomic_profile.is_some()
+            || import_options.wide_volatile_profile.is_some()
+            || !import_options.dependencies.is_empty()
+        {
+            bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
+        }
+        return artifact::compile_package(
+            &fs::read(report)?,
+            target,
+            output_kind,
+            output,
+            compiler,
+        );
+    }
+    lower_with_compiler(
+        report,
+        target,
+        output_kind,
+        output,
+        import_options,
+        compiler,
+        false,
+        None,
+    )?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn lower_with_compiler(
+    report: &Path,
+    target: &str,
+    output_kind: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    compiler: &Path,
+    stage_only: bool,
+    selected_python: Option<&Path>,
+) -> Result<StagedComponent> {
+    lower_held_capture_with_compiler(
+        report,
+        None,
+        target,
+        output_kind,
+        output,
+        import_options,
+        compiler,
+        stage_only,
+        selected_python,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn lower_held_capture_with_compiler(
+    report: &Path,
+    held_report_bytes: Option<&[u8]>,
+    target: &str,
+    output_kind: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    compiler: &Path,
+    stage_only: bool,
+    selected_python: Option<&Path>,
+) -> Result<StagedComponent> {
     let NativeImportOptions {
         llvm_library,
         llvm_sha256,
         tls_profile,
         atomic_profile,
+        wide_volatile_profile,
         dependencies: dependency_paths,
     } = import_options;
     let expected_tls_profile = match tls_profile {
@@ -2140,6 +2984,11 @@ fn compile_with_compiler(
         Some("coherent-ram-v1") => Some(AtomicProfile::CoherentRamV1),
         Some(_) => bail!("unsupported native atomic realization profile"),
     };
+    let expected_wide_volatile_profile = match wide_volatile_profile {
+        None => None,
+        Some("ordinary-ram-split-v1") => Some(WideVolatileProfile::OrdinaryRamSplitV1),
+        Some(_) => bail!("unsupported native wide volatile realization profile"),
+    };
     let arch = architecture(target)?;
     if !matches!(output_kind, "ir" | "obj") {
         bail!("native runtime output must be ir or obj");
@@ -2147,19 +2996,17 @@ fn compile_with_compiler(
     if llvm_library.is_some() != llvm_sha256.is_some() {
         bail!("explicit LLVM parser library and SHA-256 must be supplied together");
     }
-    let bytes =
-        fs::read(report).with_context(|| format!("read runtime capture {}", report.display()))?;
-    let capture: Value = serde_json::from_slice(&bytes).context("decode runtime capture report")?;
-    if capture["format"] == artifact::FORMAT {
-        if llvm_library.is_some()
-            || tls_profile.is_some()
-            || atomic_profile.is_some()
-            || !dependency_paths.is_empty()
-        {
-            bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
+    let bytes = match held_report_bytes {
+        Some(held) => {
+            if fs::read(report)? != held {
+                bail!("held source recipe capture changed before lowering");
+            }
+            held.to_vec()
         }
-        return artifact::compile_package(&bytes, target, output_kind, output, compiler);
-    }
+        None => fs::read(report)
+            .with_context(|| format!("read runtime capture {}", report.display()))?,
+    };
+    let capture: Value = serde_json::from_slice(&bytes).context("decode runtime capture report")?;
     fs::create_dir(output).with_context(|| {
         format!(
             "native runtime output must be a new directory: {}",
@@ -2167,7 +3014,10 @@ fn compile_with_compiler(
         )
     })?;
     let output = output.canonicalize()?;
-    let (selected, mut issues) = match capture_admission(&capture) {
+    let (selected, mut issues) = match capture_admission_with_python(
+        &capture,
+        selected_python.unwrap_or_else(|| Path::new("python3")),
+    ) {
         Ok(selected) => (selected, Vec::new()),
         Err(error) => (BTreeSet::new(), vec![error.to_string()]),
     };
@@ -2183,9 +3033,15 @@ fn compile_with_compiler(
         .cloned()
         .unwrap_or_default();
     let mut preflight_ok = issues.is_empty();
-    let capture_reverification = if preflight_ok {
-        match reverify_capture(report, &bytes, &output) {
-            Ok(receipt) => Some(receipt),
+    let admitted_capture = if preflight_ok {
+        match source_action::AdmittedCapture::reverify(
+            report,
+            &bytes,
+            &selected,
+            &output,
+            selected_python.unwrap_or_else(|| Path::new("python3")),
+        ) {
+            Ok(admitted) => Some(admitted),
             Err(error) => {
                 issues.push(error.to_string());
                 preflight_ok = false;
@@ -2195,6 +3051,12 @@ fn compile_with_compiler(
     } else {
         None
     };
+    let capture_reverification = admitted_capture
+        .as_ref()
+        .map(|admitted| admitted.receipt().clone());
+    // Capture admission is independent of compiler availability and provider
+    // closure. Missing source libraries must not suppress admitted source units.
+    let mut source_capture_complete = preflight_ok;
     let compiler_digest = if preflight_ok {
         match fs::read(compiler) {
             Ok(bytes) => Some(digest(&bytes)),
@@ -2207,18 +3069,27 @@ fn compile_with_compiler(
     } else {
         None
     };
-    let dependencies = if preflight_ok {
+    let mut provider_admission_complete = false;
+    let mut provider_admission_issue = None;
+    let dependencies = if preflight_ok && !stage_only {
         match artifact::load_dependencies(&capture, dependency_paths) {
-            Ok(dependencies) => dependencies,
+            Ok(dependencies) => {
+                provider_admission_complete = true;
+                dependencies
+            }
             Err(error) => {
-                issues.push(error.to_string());
-                preflight_ok = false;
+                let diagnostic = error.to_string();
+                issues.push(diagnostic.clone());
+                provider_admission_issue = Some(diagnostic);
+                // Retain incomplete providers as an explicit closure failure,
+                // while importing/verifying every genuinely admitted source unit.
                 Vec::new()
             }
         }
     } else {
         Vec::new()
     };
+    let mut consumed_original_inputs = BTreeMap::new();
     for (index, unit) in units.iter().enumerate() {
         let id = unit
             .get("id")
@@ -2226,7 +3097,11 @@ fn compile_with_compiler(
             .unwrap_or("<invalid-unit>");
         let mut record = json!({"id":id,"input":unit.get("ir"),"verified":false,"lowered":false});
         if !preflight_ok {
-            record["failure"] = json!("capture admission failed; unit not attempted");
+            record["failure"] = json!(if source_capture_complete {
+                "actual O-core compiler unavailable; admitted unit not attempted"
+            } else {
+                "capture admission failed; unit not attempted"
+            });
             records.push(record);
             continue;
         }
@@ -2236,10 +3111,31 @@ fn compile_with_compiler(
             records.push(record);
             continue;
         }
+        let mut lineage = None;
         let result = (|| -> Result<()> {
-            let input = checked_ir(unit, arch)?;
+            let (_, input_bytes) = checked_ir_bytes(unit, arch)?;
             let directory = output.join(format!("unit-{index:06}"));
             fs::create_dir(&directory)?;
+            let input = directory.join(if captured_ir_format(&unit["ir"])? == "llvm-bitcode" {
+                "original-input.bc"
+            } else {
+                "original-input.ll"
+            });
+            lineage = Some(
+                admitted_capture
+                    .as_ref()
+                    .context("capture action authority unavailable")?
+                    .begin(
+                        id,
+                        unit,
+                        &input_bytes,
+                        &input,
+                        compiler,
+                        compiler_digest
+                            .as_deref()
+                            .context("compiler identity unavailable")?,
+                    )?,
+            );
             let imported = directory.join("module.native-ir.json");
             let mut arguments = vec![
                 input.display().to_string(),
@@ -2266,6 +3162,9 @@ fn compile_with_compiler(
             if let Some(profile) = atomic_profile {
                 arguments.extend(["--atomic-profile".into(), profile.into()]);
             }
+            if let Some(profile) = wide_volatile_profile {
+                arguments.extend(["--wide-volatile-profile".into(), profile.into()]);
+            }
             record["import_argv"] = json!(arguments);
             invoke(compiler, &arguments, &directory.join("import.log"))?;
             let imported_bytes = fs::read(&imported)?;
@@ -2277,6 +3176,7 @@ fn compile_with_compiler(
                 || module.target.data_layout != string(&unit["ir"], "data_layout")?
                 || module.target.tls_profile != expected_tls_profile
                 || module.target.atomic_profile != expected_atomic_profile
+                || module.target.wide_volatile_profile != expected_wide_volatile_profile
             {
                 bail!("imported module provenance/target differs from the captured input");
             }
@@ -2301,19 +3201,24 @@ fn compile_with_compiler(
             }
             module_target = Some(current_target);
             let verification = directory.join("verification.json");
+            let verification_arguments = vec![
+                imported.display().to_string(),
+                "--input-kind".into(),
+                "native-ir".into(),
+                "--verify-native".into(),
+                "--receipt".into(),
+                verification.display().to_string(),
+            ];
+            // Retain attempted arguments even when the subprocess fails.
+            record["verification_mode"] = json!("subprocess");
+            record["verify_argv"] = json!(verification_arguments);
             invoke(
                 compiler,
-                &[
-                    imported.display().to_string(),
-                    "--input-kind".into(),
-                    "native-ir".into(),
-                    "--verify-native".into(),
-                    "--receipt".into(),
-                    verification.display().to_string(),
-                ],
+                &verification_arguments,
                 &directory.join("verify.log"),
             )?;
-            let receipt: Value = serde_json::from_slice(&fs::read(&verification)?)?;
+            let verification_bytes = fs::read(&verification)?;
+            let receipt: Value = serde_json::from_slice(&verification_bytes)?;
             if receipt["format"] != "ocore-native-verification-v1"
                 || receipt["verifier"] != "ocore-native-v1"
                 || receipt["scope"] != "structural_ir_verification"
@@ -2322,30 +3227,62 @@ fn compile_with_compiler(
             {
                 bail!("native verification receipt is not bound to the imported bytes");
             }
+            lineage
+                .as_mut()
+                .context("source action lineage disappeared")?
+                .verified(
+                    &module,
+                    &imported,
+                    &imported_bytes,
+                    &verification,
+                    &verification_bytes,
+                )?;
             record["verified"] = json!(true);
+            // Diagnostic requirements survive later object/symbol admission failures.
+            // This exact-file inventory grants no provider or frame admission.
+            record["nonlocal_control_requirements"] =
+                serde_json::to_value(control_inventory::collect(id, &imported_bytes)?)?;
+            record["generated_floating_helper_requirements"] =
+                json!(floating_requirements(&module)?);
             record["module"] = json!({"path":imported,"sha256":digest(&imported_bytes),"target":module.target,
                                       "provenance":module.provenance});
             record["verification_receipt"] = json!(verification);
-            record["verification_sha256"] = json!(digest(&fs::read(&verification)?));
+            record["verification_sha256"] = json!(digest(&verification_bytes));
             if output_kind == "obj" {
                 let object = directory.join("module.o");
-                invoke(
-                    compiler,
-                    &[
-                        imported.display().to_string(),
-                        "--input-kind".into(),
-                        "native-ir".into(),
-                        "--emit".into(),
-                        "obj".into(),
-                        "--target".into(),
-                        format!("{arch}-unknown-none"),
-                        "-o".into(),
-                        object.display().to_string(),
-                    ],
-                    &directory.join("emit.log"),
-                )?;
+                let emission_arguments = vec![
+                    imported.display().to_string(),
+                    "--input-kind".into(),
+                    "native-ir".into(),
+                    "--emit".into(),
+                    "obj".into(),
+                    "--target".into(),
+                    format!("{arch}-unknown-none"),
+                    "-o".into(),
+                    object.display().to_string(),
+                ];
+                record["emit_argv"] = json!(emission_arguments);
+                invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let object_bytes = fs::read(&object)?;
-                record["object_inventory"] = object_inventory(&object_bytes, arch, &module)?;
+                lineage
+                    .as_mut()
+                    .context("source action lineage disappeared")?
+                    .observe_object(&object, &object_bytes, &emission_arguments)?;
+                let reproduction =
+                    reproduce_object_if_required(&directory, arch, &module, &object_bytes)?;
+                record["object_inventory"] = object_inventory_with_reproduction(
+                    &object_bytes,
+                    arch,
+                    &module,
+                    reproduction.as_ref(),
+                )?;
+                lineage
+                    .as_mut()
+                    .context("source action lineage disappeared")?
+                    .checked_object_inventory(&record["object_inventory"])?;
+                if let Some(reproduction) = reproduction {
+                    record["independent_object_reproduction"] = reproduction.receipt().clone();
+                }
                 record["object"] = json!({"path":object,"sha256":digest(&object_bytes),"bytes":object_bytes.len()});
             }
             collected_symbols.extend(symbols(
@@ -2355,11 +3292,22 @@ fn compile_with_compiler(
             if digest(&fs::read(&imported)?) != digest(&imported_bytes) {
                 bail!("imported module changed during lowering");
             }
+            if stage_only {
+                consumed_original_inputs.insert(id.to_owned(), (unit["ir"].clone(), input_bytes));
+            }
             unit_ids.insert(id.to_owned());
             imported_modules.push((id.to_owned(), imported_bytes));
             record["lowered"] = json!(true);
             Ok(())
         })();
+        if let Some(contract) = lineage.as_mut() {
+            if let Err(error) = contract.postguard() {
+                source_capture_complete = false;
+                record["source_action_byte_identity_failure"] = json!(error.to_string());
+                issues.push(format!("unit {id} source action byte identity: {error}"));
+            }
+            record["source_action_contract"] = serde_json::to_value(contract)?;
+        }
         if let Err(error) = result {
             record["failure"] = json!(error.to_string());
             issues.push(format!("unit {id}: {error}"));
@@ -2392,7 +3340,10 @@ fn compile_with_compiler(
         let mut record = json!({"id":identity,"component":embedded.component,
             "unit_id":embedded.unit_id,"sha256":embedded.sha256,"lowered":false});
         let result = (|| -> Result<()> {
+            record["verification_mode"] = json!("in_process");
             let module = embedded.verify()?;
+            record["generated_floating_helper_requirements"] =
+                json!(floating_requirements(&module)?);
             if module_target.as_ref() != Some(&serde_json::to_value(&module.target)?) {
                 bail!("dependency target/DataLayout/execution profiles differ from captured implementation");
             }
@@ -2403,23 +3354,30 @@ fn compile_with_compiler(
             record["module"] = json!({"path":imported,"sha256":embedded.sha256});
             if output_kind == "obj" {
                 let object = directory.join("module.o");
-                invoke(
-                    compiler,
-                    &[
-                        imported.display().to_string(),
-                        "--input-kind".into(),
-                        "native-ir".into(),
-                        "--emit".into(),
-                        "obj".into(),
-                        "--target".into(),
-                        format!("{arch}-unknown-none"),
-                        "-o".into(),
-                        object.display().to_string(),
-                    ],
-                    &directory.join("emit.log"),
-                )?;
+                let emission_arguments = vec![
+                    imported.display().to_string(),
+                    "--input-kind".into(),
+                    "native-ir".into(),
+                    "--emit".into(),
+                    "obj".into(),
+                    "--target".into(),
+                    format!("{arch}-unknown-none"),
+                    "-o".into(),
+                    object.display().to_string(),
+                ];
+                record["emit_argv"] = json!(emission_arguments);
+                invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let bytes = fs::read(&object)?;
-                record["object_inventory"] = object_inventory(&bytes, arch, &module)?;
+                let reproduction = reproduce_object_if_required(&directory, arch, &module, &bytes)?;
+                record["object_inventory"] = object_inventory_with_reproduction(
+                    &bytes,
+                    arch,
+                    &module,
+                    reproduction.as_ref(),
+                )?;
+                if let Some(reproduction) = reproduction {
+                    record["independent_object_reproduction"] = reproduction.receipt().clone();
+                }
                 record["object"] =
                     json!({"path":object,"sha256":digest(&bytes),"bytes":bytes.len()});
             }
@@ -2447,11 +3405,32 @@ fn compile_with_compiler(
         .as_ref()
         != Some(&digest(&bytes))
     {
+        source_capture_complete = false;
         issues.push("source capture report changed during lowering".into());
     }
+    let capture_action_postguard = if let Some(admitted) = &admitted_capture {
+        match admitted.postguard(
+            &output,
+            selected_python.unwrap_or_else(|| Path::new("python3")),
+        ) {
+            Ok(receipt) => Some(receipt),
+            Err(error) => {
+                source_capture_complete = false;
+                issues.push(format!("source action capture postguard: {error}"));
+                None
+            }
+        }
+    } else {
+        None
+    };
     let (mut closure, closure_issues) = resolve_symbols(&collected_symbols);
     let symbol_closure_complete = closure_issues.is_empty();
-    issues.extend(closure_issues);
+    let deferred_symbol_issues = if stage_only {
+        closure_issues
+    } else {
+        issues.extend(closure_issues);
+        Vec::new()
+    };
     issues.sort();
     issues.dedup();
     let unit_complete = !selected.is_empty()
@@ -2460,11 +3439,16 @@ fn compile_with_compiler(
             .iter()
             .filter(|record| record["required_for_lowering"] == true)
             .all(|record| record["lowered"] == true);
-    closure["inventory_complete"] = json!(unit_complete);
-    if !unit_complete {
+    closure["source_inventory_complete"] = json!(unit_complete);
+    closure["inventory_complete"] = json!(unit_complete && provider_admission_complete);
+    if !unit_complete || !provider_admission_complete {
         closure["closed"] = json!(false);
     }
-    let mut complete = unit_complete && issues.is_empty();
+    let mut complete = source_capture_complete
+        && preflight_ok
+        && provider_admission_complete
+        && unit_complete
+        && issues.is_empty();
     let module_set_artifact = if complete {
         let result = (|| -> Result<Value> {
             let artifact = artifact::Artifact::build(
@@ -2498,25 +3482,60 @@ fn compile_with_compiler(
     };
     issues.sort();
     issues.dedup();
-    let receipt = json!({"schema":RECEIPT_FORMAT,"capture_report":report,"capture_sha256":digest(&bytes),
-        "tls_profile":expected_tls_profile,"tls_platform_execution_qualified":false,
-        "atomic_profile":expected_atomic_profile,"atomic_hardware_memory_order_qualified":false,
-        "name":capture["name"],"requested_target":target,"architecture":arch,"output_kind":output_kind,
-        "compiler":compiler,"compiler_sha256":compiler_digest,"source":capture["source"],"manifest":capture["manifest"],
-        "capture_reverification":capture_reverification,
-        "capture_complete":preflight_ok,"captured_unit_count":units.len(),"lowered_unit_count":unit_ids.len(),
-        "required_lowering_unit_count":selected.len(),"non_lowering_units":capture["non_lowering_units"],
-        "units":records,"symbol_inventory":closure,"issues":issues,
-        "dependencies":dependency_records,"dependency_modules":dependency_module_records,
-        "module_set_artifact":module_set_artifact,"native_module_dependency_closure_complete":complete,
-        "unit_lowering_complete":unit_complete,"lowering_complete":complete,
-        "symbol_closure_complete":unit_complete && symbol_closure_complete,"dependency_closure_complete":false,
-        "module_set_complete":complete,"artifact_complete":false,"link_performed":false,"native_execution_qualified":false,"runtime_complete":false,
-        "remaining_runtime_requirements":capture["remaining_runtime_requirements"],
-        "scope":"self-contained verified native module-set and own-emitter relocatable objects; no script/runtime orchestration or native qualification"});
+    // Build each value separately so receipt growth does not deepen json! recursion.
+    let receipt = serde_json::Map::from_iter([
+        ("schema".to_owned(), json!(RECEIPT_FORMAT)),
+        ("capture_report".to_owned(), json!(report)),
+        ("capture_sha256".to_owned(), json!(digest(&bytes))),
+        ("tls_profile".to_owned(), json!(expected_tls_profile)),
+        ("tls_platform_execution_qualified".to_owned(), json!(false)),
+        ("atomic_profile".to_owned(), json!(expected_atomic_profile)),
+        ("atomic_hardware_memory_order_qualified".to_owned(), json!(false)),
+        ("wide_volatile_profile".to_owned(), json!(expected_wide_volatile_profile)),
+        ("wide_volatile_platform_execution_qualified".to_owned(), json!(false)),
+        ("name".to_owned(), json!(capture["name"])),
+        ("requested_target".to_owned(), json!(target)),
+        ("architecture".to_owned(), json!(arch)),
+        ("output_kind".to_owned(), json!(output_kind)),
+        ("compiler".to_owned(), json!(compiler)),
+        ("compiler_sha256".to_owned(), json!(compiler_digest)),
+        ("source".to_owned(), json!(capture["source"])),
+        ("manifest".to_owned(), json!(capture["manifest"])),
+        ("capture_reverification".to_owned(), json!(capture_reverification)),
+        ("source_action_capture_postguard".to_owned(), json!(capture_action_postguard)),
+        ("capture_complete".to_owned(), json!(source_capture_complete)),
+        ("source_lowering_preflight_complete".to_owned(), json!(preflight_ok)),
+        ("provider_admission_complete".to_owned(), json!(provider_admission_complete)),
+        ("provider_group_finalization_deferred".to_owned(), json!(stage_only)),
+        ("deferred_symbol_issues".to_owned(), json!(deferred_symbol_issues)),
+        ("provider_admission_issue".to_owned(), json!(provider_admission_issue)),
+        ("declared_dependencies".to_owned(), json!(capture["dependencies"])),
+        ("captured_unit_count".to_owned(), json!(units.len())),
+        ("lowered_unit_count".to_owned(), json!(unit_ids.len())),
+        ("required_lowering_unit_count".to_owned(), json!(selected.len())),
+        ("non_lowering_units".to_owned(), json!(capture["non_lowering_units"])),
+        ("units".to_owned(), json!(records)),
+        ("symbol_inventory".to_owned(), json!(closure)),
+        ("issues".to_owned(), json!(issues)),
+        ("dependencies".to_owned(), json!(dependency_records)),
+        ("dependency_modules".to_owned(), json!(dependency_module_records)),
+        ("module_set_artifact".to_owned(), json!(module_set_artifact)),
+        ("native_module_dependency_closure_complete".to_owned(), json!(complete)),
+        ("unit_lowering_complete".to_owned(), json!(unit_complete)),
+        ("lowering_complete".to_owned(), json!(complete)),
+        ("symbol_closure_complete".to_owned(), json!(unit_complete && provider_admission_complete && symbol_closure_complete)),
+        ("dependency_closure_complete".to_owned(), json!(false)),
+        ("module_set_complete".to_owned(), json!(complete)),
+        ("artifact_complete".to_owned(), json!(false)),
+        ("link_performed".to_owned(), json!(false)),
+        ("native_execution_qualified".to_owned(), json!(false)),
+        ("runtime_complete".to_owned(), json!(false)),
+        ("remaining_runtime_requirements".to_owned(), json!(capture["remaining_runtime_requirements"])),
+        ("scope".to_owned(), json!("self-contained verified native module-set and own-emitter relocatable objects; no script/runtime orchestration or native qualification")),
+    ]);
     let receipt_path = output.join("coverage.json");
     fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
-    if !complete {
+    if !complete && !stage_only {
         bail!(
             "native runtime lowering incomplete; {} units lowered of {}; see {}",
             unit_ids.len(),
@@ -2524,12 +3543,34 @@ fn compile_with_compiler(
             receipt_path.display()
         );
     }
-    eprintln!(
-        "olangc: lowered {} complete captured units; receipt {}",
-        unit_ids.len(),
-        receipt_path.display()
-    );
-    Ok(())
+    if !stage_only {
+        eprintln!(
+            "olangc: lowered {} complete captured units; receipt {}",
+            unit_ids.len(),
+            receipt_path.display()
+        );
+    }
+    let mut original_inputs = BTreeMap::new();
+    if stage_only {
+        for (id, _) in &imported_modules {
+            let original = consumed_original_inputs
+                .get(id)
+                .context("staged module lost its exact consumed original LLVM bytes")?;
+            original_inputs.insert(id.clone(), original.clone());
+        }
+    }
+    Ok(StagedComponent {
+        capture_path: report.to_path_buf(),
+        capture_bytes: bytes,
+        capture,
+        selected,
+        modules: imported_modules,
+        original_inputs,
+        source_capture_complete,
+        unit_lowering_complete: preflight_ok && unit_complete,
+        compiler_sha256: compiler_digest,
+        coverage_path: receipt_path,
+    })
 }
 
 #[cfg(test)]
@@ -2541,6 +3582,8 @@ mod tests {
             unit: unit.into(),
             name: name.into(),
             definition,
+            storage_layout: None,
+            storage_target: None,
             linkage: linkage.into(),
             visibility: Visibility::Default,
             alignment: 0,
@@ -2549,8 +3592,273 @@ mod tests {
             alias_of: None,
             comdat: None,
             references: BTreeSet::new(),
+            blocks: BTreeSet::new(),
+            block_references: BTreeSet::new(),
             abi_adaptation: None,
         }
+    }
+
+    pub(super) fn opaque_storage_module(opaque: bool, empty: bool) -> NativeModule {
+        let ty = if opaque {
+            json!({"kind":"opaque_struct","name":"source.forward"})
+        } else {
+            json!({"kind":"struct","packed":false,"fields":if empty {vec![]} else {vec![1]}})
+        };
+        serde_json::from_value(json!({"format":o_lang::ocore::native_ir::FORMAT,"name":"original_storage",
+            "target":{"triple":"x86_64-unknown-linux-gnu","data_layout":"e-p:64:64-i64:64","pointer_bits":64,"little_endian":true},
+            "semantics":"llvm_defined_behavior_v1","types":[ty,{"kind":"int","bits":64}],"functions":[],
+            "globals":[{"name":"original_object","ty":0,"linkage":"external","alignment":8,"constant":false,"thread_local":false,
+                "initializer":if opaque {Value::Null} else {json!({"bytes":if empty {vec![]} else {vec![0;8]},"relocations":[]})}}],
+            "provenance":{"input_sha256":"0".repeat(64),"frontend":"original","frontend_version":"1","importer":"test","importer_version":"1",
+                "source_function_count":0,"source_global_count":1,"refinements":[]}})).unwrap()
+    }
+
+    #[test]
+    fn opaque_declaration_closes_only_from_unique_real_sized_provider_and_retains_both_contracts() {
+        let required = opaque_storage_module(true, false);
+        let provider = opaque_storage_module(false, false);
+        o_lang::ocore::native_verify::verify(&required).unwrap();
+        o_lang::ocore::native_verify::verify(&provider).unwrap();
+        let required = symbols("original_consumer", &required).unwrap().remove(0);
+        let supplied = symbols("original_provider", &provider).unwrap().remove(0);
+        assert!(!compatible_symbol_contract(
+            &required.contract,
+            &supplied.contract
+        ));
+        let proof = opaque_declaration_refinement(&required, &supplied, true).unwrap();
+        assert_eq!(proof["required_contract"], required.contract);
+        assert_eq!(proof["provider_contract"], supplied.contract);
+        assert_eq!(proof["provider_storage_layout"]["size"], 8);
+        assert_eq!(proof["provider_storage_layout"]["abi_alignment"], 8);
+        assert_eq!(proof["source_type_rewritten"], false);
+        let (closure, issues) = resolve_symbols(&[required, supplied]);
+        assert!(issues.is_empty(), "{issues:?}");
+        assert!(closure
+            .to_string()
+            .contains("opaque_external_storage_refinement_v1"));
+    }
+
+    #[test]
+    fn opaque_unknown_or_zero_extent_providers_never_establish_storage() {
+        let required = symbols("consumer", &opaque_storage_module(true, false))
+            .unwrap()
+            .remove(0);
+        let (closure, issues) = resolve_symbols(&[required.clone()]);
+        assert!(!issues.is_empty());
+        assert!(!closure
+            .to_string()
+            .contains("opaque_external_storage_refinement_v1"));
+        let declaration = symbols("declaration_provider", &opaque_storage_module(true, false))
+            .unwrap()
+            .remove(0);
+        assert!(opaque_declaration_refinement(&required, &declaration, true).is_none());
+        let empty_module = opaque_storage_module(false, true);
+        o_lang::ocore::native_verify::verify(&empty_module).unwrap();
+        let empty = symbols("genuine_empty_provider", &empty_module)
+            .unwrap()
+            .remove(0);
+        assert!(opaque_declaration_refinement(&required, &empty, true).is_none());
+        let mut unknown = symbols("provider", &opaque_storage_module(false, false))
+            .unwrap()
+            .remove(0);
+        unknown.storage_layout = None;
+        assert!(opaque_declaration_refinement(&required, &unknown, true).is_none());
+    }
+
+    #[test]
+    fn opaque_refinement_rejects_alignment_constant_alias_and_multiple_provider_changes() {
+        let required = symbols("consumer", &opaque_storage_module(true, false))
+            .unwrap()
+            .remove(0);
+        let supplied = symbols("provider", &opaque_storage_module(false, false))
+            .unwrap()
+            .remove(0);
+        for mutation in 0..5 {
+            let mut changed = supplied.clone();
+            match mutation {
+                0 => changed.alignment = 4,
+                1 => changed.contract["constant"] = json!(true),
+                2 => changed.alias_of = Some("different_storage".into()),
+                3 => changed.contract["thread_local"] = json!(true),
+                _ => {
+                    changed.storage_target.as_mut().unwrap()["triple"] =
+                        json!("aarch64-unknown-linux-gnu")
+                }
+            }
+            assert!(opaque_declaration_refinement(&required, &changed, true).is_none());
+        }
+        let mut first = supplied.clone();
+        first.linkage = "weak".into();
+        let mut second = first.clone();
+        second.unit = "second_provider".into();
+        let (_, issues) = resolve_symbols(&[required, first, second]);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.contains("unresolved or incompatible declaration")));
+    }
+
+    #[test]
+    fn opaque_refinement_does_not_relax_ordinary_struct_or_function_type_equality() {
+        let supplied = symbols("provider", &opaque_storage_module(false, false))
+            .unwrap()
+            .remove(0);
+        let mut ordinary = supplied.clone();
+        ordinary.definition = false;
+        ordinary.storage_layout = None;
+        let mut changed = supplied.clone();
+        changed.contract["type"]["fields"][0]["bits"] = json!(32);
+        assert!(!compatible_symbol_contract(
+            &ordinary.contract,
+            &changed.contract
+        ));
+        assert!(opaque_declaration_refinement(&ordinary, &supplied, true).is_none());
+        let function = symbol("consumer", "original_object", false, "external");
+        assert!(opaque_declaration_refinement(&function, &supplied, true).is_none());
+    }
+
+    fn fast_float_symbol_module(
+        arch: &str,
+        abi: Option<&str>,
+        definition: bool,
+        extra_local_type: bool,
+    ) -> NativeModule {
+        let mut m = object_inventory_tests::module();
+        m.target.triple = format!("{arch}-unknown-linux-gnu");
+        m.target.abi = abi.map(str::to_owned);
+        m.target.data_layout = "e-p:64:64-i64:64-f32:32-f64:64-S128".into();
+        if extra_local_type {
+            m.types.push(Type::Int { bits: 8 });
+        }
+        let fp = m.types.len();
+        m.types.push(Type::Float { bits: 64 });
+        let pointer = m.types.len();
+        m.types.push(Type::Pointer { address_space: 0 });
+        let (cpu, features) = match arch {
+            "x86_64" => ("x86-64", "+sse,+sse2"),
+            "aarch64" => ("generic", "+fp-armv8,+neon,+v8a"),
+            "riscv64" => ("generic-rv64", "+64bit,+d,+f,+zicsr,-e"),
+            _ => unreachable!(),
+        };
+        let witness = json!({"target_cpu":cpu,"target_features":features});
+        let signature = json!({"params":[fp],"result":fp,"abi":"fastcc","variadic":false,
+            "param_attributes":[[]],"result_attributes":[],"return_storage":null});
+        let engine = if definition {
+            json!({"name":"original_engine","linkage":"external","source_abi":witness,
+                "signature":signature,"params":[{"id":0,"ty":fp}],"entry":0,
+                "blocks":[{"id":0,"instructions":[],"terminator":{"op":"return",
+                    "value":{"kind":"value","id":0}}}]})
+        } else {
+            json!({"name":"original_engine","linkage":"external","signature":signature,
+                "params":[{"id":0,"ty":fp}],"entry":null,"blocks":[]})
+        };
+        let mut functions = vec![serde_json::from_value(engine).unwrap()];
+        if !definition {
+            functions.push(serde_json::from_value(json!({"name":"original_caller","linkage":"external",
+                "source_abi":witness,"signature":{"params":[fp],"result":fp,"abi":"c","variadic":false},
+                "params":[{"id":0,"ty":fp}],"entry":0,"blocks":[{"id":0,
+                    "instructions":[{"result":{"id":1,"ty":fp},"operation":{"op":"call",
+                        "callee":{"kind":"symbol","ty":pointer,"name":"original_engine"},
+                        "signature":signature,"args":[{"kind":"value","id":0}]}}],
+                    "terminator":{"op":"return","value":{"kind":"value","id":1}}}]})).unwrap());
+        }
+        m.functions = functions;
+        m.provenance.source_function_count = m.functions.len();
+        o_lang::ocore::native_verify::verify(&m).unwrap();
+        m
+    }
+
+    #[test]
+    fn fast_float_provider_joins_actual_cross_unit_shared_transport_not_type_ids() {
+        for (arch, abi) in [
+            ("x86_64", None),
+            ("aarch64", None),
+            ("riscv64", Some("lp64")),
+            ("riscv64", Some("lp64d")),
+        ] {
+            let caller = fast_float_symbol_module(arch, abi, false, false);
+            let provider = fast_float_symbol_module(arch, abi, true, true);
+            let required = symbols("source", &caller)
+                .unwrap()
+                .into_iter()
+                .find(|s| s.name == "original_engine")
+                .unwrap();
+            let supplied = symbols("provider", &provider)
+                .unwrap()
+                .into_iter()
+                .find(|s| s.name == "original_engine")
+                .unwrap();
+            assert!(compatible_symbol_contract(
+                &required.contract,
+                &supplied.contract
+            ));
+            assert!(required.contract["source_fast_float_transport"]["source_abi"].is_null());
+            let requirements = required.contract["source_fast_float_transport"]
+                ["outgoing_requirements"]
+                .as_array()
+                .unwrap();
+            assert_eq!(requirements.len(), 1);
+            assert_eq!(requirements[0]["caller"], "original_caller");
+            assert!(requirements[0]["caller_source_abi"].is_object());
+            assert_eq!(
+                requirements[0]["transport"],
+                supplied.contract["source_fast_float_transport"]["implementation_transport"]
+            );
+            assert_eq!(
+                caller.functions[0].signature.params[0] + 1,
+                provider.functions[0].signature.params[0]
+            );
+        }
+    }
+
+    #[test]
+    fn fast_float_provider_cannot_close_from_declaration_or_missing_or_wrong_transport() {
+        let caller = fast_float_symbol_module("riscv64", Some("lp64"), false, false);
+        let provider = fast_float_symbol_module("riscv64", Some("lp64"), true, true);
+        let required = symbols("source", &caller)
+            .unwrap()
+            .into_iter()
+            .find(|s| s.name == "original_engine")
+            .unwrap()
+            .contract;
+        let supplied = symbols("provider", &provider)
+            .unwrap()
+            .into_iter()
+            .find(|s| s.name == "original_engine")
+            .unwrap()
+            .contract;
+        assert!(compatible_symbol_contract(&required, &supplied));
+        for key in ["source_abi", "implementation_transport"] {
+            let mut mutant = supplied.clone();
+            mutant["source_fast_float_transport"][key] = Value::Null;
+            assert!(!compatible_symbol_contract(&required, &mutant));
+        }
+        let mut declaration = supplied.clone();
+        declaration["source_fast_float_transport"]["definition"] = json!(false);
+        assert!(!compatible_symbol_contract(&required, &declaration));
+        let mut changed = supplied.clone();
+        changed["source_fast_float_transport"]["implementation_transport"]["args"][0]["location"] =
+            json!({"Register":"a0"});
+        assert!(!compatible_symbol_contract(&required, &changed));
+        let mut changed = supplied.clone();
+        changed["source_fast_float_transport"]["original_target_triple"] =
+            json!("riscv64-unknown-linux-musl");
+        assert!(!compatible_symbol_contract(&required, &changed));
+        let mut changed = required.clone();
+        changed["source_fast_float_transport"]["outgoing_requirements"][0]["caller_source_abi"] =
+            Value::Null;
+        assert!(!compatible_symbol_contract(&changed, &supplied));
+    }
+
+    #[test]
+    fn ordinary_c_symbol_contract_remains_exact_without_fast_metadata() {
+        let original = symbol("reference", "plain", false, "external").contract;
+        assert!(compatible_symbol_contract(&original, &original));
+        let mut changed = original.clone();
+        changed["abi"] = json!("fastcc");
+        assert!(!compatible_symbol_contract(&original, &changed));
+        let mut extra = original.clone();
+        extra["source_fast_float_transport"] = json!({});
+        assert!(!compatible_symbol_contract(&original, &extra));
     }
 
     #[test]
@@ -3175,7 +4483,8 @@ mod tests {
                 "semantics":"llvm_defined_behavior_v1","types":types,"globals":[],
                 "functions":[{"name":"engine","linkage":"external",
                     "signature":{"params":[ptr,integer],"result":void,"abi":"c","variadic":false,
-                        "return_storage":{"param":0,"ty":storage}},"params":[],"entry":null,"blocks":[]}],
+                        "return_storage":{"param":0,"ty":storage}},
+                    "params":[{"id":0,"ty":ptr},{"id":1,"ty":integer}],"entry":null,"blocks":[]}],
                 "provenance":{"input_sha256":"0".repeat(64),"frontend":"test","frontend_version":"1",
                     "importer":"test","importer_version":"1","source_function_count":1,"source_global_count":0,"refinements":[]}
             })).unwrap()
@@ -3193,6 +4502,7 @@ mod tests {
         assert_ne!(contract(&first), contract(&erased));
         let mut moved = first.clone();
         moved.functions[0].signature.params = vec![3, 3];
+        moved.functions[0].params[1].ty = 3;
         let original_position = moved.clone();
         moved.functions[0]
             .signature
@@ -3209,6 +4519,164 @@ mod tests {
             .unwrap()
             .ty = 2;
         assert_ne!(contract(&first), contract(&different_storage));
+    }
+
+    fn vector_contract_module(types: Value, layout: &str) -> NativeModule {
+        serde_json::from_value(json!({
+            "format":"ocore-native-module-v1","name":"vector-contract",
+            "target":{"triple":"x86_64-unknown-none","data_layout":layout,
+                "pointer_bits":64,"little_endian":true},
+            "semantics":"llvm_defined_behavior_v1","types":types,"globals":[],"functions":[],
+            "provenance":{"input_sha256":"0".repeat(64),"frontend":"test","frontend_version":"1",
+                "importer":"test","importer_version":"1","source_function_count":0,
+                "source_global_count":0,"refinements":[]}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn vector_type_contract_preserves_kind_length_element_and_normalizes_type_ids() {
+        let module = vector_contract_module(
+            json!([
+                {"kind":"int","bits":64},
+                {"kind":"vector","element":0,"len":2},
+                {"kind":"array","element":0,"len":2},
+                {"kind":"vector","element":0,"len":1},
+                {"kind":"int","bits":32},
+                {"kind":"vector","element":4,"len":2}
+            ]),
+            "e-p:64:64-i64:64",
+        );
+        let contract =
+            |module: &NativeModule, ty| type_contract(module, ty, &mut BTreeSet::new()).unwrap();
+        let selected = contract(&module, 1);
+        assert_eq!(
+            selected,
+            json!({"kind":"vector","len":2,
+            "element":{"kind":"int","bits":64}})
+        );
+        for changed in [2, 3, 5] {
+            assert_ne!(selected, contract(&module, changed));
+        }
+        let reordered = vector_contract_module(
+            json!([
+                {"kind":"vector","element":2,"len":2},
+                {"kind":"void"},{"kind":"int","bits":64}
+            ]),
+            "e-p:64:64-i64:64",
+        );
+        assert_eq!(selected, contract(&reordered, 0));
+    }
+
+    #[test]
+    fn vector_storage_contract_uses_vector_layout_without_scalar_lane_stride() {
+        let module = |layout: &str| {
+            vector_contract_module(
+                json!([
+                    {"kind":"int","bits":64},
+                    {"kind":"vector","element":0,"len":1},
+                    {"kind":"array","element":0,"len":1}
+                ]),
+                layout,
+            )
+        };
+        let contract =
+            |module: &NativeModule, ty| storage_contract(module, ty, &mut BTreeSet::new()).unwrap();
+        let ordinary = module("e-p:64:64-i64:64");
+        let scalar_aligned = module("e-p:64:64-i64:128");
+        let selected = contract(&ordinary, 1);
+        assert_eq!(
+            selected,
+            json!({"shape":{"kind":"vector","len":1,
+            "element":{"kind":"int","bits":64}},"size":8,"alignment":8})
+        );
+        assert_eq!(selected, contract(&scalar_aligned, 1));
+        assert_ne!(contract(&ordinary, 2), contract(&scalar_aligned, 2));
+        assert_ne!(selected, contract(&ordinary, 2));
+        let vector_aligned = module("e-p:64:64-i64:128-v64:256");
+        let overridden = contract(&vector_aligned, 1);
+        assert_eq!(overridden["shape"], selected["shape"]);
+        assert_eq!(overridden["size"], 32);
+        assert_eq!(overridden["alignment"], 32);
+        assert_ne!(overridden, selected);
+        let reordered = vector_contract_module(
+            json!([
+                {"kind":"vector","element":1,"len":1},{"kind":"int","bits":64}
+            ]),
+            "e-p:64:64-i64:128-v64:256",
+        );
+        assert_eq!(overridden, contract(&reordered, 0));
+    }
+
+    #[test]
+    fn vector_dependency_scanner_reaches_every_operand_without_claiming_ir_admission() {
+        use o_lang::ocore::native_ir::{Instruction, Operand, Operation, Terminator};
+        // Scanner-only hostile operands: symbol/block-address aggregates in
+        // integer/vector slots are deliberately not verified native IR. This
+        // checks closure traversal, not source admission or executable behavior.
+        let operand = |name: &str| Operand::Aggregate {
+            ty: 0,
+            elements: vec![
+                Operand::Symbol {
+                    ty: 0,
+                    name: name.into(),
+                },
+                Operand::BlockAddress {
+                    ty: 0,
+                    function: format!("code_{name}"),
+                    block: 7,
+                    addend: 0,
+                },
+            ],
+        };
+        let cases = [
+            (
+                Operation::ExtractElement {
+                    vector: operand("extract_vector"),
+                    index: operand("extract_index"),
+                },
+                vec!["extract_vector", "extract_index"],
+            ),
+            (
+                Operation::InsertElement {
+                    vector: operand("insert_vector"),
+                    value: operand("insert_value"),
+                    index: operand("insert_index"),
+                },
+                vec!["insert_vector", "insert_value", "insert_index"],
+            ),
+            (
+                Operation::VectorReduceAdd {
+                    value: operand("reduce_value"),
+                },
+                vec!["reduce_value"],
+            ),
+        ];
+        for (operation, names) in cases {
+            let mut function = object_inventory_tests::module().functions.remove(0);
+            function.exception_handling = None;
+            function.blocks.truncate(1);
+            function.blocks[0].instructions = vec![Instruction {
+                result: None,
+                operation,
+            }];
+            function.blocks[0].terminator = Terminator::Return { value: None };
+            let (symbols, blocks) = function_dependencies(&function);
+            assert_eq!(
+                symbols,
+                names
+                    .iter()
+                    .map(|name| (*name).to_owned())
+                    .collect::<BTreeSet<_>>()
+            );
+            assert_eq!(
+                blocks,
+                names
+                    .iter()
+                    .map(|name| (format!("code_{name}"), 7))
+                    .collect::<BTreeSet<_>>()
+            );
+        }
     }
 
     #[test]
@@ -3346,6 +4814,7 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run")
@@ -3357,5 +4826,39 @@ mod tests {
         assert_eq!(receipt["lowered_unit_count"], 0);
         assert_eq!(receipt["artifact_complete"], false);
         assert_eq!(receipt["runtime_complete"], false);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn explicitly_selected_python_ignores_hostile_path() {
+        use std::os::unix::fs::PermissionsExt;
+        let python = which::which("python3").expect("Python required by capture admission");
+        let python = python.canonicalize().unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let sentinel = directory.path().join("python3");
+        fs::write(&sentinel, "#!/bin/sh\nexit 97\n").unwrap();
+        fs::set_permissions(&sentinel, fs::Permissions::from_mode(0o755)).unwrap();
+        let default = Command::new("python3")
+            .env("PATH", directory.path())
+            .args(["-I", "-c", "raise SystemExit(0)"])
+            .status()
+            .unwrap();
+        assert_eq!(
+            default.code(),
+            Some(97),
+            "hostile PATH control did not fire"
+        );
+        let selected = python_command(&python)
+            .env("PATH", directory.path())
+            .args(["-c", "import sys; print(sys.executable)"])
+            .output()
+            .unwrap();
+        assert!(selected.status.success(), "{:?}", selected);
+        assert_eq!(
+            Path::new(String::from_utf8(selected.stdout).unwrap().trim())
+                .canonicalize()
+                .unwrap(),
+            python
+        );
     }
 }

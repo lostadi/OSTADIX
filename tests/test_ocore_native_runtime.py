@@ -152,7 +152,29 @@ else:
         self.assertEqual(result.returncode == 0,expect_success,result.stdout+result.stderr+json.dumps(receipt,indent=2))
         for field in ("runtime_complete","native_execution_qualified","dependency_closure_complete","artifact_complete","link_performed"):
             self.assertFalse(receipt[field],field)
+        if expect_success:
+            self.assert_retained_lowering_commands(receipt,kind)
         return receipt,output
+
+    def assert_retained_lowering_commands(self,receipt,kind):
+        for unit in receipt["units"]:
+            if not unit["required_for_lowering"]:
+                for field in ("import_argv","verify_argv","emit_argv"):
+                    self.assertNotIn(field,unit,"excluded units must not claim an attempted command")
+                continue
+            module = Path(unit["module"]["path"])
+            self.assertEqual(unit.get("verification_mode"),"subprocess")
+            self.assertEqual(unit.get("verify_argv"),[
+                str(module),"--input-kind","native-ir","--verify-native",
+                "--receipt",str(module.with_name("verification.json")),
+            ],"a newly built compiler must retain the exact attempted verification arguments")
+            if kind == "obj":
+                self.assertEqual(unit.get("emit_argv"),[
+                    str(module),"--input-kind","native-ir","--emit","obj",
+                    "--target",self.native_target,"-o",str(module.with_name("module.o")),
+                ],"a newly built compiler must retain the exact attempted emission arguments")
+            else:
+                self.assertNotIn("emit_argv",unit,"IR output must not claim object emission")
 
     def rejected_preflight(self):
         receipt,_ = self.lower()
@@ -160,6 +182,9 @@ else:
         self.assertFalse(receipt["module_set_complete"])
         self.assertEqual(receipt["lowered_unit_count"],0)
         self.assertTrue(receipt["issues"])
+        for unit in receipt["units"]:
+            for field in ("import_argv","verify_argv","emit_argv"):
+                self.assertNotIn(field,unit,"failed admission must not claim an attempted command")
 
     def test_actual_capture_to_verified_ir_retains_unused_runtime_and_excluded_probe(self):
         receipt,output = self.lower(expect_success=True)
@@ -229,6 +254,16 @@ else:
             self.assertFalse(record["source_capture_reverification_performed"])
             self.assertTrue(record["unit_lowering_complete"])
             self.assertTrue(record["native_module_dependency_closure_complete"])
+            self.assertEqual(record.get("compiler"),str(self.ocorec))
+            for unit in record["units"]:
+                module = Path(unit["module"]["path"])
+                self.assertEqual(unit.get("verification_mode"),"in_process")
+                self.assertNotIn("verify_argv",unit,"in-process verification has no subprocess arguments")
+                self.assertNotIn("import_argv",unit,"native module-set readmission has no LLVM import")
+                self.assertEqual(unit.get("emit_argv"),[
+                    str(module),"--input-kind","native-ir","--emit","obj",
+                    "--target",self.native_target,"-o",str(module.with_name("module.o")),
+                ],"a newly built compiler must retain public readmission emission arguments")
             objects = list(reused.glob("unit-*/module.o"))
             self.assertEqual(len(objects),1)
             self.assertEqual(objects[0].read_bytes()[:4],b"\x7fELF")

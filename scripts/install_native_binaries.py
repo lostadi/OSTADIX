@@ -20,6 +20,8 @@ RUST_TOOLS = (
     "o-live-host", "o-node", "octl", "o-registry", "o-info", "ostadix-device",
     "ocore-kernel-world-record",
 )
+RUNTIME_TOOLS = ("O", "o-cli", "olangc", "ocorec")
+
 NATIVE_MAGICS = {b"\x7fELF", b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe",
                  b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe",
                  b"\xbe\xba\xfe\xca", b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca"}
@@ -66,17 +68,19 @@ def executable(directory: Path, name: str) -> Path:
 
 
 def install(repo: Path, build: Path, destination: Path, *, front_door_only: bool = False,
-            include_c: bool = False, include_notebook: bool = False, include_workspace_tools: bool = False, c_build_dir: Path | None = None,
+            runtime_only: bool = False, include_c: bool = False, include_notebook: bool = False, include_workspace_tools: bool = False, c_build_dir: Path | None = None,
             dry_run: bool = False) -> list[str]:
     repo, build = repo.resolve(), build.resolve()
     destination = destination.absolute()
-    names = ("O", "o-cli") if front_door_only else RUST_TOOLS
+    if runtime_only and (front_door_only or include_c or include_notebook or include_workspace_tools):
+        raise ValueError("runtime-only cannot include alternate editions or optional tools")
+    names = RUNTIME_TOOLS if runtime_only else (("O", "o-cli") if front_door_only else RUST_TOOLS)
     def copy_pair(directory, name, alias=None):
         source = executable(directory, name)
         suffix = ".exe" if source.suffix.lower() == ".exe" else ""
         return source, destination / f"{alias or name}{suffix}"
     copies = [copy_pair(build, name) for name in names]
-    if not front_door_only and (include_notebook or executable(build, "o-notebook").is_file()):
+    if not front_door_only and not runtime_only and (include_notebook or executable(build, "o-notebook").is_file()):
         copies.append(copy_pair(build, "o-notebook"))
     if not front_door_only and include_workspace_tools:
         copies.append(copy_pair(build, "ostadix"))
@@ -113,7 +117,10 @@ def install(repo: Path, build: Path, destination: Path, *, front_door_only: bool
     descriptor, temporary = tempfile.mkstemp(prefix=".ostadix-install.", dir=destination)
     try:
         with os.fdopen(descriptor, "w") as stream:
-            json.dump({"schema": 1, "repo_root": str(repo), "backends_dir": str(repo / "backends")}, stream, indent=2)
+            metadata_value = {"schema": 1, "repo_root": str(repo), "backends_dir": str(repo / "backends")}
+            if runtime_only:
+                metadata_value["profile"] = "runtime-only"
+            json.dump(metadata_value, stream, indent=2)
             stream.write("\n")
         os.chmod(temporary, 0o644)
         os.replace(temporary, metadata)
@@ -128,6 +135,7 @@ def main() -> int:
     parser.add_argument("--build-dir", type=Path)
     parser.add_argument("--bin-dir", type=Path, required=True)
     parser.add_argument("--front-door-only", action="store_true")
+    parser.add_argument("--runtime-only", action="store_true", help="install only O, o-cli, olangc, ocorec and native aliases")
     parser.add_argument("--include-c", action="store_true")
     parser.add_argument("--c-build-dir", type=Path, help="C Make/CMake build directory (default: REPO/c_cpp)")
     parser.add_argument("--include-notebook", action="store_true")
@@ -136,7 +144,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         for line in install(args.repo_root, args.build_dir or args.repo_root / "target/release",
-                            args.bin_dir, front_door_only=args.front_door_only,
+                            args.bin_dir, front_door_only=args.front_door_only, runtime_only=args.runtime_only,
                             include_c=args.include_c, include_notebook=args.include_notebook,
                             include_workspace_tools=args.include_workspace_tools,
                             c_build_dir=args.c_build_dir, dry_run=args.dry_run):

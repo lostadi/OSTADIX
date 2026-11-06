@@ -1,5 +1,5 @@
-// Binary128 storage is not a first-class floating-point realization. This
-// audit runs before leaf expansion or emission, including dead SSA values.
+// Audit supported scalar FP storage before executable leaf expansion.
+// Scalar values keep exact bits; FP-containing aggregate SSA stays gated.
 use super::{error_diagnostic, type_layouts, Diagnostic, Initializer, NativeModule, Type, TypeId};
 
 fn failure(message: &str) -> Diagnostic {
@@ -11,7 +11,9 @@ pub(super) fn audit(module: &NativeModule, executable: &[TypeId]) -> Result<(), 
     let mut pending = Vec::new();
     for (id, ty) in module.types.iter().enumerate() {
         match ty {
-            Type::Float { bits: 128 } => pending.push(id),
+            Type::Float {
+                bits: 32 | 64 | 80 | 128,
+            } => pending.push(id),
             Type::Struct { fields, .. } => {
                 for field in fields {
                     parents[*field].push(id);
@@ -26,8 +28,24 @@ pub(super) fn audit(module: &NativeModule, executable: &[TypeId]) -> Result<(), 
     }
     let layouts = type_layouts(module)?;
     for id in &pending {
-        if layouts[*id] != Some((16, 16)) {
-            return Err(failure("requires exactly 16-byte ABI size and alignment"));
+        let Type::Float { bits } = module.types[*id] else {
+            unreachable!()
+        };
+        if bits == 80 && module.target.triple.split('-').next() != Some("x86_64") {
+            return Err(failure("x86_fp80 requires the x86-64 execution profile"));
+        }
+        let expected = match bits {
+            32 => (4, 4),
+            64 => (8, 8),
+            80 | 128 => (16, 16),
+            _ => unreachable!(),
+        };
+        if layouts[*id] != Some(expected) {
+            return Err(failure(if bits >= 80 {
+                "requires exactly 16-byte ABI size and alignment"
+            } else {
+                "scalar floating ABI size/alignment differs from the execution profile"
+            }));
         }
     }
     let mut containing = vec![false; module.types.len()];
@@ -39,8 +57,11 @@ pub(super) fn audit(module: &NativeModule, executable: &[TypeId]) -> Result<(), 
     }
     // Include every executable type root and its complete structural contract,
     // even a zero-length array or an instruction whose result has no uses.
-    if executable.iter().any(|id| containing[*id]) {
-        return Err(failure("first-class SSA and ABI values are unsupported, including nested aggregates and zero-length arrays"));
+    if executable
+        .iter()
+        .any(|id| containing[*id] && !matches!(module.types[*id], Type::Float { .. }))
+    {
+        return Err(failure("first-class FP aggregate SSA and ABI values are unsupported, including nested aggregates and zero-length arrays"));
     }
     for global in &module.globals {
         if !containing[global.ty] {
@@ -116,23 +137,20 @@ fn audit_initializer(
             continue;
         }
         match &module.types[ty] {
-            Type::Float { bits: 128 } => {
+            Type::Float { bits } => {
                 let end = offset
-                    .checked_add(16)
+                    .checked_add(u64::from(bits.div_ceil(8)))
                     .ok_or_else(|| failure("storage extent overflow"))?;
                 let start = usize::try_from(offset)
                     .map_err(|_| failure("storage offset exceeds address space"))?;
                 let end_index = usize::try_from(end)
                     .map_err(|_| failure("storage extent exceeds address space"))?;
-                let bytes = initializer
+                initializer
                     .bytes
                     .get(start..end_index)
-                    .ok_or_else(|| failure("binary128 initializer extent is missing"))?;
-                if bytes.iter().any(|byte| *byte != 0) {
-                    return Err(failure(
-                        "initializer requires exact positive-zero binary128 bytes",
-                    ));
-                }
+                    .ok_or_else(|| failure("floating initializer extent is missing"))?;
+                // Every exact IEEE/x87 payload, including NaNs and negative
+                // zero, is data. Never round through the compiler host's f64.
                 for relocation in &initializer.relocations {
                     let relocation_end = relocation
                         .offset
@@ -184,8 +202,10 @@ fn audit_initializer(
 
 #[cfg(test)]
 mod tests {
+    use super::super::{
+        emit, emit_with_map, Instruction, Operand, Operation, Relocation, Target, Value, FORMAT,
+    };
     use super::*;
-    use super::super::{emit, emit_with_map, Instruction, Operand, Operation, Relocation, Target, Value, FORMAT};
     use serde_json::json;
 
     fn module(triple: &str) -> NativeModule {
@@ -242,9 +262,20 @@ mod tests {
     }
 
     #[test]
-    fn dead_first_class_values_nested_zero_arrays_and_unused_abi_are_rejected() {
+    fn scalar_freeze_preserves_both_words_while_nested_aggregate_ssa_is_rejected() {
         for (target, triple) in targets() {
-            for ty in [3, 4, 5] {
+            let mut scalar = module(triple);
+            scalar.functions[0].blocks[0]
+                .instructions
+                .push(Instruction {
+                    result: Some(Value { id: 0, ty: 3 }),
+                    operation: Operation::Freeze {
+                        value: Operand::Undef { ty: 3 },
+                    },
+                });
+            let assembly = emit(&scalar, target).unwrap();
+            assert!(assembly.contains("entry:"));
+            for ty in [4, 5] {
                 let mut module = module(triple);
                 module.functions[0].blocks[0]
                     .instructions
@@ -257,7 +288,9 @@ mod tests {
                 super::super::super::native_verify::verify(&module).unwrap();
                 let error = emit(&module, target).unwrap_err();
                 assert!(
-                    error.message.contains("first-class SSA and ABI"),
+                    error
+                        .message
+                        .contains("first-class FP aggregate SSA and ABI"),
                     "{}",
                     error.message
                 );
@@ -272,15 +305,13 @@ mod tests {
     }
 
     #[test]
-    fn nonzero_float_fields_and_relocations_cannot_hide_among_integer_bytes() {
+    fn exact_nonzero_float_fields_are_preserved_and_relocations_remain_checked() {
         for (target, triple) in targets() {
             for offset in [16, 32, 48] {
                 let mut module = module(triple);
                 module.globals[0].initializer.as_mut().unwrap().bytes[offset] = 1;
-                assert!(emit(&module, target)
-                    .unwrap_err()
-                    .message
-                    .contains("positive-zero"));
+                let assembly = emit(&module, target).unwrap();
+                assert!(assembly.contains("  .byte 1\n"));
             }
             let mut module = module(triple);
             module.globals[0]
@@ -294,6 +325,7 @@ mod tests {
                     symbol: "storage".into(),
                     addend: 0,
                     relative_to: None,
+                    block: None,
                 });
             assert!(emit(&module, target).is_err());
         }

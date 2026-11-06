@@ -1,0 +1,94 @@
+{
+  "schema": "ostadix.watcher-snapshot/v1",
+  "snapshot_id": "protocol-fixture-only",
+  "captured_at_unix_ms": 2000,
+  "producer": {
+    "id": "test-fixture-exporter",
+    "revision": "fixture-not-device-telemetry"
+  },
+  "scope": {
+    "device_id": "fixture-device",
+    "window_start_unix_ms": 1000,
+    "window_end_unix_ms": 1800
+  },
+  "measurements": [
+    {
+      "id": "measurement-1",
+      "observed_at_unix_ms": 1100,
+      "subject": "fixture-worker",
+      "metric": "cpu",
+      "value": 0.8,
+      "unit": "ratio",
+      "method": "Fabricated protocol fixture, not an actual CPU measurement",
+      "evidence": {
+        "reference": "fixture:measurement-placeholder",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "finding-1",
+      "interpreted_at_unix_ms": 1200,
+      "measurement_ids": ["measurement-1"],
+      "interpretation": "Fixture incident candidate, not a real model result",
+      "method": {"kind": "model", "id": "fixture-model", "revision": "test-only"},
+      "decision": "alert"
+    },
+    {
+      "id": "finding-2",
+      "interpreted_at_unix_ms": 1201,
+      "measurement_ids": ["measurement-1"],
+      "interpretation": "Fixture false alarm",
+      "method": {"kind": "rule", "id": "fixture-rule", "revision": "test-only"},
+      "decision": "alert"
+    },
+    {
+      "id": "finding-3",
+      "interpreted_at_unix_ms": 1202,
+      "measurement_ids": ["measurement-1"],
+      "interpretation": "Fixture abstention: insufficient evidence",
+      "method": {"kind": "model", "id": "fixture-model", "revision": "test-only"},
+      "decision": "abstain"
+    }
+  ],
+  "proposed_actions": [
+    {
+      "id": "proposal-1",
+      "proposed_at_unix_ms": 1300,
+      "finding_ids": ["finding-1"],
+      "proposal": "Inspect the fixture worker; no execution is requested",
+      "proposer": {"kind": "human", "id": "fixture-reviewer", "revision": "test-only"},
+      "state": "proposed"
+    }
+  ],
+  "qualification": {
+    "corpus_id": "protocol-fixture-only-window",
+    "reviewed_at_unix_ms": 1900,
+    "reviewed_by": "fixture-reviewer",
+    "method": "Fabricated labels to exercise accounting, not a watcher qualification",
+    "ground_truth_complete": true,
+    "ground_truth_incidents": [
+      {
+        "id": "incident-1",
+        "observed_at_unix_ms": 1100,
+        "evidence": {
+          "reference": "fixture:incident-1-placeholder",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      {
+        "id": "incident-2",
+        "observed_at_unix_ms": 1500,
+        "evidence": {
+          "reference": "fixture:incident-2-placeholder",
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      }
+    ],
+    "finding_reviews": [
+      {"finding_id": "finding-1", "classification": "true_positive", "incident_id": "incident-1"},
+      {"finding_id": "finding-2", "classification": "false_alarm", "incident_id": null}
+    ]
+  }
+}
