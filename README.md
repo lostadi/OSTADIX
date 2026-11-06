@@ -8,6 +8,10 @@
 
 The canonical repository for Ostadix-lang and O-core:
 [lostadi/OSTADIX](https://github.com/lostadi/OSTADIX).
+Development also takes place in
+[lostadi/ostadix-BM](https://github.com/lostadi/ostadix-BM). These are development
+lines of the same system. Identify a build by its repository and exact commit;
+the shared package version alone does not identify the source it contains.
 
 [![CI](https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml/badge.svg)](https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml)
 [![Parser fuzz campaign](https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml/badge.svg)](https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml)
@@ -45,6 +49,8 @@ and writes the rendered Markdown.
 | Your goal | Start here |
 |---|---|
 | Build and use it | [Quickstart](#quickstart), then the [literate report source](examples/literate_report.O) and [human/LLM workflow guide](docs/HUMAN_LLM_WORKFLOWS.md). |
+| Compile native computation | [O-core](#o-core-native-systems-language) for `.oc` source, typed MIR, and freestanding target objects. |
+| Compile original runtime components through O-core | [Source recipes](tools/ocore-runtime/README.md), then the [original u9fs/musl component](tools/ocore-runtime/u9fs/README.md) for a concrete native integration. |
 | Boot the interactive O-Kernel system | [Boot guide](boot/README.md): prepare its persistent native-codec state, then run `./boot/boot.sh` or `./boot-and-test.sh kernel`. |
 | Evaluate the research | [Technical whitepaper](Ostadix-lang_Technical_Whitepaper.pdf), [language specification](SPEC.md), and [claim/evidence index](docs/CLAIMS.md). |
 | Contribute to the runtime | [Architecture](ARCHITECTURE.md) and [development guide](DEVELOPMENT.md). |
@@ -94,6 +100,30 @@ the architecture-specific resource and virtualization substrate. A governed
 **World** names the distributed identity, resource, namespace, and execution
 ontology. The first integrated-system release that satisfies the G0 through
 G13 qualification gates is named **OSTADIX Alpha**.
+
+### The system I am building
+
+The nesting is the interface. I want the whole computation to remain visible:
+the original language, its evaluator, the values crossing the boundary, the
+resources it needs, and the execution that actually took place. O orchestration
+and O-core carry that structure from a composed program toward native execution.
+
+My compiler objective is to compile existing runtime and compiler
+implementations through O-core while preserving their original semantics.
+`olangc` should own the source recipe, frontend invocation, import, verification,
+ABI adaptation, dependencies, and final artifact. The result must contain the
+complete declared implementation and dependency closure, with the `.O` program
+and foreign scripts it executes. This objective includes x86-64, AArch64, and
+RV64GC; each execution profile needs its own evidence.
+
+The current [source-recipe interface](tools/ocore-runtime/README.md) connects
+declared original builds to capture, import, and native lowering. The
+[u9fs/musl integration](tools/ocore-runtime/u9fs/NATIVE_PEER.md) is a concrete
+component path: original codec and memory/string implementations become native
+O-core objects used by the monitor's 9P peer. Complete general runtime and
+compiler support remains the objective. Capturing an engine's source build,
+lowering selected modules, and qualifying that complete engine are separate
+results, and I keep them separate in the evidence.
 
 ### Read the technical artifact set
 
@@ -617,12 +647,39 @@ Choose the next path according to what you want to inspect:
 | Authenticated pure Execution Fabric M3 | Experimental same-host, two-real-process proof; coordinator-only graph authority |
 | Project lifting, route execution, and live supervision | Experimental integration |
 | O-core compiler and OKernel gates | Bounded research implementation; see exact QEMU nonclaims |
+| Original runtime source recipes and native components | Compiler-owned capture/import/lowering with explicit dependency closure; qualified components have their own receipts and tests |
+| Persistent O-core monitor package profile | AArch64 QEMU integration with original Linux/Alpine userspace, native u9fs/musl codecs, shared namespace, mediated networking, and saved disk/namespace state |
 | O-Machine and elastic governed World | Research direction with bounded offline records and milestone proofs |
 
 Experimental surfaces have executable implementations and tests. Their
 compatibility, operational, and distributed guarantees are still being
 hardened around the supported hosted core. See
 [claims and evidence](docs/CLAIMS.md) for the exact qualification boundary.
+
+### Boot the current integrated profile
+
+The normal [boot entry](boot/README.md) opens the persistent AArch64 O-core
+monitor profile. Original Linux and Alpine provide its shell, package manager,
+compiler tools, and guest programs. O-core mediates the virtual devices and
+runs the native namespace peer; the original u9fs/musl codecs in that peer are
+compiled through O-core. The shared store is mounted at `/n/okernel`.
+
+Follow the boot guide to prepare a new state from an existing verified saved
+generation or from pinned source inputs. Once that state is prepared:
+
+```sh
+./boot/boot.sh doctor
+./boot/boot.sh
+```
+
+`Ctrl+]` requests a coordinated save of the guest disk and native namespace
+before exit. The separate native x86-64 console and baseline profiles remain
+available through `./boot/boot.sh native` and `./boot/boot.sh baseline`.
+Linux still executes as a guest in the integrated profile. Its working shell
+and packages establish that guest integration; complete Linux or Plan 9 kernel
+lowering and physical hardware qualification require their own implementations
+and evidence. See the [package-system contract](docs/OKERNEL_PACKAGE_BOOT.md)
+and [native codec qualification](tools/ocore-runtime/u9fs/NATIVE_PEER.md).
 
 ### Experimental operation and realization planning
 
@@ -3086,8 +3143,12 @@ package; the release CLI contract may compile generated projects in temporary
 directories:
 
 ```bash
-# Interpreter smoke; expect [number] 2
+# Minimal hosted smoke; expect [number] 2
+o eval 'python^( __oval_result__ = 1 + 1 )_python'
+
+# Three-language greeting; requires Python, Common Lisp, and JavaScript engines
 O examples/hello.O "$PWD/backends"
+# hello from Python and Lisp and JavaScript!
 
 # Compiled compatibility coordinates; descriptive, not a runtime inventory
 O version --json
