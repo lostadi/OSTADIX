@@ -4,6 +4,7 @@ import fcntl
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -124,6 +125,58 @@ class SavedStateForkTests(unittest.TestCase):
         self.assertFalse((self.output / "head.json").exists())
         self.assertFalse(json.loads((self.output / "fork.json").read_text())["ok"])
         self.assertEqual((self.source / "head.json").read_bytes(), self.before)
+
+    def native_codec(self):
+        from tests.test_okernel_native_codec import NativeCodecAdmissionTests
+        fixture = NativeCodecAdmissionTests("test_captures_exact_objects_and_receipts")
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        captured = forker.codec.stage(fixture.path, self.source / "monitor")
+        self.profile["native_9p_codec"] = captured
+        (self.source / "monitor/monitor-profile.json").write_text(json.dumps(self.profile))
+        return fixture, captured
+
+    @unittest.skipUnless(shutil.which("clang") and shutil.which("nm"), "native snapshot fixture requires clang/nm")
+    def test_native_codec_fork_remains_valid_without_source_or_producer_paths(self):
+        fixture, captured = self.native_codec()
+        manifest_bytes = Path(captured["captured_manifest"]["path"]).read_bytes()
+        forker.fork(self.source, self.output)
+        profile = json.loads((self.output / "monitor/monitor-profile.json").read_text())
+        relocated = profile["native_9p_codec"]
+        self.assertEqual(json.loads((self.output / "monitor/native-9p.json").read_text()), relocated)
+        self.assertEqual(relocated["source_manifest"], captured["source_manifest"])
+        self.assertEqual([r["source"] for r in relocated["receipts"]],
+                         [r["source"] for r in captured["receipts"]])
+        self.assertEqual(Path(relocated["captured_manifest"]["path"]).read_bytes(), manifest_bytes)
+        self.source.rename(self.area / "source-unavailable")
+        fixture.root.rename(self.area / "producer-unavailable")
+        verified = forker.codec.validate_capture(relocated, self.output / "monitor")
+        self.assertEqual(len(verified["objects"]), 7)
+        for group in (relocated["objects"], [relocated["captured_manifest"]],
+                      [r["snapshot"] for r in relocated["receipts"]],
+                      [r["snapshot"] for r in relocated["semantic_evidence"]]):
+            for item in group:
+                self.assertTrue(Path(item["path"]).is_relative_to(self.output / "monitor"))
+                forker.runner.checked_file(Path(item["path"]), item)
+        forker.runner.validate_head(self.output, json.loads((self.output / "head.json").read_text()))
+
+    @unittest.skipUnless(shutil.which("clang") and shutil.which("nm"), "native snapshot fixture requires clang/nm")
+    def test_native_codec_tampering_rejects_before_publishing_fork(self):
+        _, captured = self.native_codec()
+        path = Path(captured["objects"][0]["path"])
+        path.chmod(0o644)
+        path.write_bytes(path.read_bytes() + b"tampered")
+        with self.assertRaisesRegex(ValueError, "identity|changed"):
+            forker.fork(self.source, self.output)
+        self.assertFalse(self.output.exists())
+
+    @unittest.skipUnless(shutil.which("clang") and shutil.which("nm"), "native snapshot fixture requires clang/nm")
+    def test_native_codec_sidecar_must_match_selected_monitor_profile(self):
+        self.native_codec()
+        (self.source / "monitor/native-9p.json").write_text("{}\n")
+        with self.assertRaisesRegex(ValueError, "differs from its monitor profile"):
+            forker.fork(self.source, self.output)
+        self.assertFalse(self.output.exists())
 
 
 if __name__ == "__main__":

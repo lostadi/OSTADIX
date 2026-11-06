@@ -134,6 +134,23 @@ class NativeCodecAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "recorded successful"):
             codec.validate(self.path, "aarch64")
 
+    def test_captured_closure_rejects_external_paths_even_for_matching_bytes(self):
+        build = self.root / "build"
+        captured = codec.stage(self.path, build)
+        codec.validate_capture(captured, build)
+        captured["objects"][0] = self.manifest["objects"][0]
+        with self.assertRaisesRegex(ValueError, "escaped"):
+            codec.validate_capture(captured, build)
+
+    def test_captured_receipt_tampering_is_not_hidden_by_available_producer(self):
+        build = self.root / "build"
+        captured = codec.stage(self.path, build)
+        receipt = Path(captured["receipts"][0]["snapshot"]["path"])
+        receipt.chmod(0o644)
+        receipt.write_bytes(receipt.read_bytes() + b" ")
+        with self.assertRaisesRegex(ValueError, "identity|changed"):
+            codec.validate_capture(captured, build)
+
     def test_optional_profile_requires_native_namespace(self):
         import os
         for profile, namespace in (("withdrawal", "0"), ("package-domain", "0")):

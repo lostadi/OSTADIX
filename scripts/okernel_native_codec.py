@@ -46,15 +46,15 @@ def key(record: dict) -> tuple:
     return record["path"], record["bytes"], record["sha256"]
 
 
-def json_record(record: dict) -> tuple[dict, bytes]:
-    _, data = checked(record)
+def json_record(record: dict, resolver=checked) -> tuple[dict, bytes]:
+    _, data = resolver(record)
     result = json.loads(data)
     if not isinstance(result, dict):
         raise ValueError("native codec receipt must be an object")
     return result, data
 
 
-def validate(manifest_path: Path, isa: str) -> dict:
+def validate(manifest_path: Path, isa: str, *, resolver=checked) -> dict:
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise ValueError("native codec manifest must be a regular file")
     manifest_bytes = manifest_path.read_bytes()
@@ -76,7 +76,7 @@ def validate(manifest_path: Path, isa: str) -> dict:
     module_ids = {key(item) for item in manifest["native_module_sets"]}
     bound_coverage = []
     for item in manifest["source_recipe_receipts"]:
-        value, data = json_record(item)
+        value, data = json_record(item, resolver)
         if value.get("schema") != "ocore-native-source-recipe-v1" or value.get("stage") != "complete" or value.get("requested_target") != isa + "-unknown-none" or value.get("output_kind") != "obj" or not all(value.get(name) is True for name in ("success", "capture_complete", "lowering_complete")):
             raise ValueError("native source recipe did not complete for the selected target")
         if key(value["lowering_receipt"]) not in coverage_ids:
@@ -87,7 +87,7 @@ def validate(manifest_path: Path, isa: str) -> dict:
         raise ValueError("both native source recipe chains must bind distinct coverage receipts")
     bound_modules = []
     for item in manifest["coverage_receipts"]:
-        value, data = json_record(item)
+        value, data = json_record(item, resolver)
         if value.get("schema") != "ocore-runtime-lowering-v1" or value.get("architecture") != isa or value.get("requested_target") != isa + "-unknown-none" or value.get("output_kind") != "obj" or not all(value.get(name) is True for name in ("capture_complete", "module_set_complete", "native_module_dependency_closure_complete", "symbol_closure_complete")):
             raise ValueError("native coverage/module dependency closure is incomplete")
         if key(value["module_set_artifact"]) not in module_ids:
@@ -103,7 +103,7 @@ def validate(manifest_path: Path, isa: str) -> dict:
     if Counter(covered) != Counter(key(item) for item in manifest["objects"]) or len(set(covered)) != 7:
         raise ValueError("native objects differ from compiler-owned lowered unit identities")
     for item in manifest["native_module_sets"]:
-        value, data = json_record(item)
+        value, data = json_record(item, resolver)
         if value.get("format") != "ocore-native-module-set-v1":
             raise ValueError("invalid native module-set artifact")
         receipts.append((item, data))
@@ -113,9 +113,9 @@ def validate(manifest_path: Path, isa: str) -> dict:
     evidence = []
     for name in ("binary", "harness", "carrier"):
         item = semantic[name]
-        _, data = checked(item)
+        _, data = resolver(item)
         evidence.append((item, data))
-    commands, command_bytes = json_record(manifest["commands"])
+    commands, command_bytes = json_record(manifest["commands"], resolver)
     marker = semantic.get("stdout")
     if not isinstance(marker, str) or "Original u9fs and musl via O-core: PASS; checks=" not in marker or not any(
             record.get("exit_code") == 0 and record.get("stdout") == marker
@@ -127,7 +127,7 @@ def validate(manifest_path: Path, isa: str) -> dict:
     machine = {"x86_64": 62, "aarch64": 183}[isa]
     definitions, undefined = [], set()
     for item in manifest["objects"]:
-        path, data = checked(item)
+        path, data = resolver(item)
         if len(data) < 64 or data[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<HH", data, 16) != (1, machine):
             raise ValueError("native object is not relocatable ELF64 for the selected ISA")
         # Inspect the exact frozen bytes, not a source path that could change
@@ -148,6 +148,67 @@ def validate(manifest_path: Path, isa: str) -> dict:
     if set(definitions) != SYMBOLS or len(definitions) != len(SYMBOLS) or undefined - set(definitions):
         raise ValueError("actual native object symbols do not form the exact closed codec component")
     return {"manifest": manifest, "manifest_bytes": manifest_bytes, "manifest_identity": identity(manifest_path, manifest_bytes), "objects": objects, "receipts": receipts, "evidence": evidence}
+
+
+def validate_capture(capture: dict, build: Path) -> dict:
+    """Revalidate a staged closure using only its local captured bytes.
+
+    Original paths inside immutable manifests/receipts are provenance keys.
+    They resolve exclusively to the checked snapshots, so a prepared state can
+    be forked and run independently of its producer checkout and cache.
+    """
+    if (not isinstance(capture, dict)
+            or capture.get("schema") != "ostadix.monitor-native-u9fs/v1"
+            or capture.get("isa") not in {"x86_64", "aarch64"}
+            or capture.get("abi") != ABI or set(capture.get("symbols", [])) != SYMBOLS):
+        raise ValueError("invalid captured native codec profile")
+    build = build.resolve(strict=True)
+    snapshots = {}
+
+    def bind(original, snapshot):
+        path = Path(snapshot["path"])
+        if (not path.is_absolute() or ".." in path.parts
+                or not path.is_relative_to(build)):
+            raise ValueError("captured native codec escaped its monitor directory")
+        current = build
+        for part in path.relative_to(build).parts:
+            current /= part
+            if current.is_symlink():
+                raise ValueError("captured native codec contains a symlink")
+        _, data = checked(snapshot)
+        if (snapshot["bytes"], snapshot["sha256"]) != (original["bytes"], original["sha256"]):
+            raise ValueError("captured native codec differs from its source identity")
+        snapshots[key(original)] = (path, data)
+
+    bind(capture["source_manifest"], capture["captured_manifest"])
+    manifest_path = Path(capture["captured_manifest"]["path"])
+    manifest = json.loads(snapshots[key(capture["source_manifest"])][1])
+    if not isinstance(manifest, dict):
+        raise ValueError("captured native codec manifest must be an object")
+    originals = manifest.get("objects", [])
+    if len(originals) != 7 or len(capture.get("objects", [])) != 7:
+        raise ValueError("captured native codec needs seven objects")
+    for original, snapshot in zip(originals, capture["objects"]):
+        bind(original, snapshot)
+    for group, count in (("receipts", 6), ("semantic_evidence", 4)):
+        if len(capture.get(group, [])) != count:
+            raise ValueError("captured native codec lacks its complete receipt/evidence snapshots")
+        for item in capture[group]:
+            bind(item["source"], item["snapshot"])
+    expected = [capture["source_manifest"], *originals,
+                *manifest["source_recipe_receipts"], *manifest["coverage_receipts"],
+                *manifest["native_module_sets"], manifest["commands"],
+                *[manifest["semantic_test"][name] for name in ("binary", "harness", "carrier")]]
+    if set(snapshots) != {key(item) for item in expected}:
+        raise ValueError("captured native codec snapshot membership differs from its manifest")
+
+    def resolve(record):
+        try:
+            return snapshots[key(record)]
+        except KeyError as error:
+            raise ValueError("native codec dependency has no captured snapshot") from error
+
+    return validate(manifest_path, capture["isa"], resolver=resolve)
 
 
 def stage(manifest_path: Path, build: Path, isa: str = "aarch64") -> dict:

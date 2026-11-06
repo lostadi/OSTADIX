@@ -25,7 +25,7 @@ only its monitor. The destination must not already exist. A fork captures the
 selected saved checkpoint; it does not capture unsaved guest changes.
 
 ```sh
-cd /home/ustad/ostadix-BM
+cd /path/to/OSTADIX
 u9fs_state="$HOME/ok-u9fs/package-domain"
 u9fs_manifest=/absolute/path/to/aarch64-output/native-codec.json
 

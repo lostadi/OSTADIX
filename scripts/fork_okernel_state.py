@@ -20,6 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("okernel_fork_runner", ROOT / "scripts/okernel_package_domain.py")
 runner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(runner)
+CODEC_SPEC = importlib.util.spec_from_file_location("okernel_fork_codec", ROOT / "scripts/okernel_native_codec.py")
+codec = importlib.util.module_from_spec(CODEC_SPEC)
+CODEC_SPEC.loader.exec_module(codec)
 
 
 def clone_file(source: Path, target: Path, expected: dict, *, immutable: bool = True) -> dict:
@@ -56,6 +59,14 @@ def fork(source: Path, output: Path) -> dict:
     profile = json.loads(profile_bytes)
     disk = runner.validate_head(source, head)
     runner.validate_profile(profile)
+    native_codec = profile.get("native_9p_codec")
+    if native_codec is not None:
+        codec.validate_capture(native_codec, source / "monitor")
+        captured_profile = source / "monitor/native-9p.json"
+        if captured_profile.is_symlink() or not captured_profile.is_file():
+            raise ValueError("native codec snapshot metadata must be a regular file")
+        if json.loads(captured_profile.read_bytes()) != native_codec:
+            raise ValueError("native codec snapshot metadata differs from its monitor profile")
     if disk["bytes"] != profile["backing_bytes"]:
         raise ValueError("saved root disk and prepared monitor grant disagree")
     if head.get("namespace") is not None and profile.get("namespace_grant") != runner.NAMESPACE_GRANT:
@@ -89,6 +100,22 @@ def fork(source: Path, output: Path) -> dict:
         for name, relative in locations.items():
             expected = profile["artifacts"][name]
             target_profile["artifacts"][name] = clone_file(Path(expected["path"]), output / relative, expected, immutable=False)
+        if native_codec is not None:
+            relocated = copy.deepcopy(native_codec)
+
+            def capture_snapshot(item):
+                original = Path(item["path"])
+                relative = original.relative_to(source / "monitor")
+                return clone_file(original, output / "monitor" / relative, item)
+
+            relocated["captured_manifest"] = capture_snapshot(native_codec["captured_manifest"])
+            relocated["objects"] = [capture_snapshot(item) for item in native_codec["objects"]]
+            for group in ("receipts", "semantic_evidence"):
+                for original, target in zip(native_codec[group], relocated[group]):
+                    target["snapshot"] = capture_snapshot(original["snapshot"])
+            codec.validate_capture(relocated, output / "monitor")
+            runner.write_json(output / "monitor/native-9p.json", relocated)
+            target_profile["native_9p_codec"] = relocated
         if payload_inputs is not None:
             clone_file(source / "payload/linux.config", output / "payload/linux.config", payload_inputs["artifacts"]["linux.config"], immutable=False)
             runner.write_json(output / "payload/linux-payload.json", payload_inputs)

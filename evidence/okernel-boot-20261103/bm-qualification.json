@@ -1,0 +1,173 @@
+{
+  "schema": "ostadix.okernel-bm-integration-validation/v1",
+  "scope": "Boot-entry and package-host validation plus actual compiler build in BM isolated tree; baseline architecture-policy failure retained unchanged",
+  "base_commit": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+  "implementation_commit": "f8f06f188834cfd75baa1ada879dcd504d46c1a0",
+  "canonical_code_commit": "5d60b5bf5e397066696547d082e2a8f21727ce46",
+  "tests": [
+    {
+      "name": "targeted_boot_package_host",
+      "passed": 124,
+      "failed": 0,
+      "skipped": 0,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/host-tests.log",
+        "bytes": 22807,
+        "sha256": "cb11aacbcd482cace1d0dc495aae115d5cb07b62e37d61ce25ea206dfd0325a6"
+      }
+    },
+    {
+      "name": "architecture_boundaries",
+      "passed": 145,
+      "failed": 1,
+      "skipped": 0,
+      "known_baseline_failure": true,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-boundaries.log",
+        "bytes": 28492,
+        "sha256": "281f2140d417145b6010fe7f98464417fac2a818d954c2934f12e193a894b99e"
+      },
+      "baseline_reproduction": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-baseline-failure.json",
+        "bytes": 736,
+        "sha256": "5e05f13ee789eb790e59f62289a0d6a968af422cdd17a59365598bba457f96f6"
+      },
+      "unchanged_blob_proof": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-unchanged-blob-proof.json",
+        "bytes": 1292,
+        "sha256": "b91e9756fabe129e8faddf09f78ddd58085e47dd255f63d06a00beaa643a9050"
+      }
+    },
+    {
+      "name": "language_source_classification",
+      "status": "passed",
+      "source_count": 242,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/language-sources.log",
+        "bytes": 103,
+        "sha256": "10a2800af19a2f603baf2b25d4987e06566e33c092290e953fd78d1617370f98"
+      }
+    },
+    {
+      "name": "release_evidence_manifest",
+      "status": "passed",
+      "required_gate_count": 26,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/release-evidence.log",
+        "bytes": 57,
+        "sha256": "102b94bd8a0062f97ad5339deb104be33fe3dca9d0ca9504d1ef8907f76593a3"
+      }
+    }
+  ],
+  "compiler_check": {
+    "argv": [
+      "cargo",
+      "check",
+      "--locked",
+      "-p",
+      "ostadix-api",
+      "--lib"
+    ],
+    "status": "passed",
+    "log": {
+      "path": "/home/ustad/.cache/okernel-boot-bm-validation/cargo-check.log",
+      "bytes": 2624,
+      "sha256": "0153d1e24afbbb43b9006ef76ffd43b175eeb05368192971155b0b0314d56e74"
+    }
+  },
+  "compiler_build": {
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "o-lang",
+      "--bin",
+      "ocorec",
+      "--bin",
+      "olangc"
+    ],
+    "status": "passed",
+    "target_dir": "/home/ustad/.cache/okernel-boot-bm-target",
+    "log": {
+      "path": "/home/ustad/.cache/okernel-boot-bm-validation/compiler-build.log",
+      "bytes": 245,
+      "sha256": "720e404fddcb40ad34ac316b695b596f15f0e25dd993eca57115b1e69cf40fde"
+    },
+    "binaries": [
+      {
+        "path": "/home/ustad/.cache/okernel-boot-bm-target/debug/ocorec",
+        "bytes": 257888064,
+        "sha256": "a86bce8eeb576c7ac8f5b028d8b19cfce641dcd600b432b85bb76cd94221649e"
+      },
+      {
+        "path": "/home/ustad/.cache/okernel-boot-bm-target/debug/olangc",
+        "bytes": 317012176,
+        "sha256": "33026a60c12698538574be65cd4c868cf17e3ee1e456c90955175356bbeb380d"
+      }
+    ],
+    "built_at_code_commit": "5f461a0bb06c059884167e74662a832192069001"
+  },
+  "help_checks": [
+    {
+      "argv": [
+        "/home/ustad/.cache/okernel-boot-bm-target/debug/ocorec",
+        "--help"
+      ],
+      "exit_code": 0,
+      "output": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/ocorec-help.txt",
+        "bytes": 2572,
+        "sha256": "cf94fe515badbc0c96c25d9e0bb66fa7c00bfb632bc19131e5eae02b680296d0"
+      }
+    },
+    {
+      "argv": [
+        "/home/ustad/.cache/okernel-boot-bm-target/debug/olangc",
+        "--help"
+      ],
+      "exit_code": 0,
+      "output": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/olangc-help.txt",
+        "bytes": 9635,
+        "sha256": "6a02435c4d25a8b79e59de948c4cd6d969a95ee8ef079d8489bae525cb605b79"
+      }
+    }
+  ],
+  "preservation_audit": {
+    "path": "/home/ustad/.cache/okernel-boot-bm-validation/preservation-audit.json",
+    "bytes": 6861,
+    "sha256": "5202246e0a2e6cf9a58478ed37740ccb23f77ae3e81ec112469d6df8fb866319"
+  },
+  "shell_syntax": {
+    "argv": [
+      "bash",
+      "-n",
+      "boot/boot.sh",
+      "boot-and-test.sh",
+      "okernel-multikernel/boot-and-test.sh"
+    ],
+    "status": "passed"
+  },
+  "git_diff_check": "passed",
+  "pushed": false,
+  "source_release_followup": {
+    "commit": "f8f06f188834cfd75baa1ada879dcd504d46c1a0",
+    "canonical_commit": "e29dcdb33904c869466e8a1b5ba9d66815450c34",
+    "changed_paths": [
+      "scripts/build_source_release.py",
+      "tests/test_source_release.py"
+    ],
+    "actual_tree_zip_cli_test": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-bm-validation/source-release-actual-tree.log",
+        "bytes": 290,
+        "sha256": "11e6eee1976dfedd0f445e654907897a967b5c3bcd312e4de6d33f8747a6d383"
+      }
+    },
+    "compiler_and_kernel_unchanged_from_built_commit": true
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "scope": "actual boot/boot.sh PTY entry, source-codec profile, shell/tool access and paired persistence",
+  "root": "/home/ustad/OSTADIX-okernel-boot-20261103",
+  "state": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain",
+  "token": "09652c5eb07f4800b4210e218baa3334",
+  "sessions": [
+    {
+      "command": [
+        "/home/ustad/OSTADIX-okernel-boot-20261103/boot/boot.sh"
+      ],
+      "exit_code": 0,
+      "marker": "BOOT_WRITE_09652c5eb07f4800b4210e218baa3334",
+      "transcript": {
+        "path": "/home/ustad/.cache/okernel-boot-integration-20261103/default-entry/boot-0.log",
+        "bytes": 3454,
+        "sha256": "6e7a1929920270d5d223d290ed03c77e8fd20d2414a7e0fe3146d1637a8432c3"
+      },
+      "saved_disk": {
+        "path": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain/disk-generations/ab418fd7f7e0e4d315635a5ae3e2288f7cad5f6225c2045e734813f8cc262f73.ext4",
+        "bytes": 1073741824,
+        "sha256": "ab418fd7f7e0e4d315635a5ae3e2288f7cad5f6225c2045e734813f8cc262f73"
+      },
+      "saved_namespace": {
+        "path": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain/namespace-generations/9f14b19e0bf754b2207bce83601ec0bb4f49eb9530c335f6a380e39c27c9b80d.raw",
+        "bytes": 16777216,
+        "sha256": "9f14b19e0bf754b2207bce83601ec0bb4f49eb9530c335f6a380e39c27c9b80d"
+      }
+    },
+    {
+      "command": [
+        "/home/ustad/OSTADIX-okernel-boot-20261103/boot/boot.sh"
+      ],
+      "exit_code": 0,
+      "marker": "BOOT_RESTART_09652c5eb07f4800b4210e218baa3334",
+      "transcript": {
+        "path": "/home/ustad/.cache/okernel-boot-integration-20261103/default-entry/boot-1.log",
+        "bytes": 3289,
+        "sha256": "6259b021f51f588949dae295ff68fa0291e28d8a412fdf81ba43f6f2fbcd969e"
+      },
+      "saved_disk": {
+        "path": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain/disk-generations/21aecf700a556df09b1811bafee13c3a18933787bc7481ecb505d8b3136eb360.ext4",
+        "bytes": 1073741824,
+        "sha256": "21aecf700a556df09b1811bafee13c3a18933787bc7481ecb505d8b3136eb360"
+      },
+      "saved_namespace": {
+        "path": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain/namespace-generations/c64440cdcd261752209ccf30b7f539ce87211c9387c639db7c1c3d15c2e1a854.raw",
+        "bytes": 16777216,
+        "sha256": "c64440cdcd261752209ccf30b7f539ce87211c9387c639db7c1c3d15c2e1a854"
+      }
+    }
+  ],
+  "entry": {
+    "path": "/home/ustad/OSTADIX-okernel-boot-20261103/boot/boot.sh",
+    "bytes": 253,
+    "sha256": "26187c82e998b5fe7688b3e2fffae8d9b1c4486dd0b1937aa82f01b7ccad0c58"
+  },
+  "dispatcher": {
+    "path": "/home/ustad/OSTADIX-okernel-boot-20261103/scripts/boot_okernel.py",
+    "bytes": 7714,
+    "sha256": "5d056f52c7d9c913cda80ec247083073593726c65c4f9c287ecb18a621d2f9dc"
+  },
+  "profile": {
+    "path": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain/monitor/monitor-profile.json",
+    "bytes": 12412,
+    "sha256": "d556d0ce0148adaf96ac9df62e909eea4cb4740b48ffda0cc2befd3147aff76e"
+  }
+}

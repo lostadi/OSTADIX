@@ -1,0 +1,337 @@
+{
+  "schema": "ostadix.okernel-boot-preservation-review/v1",
+  "baseline": "b47ff1e002cdf940138995ee4f693a33677c22ca",
+  "code_commit": "5d60b5bf5e397066696547d082e2a8f21727ce46",
+  "unchanged_files": [
+    {
+      "path": "ocore/kernel/boot.S",
+      "sha256": "cf2255e6c90700af82cdeb6e2f56596804941b4b7cb6302163caac2e499fc929"
+    },
+    {
+      "path": "ocore/kernel/build.sh",
+      "sha256": "8c6bc3a7c00c5b446e1cb674fe2df9da9b92dd8cecd00728fadba68d466dff9a"
+    },
+    {
+      "path": "ocore/kernel/run-qemu.sh",
+      "sha256": "572507a4beefd3346264f4cad1345da02e2ef27106e33fd59887633150084427"
+    },
+    {
+      "path": "scripts/release_evidence.py",
+      "sha256": "db07c95ffd9daa654bcaa7f0ae509c893010b8acea1fb5c3af50a450e6692890"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1733a123eb7b84d0bf33ac466fbb369d10d2a5c452657b933811f13208fc9b1f"
+    },
+    {
+      "path": "ocore/runtime/x86_64/address_space.oc",
+      "sha256": "2eb8515fbb79d78dec166ba8266e6f94399e71702180199324cea0ce89b0a088"
+    },
+    {
+      "path": "ocore/runtime/x86_64/cap_transfer.oc",
+      "sha256": "cb0679840e2ff41a69100ceb27a864ee1e3e0a201754e40e8f16d5d20f8d5fb7"
+    },
+    {
+      "path": "ocore/runtime/x86_64/capability.oc",
+      "sha256": "b3b327e563b33fdfcc17b71ac2c5d768272a9869c86903297c7512f4efc36669"
+    },
+    {
+      "path": "ocore/runtime/x86_64/delegated_resource.oc",
+      "sha256": "1389459dbfd3db8540b24616d75ef3b9ecf8de07afb328f5bece44c81a3f30f3"
+    },
+    {
+      "path": "ocore/runtime/x86_64/domain.oc",
+      "sha256": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7"
+    },
+    {
+      "path": "ocore/runtime/x86_64/domain_namespace.oc",
+      "sha256": "8f3b9a11eb77fbab8459ffc7764d366e7c9a4a1cd11fdb9bff4a709709936a31"
+    },
+    {
+      "path": "ocore/runtime/x86_64/elf_loader.oc",
+      "sha256": "00b51bdaf5f8e20b74d5e7cd12335db103be467595203b163f5aa8cc5a1b1d03"
+    },
+    {
+      "path": "ocore/runtime/x86_64/endpoint.oc",
+      "sha256": "d974e8132c882606cde478d7235c2cb41949aa153b133d2859dec29b3f3a2ca5"
+    },
+    {
+      "path": "ocore/runtime/x86_64/endpoint_probe_stub.oc",
+      "sha256": "e78be923af805bf19600e786ebf2e3604d40840d1ef0a7e67a53da4c3fcccf61"
+    },
+    {
+      "path": "ocore/runtime/x86_64/image_vfs.oc",
+      "sha256": "ba7e1fddddebb83bb2159151f9359fe7d7fd7334422337c84f7d150775402310"
+    },
+    {
+      "path": "ocore/runtime/x86_64/image_vfs_storage.oc",
+      "sha256": "684e239abe6f7de42689374daf5fcf8af2b48ca1224ae5d97606525ab304b6dd"
+    },
+    {
+      "path": "ocore/runtime/x86_64/image_vfs_storage_m7.oc",
+      "sha256": "7ccd2fb4e4b3fca11f98384eec7f118dff4600cd238967d27a0113341528896d"
+    },
+    {
+      "path": "ocore/runtime/x86_64/interrupts.oc",
+      "sha256": "f7b4de1f6cf46ce1f9dbf41d7d7dd2be33149b96a20b72e3d293d1b616b41440"
+    },
+    {
+      "path": "ocore/runtime/x86_64/ipc_lifecycle.oc",
+      "sha256": "3f93871a0ac007ba9eb666e714af55e064265e3501ed12a7825faeef1c69b07a"
+    },
+    {
+      "path": "ocore/runtime/x86_64/ipc_wait.oc",
+      "sha256": "0d3b5843249a833e68855dc12dc3fff560eb15b93cf7ae467e6d7b59c6ee69f6"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_admission.oc",
+      "sha256": "1e77774786d5e69751e20a0ff44f809ecd07b708813ed68f1e9130950eee0ce1"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_boot.oc",
+      "sha256": "4397c9bc6db363b7429de0c783bd5317f97e096ae5aee74356ac10f3df2dda63"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_boot_stub.oc",
+      "sha256": "4cae0c8f210f5e75c34781354cf2d377eb823bc5ddb5248b38a0ee5cf9272b7e"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_device.oc",
+      "sha256": "afa91f1d2ebe3a1050b6259fb6c020987654fdf1d5deb8bf1d2743235eaeeab4"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_device_stub.oc",
+      "sha256": "617e83144e2c00e2d81bef112569cce9b5e639099ec17d6bc2f5739a553898dd"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_execution.oc",
+      "sha256": "dc648eb64fbc7315c7be54aefc41db40d10d8c64f8c923adaba9c17447108191"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_execution_stub.oc",
+      "sha256": "81e128a3ebe10734993231c11f8cf7dcc9ce488549c77eb8ce0a8f74eb02b58a"
+    },
+    {
+      "path": "ocore/runtime/x86_64/kernel_world_record.oc",
+      "sha256": "9b1a8b0ff8187ceaf752df353829c90b7129eb5287bb99a83f54104ab3bcf0be"
+    },
+    {
+      "path": "ocore/runtime/x86_64/linux_fd_table.oc",
+      "sha256": "83fd805bd25b1d27381d2d922fca4d6998d43b910bc7fbf4afd8908887e15a18"
+    },
+    {
+      "path": "ocore/runtime/x86_64/linux_personality.oc",
+      "sha256": "859c0ebf2d625b6551b9ce001515303fd659050d41cde6237c37f7b394ccf033"
+    },
+    {
+      "path": "ocore/runtime/x86_64/live_supervisor.oc",
+      "sha256": "40b7ee511affc09520d829e98d37bb3bbebc8eeac1fcd31b51baef8ea51e6230"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m1_user.oc",
+      "sha256": "97b409ef95a1cfad204632b4b999cd573c6d608da180680288d7f376ed2322da"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m2_user.oc",
+      "sha256": "3c3cc54e650a08ca6581022d50ac0e30c9d0c4ee93280fef5d0d40ed60ade3a5"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m3_user.oc",
+      "sha256": "72b986b0cfb5b26d0b4cbd71fe077e811ca3a967c3d720cba577a825605bbfd0"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m4_personality_alpha.oc",
+      "sha256": "b49e81f186d3f693f515a3575badcfcf154cde0029ef1151caf3197a2227c8b1"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m4_personality_beta.oc",
+      "sha256": "cbe9bc8e9b6530862bc82e2e610dc9f89d16a90adefa7bd6ba9909de84c06ed6"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m5_init.oc",
+      "sha256": "25ddbaeebda9f004b093e37064d51b583866f2fcd1206c3c7305bbdc1b7b747e"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m5_pkgd.oc",
+      "sha256": "088a660d742c14a0f8f34eed102c001946f82a5bd4bd29e248f84edd8b40e61a"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m5_repl.oc",
+      "sha256": "ce9c998d9bba96826232eb7cb96eff1739e6b64ca8bb4bd5113a88eeaf94cd08"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m5_supervisor.oc",
+      "sha256": "1b561ee0c4d38735262c031514dd41c854d421a6886d6b556b9f7ba4025fe87d"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_client.oc",
+      "sha256": "dc2a2f351f216082b32bb6e7d3a02e43ee66cba25aa4358a6fe5c9ae9c1b2e87"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_linux_observer.oc",
+      "sha256": "f42497f16c6342ae7c48599f2467793003e2675489aac3d4bc66f1bf54073385"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_linux_personalityd.oc",
+      "sha256": "32d99fa8c4ecf99916c6fdc96dcfee055097b9adfca99a26c7ba66d497a9e306"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_linux_supervisord.oc",
+      "sha256": "f5e75fc7838593a4eea0c231f8ca5b35e3338b54d5c9b99d392239a2e1069c86"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_observer.oc",
+      "sha256": "29ec469b107ad468c45e43aa3fa1b172c978c20736235ff5ccab47f0514b72ea"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_personalityd.oc",
+      "sha256": "18008ddd4584fb0eaef39832558729ffbf36a5fc4702fcca6deb05d63e1b5f81"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6_supervisord.oc",
+      "sha256": "984066524ceb87e34506acbbe4af75cd8886786eccbe9daf897550000d150060"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6b_live_client.oc",
+      "sha256": "cde2dbde564a9e351127a3c84eb1b7130cb54150e694d740a98e4f4b6d4f2c87"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6b_live_observer.oc",
+      "sha256": "255d72367dd95b6cf2ce532a1e85b42f3343d8b652f4d92528e535524933fbd8"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6b_live_personalityd.oc",
+      "sha256": "7dbf47192fcf54b58abf58bedb9f3bb78666d83235be91e9ef2d118d105ac878"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m6b_live_supervisord.oc",
+      "sha256": "d2e32e291f126b10e234d9b64df3faf476bffa1b25f3706ec5a0360a1857603c"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m7_linux_9pd.oc",
+      "sha256": "17326db3fc0aa073576cacfe54879413410f232c10c03c7b74b240756dd08bf1"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m7_linux_supervisord.oc",
+      "sha256": "136034a2e2204eaf05ef1d9369b170f8b655746e0171f94120870b5bd3e9a8bd"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m7_plan9_client.oc",
+      "sha256": "8eb33abbe38476f59c54905f9b6db0f67471464f235c58e815be18399a6ddbdc"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m7b_9p_provider.oc",
+      "sha256": "dcb4ea66cdde8d52167610bc21b320704018fc71931b4eaf0dc3030a640d5999"
+    },
+    {
+      "path": "ocore/runtime/x86_64/m7b_logical_read_client.oc",
+      "sha256": "baa99ad6d52a251580d0590ab5bd217986d68b2b2c31bfd5e2958eb0c580a958"
+    },
+    {
+      "path": "ocore/runtime/x86_64/mapping.oc",
+      "sha256": "5e7ffd177882b9ff0f0d52df27b46c0ad659816a5b8380a12a0f44d40a9bd133"
+    },
+    {
+      "path": "ocore/runtime/x86_64/memory_object.oc",
+      "sha256": "19392bab07606405f9c6d946bdb81431ebbdcd95f7517f2c822c02d8a47b7ece"
+    },
+    {
+      "path": "ocore/runtime/x86_64/native_abi.oc",
+      "sha256": "2e6ce4ff8048471a39bb16ff03d4554ae9886080c475f03e21862925d1d70f45"
+    },
+    {
+      "path": "ocore/runtime/x86_64/native_control.oc",
+      "sha256": "b8c47bc556e788353572d5a18a96d25e8b252bacf09a46539e40548a9e9e181c"
+    },
+    {
+      "path": "ocore/runtime/x86_64/package_root.oc",
+      "sha256": "5840a677f0ba9c076f492874730aab0a9c52fb25ba9ecf0b848b041319f6dc27"
+    },
+    {
+      "path": "ocore/runtime/x86_64/pages.oc",
+      "sha256": "f91f3667703bf67e5e3d366936cc88a30035f7ed6a0f00c81fe2ef2dedf4840a"
+    },
+    {
+      "path": "ocore/runtime/x86_64/personality.oc",
+      "sha256": "cc478ec4d354a3c578cad6e350eea37ced3fddefc3dbdb31d0763a4d568868cd"
+    },
+    {
+      "path": "ocore/runtime/x86_64/personality_bounded_rpc.oc",
+      "sha256": "ef024f0731035b8fa82dce3561599182045fb9a14a63e99d382cafc0f11ec623"
+    },
+    {
+      "path": "ocore/runtime/x86_64/personality_memory_view.oc",
+      "sha256": "ffd3d8f0d45bace28e675ea86ee1574f05a944f74a4f8244ba5f79671141a834"
+    },
+    {
+      "path": "ocore/runtime/x86_64/personality_rpc.oc",
+      "sha256": "efce3f345af7c367b740a0eb7b512ef363c8a76e8b83845e3e8a42d2440d5e95"
+    },
+    {
+      "path": "ocore/runtime/x86_64/personality_supervision.oc",
+      "sha256": "dc40435da9855d2b40138d13324421df6944466eaa6970efd1ce6d78e60d3a1a"
+    },
+    {
+      "path": "ocore/runtime/x86_64/process.oc",
+      "sha256": "052fc7430d587adea671fceb707f79e0cf430d13c0445293da18df99ac8e36db"
+    },
+    {
+      "path": "ocore/runtime/x86_64/rtl8139.oc",
+      "sha256": "7df936e602fe5c20a70734ec972ffcf6690cadc2fa601652b758904b2532b39f"
+    },
+    {
+      "path": "ocore/runtime/x86_64/scheduler.oc",
+      "sha256": "a69126baa0344453010f090dfd86bf733004a49e932446caf75ddd9f247e5828"
+    },
+    {
+      "path": "ocore/runtime/x86_64/serial.oc",
+      "sha256": "f695b3c2ea1582cd0aa604d96a7fe079cc7125dd8096612dbfb0c2dbb1b3237c"
+    },
+    {
+      "path": "ocore/runtime/x86_64/serial_control.oc",
+      "sha256": "7c0548bb4c617f7db5e533f4fb76018a05d45617d5afc9d600e27251fddb55ed"
+    },
+    {
+      "path": "ocore/runtime/x86_64/service_registry.oc",
+      "sha256": "ae7dc8f7f8e10cc5dc8c83be99fc8d5dcb09c0e3b056277fc49d459aedcfc152"
+    },
+    {
+      "path": "ocore/runtime/x86_64/svm_execution.oc",
+      "sha256": "bfb909acd903ab1ae136ef31494e68aeeda3c32cceef16262f52cc76c98539dd"
+    },
+    {
+      "path": "ocore/runtime/x86_64/syscall.oc",
+      "sha256": "214d7605811debf68df03a367c701409ba6deeee2267253f8074e1bb5de8e612"
+    },
+    {
+      "path": "ocore/runtime/x86_64/thread.oc",
+      "sha256": "fe0dd7020d2eb234195d808c3a8ca55c69b236e0ea614753fb656f2ab5cbe450"
+    },
+    {
+      "path": "ocore/runtime/x86_64/trap.oc",
+      "sha256": "53243bcb1c4122a1f3695826ab4e74854179133d6d8081bca8883a25c431de8b"
+    },
+    {
+      "path": "ocore/runtime/x86_64/user.oc",
+      "sha256": "585efff39916ad62d2aa08661c4e3ff18d245e17ebf6019909cdc7521fb36bb5"
+    },
+    {
+      "path": "ocore/runtime/x86_64/user_memory.oc",
+      "sha256": "28fce6942537edc180604efeb0eaa2be6611eea888f5ba2275798e3362c97e6b"
+    },
+    {
+      "path": "ocore/runtime/x86_64/vm_object.oc",
+      "sha256": "a13f594965cfca2faf5db87ed552497975a59e417c1dedd1b4085a0013f625d9"
+    }
+  ],
+  "non_stack_native_codegen_preserved": true,
+  "new_compiler_features": "Only funnel declaration/lowering and three stack-address methods",
+  "added_paths_audited": 66,
+  "added_paths_excluded_by_source_release": [],
+  "release_repairs": [
+    "Explicit boot entry/README allowlist and complete source closure",
+    "Exact u9fs provider hardening patch exception, arbitrary patches still excluded",
+    "Existing private progress and step_knobs source inventory restored without public exports"
+  ],
+  "dynamic_regression_evidence": "Parent reports old baseline, native M5 and newly rebuilt AArch64 withdrawal live gates passed; see parent integration receipts."
+}

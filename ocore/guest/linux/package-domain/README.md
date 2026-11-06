@@ -7,6 +7,8 @@ It does not lower Linux, GCC, or the installed packages into O-core code.
 
 The unified package/ABI target and the current common native 9P namespace
 boundary are described in [OKERNEL_PACKAGE_NAMESPACE.md](../../../../docs/OKERNEL_PACKAGE_NAMESPACE.md).
+The persistent Linux/native-codec boot entry is described in
+[OKERNEL_PACKAGE_BOOT.md](../../../../docs/OKERNEL_PACKAGE_BOOT.md).
 The native 9P peer is a protocol client, not a complete Plan 9 executable ABI.
 
 The boot archive mounts the governed `/dev/vda` ext4 disk and uses ordinary

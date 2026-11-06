@@ -43,6 +43,10 @@ and writes the rendered Markdown.</p>
 <td><a href="#quickstart">Quickstart</a>, then the <a href="examples/literate_report.O">literate report source</a> and <a href="docs/HUMAN_LLM_WORKFLOWS.md">human/LLM workflow guide</a>.</td>
 </tr>
 <tr>
+<td>Boot the interactive O-Kernel system</td>
+<td><a href="boot/README.md">Boot guide</a>: prepare its persistent native-codec state, then run <code>./boot/boot.sh</code> or <code>./boot-and-test.sh kernel</code>.</td>
+</tr>
+<tr>
 <td>Evaluate the research</td>
 <td><a href="Ostadix-lang_Technical_Whitepaper.pdf">Technical whitepaper</a>, <a href="SPEC.md">language specification</a>, and <a href="docs/CLAIMS.md">claim/evidence index</a>.</td>
 </tr>
@@ -4911,7 +4915,8 @@ platforms do not receive the stronger group-quiescence claim.
 default: unset, an operation may run as long as it needs.
 <code>O_BACKEND_SHUTDOWN_TIMEOUT_MS</code> bounds teardown only and defaults to 2,000 ms
 (at most 60,000 ms). A malformed, zero or oversized value of either is an
-error, never a silent default.
+error, never a silent default. The shutdown budget and the session caps are
+checked when a backend starts, so a file with no backend ignores them.
 The same absolute operation deadline is inherited by recursive <code>O.eval</code>
 callbacks. Native backends and the primary Python shim acknowledge <code>shutdown</code>
 directly; the production compatibility proxy translates it into command-channel
