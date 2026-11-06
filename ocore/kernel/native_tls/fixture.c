@@ -97,7 +97,7 @@ void probe(U *sp) {
  CHECK(sc(0,fd,0x04000000,4,0)==-14&&sc(8,fd,0,1,0)==0);
  CHECK(sc(257,-100,0x04000000,0,0)==-14);
  CHECK(sc(0,fd,~0UL-3,4,0)==-14&&sc(8,fd,0,1,0)==0);
- CHECK(sc(0,fd,0,0,0)==0&&sc(1,1,(U)input,4,0)==-38&&sc(5,fd,(U)buffer,0,0)==-38);
+ CHECK(sc(0,fd,0,0,0)==0&&sc(1,1,(U)input,4,0)==-9&&sc(5,fd,(U)buffer,0,0)==-38);
  CHECK(sc(8,fd,1UL<<63,0,0)==-22&&sc(8,fd,0,1,0)==0);
  if(role==0){
   for(U i=0;i<12288;i++)buffer[i]=0xa5;
