@@ -467,6 +467,7 @@ def policy_boundary(head: str) -> tuple[str | None, str]:
             [
                 "git",
                 "log",
+                "--full-history",
                 "--no-renames",
                 f"--diff-filter={status}",
                 "--reverse",

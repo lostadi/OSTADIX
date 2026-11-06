@@ -515,6 +515,21 @@ class AuthorCheckRenameBoundaryTests(unittest.TestCase):
         head = self.commit("Rewrite author check")
         self.assertEqual(self.boundary(head), (self.introduction, self.base))
 
+    def test_independent_renames_on_merged_branches_preserve_the_boundary(self) -> None:
+        self.git("checkout", "-q", "-b", "side", self.introduction)
+        self.git("mv", "scripts/check_attribution.py", "scripts/check_commit_authors.py")
+        script = self.repo / "scripts/check_commit_authors.py"
+        script.write_text(script.read_text() + "\n# Independent branch update.\n")
+        side = self.commit("Rename and update author check on side branch")
+        self.git("checkout", "-q", "main")
+        self.git(
+            "-c", "commit.gpgsign=false", "merge", "--no-ff", "-q",
+            "-m", "Merge independent author-check rename", side,
+        )
+        # Path simplification can hide the old-name deletion from one side
+        # while retaining both new-name additions. Audit the complete DAG.
+        self.assertEqual(self.boundary("HEAD"), (self.introduction, self.base))
+
     def test_adding_the_new_name_beside_the_old_one_is_rejected(self) -> None:
         self.git("checkout", "-q", "--detach", self.introduction)
         (self.repo / "scripts/check_commit_authors.py").write_text("# second check\n")
