@@ -317,6 +317,7 @@ header {
   transition:background .15s,border-color .15s,opacity .15s;
 }
 .hbtn:hover { background:var(--surface1); border-color:var(--overlay0); }
+button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .hbtn.primary {
   background:var(--blue); color:var(--crust);
   font-weight:600;
