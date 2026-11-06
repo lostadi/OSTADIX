@@ -209,11 +209,9 @@ define i64 @strong_fn(i64 %value) {{
             with self.subTest(body=body):
                 self.reject(body, stage="parse")
 
-    def test_weak_definition_support_keeps_unsupported_declarations_and_nonemitted_definitions_rejected(self):
+    def test_weak_definition_support_keeps_nonemitted_definitions_rejected(self):
         supported = "@ordinary = weak global i8 3\ndefine i32 @strong() { ret i32 9 }\n"
         cases = (
-            "@unsupported = extern_weak global i64",
-            "declare extern_weak void @unsupported()",
             "@unsupported = available_externally global i64 0",
             "define available_externally void @unsupported() { ret void }",
         )

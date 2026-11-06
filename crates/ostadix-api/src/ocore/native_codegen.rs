@@ -125,7 +125,14 @@ fn emit_impl(
         }
         if !matches!(
             global.linkage.as_str(),
-            "external" | "internal" | "private" | "weak" | "linkonce" | "linkonce_odr" | "weak_odr"
+            "external"
+                | "extern_weak"
+                | "internal"
+                | "private"
+                | "weak"
+                | "linkonce"
+                | "linkonce_odr"
+                | "weak_odr"
         ) {
             return Err(error_diagnostic(format!(
                 "imported native backend does not implement linkage `{}` for {}",
@@ -133,6 +140,10 @@ fn emit_impl(
             )));
         }
         let Some(init) = &global.initializer else {
+            if global.linkage == "extern_weak" {
+                visibility(&mut out, &global.name, &global.linkage);
+                writeln!(out, ".type {}, @object", global.name).unwrap();
+            }
             continue;
         };
         let zero_tls = global.thread_local
@@ -216,6 +227,10 @@ fn emit_impl(
     }
     for (index, function) in module.functions.iter().enumerate() {
         elf_visibility(&mut out, &function.name, function.visibility);
+        if function.entry.is_none() && function.linkage == "extern_weak" {
+            visibility(&mut out, &function.name, &function.linkage);
+            writeln!(out, ".type {}, @function", function.name).unwrap();
+        }
         if function.entry.is_some() {
             Emitter::new(
                 module,
@@ -257,7 +272,9 @@ fn emit_impl(
 fn visibility(out: &mut String, name: &str, linkage: &str) {
     match linkage {
         "internal" | "private" => writeln!(out, ".local {name}").unwrap(),
-        "weak" | "linkonce" | "linkonce_odr" | "weak_odr" => writeln!(out, ".weak {name}").unwrap(),
+        "weak" | "extern_weak" | "linkonce" | "linkonce_odr" | "weak_odr" => {
+            writeln!(out, ".weak {name}").unwrap()
+        }
         _ => writeln!(out, ".global {name}").unwrap(),
     }
 }
@@ -489,7 +506,14 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     for global in &module.globals {
         if !matches!(
             global.linkage.as_str(),
-            "external" | "internal" | "private" | "weak" | "linkonce" | "linkonce_odr" | "weak_odr"
+            "external"
+                | "extern_weak"
+                | "internal"
+                | "private"
+                | "weak"
+                | "linkonce"
+                | "linkonce_odr"
+                | "weak_odr"
         ) {
             return Err(error_diagnostic(format!(
                 "imported native backend does not implement linkage `{}` for {}",
@@ -532,7 +556,14 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     for function in &module.functions {
         if !matches!(
             function.linkage.as_str(),
-            "external" | "internal" | "private" | "weak" | "linkonce" | "linkonce_odr" | "weak_odr"
+            "external"
+                | "extern_weak"
+                | "internal"
+                | "private"
+                | "weak"
+                | "linkonce"
+                | "linkonce_odr"
+                | "weak_odr"
         ) {
             return Err(error_diagnostic(format!(
                 "imported native backend does not implement linkage `{}` for {}",
@@ -1125,22 +1156,57 @@ impl<'a> Emitter<'a> {
     }
     fn symbol_address(&self, out: &mut String, reg: usize, name: &str, addend: i64) {
         let r = self.reg(reg);
+        // Undefined-weak references must retain the final linker's real zero
+        // or provider address. In particular, an AArch64 unresolved weak ADRP
+        // relocation can resolve to the place's page, rather than address 0.
+        // Use the target's genuine GOT relocation sequence for this contract;
+        // the compiler does not create a fallback object or guess absence.
+        let optional = self
+            .module
+            .functions
+            .iter()
+            .any(|function| function.name == name && function.linkage == "extern_weak")
+            || self
+                .module
+                .globals
+                .iter()
+                .any(|global| global.name == name && global.linkage == "extern_weak");
         match self.target {
             Target::X86_64UnknownNone => {
-                writeln!(out, "  lea {r}, [rip + {name}]").unwrap();
+                if optional {
+                    writeln!(out, "  mov {r}, qword ptr [rip + {name}@GOTPCREL]").unwrap();
+                } else {
+                    writeln!(out, "  lea {r}, [rip + {name}]").unwrap();
+                }
                 if addend != 0 {
                     writeln!(out, "  mov r11, {}\n  add {r}, r11", addend as u64).unwrap();
                 }
             }
             Target::Aarch64UnknownNone => {
-                writeln!(out, "  adrp {r}, {name}\n  add {r}, {r}, :lo12:{name}").unwrap();
+                if optional {
+                    writeln!(
+                        out,
+                        "  adrp {r}, :got:{name}\n  ldr {r}, [{r}, :got_lo12:{name}]"
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(out, "  adrp {r}, {name}\n  add {r}, {r}, :lo12:{name}").unwrap();
+                }
                 if addend != 0 {
                     arm_immediate(out, "x17", addend as u64);
                     writeln!(out, "  add {r}, {r}, x17").unwrap();
                 }
             }
             Target::Riscv64UnknownNone => {
-                writeln!(out, "  lla {r}, {name}").unwrap();
+                if optional {
+                    writeln!(
+                        out,
+                        "  .option push\n  .option pic\n  la {r}, {name}\n  .option pop"
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(out, "  lla {r}, {name}").unwrap();
+                }
                 if addend != 0 {
                     writeln!(out, "  li ra, {addend}\n  add {r}, {r}, ra").unwrap();
                 }

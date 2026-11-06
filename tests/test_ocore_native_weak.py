@@ -239,10 +239,8 @@ class WeakSourceApiTests(unittest.TestCase):
                 self.assertTrue(all(fn["linkage"] == "external" for fn in declarations))
                 self.assertTrue(all(g["linkage"] == "external" and g["initializer"] is None for g in module["globals"]))
 
-    def test_external_weak_common_available_externally_and_unsupported_group_policy_reject_whole_units(self):
-        cases = ["@unsupported = extern_weak global i64\n",
-                 "declare extern_weak i64 @unsupported(i64)\n",
-                 "@unsupported = common global i64 0\n",
+    def test_common_available_externally_and_unsupported_group_policy_reject_whole_units(self):
+        cases = ["@unsupported = common global i64 0\n",
                  "define available_externally i64 @unsupported() { ret i64 7 }\n",
                  "$unsupported = comdat largest\n@unsupported = weak global i64 7, comdat\n"]
         for triple in baseline.TRIPLES:

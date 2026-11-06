@@ -245,7 +245,7 @@ class Importer:
     CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
     CMP = dict(zip(range(32, 42), ("eq", "ne", "ugt", "uge", "ult", "ule", "sgt", "sge", "slt", "sle")))
     LINKAGES = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak",
-                6: "weak_odr", 8: "internal", 9: "private"}
+                6: "weak_odr", 8: "internal", 9: "private", 12: "extern_weak"}
     BITCODE_LINKAGES = {0: 0, 2: 18, 3: 19, 5: 16, 6: 17, 8: 3, 9: 9}
     MERGEABLE_DEFINITIONS = {"linkonce", "linkonce_odr", "weak", "weak_odr"}
     # These assumptions may be erased because emission never uses them to optimize.
@@ -1115,6 +1115,12 @@ class Importer:
                           else a.GetInitializer(value))
             if not definition:
                 self.reject(f"{linkage} linkage requires a definition; mergeable declarations require separate resolution")
+        if linkage == "extern_weak":
+            definition = (a.GetFirstBasicBlock(value) if a.IsAFunction(value)
+                          else a.GetInitializer(value))
+            if definition:
+                self.reject("extern_weak linkage requires a declaration")
+            self.refinements.add(f"{self.symbol}: retained LLVMExternalWeakLinkage=12 declaration, exact type/alignment/visibility and original named references; native STB_WEAK undefined binding and final ELF linker resolution required; no body, storage, null value or fallback implementation synthesized")
         if linkage == "weak":
             self.refinements.add(f"{self.symbol}: preserved ordinary weak definition (LLVMWeakAnyLinkage=5); native STB_WEAK binding and qualified closure/link selection required; no ODR or COMDAT contract inferred")
         elif linkage in self.MERGEABLE_DEFINITIONS:
@@ -1126,7 +1132,10 @@ class Importer:
             self.refinements.add(f"{self.symbol}: unnamed-address identity optimization assumption erased")
         if visibility != "default":
             elf_code = 2 if visibility == "hidden" else 3
-            self.refinements.add(f"{self.symbol}: preserved {visibility} symbol visibility as ELF st_other={elf_code}; required own-emitter visibility directives on definitions and declarations within the static, non-preemptive native linkage profile; nondefault external symbols must resolve within the included native image")
+            resolution = ("an absent extern_weak declaration retains real weak undefined ELF resolution"
+                          if linkage == "extern_weak"
+                          else "nondefault external symbols must resolve within the included native image")
+            self.refinements.add(f"{self.symbol}: preserved {visibility} symbol visibility as ELF st_other={elf_code}; required own-emitter visibility directives on definitions and declarations within the static, non-preemptive native linkage profile; {resolution}")
         self.metadata(value, global_value=True)
         return linkage, visibility, alignment, comdat
 
@@ -1247,7 +1256,7 @@ class Importer:
         source_linkage = a.GetLinkage(value)
         encoded_linkage = self.BITCODE_LINKAGES.get(source_linkage)
         linkage = self.LINKAGES.get(source_linkage)
-        if linkage is None:
+        if linkage is None or linkage == "extern_weak":
             self.reject(f"unsupported alias linkage {source_linkage}")
         source_visibility = a.GetVisibility(value)
         visibility = self.VISIBILITY.get(source_visibility)
@@ -2151,6 +2160,8 @@ class Importer:
                 tls_model = self.TLS_MODELS.get(mode)
                 if thread_local and self.tls_profile is None:
                     self.reject("TLS globals require explicit --tls-profile linux-elf-static-nonpreemptive-v1")
+                if thread_local and linkage == "extern_weak":
+                    self.reject("extern_weak TLS requires a separately qualified weak TLS realization")
                 llvm_type = a.GlobalGetValueType(value)
                 ty = self.ty(llvm_type)
                 initializer = a.GetInitializer(value)

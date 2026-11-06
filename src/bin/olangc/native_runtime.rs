@@ -1030,20 +1030,40 @@ fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
             continue;
         }
         let definition = selected.get(declaration.name.as_str()).copied();
-        let compatible = definition.is_some_and(|definition| {
+        // An ordinary undefined-weak declaration remains an ELF relocation,
+        // with no generated storage/body. Only the final ELF link may resolve
+        // an absent provider to zero. A present incompatible provider is never
+        // reclassified as absent. Required strong declarations stay required.
+        let optional_weak = declaration.linkage == "extern_weak"
+            && definition.is_none()
+            && definitions
+                .get(declaration.name.as_str())
+                .is_none_or(|candidates| candidates.iter().all(|candidate| !retained(candidate)));
+        let compatible_provider = definition.is_some_and(|definition| {
             definition.contract == declaration.contract
                 && definition.alignment >= declaration.alignment
         });
+        let compatible = optional_weak || compatible_provider;
         if !compatible {
             issues.push(format!(
                 "unresolved or incompatible declaration {} in {}",
                 declaration.name, declaration.unit
             ));
         }
-        references.push(json!({"unit":declaration.unit, "symbol":declaration.name, "contract":declaration.contract,
+        let mut reference = json!({"unit":declaration.unit, "symbol":declaration.name, "contract":declaration.contract,
                               "abi_adaptation":declaration.abi_adaptation,
-                              "resolved_unit":definition.filter(|_|compatible).map(|definition|&definition.unit),
-                              "compatible":compatible}));
+                              "resolved_unit":definition.filter(|_|compatible_provider).map(|definition|&definition.unit),
+                              "compatible":compatible});
+        if declaration.linkage == "extern_weak" {
+            reference["linkage"] = json!("extern_weak");
+            reference["optional_weak"] = json!(optional_weak);
+            reference["resolution"] = json!(if optional_weak {
+                "unresolved weak ELF reference; final linker resolution required"
+            } else {
+                "included compatible provider required"
+            });
+        }
+        references.push(reference);
     }
     let mut definition_references = Vec::new();
     for source in symbols
@@ -1082,14 +1102,31 @@ fn resolve_symbols(symbols: &[Symbol]) -> (Value, Vec<String>) {
                         .as_deref()
                         .is_some_and(o_lang::ocore::native_verify::is_builtin_intrinsic)
             });
-            if provider.is_none() && !builtin {
+            let optional_weak = provider.is_none()
+                && definitions.get(name.as_str()).is_none_or(|candidates| {
+                    candidates.iter().all(|candidate| !retained(candidate))
+                })
+                && symbols.iter().any(|symbol| {
+                    symbol.unit == source.unit
+                        && symbol.name == *name
+                        && !symbol.definition
+                        && symbol.linkage == "extern_weak"
+                });
+            if provider.is_none() && !builtin && !optional_weak {
                 issues.push(format!(
                     "retained definition {} in {} has an unresolved group/symbol reference {name}",
                     source.name, source.unit
                 ));
             }
-            definition_references.push(json!({"unit":source.unit,"definition":source.name,"symbol":name,
-                "resolved_unit":provider.map(|provider|&provider.unit),"builtin":builtin,"resolved":provider.is_some() || builtin}));
+            let mut reference = json!({"unit":source.unit,"definition":source.name,"symbol":name,
+                "resolved_unit":provider.map(|provider|&provider.unit),"builtin":builtin,
+                "resolved":provider.is_some() || builtin});
+            if optional_weak {
+                reference["optional_weak"] = json!(true);
+                reference["resolution"] =
+                    json!("unresolved weak ELF reference; final linker resolution required");
+            }
+            definition_references.push(reference);
         }
     }
     let definitions: Vec<_> = symbols
@@ -1283,6 +1320,25 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
             .or_insert((Visibility::Default, "external"));
     }
     let mut undefined_symbols = BTreeSet::new();
+    let mut weak_undefined_symbols = BTreeSet::new();
+    let weak_declaration_kinds: BTreeMap<_, _> = module
+        .functions
+        .iter()
+        .filter(|function| function.linkage == "extern_weak" && function.entry.is_none())
+        .map(|function| (function.name.as_str(), 2))
+        .chain(
+            module
+                .globals
+                .iter()
+                .filter(|global| global.linkage == "extern_weak" && global.initializer.is_none())
+                .map(|global| {
+                    (
+                        global.name.as_str(),
+                        if global.thread_local { 6 } else { 1 },
+                    )
+                }),
+        )
+        .collect();
     let mut symbol_tables = BTreeMap::new();
     for (table_index, table) in sections.iter().enumerate() {
         if table.kind != 2 {
@@ -1345,17 +1401,28 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                     known_symbols.get(name).with_context(|| {
                         format!("ELF introduces an undeclared native dependency: {name}")
                     })?;
-                match *linkage {
+                let expected_binding = match *linkage {
                     "internal" | "private" => {
                         bail!(
                             "ELF introduces an undefined reference to a verified local symbol: {name}"
                         )
                     }
-                    "external" => {}
+                    "external" => 1,
+                    "extern_weak" => 2,
                     _ => bail!("unsupported native dependency linkage: {name}"),
+                };
+                if info >> 4 != expected_binding {
+                    bail!(
+                        "ELF dependency binding differs from verified declaration linkage: {name}"
+                    );
                 }
-                if info >> 4 != 1 {
-                    bail!("ELF dependency binding differs from supported external linkage: {name}");
+                if *linkage == "extern_weak" {
+                    if weak_declaration_kinds.get(name).copied() != Some(info & 15) {
+                        bail!("ELF undefined weak dependency type differs from verified declaration: {name}");
+                    }
+                    if u64_at(symbol + 8)? != 0 || u64_at(symbol + 16)? != 0 {
+                        bail!("ELF undefined weak declaration introduces a value or storage extent: {name}");
+                    }
                 }
                 if tls_names.contains(name) && info & 15 != 6 {
                     bail!("ELF TLS dependency must retain STT_TLS: {name}");
@@ -1367,6 +1434,9 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                     bail!("ELF dependency visibility differs from verified module: {name}");
                 }
                 undefined_symbols.insert(name.to_owned());
+                if *linkage == "extern_weak" {
+                    weak_undefined_symbols.insert(name.to_owned());
+                }
                 continue;
             }
             if !matches!(info & 15, 1 | 2 | 6) {
@@ -1777,6 +1847,20 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 if compiler_only_names.contains(table[(info >> 32) as usize].name.as_str()) {
                     bail!("ELF relocation addresses a compiler-only metadata declaration");
                 }
+                // These GOT forms are emitted solely for the ordinary weak
+                // address contract. They may not introduce a local/untyped
+                // stand-in or a new strong dependency. Other code/CFI
+                // relocations retain their explicitly structural scope.
+                let weak_got = matches!(
+                    (arch, info as u32),
+                    ("x86_64", 9 | 41 | 42) | ("aarch64", 311 | 312) | ("riscv64", 20)
+                );
+                if weak_got
+                    && !weak_declaration_kinds
+                        .contains_key(table[(info >> 32) as usize].name.as_str())
+                {
+                    bail!("ELF weak-address GOT relocation must retain its declared extern_weak symbol");
+                }
                 if initializer_sections.contains(&section.info) {
                     let key = (section.info, relocation_offset);
                     let expected = expected_relocations
@@ -1825,6 +1909,12 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                             && symbol.size == definition.size
                             && symbol.value == definition.value
                             && symbol.section == definition.section
+                    } else if let Some(kind) = weak_declaration_kinds.get(expected_symbol) {
+                        symbol.section == 0
+                            && symbol.binding == 2
+                            && symbol.kind == *kind
+                            && symbol.size == 0
+                            && symbol.value == 0
                     } else {
                         symbol.section == 0 && symbol.binding == 1
                     };
@@ -1925,8 +2015,7 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
             bail!("ELF whole-group members differ from verified definitions");
         }
     }
-    Ok(
-        json!({"definitions": definitions.iter().map(|(name,def)| json!({"name":name,"kind":def.kind,"binding":def.binding,"visibility":def.visibility,"bytes":def.size,"comdat":section_groups.get(&def.section)})).collect::<Vec<_>>(),"undefined_symbols":undefined_symbols,
+    let mut inventory = json!({"definitions": definitions.iter().map(|(name,def)| json!({"name":name,"kind":def.kind,"binding":def.binding,"visibility":def.visibility,"bytes":def.size,"comdat":section_groups.get(&def.section)})).collect::<Vec<_>>(),"undefined_symbols":undefined_symbols,
             "section_groups":actual_groups.iter().map(|(name,(flags,members))| json!({"name":name,"flags":flags,"members":members})).collect::<Vec<_>>(),
             "initializer_checks":{"globals":module.globals.iter().filter(|g|g.initializer.is_some()).count(),"bytes":initializer_bytes,
                 "absolute_relocations":expected_relocations.values().filter(|r|r.relative_to.is_none()).count(),
@@ -1934,8 +2023,11 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 "relocation_records":matched_relocations.len(),"scope":"source_defined_globals"},
             "exception_tables":exception_inventory.receipt,
             "thread_local_storage":tls_inventory,
-            "code_and_cfi_relocations":"structural_only" }),
-    )
+            "code_and_cfi_relocations":"structural_only" });
+    if !weak_undefined_symbols.is_empty() {
+        inventory["weak_undefined_symbols"] = json!(weak_undefined_symbols);
+    }
+    Ok(inventory)
 }
 
 fn visibility_bits(visibility: Visibility) -> u8 {
@@ -2793,6 +2885,67 @@ mod tests {
         ])
         .1
         .is_empty());
+    }
+
+    #[test]
+    fn extern_weak_absence_is_explicit_without_invented_provider_or_storage() {
+        let declaration = symbol("consumer", "optional", false, "extern_weak");
+        let mut caller = symbol("consumer", "caller", true, "external");
+        caller.references.insert("optional".into());
+        let (receipt, issues) = resolve_symbols(&[declaration.clone(), caller.clone()]);
+        assert!(issues.is_empty(), "{issues:?}");
+        assert_eq!(receipt["closed"], true);
+        assert_eq!(receipt["declarations"][0]["optional_weak"], true);
+        assert!(receipt["declarations"][0]["resolved_unit"].is_null());
+        assert_eq!(receipt["definition_references"][0]["optional_weak"], true);
+        assert_eq!(receipt["definition_references"][0]["resolved"], false);
+        assert_eq!(receipt["definitions"].as_array().unwrap().len(), 1);
+
+        let mut required = declaration.clone();
+        required.linkage = "external".into();
+        assert!(!resolve_symbols(&[required.clone(), caller.clone()])
+            .1
+            .is_empty());
+        // Another module's optional declaration cannot excuse a required use.
+        required.unit = "required-consumer".into();
+        assert!(
+            !resolve_symbols(&[declaration.clone(), required, caller.clone()])
+                .1
+                .is_empty()
+        );
+        // A reference without a declaration never becomes optional by spelling.
+        assert!(!resolve_symbols(&[caller.clone()]).1.is_empty());
+
+        let weak = symbol("weak-provider", "optional", true, "weak");
+        let strong = symbol("strong-provider", "optional", true, "external");
+        for providers in [
+            [weak.clone(), strong.clone()],
+            [strong.clone(), weak.clone()],
+        ] {
+            let mut inputs = vec![declaration.clone(), caller.clone()];
+            inputs.extend(providers);
+            let (receipt, issues) = resolve_symbols(&inputs);
+            assert!(issues.is_empty(), "{issues:?}");
+            assert_eq!(receipt["declarations"][0]["optional_weak"], false);
+            assert_eq!(
+                receipt["declarations"][0]["resolved_unit"],
+                "strong-provider"
+            );
+        }
+        let mut wrong = strong;
+        wrong.contract["result"]["bits"] = json!(32);
+        assert!(!resolve_symbols(&[declaration.clone(), caller, wrong])
+            .1
+            .is_empty());
+        let mut aligned = declaration;
+        aligned.alignment = 64;
+        let mut weak_aligned = weak;
+        weak_aligned.alignment = 8;
+        assert!(!resolve_symbols(&[aligned.clone(), weak_aligned.clone()])
+            .1
+            .is_empty());
+        weak_aligned.alignment = 64;
+        assert!(resolve_symbols(&[aligned, weak_aligned]).1.is_empty());
     }
 
     #[test]

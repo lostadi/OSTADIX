@@ -750,6 +750,75 @@ impl Elf {
     }
 }
 
+#[test]
+fn extern_weak_dependencies_require_real_undefined_weak_binding_and_no_storage() {
+    for (machine, arch) in [(62, "x86_64"), (183, "aarch64"), (243, "riscv64")] {
+        for function in [false, true] {
+            let mut source = module();
+            source.target.triple = format!("{arch}-unknown-none");
+            let mut elf = Elf::with_text_size(
+                machine,
+                if function { 8 } else { 0 },
+                8,
+                if function { 0 } else { 8 },
+            );
+            let index = if function {
+                source.functions[0].entry = None;
+                source.functions[0].blocks.clear();
+                source.functions[0].linkage = "extern_weak".into();
+                1
+            } else {
+                source.globals[0].initializer = None;
+                source.globals[0].linkage = "extern_weak".into();
+                2
+            };
+            elf.symbol8(index, 4, 0x20 | if function { 2 } else { 1 });
+            elf.symbol16(index, 6, 0);
+            elf.symbol64(index, 8, 0);
+            elf.symbol64(index, 16, 0);
+            let receipt = object_inventory(&elf.bytes, arch, &source).unwrap();
+            let name = if function { "f" } else { "g" };
+            assert_eq!(receipt["weak_undefined_symbols"], json!([name]));
+            for binding in [0, 1, 3, 15] {
+                let mut altered = elf.clone();
+                altered.symbol8(index, 4, binding << 4 | if function { 2 } else { 1 });
+                group_rejected(
+                    &altered,
+                    arch,
+                    &source,
+                    "dependency binding differs from verified declaration linkage",
+                );
+            }
+            let mut altered = elf.clone();
+            altered.symbol8(index, 5, 2);
+            group_rejected(&altered, arch, &source, "dependency visibility differs");
+            for kind in [0, 3, 6, if function { 1 } else { 2 }] {
+                let mut altered = elf.clone();
+                altered.symbol8(index, 4, 0x20 | kind);
+                group_rejected(
+                    &altered,
+                    arch,
+                    &source,
+                    "undefined weak dependency type differs",
+                );
+            }
+            for field in [8, 16] {
+                let mut altered = elf.clone();
+                altered.symbol64(index, field, 8);
+                group_rejected(
+                    &altered,
+                    arch,
+                    &source,
+                    "introduces a value or storage extent",
+                );
+            }
+            let mut altered = elf.clone();
+            altered.symbol16(index, 6, if function { TEXT } else { DATA } as u16);
+            group_rejected(&altered, arch, &source, "definition inventory differs");
+        }
+    }
+}
+
 fn absolute_relocation_type(machine: u16) -> u32 {
     match machine {
         62 => 1,
@@ -765,6 +834,52 @@ fn relocation_entry(offset: u64, symbol: usize, kind: u32, addend: i64) -> Vec<u
     put64(&mut entry, 8, ((symbol as u64) << 32) | kind as u64);
     put64(&mut entry, 16, addend as u64);
     entry
+}
+
+#[test]
+fn weak_address_got_relocations_cannot_target_strong_or_local_standins() {
+    for (machine, arch, kinds) in [
+        (62, "x86_64", vec![9, 41, 42]),
+        (183, "aarch64", vec![311, 312]),
+        (243, "riscv64", vec![20]),
+    ] {
+        let mut source = module();
+        source.target.triple = format!("{arch}-unknown-none");
+        source.globals[0].initializer = None;
+        source.globals[0].linkage = "extern_weak".into();
+        for kind in kinds {
+            let mut elf = Elf::with_text_size(machine, 0, 8, 8);
+            elf.symbol8(2, 4, 0x21);
+            elf.symbol16(2, 6, 0);
+            elf.symbol64(2, 8, 0);
+            elf.symbol64(2, 16, 0);
+            let rela = elf.append_section(
+                4,
+                0,
+                &relocation_entry(0, 2, kind, 0),
+                SYMBOLS as u32,
+                TEXT as u32,
+                8,
+                24,
+            );
+            object_inventory(&elf.bytes, arch, &source).unwrap();
+            for target in [0, 1] {
+                let mut wrong = elf.clone();
+                let offset = wrong.section_value(rela, 24) as usize;
+                put64(
+                    &mut wrong.bytes,
+                    offset + 8,
+                    ((target as u64) << 32) | kind as u64,
+                );
+                group_rejected(
+                    &wrong,
+                    arch,
+                    &source,
+                    "GOT relocation must retain its declared extern_weak symbol",
+                );
+            }
+        }
+    }
 }
 
 struct InitializerFixture {

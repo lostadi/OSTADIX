@@ -413,11 +413,9 @@ class NativeImportBackendTests(unittest.TestCase):
         from tests.test_ocore_native_weak import elf_symbols
 
         for isa in TARGETS:
-            for linkage in ("extern_weak", "available_externally"):
+            for linkage in ("available_externally",):
                 with self.subTest(isa=isa, linkage=linkage):
                     fn = function("hook", linkage=linkage)
-                    if linkage == "extern_weak":
-                        fn.update(entry=None, blocks=[])
                     self.reject_backend(module(isa, [fn]), isa, f"linkage `{linkage}`")
             for linkage in WEAK_LINKAGES:
                 with self.subTest(isa=isa, linkage=linkage):
@@ -428,13 +426,26 @@ class NativeImportBackendTests(unittest.TestCase):
                     self.assertNotEqual(symbol["section"], 0, "definition cannot be unresolved")
                     self.assertGreater(symbol["size"], 0)
 
+    def test_extern_weak_declarations_keep_undefined_elf_binding_without_definitions(self):
+        from tests.test_ocore_native_weak import elf_symbols
+        for isa in TARGETS:
+            fn = function("hook", linkage="extern_weak")
+            fn.update(entry=None, blocks=[])
+            symbols = elf_symbols(self.object(module(isa, [fn]), isa))
+            self.assertEqual((symbols["hook"]["binding"], symbols["hook"]["type"],
+                              symbols["hook"]["section"], symbols["hook"]["size"]), (2, 2, 0, 0))
+            obj = self.object(module(isa, globals_=[global_(linkage="extern_weak", initializer=False)]), isa)
+            symbol = elf_symbols(obj)["slot"]
+            self.assertEqual((symbol["binding"], symbol["type"], symbol["section"], symbol["size"]),
+                             (2, 1, 0, 0))
+
     def test_global_linkage_requires_real_backend_support(self):
         from tests.test_ocore_native_weak import elf_symbols
 
         for isa in TARGETS:
-            for linkage in ("extern_weak", "common", "available_externally"):
+            for linkage in ("common", "available_externally"):
                 with self.subTest(isa=isa, linkage=linkage):
-                    glob = global_(linkage=linkage, initializer=linkage != "extern_weak")
+                    glob = global_(linkage=linkage)
                     self.reject_backend(module(isa, globals_=[glob]), isa,
                                         f"linkage `{linkage}`")
             for linkage in WEAK_LINKAGES:
@@ -597,17 +608,29 @@ class NativeImportBackendTests(unittest.TestCase):
                                                 data_layout="E-p:64:64-i64:64")
                     self.reject_backend(native, isa, "little-endian LP64")
 
-    def test_unsupported_and_variadic_signatures_do_not_use_fixed_llvm_abi(self):
+    def test_invalid_calling_conventions_reject_while_c_variadic_declarations_emit(self):
         for isa in TARGETS:
-            for mode in ("fast", "coldcc", "variadic", "variadic_fastcc"):
+            for mode in ("fast", "coldcc"):
                 with self.subTest(isa=isa, mode=mode):
                     fn = function("foreign")
                     fn.update(entry=None, blocks=[])
-                    fn["signature"].update(
-                        {"abi": mode} if mode in {"fast", "coldcc"}
-                        else {"variadic": True, "abi": "fastcc" if mode == "variadic_fastcc" else "c"}
-                    )
-                    self.reject_backend(module(isa, [fn]), isa, "only fixed LLVM C and fastcc signatures")
+                    fn["signature"]["abi"] = mode
+                    self.reject_backend(module(isa, [fn]), isa, "only LLVM C signatures and fixed fastcc signatures")
+            # C variadic ABI realization has its own execution suite. An old
+            # blanket rejection here must not contradict that qualified path.
+            fn = function("foreign")
+            fn.update(entry=None, blocks=[])
+            fn["signature"].update(variadic=True, abi="c")
+            self.object(module(isa, [fn]), isa)
+            fn["signature"]["abi"] = "fastcc"
+            source = self.directory / f"invalid-variadic-{isa}.json"
+            source.write_text(json.dumps(module(isa, [fn])))
+            receipt = source.with_suffix(".receipt.json")
+            result = self.run_command([self.compiler, str(source), "--input-kind", "native-ir",
+                                       "--verify-native", "--receipt", str(receipt)])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("variadic signatures require the C calling convention", result.stderr)
+            self.assertFalse(receipt.exists())
 
     def test_fastcc_direct_and_indirect_calls_match_original_llvm(self):
         clang = shutil.which("clang")

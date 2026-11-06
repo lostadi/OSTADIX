@@ -856,6 +856,9 @@ fn linkage(value: &str, definition: bool, context: &str) -> Result<()> {
     if value == "weak" && !definition {
         return Err(fail(context, "weak linkage requires a definition"));
     }
+    if value == "extern_weak" && definition {
+        return Err(fail(context, "extern_weak linkage requires a declaration"));
+    }
     let valid = match value {
         "external" | "extern_weak" => true,
         "private"
@@ -1832,6 +1835,12 @@ impl<'a> Verifier<'a> {
         visibility(&global.linkage, global.visibility, &context)?;
         alignment(global.alignment, true, &context)?;
         if global.thread_local {
+            if global.linkage == "extern_weak" {
+                return Err(fail(
+                    &context,
+                    "extern_weak TLS requires a separately qualified weak TLS realization",
+                ));
+            }
             if !self.native_tls_profile || global.tls_model.is_none() {
                 return Err(fail(
                     &context,
@@ -4652,6 +4661,36 @@ mod tests {
             }
             verify(&invalid).unwrap();
         }
+    }
+
+    #[test]
+    fn extern_weak_requires_declarations_and_retains_real_symbol_contracts() {
+        for category in ["functions", "globals"] {
+            let mut m = weak_module();
+            if category == "functions" {
+                m.functions[0].linkage = "extern_weak".into();
+            } else {
+                m.globals[0].linkage = "extern_weak".into();
+            }
+            rejects(&m, "extern_weak linkage requires a declaration");
+            if category == "functions" {
+                m.functions[0].entry = None;
+                m.functions[0].blocks.clear();
+            } else {
+                m.globals[0].initializer = None;
+            }
+            verify(&m).unwrap();
+            let restored = NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+            assert_eq!(
+                serde_json::to_value(restored).unwrap(),
+                serde_json::to_value(m).unwrap()
+            );
+        }
+        let mut tls = weak_module();
+        tls.globals[0].initializer = None;
+        tls.globals[0].linkage = "extern_weak".into();
+        tls.globals[0].thread_local = true;
+        rejects(&tls, "extern_weak TLS requires a separately qualified");
     }
 
     #[test]
