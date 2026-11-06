@@ -43,3 +43,28 @@ docker run -it -v "$PWD:/workspace" -w /workspace debian bash -c \
 
 The platform entrypoints require the surrounding repository because they invoke
 `../../setup.sh`; use a source checkout or source release, not a copied script.
+
+## Recovering stale Nix profile backups
+
+When Nix is selected, setup checks for `.backup-before-nix` conflicts before
+installing packages or editor support. An existing Nix executable is reused;
+its normal installer backups are left alone.
+
+If a previous uninstall left only recognized Nix startup blocks, inspect and
+then explicitly request recovery with:
+
+```bash
+./setup.sh --full --repair-nix-profiles --dry-run
+./setup.sh --full --repair-nix-profiles
+```
+
+Recovery archives the original files in a private, uniquely named directory
+under `/etc`, prints its location, and never restores an old backup over the
+current shell profile. It accepts only empty files or the exact standard Nix
+startup block, including repeated blocks. Custom content, symbolic links,
+unreadable files, and evidence of an existing installation require manual
+recovery. No Nix store or volume is deleted.
+
+`--yes` alone does not enable recovery. `--check` remains an inspection even
+with the repair option, and `--dry-run` never archives files. Use `--no-nix` to
+continue setup without the Nix dependency profile.
