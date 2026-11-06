@@ -1,0 +1,129 @@
+module runtime::exec_startup_capture;
+
+// Native process-start preparation, not a SYS_execve implementation. The
+// trusted process-start owner chooses the validated destination ELF plan and
+// supplies credentials and fresh entropy. Only pathname/argv/envp come from
+// the current process. No caller pointer is retained by the loader.
+//
+// Calls must be serialized with scheduling, mapping changes, other loader
+// users and writes to the source address space. BUSY detects reentry under
+// that contract; it is not an SMP lock. This module does not resolve/authorize
+// the executable, replace an address space, close descriptors, or reset TLS.
+use runtime::process::current_process_handle;
+use runtime::process::current_address_space_handle;
+use runtime::process::address_space_for;
+use runtime::process::can_issue_operations;
+use runtime::address_space::is_live as space_is_live;
+use runtime::user_memory::copy_from_user;
+use runtime::user_memory::COPY_OK;
+use runtime::elf_loader::is_validated;
+use runtime::elf_loader::configure_startup;
+use runtime::elf_loader::last_error;
+use runtime::elf_loader::ELF_ERROR_CAPACITY;
+
+// These storage bounds follow the existing loader's 16 KiB initial stack
+// and Linux pathname limit. Pointer tables and auxv consume that same stack;
+// configure_startup performs the final combined-size/alignment check.
+const STACK_BYTES: usize = 16384;
+const PATH_BYTES: usize = 4096;
+static mut ARGUMENTS: [u8; 16384] = [0; 16384];
+static mut ENVIRONMENT: [u8; 16384] = [0; 16384];
+static mut PATH: [u8; 4096] = [0; 4096];
+static mut BUSY: u8 = 0;
+
+unsafe fn finish(result: i64) -> i64 {
+    let mut i: usize = 0;
+    while i < STACK_BYTES {
+        ARGUMENTS[i] = 0;
+        ENVIRONMENT[i] = 0;
+        i += 1;
+    }
+    i = 0;
+    while i < PATH_BYTES { PATH[i] = 0; i += 1; }
+    BUSY = 0;
+    return result;
+}
+
+// Includes the terminator in the result. The caller controls the exhaustion
+// errno: pathname ENAMETOOLONG differs from argument/environment E2BIG.
+unsafe fn copy_string(space: u64, source: usize, output: *mut u8, capacity: usize, exhausted: i64) -> i64 {
+    let mut i: usize = 0;
+    while i < capacity {
+        if source > 0xffff_ffff_ffff_ffff - i { return -14; }
+        if copy_from_user(space, output + i, (source + i) as *const u8, 1) != COPY_OK { return -14; }
+        if volatile_load(output + i) == 0 { return (i + 1) as i64; }
+        i += 1;
+    }
+    return exhausted;
+}
+
+unsafe fn copy_vector(space: u64, vector: usize, output: *mut u8, used: *mut usize, count: *mut usize) -> i64 {
+    volatile_store(used, 0);
+    volatile_store(count, 0);
+    // Explicit native profile behavior: null vectors represent empty lists.
+    // Any Linux-specific empty-argv normalization belongs to exec admission.
+    if vector == 0 { return 0; }
+    let mut strings: usize = 0;
+    let mut bytes: usize = 0;
+    while strings <= STACK_BYTES / 8 {
+        let offset: usize = strings * 8;
+        if vector > 0xffff_ffff_ffff_ffff - offset { return -14; }
+        let mut pointer: u64 = 0;
+        if copy_from_user(space, (&mut pointer) as *mut u8, (vector + offset) as *const u8, 8) != COPY_OK { return -14; }
+        if pointer == 0 {
+            volatile_store(used, bytes);
+            volatile_store(count, strings);
+            return 0;
+        }
+        if strings == STACK_BYTES / 8 || bytes == STACK_BYTES { return -7; }
+        let size: i64 = copy_string(space, pointer as usize, output + bytes, STACK_BYTES - bytes, -7);
+        if size < 0 { return size; }
+        bytes += size as usize;
+        strings += 1;
+    }
+    return -7;
+}
+
+// policy is seven immutable trusted-native u64 words:
+// [random_pointer, random_bytes(16), uid, euid, gid, egid, secure(0 or 1)].
+// The loader validates/copies these policy values; no user-supplied credentials
+// or deterministic fallback entropy is introduced here. A zero return means
+// only that startup bytes were configured, never that exec has committed.
+// Every failed user copy leaves the prior destination stack unchanged.
+pub unsafe fn configure_current(plan: u64, path: usize, argv: usize, envp: usize, policy: *const u64, words: usize) -> i64 {
+    if BUSY != 0 { return -16; }
+    if words != 7 || policy as usize == 0 || (policy as usize & 7) != 0
+        || policy as usize > 0xffff_ffff_ffff_ffff - 56 || !is_validated(plan) { return -22; }
+    let owner: u64 = current_process_handle();
+    let space: u64 = current_address_space_handle();
+    if owner == 0 || !can_issue_operations(owner) || space == 0
+        || !space_is_live(space) || address_space_for(owner) != space { return -3; }
+    BUSY = 1;
+    let path_length: i64 = copy_string(space, path, &mut PATH[0], PATH_BYTES, -36);
+    if path_length < 0 { return finish(path_length); }
+    if path_length == 1 { return finish(-2); }
+    let mut argument_bytes: usize = 0;
+    let mut argument_count: usize = 0;
+    let mut environment_bytes: usize = 0;
+    let mut environment_count: usize = 0;
+    let args_result: i64 = copy_vector(space, argv, &mut ARGUMENTS[0], &mut argument_bytes, &mut argument_count);
+    if args_result < 0 { return finish(args_result); }
+    let env_result: i64 = copy_vector(space, envp, &mut ENVIRONMENT[0], &mut environment_bytes, &mut environment_count);
+    if env_result < 0 { return finish(env_result); }
+    let mut descriptor: [u64; 15] = [0; 15];
+    descriptor[0] = (&ARGUMENTS[0]) as *const u8 as u64;
+    descriptor[1] = argument_bytes as u64;
+    descriptor[2] = argument_count as u64;
+    descriptor[3] = (&ENVIRONMENT[0]) as *const u8 as u64;
+    descriptor[4] = environment_bytes as u64;
+    descriptor[5] = environment_count as u64;
+    descriptor[6] = (&PATH[0]) as *const u8 as u64;
+    descriptor[7] = path_length as u64;
+    let mut i: usize = 0;
+    while i < 7 { descriptor[i + 8] = volatile_load(policy + i); i += 1; }
+    if configure_startup(plan, &descriptor[0], 15) == 0 {
+        if last_error() == ELF_ERROR_CAPACITY { return finish(-7); }
+        return finish(-22);
+    }
+    return finish(0);
+}
