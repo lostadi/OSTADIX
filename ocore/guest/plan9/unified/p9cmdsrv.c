@@ -12,6 +12,7 @@ enum {
 	Requestheader = 112, Resultheader = 200,
 	Timedout = 1, Outtruncated = 2, Errtruncated = 4, Startfailed = 8,
 	Cancelled = 16, Interrupted = Timedout|Cancelled,
+	Scanmin = 50, Scanmax = 250,
 };
 
 typedef struct Request Request;
@@ -492,7 +493,7 @@ complete(Request *r, char *directory)
 	if(flags&Interrupted) exits("interruption requires domain reset");
 }
 
-static void
+static int
 consider(char *name)
 {
 	Request request;
@@ -500,12 +501,14 @@ consider(char *name)
 	uchar *commit;
 	long commitbytes;
 	Accepted *entry;
-	if(name[0]!='r' || !hexid(name+1,32)) return;
+	int admitted;
+	if(name[0]!='r' || !hexid(name+1,32)) return 0;
 	directory=path(servicedir,name);
 	for(entry=accepted; entry!=nil; entry=entry->next)
-		if(strcmp(entry->id,name+1)==0){ free(directory); return; }
+		if(strcmp(entry->id,name+1)==0){ free(directory); return 0; }
 	if(!present(directory,"submit") || present(directory,"started")
-	|| present(directory,"done") || present(directory,"rejected")){ free(directory); return; }
+	|| present(directory,"done") || present(directory,"rejected")){ free(directory); return 0; }
+	admitted=0;
 	memset(&request,0,sizeof request);
 	request.wire=readfile(directory,"request",Maxrequest,&request.bytes);
 	commit=readfile(directory,"submit",256,&commitbytes);
@@ -528,9 +531,19 @@ consider(char *name)
 	if(entry==nil) fatal("accepted request ledger allocation");
 	memmove(entry->id,request.id,33); entry->next=accepted; accepted=entry;
 	if(publish(directory,"started",commit,commitbytes)<0) fatal("start publication");
+	admitted=1;
 	complete(&request,directory);
 Finished:
 	free(commit); freerequest(&request); free(directory);
+	return admitted;
+}
+
+static int
+nextscan(int delay, int active)
+{
+	if(active) return Scanmin;
+	if(delay>=Scanmax/2) return Scanmax;
+	return delay*2;
 }
 
 static void
@@ -553,7 +566,7 @@ main(int argc, char **argv)
 {
 	char *gdir, *ready;
 	Dir *entries;
-	int fd, n, i;
+	int fd, n, i, delay, active;
 	if(argc!=4 || argv[1][0]!='/' || !hexid(argv[2],16) || !hexid(argv[3],32)
 	|| strcmp(argv[2],"0000000000000000")==0){
 		fprint(2,"usage: p9cmdsrv /native/service/root generation16 instance32\n"); exits("usage");
@@ -567,12 +580,26 @@ main(int argc, char **argv)
 	ready=smprint("OC9READY1 %s %s\n",generation,instance);
 	if(ready==nil || publish(servicedir,"ready",ready,strlen(ready))<0) fatal("readiness publication");
 	free(ready);
+	/* Keep the directory fid open. Rewinding is local to the original mount
+	 * client; the next Tread at offset zero enumerates the current namespace.
+	 * Reopening each scan adds Twalk/Topen/Tclunk without making it fresher.
+	 * No cached listing or directory-qid shortcut may hide a submit published
+	 * inside a request directory that already existed at the previous scan. */
+	fd=open(servicedir,OREAD|OCEXEC);
+	if(fd<0) fatal("service scan");
+	delay=Scanmin;
 	for(;;){
-		fd=open(servicedir,OREAD);
-		if(fd<0) fatal("service scan");
-		n=dirreadall(fd,&entries); close(fd);
+		if(seek(fd,0,0)<0) fatal("service directory rewind");
+		n=dirreadall(fd,&entries);
 		if(n<0) fatal("service directory read");
-		for(i=0;i<n;i++) if(entries[i].mode&DMDIR) consider(entries[i].name);
-		free(entries); sleep(50);
+		active=0;
+		for(i=0;i<n;i++) if(entries[i].mode&DMDIR) active|=consider(entries[i].name);
+		free(entries);
+		/* Back off only between invocations, to a bounded 250ms admission
+		 * interval. An admitted command resets the fast cadence immediately.
+		 * execute's independent 50ms cancellation/deadline loop is unchanged. */
+		if(active) delay=Scanmin;
+		sleep(delay);
+		delay=nextscan(delay,active);
 	}
 }

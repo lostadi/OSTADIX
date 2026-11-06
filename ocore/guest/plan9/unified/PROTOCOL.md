@@ -184,6 +184,17 @@ marker through remove-then-rename and describe that as atomic replacement.
 The existing original mount uses `mount -n -c`: `-c` permits creation;
 uppercase `-C`, which enables client caching, is not used.
 
+Between commands, the resident retains one open service-directory descriptor
+and rewinds it before each fresh enumeration. It does not cache the listing or
+use its qid version to infer that files inside existing request directories
+have not changed. Idle scan sleeps back off from 50 through 100 and 200 to a
+maximum of 250 ms; admitting a command resets the next sleep to 50 ms. This
+bounds the intended idle admission polling interval, not wall-clock command
+latency: native I/O and scheduling still take time. A directory rewind/read
+failure stops the instance rather than skipping work or electing another
+instance. The independent in-flight cancellation/deadline loop retains its
+50 ms target interval.
+
 The process-local accepted-ID ledger remains authoritative after completed
 request files are cleaned up; a duplicate ID must not become executable merely
 because its old directory was removed. Retain claims for the active instance,
