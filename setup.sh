@@ -40,6 +40,7 @@ DRY_RUN=false
 WITH_NIX=false
 NIX_EXPLICIT=false
 SKIP_NIX=false
+REPAIR_NIX_PROFILES=false
 WITH_OCORE=false
 WITH_OCORE_MEDIA=false
 WITH_HOSTED_RUNTIMES=false
@@ -75,6 +76,7 @@ Options:
   -v, --verify                Verify the hosted Rust, C17, AOT, and Python forms
   --with-nix                  Install/verify Nix using the official installer when absent
   --no-nix                    Exclude Nix even when --full is selected
+  --repair-nix-profiles       Archive recognized stale Nix profiles/backups before installation
   --with-ocore                Install Clang, LLD, ELF tools, and x86/AArch64 QEMU
   --with-ocore-media          Also install deterministic x86_64 UEFI-media tools
   --with-hosted-runtimes      Open-source backend runtimes and JDK (macOS/Debian; excludes licensed downloads)
@@ -105,6 +107,7 @@ Examples:
   ./setup.sh --with-ocore --verify-ocore
   ./setup.sh --with-ocore-media --deps-only
   ./setup.sh --full --with-hosted-runtimes
+  ./setup.sh --full --repair-nix-profiles --dry-run
   ./setup.sh --with-linux-kernel-tools --deps-only
   ./setup.sh --with-guest-tools --with-ubuntu-vm --deps-only
   ./setup.sh --full --dry-run
@@ -113,6 +116,9 @@ Scope:
   Guest tooling prepares the explicit pinned Alpine, FreeBSD, 9front, Guix,
   and Redox QEMU lab. Setup never downloads or boots an operating system.
   These host-side boots are not evidence that O-core governs foreign kernels.
+  Nix profile repair preserves originals in a private recovery directory.
+  It refuses custom profile content or an existing installation; --check and
+  --dry-run never repair files. --yes alone does not authorize this repair.
 EOF
   exit "$status"
 }
@@ -126,6 +132,7 @@ while [[ $# -gt 0 ]]; do
     -v|--verify) VERIFY=true; shift ;;
     --with-nix) WITH_NIX=true; NIX_EXPLICIT=true; SKIP_NIX=false; shift ;;
     --no-nix) SKIP_NIX=true; WITH_NIX=false; shift ;;
+    --repair-nix-profiles) REPAIR_NIX_PROFILES=true; shift ;;
     --with-ocore) WITH_OCORE=true; shift ;;
     --with-ocore-media) WITH_OCORE_MEDIA=true; WITH_OCORE=true; shift ;;
     --with-hosted-runtimes) WITH_HOSTED_RUNTIMES=true; shift ;;
@@ -770,6 +777,40 @@ install_hosted_runtime_extras() {
   fi
 }
 
+preflight_nix_profiles() {
+  if ! $WITH_NIX; then return 0; fi
+  # Existing installations normally retain these backups. Use the same binary
+  # discovery as install_nix, without sourcing shell profiles in read-only modes.
+  if [[ -n "$(find_tool_path nix 2>/dev/null || true)" ]]; then return 0; fi
+  local profile conflict=false python_path helper status
+  for profile in /etc/bashrc /etc/profile.d/nix.sh /etc/zshrc /etc/bash.bashrc /etc/zsh/zshrc; do
+    if [[ -e "$profile.backup-before-nix" || -L "$profile.backup-before-nix" ]]; then
+      conflict=true
+      echo "Nix installer backup conflict: $profile.backup-before-nix" >&2
+    fi
+  done
+  if ! $conflict; then return 0; fi
+  python_path="$(find_tool_path python3 2>/dev/null || true)"
+  if [[ -z "$python_path" ]]; then
+    echo "Error: stale Nix profile backups block installation. Install Python 3 to inspect them with --repair-nix-profiles, or recover them manually; --no-nix skips Nix." >&2
+    return 1
+  fi
+  helper="$PROJECT_ROOT/scripts/nix_profile_recovery.py"
+  if $CHECK_ONLY || ! $REPAIR_NIX_PROFILES; then
+    "$python_path" "$helper"
+  elif $DRY_RUN; then
+    "$python_path" "$helper" --repair --dry-run
+  else
+    status=0
+    "$python_path" "$helper" --plan-repair || status=$?
+    case "$status" in
+      0) return 0 ;;
+      3) run_privileged "$python_path" "$helper" --repair ;;
+      *) return "$status" ;;
+    esac
+  fi
+}
+
 source_nix_profile() {
   local profile
   for profile in \
@@ -804,8 +845,10 @@ install_nix() {
   else
     source_nix_profile || true
   fi
-  if has_cmd nix; then
-    echo "Nix already present."
+  local nix_command
+  nix_command="$(find_tool_path nix 2>/dev/null || true)"
+  if [[ -n "$nix_command" ]]; then
+    echo "Nix already present: $nix_command"
   elif $DRY_RUN; then
     echo "[DRY] download https://nixos.org/nix/install to a temporary file over TLS"
     if [[ "$PLATFORM" == "macos" || ( "$PLATFORM" == "linux" && -d /run/systemd/system ) ]]; then
@@ -856,13 +899,14 @@ install_nix() {
     source_nix_profile || true
   fi
 
-  if ! has_cmd nix; then
+  nix_command="$(find_tool_path nix 2>/dev/null || true)"
+  if [[ -z "$nix_command" ]]; then
     echo "Error: Nix installation completed but nix is still unavailable; start a fresh shell and re-run --check." >&2
     return 1
   fi
-  nix --version
+  "$nix_command" --version
   local nix_probe
-  nix_probe="$(nix --extra-experimental-features nix-command eval --raw --expr 'toString (1 + 1)')"
+  nix_probe="$("$nix_command" --extra-experimental-features nix-command eval --raw --expr 'toString (1 + 1)')"
   if [[ "$nix_probe" != "2" ]]; then
     echo "Error: network-free Nix evaluation returned an unexpected result: $nix_probe" >&2
     return 1
@@ -1717,6 +1761,7 @@ if [[ -n "${CARGO_BUILD_TARGET:-}" ]]; then
   unset CARGO_BUILD_TARGET
 fi
 preflight_setup
+preflight_nix_profiles
 
 if $CHECK_ONLY; then
   install_editor_support
