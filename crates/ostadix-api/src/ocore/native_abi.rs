@@ -833,6 +833,7 @@ mod tests {
                 abi: None,
                 tls_profile: None,
                 atomic_profile: None,
+                strict_fp_profile: None,
             },
             semantics: Semantics::LlvmDefinedBehaviorV1,
             types: vec![

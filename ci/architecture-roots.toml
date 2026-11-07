@@ -23,13 +23,6 @@ path = "crates/ostadix-api/src/project/input_kind.inc.rs"
 owner = "project"
 included_from = "crates/ostadix-api/src/project/lower.rs"
 
-# The private-directory helper is compiled into shims and is also embedded as
-# text (include_str!) into generated project runtimes, so both build the same bytes.
-[[compiled_fragment]]
-path = "crates/ostadix-api/src/private_dir.inc.rs"
-owner = "shims"
-included_from = "crates/ostadix-api/src/shims.rs"
-
 # Atomic emission stays inside the private native-codegen child module while
 # its physical source is scanned under the owning O-core dependency root.
 [[compiled_fragment]]
@@ -57,6 +50,12 @@ path = "crates/ostadix-api/src/ocore/native_variadic_codegen.rs"
 owner = "ocore"
 included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
 module_path = ["ocore", "native_codegen", "variadic"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/private_dir.inc.rs"
+owner = "shims"
+included_from = "crates/ostadix-api/src/shims.rs"
+module_path = ["shims"]
 
 # These physical paths are compiled under roots that differ from their
 # conventional on-disk module path. They are part of the dependency identity,

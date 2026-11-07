@@ -107,7 +107,7 @@ RUN git clone --depth 100 ${QEMU_REPO} /qemu && \
 FROM scratch AS qemu-repo
 COPY --link --from=qemu-repo-base /qemu /
 
-FROM golang:1.26-bookworm AS golang-base
+FROM golang:1.27-bookworm AS golang-base
 ENV GOMAXPROCS=1 GOFLAGS=-p=1
 
 FROM golang-base AS bundle-dev
@@ -833,7 +833,7 @@ RUN echo "Module['arguments'] =" > /out/arg-module.js
 RUN cat /out/args.json >> /out/arg-module.js
 RUN echo ";" >> /out/arg-module.js
 
-FROM gcc:14 AS qemu-native-dev
+FROM gcc:16 AS qemu-native-dev
 RUN apt-get update && apt-get install -y libffi-dev libglib2.0-dev libpixman-1-dev libattr1 libattr1-dev ninja-build pipx
 RUN PIPX_BIN_DIR=/usr/local/bin pipx install meson==1.5.0
 COPY --link --from=qemu-repo / /qemu

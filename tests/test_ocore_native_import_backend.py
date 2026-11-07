@@ -376,6 +376,15 @@ class NativeImportBackendTests(unittest.TestCase):
         self.assertEqual(record["global_count"], len(native_module["globals"]))
         return source
 
+    def reject_verify(self, native_module, reason):
+        self.counter += 1
+        source = self.directory / f"input-{self.counter}.json"
+        source.write_text(json.dumps(native_module), encoding="utf-8")
+        result = self.run_command([self.compiler, str(source), "--input-kind", "native-ir",
+                                   "--verify-native"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(reason, result.stderr)
+
     def reject_backend(self, native_module, isa, reason):
         source = self.verified_input(native_module)
         output = source.with_suffix(".s")
@@ -413,11 +422,19 @@ class NativeImportBackendTests(unittest.TestCase):
         from tests.test_ocore_native_weak import elf_symbols
 
         for isa in TARGETS:
-            for linkage in ("extern_weak", "available_externally"):
+            with self.subTest(isa=isa, linkage="extern_weak"):
+                fn = function("hook", linkage="extern_weak")
+                fn.update(entry=None, blocks=[])
+                symbol = elf_symbols(self.object(module(isa, [fn]), isa))["hook"]
+                self.assertEqual(symbol["binding"], 2, "declaration must be STB_WEAK")
+                self.assertEqual(symbol["type"], 0, "undefined declaration must be STT_NOTYPE")
+                self.assertEqual(symbol["section"], 0, "declaration must stay SHN_UNDEF")
+            with self.subTest(isa=isa, linkage="extern_weak definition"):
+                self.reject_verify(module(isa, [function("hook", linkage="extern_weak")]),
+                                   "linkage")
+            for linkage in ("available_externally",):
                 with self.subTest(isa=isa, linkage=linkage):
                     fn = function("hook", linkage=linkage)
-                    if linkage == "extern_weak":
-                        fn.update(entry=None, blocks=[])
                     self.reject_backend(module(isa, [fn]), isa, f"linkage `{linkage}`")
             for linkage in WEAK_LINKAGES:
                 with self.subTest(isa=isa, linkage=linkage):
@@ -432,9 +449,20 @@ class NativeImportBackendTests(unittest.TestCase):
         from tests.test_ocore_native_weak import elf_symbols
 
         for isa in TARGETS:
-            for linkage in ("extern_weak", "common", "available_externally"):
+            with self.subTest(isa=isa, linkage="extern_weak"):
+                glob = global_(linkage="extern_weak", initializer=False)
+                symbol = elf_symbols(self.object(module(isa, globals_=[glob]), isa))["slot"]
+                self.assertEqual(symbol["binding"], 2, "declaration must be STB_WEAK")
+                self.assertEqual(symbol["type"], 0, "undefined declaration must be STT_NOTYPE")
+                self.assertEqual(symbol["section"], 0, "declaration must stay SHN_UNDEF")
+            with self.subTest(isa=isa, linkage="extern_weak thread_local"):
+                glob = global_(linkage="extern_weak", initializer=False)
+                glob["thread_local"] = True
+                self.reject_verify(module(isa, globals_=[glob]),
+                                   "extern_weak TLS declarations are not implemented")
+            for linkage in ("common", "available_externally"):
                 with self.subTest(isa=isa, linkage=linkage):
-                    glob = global_(linkage=linkage, initializer=linkage != "extern_weak")
+                    glob = global_(linkage=linkage)
                     self.reject_backend(module(isa, globals_=[glob]), isa,
                                         f"linkage `{linkage}`")
             for linkage in WEAK_LINKAGES:

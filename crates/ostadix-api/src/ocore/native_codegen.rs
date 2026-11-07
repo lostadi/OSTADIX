@@ -89,6 +89,19 @@ fn emit_impl(
             }
         }
     }
+    let external_weak: BTreeSet<_> = module
+        .globals
+        .iter()
+        .filter(|g| g.linkage == "extern_weak")
+        .map(|g| g.name.clone())
+        .chain(
+            module
+                .functions
+                .iter()
+                .filter(|f| f.linkage == "extern_weak")
+                .map(|f| f.name.clone()),
+        )
+        .collect();
     let mut out = String::new();
     let mut namespace = 0usize;
     let label_prefix = loop {
@@ -117,6 +130,9 @@ fn emit_impl(
     }
     for (index, global) in module.globals.iter().enumerate() {
         elf_visibility(&mut out, &global.name, global.visibility);
+        if global.linkage == "extern_weak" {
+            visibility(&mut out, &global.name, &global.linkage);
+        }
         if global.thread_local {
             writeln!(out, ".type {}, @tls_object", global.name).unwrap();
             if global.initializer.is_none() {
@@ -125,7 +141,14 @@ fn emit_impl(
         }
         if !matches!(
             global.linkage.as_str(),
-            "external" | "internal" | "private" | "weak" | "linkonce" | "linkonce_odr" | "weak_odr"
+            "external"
+                | "extern_weak"
+                | "internal"
+                | "private"
+                | "weak"
+                | "linkonce"
+                | "linkonce_odr"
+                | "weak_odr"
         ) {
             return Err(error_diagnostic(format!(
                 "imported native backend does not implement linkage `{}` for {}",
@@ -216,6 +239,9 @@ fn emit_impl(
     }
     for (index, function) in module.functions.iter().enumerate() {
         elf_visibility(&mut out, &function.name, function.visibility);
+        if function.linkage == "extern_weak" {
+            visibility(&mut out, &function.name, &function.linkage);
+        }
         if function.entry.is_some() {
             Emitter::new(
                 module,
@@ -223,6 +249,7 @@ fn emit_impl(
                 index,
                 target,
                 &label_prefix,
+                &external_weak,
                 &leaf_layouts,
                 &abi,
             )?
@@ -257,7 +284,9 @@ fn emit_impl(
 fn visibility(out: &mut String, name: &str, linkage: &str) {
     match linkage {
         "internal" | "private" => writeln!(out, ".local {name}").unwrap(),
-        "weak" | "linkonce" | "linkonce_odr" | "weak_odr" => writeln!(out, ".weak {name}").unwrap(),
+        "weak" | "extern_weak" | "linkonce" | "linkonce_odr" | "weak_odr" => {
+            writeln!(out, ".weak {name}").unwrap()
+        }
         _ => writeln!(out, ".global {name}").unwrap(),
     }
 }
@@ -475,6 +504,10 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
         }
     }
     float_layout::audit(module, &executable_value_types(module))?;
+    // Required source environment contract survives NativeIR serialization.
+    // Every supported emitter realizes these operations without changing the
+    // FP control/status state; provider calls retain their original effects.
+    super::native_verify::verify_strict_fp_profile(module)?;
     for alias in &module.aliases {
         if !matches!(
             alias.linkage.as_str(),
@@ -489,7 +522,14 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     for global in &module.globals {
         if !matches!(
             global.linkage.as_str(),
-            "external" | "internal" | "private" | "weak" | "linkonce" | "linkonce_odr" | "weak_odr"
+            "external"
+                | "extern_weak"
+                | "internal"
+                | "private"
+                | "weak"
+                | "linkonce"
+                | "linkonce_odr"
+                | "weak_odr"
         ) {
             return Err(error_diagnostic(format!(
                 "imported native backend does not implement linkage `{}` for {}",
@@ -526,13 +566,39 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                         "only absolute64 and source-relative32 initializer relocations are implemented",
                     ));
                 }
+                if target == Target::Aarch64UnknownNone
+                    && r.relative_to.is_some()
+                    && (module
+                        .globals
+                        .iter()
+                        .any(|g| g.name == r.symbol && g.linkage == "extern_weak")
+                        || module
+                            .functions
+                            .iter()
+                            .any(|f| f.name == r.symbol && f.linkage == "extern_weak"))
+                {
+                    // The AArch64 ELF PREL relocation rule substitutes P for
+                    // an absent weak S, rather than the zero address required
+                    // by LLVM extern_weak pointer arithmetic. Keep this source
+                    // contract in IR but reject before publishing an object.
+                    return Err(error_diagnostic(
+                        "AArch64 source-relative initializer targeting extern_weak cannot preserve absent-provider zero semantics",
+                    ));
+                }
             }
         }
     }
     for function in &module.functions {
         if !matches!(
             function.linkage.as_str(),
-            "external" | "internal" | "private" | "weak" | "linkonce" | "linkonce_odr" | "weak_odr"
+            "external"
+                | "extern_weak"
+                | "internal"
+                | "private"
+                | "weak"
+                | "linkonce"
+                | "linkonce_odr"
+                | "weak_odr"
         ) {
             return Err(error_diagnostic(format!(
                 "imported native backend does not implement linkage `{}` for {}",
@@ -692,17 +758,20 @@ struct Emitter<'a> {
     frame: i64,
     label_counter: usize,
     label_prefix: &'a str,
+    external_weak: &'a BTreeSet<String>,
     exception_tables: Option<ExceptionTables<'a>>,
     call_sites: Vec<CallSite>,
 }
 
 impl<'a> Emitter<'a> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         module: &'a NativeModule,
         function: &'a Function,
         index: usize,
         target: Target,
         label_prefix: &'a str,
+        external_weak: &'a BTreeSet<String>,
         leaf_layouts: &'a BTreeMap<TypeId, Vec<(TypeId, u64)>>,
         abi: &'a AbiContext<'a>,
     ) -> Result<Self, Diagnostic> {
@@ -724,6 +793,7 @@ impl<'a> Emitter<'a> {
             frame: 0,
             label_counter: 0,
             label_prefix,
+            external_weak,
             exception_tables: (function.exception_handling.is_some()
                 || function
                     .blocks
@@ -1125,22 +1195,46 @@ impl<'a> Emitter<'a> {
     }
     fn symbol_address(&self, out: &mut String, reg: usize, name: &str, addend: i64) {
         let r = self.reg(reg);
+        let external_weak = self.external_weak.contains(name);
+        // A missing weak provider has address zero. Load its linker-resolved
+        // GOT entry instead of assuming zero is within a PC-relative address
+        // materialization's range (notably RV64 high-address images).
         match self.target {
             Target::X86_64UnknownNone => {
-                writeln!(out, "  lea {r}, [rip + {name}]").unwrap();
+                if external_weak {
+                    writeln!(out, "  mov {r}, qword ptr [rip + {name}@GOTPCREL]").unwrap();
+                } else {
+                    writeln!(out, "  lea {r}, [rip + {name}]").unwrap();
+                }
                 if addend != 0 {
                     writeln!(out, "  mov r11, {}\n  add {r}, r11", addend as u64).unwrap();
                 }
             }
             Target::Aarch64UnknownNone => {
-                writeln!(out, "  adrp {r}, {name}\n  add {r}, {r}, :lo12:{name}").unwrap();
+                if external_weak {
+                    writeln!(
+                        out,
+                        "  adrp {r}, :got:{name}\n  ldr {r}, [{r}, :got_lo12:{name}]"
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(out, "  adrp {r}, {name}\n  add {r}, {r}, :lo12:{name}").unwrap();
+                }
                 if addend != 0 {
                     arm_immediate(out, "x17", addend as u64);
                     writeln!(out, "  add {r}, {r}, x17").unwrap();
                 }
             }
             Target::Riscv64UnknownNone => {
-                writeln!(out, "  lla {r}, {name}").unwrap();
+                if external_weak {
+                    writeln!(
+                        out,
+                        "1:\n  auipc {r}, %got_pcrel_hi({name})\n  ld {r}, %pcrel_lo(1b)({r})"
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(out, "  lla {r}, {name}").unwrap();
+                }
                 if addend != 0 {
                     writeln!(out, "  li ra, {addend}\n  add {r}, {r}, ra").unwrap();
                 }
@@ -2820,7 +2914,7 @@ impl<'a> Emitter<'a> {
             .is_some()
             .then(|| self.label());
         match callee {
-            Operand::Symbol { name, .. } => {
+            Operand::Symbol { name, .. } if !self.external_weak.contains(name) => {
                 if signature.variadic && self.target == Target::X86_64UnknownNone {
                     writeln!(
                         out,
