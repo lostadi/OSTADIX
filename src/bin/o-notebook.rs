@@ -451,6 +451,7 @@ footer {
 }
 
 /* utils */
+button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 ::-webkit-scrollbar { width:6px; height:6px; }
 ::-webkit-scrollbar-track { background:transparent; }
