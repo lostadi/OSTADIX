@@ -24,6 +24,9 @@ POLICY_PATH = "scripts/check_commit_authors.py"
 LEGACY_POLICY_PATH = "scripts/check_attribution.py"
 PROJECT_AUTHOR = "Lee Daghlar Ostadi"
 PROJECT_ORCID = "0009-0001-6380-9558"
+# merges made in the github web ui are committed by github itself.
+PROJECT_AUTHOR_EMAIL = "34668360+lostadi@users.noreply.github.com"
+GITHUB_MERGE_COMMITTER = ("GitHub", "noreply@github.com")
 OWNED_AUTHOR_MANIFESTS = frozenset({"Cargo.toml", "crates/ostadix-api/Cargo.toml"})
 LEGACY_POLICY_BASELINE = "9754a94b9cf5d1312049ba493536d86d083c5c55"
 CODEX_IDENTITY = re.compile(r"(?i)(?<![a-z0-9])codex(?![a-z0-9])")
@@ -102,6 +105,7 @@ class CommitMetadata:
     committer_name: str
     committer_email: str
     message: str
+    parents: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -133,8 +137,19 @@ def contains_forbidden_identity(value: str) -> bool:
     )
 
 
+def is_github_merge_by_lee(commit: CommitMetadata) -> bool:
+    # only a true merge authored by lee may carry github as committer.
+    return (
+        len(commit.parents) >= 2
+        and (commit.author_name, commit.author_email)
+        == (PROJECT_AUTHOR, PROJECT_AUTHOR_EMAIL)
+        and (commit.committer_name, commit.committer_email) == GITHUB_MERGE_COMMITTER
+    )
+
+
 def commit_violations(commit: CommitMetadata) -> list[Violation]:
     violations: list[Violation] = []
+    github_merge_by_lee = is_github_merge_by_lee(commit)
     identity_fields = (
         ("author name", commit.author_name),
         ("author email", commit.author_email),
@@ -143,7 +158,9 @@ def commit_violations(commit: CommitMetadata) -> list[Violation]:
     )
     for field, value in identity_fields:
         if (
-            field in ("author name", "committer name") and value != PROJECT_AUTHOR
+            field in ("author name", "committer name")
+            and value != PROJECT_AUTHOR
+            and not (field == "committer name" and github_merge_by_lee)
         ) or contains_forbidden_identity(value):
             violations.append(Violation(commit.oid, field, value))
 
@@ -587,17 +604,18 @@ def read_commit(oid: str) -> CommitMetadata:
             "git",
             "show",
             "-s",
-            "--format=%an%x00%ae%x00%cn%x00%ce%x00%B",
+            "--format=%P%x00%an%x00%ae%x00%cn%x00%ce%x00%B",
             oid,
         ],
         cwd=ROOT,
         check=True,
         capture_output=True,
     )
-    fields = result.stdout.decode("utf-8", errors="replace").split("\0", 4)
-    if len(fields) != 5:
+    fields = result.stdout.decode("utf-8", errors="replace").split("\0", 5)
+    if len(fields) != 6:
         raise RuntimeError(f"could not parse author fields for commit {oid}")
-    return CommitMetadata(oid, *fields)
+    parents, *identity = fields
+    return CommitMetadata(oid, *identity, parents=tuple(parents.split()))
 
 
 def parse_push_updates(text: str) -> list[PushUpdate]:

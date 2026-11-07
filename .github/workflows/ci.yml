@@ -27,7 +27,7 @@ jobs:
           ATTRIBUTION_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           ATTRIBUTION_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: >-
-          python3 scripts/check_attribution.py
+          python3 scripts/check_commit_authors.py
           --base "$ATTRIBUTION_BASE"
           --head "$ATTRIBUTION_HEAD"
           --ref-type "${{ github.ref_type || 'branch' }}"
@@ -36,7 +36,7 @@ jobs:
           python3 scripts/local_ci_posture.py --profile baseline --format text
           python3 scripts/contract_surfaces.py validate
           python3 scripts/check_architecture_boundaries.py
-          python3 -m unittest -v tests.test_contract_surfaces tests.test_local_ci_posture tests.test_attribution_policy tests.test_architecture_boundaries tests.test_governance_surfaces
+          python3 -m unittest -v tests.test_contract_surfaces tests.test_local_ci_posture tests.test_commit_authors tests.test_architecture_boundaries tests.test_governance_surfaces
 
   docker:
     name: Docker minimal runtime profile
@@ -284,7 +284,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.x"
       - name: Python contracts and reference runtime
@@ -296,7 +296,7 @@ jobs:
           python3 -m unittest -v tests.test_example_manifest tests.test_benchmark_hgraph_hosted
           python3 -m unittest -v tests.test_hosted_boot tests.test_python_shim_backend
           python3 -m unittest -v tests.test_boxing tests.test_ocore_execution_prefix
-          python3 -m unittest -v tests.test_foreign_kernel_lab tests.test_ostadix_capacity tests.test_ostadix_capacity_iso tests.test_ostadix_boot_media tests.test_ostadix_boot_iso tests.test_ostadix_boot_info_qemu tests.test_ostadix_hosted_live_release tests.test_ostadix_ventoy_installer tests.test_ostadix_media_writer tests.test_ostadix_physical_evidence tests.test_setup tests.test_native_install tests.test_language_sources tests.test_render_docs
+          python3 -m unittest -v tests.test_foreign_kernel_lab tests.test_ostadix_capacity tests.test_ostadix_capacity_iso tests.test_ostadix_boot_media tests.test_ostadix_boot_iso tests.test_ostadix_boot_info_qemu tests.test_ostadix_hosted_live_release tests.test_ostadix_ventoy_installer tests.test_ostadix_media_writer tests.test_ostadix_physical_evidence tests.test_setup tests.test_nix_profile_recovery tests.test_native_install tests.test_language_sources tests.test_render_docs
           python3 -m tests.test_evaluator
           python3 -B tests/test_backend_state_protocol.py -v
           python3 -B tests/test_bundled_shim_protocol.py -v
@@ -374,12 +374,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install builder Python 3.11
         id: python311
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
       - name: Install recipient-floor Python 3.10
         id: python310
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.10"
       - name: Build, verify, and extract a sealed native-host fixture
@@ -397,12 +397,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install builder Python 3.11
         id: python311
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
       - name: Install recipient-floor Python 3.10
         id: python310
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.10"
       - name: Build, verify, and extract a sealed native-host fixture
@@ -420,12 +420,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install builder Python 3.11
         id: python311
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
       - name: Install recipient-floor Python 3.10
         id: python310
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.10"
       - name: Build, verify, and extract a sealed native-host fixture
@@ -443,12 +443,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install builder Python 3.11
         id: python311
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
       - name: Install recipient-floor Python 3.10
         id: python310
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.10"
       - name: Build, verify, and extract a sealed native-host fixture
