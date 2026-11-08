@@ -468,12 +468,12 @@ footer {
   </div>
   <div class="spacer"></div>
   <div class="header-actions">
-    <button class="hbtn" onclick="addCell()">+ Cell</button>
-    <button class="hbtn primary" onclick="runAll()">▶ Run All</button>
-    <button class="hbtn" onclick="clearAll()">Clear Outputs</button>
-    <button class="hbtn" onclick="saveNotebook()" title="Save notebook to JSON (Ctrl+S)">⬇ Save</button>
-    <button class="hbtn" onclick="loadNotebook()" title="Load notebook from JSON">⬆ Load</button>
-    <button class="hbtn danger" onclick="restartKernel()" title="Clear all variable bindings and subprocess state">↺ Restart Kernel</button>
+    <button class="hbtn" onclick="addCell()" aria-label="Add Cell">+ Cell</button>
+    <button class="hbtn primary" onclick="runAll()" aria-label="Run All Cells">▶ Run All</button>
+    <button class="hbtn" onclick="clearAll()" aria-label="Clear All Outputs">Clear Outputs</button>
+    <button class="hbtn" onclick="saveNotebook()" title="Save notebook to JSON (Ctrl+S)" aria-label="Save Notebook">⬇ Save</button>
+    <button class="hbtn" onclick="loadNotebook()" title="Load notebook from JSON" aria-label="Load Notebook">⬆ Load</button>
+    <button class="hbtn danger" onclick="restartKernel()" title="Clear all variable bindings and subprocess state" aria-label="Restart Kernel">↺ Restart Kernel</button>
   </div>
 </header>
 
