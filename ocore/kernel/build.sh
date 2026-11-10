@@ -26,8 +26,9 @@ esac
 
 LINK_GC_FLAGS=()
 OCOREC_FUNCTION_SECTION_FLAGS=()
-if (( PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 || PROBE_MODE == 30 || PROBE_MODE == 32 )); then
-  # The personality and receipt probes carry the largest kernels.
+if (( PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 \
+    || PROBE_MODE == 30 || PROBE_MODE == 32 )); then
+  # Live-personality and receipt probes carry the largest reachable kernels.
   # Keep the fixed bootstrap reserve intact by discarding only unreachable,
   # separately sectioned helpers; ordinary builds retain monolithic .text.
   LINK_GC_FLAGS=(--gc-sections)
@@ -70,6 +71,7 @@ KERNEL_WORLD_RECORD_DEFINE='-DOCORE_KERNEL_WORLD_RECORD_PATH=""'
 if (( PROBE_MODE == 15 )); then
   M4_ARTIFACT_OUTPUT="$(
     OCORE_M4_BUILD_DIR="$ROOT/target/ocore-m4" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m4-artifacts.sh"
   )"
   M4_IMAGE_PATH="$(
@@ -94,7 +96,8 @@ fi
 
 if (( PROBE_MODE == 16 )); then
   M5_ARTIFACT_OUTPUT="$(
-    OCORE_M5_BUILD_DIR="$ROOT/target/ocore-m5-artifacts" \
+    OCORE_M5_BUILD_DIR="${OCORE_M5_BUILD_DIR:-$BUILD_DIR/m5-artifacts}" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m5-artifacts.sh"
   )"
   M5_IMAGE_PATH="$(
@@ -111,6 +114,7 @@ fi
 if (( PROBE_MODE == 18 )); then
   M6_ARTIFACT_OUTPUT="$(
     OCORE_M6_BUILD_DIR="$ROOT/target/ocore-m6-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m6-artifacts.sh"
   )"
   M6_IMAGE_PATH="$(
@@ -126,6 +130,7 @@ fi
 if (( PROBE_MODE == 24 )); then
   M6B_LIVE_ARTIFACT_OUTPUT="$(
     OCORE_M6B_LIVE_BUILD_DIR="$ROOT/target/ocore-m6b-live-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m6b-live-artifacts.sh"
   )"
   M6B_LIVE_IMAGE_PATH="$(
@@ -141,6 +146,7 @@ fi
 if (( PROBE_MODE == 25 )); then
   M6_LINUX_ARTIFACT_OUTPUT="$(
     OCORE_M6_LINUX_BUILD_DIR="$ROOT/target/ocore-m6-linux-live-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m6-linux-live-artifacts.sh"
   )"
   M6_LINUX_IMAGE_PATH="$(
@@ -156,6 +162,7 @@ fi
 if (( PROBE_MODE == 26 )); then
   M7_LINUX_PLAN9_ARTIFACT_OUTPUT="$(
     OCORE_M7_BUILD_DIR="$ROOT/target/ocore-m7-linux-plan9-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m7-linux-plan9-artifacts.sh"
   )"
   M7_LINUX_PLAN9_IMAGE_PATH="$(
@@ -171,6 +178,7 @@ fi
 if (( PROBE_MODE == 31 )); then
   M7B_LOGICAL_READ_ARTIFACT_OUTPUT="$(
     OCORE_M7B_BUILD_DIR="$ROOT/target/ocore-m7b-logical-read-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m7b-logical-read-artifacts.sh"
   )"
   M7B_LOGICAL_READ_IMAGE_PATH="$(
@@ -322,7 +330,7 @@ if (( PROBE_MODE == 19 )); then
 fi
 
 IMAGE_VFS_STORAGE_SOURCE="$ROOT/ocore/runtime/x86_64/image_vfs_storage.oc"
-if (( PROBE_MODE == 26 || PROBE_MODE == 31 )); then
+if (( PROBE_MODE == 18 || PROBE_MODE == 24 || PROBE_MODE == 26 || PROBE_MODE == 31 )); then
   IMAGE_VFS_STORAGE_SOURCE="$ROOT/ocore/runtime/x86_64/image_vfs_storage_m7.oc"
 fi
 
@@ -331,7 +339,15 @@ M6_MODE25_DIAGNOSTICS_SOURCES=()
 BOUNDED_PERSONALITY_SOURCES=()
 CAPABILITY_BOOT_TEST_SOURCE="$KERNEL_DIR/capability_boot_test.oc"
 if (( PROBE_MODE == 18 || PROBE_MODE == 24 )); then
-  M6_SOURCE="$KERNEL_DIR/m6.oc"
+  M6_SOURCE="$BUILD_DIR/m6.oc"
+  if (( PROBE_MODE == 18 )); then
+    python3 "$KERNEL_DIR/bind-image.py" \
+      "$KERNEL_DIR/m6.oc" "$M6_IMAGE_PATH" "$M6_SOURCE" --capacity 98304
+  else
+    python3 "$KERNEL_DIR/bind-image.py" \
+      "$KERNEL_DIR/m6.oc" "$M6B_LIVE_IMAGE_PATH" "$M6_SOURCE" \
+      --prefix BOUNDED_IMAGE_ --capacity 98304
+  fi
 fi
 if (( PROBE_MODE == 25 || PROBE_MODE == 26 )); then
   M6_SOURCE="$KERNEL_DIR/m6_linux.oc"
@@ -345,14 +361,25 @@ if (( PROBE_MODE == 25 )); then
   M6_MODE25_DIAGNOSTICS_SOURCES=(
     "$KERNEL_DIR/m6_mode25_diagnostics.oc"
   )
+  M6_SOURCE="$BUILD_DIR/m6.oc"
+  python3 "$KERNEL_DIR/bind-image.py" \
+    "$KERNEL_DIR/m6_linux.oc" "$M6_LINUX_IMAGE_PATH" "$M6_SOURCE" \
+    --prefix LINUX_IMAGE_
 fi
 if (( PROBE_MODE == 26 )); then
   M6_MODE25_DIAGNOSTICS_SOURCES=(
     "$KERNEL_DIR/m6_mode25_diagnostics_stub.oc"
   )
+  M6_SOURCE="$BUILD_DIR/m6.oc"
+  python3 "$KERNEL_DIR/bind-image.py" \
+    "$KERNEL_DIR/m6_linux.oc" "$M7_LINUX_PLAN9_IMAGE_PATH" "$M6_SOURCE" \
+    --prefix M7_IMAGE_ --capacity 98304
 fi
 if (( PROBE_MODE == 31 )); then
-  M6_SOURCE="$KERNEL_DIR/m7b_logical_read.oc"
+  M6_SOURCE="$BUILD_DIR/m6.oc"
+  python3 "$KERNEL_DIR/bind-image.py" \
+    "$KERNEL_DIR/m7b_logical_read.oc" "$M7B_LOGICAL_READ_IMAGE_PATH" "$M6_SOURCE" \
+    --capacity 98304
 fi
 if (( PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 )); then
   # Mode 19 directly exercises views/resources and its pinned Linux oracle
@@ -369,7 +396,11 @@ fi
 
 M5_SOURCE="$KERNEL_DIR/m5_stub.oc"
 if (( PROBE_MODE == 16 )); then
-  M5_SOURCE="$KERNEL_DIR/m5.oc"
+  # Bind the kernel's trust anchor to this build's verified, reproducible image.
+  # Linker/compiler changes can alter both ELF sizes and the OVFS digest.
+  M5_SOURCE="$BUILD_DIR/m5.oc"
+  python3 "$KERNEL_DIR/bind-image.py" \
+    "$KERNEL_DIR/m5.oc" "$M5_IMAGE_PATH" "$M5_SOURCE" --command-digest
 fi
 M5_SELFTEST_SOURCE="$KERNEL_DIR/m5_selftest_stub.oc"
 M5_SEMANTICS_SOURCE="$KERNEL_DIR/m5_semantics_stub.oc"
@@ -383,12 +414,17 @@ M2_SOURCE="$KERNEL_DIR/m2.oc"
 M3_SOURCE="$KERNEL_DIR/m3.oc"
 M3_LIVE_SOURCE="$KERNEL_DIR/m3_live.oc"
 M4_SOURCE="$KERNEL_DIR/m4.oc"
+if (( PROBE_MODE == 15 )); then
+  M4_SOURCE="$BUILD_DIR/m4.oc"
+  python3 "$KERNEL_DIR/bind-image.py" \
+    "$KERNEL_DIR/m4.oc" "$M4_IMAGE_PATH" "$M4_SOURCE" --linker-length
+fi
 if (( PROBE_MODE == 18 || PROBE_MODE == 25 || PROBE_MODE == 26 || PROBE_MODE == 28 || PROBE_MODE == 29 || PROBE_MODE == 30 || PROBE_MODE == 31 || PROBE_MODE == 32 || PROBE_MODE == 35 )); then
   # Modes 18, 25, 26, and 31 enter only kernel::m6, while Modes 28--30 and 32
   # enter only their World codec oracles. Keep historical probes fail-closed
   # without linking their unreachable harness bodies, preserving the hard
-  # bootstrap headroom assertion. The largest probes also discard unreachable
-  # function sections while retaining their existing lifecycle smoke checks.
+  # bootstrap headroom assertion. Live scheduler behavior is checked by the
+  # mode-specific lifecycle gates after unreachable code is discarded.
   M1_SOURCE="$KERNEL_DIR/m1_mode25_stub.oc"
   M2_SOURCE="$KERNEL_DIR/m2_mode25_stub.oc"
   M3_SOURCE="$KERNEL_DIR/m3_mode25_stub.oc"
@@ -579,6 +615,9 @@ esac
 # only after linking succeeds. Smoke gates inspect this build's artifact.
 if (( PROBE_MODE == 15 )); then
   printf '%s\n' "$M4_IMAGE_PATH" > "$BUILD_DIR/m4-image.path"
+fi
+if (( PROBE_MODE == 16 )); then
+  printf '%s\n' "$M5_IMAGE_PATH" > "$BUILD_DIR/m5-image.path"
 fi
 if (( PROBE_MODE == 18 )); then
   printf '%s\n' "$M6_IMAGE_PATH" > "$BUILD_DIR/m6-image.path"

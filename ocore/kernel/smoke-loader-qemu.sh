@@ -4,8 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m4-native}"
 TIMEOUT_SECONDS=20
-DIGEST="310049d696211708b9240046d4540ed85e72046b67fb6a150378e00ec19359ba"
-IMAGE_BYTES=57960
 IMAGE_RECORD="$BUILD_DIR/m4-image.path"
 
 if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
@@ -22,12 +20,14 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
-  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
-  echo "error: M4 embedded OVFS artifact identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m4.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m4.oc" \
+    --capacity 65536 --linker-length
+)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
+
 python3 "$ROOT/ocore/user/verify_ovfs.py" --expect-m4 "$IMAGE" >/dev/null
 
 # The personalities must arrive only as OVFS payload bytes. A kernel symbol

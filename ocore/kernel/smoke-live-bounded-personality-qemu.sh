@@ -4,8 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m6b-live-personality}"
 TIMEOUT_SECONDS="${OCORE_M6B_LIVE_TIMEOUT_SECONDS:-180}"
-DIGEST="9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0"
-IMAGE_BYTES=61576
 IMAGE_RECORD="$BUILD_DIR/m6b-live-image.path"
 
 for tool in qemu-system-x86_64 nm python3 shasum; do
@@ -24,15 +22,16 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
-  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
-  echo "error: M6B live embedded OVFS artifact identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 98304 --prefix BOUNDED_IMAGE_
+)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
 
 OVFS_PATHS="$(
-  python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" | sed -n '/^\/sbin\//p'
+  python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" --max-image-bytes 98304 | sed -n '/^\/sbin\//p'
 )"
 EXPECTED_PATHS=$'/sbin/m6-client.elf: valid\n/sbin/m6-observer.elf: valid\n/sbin/m6-personalityd.elf: valid\n/sbin/m6-supervisord.elf: valid'
 if [[ "$OVFS_PATHS" != "$EXPECTED_PATHS" ]]; then

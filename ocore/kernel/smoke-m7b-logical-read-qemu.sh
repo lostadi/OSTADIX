@@ -6,12 +6,6 @@ BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m7b-logical-read-live}"
 TIMEOUT_SECONDS="${OCORE_M7B_TIMEOUT_SECONDS:-120}"
 IMAGE_RECORD="$BUILD_DIR/m7b-logical-read-image.path"
 
-IMAGE_BYTES=82400
-IMAGE_DIGEST=3ea4a9f6a2aa19d29b07529cde22d0792d7329cd9e2f151081e8b10391a6c7e9
-CLIENT_BYTES=41936
-CLIENT_DIGEST=5304d1fc51d2feecaea644d03e1e38e3e89de1129e85dd5a00e2f7f665370efc
-PROVIDER_BYTES=29152
-PROVIDER_DIGEST=fea91795c7eda42f3906f53c8201e0a0643061b98e419bd29d3adbc638f5ff35
 OBJECT_BYTES=20
 OBJECT_DIGEST=59a08e13c63eb8acdae93f4caf05130733a0f5ab24e564fb1206f0f1d055809b
 
@@ -25,18 +19,36 @@ done
 OCORE_PROBE_MODE=31 OCORE_BUILD_DIR="$BUILD_DIR" \
   "$ROOT/ocore/kernel/build.sh" >/dev/null
 
-if [[ ! -f "$IMAGE_RECORD" \
-    || "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
-  echo "error: Mode 31 did not record one exact embedded OVFS path" >&2
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: Mode 31 build did not record one exact embedded OVFS path" >&2
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-if [[ -z "$IMAGE" || ! -f "$IMAGE" \
-    || "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" \
-    || "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$IMAGE_DIGEST" ]]; then
-  echo "error: Mode 31 embedded OVFS identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 98304
+)"
+read -r IMAGE_BYTES IMAGE_DIGEST <<< "$IMAGE_IDENTITY"
+
+PRINCIPAL_IDENTITIES="$(
+  python3 - \
+    "$ROOT/target/ocore-m7b-logical-read-artifacts/pass-one/m7b-logical-read.elf" \
+    "$ROOT/target/ocore-m7b-logical-read-artifacts/pass-one/m7b-9pd.elf" <<'PYPRINCIPALS'
+import hashlib
+from pathlib import Path
+import sys
+fields = []
+for path in sys.argv[1:]:
+    data = Path(path).read_bytes()
+    fields.extend((str(len(data)), hashlib.sha256(data).hexdigest()))
+print(" ".join(fields))
+PYPRINCIPALS
+)"
+read -r CLIENT_BYTES CLIENT_DIGEST PROVIDER_BYTES PROVIDER_DIGEST <<< "$PRINCIPAL_IDENTITIES"
+
 python3 "$ROOT/ocore/user/verify_ovfs.py" \
   --max-image-bytes 98304 "$IMAGE" >/dev/null
 

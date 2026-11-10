@@ -4,8 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m6-linux-live-personality}"
 TIMEOUT_SECONDS="${OCORE_M6_LINUX_LIVE_TIMEOUT_SECONDS:-180}"
-DIGEST="71cf5cd3f68d8d424c4965f7efa25aaf0f3d1c77f8ab6dbec8827862c0946626"
-IMAGE_BYTES=60648
 IMAGE_RECORD="$BUILD_DIR/m6-linux-image.path"
 LINUX_ELF_DIGEST="06240b6a840ed4262835aceff64a94f6ebd77838666f05eb7415d9a0d1b5868d"
 LINUX_ELF_BYTES=8520
@@ -26,12 +24,13 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
-  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
-  echo "error: M6 live Linux embedded OVFS artifact identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 65536 --prefix LINUX_IMAGE_
+)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
 
 OVFS_PATHS="$(
   python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" \

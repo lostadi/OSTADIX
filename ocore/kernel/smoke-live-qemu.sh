@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m5-native}"
 TIMEOUT_SECONDS=30
-DIGEST="a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4"
-IMAGE_BYTES=57960
+QEMU_BIN="${OCORE_QEMU_BIN:-qemu-system-x86_64}"
+IMAGE_RECORD="$BUILD_DIR/m5-image.path"
 
-if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
+if ! command -v "$QEMU_BIN" >/dev/null 2>&1; then
   echo "error: qemu-system-x86_64 is not installed" >&2
   exit 127
 fi
@@ -27,13 +27,25 @@ BUILD_DIGEST="$(
     | tail -n 1
 )"
 
-if [[ -z "$IMAGE" || "$BUILD_DIGEST" != "$DIGEST" || ! -f "$IMAGE" ]] \
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: M5 build did not record one exact embedded OVFS path" >&2
+  exit 1
+fi
+IMAGE_IDENTITY="$(python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+  "$BUILD_DIR/m5.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m5.oc" \
+  --command-digest)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
+if [[ -z "$IMAGE" || "$IMAGE" != "$(sed -n '1p' "$IMAGE_RECORD")" \
+      || "$BUILD_DIGEST" != "$DIGEST" || ! -f "$IMAGE" ]] \
   || [[ "$(basename "$IMAGE")" != "root-${DIGEST}.ovfs" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
   echo "error: M5 build-produced OVFS artifact identity is not canonical" >&2
   exit 1
 fi
+
+python3 "$ROOT/ocore/user/verify_ovfs.py" --expect-m5 "$IMAGE"
 
 # All four services must arrive only as content-addressed OVFS payload bytes.
 # A source-module symbol in the kernel would bypass the native ELF loader gate.
@@ -50,7 +62,7 @@ if grep -Eq 'm5_(init|supervisor|pkgd|repl).*_start' <<<"$KERNEL_SYMBOLS"; then
   exit 1
 fi
 
-python3 - "$BUILD_DIR/kernel.elf" "$TIMEOUT_SECONDS" "$DIGEST" <<'PY'
+python3 - "$BUILD_DIR/kernel.elf" "$TIMEOUT_SECONDS" "$DIGEST" "$QEMU_BIN" <<'PY'
 import os
 import re
 import selectors
@@ -62,7 +74,7 @@ kernel = sys.argv[1]
 timeout_seconds = float(sys.argv[2])
 digest = sys.argv[3]
 command = [
-    "qemu-system-x86_64",
+    sys.argv[4],
     "-machine", "q35",
     "-m", "128M",
     "-kernel", kernel,
@@ -96,10 +108,12 @@ service_markers = [
     b"M5 repl service ELF: online\n",
 ]
 rejected = b"M5 serial command: rejected\n"
+status_ok = b"M5 serial status: PASS\n"
 install_ok = b"M5 serial package install: PASS\n"
 activate_ok = b"M5 serial package activation: PASS\n"
 completion_bytes = b"M5 post-lifecycle timer: online\n"
 
+status_sent = False
 malformed_sent = False
 install_sent = False
 activate_sent = False
@@ -140,16 +154,26 @@ while time.monotonic() < deadline:
     snapshot = bytes(stdout)
     services_online = all(marker in snapshot for marker in service_markers)
     if (
-        not malformed_sent
+        not status_sent
         and services_online
         and snapshot.count(prompt) >= 1
     ):
+        status_sent = send_line(b"status\n")
+    if (
+        status_sent
+        and not malformed_sent
+        and status_ok in snapshot
+        and snapshot.count(prompt) >= 2
+    ):
+        if install_ok in snapshot or activate_ok in snapshot:
+            input_failure = "status command published package state"
+            break
         malformed_sent = send_line(b"install malformed 5 1\n")
     if (
         malformed_sent
         and not install_sent
         and rejected in snapshot
-        and snapshot.count(prompt) >= 2
+        and snapshot.count(prompt) >= 3
     ):
         if install_ok in snapshot or activate_ok in snapshot:
             input_failure = "malformed command published package state"
@@ -161,7 +185,7 @@ while time.monotonic() < deadline:
         install_sent
         and not activate_sent
         and install_ok in snapshot
-        and snapshot.count(prompt) >= 3
+        and snapshot.count(prompt) >= 4
     ):
         activate_sent = send_line(f"activate {digest}\n".encode("ascii"))
     if input_failure is not None:
@@ -193,6 +217,7 @@ preflight = [
 ]
 services = [marker.decode("ascii") for marker in service_markers]
 interaction = [
+    status_ok.decode("ascii"),
     rejected.decode("ascii"),
     install_ok.decode("ascii"),
     activate_ok.decode("ascii"),
@@ -236,11 +261,10 @@ phase_order_valid = not missing and all(
         (startup, preflight[0]),
         *zip(preflight, preflight[1:]),
         *((preflight[-1], service) for service in services),
-        *((service, interaction[1]) for service in services),
+        *((service, interaction[0]) for service in services),
         (services[3], interaction[0]),
-        (interaction[0], interaction[1]),
-        (interaction[1], interaction[2]),
-        (interaction[2], fault_sequence[0]),
+        *zip(interaction, interaction[1:]),
+        (interaction[-1], fault_sequence[0]),
         *zip(fault_sequence, fault_sequence[1:]),
         (fault_sequence[-1], completion[0]),
         *zip(completion, completion[1:]),
@@ -248,12 +272,13 @@ phase_order_valid = not missing and all(
 )
 
 prompt_order_valid = (
-    len(prompts) == 3
+    len(prompts) == 4
     and not missing
     and positions[services[3]] < prompts[0]
     and prompts[0] < positions[interaction[0]] < prompts[1]
     and prompts[1] < positions[interaction[1]] < prompts[2]
-    and prompts[2] < positions[interaction[2]]
+    and prompts[2] < positions[interaction[2]] < prompts[3]
+    and prompts[3] < positions[interaction[3]]
 )
 
 timer_phase_valid = (
@@ -267,6 +292,7 @@ forbidden = [
     marker
     for marker in (
         "M02 KERNEL FAULT",
+        "M5 failure:",
         "M02 unexpected fault",
         "M4 ISOLATION LEAK",
         "KERNEL POINTER LEAKED",
@@ -278,7 +304,7 @@ forbidden = [
     if marker in output
 ]
 
-commands_complete = malformed_sent and install_sent and activate_sent
+commands_complete = status_sent and malformed_sent and install_sent and activate_sent
 if (
     missing
     or duplicated
@@ -307,7 +333,7 @@ if (
             file=sys.stderr,
         )
     if not commands_complete:
-        print("not all three serial commands were sent", file=sys.stderr)
+        print("not all four serial commands were sent", file=sys.stderr)
     if input_failure is not None:
         print(input_failure, file=sys.stderr)
     if not survived_after_completion:

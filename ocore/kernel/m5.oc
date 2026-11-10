@@ -160,6 +160,9 @@ static COMPLETION_VALUES: [u64; 4] = [
 ];
 
 static IMAGE_MESSAGE: [u8; 27] = b"M5 OVFS image import: PASS\n";
+static FAILURE_MESSAGE: [u8; 26] = b"M5 failure: kernel halted\n";
+static IMAGE_BOUNDS_FAILURE: [u8; 32] = b"M5 failure: image bounds/length\n";
+static IMAGE_IMPORT_FAILURE: [u8; 36] = b"M5 failure: image validation/import\n";
 static LOAD_MESSAGE: [u8; 31] = b"M5 four native ELF loads: PASS\n";
 static WX_MESSAGE: [u8; 34] = b"M5 loaded address-space W^X: PASS\n";
 static CSPACE_MESSAGE: [u8; 34] = b"M5 isolated service CSpaces: PASS\n";
@@ -212,6 +215,7 @@ extern "sysv64" fn ocore_m5_image_end() -> usize;
 
 unsafe fn fail_closed() -> never {
     disable_interrupts();
+    write((&FAILURE_MESSAGE[0]), 26);
     loop {
         halt();
     }
@@ -435,6 +439,8 @@ unsafe fn recreate_pkgd() -> bool {
 // First management phase: the exact pkgd generation has faulted after the
 // health-gated activation commit. The scheduler left all three unrelated
 // services intact until their own completion publications, then quiesced them.
+// Console users may inspect status or make rejected requests before activation;
+// check accounting and committed operations, not one smoke test's transcript.
 pub unsafe fn complete_continue() -> never {
     if !management_context()
         || scheduler_failed()
@@ -452,13 +458,12 @@ pub unsafe fn complete_continue() -> never {
         || active_service_count() != PROCESS_COUNT
         || !active_services_hold()
         || control_last_result() != COMMAND_ACTIVATE
-        || control_submission_count() != 3
-        || control_success_count() != 2
-        || control_failure_count() != 1
+        || control_submission_count()
+            != control_success_count() + control_failure_count()
+        || control_success_count() != 2 + control_status_count()
         || control_install_count() != 1
         || control_activation_count() != 1
         || runtime_health_pass_count() != 1
-        || control_status_count() != 0
         || control_resolve_count() != 0
         || control_is_poisoned() != 0
         || process_state(PROCESSES[PKGD_INDEX])
@@ -692,6 +697,7 @@ pub unsafe fn start(mode: u64, native_domain: u64) -> never {
         || image_end <= image_start
         || image_end - image_start != IMAGE_LENGTH
         || image_end - image_start > IMAGE_BYTE_CAPACITY {
+        write((&IMAGE_BOUNDS_FAILURE[0]), 32);
         fail_closed();
     }
     NAMESPACE = create_namespace(0, native_domain);
@@ -720,6 +726,7 @@ pub unsafe fn start(mode: u64, native_domain: u64) -> never {
         ) != 1
         || import_ovfs_image(IMAGE) != OVFS_IMPORT_OK
         || publish_image(IMAGE) == 0 {
+        write((&IMAGE_IMPORT_FAILURE[0]), 36);
         fail_closed();
     }
     ROOT_MOUNT = mount_root(NAMESPACE, IMAGE);

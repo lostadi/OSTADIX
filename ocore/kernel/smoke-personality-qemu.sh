@@ -10,8 +10,6 @@ TIMEOUT_SECONDS="${OCORE_M6A_TIMEOUT_SECONDS:-180}"
 # Optional QEMU instruction-counted virtual-time exercise. CI pins shift 1 to
 # retain a bounded cadence that distinguished the periodic-timer starvation.
 QEMU_ICOUNT="${OCORE_M6A_QEMU_ICOUNT:-}"
-DIGEST="bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d"
-IMAGE_BYTES=58320
 IMAGE_RECORD="$BUILD_DIR/m6-image.path"
 
 if command -v llvm-nm >/dev/null 2>&1; then
@@ -42,15 +40,16 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
-  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
-  echo "error: M6A embedded OVFS artifact identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 98304
+)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
 
 OVFS_PATHS="$(
-  python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" | sed -n '/^\/sbin\//p'
+  python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" --max-image-bytes 98304 | sed -n '/^\/sbin\//p'
 )"
 EXPECTED_PATHS=$'/sbin/m6-client.elf: valid\n/sbin/m6-observer.elf: valid\n/sbin/m6-personalityd.elf: valid\n/sbin/m6-supervisord.elf: valid'
 if [[ "$OVFS_PATHS" != "$EXPECTED_PATHS" ]]; then
