@@ -26,6 +26,12 @@ PROJECT_AUTHOR = "Lee Daghlar Ostadi"
 PROJECT_ORCID = "0009-0001-6380-9558"
 # merges made in the github web ui are committed by github itself.
 PROJECT_AUTHOR_EMAIL = "34668360+lostadi@users.noreply.github.com"
+# Both addresses occur on Lee's historical GitHub-authored merges. Keep the
+# web-merge exception bounded to these identities, rather than rewriting history.
+PROJECT_GITHUB_AUTHOR_EMAILS = frozenset({
+    PROJECT_AUTHOR_EMAIL,
+    "ostadi.lee@gmail.com",
+})
 GITHUB_MERGE_COMMITTER = ("GitHub", "noreply@github.com")
 OWNED_AUTHOR_MANIFESTS = frozenset({"Cargo.toml", "crates/ostadix-api/Cargo.toml"})
 LEGACY_POLICY_BASELINE = "9754a94b9cf5d1312049ba493536d86d083c5c55"
@@ -141,8 +147,8 @@ def is_github_merge_by_lee(commit: CommitMetadata) -> bool:
     # only a true merge authored by lee may carry github as committer.
     return (
         len(commit.parents) >= 2
-        and (commit.author_name, commit.author_email)
-        == (PROJECT_AUTHOR, PROJECT_AUTHOR_EMAIL)
+        and commit.author_name == PROJECT_AUTHOR
+        and commit.author_email in PROJECT_GITHUB_AUTHOR_EMAILS
         and (commit.committer_name, commit.committer_email) == GITHUB_MERGE_COMMITTER
     )
 

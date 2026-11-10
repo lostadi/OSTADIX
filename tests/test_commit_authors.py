@@ -402,6 +402,23 @@ class AuthorCheckPrePushTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("author check: pass", result.stdout)
 
+    def test_historical_personal_email_github_merge_passes_both_checks(self) -> None:
+        head = self.make_merge(author="Lee Daghlar Ostadi <ostadi.lee@gmail.com>")
+        for result in self.both_checks(head):
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("author check: pass", result.stdout)
+
+    def test_personal_email_cannot_authorize_single_parent_github_commit(self) -> None:
+        self.git(
+            "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q",
+            "-m", "Web edit", env=self.identity_env(
+                "Lee Daghlar Ostadi <ostadi.lee@gmail.com>", GITHUB_IDENTITY
+            ),
+        )
+        for result in self.both_checks(self.git("rev-parse", "HEAD")):
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("committer name: GitHub", result.stderr)
+
     def test_single_parent_commit_with_github_committer_fails(self) -> None:
         self.git(
             "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q",

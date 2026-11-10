@@ -73,6 +73,7 @@ KERNEL_WORLD_RECORD_DEFINE='-DOCORE_KERNEL_WORLD_RECORD_PATH=""'
 if (( PROBE_MODE == 15 )); then
   M4_ARTIFACT_OUTPUT="$(
     OCORE_M4_BUILD_DIR="$ROOT/target/ocore-m4" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m4-artifacts.sh"
   )"
   M4_IMAGE_PATH="$(
@@ -115,6 +116,7 @@ fi
 if (( PROBE_MODE == 18 )); then
   M6_ARTIFACT_OUTPUT="$(
     OCORE_M6_BUILD_DIR="$ROOT/target/ocore-m6-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m6-artifacts.sh"
   )"
   M6_IMAGE_PATH="$(
@@ -130,6 +132,7 @@ fi
 if (( PROBE_MODE == 24 )); then
   M6B_LIVE_ARTIFACT_OUTPUT="$(
     OCORE_M6B_LIVE_BUILD_DIR="$ROOT/target/ocore-m6b-live-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m6b-live-artifacts.sh"
   )"
   M6B_LIVE_IMAGE_PATH="$(
@@ -145,6 +148,7 @@ fi
 if (( PROBE_MODE == 25 )); then
   M6_LINUX_ARTIFACT_OUTPUT="$(
     OCORE_M6_LINUX_BUILD_DIR="$ROOT/target/ocore-m6-linux-live-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m6-linux-live-artifacts.sh"
   )"
   M6_LINUX_IMAGE_PATH="$(
@@ -159,7 +163,8 @@ fi
 
 if (( PROBE_MODE == 26 )); then
   M7_LINUX_PLAN9_ARTIFACT_OUTPUT="$(
-    OCORE_M7_BUILD_DIR="$ROOT/target/ocore-m7-linux-plan9-artifacts" \
+    OCORE_M7_BUILD_DIR="${OCORE_M7_BUILD_DIR:-$ROOT/target/ocore-m7-linux-plan9-artifacts}" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m7-linux-plan9-artifacts.sh"
   )"
   M7_LINUX_PLAN9_IMAGE_PATH="$(
@@ -175,6 +180,7 @@ fi
 if (( PROBE_MODE == 31 )); then
   M7B_LOGICAL_READ_ARTIFACT_OUTPUT="$(
     OCORE_M7B_BUILD_DIR="$ROOT/target/ocore-m7b-logical-read-artifacts" \
+      OCOREC_BIN="$OCOREC_BIN" \
       "$KERNEL_DIR/build-m7b-logical-read-artifacts.sh"
   )"
   M7B_LOGICAL_READ_IMAGE_PATH="$(
@@ -419,8 +425,8 @@ if (( PROBE_MODE == 18 || PROBE_MODE == 25 || PROBE_MODE == 26 || PROBE_MODE == 
   # Modes 18, 25, 26, and 31 enter only kernel::m6, while Modes 28--30 and 32
   # enter only their World codec oracles. Keep historical probes fail-closed
   # without linking their unreachable harness bodies, preserving the hard
-  # bootstrap headroom assertion. The largest probes also discard unreachable
-  # function sections while retaining their existing lifecycle smoke checks.
+  # bootstrap headroom assertion. Live scheduler behavior is checked by the
+  # mode-specific lifecycle gates after unreachable code is discarded.
   M1_SOURCE="$KERNEL_DIR/m1_mode25_stub.oc"
   M2_SOURCE="$KERNEL_DIR/m2_mode25_stub.oc"
   M3_SOURCE="$KERNEL_DIR/m3_mode25_stub.oc"
@@ -611,6 +617,9 @@ esac
 # only after linking succeeds. Smoke gates inspect this build's artifact.
 if (( PROBE_MODE == 15 )); then
   printf '%s\n' "$M4_IMAGE_PATH" > "$BUILD_DIR/m4-image.path"
+fi
+if (( PROBE_MODE == 16 )); then
+  printf '%s\n' "$M5_IMAGE_PATH" > "$BUILD_DIR/m5-image.path"
 fi
 if (( PROBE_MODE == 18 )); then
   printf '%s\n' "$M6_IMAGE_PATH" > "$BUILD_DIR/m6-image.path"

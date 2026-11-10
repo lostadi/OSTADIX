@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m5-native}"
 TIMEOUT_SECONDS=30
 QEMU_BIN="${OCORE_QEMU_BIN:-qemu-system-x86_64}"
+IMAGE_RECORD="$BUILD_DIR/m5-image.path"
 
 if ! command -v "$QEMU_BIN" >/dev/null 2>&1; then
   echo "error: qemu-system-x86_64 is not installed" >&2
@@ -20,26 +21,23 @@ IMAGE="$(
     | sed -n 's/^m5-image: //p' \
     | tail -n 1
 )"
-DIGEST="$(
+BUILD_DIGEST="$(
   printf '%s\n' "$BUILD_OUTPUT" \
     | sed -n 's/^m5-sha256: //p' \
     | tail -n 1
 )"
 
-# Confirm the build-reported image/digest are the exact bytes bound into
-# this generated kernel source, then retain the independent OVFS validation.
-read -r IMAGE_BYTES BOUND_DIGEST < <(
-  python3 - "$BUILD_DIR/m5.image.json" "$IMAGE" <<'PYMETA'
-import json
-import sys
-identity = json.load(open(sys.argv[1]))
-if identity["image"] != sys.argv[2]:
-    raise SystemExit("build-reported embedded image path differs from generated binding")
-print(identity["bytes"], identity["sha256"])
-PYMETA
-)
-
-if [[ -z "$IMAGE" || -z "$DIGEST" || "$DIGEST" != "$BOUND_DIGEST" || ! -f "$IMAGE" ]] \
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: M5 build did not record one exact embedded OVFS path" >&2
+  exit 1
+fi
+IMAGE_IDENTITY="$(python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+  "$BUILD_DIR/m5.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m5.oc" \
+  --command-digest)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
+if [[ -z "$IMAGE" || "$IMAGE" != "$(sed -n '1p' "$IMAGE_RECORD")" \
+      || "$BUILD_DIGEST" != "$DIGEST" || ! -f "$IMAGE" ]] \
   || [[ "$(basename "$IMAGE")" != "root-${DIGEST}.ovfs" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then

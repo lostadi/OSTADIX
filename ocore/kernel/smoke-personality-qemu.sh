@@ -40,25 +40,13 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-# Bind this exact embedded path to the generated image identity; service paths
-# and ELF protection checks remain independent of compiler/linker byte layout.
-read -r IMAGE_BYTES DIGEST < <(
-  python3 - "$BUILD_DIR/m6.image.json" "$IMAGE" <<'PYMETA'
-import json
-import sys
-identity = json.load(open(sys.argv[1]))
-if identity["image"] != sys.argv[2]:
-    raise SystemExit("recorded embedded image path differs from generated binding")
-print(identity["bytes"], identity["sha256"])
-PYMETA
-)
-
-if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
-  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
-  echo "error: M6A embedded OVFS artifact identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 98304
+)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
 
 OVFS_PATHS="$(
   python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" --max-image-bytes 98304 | sed -n '/^\/sbin\//p'

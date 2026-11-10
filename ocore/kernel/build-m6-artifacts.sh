@@ -44,8 +44,19 @@ if ! command -v nm >/dev/null 2>&1; then
   exit 127
 fi
 
-cargo build --quiet --manifest-path "$ROOT/Cargo.toml" --package o-lang --bin ocorec
-OCOREC="$ROOT/target/debug/ocorec"
+if [[ -n "${OCOREC_BIN:-}" ]]; then
+  OCOREC="$OCOREC_BIN"
+else
+  cargo build --quiet --locked --manifest-path "$ROOT/Cargo.toml" --package o-lang --bin ocorec
+  case "${CARGO_TARGET_DIR:-$ROOT/target}" in
+    /*) OCOREC="${CARGO_TARGET_DIR:-$ROOT/target}/debug/ocorec" ;;
+    *) OCOREC="$PWD/$CARGO_TARGET_DIR/debug/ocorec" ;;
+  esac
+fi
+if [[ -L "$OCOREC" || ! -f "$OCOREC" || ! -x "$OCOREC" ]]; then
+  echo "error: expected a regular executable ocorec binary: $OCOREC" >&2
+  exit 1
+fi
 LLD="$(find_lld)"
 
 link_service() {

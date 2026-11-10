@@ -24,24 +24,13 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-# Compare the actual embedded artifact against the identity compiled into this
-# kernel. The foreign Linux ELF remains independently pinned below.
-read -r IMAGE_BYTES DIGEST < <(
-  python3 - "$BUILD_DIR/m6.image.json" "$IMAGE" <<'PYMETA'
-import json
-import sys
-identity = json.load(open(sys.argv[1]))
-if identity["image"] != sys.argv[2]:
-    raise SystemExit("recorded embedded image path differs from generated binding")
-print(identity["bytes"], identity["sha256"])
-PYMETA
-)
-if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
-  || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
-  echo "error: M6 live Linux embedded OVFS artifact identity is not canonical" >&2
-  exit 1
-fi
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 65536 --prefix LINUX_IMAGE_
+)"
+read -r IMAGE_BYTES DIGEST <<< "$IMAGE_IDENTITY"
 
 OVFS_PATHS="$(
   python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" \

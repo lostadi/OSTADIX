@@ -19,26 +19,21 @@ done
 OCORE_PROBE_MODE=31 OCORE_BUILD_DIR="$BUILD_DIR" \
   "$ROOT/ocore/kernel/build.sh" >/dev/null
 
-if [[ ! -f "$IMAGE_RECORD" \
-    || "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
-  echo "error: Mode 31 did not record one exact embedded OVFS path" >&2
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: Mode 31 build did not record one exact embedded OVFS path" >&2
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
-# Bind the full image to this kernel's generated trust anchor. Native service
-# identities come from the independently double-built ELF files below; foreign
-# program and immutable object identities remain pinned separately.
-read -r IMAGE_BYTES IMAGE_DIGEST < <(
-  python3 - "$BUILD_DIR/m6.image.json" "$IMAGE" <<'PYMETA'
-import json
-import sys
-identity = json.load(open(sys.argv[1]))
-if identity["image"] != sys.argv[2]:
-    raise SystemExit("recorded embedded image path differs from generated binding")
-print(identity["bytes"], identity["sha256"])
-PYMETA
-)
-read -r CLIENT_BYTES CLIENT_DIGEST PROVIDER_BYTES PROVIDER_DIGEST < <(
+# Validate the actual embedded image against this build's generated native pins.
+IMAGE_IDENTITY="$(
+  python3 "$ROOT/ocore/kernel/verify-image-binding.py" \
+    "$BUILD_DIR/m6.image.json" "$IMAGE_RECORD" "$BUILD_DIR/m6.oc" \
+    --capacity 98304
+)"
+read -r IMAGE_BYTES IMAGE_DIGEST <<< "$IMAGE_IDENTITY"
+
+PRINCIPAL_IDENTITIES="$(
   python3 - \
     "$ROOT/target/ocore-m7b-logical-read-artifacts/pass-one/m7b-logical-read.elf" \
     "$ROOT/target/ocore-m7b-logical-read-artifacts/pass-one/m7b-9pd.elf" <<'PYPRINCIPALS'
@@ -51,13 +46,9 @@ for path in sys.argv[1:]:
     fields.extend((str(len(data)), hashlib.sha256(data).hexdigest()))
 print(" ".join(fields))
 PYPRINCIPALS
-)
-if [[ -z "$IMAGE" || ! -f "$IMAGE" \
-    || "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" \
-    || "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$IMAGE_DIGEST" ]]; then
-  echo "error: Mode 31 embedded OVFS identity is not canonical" >&2
-  exit 1
-fi
+)"
+read -r CLIENT_BYTES CLIENT_DIGEST PROVIDER_BYTES PROVIDER_DIGEST <<< "$PRINCIPAL_IDENTITIES"
+
 python3 "$ROOT/ocore/user/verify_ovfs.py" \
   --max-image-bytes 98304 "$IMAGE" >/dev/null
 
