@@ -3,6 +3,34 @@
 This is **OSTADIX**, the canonical repository for O / Ostadix-lang and
 O-core at `lostadi/OSTADIX`.
 
+## Shared project collaboration and publication
+
+The shared project is the deliverable; individual machines are build, execution,
+and test resources. Keep source, recipes, and validation usable from a fresh
+checkout with declared prerequisites. Record the actual ISA, CPU, toolchain,
+artifact, and execution environment for hardware tests; keep native execution,
+emulation, and full system boot evidence distinct.
+
+Lee explicitly requires completed, reviewed work to reach the shared master
+branches of `lostadi/OSTADIX` and `lostadi/ostadix-BM`, so agents on other machines
+can build on it. A local integration branch is an intermediate checkpoint.
+Fetch the latest masters, coordinate ownership with active project agents,
+integrate their newer work, run the affected checks and independent review,
+then publish using Lee's identity under the existing author policy. Preserve
+both histories and use fast-forward updates; never overwrite another agent's
+new commits or private working files. Publish validated milestones without
+waiting for the entire native-system objective to be complete.
+
+Large project artifacts belong in the maintainer's shared artifact store at
+`https://leeostadi.com/s/`, using versioned directories, SHA-256 manifests,
+build/source identities, necessary notices, and recipient prerequisites.
+Keep machine addresses, SSH accounts, and local cache roots in deployment
+configuration rather than portable implementation code. Clearly label tests,
+hosted development images, experimental components, and qualified releases;
+uploading an artifact does not establish full native OS or driver support.
+Coordinate uploads and preserve existing artifacts instead of overwriting
+another agent's work. Never publish credentials or private machine state.
+
 ## Primary compiler objective
 
 The highest compiler priority is for `olangc` to fully and automatically
