@@ -1147,7 +1147,7 @@ mod tests {
                         authority: None,
                         permissions: vec![],
                     },
-                    OValue::thunk(&format!("step_{i}"), vec![]),
+                    OValue::thunk(format!("step_{i}"), vec![]),
                 )
             })
             .collect();
@@ -1198,14 +1198,14 @@ mod tests {
             .execute_batch(&[req_a.clone(), req_b.clone()], None)
             .unwrap_err();
         assert!(
-            err_ab.to_string().contains(&fingerprint_preview(&fp_a)),
+            err_ab.to_string().contains(fingerprint_preview(&fp_a)),
             "expected first root fp {} in error: {err_ab:#}",
             fingerprint_preview(&fp_a)
         );
 
         let err_ba = sched.execute_batch(&[req_b, req_a], None).unwrap_err();
         assert!(
-            err_ba.to_string().contains(&fingerprint_preview(&fp_b)),
+            err_ba.to_string().contains(fingerprint_preview(&fp_b)),
             "expected first root fp {} in error: {err_ba:#}",
             fingerprint_preview(&fp_b)
         );

@@ -177,7 +177,11 @@ fn assert_exact_literal_round_trip(
     let combined = temp.path().join("combined.O");
     let restored = temp.path().join("restored");
     let mut command = Command::new(env!("CARGO_BIN_EXE_o-link"));
-    command.arg("--literal").arg(&source).arg("-o").arg(&combined);
+    command
+        .arg("--literal")
+        .arg(&source)
+        .arg("-o")
+        .arg(&combined);
     if outer_shebang {
         command.arg("--shebang");
     }
@@ -185,12 +189,10 @@ fn assert_exact_literal_round_trip(
     let linked = fs::read(&combined).unwrap();
     assert_eq!(linked.starts_with(b"#!/usr/bin/env o\n"), outer_shebang);
 
-    run(
-        Command::new(env!("CARGO_BIN_EXE_o-unlink"))
-            .arg(&combined)
-            .arg("-o")
-            .arg(&restored),
-    );
+    run(Command::new(env!("CARGO_BIN_EXE_o-unlink"))
+        .arg(&combined)
+        .arg("-o")
+        .arg(&restored));
     for (relative, original) in files {
         assert_eq!(
             fs::read(restored.join(relative)).unwrap(),

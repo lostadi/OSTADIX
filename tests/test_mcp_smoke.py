@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
+import hashlib
 import io
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 
@@ -210,6 +213,96 @@ class NativeExecuteResultTests(unittest.TestCase):
             smoke._native_execute_result(
                 self.result({"ok": True}, stdout={"text": "not-json"})
             )
+
+
+class OneWorkerOverlapControlTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.workspace = Path(temporary.name)
+        self.source = "autonomous(batch(left_fixture, right_fixture))"
+        for name, timestamp in (("left.ready", 1), ("right.ready", 2), ("right.finished", 3)):
+            (self.workspace / name).write_text(str(timestamp))
+        error = "Traceback (most recent call last):\nRuntimeError: unified-workers-did-not-overlap\n"
+        native = {
+            "ok": False, "type": "list",
+            "value": {"t": "list", "v": [
+                {"t": "error", "msg": error},
+                {"t": "text", "v": {"encoding": "utf-8", "utf8": "right"}},
+            ]},
+            "failed_batch_members": [{"member": 0, "node": 2, "error": error}],
+            "execution_evidence": {
+                "schema": "ostadix.native-execution-evidence/v1", "execution_mode": "graph",
+                "source_sha256": hashlib.sha256(self.source.encode()).hexdigest(),
+                "source_intent_gate": {"verified": True},
+            },
+        }
+        self.result = NativeExecuteResultTests.result(
+            native, mode="admitted", signal=None, input={"cwd": str(self.workspace)}
+        )
+        plan = {"schema": "oexec.schedule-explanation/v2",
+                "realizability": {"dispatch": "not-run", "selected_workers": 1}}
+        self.plan = {"state": "completed", "exit_code": 0, "result": plan,
+                     "stdout": {"text": json.dumps(plan)}, "input": {"cwd": str(self.workspace)}}
+
+    def test_exact_typed_failure_and_bound_one_worker_context_are_accepted(self) -> None:
+        smoke._verify_one_worker_overlap_control(self.result, self.plan, self.source, self.workspace)
+
+    def test_arbitrary_errors_timeouts_and_wrong_context_are_rejected(self) -> None:
+        mutations = (
+            ("success", lambda r: r["result"].update(ok=True)),
+            ("missing members", lambda r: r["result"].update(failed_batch_members=[])),
+            ("wrong member", lambda r: r["result"]["failed_batch_members"][0].update(member=1)),
+            ("wrong tagged value", lambda r: r["result"]["value"].update(v=[])),
+            ("wrong cwd", lambda r: r["input"].update(cwd="/different/workspace")),
+            ("wrong source", lambda r: r["result"]["execution_evidence"].update(source_sha256="0" * 64)),
+            ("unadmitted", lambda r: r["result"]["execution_evidence"].update(source_intent_gate=None)),
+            ("wrong execution mode", lambda r: r["result"]["execution_evidence"].update(execution_mode="serial")),
+            ("signal", lambda r: r.update(signal=9)),
+            ("timeout exit", lambda r: r.update(exit_code=124)),
+            ("timeout state", lambda r: r.update(state="timed_out")),
+        )
+        for name, mutate in mutations:
+            with self.subTest(name=name):
+                result = copy.deepcopy(self.result)
+                mutate(result)
+                result["stdout"]["text"] = json.dumps(result["result"])
+                with self.assertRaises(smoke.SmokeError):
+                    smoke._verify_one_worker_overlap_control(result, self.plan, self.source, self.workspace)
+        for error in ("unrelated failure containing unified-workers-did-not-overlap",
+                      "RuntimeError: unified-workers-did-not-overlap-extra\n"):
+            with self.subTest(error=error):
+                result = copy.deepcopy(self.result)
+                result["result"]["failed_batch_members"][0]["error"] = error
+                result["result"]["value"]["v"][0]["msg"] = error
+                result["stdout"]["text"] = json.dumps(result["result"])
+                with self.assertRaises(smoke.SmokeError):
+                    smoke._verify_one_worker_overlap_control(result, self.plan, self.source, self.workspace)
+
+    def test_missing_worker_plan_and_changed_planning_context_are_rejected(self) -> None:
+        for name, mutate in (
+            ("worker count", lambda p: p["result"]["realizability"].update(selected_workers=2)),
+            ("dispatch", lambda p: p["result"]["realizability"].update(dispatch="ran")),
+            ("cwd", lambda p: p["input"].update(cwd="/different/workspace")),
+        ):
+            with self.subTest(name=name):
+                plan = copy.deepcopy(self.plan)
+                mutate(plan)
+                plan["stdout"]["text"] = json.dumps(plan["result"])
+                with self.assertRaises(smoke.SmokeError):
+                    smoke._verify_one_worker_overlap_control(self.result, plan, self.source, self.workspace)
+
+    def test_missing_or_overlapping_backend_effects_are_rejected(self) -> None:
+        (self.workspace / "left.finished").write_text("2")
+        with self.assertRaises(smoke.SmokeError):
+            smoke._verify_one_worker_overlap_control(self.result, self.plan, self.source, self.workspace)
+        (self.workspace / "left.finished").unlink()
+        (self.workspace / "left.ready").write_text("4")
+        with self.assertRaises(smoke.SmokeError):
+            smoke._verify_one_worker_overlap_control(self.result, self.plan, self.source, self.workspace)
+        (self.workspace / "right.ready").unlink()
+        with self.assertRaises(smoke.SmokeError):
+            smoke._verify_one_worker_overlap_control(self.result, self.plan, self.source, self.workspace)
 
 
 if __name__ == "__main__":

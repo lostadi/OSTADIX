@@ -3823,8 +3823,10 @@ fn strip_unused_workspace_feature_edges(lock: &mut toml::Value) -> Result<()> {
         else {
             continue;
         };
-        let package_version = package.get("version")
-            .and_then(toml::Value::as_str).map(str::to_owned);
+        let package_version = package
+            .get("version")
+            .and_then(toml::Value::as_str)
+            .map(str::to_owned);
         let Some(dependencies) = package
             .get_mut("dependencies")
             .and_then(toml::Value::as_array_mut)
@@ -3842,12 +3844,18 @@ fn strip_unused_workspace_feature_edges(lock: &mut toml::Value) -> Result<()> {
                     != Some(excluded_dependency)
             });
         }
-        for &(target_package, version, excluded_dependency) in GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES {
+        for &(target_package, version, excluded_dependency) in
+            GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES
+        {
             if package_name != target_package || package_version.as_deref() != Some(version) {
                 continue;
             }
-            dependencies.retain(|dependency| dependency.as_str()
-                .and_then(|coordinate| coordinate.split(' ').next()) != Some(excluded_dependency));
+            dependencies.retain(|dependency| {
+                dependency
+                    .as_str()
+                    .and_then(|coordinate| coordinate.split(' ').next())
+                    != Some(excluded_dependency)
+            });
         }
     }
     Ok(())
@@ -5480,25 +5488,42 @@ mod tests {
     #[test]
     fn generated_runtime_dependencies_match_current_canonical_manifests_and_lock() {
         let api: toml::Value = toml::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"), "/crates/ostadix-api/Cargo.toml"
-        ))).unwrap();
+            env!("CARGO_MANIFEST_DIR"),
+            "/crates/ostadix-api/Cargo.toml"
+        )))
+        .unwrap();
         let root: toml::Value = toml::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"
-        ))).unwrap();
+            env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        )))
+        .unwrap();
         for include_project in [false, true] {
-            let generated: toml::Value = toml::from_str(
-                &generate_cargo_toml("dependency-contract", include_project)
-            ).unwrap();
+            let generated: toml::Value =
+                toml::from_str(&generate_cargo_toml("dependency-contract", include_project))
+                    .unwrap();
             let mut names = GENERATED_RUNTIME_DEPENDENCY_NAMES.to_vec();
-            if include_project { names.push("ignore"); }
+            if include_project {
+                names.push("ignore");
+            }
             for name in names {
-                let api_declares = api.get("dependencies").and_then(toml::Value::as_table)
+                let api_declares = api
+                    .get("dependencies")
+                    .and_then(toml::Value::as_table)
                     .is_some_and(|table| table.contains_key(name))
-                    || api.get("target").and_then(toml::Value::as_table).is_some_and(|targets|
-                        targets.values().any(|target| target.get("dependencies")
-                            .and_then(toml::Value::as_table).is_some_and(|table| table.contains_key(name))));
-                let current = generated_dependency_requirement(if api_declares { &api } else { &root }, name)
-                    .unwrap_or_else(|error| panic!("canonical dependency {name}: {error:#}"));
+                    || api
+                        .get("target")
+                        .and_then(toml::Value::as_table)
+                        .is_some_and(|targets| {
+                            targets.values().any(|target| {
+                                target
+                                    .get("dependencies")
+                                    .and_then(toml::Value::as_table)
+                                    .is_some_and(|table| table.contains_key(name))
+                            })
+                        });
+                let current =
+                    generated_dependency_requirement(if api_declares { &api } else { &root }, name)
+                        .unwrap_or_else(|error| panic!("canonical dependency {name}: {error:#}"));
                 let selected = generated_dependency_requirement(&generated, name).unwrap();
                 assert_eq!(selected, current,
                     "generated {name} must follow the authoritative current dependency contract, including major-version changes");
@@ -5513,7 +5538,8 @@ mod tests {
 
     #[test]
     fn generated_runtime_versioned_feature_policy_preserves_required_and_other_versions() {
-        let mut lock = toml::from_str::<toml::Value>(r#"
+        let mut lock = toml::from_str::<toml::Value>(
+            r#"
 [[package]]
 name = "digest"
 version = "0.11.3"
@@ -5530,13 +5556,19 @@ dependencies = ["const-oid", "ctutils"]
 name = "other-provider"
 version = "0.11.3"
 dependencies = ["const-oid", "ctutils"]
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         let before = lock.clone();
         strip_unused_workspace_feature_edges(&mut lock).unwrap();
         let packages = lock["package"].as_array().unwrap();
-        assert_eq!(packages[0]["dependencies"].as_array().unwrap(),
-            &[toml::Value::String("block-buffer 0.12.1".into()),
-                toml::Value::String("crypto-common 0.2.2".into())]);
+        assert_eq!(
+            packages[0]["dependencies"].as_array().unwrap(),
+            &[
+                toml::Value::String("block-buffer 0.12.1".into()),
+                toml::Value::String("crypto-common 0.2.2".into())
+            ]
+        );
         assert_eq!(&packages[1..], &before["package"].as_array().unwrap()[1..],
             "required edges, other owners and future/old digest versions need their own feature proof");
     }
@@ -5654,10 +5686,15 @@ dependencies = ["const-oid", "ctutils"]
         assert!(!main.contains("use o_lang::cancellation::CancellationToken;"));
         assert!(main.contains("#[cfg(not(target_family = \"wasm\"))]\n    let signals = run_signals::RunSignals::new()?;"));
         let cargo: toml::Value = toml::from_str(&generate_cargo_toml("demo", false)).unwrap();
+        let canonical: toml::Value = toml::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        )))
+        .unwrap();
         assert!(cargo["dependencies"].get("signal-hook").is_none());
         assert_eq!(
-            cargo["target"]["cfg(unix)"]["dependencies"]["signal-hook"].as_str(),
-            Some("0.3")
+            cargo["target"]["cfg(unix)"]["dependencies"]["signal-hook"],
+            canonical["target"]["cfg(unix)"]["dependencies"]["signal-hook"]
         );
         assert!(!main.contains("set_var(\"O_EXECUTOR\""));
     }
@@ -5919,8 +5956,13 @@ dependencies = ["const-oid", "ctutils"]
                     generated_dependency_requirement(&manifest, name).unwrap();
                 let selected = packages
                     .iter()
-                    .filter(|package| package["name"].as_str() == Some(package_name.as_str())
-                        && requirement.matches(&semver::Version::parse(package["version"].as_str().unwrap()).unwrap()))
+                    .filter(|package| {
+                        package["name"].as_str() == Some(package_name.as_str())
+                            && requirement.matches(
+                                &semver::Version::parse(package["version"].as_str().unwrap())
+                                    .unwrap(),
+                            )
+                    })
                     .collect::<Vec<_>>();
                 assert_eq!(selected.len(), 1, "ambiguous generated {name} dependency");
                 let version =
@@ -5931,33 +5973,54 @@ dependencies = ["const-oid", "ctutils"]
                 );
             }
             assert!(packages.iter().all(|package| !matches!(
-                package["name"].as_str().unwrap(), "hkdf" | "hmac" | "spake2"
+                package["name"].as_str().unwrap(),
+                "hkdf" | "hmac" | "spake2"
             )));
             // A transitive dependency may legitimately need a second SHA2 or
             // RNG generation (e.g. Ed25519's provider). It must be an exact
             // current locked package, never a fabricated or upgraded record.
-            for package in packages.iter().filter(|package|
-                package["name"].as_str() != Some(GENERATED_PACKAGE_NAME)) {
-                let matches = workspace_lock["package"].as_array().unwrap().iter()
-                    .filter(|original| original["name"] == package["name"]
-                        && original["version"] == package["version"])
+            for package in packages
+                .iter()
+                .filter(|package| package["name"].as_str() != Some(GENERATED_PACKAGE_NAME))
+            {
+                let matches = workspace_lock["package"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|original| {
+                        original["name"] == package["name"]
+                            && original["version"] == package["version"]
+                    })
                     .collect::<Vec<_>>();
-                assert_eq!(matches.len(), 1, "projected package identity must be unique");
+                assert_eq!(
+                    matches.len(),
+                    1,
+                    "projected package identity must be unique"
+                );
                 let mut expected = matches[0].clone();
                 let expected_table = expected.as_table_mut().unwrap();
                 let name = expected_table["name"].as_str().unwrap().to_owned();
                 let version = expected_table["version"].as_str().unwrap().to_owned();
-                if let Some(dependencies) = expected_table.get_mut("dependencies")
-                    .and_then(toml::Value::as_array_mut) {
+                if let Some(dependencies) = expected_table
+                    .get_mut("dependencies")
+                    .and_then(toml::Value::as_array_mut)
+                {
                     dependencies.retain(|dependency| {
                         let edge = dependency.as_str().unwrap().split(' ').next();
-                        !GENERATED_RUNTIME_UNUSED_FEATURE_EDGES.iter().any(|(owner, unused)|
-                            *owner == name && edge == Some(*unused))
-                            && !GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES.iter().any(|(owner, pin, unused)|
-                                *owner == name && *pin == version && edge == Some(*unused))
+                        !GENERATED_RUNTIME_UNUSED_FEATURE_EDGES
+                            .iter()
+                            .any(|(owner, unused)| *owner == name && edge == Some(*unused))
+                            && !GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES.iter().any(
+                                |(owner, pin, unused)| {
+                                    *owner == name && *pin == version && edge == Some(*unused)
+                                },
+                            )
                     });
                 }
-                assert_eq!(*package, expected, "projected package bytes/edges must preserve the current workspace record");
+                assert_eq!(
+                    *package, expected,
+                    "projected package bytes/edges must preserve the current workspace record"
+                );
             }
         }
     }

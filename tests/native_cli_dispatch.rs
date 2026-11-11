@@ -1,5 +1,7 @@
 //! Actual native front-door process routing and installed-location contracts.
 #![cfg(unix)]
+mod support;
+
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -436,19 +438,19 @@ fn copied_frontdoor_resolves_installed_siblings_and_metadata() {
         "#!/bin/sh\nprintf '%s\\0' \"$@\"\n",
     );
     fs::write(dir.path().join("ostadix-install.json"), r#"{"schema":1,"repo_root":"/relocated/OSTADIX","backends_dir":"/relocated/OSTADIX/backends"}"#).unwrap();
-    let result = Command::new(&front)
-        .arg("root")
-        .env_remove("O_LANG_ROOT")
-        .output()
-        .unwrap();
+    let result = support::output_private_executable(
+        Command::new(&front).arg("root").env_remove("O_LANG_ROOT"),
+    )
+    .unwrap();
     assert!(result.status.success());
     assert_eq!(result.stdout, b"/relocated/OSTADIX\n");
-    let result = Command::new(front)
-        .args(["eval", "1"])
-        .env_remove("O_LANG_ROOT")
-        .env_remove("O_LANG_EVALUATOR_BIN")
-        .output()
-        .unwrap();
+    let result = support::output_private_executable(
+        Command::new(front)
+            .args(["eval", "1"])
+            .env_remove("O_LANG_ROOT")
+            .env_remove("O_LANG_EVALUATOR_BIN"),
+    )
+    .unwrap();
     assert!(
         result.status.success(),
         "{}",

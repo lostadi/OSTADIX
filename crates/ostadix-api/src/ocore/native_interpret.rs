@@ -937,12 +937,20 @@ mod tests {
         module.functions[0].blocks[0].terminator = Terminator::Return {
             value: Some(Operand::PointerToInteger {
                 ty: 2,
-                pointer: Box::new(Operand::PointerBits { ty: 3, bits: "17".into() }),
+                pointer: Box::new(Operand::PointerBits {
+                    ty: 3,
+                    bits: "17".into(),
+                }),
             }),
         };
         super::super::native_verify::verify(&module).unwrap();
         let error = evaluate(&module, "calculate", &[0u8.into(), 0u8.into()]).unwrap_err();
-        assert!(error.message.contains("pointer/symbol scalar values are not implemented"), "{error:?}");
+        assert!(
+            error
+                .message
+                .contains("pointer/symbol scalar values are not implemented"),
+            "{error:?}"
+        );
     }
 
     #[test]

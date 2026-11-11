@@ -232,6 +232,69 @@ def _native_execute_result(result: dict[str, Any]) -> dict[str, Any]:
     return native
 
 
+def _verify_one_worker_overlap_control(
+    result: dict[str, Any], planned: dict[str, Any], source: str, workspace: Path
+) -> None:
+    """Require the bound one-worker graph's own typed barrier failure."""
+    native = _native_execute_result(result)
+    plan = planned.get("result", {})
+    realizability = plan.get("realizability", {})
+    if (
+        planned.get("state") != "completed"
+        or planned.get("exit_code") != 0
+        or json.loads(planned.get("stdout", {}).get("text", "{}")) != plan
+        or plan.get("schema") != "oexec.schedule-explanation/v2"
+        or realizability.get("dispatch") != "not-run"
+        or type(realizability.get("selected_workers")) is not int
+        or realizability["selected_workers"] != 1
+        or planned.get("input", {}).get("cwd") != os.fspath(workspace)
+    ):
+        raise SmokeError("one-worker control omitted its nonexecuting worker/context plan")
+    evidence = native.get("execution_evidence", {})
+    gate = evidence.get("source_intent_gate")
+    if (
+        native.get("ok") is not False
+        or result.get("exit_code") != 1
+        or result.get("signal") is not None
+        or result.get("mode") != "admitted"
+        or result.get("input", {}).get("cwd") != os.fspath(workspace)
+        or evidence.get("schema") != "ostadix.native-execution-evidence/v1"
+        or evidence.get("execution_mode") != "graph"
+        or evidence.get("source_sha256") != hashlib.sha256(source.encode()).hexdigest()
+        or not isinstance(gate, dict)
+        or gate.get("verified") is not True
+    ):
+        raise SmokeError("one-worker control changed its bound graph/process context")
+    failures = native.get("failed_batch_members")
+    if not isinstance(failures, list) or len(failures) != 1:
+        raise SmokeError("one-worker control omitted its exact typed member failure")
+    failure = failures[0]
+    if (
+        not isinstance(failure, dict)
+        or type(failure.get("member")) is not int
+        or failure["member"] != 0
+        or type(failure.get("node")) is not int
+        or failure["node"] < 0
+        or not isinstance(failure.get("error"), str)
+        or re.search(r"(?m)^RuntimeError: unified-workers-did-not-overlap$", failure["error"]) is None
+        or native.get("type") != "list"
+        or native.get("value") != {"t": "list", "v": [
+            {"t": "error", "msg": failure["error"]},
+            {"t": "text", "v": {"encoding": "utf-8", "utf8": "right"}},
+        ]}
+    ):
+        raise SmokeError("one-worker control did not retain the exact barrier member error")
+    paths = [workspace / name for name in ("left.ready", "right.ready", "right.finished")]
+    if (workspace / "left.finished").exists() or not all(path.is_file() for path in paths):
+        raise SmokeError("one-worker control did not serialize the fixture's backend effects")
+    try:
+        left_ready, right_ready, right_finished = [int(path.read_text()) for path in paths]
+    except (OSError, ValueError) as error:
+        raise SmokeError("one-worker control omitted valid backend timestamps") from error
+    if not 0 < left_ready < right_ready <= right_finished:
+        raise SmokeError("one-worker control changed the serialized backend effect order")
+
+
 def _run_agent_surface_smoke(
     process: subprocess.Popen[bytes],
     responses: ResponseReader,
@@ -621,8 +684,16 @@ def _run_unified_surface_smoke(
                 f"__oval_result__ = '{mine}'\n)_python"
             )
 
+        overlap_source = f"autonomous(batch({member('left', 'right')}, {member('right', 'left')}))"
+        if workers == 1:
+            control_plan = execute({
+                "source": overlap_source, "action": "plan",
+                "cwd": os.fspath(parallel_root), "workers": workers,
+            })
+            if any(parallel_root.iterdir()):
+                raise SmokeError("one-worker planning dispatched fixture effects")
         overlapping = execute({
-            "source": f"autonomous(batch({member('left', 'right')}, {member('right', 'left')}))",
+            "source": overlap_source,
             "cwd": os.fspath(parallel_root),
             "mode": "admitted",
             "workers": workers,
@@ -630,11 +701,7 @@ def _run_unified_surface_smoke(
         }, error=workers == 1)
         overlap_native = _native_execute_result(overlapping)
         if workers == 1:
-            if (
-                overlap_native.get("stage") != "eval"
-                or "unified-workers-did-not-overlap" not in overlap_native.get("error", "")
-            ):
-                raise SmokeError(f"one-worker control did not reject the overlap barrier: {overlapping}")
+            _verify_one_worker_overlap_control(overlapping, control_plan, overlap_source, parallel_root)
         else:
             paths = [parallel_root / f"{side}.{event}" for side in ("left", "right") for event in ("ready", "finished")]
             if not all(path.is_file() for path in paths):

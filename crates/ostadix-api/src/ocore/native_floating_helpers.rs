@@ -566,7 +566,7 @@ mod tests {
                 None
             );
             let abs = Instruction {
-                result: neg.result.clone(),
+                result: neg.result,
                 operation: Operation::FloatAbs {
                     value: constant(ty),
                     flags: FastMathFlags::default(),

@@ -110,12 +110,10 @@ fn emit_impl(
         if !metadata_personalities.contains(&function.name)
             && function.intrinsic.as_deref() != Some(NOALIAS_SCOPE_DECL)
             && !vector::is_reduction_declaration(function)
+            && (function.entry.is_some()
+                || !super::native_abi::is_fast_float_signature(module, &function.signature))
         {
-            if function.entry.is_some()
-                || !super::native_abi::is_fast_float_signature(module, &function.signature)
-            {
-                abi.plan_function(function)?;
-            }
+            abi.plan_function(function)?;
         }
         for instruction in function.blocks.iter().flat_map(|b| &b.instructions) {
             if let Operation::Call {
@@ -348,7 +346,16 @@ fn emit_impl(
             .map_err(|error| error_diagnostic(format!("Linux platform note: {error}")))?;
         writeln!(out, ".section .note.ocore.platform,\"a\",@note\n.p2align 2\n.long 6\n.long {}\n.long 1\n.byte 79,99,111,114,101,0\n.p2align 2", payload.len()).unwrap();
         for chunk in payload.chunks(32) {
-            writeln!(out, ".byte {}", chunk.iter().map(u8::to_string).collect::<Vec<_>>().join(",")).unwrap();
+            writeln!(
+                out,
+                ".byte {}",
+                chunk
+                    .iter()
+                    .map(u8::to_string)
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+            .unwrap();
         }
         out.push_str(".p2align 2\n");
     }
@@ -925,6 +932,9 @@ struct Emitter<'a> {
 }
 
 impl<'a> Emitter<'a> {
+    // Keep verified source, target, leaf-layout and ABI contexts explicit at
+    // construction; grouping them would obscure their separate ownership.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         module: &'a NativeModule,
         function: &'a Function,
@@ -970,7 +980,9 @@ impl<'a> Emitter<'a> {
             nonlocal_calls: Vec::new(),
         };
         for value in function_values(function) {
-            if !result.leaf_spill_offsets.contains_key(&value.ty) {
+            if let std::collections::btree_map::Entry::Vacant(entry) =
+                result.leaf_spill_offsets.entry(value.ty)
+            {
                 let mut cursor = 0i64;
                 let mut offsets = Vec::new();
                 for (field, _) in &leaf_layouts[&value.ty] {
@@ -986,7 +998,7 @@ impl<'a> Emitter<'a> {
                         )
                         .ok_or_else(|| error_diagnostic("aggregate spill offset overflow"))?;
                 }
-                result.leaf_spill_offsets.insert(value.ty, offsets);
+                entry.insert(offsets);
             }
             result.frame = result
                 .frame
@@ -1629,9 +1641,17 @@ impl<'a> Emitter<'a> {
                     if bit_offset != 0 {
                         let register = self.reg(reg);
                         match self.target {
-                            Target::X86_64UnknownNone => writeln!(out, "  shr {register}, {bit_offset}").unwrap(),
-                            Target::Aarch64UnknownNone => writeln!(out, "  lsr {register}, {register}, #{bit_offset}").unwrap(),
-                            Target::Riscv64UnknownNone => writeln!(out, "  srli {register}, {register}, {bit_offset}").unwrap(),
+                            Target::X86_64UnknownNone => {
+                                writeln!(out, "  shr {register}, {bit_offset}").unwrap()
+                            }
+                            Target::Aarch64UnknownNone => {
+                                writeln!(out, "  lsr {register}, {register}, #{bit_offset}")
+                                    .unwrap()
+                            }
+                            Target::Riscv64UnknownNone => {
+                                writeln!(out, "  srli {register}, {register}, {bit_offset}")
+                                    .unwrap()
+                            }
                         }
                     }
                 }
@@ -2528,7 +2548,9 @@ impl<'a> Emitter<'a> {
                 self.atomic_instruction(out, instruction)?;
                 return Ok(());
             }
-            Operation::LinuxSyscall { number, arguments, .. } => {
+            Operation::LinuxSyscall {
+                number, arguments, ..
+            } => {
                 // Every input comes from fixed SSA/PHI spills or a constant.
                 // Loading through scratch0 cannot clobber any earlier ABI arg.
                 let registers: &[&str] = match self.target {
@@ -2539,8 +2561,12 @@ impl<'a> Emitter<'a> {
                 for (argument, register) in arguments.iter().zip(registers) {
                     self.operand(out, 0, argument);
                     match self.target {
-                        Target::X86_64UnknownNone => writeln!(out, "  mov {register}, rax").unwrap(),
-                        Target::Aarch64UnknownNone => writeln!(out, "  mov {register}, x9").unwrap(),
+                        Target::X86_64UnknownNone => {
+                            writeln!(out, "  mov {register}, rax").unwrap()
+                        }
+                        Target::Aarch64UnknownNone => {
+                            writeln!(out, "  mov {register}, x9").unwrap()
+                        }
                         Target::Riscv64UnknownNone => writeln!(out, "  mv {register}, t0").unwrap(),
                     }
                 }
@@ -2749,7 +2775,7 @@ impl<'a> Emitter<'a> {
                 };
                 for (leaf, bit) in self.value_chunks(ty) {
                     let (field, base) = self.leaf_layouts[&ty][leaf];
-                    let offset = base + u64::from(bit / 8);
+                    let offset = base + bit / 8;
                     self.operand(out, 1, pointer);
                     self.address_offset(out, offset);
                     self.load(
@@ -2775,7 +2801,7 @@ impl<'a> Emitter<'a> {
                 };
                 for (leaf, bit) in self.value_chunks(ty) {
                     let (field, base) = self.leaf_layouts[&ty][leaf];
-                    let offset = base + u64::from(bit / 8);
+                    let offset = base + bit / 8;
                     self.operand_packed_chunk(out, 0, value, leaf, bit);
                     self.operand(out, 1, pointer);
                     self.address_offset(out, offset);
@@ -3617,6 +3643,9 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    // ABI operands, exception continuation and source-site proof are distinct
+    // call inputs; preserve their existing signature and validation order.
+    #[allow(clippy::too_many_arguments)]
     fn call(
         &mut self,
         out: &mut String,

@@ -37,66 +37,114 @@ impl FinalizerFixture {
             "dependencies": [{"name": "compression", "source_pin": null,
                               "fixture_role": "unchanged"}]
         });
-        let members = [("zlib", "provider-zlib"), ("bzip2", "provider-bzip2"),
-                       ("xz", "provider-xz")];
-        items.insert("engine".to_owned(), FinalizerItem {
-            recipe: serde_json::to_vec(&engine).unwrap(),
-            dependencies: BTreeMap::new(),
-            compound: [("compression".to_owned(), members.iter()
-                .map(|(member, component)| ((*member).to_owned(), (*component).to_owned()))
-                .collect())].into_iter().collect(),
-        });
+        let members = [
+            ("zlib", "provider-zlib"),
+            ("bzip2", "provider-bzip2"),
+            ("xz", "provider-xz"),
+        ];
+        items.insert(
+            "engine".to_owned(),
+            FinalizerItem {
+                recipe: serde_json::to_vec(&engine).unwrap(),
+                dependencies: BTreeMap::new(),
+                compound: [(
+                    "compression".to_owned(),
+                    members
+                        .iter()
+                        .map(|(member, component)| ((*member).to_owned(), (*component).to_owned()))
+                        .collect(),
+                )]
+                .into_iter()
+                .collect(),
+            },
+        );
         for (member, component) in members {
             let recipe = json!({
                 "schema": source_recipe::RECIPE_FORMAT,
                 "source": {"fixture_original": member, "version": "DATA-only"},
                 "dependencies": []
             });
-            items.insert(component.to_owned(), FinalizerItem {
-                recipe: serde_json::to_vec(&recipe).unwrap(),
-                dependencies: BTreeMap::new(), compound: BTreeMap::new(),
-            });
+            items.insert(
+                component.to_owned(),
+                FinalizerItem {
+                    recipe: serde_json::to_vec(&recipe).unwrap(),
+                    dependencies: BTreeMap::new(),
+                    compound: BTreeMap::new(),
+                },
+            );
         }
-        let components = items.iter().map(|(name, item)| {
-            let recipe: Value = serde_json::from_slice(&item.recipe).unwrap();
-            let mut compound = BTreeMap::<String, Value>::new();
-            for (label, members) in &item.compound {
-                let declaration = recipe["dependencies"].as_array().unwrap().iter()
-                    .find(|declaration| declaration["name"].as_str() == Some(label.as_str()))
-                    .expect("actual unchanged recipe declaration");
-                let expected = members.iter().map(|(member, provider)| {
-                    let provider_recipe: Value =
-                        serde_json::from_slice(&items[provider].recipe).unwrap();
-                    (member.clone(), provider_recipe["source"].clone())
-                }).collect::<BTreeMap<_, _>>();
-                compound.insert(label.clone(), json!({
-                    "declaration": declaration, "members": expected,
-                }));
-            }
-            json!({"component": name,
+        let components = items
+            .iter()
+            .map(|(name, item)| {
+                let recipe: Value = serde_json::from_slice(&item.recipe).unwrap();
+                let mut compound = BTreeMap::<String, Value>::new();
+                for (label, members) in &item.compound {
+                    let declaration = recipe["dependencies"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|declaration| declaration["name"].as_str() == Some(label.as_str()))
+                        .expect("actual unchanged recipe declaration");
+                    let expected = members
+                        .iter()
+                        .map(|(member, provider)| {
+                            let provider_recipe: Value =
+                                serde_json::from_slice(&items[provider].recipe).unwrap();
+                            (member.clone(), provider_recipe["source"].clone())
+                        })
+                        .collect::<BTreeMap<_, _>>();
+                    compound.insert(
+                        label.clone(),
+                        json!({
+                            "declaration": declaration, "members": expected,
+                        }),
+                    );
+                }
+                json!({"component": name,
                    "recipe": {"bytes": item.recipe.len(), "sha256": finalizer_sha(&item.recipe)},
                    "compound_dependencies": compound})
-        }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
         let raw_policy = serde_json::to_vec(&json!({
             "schema": "ocore-original-provider-membership-v1", "components": components,
-        })).unwrap();
-        let path = directory.path().join("independently-selected-membership.json");
-        let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600)
-            .open(&path).unwrap();
+        }))
+        .unwrap();
+        let path = directory
+            .path()
+            .join("independently-selected-membership.json");
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)
+            .unwrap();
         file.write_all(&raw_policy).unwrap();
         file.sync_all().unwrap();
         drop(file);
         let pin = provider_order::OrderPin {
-            path, bytes: raw_policy.len() as u64, sha256: finalizer_sha(&raw_policy),
+            path,
+            bytes: raw_policy.len() as u64,
+            sha256: finalizer_sha(&raw_policy),
         };
-        Self { directory, items, pin, raw_policy }
+        Self {
+            directory,
+            items,
+            pin,
+            raw_policy,
+        }
     }
 
     fn select(&self) -> provider_membership::SelectedMembership {
-        let inputs = self.items.iter().map(|(name, item)| provider_membership::Input {
-            name, recipe: &item.recipe, dependencies: &item.dependencies,
-            compound: &item.compound,
-        }).collect::<Vec<_>>();
+        let inputs = self
+            .items
+            .iter()
+            .map(|(name, item)| provider_membership::Input {
+                name,
+                recipe: &item.recipe,
+                dependencies: &item.dependencies,
+                compound: &item.compound,
+            })
+            .collect::<Vec<_>>();
         provider_membership::SelectedMembership::read(&self.pin, &inputs)
             .expect("real independent four-component membership selection")
     }
@@ -108,8 +156,12 @@ impl FinalizerFixture {
         // The finalizer consumes the existence/metadata of this product, not its
         // NativeModule body. These bytes make no artifact-validity claim.
         let raw = b"{\"inert_finalizer_package\":true,\"qualified\":false}\n".to_vec();
-        let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600)
-            .open(&path).unwrap();
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)
+            .unwrap();
         file.write_all(&raw).unwrap();
         file.sync_all().unwrap();
         let package = Some(json!({"path": path, "bytes": raw.len(),
@@ -136,8 +188,12 @@ fn v5_finalizer_revokes_root_ir_after_reached_same_bytes_policy_replacement() {
     let object_result: std::result::Result<(), &'static str> = (|| {
         object_hook_fired = true;
         let replacement = fixture.directory.path().join("replacement-membership.json");
-        let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600)
-            .open(&replacement).unwrap();
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&replacement)
+            .unwrap();
         file.write_all(&before_bytes).unwrap();
         file.set_permissions(before.permissions()).unwrap();
         file.sync_all().unwrap();
@@ -146,7 +202,10 @@ fn v5_finalizer_revokes_root_ir_after_reached_same_bytes_policy_replacement() {
         Err("INERT known object-lowering failure; no process was started")
     })();
     assert!(object_hook_fired);
-    assert_eq!(object_result, Err("INERT known object-lowering failure; no process was started"));
+    assert_eq!(
+        object_result,
+        Err("INERT known object-lowering failure; no process was started")
+    );
     let after = fs::metadata(&fixture.pin.path).unwrap();
     let after_bytes = fs::read(&fixture.pin.path).unwrap();
     assert_eq!(before.dev(), after.dev());
@@ -155,15 +214,22 @@ fn v5_finalizer_revokes_root_ir_after_reached_same_bytes_policy_replacement() {
     assert_eq!((before.uid(), before.gid()), (after.uid(), after.gid()));
     assert_eq!(before_bytes, after_bytes);
     assert_eq!(before_sha, finalizer_sha(&after_bytes));
-    assert!(ir_path.is_file(), "actual root product exists before finalization");
+    assert!(
+        ir_path.is_file(),
+        "actual root product exists before finalization"
+    );
 
-    let original_issue = format!("source-group object re-emission: {}", object_result.unwrap_err());
+    let original_issue = format!(
+        "source-group object re-emission: {}",
+        object_result.unwrap_err()
+    );
     let mut issues = vec![original_issue.clone()];
     let actual_check_reached = Cell::new(false);
     finalize_membership_custody(&output, &mut package, &mut ir_complete, &mut issues, || {
         actual_check_reached.set(true);
         selected.check_unchanged()
-    }).expect("recorded custody rejection is not a successful-revocation I/O error");
+    })
+    .expect("recorded custody rejection is not a successful-revocation I/O error");
     assert!(actual_check_reached.get());
     assert!(package.is_none());
     assert!(!ir_complete);
@@ -189,14 +255,21 @@ fn v5_finalizer_retains_valid_root_ir_for_object_error_with_unchanged_policy() {
         Err("INERT known object-lowering failure; no process was started")
     })();
     assert!(object_hook_fired);
-    assert_eq!(object_result, Err("INERT known object-lowering failure; no process was started"));
-    let original_issue = format!("source-group object re-emission: {}", object_result.unwrap_err());
+    assert_eq!(
+        object_result,
+        Err("INERT known object-lowering failure; no process was started")
+    );
+    let original_issue = format!(
+        "source-group object re-emission: {}",
+        object_result.unwrap_err()
+    );
     let mut issues = vec![original_issue.clone()];
     let actual_check_reached = Cell::new(false);
     finalize_membership_custody(&output, &mut package, &mut ir_complete, &mut issues, || {
         actual_check_reached.set(true);
         selected.check_unchanged()
-    }).expect("unchanged real selected membership must preserve the IR product");
+    })
+    .expect("unchanged real selected membership must preserve the IR product");
     assert!(actual_check_reached.get());
     assert!(ir_complete);
     assert_eq!(package, original_package);

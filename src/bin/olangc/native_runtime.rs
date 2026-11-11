@@ -3,8 +3,9 @@
 
 use anyhow::{bail, Context, Result};
 use o_lang::ocore::native_ir::{
-    AtomicProfile, LlvmMetadataGraphSource, LlvmMetadataSourceNode, NativeModule, NoAliasNodeSource,
-    NoAliasNodeStorage, Signature, TlsProfile, Type, Visibility, WideVolatileProfile,
+    AtomicProfile, LlvmMetadataGraphSource, LlvmMetadataSourceNode, NativeModule,
+    NoAliasNodeSource, NoAliasNodeStorage, Signature, TlsProfile, Type, Visibility,
+    WideVolatileProfile,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -316,6 +317,7 @@ fn lowering_partition(capture: &Value, python: &Path) -> Result<BTreeSet<String>
     Ok(selected)
 }
 
+#[cfg(test)]
 fn capture_admission(capture: &Value) -> Result<BTreeSet<String>> {
     capture_admission_with_python(capture, Path::new("python3"))
 }
@@ -404,10 +406,6 @@ fn capture_admission_with_python(capture: &Value, python: &Path) -> Result<BTree
 
 /// Reconstruct the partition from the original journal and hashed build artifacts.
 /// The embedded verifier only reads evidence; it never reruns the runtime build.
-fn reverify_capture(report: &Path, bytes: &[u8], output: &Path) -> Result<Value> {
-    reverify_capture_with_python(report, bytes, output, Path::new("python3"))
-}
-
 fn reverify_capture_with_python(
     report: &Path,
     bytes: &[u8],
@@ -1118,9 +1116,13 @@ fn function_dependencies(
     for block in &function.blocks {
         for instruction in &block.instructions {
             match &instruction.operation {
-                Operation::LinuxSyscall { number, arguments, .. } => {
+                Operation::LinuxSyscall {
+                    number, arguments, ..
+                } => {
                     operand(number);
-                    for argument in arguments { operand(argument); }
+                    for argument in arguments {
+                        operand(argument);
+                    }
                 }
                 Operation::Assume { condition } => operand(condition),
                 Operation::Lifetime { pointer, .. }
@@ -1634,11 +1636,14 @@ fn metadata_diagnostics_capability(compiler: &Path, output: &Path) -> Result<(bo
     if digest(&fs::read(compiler)?) != compiler_sha256 {
         bail!("selected compiler changed during metadata diagnostic capability discovery");
     }
-    Ok((supported, json!({"program":compiler,"sha256":compiler_sha256,
+    Ok((
+        supported,
+        json!({"program":compiler,"sha256":compiler_sha256,
         "argv":["--help"],"status":result.status.code(),"supported":supported,
         "stdout":{"path":stdout,"bytes":result.stdout.len(),"sha256":digest(&result.stdout)},
         "stderr":{"path":stderr,"bytes":result.stderr.len(),"sha256":digest(&result.stderr)},
-        "scope":"dispatch capability only; not source or semantic qualification"})))
+        "scope":"dispatch capability only; not source or semantic qualification"}),
+    ))
 }
 
 #[derive(serde::Deserialize)]
@@ -1683,24 +1688,34 @@ fn validate_metadata_diagnostics(
         if module.provenance.noalias_metadata_graph_source.is_some() {
             bail!("canonical LLVM metadata graph requires separately retained raw diagnostics");
         }
-        return Ok(json!({"mode":"legacy_embedded_provenance","validated":false,
+        return Ok(
+            json!({"mode":"legacy_embedded_provenance","validated":false,
             "deterministic_graph_source_gate":false,
-            "scope":"existing independent structural verification; selected compiler lacks raw sidecar capability"}));
+            "scope":"existing independent structural verification; selected compiler lacks raw sidecar capability"}),
+        );
     };
     let bytes = fs::read(path).context("read requested raw LLVM metadata diagnostics")?;
-    let raw: RawMetadataDiagnostics = serde_json::from_slice(&bytes)
-        .context("decode complete raw LLVM metadata diagnostics")?;
-    if raw.schema != RAW_METADATA_SCHEMA || !raw.import_complete
-        || raw.input_bytes != input.len() || raw.input_sha256 != digest(input)
+    let raw: RawMetadataDiagnostics =
+        serde_json::from_slice(&bytes).context("decode complete raw LLVM metadata diagnostics")?;
+    if raw.schema != RAW_METADATA_SCHEMA
+        || !raw.import_complete
+        || raw.input_bytes != input.len()
+        || raw.input_sha256 != digest(input)
         || raw.input_sha256 != module.provenance.input_sha256
     {
         bail!("raw LLVM metadata schema/input/completion binding mismatch");
     }
     if raw.parser.version != [22, 1, 6]
         || raw.parser.sha256.len() != 64
-        || !raw.parser.sha256.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || !raw
+            .parser
+            .sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
         || !module.provenance.importer_version.ends_with(&format!(
-            "; LLVM 22.1.6; library-sha256={}", raw.parser.sha256))
+            "; LLVM 22.1.6; library-sha256={}",
+            raw.parser.sha256
+        ))
         || selected_parser_sha256.is_some_and(|selected| selected != raw.parser.sha256)
     {
         bail!("raw LLVM metadata parser version/hash differs from the selected import");
@@ -1712,12 +1727,22 @@ fn validate_metadata_diagnostics(
     }
     let mut expected = BTreeMap::new();
     if let Some(graph) = &graph {
-        let tuple_storage: BTreeMap<_, _> = graph.nodes.iter().filter_map(|node| match node {
-            LlvmMetadataSourceNode::Tuple { id, metadata_kind: 4, storage, .. } => Some((*id, *storage)),
-            _ => None,
-        }).collect();
+        let tuple_storage: BTreeMap<_, _> = graph
+            .nodes
+            .iter()
+            .filter_map(|node| match node {
+                LlvmMetadataSourceNode::Tuple {
+                    id,
+                    metadata_kind: 4,
+                    storage,
+                    ..
+                } => Some((*id, *storage)),
+                _ => None,
+            })
+            .collect();
         for binding in &graph.alias_bindings {
-            let storage = *tuple_storage.get(&binding.node)
+            let storage = *tuple_storage
+                .get(&binding.node)
                 .context("raw metadata binding must name a canonical MDTuple")?;
             if expected.insert(binding.alias_id, storage).is_some() {
                 bail!("duplicate raw LLVM metadata binding");
@@ -1731,9 +1756,25 @@ fn validate_metadata_diagnostics(
         {
             bail!("raw LLVM metadata differs from legacy embedded printer evidence");
         }
-        for (id, storage) in module.noalias_metadata.domains.iter().map(|n| (n.id, n.storage))
-            .chain(module.noalias_metadata.scopes.iter().map(|n| (n.id, n.storage)))
-            .chain(module.noalias_metadata.lists.iter().map(|n| (n.id, n.storage)))
+        for (id, storage) in module
+            .noalias_metadata
+            .domains
+            .iter()
+            .map(|n| (n.id, n.storage))
+            .chain(
+                module
+                    .noalias_metadata
+                    .scopes
+                    .iter()
+                    .map(|n| (n.id, n.storage)),
+            )
+            .chain(
+                module
+                    .noalias_metadata
+                    .lists
+                    .iter()
+                    .map(|n| (n.id, n.storage)),
+            )
         {
             expected.insert(id, storage);
         }
@@ -1743,18 +1784,27 @@ fn validate_metadata_diagnostics(
     }
     let mut seen = BTreeSet::new();
     for source in &raw.alias_nodes {
-        let storage = expected.get(&source.id).context("unknown raw LLVM metadata alias ID")?;
-        if !seen.insert(source.id) || source.metadata_kind != 4
+        let storage = expected
+            .get(&source.id)
+            .context("unknown raw LLVM metadata alias ID")?;
+        if !seen.insert(source.id)
+            || source.metadata_kind != 4
             || source.printer_sha256 != digest(&source.printer_bytes)
         {
             bail!("raw LLVM metadata duplicate/kind/printer digest mismatch");
         }
-        let separator = source.printer_bytes.windows(3).position(|bytes| bytes == b" = ")
+        let separator = source
+            .printer_bytes
+            .windows(3)
+            .position(|bytes| bytes == b" = ")
             .context("invalid raw LLVM metadata printer header")?;
         let label = &source.printer_bytes[..separator];
-        let slot = label.strip_prefix(b"!").is_some_and(|digits|
-            !digits.is_empty() && digits.iter().all(u8::is_ascii_digit));
-        let pointer = label.strip_prefix(b"<0x").and_then(|label| label.strip_suffix(b">"))
+        let slot = label
+            .strip_prefix(b"!")
+            .is_some_and(|digits| !digits.is_empty() && digits.iter().all(u8::is_ascii_digit));
+        let pointer = label
+            .strip_prefix(b"<0x")
+            .and_then(|label| label.strip_suffix(b">"))
             .is_some_and(|digits| !digits.is_empty() && digits.iter().all(u8::is_ascii_hexdigit));
         let body = &source.printer_bytes[separator + 3..];
         let correct_storage = match storage {
@@ -1765,12 +1815,14 @@ fn validate_metadata_diagnostics(
             bail!("raw LLVM metadata printer header/storage does not match canonical tuple");
         }
     }
-    Ok(json!({"path":path,"sha256":digest(&bytes),"bytes":bytes.len(),"validated":true,
+    Ok(
+        json!({"path":path,"sha256":digest(&bytes),"bytes":bytes.len(),"validated":true,
         "schema":raw.schema,"input_sha256":raw.input_sha256,"input_bytes":raw.input_bytes,
         "parser":{"version":raw.parser.version,"sha256":raw.parser.sha256},
         "explicit_parser_pin_checked":selected_parser_sha256.is_some(),
         "tuple_count":raw.alias_nodes.len(),"canonical_graph_source":graph.is_some(),
-        "scope":"raw diagnostics separately bound; complete canonical module remains independently verified and exactly compared"}))
+        "scope":"raw diagnostics separately bound; complete canonical module remains independently verified and exactly compared"}),
+    )
 }
 
 fn metadata_diagnostics_postguard(receipt: &Value) -> Result<()> {
@@ -2102,31 +2154,51 @@ fn object_inventory_with_reproduction(
     }
     let linux_requirement = o_lang::ocore::native_platform::requirement(module)
         .map_err(|e| anyhow::anyhow!(e.message))?;
-    let expected_platform_note = linux_requirement.as_ref().map(|requirement| -> Result<Vec<u8>> {
-        let payload = serde_json::to_vec(requirement)?;
-        let mut note = Vec::new();
-        note.extend_from_slice(&6_u32.to_le_bytes());
-        note.extend_from_slice(&u32::try_from(payload.len())?.to_le_bytes());
-        note.extend_from_slice(&1_u32.to_le_bytes());
-        note.extend_from_slice(b"Ocore\0\0\0");
-        note.extend_from_slice(&payload);
-        while note.len() % 4 != 0 { note.push(0); }
-        Ok(note)
-    }).transpose()?;
+    let expected_platform_note = linux_requirement
+        .as_ref()
+        .map(|requirement| -> Result<Vec<u8>> {
+            let payload = serde_json::to_vec(requirement)?;
+            let mut note = Vec::new();
+            note.extend_from_slice(&6_u32.to_le_bytes());
+            note.extend_from_slice(&u32::try_from(payload.len())?.to_le_bytes());
+            note.extend_from_slice(&1_u32.to_le_bytes());
+            note.extend_from_slice(b"Ocore\0\0\0");
+            note.extend_from_slice(&payload);
+            while note.len() % 4 != 0 {
+                note.push(0);
+            }
+            Ok(note)
+        })
+        .transpose()?;
     let mut actual_platform_notes = Vec::new();
     for section in sections.iter().filter(|section| section.kind == 7) {
         let data = &bytes[section.offset as usize..(section.offset + section.size) as usize];
         let mut cursor = 0usize;
         while cursor < data.len() {
             let header_end = cursor.checked_add(12).context("ELF note header overflow")?;
-            if header_end > data.len() { bail!("truncated ELF platform note header"); }
+            if header_end > data.len() {
+                bail!("truncated ELF platform note header");
+            }
             let names = u32::from_le_bytes(data[cursor..cursor + 4].try_into()?) as usize;
             let description = u32::from_le_bytes(data[cursor + 4..cursor + 8].try_into()?) as usize;
-            let align = |length: usize| length.checked_add(3).map(|n| n & !3).context("ELF note padding overflow");
-            let name_end = header_end.checked_add(names).context("ELF note name overflow")?;
-            let desc_start = header_end.checked_add(align(names)?).context("ELF note owner padding overflow")?;
-            let end = desc_start.checked_add(align(description)?).context("ELF note description overflow")?;
-            if name_end > data.len() || end > data.len() { bail!("ELF platform note record exceeds its section"); }
+            let align = |length: usize| {
+                length
+                    .checked_add(3)
+                    .map(|n| n & !3)
+                    .context("ELF note padding overflow")
+            };
+            let name_end = header_end
+                .checked_add(names)
+                .context("ELF note name overflow")?;
+            let desc_start = header_end
+                .checked_add(align(names)?)
+                .context("ELF note owner padding overflow")?;
+            let end = desc_start
+                .checked_add(align(description)?)
+                .context("ELF note description overflow")?;
+            if name_end > data.len() || end > data.len() {
+                bail!("ELF platform note record exceeds its section");
+            }
             if &data[header_end..name_end] == b"Ocore\0" {
                 actual_platform_notes.push((section, &data[cursor..end]));
             }
@@ -2134,8 +2206,9 @@ fn object_inventory_with_reproduction(
         }
     }
     match (&expected_platform_note, actual_platform_notes.as_slice()) {
-        (None, []) => {},
-        (Some(expected), [(section, data)]) if data == expected && section.flags == 2 && section.alignment == 4 => {},
+        (None, []) => {}
+        (Some(expected), [(section, data)])
+            if data == expected && section.flags == 2 && section.alignment == 4 => {}
         _ => bail!("ELF mandatory Linux platform note differs from verified operations"),
     }
     let mut definitions = BTreeMap::new();
@@ -3093,6 +3166,10 @@ pub(super) struct NativeImportOptions<'a> {
 /// be deserialized from a claimed coverage receipt. Provider groups finalize it
 /// only after the independent original-source inventory and whole-group closure.
 pub(super) struct StagedComponent {
+    #[allow(
+        dead_code,
+        reason = "retained staging metadata; publication uses bound capture bytes/inventory"
+    )]
     pub(super) capture_path: PathBuf,
     pub(super) capture_bytes: Vec<u8>,
     pub(super) capture: Value,
@@ -3101,6 +3178,10 @@ pub(super) struct StagedComponent {
     pub(super) original_inputs: BTreeMap<String, (Value, Vec<u8>)>,
     pub(super) source_capture_complete: bool,
     pub(super) unit_lowering_complete: bool,
+    #[allow(
+        dead_code,
+        reason = "retained staging metadata; publication uses bound capture bytes/inventory"
+    )]
     pub(super) compiler_sha256: Option<String>,
     pub(super) coverage_path: PathBuf,
 }
@@ -3218,7 +3299,9 @@ fn lower_held_capture_with_compiler(
     };
     let expected_linux_syscall_profile = match linux_syscall_profile {
         None => None,
-        Some("linux-user-raw-v1") => Some(o_lang::ocore::native_ir::LinuxSyscallProfile::LinuxUserRawV1),
+        Some("linux-user-raw-v1") => {
+            Some(o_lang::ocore::native_ir::LinuxSyscallProfile::LinuxUserRawV1)
+        }
         Some(_) => bail!("unsupported native Linux syscall realization profile"),
     };
     let arch = architecture(target)?;
@@ -3416,7 +3499,8 @@ fn lower_held_capture_with_compiler(
             if let Some(profile) = wide_volatile_profile {
                 arguments.extend(["--wide-volatile-profile".into(), profile.into()]);
             }
-            let diagnostics = metadata_sidecars.then(|| directory.join("llvm-metadata-diagnostics.json"));
+            let diagnostics =
+                metadata_sidecars.then(|| directory.join("llvm-metadata-diagnostics.json"));
             if let Some(path) = &diagnostics {
                 arguments.extend([RAW_METADATA_OPTION.into(), path.display().to_string()]);
             }
@@ -3441,7 +3525,10 @@ fn lower_held_capture_with_compiler(
                 bail!("imported module provenance/target differs from the captured input");
             }
             record["metadata_diagnostics"] = validate_metadata_diagnostics(
-                diagnostics.as_deref(), &module, &input_bytes, llvm_sha256,
+                diagnostics.as_deref(),
+                &module,
+                &input_bytes,
+                llvm_sha256,
             )?;
             let mut triple = module.target.triple.split('-');
             let architecture = triple.next().unwrap_or_default();
@@ -3505,7 +3592,9 @@ fn lower_held_capture_with_compiler(
             // This exact-file inventory grants no provider or frame admission.
             record["nonlocal_control_requirements"] =
                 serde_json::to_value(control_inventory::collect(id, &imported_bytes)?)?;
-            if let Some(requirement) = o_lang::ocore::native_platform::requirement(&module).map_err(|e| anyhow::anyhow!(e.message))? {
+            if let Some(requirement) = o_lang::ocore::native_platform::requirement(&module)
+                .map_err(|e| anyhow::anyhow!(e.message))?
+            {
                 record["required_platform_interfaces"] = json!([requirement]);
                 record["platform_resource_closure_complete"] = json!(false);
             }
@@ -3707,9 +3796,15 @@ fn lower_held_capture_with_compiler(
             .iter()
             .filter(|record| record["required_for_lowering"] == true)
             .all(|record| record["lowered"] == true);
-    let required_platforms = records.iter().filter_map(|record| record.get("required_platform_interfaces")
-        .filter(|interfaces| interfaces.as_array().is_some_and(|items| !items.is_empty()))
-        .map(|interfaces| json!({"unit":record["id"],"interfaces":interfaces}))).collect::<Vec<_>>();
+    let required_platforms = records
+        .iter()
+        .filter_map(|record| {
+            record
+                .get("required_platform_interfaces")
+                .filter(|interfaces| interfaces.as_array().is_some_and(|items| !items.is_empty()))
+                .map(|interfaces| json!({"unit":record["id"],"interfaces":interfaces}))
+        })
+        .collect::<Vec<_>>();
     if !required_platforms.is_empty() {
         closure["required_platform_interfaces"] = json!(required_platforms);
         closure["platform_resource_closure_complete"] = json!(false);
@@ -3810,10 +3905,16 @@ fn lower_held_capture_with_compiler(
         ("scope".to_owned(), json!("self-contained verified native module-set and own-emitter relocatable objects; no script/runtime orchestration or native qualification")),
     ]);
     if expected_linux_syscall_profile.is_some() {
-        receipt.insert("linux_syscall_profile".into(), json!(expected_linux_syscall_profile));
+        receipt.insert(
+            "linux_syscall_profile".into(),
+            json!(expected_linux_syscall_profile),
+        );
     }
     if !required_platforms.is_empty() {
-        receipt.insert("required_platform_interfaces".into(), json!(required_platforms));
+        receipt.insert(
+            "required_platform_interfaces".into(),
+            json!(required_platforms),
+        );
         receipt.insert("platform_resource_closure_complete".into(), json!(false));
     }
     let receipt_path = output.join("coverage.json");
@@ -4972,10 +5073,27 @@ mod tests {
         // Scanner-only aggregate: exact types are separately verified by the
         // native verifier. No reference can disappear inside the boxed child.
         function.blocks[0].terminator = Terminator::Return {
-            value: Some(Operand::Aggregate { ty: 0, elements: vec![
-                Operand::PointerToInteger { ty: 0, pointer: Box::new(Operand::Symbol { ty: 0, name: "required_or_optional".into() }) },
-                Operand::PointerToInteger { ty: 0, pointer: Box::new(Operand::BlockAddress { ty: 0, function: "code_owner".into(), block: 7, addend: -4 }) },
-            ] }),
+            value: Some(Operand::Aggregate {
+                ty: 0,
+                elements: vec![
+                    Operand::PointerToInteger {
+                        ty: 0,
+                        pointer: Box::new(Operand::Symbol {
+                            ty: 0,
+                            name: "required_or_optional".into(),
+                        }),
+                    },
+                    Operand::PointerToInteger {
+                        ty: 0,
+                        pointer: Box::new(Operand::BlockAddress {
+                            ty: 0,
+                            function: "code_owner".into(),
+                            block: 7,
+                            addend: -4,
+                        }),
+                    },
+                ],
+            }),
         };
         let (symbols, blocks) = function_dependencies(&function);
         assert_eq!(symbols, BTreeSet::from(["required_or_optional".into()]));
@@ -5117,7 +5235,8 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
-                wide_volatile_profile: None, linux_syscall_profile: None,
+                wide_volatile_profile: None,
+                linux_syscall_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run")

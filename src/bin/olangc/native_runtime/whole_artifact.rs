@@ -32,14 +32,6 @@ pub(super) struct SourceComponent {
     units: Vec<SourceUnit>,
 }
 impl SourceComponent {
-    pub(super) fn from_stage(
-        name: &str,
-        recipe: &[u8],
-        dependencies: &BTreeMap<String, String>,
-        stage: &StagedComponent,
-    ) -> Result<Self> {
-        Self::from_stage_compound(name, recipe, dependencies, &BTreeMap::new(), stage)
-    }
     pub(super) fn from_stage_compound(
         name: &str,
         recipe: &[u8],
@@ -536,22 +528,7 @@ fn compare_relocated_import(
         "scope":"nonexecutable diagnostic input pathname only; every other canonical typed field compared exactly"}))
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(super) fn compile_package(
-    bytes: &[u8],
-    target: &str,
-    kind: &str,
-    output: &Path,
-    compiler: &Path,
-    python: &provider_group::Pin,
-    library: &provider_group::Pin,
-    options: NativeImportOptions<'_>,
-) -> Result<()> {
-    compile_package_selected(
-        bytes, target, kind, output, compiler, python, library, options, None,
-    )
-}
-
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn compile_package_selected(
     bytes: &[u8],
@@ -618,7 +595,8 @@ pub(super) fn compile_package_selected_membership(
     )?;
     let mut records = Vec::new();
     let mut issues = Vec::new();
-    let (metadata_sidecars, metadata_capability) = metadata_diagnostics_capability(compiler, &output)?;
+    let (metadata_sidecars, metadata_capability) =
+        metadata_diagnostics_capability(compiler, &output)?;
     for (component_index, component) in group.components.iter().enumerate() {
         for (unit_index, unit) in component.units.iter().enumerate() {
             let mut diagnostic_record = Value::Null;
@@ -679,7 +657,8 @@ pub(super) fn compile_package_selected_membership(
                         "ordinary-ram-split-v1".into(),
                     ]);
                 }
-                let diagnostics = metadata_sidecars.then(|| directory.join("llvm-metadata-diagnostics.json"));
+                let diagnostics =
+                    metadata_sidecars.then(|| directory.join("llvm-metadata-diagnostics.json"));
                 if let Some(path) = &diagnostics {
                     args.extend([RAW_METADATA_OPTION.into(), path.display().to_string()]);
                 }
@@ -697,7 +676,10 @@ pub(super) fn compile_package_selected_membership(
                 let fresh = NativeModule::from_json(&fs::read(fresh)?)
                     .map_err(|e| anyhow::anyhow!(e.message))?;
                 diagnostic_record = validate_metadata_diagnostics(
-                    diagnostics.as_deref(), &fresh, &original, Some(&library.sha256),
+                    diagnostics.as_deref(),
+                    &fresh,
+                    &original,
+                    Some(&library.sha256),
                 )?;
                 let diagnostic_name = compare_relocated_import(fresh, &module, &original_path)?;
                 metadata_diagnostics_postguard(&diagnostic_record)?;

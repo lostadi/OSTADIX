@@ -116,7 +116,8 @@ clap        = { version = "4", features = ["derive"] }
 ignore      = "0.4"
 
 # REPL line editing: history, arrow keys, Ctrl+A/E, Ctrl+C/D
-rustyline   = "19"
+# Rustyline 19 uses cfg_select!, unavailable at our Rust 1.93.1 floor.
+rustyline   = "18.0.1"
 
 # Hidden terminal input for one-use node pairing passcodes.
 rpassword  = "7.5.4"

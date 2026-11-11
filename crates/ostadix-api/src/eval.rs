@@ -6442,6 +6442,76 @@ mod tests {
 
     #[test]
     fn plain_bash_blocks_share_a_helper_but_never_a_shell() {
+        const CHILD: &str = "OSTADIX_PLAIN_BASH_HELPER_TEST_CHILD";
+        if std::env::var(CHILD).as_deref() != Ok("1") {
+            // Other unit tests can consume or retire the process-wide idle
+            // helper pool. Isolate this single-registry lifetime assertion.
+            use std::io::Read as _;
+            let directory = tempfile::tempdir().unwrap();
+            let stdout_path = directory.path().join("stdout");
+            let stderr_path = directory.path().join("stderr");
+            let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+            command
+                .args([
+                    "--exact",
+                    "eval::tests::plain_bash_blocks_share_a_helper_but_never_a_shell",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, "1")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::fs::File::create(&stdout_path).unwrap())
+                .stderr(std::fs::File::create(&stderr_path).unwrap());
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt as _;
+                command.process_group(0);
+            }
+            let mut child = command.spawn().unwrap();
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+            let mut status = None;
+            while std::time::Instant::now() < deadline {
+                status = child.try_wait().unwrap();
+                if status.is_some() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            if status.is_none() {
+                #[cfg(unix)]
+                {
+                    let pid = libc::pid_t::try_from(child.id()).unwrap();
+                    // SAFETY: this child owns the private group just created.
+                    unsafe { libc::kill(-pid, libc::SIGKILL) };
+                }
+                let _ = child.kill();
+                let reap_deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+                while std::time::Instant::now() < reap_deadline {
+                    if child.try_wait().unwrap().is_some() {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+            }
+            let capture = |path: &std::path::Path| {
+                let mut bytes = Vec::new();
+                std::fs::File::open(path)
+                    .unwrap()
+                    .take(1024 * 1024)
+                    .read_to_end(&mut bytes)
+                    .unwrap();
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            let stdout = capture(&stdout_path);
+            let stderr = capture(&stderr_path);
+            let status = status.unwrap_or_else(|| {
+                panic!("isolated Bash helper test exceeded 30 seconds\n{stdout}\n{stderr}")
+            });
+            assert!(status.success(), "{status}\n{stdout}\n{stderr}");
+            assert!(stdout.contains("running 1 test"), "{stdout}\n{stderr}");
+            assert!(stdout.contains("1 passed; 0 failed"), "{stdout}\n{stderr}");
+            return;
+        }
         // b references a, so the blocks run one after the other; both shells
         // report their parent, the helper.
         let Some(result) = run_bash_document(

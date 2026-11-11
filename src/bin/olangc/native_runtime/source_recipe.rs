@@ -13,7 +13,9 @@ const CAPTURE_WORKER: &str = include_str!("../../../../scripts/ocore_runtime_cap
 const PRODUCER_REGISTRY: &str = include_str!("../../../../scripts/ocore_producer_registry.json");
 
 // The order consumer uses the same actual compiled producer contract.
-pub(super) fn order_producer_registry() -> &'static str { PRODUCER_REGISTRY }
+pub(super) fn order_producer_registry() -> &'static str {
+    PRODUCER_REGISTRY
+}
 const RUST_PAYLOAD: &str =
     include_str!("../../../../tools/ocore-runtime/rust/payload_inventory.py");
 
@@ -311,17 +313,31 @@ pub(super) fn compile_impl(
         receipt["stage"] = json!("lowering");
         write_receipt(&output, &receipt)?;
         let lowering = lower_held_capture_with_compiler(
-            &report, Some(&report_bytes), target, output_kind, &lowered,
-            import_options, compiler, stage_only, selected_python,
-        ).map(|component| {
-            if stage_only { staged_component = Some(component); }
+            &report,
+            Some(&report_bytes),
+            target,
+            output_kind,
+            &lowered,
+            import_options,
+            compiler,
+            stage_only,
+            selected_python,
+        )
+        .map(|component| {
+            if stage_only {
+                staged_component = Some(component);
+            }
         });
         let coverage = lowered.join("coverage.json");
         if coverage.is_file() {
             receipt["lowering_receipt"] = artifact_record(&coverage)?;
             let coverage_value: Value = serde_json::from_slice(&fs::read(&coverage)?)?;
-            if coverage_value["required_platform_interfaces"].as_array().is_some_and(|items| !items.is_empty()) {
-                receipt["required_platform_interfaces"] = coverage_value["required_platform_interfaces"].clone();
+            if coverage_value["required_platform_interfaces"]
+                .as_array()
+                .is_some_and(|items| !items.is_empty())
+            {
+                receipt["required_platform_interfaces"] =
+                    coverage_value["required_platform_interfaces"].clone();
                 receipt["platform_resource_closure_complete"] = json!(false);
             }
         }
@@ -444,14 +460,17 @@ mod tests {
             (&helper, RUST_PAYLOAD.as_bytes()),
             (&registry, PRODUCER_REGISTRY.as_bytes()),
         ];
-        for (path, bytes) in originals { fs::write(path, bytes).unwrap(); }
+        for (path, bytes) in originals {
+            fs::write(path, bytes).unwrap();
+        }
         assert!(immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry).is_ok());
         for (path, bytes) in originals {
             let mut changed = bytes.to_vec();
             changed.extend_from_slice(b"\n# changed after capture\n");
             fs::write(path, changed).unwrap();
             let error = immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry)
-                .err().expect("a changed source implementation must be rejected");
+                .err()
+                .expect("a changed source implementation must be rejected");
             assert!(error.to_string().contains("changed during orchestration"));
             fs::write(path, bytes).unwrap();
             assert!(immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry).is_ok());
@@ -470,22 +489,50 @@ mod tests {
         fs::write(&recipe, recipe_bytes).unwrap();
         for stage_only in [false, true] {
             for scenario in 0..3 {
-                let output = directory.path().join(format!("output-{stage_only}-{scenario}"));
+                let output = directory
+                    .path()
+                    .join(format!("output-{stage_only}-{scenario}"));
                 let mut import = NativeImportOptions {
-                    llvm_library: None, llvm_sha256: None, tls_profile: None,
-                    atomic_profile: None, wide_volatile_profile: None, linux_syscall_profile: None, dependencies: &[],
+                    llvm_library: None,
+                    llvm_sha256: None,
+                    tls_profile: None,
+                    atomic_profile: None,
+                    wide_volatile_profile: None,
+                    linux_syscall_profile: None,
+                    dependencies: &[],
                 };
-                let mut options = NativeSourceOptions { source: Some(&source), ..Default::default() };
+                let mut options = NativeSourceOptions {
+                    source: Some(&source),
+                    ..Default::default()
+                };
                 let expected = match scenario {
-                    0 => { options.jobs = Some(0); "jobs must be positive" }
-                    1 => { import.llvm_library = Some(Path::new("never-used-llvm")); "must be supplied together" }
-                    _ => { fs::write(&recipe, b"changed recipe").unwrap(); "recipe changed before capture" }
+                    0 => {
+                        options.jobs = Some(0);
+                        "jobs must be positive"
+                    }
+                    1 => {
+                        import.llvm_library = Some(Path::new("never-used-llvm"));
+                        "must be supplied together"
+                    }
+                    _ => {
+                        fs::write(&recipe, b"changed recipe").unwrap();
+                        "recipe changed before capture"
+                    }
                 };
                 let error = compile_impl(
-                    &recipe, recipe_bytes, "x86_64-unknown-none", "ir", &output,
-                    import, options, Path::new("never-executed-compiler"), stage_only,
+                    &recipe,
+                    recipe_bytes,
+                    "x86_64-unknown-none",
+                    "ir",
+                    &output,
+                    import,
+                    options,
+                    Path::new("never-executed-compiler"),
+                    stage_only,
                     Some(Path::new("never-executed-python")),
-                ).err().expect("invalid source options must not enter a staging or compiler path");
+                )
+                .err()
+                .expect("invalid source options must not enter a staging or compiler path");
                 assert!(error.to_string().contains(expected), "{error:#}");
                 assert!(!output.exists());
                 fs::write(&recipe, recipe_bytes).unwrap();

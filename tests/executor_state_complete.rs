@@ -365,7 +365,7 @@ __oval_result__ = p
 )_python
 
 sql[0]^(
-ATTACH DATABASE '$db' AS t
+ATTACH DATABASE $db AS t
 )_sql[0]
 
 sql[0]^(

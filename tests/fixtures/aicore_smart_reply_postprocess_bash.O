@@ -50,9 +50,9 @@ consider_reply() {
     fi
 }
 
-consider_reply 0 $present_0 $score_0 $has_text_0 $safety_classification_0
-consider_reply 1 $present_1 $score_1 $has_text_1 $safety_classification_1
-consider_reply 2 $present_2 $score_2 $has_text_2 $safety_classification_2
+consider_reply 0 "${present_0}" "${score_0}" "${has_text_0}" "${safety_classification_0}"
+consider_reply 1 "${present_1}" "${score_1}" "${has_text_1}" "${safety_classification_1}"
+consider_reply 2 "${present_2}" "${score_2}" "${has_text_2}" "${safety_classification_2}"
 
 if [ "\$best_index" -eq -1 ]; then
     printf '%s\n' 'SmartReplyResult has no safe nonempty reply' >&2

@@ -1085,7 +1085,7 @@ impl Placement {
                 ];
                 let location = if let Some(register) = FAST_FP.get(self.fp_next) {
                     self.fp_next += 1;
-                    AbiLocation::Register(*register)
+                    AbiLocation::Register(register)
                 } else {
                     let bytes = u64::from(bits / 8);
                     let offset = align_up(self.stack, bytes)?;

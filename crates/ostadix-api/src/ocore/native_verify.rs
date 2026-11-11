@@ -1887,16 +1887,27 @@ impl<'a> Verifier<'a> {
                     return Err(fail(context, "constant ptrtoint requires the integral AS0 little-endian 64-bit pointer/index profile"));
                 }
                 if !matches!(self.ty(*ty, context)?, Type::Int { bits: 1..=64 | 128 }) {
-                    return Err(fail(context, "constant ptrtoint requires a supported scalar integer result"));
+                    return Err(fail(
+                        context,
+                        "constant ptrtoint requires a supported scalar integer result",
+                    ));
                 }
-                if !matches!(pointer.as_ref(), Operand::Symbol { .. }
-                    | Operand::SymbolOffset { .. } | Operand::BlockAddress { .. }
-                    | Operand::PointerBits { .. } | Operand::Null { .. }) {
+                if !matches!(
+                    pointer.as_ref(),
+                    Operand::Symbol { .. }
+                        | Operand::SymbolOffset { .. }
+                        | Operand::BlockAddress { .. }
+                        | Operand::PointerBits { .. }
+                        | Operand::Null { .. }
+                ) {
                     return Err(fail(context, "constant ptrtoint requires an exact constant pointer child, not SSA or symbolic integer reconstruction"));
                 }
                 let child = self.operand(pointer, definitions, context)?;
                 if !matches!(self.ty(child, context)?, Type::Pointer { address_space: 0 }) {
-                    return Err(fail(context, "constant ptrtoint child must retain its AS0 pointer type"));
+                    return Err(fail(
+                        context,
+                        "constant ptrtoint child must retain its AS0 pointer type",
+                    ));
                 }
                 *ty
             }
@@ -2011,7 +2022,10 @@ impl<'a> Verifier<'a> {
                         }
                         Type::Array { element, len } | Type::Vector { element, len } => {
                             if matches!(self.ty(*ty, context)?, Type::Vector { .. })
-                                && elements.iter().any(|value| matches!(value, Operand::PointerToInteger { .. })) {
+                                && elements
+                                    .iter()
+                                    .any(|value| matches!(value, Operand::PointerToInteger { .. }))
+                            {
                                 return Err(fail(context, "symbolic constant ptrtoint packed-vector lanes require a separate lowering"));
                             }
                             if u64::try_from(elements.len()).ok() != Some(*len) {
@@ -2614,8 +2628,13 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
                         | AtomicRmwOp::UsubSat => {}
                     },
                     Operation::LinuxSyscall { source, .. } => {
-                        if module.target.strict_fp_profile != Some(StrictFpProfile::IntegerLinuxSyscallV1) {
-                            return Err(fail("strict_fp_profile", "integer_only_v1 excludes Linux platform operations"));
+                        if module.target.strict_fp_profile
+                            != Some(StrictFpProfile::IntegerLinuxSyscallV1)
+                        {
+                            return Err(fail(
+                                "strict_fp_profile",
+                                "integer_only_v1 excludes Linux platform operations",
+                            ));
                         }
                         signature(module, &source.signature)?;
                     }
@@ -3786,9 +3805,16 @@ impl<'a> Verifier<'a> {
                 .ok_or_else(|| fail(context, "instruction requires an SSA result"))
         };
         match &instruction.operation {
-            Operation::LinuxSyscall { number, arguments, source } => {
+            Operation::LinuxSyscall {
+                number,
+                arguments,
+                source,
+            } => {
                 self.same_type(result()?, source.signature.result, context)?;
-                for (value, ty) in std::iter::once(number).chain(arguments).zip(&source.signature.params) {
+                for (value, ty) in std::iter::once(number)
+                    .chain(arguments)
+                    .zip(&source.signature.params)
+                {
                     self.same_type(operand(value)?, *ty, context)?;
                 }
             }
@@ -4531,17 +4557,16 @@ impl<'a> Verifier<'a> {
         ordinary: bool,
         control_effects: ControlEffects,
     ) -> Result<()> {
-        if self.module.effective_returns_twice(callee, control_effects) {
-            if !ordinary
+        if self.module.effective_returns_twice(callee, control_effects)
+            && (!ordinary
                 || signature.abi != "c"
                 || signature.variadic
                 || !matches!(callee, Operand::Symbol { ty, name }
                     if matches!(self.module.types.get(*ty), Some(Type::Pointer { address_space: 0 }))
                     && self.module.functions.iter().any(|function| function.name == *name
-                        && function.intrinsic.is_none()))
-            {
-                return Err(fail(context, "returns_twice requires a direct ordinary AS0 nonvariadic C call; invoke/indirect/alias combinations are unsupported"));
-            }
+                        && function.intrinsic.is_none())))
+        {
+            return Err(fail(context, "returns_twice requires a direct ordinary AS0 nonvariadic C call; invoke/indirect/alias combinations are unsupported"));
         }
         if matches!(callee, Operand::BlockAddress { .. }) {
             return Err(fail(
@@ -4721,7 +4746,9 @@ impl<'a> Verifier<'a> {
 
 pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
     match operation {
-        Operation::LinuxSyscall { number, arguments, .. } => std::iter::once(number).chain(arguments).collect(),
+        Operation::LinuxSyscall {
+            number, arguments, ..
+        } => std::iter::once(number).chain(arguments).collect(),
         Operation::Assume { condition } => vec![condition],
         Operation::Lifetime { pointer, .. } => vec![pointer],
         Operation::MemorySet {
@@ -4973,7 +5000,10 @@ mod tests {
         m.functions[0].blocks[0].terminator = Terminator::Return {
             value: Some(Operand::PointerToInteger {
                 ty: 2,
-                pointer: Box::new(Operand::PointerBits { ty: 3, bits: "9223372036854775809".into() }),
+                pointer: Box::new(Operand::PointerBits {
+                    ty: 3,
+                    bits: "9223372036854775809".into(),
+                }),
             }),
         };
         verify(&m).unwrap();
@@ -4981,18 +5011,32 @@ mod tests {
         assert_eq!(roundtrip.to_json().unwrap(), m.to_json().unwrap());
         for child in [
             Operand::Value { id: 7 },
-            Operand::Int { ty: 2, bits: "1".into() },
+            Operand::Int {
+                ty: 2,
+                bits: "1".into(),
+            },
             Operand::Undef { ty: 3 },
             Operand::Poison { ty: 3 },
-            Operand::PointerBits { ty: 2, bits: "1".into() },
+            Operand::PointerBits {
+                ty: 2,
+                bits: "1".into(),
+            },
         ] {
             let mut bad = m.clone();
             bad.functions[0].blocks[0].terminator = Terminator::Return {
-                value: Some(Operand::PointerToInteger { ty: 2, pointer: Box::new(child) }),
+                value: Some(Operand::PointerToInteger {
+                    ty: 2,
+                    pointer: Box::new(child),
+                }),
             };
             assert!(verify(&bad).is_err());
         }
-        for layout in ["e-p:32:32", "e-p:64:64:64:32", "e-p:64:64-ni:0", "e-p:64:64-G1"] {
+        for layout in [
+            "e-p:32:32",
+            "e-p:64:64:64:32",
+            "e-p:64:64-ni:0",
+            "e-p:64:64-G1",
+        ] {
             let mut bad = m.clone();
             bad.target.data_layout = layout.into();
             assert!(verify(&bad).is_err(), "{layout}");
@@ -13273,7 +13317,7 @@ mod tests {
         }];
         caller.entry = Some(0);
         m.functions = vec![caller, declaration];
-        m.provenance.source_function_count = m.functions.len().try_into().unwrap();
+        m.provenance.source_function_count = m.functions.len();
         m
     }
 
@@ -13381,7 +13425,7 @@ mod tests {
         unused.blocks.clear();
         unused.control_effects.returns_twice = true;
         m.functions.push(unused);
-        m.provenance.source_function_count = m.functions.len().try_into().unwrap();
+        m.provenance.source_function_count = m.functions.len();
         verify(&m).unwrap();
         assert!(m.has_nonlocal_control_effects());
         // These are separately declared authored module profiles, not retargeted

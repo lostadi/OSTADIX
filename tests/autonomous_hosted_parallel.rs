@@ -448,6 +448,12 @@ fn autonomous_shims_with_nested_evaluator_inputs_overlap() {
     // before either parent is prepared. Their data edges must survive worker
     // classification; the parent callbacks still run in owned fresh actors.
     let source = INTERVAL_BATCH
+        // Keep later child holes outside the bounded lexer's unsupported
+        // f-string grammar while retaining the exact interval-file bytes.
+        .replace(
+            r#"f"{start} {end}\n""#,
+            r#"str(start) + " " + str(end) + "\n""#,
+        )
         .replace(
             "start = time.monotonic_ns()",
             "assert python^(6 * 7)_python == 42\nstart = time.monotonic_ns()",

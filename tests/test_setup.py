@@ -601,9 +601,23 @@ class SetupScriptTests(unittest.TestCase):
         # hosts whose Python normally writes beside already-cached sources.
         for option in ("--dry-run", "--check"):
             with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
-                home = Path(directory)
+                root = Path(directory)
+                home = root / "home"
+                home.mkdir()
+                tools = root / "tools"
+                tools.mkdir()
+                # The check must not depend on Rust being installed in a system
+                # directory or the isolated HOME. Reject any build dispatch.
+                for name in ("rustc", "cargo"):
+                    tool = tools / name
+                    tool.write_text(
+                        '#!/bin/sh\n[ "$#" -eq 1 ] && [ "$1" = --version ] || exit 99\n'
+                        f"printf '%s\\n' '{name} 1.97.1 (test fixture)'\n"
+                    )
+                    tool.chmod(0o755)
                 cache = home / "python-cache"
-                environment = {"PYTHONPYCACHEPREFIX": str(cache)}
+                environment = {"PYTHONPYCACHEPREFIX": str(cache),
+                               "PATH": f"{tools}:{SYSTEM_PATH}"}
                 if option == "--check":
                     # OS simulation is intentionally allowed only in dry-run.
                     environment.update(OSTADIX_SETUP_PLATFORM="", OSTADIX_SETUP_DISTRO="")

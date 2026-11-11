@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
+import json
 import re
 import subprocess
 import tempfile
@@ -19,6 +21,13 @@ assert SPEC is not None and SPEC.loader is not None
 release_evidence = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = release_evidence
 SPEC.loader.exec_module(release_evidence)
+
+REFERENCE_SPEC = importlib.util.spec_from_file_location(
+    "readme_reference", ROOT / "scripts/check_readme_reference.py"
+)
+assert REFERENCE_SPEC is not None and REFERENCE_SPEC.loader is not None
+readme_reference = importlib.util.module_from_spec(REFERENCE_SPEC)
+REFERENCE_SPEC.loader.exec_module(readme_reference)
 
 
 class G2Aarch64EvidenceTests(unittest.TestCase):
@@ -239,6 +248,165 @@ class ProjectExecutionClaimGuardTests(unittest.TestCase):
                 result = self.run_guard(changed)
                 self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
                 self.assertIn(reason, result.stdout)
+
+
+class PreservedReadmeReferenceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.reference = (ROOT / "docs/REFERENCE.md").read_bytes()
+        cls.link_map = (ROOT / "docs/readme-link-map.json").read_bytes()
+
+    def test_exact_original_is_reconstructed_without_git_history(self):
+        original = readme_reference.reconstruct_original(self.reference, self.link_map)
+        self.assertEqual(len(original), 361547)
+        self.assertEqual(hashlib.sha256(original).hexdigest(),
+                         "3b18f2ef35c2c4449662aa185f1f798918110faab490540ee3aec7483a6b057c")
+        # Recorded offsets are characters, not UTF-8 bytes.
+        self.assertNotEqual(len(original), len(original.decode("utf-8")))
+
+    def test_header_body_link_and_truncation_tampering_fail_closed(self):
+        variants = (
+            self.reference.replace(b"preserved source snapshot", b"amended source snapshot", 1),
+            self.reference.replace(b".././assets/olang-logo.png", b".././assets/altered-logo.png", 1),
+            self.reference + b"\nextra source content\n",
+            self.reference[:-1],
+        )
+        for changed in variants:
+            with self.subTest(digest=hashlib.sha256(changed).hexdigest()):
+                self.assertNotEqual(changed, self.reference)
+                with self.assertRaises(readme_reference.ReferenceError):
+                    readme_reference.reconstruct_original(changed, self.link_map)
+
+    def test_link_map_cannot_redefine_original_or_hide_body_changes(self):
+        for field in ("original_sha256", "reference_body_sha256", "link_relocations"):
+            changed = json.loads(self.link_map)
+            changed[field] = [] if field == "link_relocations" else "0" * 64
+            with self.subTest(field=field), self.assertRaises(readme_reference.ReferenceError):
+                readme_reference.reconstruct_original(self.reference, json.dumps(changed).encode())
+
+    def test_cli_works_in_a_non_git_directory_and_rejects_missing_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs/REFERENCE.md").write_bytes(self.reference)
+            (root / "docs/readme-link-map.json").write_bytes(self.link_map)
+            command = [sys.executable, "-B", str(ROOT / "scripts/check_readme_reference.py"),
+                       "--root", str(root)]
+            result = subprocess.run(command, cwd=root, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("148 link relocations", result.stdout)
+            (root / "docs/REFERENCE.md").unlink()
+            result = subprocess.run(command, cwd=root, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("PRESERVED README DRIFT", result.stderr)
+
+    def test_production_claim_guard_checks_reconstruction_once(self):
+        script = (ROOT / "scripts/check_release_claims.sh").read_text()
+        self.assertEqual(script.count("python3 scripts/check_readme_reference.py"), 1)
+        self.assertEqual(script.count("python3 scripts/release_evidence.py validate"), 1)
+
+
+class RootReadmeClaimGuardTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        script = (ROOT / "scripts/check_release_claims.sh").read_text()
+        functions = ""
+        for name in ("require_fixed", "require_line"):
+            functions += name + "() {" + script.split(name + "() {", 1)[1].split("\n}\n", 1)[0] + "\n}\n"
+        block = script.split("# ROOT_README_CLAIMS_BEGIN\n", 1)[1].split("# ROOT_README_CLAIMS_END", 1)[0]
+        cls.guard = "set -eu\nfail=0\n" + functions + block + '\nexit "$fail"\n'
+        cls.readme = (ROOT / "README.md").read_text()
+
+    def run_guard(self, source):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text(source)
+            return subprocess.run(["bash", "-c", self.guard], cwd=root,
+                                  capture_output=True, text=True, timeout=10)
+
+    def test_concise_root_surfaces_satisfy_guard(self):
+        result = self.run_guard(self.readme)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_each_direct_link_and_exact_byline_remain_required(self):
+        for path in ("docs/CURRENT_CONTRACT.md", "docs/CLAIMS.md", "docs/REFERENCE.md",
+                     "docs/OSTADIX_WORLD.md", "docs/HOSTED_WORLD_REFERENCE_PROFILE.md",
+                     "evidence/world_alpha_gates.toml"):
+            with self.subTest(path=path):
+                changed = self.readme.replace("(" + path + ")", "(missing-contract)")
+                self.assertNotEqual(changed, self.readme)
+                result = self.run_guard(changed)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        changed = self.readme.replace("*By Lee Daghlar Ostadi*",
+                                      "Maintainer note: *By Lee Daghlar Ostadi*")
+        self.assertNotEqual(changed, self.readme)
+        result = self.run_guard(changed)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+
+class SetupLocalInstallClaimGuardTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        script = (ROOT / "scripts/check_release_claims.sh").read_text()
+        cls.block = script.split("# SETUP_LOCAL_INSTALL_CLAIMS_BEGIN\n", 1)[1].split(
+            "# SETUP_LOCAL_INSTALL_CLAIMS_END", 1)[0]
+        cls.setup = (ROOT / "setup.sh").read_text()
+
+    def run_guard(self, source):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "setup.sh").write_text(source)
+            command = 'ROOT="$1"\nfail=0\n' + self.block + '\nexit "$fail"\n'
+            return subprocess.run(["bash", "-c", command, "setup-claim-test", str(root)],
+                                  capture_output=True, text=True, timeout=15)
+
+    def test_current_array_based_setup_routes_full_and_runtime_only_profiles(self):
+        result = self.run_guard(self.setup)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_lost_c_runtime_only_dry_run_or_repository_route_is_rejected(self):
+        for before, after in (("--include-c", "--without-c"),
+                              ("--runtime-only", "--wrong-runtime-only"),
+                              ("--dry-run", "--wrong-dry-run"),
+                              ("$HOME/.local/bin", "$HOME/.wrong-bin"),
+                              ("scripts/install_native_binaries.py", "scripts/wrong-installer.py")):
+            changed = self.setup.replace(before, after)
+            with self.subTest(option=before):
+                self.assertNotEqual(changed, self.setup)
+                result = self.run_guard(changed)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("WORLD CONTRACT DRIFT", result.stdout + result.stderr)
+
+
+class NativeCInstallClaimGuardTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        script = (ROOT / "scripts/check_release_claims.sh").read_text()
+        cls.block = script.split("# NATIVE_INSTALLER_CLAIMS_BEGIN\n", 1)[1].split(
+            "# NATIVE_INSTALLER_CLAIMS_END", 1)[0]
+        cls.installer = (ROOT / "scripts/install_native_binaries.py").read_text()
+
+    def run_guard(self, source):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "scripts").mkdir()
+            (root / "scripts/install_native_binaries.py").write_text(source)
+            command = 'ROOT="$1"\nfail=0\n' + self.block + '\nexit "$fail"\n'
+            return subprocess.run(["bash", "-c", command, "installer-claim-test", str(root)],
+                                  capture_output=True, text=True, timeout=15)
+
+    def test_c_front_doors_are_planned_for_posix_and_exe_without_writing_destination(self):
+        result = self.run_guard(self.installer)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_each_missing_c_front_door_is_rejected(self):
+        for alias in ("o-c", "olangc-c"):
+            changed = self.installer.replace('"' + alias + '"', '"wrong-c-alias"')
+            with self.subTest(alias=alias):
+                self.assertNotEqual(changed, self.installer)
+                result = self.run_guard(changed)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("lost a C front door", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

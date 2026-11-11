@@ -110,9 +110,16 @@ struct Plan {
 fn selected_order(plan: &Plan) -> Result<Option<provider_order::SealedOrder>> {
     match (plan.schema.as_str(), &plan.order_policy) {
         (PLAN_FORMAT | provider_membership::PLAN_V5, None) => Ok(None),
-        (provider_order::PLAN_V3 | provider_membership::PLAN_V5, Some(pin)) => Ok(Some(provider_order::SealedOrder::read(
-            pin, &plan.components.iter().map(|n| n.id.clone()).collect::<Vec<_>>(),
-        )?)),
+        (provider_order::PLAN_V3 | provider_membership::PLAN_V5, Some(pin)) => {
+            Ok(Some(provider_order::SealedOrder::read(
+                pin,
+                &plan
+                    .components
+                    .iter()
+                    .map(|n| n.id.clone())
+                    .collect::<Vec<_>>(),
+            )?))
+        }
         _ => bail!("provider plan schema/original-order policy differs"),
     }
 }
@@ -120,28 +127,54 @@ fn selected_order(plan: &Plan) -> Result<Option<provider_order::SealedOrder>> {
 fn decode_plan(raw: &[u8]) -> Result<Plan> {
     provider_order::check_json(raw)?;
     let value: Value = serde_json::from_slice(raw)?;
-    if matches!(value["schema"].as_str(), Some(PLAN_FORMAT | provider_order::PLAN_V3))
-        && (value.get("membership_policy").is_some() || array(&value, "components")?.iter()
-            .any(|n| n.get("compound_dependencies").is_some())) {
+    if matches!(
+        value["schema"].as_str(),
+        Some(PLAN_FORMAT | provider_order::PLAN_V3)
+    ) && (value.get("membership_policy").is_some()
+        || array(&value, "components")?
+            .iter()
+            .any(|n| n.get("compound_dependencies").is_some()))
+    {
         bail!("legacy provider plan cannot carry compound membership fields");
     }
     Ok(serde_json::from_slice(raw)?)
 }
 fn dependency_targets(node: &SourceNode) -> impl Iterator<Item = &String> {
-    node.dependencies.values().chain(node.compound_dependencies.values().flat_map(|m| m.values()))
+    node.dependencies
+        .values()
+        .chain(node.compound_dependencies.values().flat_map(|m| m.values()))
 }
-fn membership_inputs<'a>(plan: &'a Plan, recipes: &'a [Vec<u8>]) -> Vec<provider_membership::Input<'a>> {
-    plan.components.iter().zip(recipes).map(|(n, recipe)| provider_membership::Input {
-        name: &n.id, recipe, dependencies: &n.dependencies, compound: &n.compound_dependencies,
-    }).collect()
+fn membership_inputs<'a>(
+    plan: &'a Plan,
+    recipes: &'a [Vec<u8>],
+) -> Vec<provider_membership::Input<'a>> {
+    plan.components
+        .iter()
+        .zip(recipes)
+        .map(|(n, recipe)| provider_membership::Input {
+            name: &n.id,
+            recipe,
+            dependencies: &n.dependencies,
+            compound: &n.compound_dependencies,
+        })
+        .collect()
 }
-fn selected_membership(plan: &Plan, recipes: &[Vec<u8>]) -> Result<Option<provider_membership::SelectedMembership>> {
+fn selected_membership(
+    plan: &Plan,
+    recipes: &[Vec<u8>],
+) -> Result<Option<provider_membership::SelectedMembership>> {
     match (plan.schema.as_str(), &plan.membership_policy) {
-        (provider_membership::PLAN_V5, Some(pin)) => Ok(Some(provider_membership::SelectedMembership::read(
-            pin, &membership_inputs(plan, recipes),
-        )?)),
+        (provider_membership::PLAN_V5, Some(pin)) => Ok(Some(
+            provider_membership::SelectedMembership::read(pin, &membership_inputs(plan, recipes))?,
+        )),
         (PLAN_FORMAT | provider_order::PLAN_V3, None)
-            if plan.components.iter().all(|n| n.compound_dependencies.is_empty()) => Ok(None),
+            if plan
+                .components
+                .iter()
+                .all(|n| n.compound_dependencies.is_empty()) =>
+        {
+            Ok(None)
+        }
         _ => bail!("provider plan compound membership/schema version differs"),
     }
 }
@@ -151,24 +184,52 @@ fn check_published_source_group(output: &Path, package: &Value) -> Result<()> {
     use std::io::Read;
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
     let path = output.join(whole_artifact::FILE_NAME);
-    if package["path"] != json!(path) { bail!("published source-group descriptor path differs"); }
-    let expected = package["bytes"].as_u64().context("published source-group descriptor length absent")?;
+    if package["path"] != json!(path) {
+        bail!("published source-group descriptor path differs");
+    }
+    let expected = package["bytes"]
+        .as_u64()
+        .context("published source-group descriptor length absent")?;
     let expected_sha = string(package, "sha256")?;
-    let before = fs::symlink_metadata(&path).context("published source group is absent or inaccessible")?;
-    if !before.is_file() { bail!("published source group is not a regular file"); }
-    let identity = |m: &fs::Metadata| (m.dev(), m.ino(), m.len(), m.mode(), m.nlink(),
-        m.uid(), m.gid(), m.mtime(), m.mtime_nsec(), m.ctime(), m.ctime_nsec());
-    let mut file = fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC).open(&path)?;
+    let before =
+        fs::symlink_metadata(&path).context("published source group is absent or inaccessible")?;
+    if !before.is_file() {
+        bail!("published source group is not a regular file");
+    }
+    let identity = |m: &fs::Metadata| {
+        (
+            m.dev(),
+            m.ino(),
+            m.len(),
+            m.mode(),
+            m.nlink(),
+            m.uid(),
+            m.gid(),
+            m.mtime(),
+            m.mtime_nsec(),
+            m.ctime(),
+            m.ctime_nsec(),
+        )
+    };
+    let mut file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(&path)?;
     let opened = file.metadata()?;
-    if identity(&before) != identity(&opened) { bail!("published source group changed during open"); }
-    let limit = expected.checked_add(1).context("published source-group length overflow")?;
+    if identity(&before) != identity(&opened) {
+        bail!("published source group changed during open");
+    }
+    let limit = expected
+        .checked_add(1)
+        .context("published source-group length overflow")?;
     let mut raw = Vec::new();
     (&mut file).take(limit).read_to_end(&mut raw)?;
     if raw.len() as u64 != expected || digest(&raw) != expected_sha {
         bail!("published source-group bytes differ from selected descriptor");
     }
     if identity(&opened) != identity(&file.metadata()?)
-        || identity(&opened) != identity(&fs::symlink_metadata(&path)?) {
+        || identity(&opened) != identity(&fs::symlink_metadata(&path)?)
+    {
         bail!("published source-group held/named identity changed");
     }
     Ok(())
@@ -176,8 +237,11 @@ fn check_published_source_group(output: &Path, package: &Value) -> Result<()> {
 
 // A source-custody refusal revokes the package independently of object lowering.
 fn finalize_membership_custody(
-    output: &Path, package: &mut Option<Value>, ir_complete: &mut bool,
-    issues: &mut Vec<String>, check: impl FnOnce() -> Result<()>,
+    output: &Path,
+    package: &mut Option<Value>,
+    ir_complete: &mut bool,
+    issues: &mut Vec<String>,
+    check: impl FnOnce() -> Result<()>,
 ) -> Result<()> {
     let checked = check().and_then(|()| match (package.as_ref(), *ir_complete) {
         (Some(product), true) => check_published_source_group(output, product),
@@ -200,9 +264,14 @@ fn finalize_membership_custody(
 
 // One shared object-phase boundary keeps preparation errors on the final-custody path.
 fn run_object_phase<P>(
-    output: &Path, package: &mut Option<Value>, ir_complete: &mut bool,
-    object_complete: &mut bool, issues: &mut Vec<String>, requested: bool,
-    prepare: impl FnOnce() -> Result<P>, emit: impl FnOnce(P) -> Result<()>,
+    output: &Path,
+    package: &mut Option<Value>,
+    ir_complete: &mut bool,
+    object_complete: &mut bool,
+    issues: &mut Vec<String>,
+    requested: bool,
+    prepare: impl FnOnce() -> Result<P>,
+    emit: impl FnOnce(P) -> Result<()>,
     object_postguard: impl FnOnce() -> Result<()>,
     final_check: Option<impl FnOnce() -> Result<()>>,
 ) -> Result<()> {
@@ -211,7 +280,9 @@ fn run_object_phase<P>(
             Ok(()) => *object_complete = true,
             Err(error) => issues.push(format!("source-group object re-emission: {error:#}")),
         }
-        if let Err(error) = object_postguard() { issues.push(format!("{error:#}")); }
+        if let Err(error) = object_postguard() {
+            issues.push(format!("{error:#}"));
+        }
     }
     if let Some(check) = final_check {
         finalize_membership_custody(output, package, ir_complete, issues, check)?;
@@ -221,8 +292,10 @@ fn run_object_phase<P>(
 
 // Preserve V1/V3 success-only checking; V5 custody is checked on either outcome.
 fn run_detached_readmission(
-    membership: Option<&provider_membership::SelectedMembership>, output: &Path,
-    compile: impl FnOnce() -> Result<()>, postguard: impl FnOnce() -> Result<()>,
+    membership: Option<&provider_membership::SelectedMembership>,
+    output: &Path,
+    compile: impl FnOnce() -> Result<()>,
+    postguard: impl FnOnce() -> Result<()>,
 ) -> Result<()> {
     let compiled = compile();
     if membership.is_none() {
@@ -231,13 +304,19 @@ fn run_detached_readmission(
     } else {
         if let Err(custody) = postguard() {
             let failure = match compiled {
-                Err(error) => error.context(format!("V5 outer readmission custody also failed: {custody:#}")),
+                Err(error) => error.context(format!(
+                    "V5 outer readmission custody also failed: {custody:#}"
+                )),
                 Ok(()) => custody.context("V5 outer readmission custody failed"),
             };
             match fs::remove_file(output.join(whole_artifact::FILE_NAME)) {
-                Ok(()) => {},
-                Err(cleanup) if cleanup.kind() == std::io::ErrorKind::NotFound => {},
-                Err(cleanup) => return Err(failure.context(format!("cannot revoke V5 readmission package: {cleanup}"))),
+                Ok(()) => {}
+                Err(cleanup) if cleanup.kind() == std::io::ErrorKind::NotFound => {}
+                Err(cleanup) => {
+                    return Err(
+                        failure.context(format!("cannot revoke V5 readmission package: {cleanup}"))
+                    )
+                }
             }
             return Err(failure);
         }
@@ -325,8 +404,17 @@ fn preflight(
     source: &Path,
     output: &Path,
     compiler: &Path,
-) -> Result<(Vec<Vec<u8>>, PathBuf, Option<provider_order::SealedOrder>, Option<provider_membership::SelectedMembership>)> {
-    if !matches!(plan.schema.as_str(), PLAN_FORMAT | provider_order::PLAN_V3 | provider_membership::PLAN_V5) || plan.components.is_empty() {
+) -> Result<(
+    Vec<Vec<u8>>,
+    PathBuf,
+    Option<provider_order::SealedOrder>,
+    Option<provider_membership::SelectedMembership>,
+)> {
+    if !matches!(
+        plan.schema.as_str(),
+        PLAN_FORMAT | provider_order::PLAN_V3 | provider_membership::PLAN_V5
+    ) || plan.components.is_empty()
+    {
         bail!("unsupported or empty provider plan");
     }
     let order = selected_order(plan)?;
@@ -374,7 +462,10 @@ fn preflight(
         }
         // Missing edges remain a measured closure failure after staging. Extra
         // edges are invalid configuration and never authorize extra code.
-        if node.dependencies.keys().chain(node.compound_dependencies.keys())
+        if node
+            .dependencies
+            .keys()
+            .chain(node.compound_dependencies.keys())
             .any(|name| !declared.contains(name.as_str()))
         {
             bail!("provider plan adds an undeclared source dependency");
@@ -413,7 +504,12 @@ fn preflight(
     }
     // Consume independent membership before output creation or the first fresh stage.
     let membership = selected_membership(plan, &recipes)?;
-    Ok((recipes, canonical_output.context("provider plan has no output")?, order, membership))
+    Ok((
+        recipes,
+        canonical_output.context("provider plan has no output")?,
+        order,
+        membership,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -471,9 +567,9 @@ pub(super) fn compile(
     let output = output.canonicalize()?;
     fs::write(output.join("provider-plan.json"), &plan_bytes)?;
     // Every original action/order commitment completes before the FIRST fresh stage.
-    let mut prepared_order = original_order.map(|order| order.prepare(
-        &plan.tools.python, &output.join("source-order-prestage"),
-    )).transpose()?;
+    let mut prepared_order = original_order
+        .map(|order| order.prepare(&plan.tools.python, &output.join("source-order-prestage")))
+        .transpose()?;
     let mut records = Vec::new();
     let mut staged = BTreeMap::new();
     let mut issues = Vec::new();
@@ -481,8 +577,12 @@ pub(super) fn compile(
         let directory = output.join(format!("component-{index:06}"));
         let mut record = json!({"id":node.id,"recipe":node.recipe,"source":node.source,"staged":false,"source_inventory_complete":false});
         let result = (|| -> Result<()> {
-            if let Some(order) = &prepared_order { order.check_unchanged()?; }
-            if let Some(membership) = &membership { membership.check_unchanged()?; }
+            if let Some(order) = &prepared_order {
+                order.check_unchanged()?;
+            }
+            if let Some(membership) = &membership {
+                membership.check_unchanged()?;
+            }
             plan.tools.check(compiler)?;
             node.recipe.checked()?;
             let component = source_recipe::stage_for_group(
@@ -545,14 +645,28 @@ pub(super) fn compile(
     let mut required_platforms = Vec::new();
     if issues.is_empty() {
         let result = (|| -> Result<Value> {
-            let resolved_order = prepared_order.take().map(|order| {
-                let inputs = plan.components.iter().map(|node| {
-                    let component = &staged[&node.id];
-                    provider_order::CaptureInput { component: &node.id,
-                        raw: &component.capture_bytes, selected: &component.selected }
-                }).collect::<Vec<_>>();
-                order.resolve(&inputs, &plan.tools.python, &output.join("source-order-resolution"))
-            }).transpose()?;
+            let resolved_order = prepared_order
+                .take()
+                .map(|order| {
+                    let inputs = plan
+                        .components
+                        .iter()
+                        .map(|node| {
+                            let component = &staged[&node.id];
+                            provider_order::CaptureInput {
+                                component: &node.id,
+                                raw: &component.capture_bytes,
+                                selected: &component.selected,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    order.resolve(
+                        &inputs,
+                        &plan.tools.python,
+                        &output.join("source-order-resolution"),
+                    )
+                })
+                .transpose()?;
             let mut components = Vec::new();
             let mut evidence = Vec::new();
             for (index, node) in plan.components.iter().enumerate() {
@@ -561,22 +675,36 @@ pub(super) fn compile(
                 let recipe: Value = serde_json::from_slice(&recipes[index])?;
                 for declared in array(&recipe, "dependencies")? {
                     let label = string(declared, "name")?;
-                    match (node.dependencies.get(label), node.compound_dependencies.get(label)) {
+                    match (
+                        node.dependencies.get(label),
+                        node.compound_dependencies.get(label),
+                    ) {
                         (Some(provider), None) => {
-                            let i = plan.components.iter().position(|n| &n.id == provider).context("provider vanished")?;
+                            let i = plan
+                                .components
+                                .iter()
+                                .position(|n| &n.id == provider)
+                                .context("provider vanished")?;
                             let provider_recipe: Value = serde_json::from_slice(&recipes[i])?;
-                            if declared.get("source_pin").is_some_and(|p| !p.is_null() && p != &provider_recipe["source"]) {
+                            if declared
+                                .get("source_pin")
+                                .is_some_and(|p| !p.is_null() && p != &provider_recipe["source"])
+                            {
                                 bail!("original dependency source pin differs for {label}");
                             }
-                            dependencies.push((provider.clone(), digest(&staged[provider].capture_bytes)));
-                        },
+                            dependencies
+                                .push((provider.clone(), digest(&staged[provider].capture_bytes)));
+                        }
                         (None, Some(members)) if membership.is_some() => {
                             // All expected original members were checked before fresh staging.
                             // These graph edges do not authorize native link/initializer order.
                             for provider in members.values() {
-                                dependencies.push((provider.clone(), digest(&staged[provider].capture_bytes)));
+                                dependencies.push((
+                                    provider.clone(),
+                                    digest(&staged[provider].capture_bytes),
+                                ));
                             }
-                        },
+                        }
                         _ => bail!("unresolved or ambiguous original dependency {label}"),
                     }
                 }
@@ -598,30 +726,57 @@ pub(super) fn compile(
                 Some(order) => {
                     // Retain the full resolution before any Artifact rejection,
                     // including unsupported repeated physical occurrences.
-                    fs::write(output.join("resolved-original-module-order.json"),
-                        serde_json::to_vec_pretty(order)?)?;
-                    let inputs = plan.components.iter().map(|node| {
-                        let component = &staged[&node.id];
-                        provider_order::CaptureInput { component: &node.id,
-                            raw: &component.capture_bytes, selected: &component.selected }
-                    }).collect::<Vec<_>>();
-                    artifact::Artifact::build_group_ordered(&plan.root, &components,
-                        &order.fresh_module_order(&inputs)?)?
+                    fs::write(
+                        output.join("resolved-original-module-order.json"),
+                        serde_json::to_vec_pretty(order)?,
+                    )?;
+                    let inputs = plan
+                        .components
+                        .iter()
+                        .map(|node| {
+                            let component = &staged[&node.id];
+                            provider_order::CaptureInput {
+                                component: &node.id,
+                                raw: &component.capture_bytes,
+                                selected: &component.selected,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    artifact::Artifact::build_group_ordered(
+                        &plan.root,
+                        &components,
+                        &order.fresh_module_order(&inputs)?,
+                    )?
                 }
                 None => artifact::Artifact::build_group(&plan.root, &components)?,
             };
             let group = if let Some(membership) = &membership {
                 membership.check_unchanged()?;
-                whole_artifact::SourceGroup::new_v5(&plan.root, digest(&plan_bytes), module_set,
-                    evidence, resolved_order, membership.package())?
-            } else { match resolved_order {
-                Some(order) => whole_artifact::SourceGroup::new_v3(
-                    &plan.root, digest(&plan_bytes), module_set, evidence, order,
-                )?,
-                None => whole_artifact::SourceGroup::new(
-                    &plan.root, digest(&plan_bytes), module_set, evidence,
-                )?,
-            }};
+                whole_artifact::SourceGroup::new_v5(
+                    &plan.root,
+                    digest(&plan_bytes),
+                    module_set,
+                    evidence,
+                    resolved_order,
+                    membership.package(),
+                )?
+            } else {
+                match resolved_order {
+                    Some(order) => whole_artifact::SourceGroup::new_v3(
+                        &plan.root,
+                        digest(&plan_bytes),
+                        module_set,
+                        evidence,
+                        order,
+                    )?,
+                    None => whole_artifact::SourceGroup::new(
+                        &plan.root,
+                        digest(&plan_bytes),
+                        module_set,
+                        evidence,
+                    )?,
+                }
+            };
             required_platforms = group.required_platform_interfaces()?;
             let bytes = serde_json::to_vec_pretty(&group)?;
             whole_artifact::SourceGroup::from_bytes(&bytes)?;
@@ -650,9 +805,13 @@ pub(super) fn compile(
     if let Err(error) = plan.tools.check(compiler) {
         issues.push(format!("{error:#}"));
     }
-    if let Err(error) = selected_order(&plan) { issues.push(format!("held original order changed: {error:#}")); }
+    if let Err(error) = selected_order(&plan) {
+        issues.push(format!("held original order changed: {error:#}"));
+    }
     if let Some(membership) = &membership {
-        if let Err(error) = membership.check_unchanged() { issues.push(format!("held original membership changed: {error:#}")); }
+        if let Err(error) = membership.check_unchanged() {
+            issues.push(format!("held original membership changed: {error:#}"));
+        }
     }
     // Never leave an admitted-looking product if final immutable-input checks fail.
     if !issues.is_empty() {
@@ -663,34 +822,39 @@ pub(super) fn compile(
     }
     let mut ir_complete = issues.is_empty() && package.is_some();
     let mut object_reemission_complete = false;
-    run_object_phase(&output, &mut package, &mut ir_complete,
-        &mut object_reemission_complete, &mut issues, output_kind == "obj",
+    run_object_phase(
+        &output,
+        &mut package,
+        &mut ir_complete,
+        &mut object_reemission_complete,
+        &mut issues,
+        output_kind == "obj",
         || {
             let order = selected_order(&plan)?;
             let bytes = fs::read(output.join(whole_artifact::FILE_NAME))?;
             Ok((order, bytes))
         },
         |(order, bytes)| {
-        whole_artifact::compile_package_selected_membership(
-            &bytes,
-            target,
-            "obj",
-            &output.join("objects"),
-            compiler,
-            &plan.tools.python,
-            &plan.tools.llvm_library,
-            NativeImportOptions {
-                llvm_library: imports.llvm_library,
-                llvm_sha256: imports.llvm_sha256,
-                tls_profile: imports.tls_profile,
-                atomic_profile: imports.atomic_profile,
-                wide_volatile_profile: imports.wide_volatile_profile,
+            whole_artifact::compile_package_selected_membership(
+                &bytes,
+                target,
+                "obj",
+                &output.join("objects"),
+                compiler,
+                &plan.tools.python,
+                &plan.tools.llvm_library,
+                NativeImportOptions {
+                    llvm_library: imports.llvm_library,
+                    llvm_sha256: imports.llvm_sha256,
+                    tls_profile: imports.tls_profile,
+                    atomic_profile: imports.atomic_profile,
+                    wide_volatile_profile: imports.wide_volatile_profile,
                     linux_syscall_profile: imports.linux_syscall_profile,
-                dependencies: &[],
-            },
-            order.as_ref(),
-            membership.as_ref(),
-        )
+                    dependencies: &[],
+                },
+                order.as_ref(),
+                membership.as_ref(),
+            )
         },
         || plan.tools.check(compiler),
         membership.as_ref().map(|membership| {
@@ -698,14 +862,23 @@ pub(super) fn compile(
             let plan_bytes = &plan_bytes;
             let recipes = &recipes;
             move || {
-            membership.check_unchanged()?;
-            if fs::read(plan_path)? != *plan_bytes { bail!("provider plan changed after object re-emission"); }
-            for (index, node) in plan.components.iter().enumerate() {
-                if node.recipe.checked()? != recipes[index] { bail!("original recipe changed after object re-emission: {}", node.id); }
-            }
-            plan.tools.check(compiler)?;
-            if let Some(order) = selected_order(plan)? { order.check_unchanged()?; }
-            Ok(())
+                membership.check_unchanged()?;
+                if fs::read(plan_path)? != *plan_bytes {
+                    bail!("provider plan changed after object re-emission");
+                }
+                for (index, node) in plan.components.iter().enumerate() {
+                    if node.recipe.checked()? != recipes[index] {
+                        bail!(
+                            "original recipe changed after object re-emission: {}",
+                            node.id
+                        );
+                    }
+                }
+                plan.tools.check(compiler)?;
+                if let Some(order) = selected_order(plan)? {
+                    order.check_unchanged()?;
+                }
+                Ok(())
             }
         }),
     )?;
@@ -769,7 +942,10 @@ pub(super) fn read_package(
     }
     let policy = fs::read(plan_path)?;
     let plan = decode_plan(&policy)?;
-    if !matches!(plan.schema.as_str(), PLAN_FORMAT | provider_order::PLAN_V3 | provider_membership::PLAN_V5) {
+    if !matches!(
+        plan.schema.as_str(),
+        PLAN_FORMAT | provider_order::PLAN_V3 | provider_membership::PLAN_V5
+    ) {
         bail!("unsupported source-group policy");
     }
     let order = selected_order(&plan)?;
@@ -777,7 +953,10 @@ pub(super) fn read_package(
     if names.is_empty()
         || names.len() != plan.components.len()
         || !names.contains(plan.root.as_str())
-        || plan.components.iter().any(|n| dependency_targets(n).any(|id| !names.contains(id.as_str())))
+        || plan
+            .components
+            .iter()
+            .any(|n| dependency_targets(n).any(|id| !names.contains(id.as_str())))
     {
         bail!("invalid source-group policy component graph");
     }
@@ -796,40 +975,83 @@ pub(super) fn read_package(
     let membership = match (plan.schema.as_str(), &plan.membership_policy) {
         (provider_membership::PLAN_V5, Some(pin)) => Some(group.select_membership(pin)?),
         (PLAN_FORMAT | provider_order::PLAN_V3, None)
-            if plan.components.iter().all(|n| n.compound_dependencies.is_empty()) => None,
+            if plan
+                .components
+                .iter()
+                .all(|n| n.compound_dependencies.is_empty()) =>
+        {
+            None
+        }
         _ => bail!("source-group compound membership/schema version differs"),
     };
     if plan.schema == provider_membership::PLAN_V5 {
-        group.check_selected_policy_v5(&plan.root, &digest(&policy), &plan.components.iter()
-            .map(|n| (n.id.clone(), (n.recipe.sha256.clone(), n.dependencies.clone(), n.compound_dependencies.clone())))
-            .collect(), order.as_ref(), membership.as_ref())?;
+        group.check_selected_policy_v5(
+            &plan.root,
+            &digest(&policy),
+            &plan
+                .components
+                .iter()
+                .map(|n| {
+                    (
+                        n.id.clone(),
+                        (
+                            n.recipe.sha256.clone(),
+                            n.dependencies.clone(),
+                            n.compound_dependencies.clone(),
+                        ),
+                    )
+                })
+                .collect(),
+            order.as_ref(),
+            membership.as_ref(),
+        )?;
     } else {
-        group.check_selected_policy(&plan.root, &digest(&policy), &plan.components.iter()
-            .map(|n| (n.id.clone(), (n.recipe.sha256.clone(), n.dependencies.clone())))
-            .collect(), order.as_ref())?;
+        group.check_selected_policy(
+            &plan.root,
+            &digest(&policy),
+            &plan
+                .components
+                .iter()
+                .map(|n| {
+                    (
+                        n.id.clone(),
+                        (n.recipe.sha256.clone(), n.dependencies.clone()),
+                    )
+                })
+                .collect(),
+            order.as_ref(),
+        )?;
     }
-    run_detached_readmission(membership.as_ref(), output,
-        || whole_artifact::compile_package_selected_membership(
-        &bytes,
-        target,
-        kind,
-        output,
-        compiler,
-        &plan.tools.python,
-        &plan.tools.llvm_library,
-        imports,
-        order.as_ref(),
+    run_detached_readmission(
         membership.as_ref(),
-    ),
+        output,
+        || {
+            whole_artifact::compile_package_selected_membership(
+                &bytes,
+                target,
+                kind,
+                output,
+                compiler,
+                &plan.tools.python,
+                &plan.tools.llvm_library,
+                imports,
+                order.as_ref(),
+                membership.as_ref(),
+            )
+        },
         || -> Result<()> {
-    plan.tools.check(compiler)?;
-    if let Some(order) = &order { order.check_unchanged()?; }
-    if let Some(membership) = &membership { membership.check_unchanged()?; }
-    if fs::read(input)? != bytes || fs::read(plan_path)? != policy {
-        bail!("source group or selected policy changed during readmission");
-    }
-        Ok(())
-    },
+            plan.tools.check(compiler)?;
+            if let Some(order) = &order {
+                order.check_unchanged()?;
+            }
+            if let Some(membership) = &membership {
+                membership.check_unchanged()?;
+            }
+            if fs::read(input)? != bytes || fs::read(plan_path)? != policy {
+                bail!("source group or selected policy changed during readmission");
+            }
+            Ok(())
+        },
     )
 }
 

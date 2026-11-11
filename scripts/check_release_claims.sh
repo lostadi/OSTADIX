@@ -26,6 +26,8 @@ cd "$ROOT" || exit 2
 # against each gate's captured live transcript.
 python3 scripts/release_evidence.py validate
 python3 scripts/world_alpha_evidence.py --quiet
+# The detailed guide is immutable history, never current execution evidence.
+python3 scripts/check_readme_reference.py
 
 # Bash 3.2, shipped by macOS, has arrays but not mapfile/readarray.  Keep the
 # NUL-delimited Git path list in a temporary file so spaces and glob characters
@@ -240,6 +242,16 @@ require_fixed() {
     fi
 }
 
+require_line() {
+    local file="$1" text="$2" why="$3"
+    if [ ! -f "$file" ] || ! grep -Fxq -- "$text" "$file"; then
+        echo "WORLD CONTRACT DRIFT: $why"
+        echo "  file: $file"
+        echo "  required full line: $text"
+        fail=1
+    fi
+}
+
 require_fixed docs/OSTADIX_WORLD.md \
     'normative OSTADIX Alpha constitution and implementation program' \
     'the native constitutional status is missing'
@@ -338,16 +350,33 @@ done
 # The release author identity is one coherent public metadata fact.  Pin the
 # full middle name on each active root surface so a future packaging edit
 # cannot silently shorten the author while leaving the other files unchanged.
-require_fixed README.md \
+# ROOT_README_CLAIMS_BEGIN
+require_line README.md \
     '*By Lee Daghlar Ostadi*' \
     'the README byline does not use the full release author name'
-require_fixed README.md \
+for target in \
+    docs/CURRENT_CONTRACT.md \
+    docs/CLAIMS.md \
+    docs/REFERENCE.md \
+    docs/OSTADIX_WORLD.md \
+    docs/HOSTED_WORLD_REFERENCE_PROFILE.md \
+    evidence/world_alpha_gates.toml
+do
+    require_fixed README.md "($target)" \
+        "the concise README is missing its direct current contract link: $target"
+done
+# ROOT_README_CLAIMS_END
+
+# Historical audits and detailed tutorials remain byte-bound to the original
+# README by check_readme_reference.py above. Current World normative/source,
+# CLAIMS.md and sealed-ledger checks below retain their separate authority.
+require_fixed docs/REFERENCE.md \
     '### Validation at the historical audited master' \
     'the historical master audit is presented as current validation'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'The focused pre-repair World-alpha tests recorded 30 passes, one failure, and' \
     'the historical World-alpha failure observation was not preserved'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'append-only ledger now supersedes the old G0 head with that new schema-v3' \
     'the current World-alpha provenance-bridge repair is missing'
 require_fixed Cargo.toml \
@@ -444,26 +473,26 @@ require_fixed docs/CLAIMS.md \
 require_fixed docs/CLAIMS.md \
     'grant of evidence, admission, capability, lease, or World authority.' \
     'the experimental operation records could be misread as authorizing execution'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'World ResourceKey hosted repository-conformance gate' \
     'the executable hosted PR6 gate is missing from the public status'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'No production lowering currently emits these' \
     'the hosted PR6 vocabulary could be misread as production governed lowering'
 check 'PR8[AB]' \
     'hosted execution milestones are ProjectExec-A/ProjectExec-B; PR8 is reserved for World graph-layer separation'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'Project HGraph planning and ordered hosted execution gates' \
     'the hosted project planning/execution gates are missing from public status'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'World PR8-1 adds a versioned project-profile `LogicalHGraphV1`' \
     'the canonical project logical-graph slice is missing from public status'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'World PR8-2 adds canonical `PlacementSnapshotV1` and `DeploymentPlanV1`' \
     'the canonical project deployment-intention slice is missing from public status'
 # PROJECT_EXECUTION_CLAIMS_BEGIN
 # Current execution and historical-record boundaries are independently required.
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'The coordinator implements all ten route policies.' \
     'current project policy coverage is missing'
 require_fixed docs/CLAIMS.md \
@@ -545,10 +574,10 @@ require_fixed scripts/smoke-project-hgraph-exec.sh \
     'Retry, placement, OWRECEIPT attestation, and exactly-once effects remain outside' \
     'the hosted project smoke could be promoted to retries, placement, receipts, or exactly-once effects'
 # PROJECT_EXECUTION_CLAIMS_END
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'A separate explicit hosted-reference World entry point consumes the exact' \
     'the explicit snapshot-derived World executor input is missing'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'not a whitespace-insensitive' \
     'the logical graph digest could be misread as source-format-insensitive'
 require_fixed docs/HGRAPH_EXECUTOR_PLAN.md \
@@ -613,36 +642,103 @@ require_fixed scripts/o-kernel.sh \
 require_fixed scripts/o-kernel.sh \
     'exec "$VENTOY_INSTALLER_SCRIPT" verify "$@"' \
     'the O-core operator CLI no longer exposes installed Ventoy ISO verification'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'ostadix-hosted-live-x86_64-uefi-<tree12>_VTGRUB2.iso' \
     'the staged-tree-addressed hosted-live ISO pattern is missing from public documentation'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'hosted-live-output:' \
     'the hosted-live release no longer teaches callers how to discover its exact artifact path'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'hosted-live-receipt:' \
     'the hosted-live release no longer teaches callers how to discover its exact receipt path'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'the exact staged Git' \
     'the hosted-live release could silently drift from its staged-index source boundary'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'Ventoy installation is a guarded file copy, not a raw-disk write.' \
     'the Ventoy ISO workflow could be confused with destructive raw-media writing'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'requires all seven in-guest markers in order:' \
     'the hosted-live QEMU claim is no longer bound to its complete marker set'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     '247a51f296e8b07238df32870a44c2a582ff802daafab631be822ea0f4539c6e' \
     'the documented black-screen failure record is no longer bound to its exact ISO digest'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'rejects a black or unchanged framebuffer' \
     'the hosted-live release documentation no longer requires graphical console evidence'
 require_fixed setup.sh \
     '--repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR"' \
     'the cargo-bin native installation no longer uses the repository installer'
-require_fixed setup.sh \
-    '--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c' \
-    'the local-bin native installation no longer uses the repository installer'
+# SETUP_LOCAL_INSTALL_CLAIMS_BEGIN
+# Exercise only the local-install function with its Python dispatch captured.
+# No installer runs here and HOME is read without changing it.
+if ! python3 - "$ROOT" <<'PY'
+from pathlib import Path
+import os
+import subprocess
+import sys
+import tempfile
+
+root = Path(sys.argv[1]).resolve()
+source = (root / "setup.sh").read_text()
+
+def native_path(value):
+    # Capturing Bash builtins precedes MSYS's native argv path conversion.
+    if (os.name == "nt" and len(value) >= 3 and value[0] == "/"
+            and value[1].isalpha() and value[2] == "/"):
+        value = value[1] + ":" + value[2:]
+    return Path(value).resolve()
+
+try:
+    start = source.index("install_local_binaries() {")
+    end = source.index("\n}\n", start) + 3
+except ValueError:
+    raise SystemExit("WORLD CONTRACT DRIFT: local native installation function is missing")
+function = source[start:end]
+harness = "set -eu\n" + function + r'''
+python3() { printf '%s\0' "$@" > "$OSTADIX_INSTALL_CAPTURE"; }
+PROJECT_ROOT="$1"
+OSTADIX_INSTALL_CAPTURE="$2"
+RUNTIME_ONLY="$3"
+INSTALL_LOCAL_BINS=true
+INSTALL_NOTEBOOK=false
+BUILD_WORKSPACE_TOOLS=false
+DRY_RUN=true
+install_local_binaries
+'''
+with tempfile.TemporaryDirectory(prefix="ostadix-setup-install-plan-") as directory:
+    for runtime_only in ("false", "true"):
+        capture = Path(directory) / (runtime_only + ".args")
+        result = subprocess.run(["bash", "-c", harness, "setup-install-guard",
+                                 str(root), str(capture), runtime_only],
+                                capture_output=True, text=True, timeout=10)
+        if result.returncode or not capture.is_file():
+            raise SystemExit("WORLD CONTRACT DRIFT: setup did not dispatch its local native installer")
+        words = [part.decode("utf-8") for part in capture.read_bytes().split(b"\0")[:-1]]
+        installer = root / "scripts/install_native_binaries.py"
+        positions = [i for i, word in enumerate(words) if native_path(word) == installer]
+        if len(positions) != 1:
+            raise SystemExit("WORLD CONTRACT DRIFT: setup no longer uses the repository native installer")
+        options = words[positions[0] + 1:]
+        for flag, value in (("--repo-root", root),
+                            ("--bin-dir", native_path(os.environ["HOME"]) / ".local/bin")):
+            if (options.count(flag) != 1 or options.index(flag) + 1 >= len(options)
+                    or native_path(options[options.index(flag) + 1]) != value.resolve()):
+                raise SystemExit("WORLD CONTRACT DRIFT: setup changed local installer routing: " + flag)
+        if options.count("--dry-run") != 1:
+            raise SystemExit("WORLD CONTRACT DRIFT: setup no longer preserves installer dry-run")
+        expected_runtime = int(runtime_only == "true")
+        if (options.count("--runtime-only") != expected_runtime
+                or options.count("--include-c") != 1 - expected_runtime):
+            raise SystemExit("WORLD CONTRACT DRIFT: setup lost full-profile C installation or runtime-only isolation")
+print("Setup local installer routing: PASS (full C profile and runtime-only)")
+PY
+then
+    fail=1
+fi
+# SETUP_LOCAL_INSTALL_CLAIMS_END
+
+# NATIVE_INSTALLER_CLAIMS_BEGIN
 # Verify native front-door installation plans through the public installer.
 # Source spellings differ across platform-aware implementations; the contract
 # is that o resolves to compiled o-cli and the raw evaluator remains available.
@@ -661,14 +757,23 @@ with tempfile.TemporaryDirectory(prefix="ostadix-native-plan-") as directory:
         build.mkdir()
         for name in ("O", "o-cli"):
             (build / f"{name}{suffix}").write_bytes(b"MZfixture" if suffix else b"\x7fELFfixture")
+        c_build = build / "c-build"
+        c_build.mkdir()
+        for name in ("O", "olangc"):
+            (c_build / f"{name}{suffix}").write_bytes(b"MZfixture" if suffix else b"\x7fELFfixture")
         destination = build / "installed"
-        plan = install(root, build, destination, front_door_only=True, dry_run=True)
+        plan = install(root, build, destination, front_door_only=True,
+                       include_c=True, c_build_dir=c_build, dry_run=True)
         front_door = f"replace {destination / ('o' + suffix)} from {build / ('o-cli' + suffix)}"
         evaluator = f"replace {destination / ('ostadix-evaluator' + suffix)} from {build / ('O' + suffix)}"
         if plan.count(front_door) != 1 or plan.count(evaluator) != 1:
             raise SystemExit(f"WORLD CONTRACT DRIFT: native installer lost compiled front doors ({suffix or 'POSIX'}): {plan!r}")
         if plan.index(evaluator) > plan.index(front_door):
             raise SystemExit("WORLD CONTRACT DRIFT: raw evaluator must be preserved before replacing lowercase o")
+        for source, alias in (("O", "o-c"), ("olangc", "olangc-c")):
+            expected = f"replace {destination / (alias + suffix)} from {c_build / (source + suffix)}"
+            if plan.count(expected) != 1:
+                raise SystemExit("WORLD CONTRACT DRIFT: native installer lost a C front door: " + alias)
         if destination.exists():
             raise SystemExit("WORLD CONTRACT DRIFT: native installer dry-run changed its destination")
 print("Native installer front doors: PASS (POSIX and .exe)")
@@ -676,6 +781,7 @@ PY
 then
     fail=1
 fi
+# NATIVE_INSTALLER_CLAIMS_END
 require_fixed AGENTS.md \
     'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH"' \
     'the canonical PATH order lets the case-insensitive raw O binary shadow lowercase o'
@@ -753,7 +859,7 @@ require_fixed docs/CLAIMS.md \
 require_fixed docs/OSTADIX_WORLD.md \
     '20-atom Rust/`.oc` vocabulary' \
     'the shared-identity Move 2 status is missing'
-require_fixed README.md \
+require_fixed docs/REFERENCE.md \
     'passes no G0--G13 gate.' \
     'the Mode 27 identity slice could be misread as Alpha qualification'
 require_fixed docs/OSTADIX_WORLD.md \
@@ -887,8 +993,8 @@ do
         "const $bridge_name: &str = \"$bridge_value\";" \
         "operation-project bridge coordinate drifted: $bridge_name"
 done
-require_fixed README.md \
-    '[Operation planning and observation V1](docs/OPERATION_PLANNING_V1.md)' \
+require_fixed docs/REFERENCE.md \
+    '[Operation planning and observation V1](../docs/OPERATION_PLANNING_V1.md)' \
     'README omits the operation-planning contract'
 require_fixed docs/OPERATION_PLANNING_V1.md \
     'The word *selected* in this document means only that a tuple won the declared' \
@@ -907,8 +1013,8 @@ for demo_command in \
 do
     require_fixed docs/OPERATION_PLANNING_V1.md "$demo_command" \
         "operation-planning contract lost flagship command: $demo_command"
-    require_fixed README.md "$demo_command" \
-        "README lost flagship operation command: $demo_command"
+    require_fixed docs/REFERENCE.md "$demo_command" \
+        "preserved reference lost flagship operation command: $demo_command"
 done
 require_fixed docs/OPERATION_PLANNING_V1.md \
     'implementation digest must equal the bytes of the named captured' \

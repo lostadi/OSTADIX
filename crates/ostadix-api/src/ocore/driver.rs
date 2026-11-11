@@ -1108,15 +1108,18 @@ mod tests {
                 output: scratch.0.join("sections.s"),
                 keep_assembly: false,
             };
-            compile(&[source.clone()], &options).unwrap();
+            compile(std::slice::from_ref(&source), &options).unwrap();
             let ordinary = fs::read(&options.output).unwrap();
-            compile_with_object_sections(&[source.clone()], &options, false, false).unwrap();
+            compile_with_object_sections(std::slice::from_ref(&source), &options, false, false)
+                .unwrap();
             assert_eq!(ordinary, fs::read(&options.output).unwrap());
-            compile_with_function_sections(&[source.clone()], &options, true).unwrap();
+            compile_with_function_sections(std::slice::from_ref(&source), &options, true).unwrap();
             let functions = fs::read(&options.output).unwrap();
-            compile_with_object_sections(&[source.clone()], &options, true, false).unwrap();
+            compile_with_object_sections(std::slice::from_ref(&source), &options, true, false)
+                .unwrap();
             assert_eq!(functions, fs::read(&options.output).unwrap());
-            compile_with_object_sections(&[source.clone()], &options, true, true).unwrap();
+            compile_with_object_sections(std::slice::from_ref(&source), &options, true, true)
+                .unwrap();
             let data = fs::read_to_string(&options.output).unwrap();
             assert!(data.contains(".section .rodata.ocore_static.READONLY,\"a\""));
             assert!(data.contains(".section .data.ocore_static.MUTABLE,\"aw\""));

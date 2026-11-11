@@ -253,6 +253,7 @@ PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS = frozenset(
         "evidence/public-contract-20261111/README.md",
         "evidence/public-contract-20261111/baseline-observations.json",
         "scripts/reproduce_splice_contract.py",
+        "scripts/check_readme_reference.py",
         "tests/foreign_splice_contract.rs",
         "tests/fixtures/foreign-splice-witnesses.json",
         "tests/test_sql_statement_framing.py",

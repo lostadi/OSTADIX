@@ -81,7 +81,7 @@ except OSError as e:
     assert e.errno in (errno.ENETUNREACH, errno.EHOSTUNREACH)
 finally:
     external.close()
-result = O.eval('bash^(printf 42)_bash')
+result = O.eval('bash' + '^(printf 42)_bash')
 assert int(result) == 42, repr(result)
 42
 )_python

@@ -2959,7 +2959,10 @@ mod tests {
             let source = three_bindings(body);
             let backends = BackendRegistry::global().registered_backend_tags();
             let error = Parser::new(&source, &backends).parse().unwrap_err();
-            assert!(error.to_string().contains("value splice"), "{body}: {error}");
+            assert!(
+                error.to_string().contains("value splice"),
+                "{body}: {error}"
+            );
         }
     }
 

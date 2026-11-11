@@ -196,8 +196,11 @@ impl Artifact {
             if serde_json::to_value(&module.target)? != target {
                 bail!("native module-set target/DataLayout/execution profiles differ");
             }
-            if let Some(requirement) = o_lang::ocore::native_platform::requirement(&module).map_err(|e| anyhow::anyhow!(e.message))? {
-                required_platforms.push(json!({"module":embedded.identity(),"interface":requirement}));
+            if let Some(requirement) = o_lang::ocore::native_platform::requirement(&module)
+                .map_err(|e| anyhow::anyhow!(e.message))?
+            {
+                required_platforms
+                    .push(json!({"module":embedded.identity(),"interface":requirement}));
             }
             collected.extend(symbols(&embedded.identity(), &module)?);
         }
@@ -226,7 +229,12 @@ impl Artifact {
     }
 
     pub(super) fn required_platform_interfaces(&self) -> Result<Vec<Value>> {
-        Ok(self.inventory()?.get("required_platform_interfaces").and_then(Value::as_array).cloned().unwrap_or_default())
+        Ok(self
+            .inventory()?
+            .get("required_platform_interfaces")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default())
     }
     pub(super) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let mut artifact: Self =
@@ -731,18 +739,41 @@ mod tests {
     fn linux_user_required_interface_cannot_disappear_in_module_set_or_legacy_upgrade() {
         let module = super::super::object_inventory_tests::linux_platform_module("x86_64");
         let data = module.to_json().unwrap();
-        let artifact = Artifact::build("linux-component", &"a".repeat(64), &[("unit".into(),data)], &[]).unwrap();
-        assert!(artifact.symbol_inventory["required_platform_interfaces"].as_array().unwrap().len() == 1);
-        assert_eq!(artifact.symbol_inventory["platform_resource_closure_complete"], false);
+        let artifact = Artifact::build(
+            "linux-component",
+            &"a".repeat(64),
+            &[("unit".into(), data)],
+            &[],
+        )
+        .unwrap();
+        assert!(
+            artifact.symbol_inventory["required_platform_interfaces"]
+                .as_array()
+                .unwrap()
+                .len()
+                == 1
+        );
+        assert_eq!(
+            artifact.symbol_inventory["platform_resource_closure_complete"],
+            false
+        );
         let encoded = serde_json::to_vec(&artifact).unwrap();
         Artifact::from_bytes(&encoded).unwrap();
-        for field in ["required_platform_interfaces","platform_resource_closure_complete"] {
+        for field in [
+            "required_platform_interfaces",
+            "platform_resource_closure_complete",
+        ] {
             let mut wrong = artifact.clone();
-            wrong.symbol_inventory.as_object_mut().unwrap().remove(field);
+            wrong
+                .symbol_inventory
+                .as_object_mut()
+                .unwrap()
+                .remove(field);
             assert!(Artifact::from_bytes(&serde_json::to_vec(&wrong).unwrap()).is_err());
         }
         let mut wrong = artifact.clone();
-        wrong.symbol_inventory["required_platform_interfaces"][0]["interface"]["privilege"] = json!("kernel");
+        wrong.symbol_inventory["required_platform_interfaces"][0]["interface"]["privilege"] =
+            json!("kernel");
         assert!(Artifact::from_bytes(&serde_json::to_vec(&wrong).unwrap()).is_err());
     }
 
@@ -1187,7 +1218,8 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
-                wide_volatile_profile: None, linux_syscall_profile: None,
+                wide_volatile_profile: None,
+                linux_syscall_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run"),
@@ -1295,7 +1327,8 @@ mod tests {
                     llvm_sha256: None,
                     tls_profile: None,
                     atomic_profile,
-                    wide_volatile_profile: None, linux_syscall_profile: None,
+                    wide_volatile_profile: None,
+                    linux_syscall_profile: None,
                     dependencies: &[],
                 },
                 Path::new("/compiler-must-not-run")

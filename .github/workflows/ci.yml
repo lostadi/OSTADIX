@@ -210,6 +210,25 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-tests-compact-${{ hashFiles('Cargo.lock') }}
+      - name: Pin the actual Python tool for provider-order tests
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          executable = Path(sys.executable).resolve(strict=True)
+          raw = executable.read_bytes()
+          sha256 = hashlib.sha256(raw).hexdigest()
+          report = {"schema": "ostadix.ci-python-tool-pin/v1",
+                    "executable": str(executable), "bytes": len(raw),
+                    "sha256": sha256, "version": sys.version}
+          destination = Path("target/ci-tool-pins/provider-order-python.json")
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          destination.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as stream:
+              stream.write("OCORE_ORDER_TEST_PYTHON=" + str(executable) + "\n")
+              stream.write("OCORE_ORDER_TEST_PYTHON_SHA256=" + sha256 + "\n")
+          print(json.dumps(report, sort_keys=True))
+          PY
       - name: Record runner build resources
         run: |
           df -h .
@@ -245,6 +264,14 @@ jobs:
           CHROME_BIN="$browser_bin" node apps/olang-browser-wasi/test-browser.mjs \
             "$RUNNER_TEMP/olang-browser-bundle" \
             "OSTADIX OLANGC WASM EXECUTION PASS"
+      - name: Retain the actual Python tool pin
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rust-tests-tool-pins-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/ci-tool-pins/provider-order-python.json
+          if-no-files-found: warn
+          retention-days: 14
 
   rust-hosted:
     name: Rust hosted lifecycle and placement
@@ -577,6 +604,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends clang lld llvm binutils qemu-user qemu-system-x86 qemu-system-arm qemu-system-riscv opensbi default-jdk-headless grub-efi-amd64-bin mtools ovmf xorriso
           qemu-system-x86_64 --version
+      - name: Verify declared O-core prerequisites
+        run: python3 scripts/contract_surfaces.py probe-runtimes --suite ocore-qemu
+      - name: Pin the actual Python tool for provider-order tests
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          executable = Path(sys.executable).resolve(strict=True)
+          raw = executable.read_bytes()
+          sha256 = hashlib.sha256(raw).hexdigest()
+          report = {"schema": "ostadix.ci-python-tool-pin/v1",
+                    "executable": str(executable), "bytes": len(raw),
+                    "sha256": sha256, "version": sys.version}
+          destination = Path("target/ci-tool-pins/provider-order-python.json")
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          destination.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as stream:
+              stream.write("OCORE_ORDER_TEST_PYTHON=" + str(executable) + "\n")
+              stream.write("OCORE_ORDER_TEST_PYTHON_SHA256=" + sha256 + "\n")
+          print(json.dumps(report, sort_keys=True))
+          PY
       - name: Build the O-core compiler for native equivalence
         run: cargo build --locked --bin ocorec --bin olangc
       - name: Verify imported IR contracts and complete capture inventories
@@ -814,6 +862,7 @@ jobs:
         with:
           name: ocore-native-equivalence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            target/ci-tool-pins/provider-order-python.json
             target/ocore-native-equivalence/
             target/ocore-import-equivalence/
             target/ocore-foreign-frontends/
