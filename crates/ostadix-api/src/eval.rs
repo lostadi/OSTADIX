@@ -6467,32 +6467,49 @@ mod tests {
                 use std::os::unix::process::CommandExt as _;
                 command.process_group(0);
             }
+            // Create the reaper before spawning a child, so failure to start
+            // a thread cannot leave an owned child without a wait path.
+            let (reaper_tx, reaper_rx) = std::sync::mpsc::channel::<std::process::Child>();
+            let (reaped_tx, reaped_rx) = std::sync::mpsc::channel();
+            let _reaper = std::thread::spawn(move || {
+                if let Ok(mut child) = reaper_rx.recv() {
+                    let _ = reaped_tx.send(child.wait());
+                }
+            });
             let mut child = command.spawn().unwrap();
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+            let mut poll_error = None;
             let mut status = None;
             while std::time::Instant::now() < deadline {
-                status = child.try_wait().unwrap();
-                if status.is_some() {
-                    break;
+                match child.try_wait() {
+                    Ok(Some(_)) => {
+                        // try_wait already reaped it; this cached wait cannot
+                        // block and makes the normal ownership path explicit.
+                        status = Some(child.wait());
+                        break;
+                    }
+                    Ok(None) => {}
+                    Err(error) => {
+                        poll_error = Some(error);
+                        break;
+                    }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
+            let mut reap_outcome = None;
             if status.is_none() {
                 #[cfg(unix)]
-                {
-                    let pid = libc::pid_t::try_from(child.id()).unwrap();
+                if let Ok(pid) = libc::pid_t::try_from(child.id()) {
                     // SAFETY: this child owns the private group just created.
                     unsafe { libc::kill(-pid, libc::SIGKILL) };
                 }
                 let _ = child.kill();
-                let reap_deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-                while std::time::Instant::now() < reap_deadline {
-                    if child.try_wait().unwrap().is_some() {
-                        break;
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
+                reaper_tx
+                    .send(child)
+                    .expect("owned child reaper is waiting");
+                reap_outcome = Some(reaped_rx.recv_timeout(std::time::Duration::from_secs(2)));
             }
+            drop(reaper_tx);
             let capture = |path: &std::path::Path| {
                 let mut bytes = Vec::new();
                 std::fs::File::open(path)
@@ -6505,8 +6522,8 @@ mod tests {
             let stdout = capture(&stdout_path);
             let stderr = capture(&stderr_path);
             let status = status.unwrap_or_else(|| {
-                panic!("isolated Bash helper test exceeded 30 seconds\n{stdout}\n{stderr}")
-            });
+                panic!("isolated Bash helper test timed out or could not be polled: {poll_error:?}; bounded reap: {reap_outcome:?}\n{stdout}\n{stderr}")
+            }).expect("cached child wait failed after successful try_wait");
             assert!(status.success(), "{status}\n{stdout}\n{stderr}");
             assert!(stdout.contains("running 1 test"), "{stdout}\n{stderr}");
             assert!(stdout.contains("1 passed; 0 failed"), "{stdout}\n{stderr}");
