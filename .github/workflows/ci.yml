@@ -200,7 +200,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends clang nix-bin nix-setup-systemd openssl sqlite3
-          sudo systemctl start nix-daemon.socket nix-daemon.service
+          if ! sudo systemctl start nix-daemon.socket nix-daemon.service; then
+            sudo systemctl status --no-pager --full --lines=20 nix-daemon.socket nix-daemon.service || true
+            sudo systemctl cat --no-pager nix-daemon.socket nix-daemon.service || true
+            sudo journalctl -u nix-daemon.socket -u nix-daemon.service -b -n 100 --no-pager || true
+            sudo ls -ld /nix/store /nix/var /nix/var/nix /nix/var/nix/daemon-socket || true
+            exit 1
+          fi
       - name: Verify declared runtime prerequisites
         run: python3 scripts/contract_surfaces.py probe-runtimes --suite rust-tests
       - name: Cache Cargo
