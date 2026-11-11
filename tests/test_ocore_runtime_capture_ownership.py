@@ -289,15 +289,20 @@ class CaptureOwnershipTests(unittest.TestCase):
         Path(self.tool["path"]).write_bytes(b"synthetic tool identity, never executed\n")
         archive, archiver = self.ordinary_archive(compiler)
         original = capture.native_source_output
+        contexts = []
 
-        def mutate_after_observation(owner, output, identities=None):
-            proof = original(owner, output, identities)
+        def mutate_after_observation(owner, output, identities=None, rust_context=None):
+            self.assertIsNone(rust_context, "this Clang-only reconstruction has no Rust authority context")
+            contexts.append(rust_context)
+            proof = original(owner, output, identities, rust_context)
             if proof["native_source_owned"]:
                 Path(self.tool["path"]).write_bytes(b"changed after identity observation\n")
             return proof
 
         with mock.patch.object(capture, "native_source_output", side_effect=mutate_after_observation):
             result = self.evaluate([compiler, archiver], archive)
+        self.assertTrue(contexts, "the original ownership observation must execute before mutation")
+        self.records.append({"observed_rust_contexts": contexts})
         self.assertFalse(result["source_provider_ownership_complete"])
         self.assertTrue(any("changed during reconstruction" in issue for issue in result["issues"]))
 

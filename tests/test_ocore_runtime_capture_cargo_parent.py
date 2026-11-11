@@ -129,7 +129,9 @@ class CaptureCargoParentTests(unittest.TestCase):
         calls = []
 
         def original_or_replay(argv, **kwargs):
-            calls.append({"argv": list(argv), "environment": kwargs.get("env")})
+            calls.append({"argv": list(argv), "environment": kwargs.get("env"),
+                          "stdout_inherited": kwargs.get("stdout") is None,
+                          "stderr_inherited": kwargs.get("stderr") is None})
             if len(calls) == 1:
                 if mutate_during_command is not None:
                     mutate_during_command()
@@ -361,12 +363,85 @@ class CaptureCargoParentTests(unittest.TestCase):
             self.assertFalse(self.receipt_path(event["id"]).exists())
 
     def test_unbound_source_worker_parent_is_error_and_original_result_survives(self):
-        self.worker.write_json(self.source / "session.json", {**self.session, "capture_worker": None})
-        result, event, calls = self.invoke(status=29)
-        self.assertEqual(result, 29)
+        claims = (None, [], False, 7, "unbound", {},
+                  {**self.worker_record, "producer_registry": None})
+        for index, claim in enumerate(claims):
+            with self.subTest(claim=claim):
+                session = {**self.session, "capture_worker": claim}
+                self.worker.write_json(self.source / "session.json", session)
+                args = ["--version", "--inert-unbound-case=" + str(index)]
+                result, event, calls = self.invoke(args=args, status=29)
+                self.assertEqual(result, 29)
+                self.assertEqual(event["exit_code"], 29)
+                self.assertEqual(event["state"], "finished")
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0]["argv"], [self.compiler_identity["path"], *args])
+                self.assertTrue(calls[0]["stdout_inherited"])
+                self.assertTrue(calls[0]["stderr_inherited"])
+                self.assertNotIn("cargo_parent", event)
+                self.assertNotIn("cargo_parent_invocation_id", event)
+                self.assertTrue(any(error.startswith("capture worker provenance: ") for error in event["capture_errors"]))
+                self.assertTrue(any("currently executing bound capture worker" in error for error in event["capture_errors"]))
+                self.assertFalse((self.observer / "children").exists())
+                with self.assertRaises(self.worker.CaptureError):
+                    self.worker.verify_worker(session, self.source, self.worker_record["artifact"]["sha256"])
+
+    def test_unbound_embedded_rust_capture_preserves_executed_success_and_rejects_parent(self):
+        session = {**self.session, "capture_worker": None,
+                   "recipe": {"toolchain": {**self.session["recipe"]["toolchain"],
+                                            "rust_capture_policy": self.worker.RUST_EMBEDDED_POLICY}}}
+        self.worker.write_json(self.source / "session.json", session)
+        source = self.write("unbound.rs", b"pub fn fixture() {}\n")
+        args = [source["path"], "--emit", "link"]
+        result, event, calls = self.invoke("rustc", args=args, status=0)
+        self.assertEqual(result, 0)
+        self.assertEqual((event["state"], event["exit_code"]), ("finished", 0))
         self.assertEqual(len(calls), 1)
+        self.assertEqual(event["argv"], args)
+        self.assertEqual(calls[0]["argv"], [self.compiler_identity["path"], *event["executed_argv"]])
+        self.assertEqual(event["rust_capture"]["policy"], self.worker.RUST_EMBEDDED_POLICY)
+        self.assertTrue(calls[0]["stdout_inherited"])
+        self.assertTrue(calls[0]["stderr_inherited"])
         self.assertNotIn("cargo_parent", event)
+        self.assertIsNone(event["cargo_parent_invocation_id"])
+        self.assertEqual(event["units"], [])
         self.assertTrue(any("currently executing bound capture worker" in error for error in event["capture_errors"]))
+        self.assertTrue(any("pinned payload extractor" in error for error in event["capture_errors"]))
+        self.assertFalse((self.observer / "children").exists())
+        with self.assertRaises(self.worker.CaptureError):
+            self.worker.verify_worker(session, self.source, self.worker_record["artifact"]["sha256"])
+
+    def test_unbound_rust_payload_source_claim_is_a_typed_rejection(self):
+        directory = self.directory / "embedded-helper"
+        directory.mkdir()
+        worker = capture.snapshot_worker(directory, capture.RUST_EMBEDDED_POLICY)
+        session = {"capture_worker": worker,
+                   "recipe": {"toolchain": {"rust_capture_policy": capture.RUST_EMBEDDED_POLICY}}}
+        worker["rust_payload_extractor"]["source"] = None
+        with self.assertRaisesRegex(self.worker.CaptureError, "original-source identity object"):
+            self.worker.rust_payload_extractor(session, directory)
+
+    def test_malformed_registry_claims_are_structured_rejections_not_unbound_authority(self):
+        claims = [None, [], False, 7, "unbound", {},
+                  {**self.worker_record, "producer_registry": None}]
+        for field in ("artifact", "source"):
+            for value in (None, [], False, 7, "not-an-artifact"):
+                claim = copy.deepcopy(self.worker_record)
+                claim["producer_registry"][field] = value
+                claims.append(claim)
+        for claim in claims:
+            with self.subTest(claim=claim), self.assertRaises(self.worker.CaptureError):
+                self.worker.verified_producer_registry({**self.session, "capture_worker": claim}, self.source)
+
+    def test_unregistered_registry_file_cannot_dispatch_the_original_command(self):
+        registry = self.source / self.worker.PRODUCER_REGISTRY_FILE
+        registry.chmod(0o644)
+        registry.write_bytes(registry.read_bytes() + b"\n")
+        with mock.patch.object(self.worker.subprocess, "run") as forwarded:
+            with self.assertRaisesRegex(self.worker.CaptureError, "independently registered SHA-256"):
+                self.worker.compiler(self.source, "clang", ["--version"])
+            forwarded.assert_not_called()
+        self.assertFalse((self.source / "events").exists())
         self.assertFalse((self.observer / "children").exists())
 
     def test_child_publication_error_rewrites_final_journal_without_status_replacement(self):

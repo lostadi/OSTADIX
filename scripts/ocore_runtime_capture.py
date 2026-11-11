@@ -163,17 +163,22 @@ def require_import_format(kind: str, format_: str, registry: dict | None = None)
 
 
 def verified_producer_registry(session: dict, directory: Path) -> dict:
-    record = session.get("capture_worker", {}).get("producer_registry")
+    worker = session.get("capture_worker")
+    if not isinstance(worker, dict):
+        raise CaptureError("capture worker requires its registered producer registry snapshot")
+    record = worker.get("producer_registry")
     if not isinstance(record, dict) or record.get("schema") != "ocore-producer-registry-snapshot-v1":
         raise CaptureError("capture worker requires its registered producer registry snapshot")
     path = directory.resolve() / PRODUCER_REGISTRY_FILE
-    artifact = record.get("artifact", {})
+    artifact, source = record.get("artifact"), record.get("source")
+    if not isinstance(artifact, dict) or not isinstance(source, dict):
+        raise CaptureError("producer registry snapshot requires artifact and source identity objects")
     if path.is_symlink() or artifact.get("path") != str(path):
         raise CaptureError("producer registry snapshot path differs from the capture worker")
     registry = producer_registry(path)
     if (artifact != file_info(path) or artifact.get("sha256") != REGISTERED_PRODUCER_REGISTRY_SHA256
-            or record.get("source", {}).get("sha256") != REGISTERED_PRODUCER_REGISTRY_SHA256
-            or record.get("source", {}).get("bytes") != artifact.get("bytes")):
+            or source.get("sha256") != REGISTERED_PRODUCER_REGISTRY_SHA256
+            or source.get("bytes") != artifact.get("bytes")):
         raise CaptureError("producer registry snapshot identity changed")
     return registry
 
@@ -270,16 +275,22 @@ def verify_worker(session: dict, directory: Path, expected_worker_sha256: str | 
 
 
 def rust_payload_extractor(session: dict, directory: Path) -> dict:
-    record = session.get("capture_worker", {}).get("rust_payload_extractor")
+    worker = session.get("capture_worker")
+    if not isinstance(worker, dict):
+        raise CaptureError("embedded Rust capture requires its pinned payload extractor snapshot")
+    record = worker.get("rust_payload_extractor")
     if (not isinstance(record, dict) or record.get("schema") != "ocore-rust-payload-extractor-worker-v1"
             or session.get("recipe", {}).get("toolchain", {}).get("rust_capture_policy") != RUST_EMBEDDED_POLICY):
         raise CaptureError("embedded Rust capture requires its pinned payload extractor snapshot")
     artifact = record.get("artifact", {})
+    source = record.get("source")
+    if not isinstance(source, dict):
+        raise CaptureError("Rust payload extractor requires its original-source identity object")
     path = directory.resolve() / "rust-payload-extractor.py"
     raw = cargo_artifact_bytes(artifact, path)
     if (artifact["sha256"] != REGISTERED_RUST_PAYLOAD_SHA256
-            or record.get("source", {}).get("sha256") != REGISTERED_RUST_PAYLOAD_SHA256
-            or record.get("source", {}).get("bytes") != artifact["bytes"]):
+            or source.get("sha256") != REGISTERED_RUST_PAYLOAD_SHA256
+            or source.get("bytes") != artifact["bytes"]):
         raise CaptureError("Rust payload extractor differs from its independently registered SHA-256")
     namespace = {"__name__": "ocore_capture_rust_payload", "__file__": str(path)}
     exec(compile(raw, str(path), "exec"), namespace)
@@ -1898,7 +1909,14 @@ def driver_link_plan(program: str, args: list[str], directory: Path, environment
 def compiler(session_path: Path, kind: str, original_args: list[str], *,
              expected_cargo_observer_sha256: str | None = None) -> int:
     session = read_json(session_path / "session.json")
-    registry = verified_producer_registry(session, session_path)
+    # The original command's adapter comes only from independently registered
+    # file bytes. Verify the session's worker claim in the guarded provenance
+    # path below: an unbound claim must neither authorize ownership nor replace
+    # the original command's result with a capture-only exception.
+    registry_path = session_path.resolve() / PRODUCER_REGISTRY_FILE
+    if registry_path.is_symlink():
+        raise CaptureError("producer registry snapshot path differs from the capture worker")
+    registry = producer_registry(registry_path)
     aliases = {wrapper["kind"]: item for item in registry["producers"] for wrapper in item["wrappers"]}
     if kind not in aliases:
         raise CaptureError("unregistered producer wrapper kind: " + str(kind))
