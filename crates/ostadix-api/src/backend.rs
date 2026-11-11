@@ -531,6 +531,7 @@ impl BashSession {
 
     /// Run one block and return its captured output and exit status, plus
     /// whether the session shell is still alive afterwards.
+    #[cfg(unix)]
     fn run(&mut self, code: &str, env: &[(String, String)]) -> Result<(Output, bool)> {
         use std::os::unix::process::ExitStatusExt;
         self.serial += 1;
@@ -611,6 +612,15 @@ impl BashSession {
         Ok((output, alive))
     }
 
+    #[cfg(not(unix))]
+    fn run(&mut self, _code: &str, _env: &[(String, String)]) -> Result<(Output, bool)> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "bash sessions require Unix process and exit-status support",
+        )
+        .into())
+    }
+
     /// End the shell and every job it left. an error means the jobs could
     /// not be enumerated, so some may still run.
     fn shutdown(&mut self) -> Result<()> {
@@ -646,9 +656,17 @@ fn become_bash_subreaper() -> io::Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(all(unix, not(target_os = "linux")))]
 fn become_bash_subreaper() -> io::Result<()> {
     Ok(())
+}
+
+#[cfg(not(unix))]
+fn become_bash_subreaper() -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "bash job ownership requires Unix process support",
+    ))
 }
 
 /// How long job cleanup may keep killing and reaping before it reports the
@@ -842,6 +860,7 @@ impl JobSweep {
 /// why ECHILD and not an empty scan: a job killed in this pass reparents its
 /// own children here only as it dies, so a scan can come back empty while a
 /// grandchild is still on its way.
+#[cfg(unix)]
 fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
     // why one lock over the whole walk: a SIGTERM's walk and the block-end
     // walk can overlap; they run one after the other.
@@ -920,11 +939,20 @@ fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
     finish_walk(sweep)
 }
 
+#[cfg(not(unix))]
+fn stop_backend_descendants(_budget: Duration, _shell: Option<i32>) -> JobSweep {
+    JobSweep {
+        error: Some("unsupported platform: bash job cleanup requires Unix process support".into()),
+        ..JobSweep::default()
+    }
+}
+
 /// The one exit of a cleanup walk. a SIGTERM that landed during the walk
 /// reuses it: this walk already signalled every job, so it reports and
 /// exits here, still holding the lock, instead of the SIGTERM waiting for
 /// it and walking again. that keeps the whole cleanup inside one window,
 /// and inside the host's.
+#[cfg(unix)]
 fn finish_walk(mut sweep: JobSweep) -> JobSweep {
     if TERMINATING.load(std::sync::atomic::Ordering::SeqCst) {
         sweep.quiet = false;
@@ -935,6 +963,21 @@ fn finish_walk(mut sweep: JobSweep) -> JobSweep {
         std::process::exit(128 + libc::SIGTERM);
     }
     sweep
+}
+
+// Signal termination is a Unix diagnostic. Other platforms must still use
+// ExitStatus::success/code to decide whether execution completed successfully.
+fn exit_signal(status: &std::process::ExitStatus) -> Option<i32> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt as _;
+        status.signal()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = status;
+        None
+    }
 }
 
 /// Every live descendant of this process: its children, theirs, and so on.
@@ -1190,14 +1233,13 @@ impl RustBackend {
                     // one (fail closed) instead of starting a fresh shell.
                     // latched before cleanup, so a failed cleanup cannot
                     // leave the session looking alive.
-                    use std::os::unix::process::ExitStatusExt;
-                    if let Some(signal) = output.status.signal() {
+                    if let Some(signal) = exit_signal(&output.status) {
                         self.bash_killed = Some(signal);
                     }
                     if let Some(mut ended) = self.bash.take() {
                         ended.shutdown()?;
                     }
-                    if let Some(signal) = output.status.signal() {
+                    if let Some(signal) = exit_signal(&output.status) {
                         bail!(
                             "bash session was killed by signal {signal} during this block; its state is gone"
                         );
@@ -1446,9 +1488,8 @@ impl RustBackend {
         if let Some(mut ended) = self.bash.take() {
             ended.shutdown()?;
         }
-        use std::os::unix::process::ExitStatusExt;
         if !alive {
-            if let Some(signal) = output.status.signal() {
+            if let Some(signal) = exit_signal(&output.status) {
                 bail!(
                     "bash session was killed by signal {signal} during this block; its state is gone"
                 );
@@ -1565,6 +1606,7 @@ impl SqlState {
     // why: a payload larger than the pipe buffer blocks until sqlite3 reads,
     // which it never does while a previous statement is stuck.
     #[cold]
+    #[cfg(unix)]
     fn write_large(&mut self, text: &str, limit: Duration) -> Result<()> {
         let stdin = self
             .stdin
@@ -1580,6 +1622,16 @@ impl SqlState {
                 Err(anyhow::Error::new(error).context("failed to write to sqlite3 session"))
             }
         }
+    }
+
+    #[cold]
+    #[cfg(not(unix))]
+    fn write_large(&mut self, _text: &str, _limit: Duration) -> Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "bounded sqlite3 session writes require Unix descriptor support",
+        )
+        .into())
     }
 
     #[cold]
@@ -3087,6 +3139,7 @@ impl TempDir {
     /// A fresh directory only this user can enter: block files hold user code.
     /// the name is random and `create` refuses an existing path, symlinks
     /// included, so honouring TMPDIR cannot hand the files to someone else.
+    #[cfg(unix)]
     fn new(prefix: &str) -> Result<Self> {
         let base = std::env::temp_dir();
         let mut builder = fs::DirBuilder::new();
@@ -3109,6 +3162,15 @@ impl TempDir {
             }
         }
         bail!("failed to create unique backend temp dir")
+    }
+
+    #[cfg(not(unix))]
+    fn new(_prefix: &str) -> Result<Self> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "private backend directories require Unix permission support",
+        )
+        .into())
     }
 
     fn path(&self) -> &Path {
@@ -3229,6 +3291,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn backend_temp_dirs_are_private_and_unpredictable() -> anyhow::Result<()> {
         use std::os::unix::fs::PermissionsExt as _;
         let first = super::TempDir::new("o-backend-mode-test")?;
@@ -3246,6 +3309,36 @@ mod tests {
         assert_eq!(random.len(), 32, "{name}");
         assert_ne!(first.path(), second.path());
         Ok(())
+    }
+
+    #[test]
+    #[cfg(not(unix))]
+    fn backend_temp_dirs_refuse_unsupported_private_permissions() {
+        let error = match super::TempDir::new("o-backend-unsupported-test") {
+            Ok(_) => panic!("a private backend directory needs a platform realization"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::Unsupported,
+        );
+        assert!(error.to_string().contains("Unix permission support"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn exit_signal_distinguishes_signal_termination_from_exit_codes() {
+        use std::os::unix::process::ExitStatusExt as _;
+        assert_eq!(
+            super::exit_signal(&std::process::ExitStatus::from_raw(libc::SIGTERM)),
+            Some(libc::SIGTERM),
+        );
+        for code in [0, 1, 128 + libc::SIGTERM] {
+            let status = std::process::ExitStatus::from_raw(code << 8);
+            assert_eq!(super::exit_signal(&status), None);
+            assert_eq!(status.success(), code == 0);
+            assert_eq!(status.code(), Some(code));
+        }
     }
 
     #[test]

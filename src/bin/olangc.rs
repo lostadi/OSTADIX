@@ -5176,6 +5176,19 @@ mod tests {
             fs::read_to_string(src_dir.join("cli_diagnostics.rs")).unwrap(),
             CLI_DIAGNOSTICS_RS,
         );
+        // WASI compiles the same complete backend/process source as native
+        // output. Platform support belongs in those sources' cfg boundaries.
+        for (name, embedded) in [
+            ("backend", RUNTIME_BACKEND_RS),
+            ("process", RUNTIME_PROCESS_RS),
+        ] {
+            assert!(lib_rs.contains(&format!("pub mod {name};")));
+            assert_eq!(
+                fs::read_to_string(src_dir.join(format!("{name}.rs"))).unwrap(),
+                embedded,
+                "generated {name} source must match the engine-owned source",
+            );
+        }
         assert!(lib_rs.contains("pub mod ocore;"));
         assert!(lib_rs.contains("pub mod native_leaf;"));
         assert_eq!(
