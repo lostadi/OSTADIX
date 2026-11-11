@@ -32,12 +32,12 @@ class ContractSurfacesTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "contract-surfaces: ok")
 
-    def test_readme_engine_module_counts_match_the_public_surface(self) -> None:
+    def test_current_contract_engine_module_counts_match_the_public_surface(self) -> None:
         engine_source = (ROOT / "crates/ostadix-api/src/lib.rs").read_text(
             encoding="utf-8"
         )
         compatibility_source = (ROOT / "src/lib.rs").read_text(encoding="utf-8")
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        readme = (ROOT / "docs/CURRENT_CONTRACT.md").read_text(encoding="utf-8")
 
         root_modules = re.findall(
             r"^(?:pub(?:\(crate\))?\s+)?mod\s+([a-z_][a-z0-9_]*);$",
@@ -78,6 +78,9 @@ class ContractSurfacesTests(unittest.TestCase):
 
     def test_readme_separates_historical_audit_from_current_world_status(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("docs/CURRENT_CONTRACT.md", readme)
+        self.assertIn("docs/REFERENCE.md#validation-at-the-historical-audited-master", readme)
+        readme = (ROOT / "docs/REFERENCE.md").read_text(encoding="utf-8")
         self.assertIn("### Validation at the historical audited master", readme)
         self.assertIn(
             "The focused pre-repair World-alpha tests recorded 30 passes, one failure, and",
@@ -101,7 +104,7 @@ class ContractSurfacesTests(unittest.TestCase):
     def test_rust_suite_projects_openssl_from_one_manifest(self) -> None:
         for suite, executables in (
             ("rust-hosted", ["bash", "clang", "ip", "openssl", "python3", "readelf", "sqlite3"]),
-            ("rust-tests", ["bash", "clang", "node", "openssl", "python3", "sqlite3"]),
+            ("rust-tests", ["bash", "clang", "nix", "node", "openssl", "python3", "sqlite3"]),
         ):
             with self.subTest(suite=suite):
                 result = self.run_contracts("required-executables", "--suite", suite)

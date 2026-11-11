@@ -25,7 +25,7 @@ The benchmark is descriptive and never enforces a speedup threshold.
 
 Workloads:
   asset_pipeline  Generate 18 AVIF/WebP derivatives from real project images.
-  ci_shards       Run three independent repository unit-test shards (78 tests today).
+  ci_shards       Run three independent repository unit-test shards (the declared test shards today).
   video_previews  Transcode nine real GIF animations into HD VP9 WebM previews.
 
 Options:

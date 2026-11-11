@@ -84,6 +84,10 @@ const TRUSTED_INLINE_SOURCE_SET_V1: &[(&str, &[u8])] = &[
         include_bytes!("../../execution_contract.rs") as &[u8],
     ),
     (
+        "src/foreign_splice.rs",
+        include_bytes!("../../foreign_splice.rs") as &[u8],
+    ),
+    (
         "src/execution_fabric/codec.rs",
         include_bytes!("../../execution_fabric/codec.rs") as &[u8],
     ),
@@ -368,6 +372,9 @@ fn trusted_renderer_name(renderer: TrustedInlineRendererV1) -> &'static str {
 fn splice_renderer_name(renderer: SpliceRenderer) -> &'static str {
     match renderer {
         SpliceRenderer::Python => "python",
+        SpliceRenderer::Sql => "sql",
+        SpliceRenderer::Shell => "shell",
+        SpliceRenderer::JavaScript => "javascript",
         SpliceRenderer::Html => "html",
         SpliceRenderer::Latex => "latex",
         SpliceRenderer::Markdown => "markdown",

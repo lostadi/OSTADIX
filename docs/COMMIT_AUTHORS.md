@@ -1,12 +1,24 @@
-# Commit author check
+# Publication identity and development provenance
 
 New project commits must use **Lee Daghlar Ostadi** as both the Git author and
-committer. Commit trailers that name an additional author, contributor,
-reviewer, generator, or session are rejected, and so are message lines that
-name someone other than the allowed author as the writer of the commit.
-Ordinary documentation that mentions a tool is not affected. The check
-accepts the allowed author's email variants and rejects other identity
-addresses; it does not rewrite existing commits.
+committer. This identifies the maintainer publishing the change; it does not
+assert that the maintainer personally typed every line or worked without
+assistance. Additional Git author/co-author identity trailers remain rejected.
+Factual `Generated-By`, `Assisted-By`, `Reviewed-By`, `Tested-By`, and session
+provenance are allowed in commit messages and tag annotations. The check
+enforces the exact maintainer name and rejects known tool/vendor identities in
+Git name and email fields. It accepts the maintainer's email variants without
+verifying email ownership or applying a general address allowlist. It does not
+rewrite existing commits.
+
+OSTADIX uses AI coding agents for implementation, investigation and review.
+[The development disclosure](AI_ASSISTED_DEVELOPMENT.md) distinguishes that
+assistance from design responsibility and observed validation. Preserve actual
+tool assistance and review records rather than removing them to pass a hook.
+Credit must be accurate: a tool review is not a human review, a generated test
+is not evidence of execution, and a maintainer identity is not proof of source
+ownership or correctness. Keep credentials and private transcripts out of public
+records. The author check neither certifies provenance truth nor scans for secrets.
 
 The owned root and independent-engine Cargo author fields must name the
 allowed author alone. The software and preferred-citation author blocks in
@@ -44,5 +56,5 @@ branch.
 
 Local Git hooks can be bypassed explicitly, and CI runs afterwards. These
 checks are a local gate and a CI regression gate, not a server-side access
-rule. The text checks target known trailer and message forms rather than
-claiming to recognize every possible natural-language claim.
+rule. They enforce the declared publication identity and author metadata;
+they do not infer authorship or responsibility from natural-language prose.

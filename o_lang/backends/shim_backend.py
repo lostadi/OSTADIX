@@ -96,7 +96,7 @@ def _splice_repr(value: OValue) -> str:
 
 class ShimBackend:
     def __init__(self, name: str, shim_dir: Path | None = None, timeout: float = 65):
-        if name not in {"common_lisp", "javascript"}:
+        if name not in {"common_lisp", "javascript", "sql", "bash", "shell"}:
             raise ValueError(f"unsupported stateless shim backend {name!r}")
         self.name = name
         default_shims = Path(__file__).resolve().parents[2] / "backends"
@@ -124,12 +124,19 @@ class ShimBackend:
         return None
 
     def render_child(self, value: OValue) -> str:
-        return _splice_repr(value)
+        from ..foreign_splice import render_literal
+        return render_literal(self.name, value)
 
     def evaluate(self, body: str, env, ctx=None) -> OValue:
         wire = self._wire_protocol()
         request = io.BytesIO()
-        wire.write_wire_message({"cmd": "exec", "code": body}, request)
+        bindings = {}
+        if self.name in {"bash", "shell"}:
+            for name, value in getattr(ctx, "_scope", {}).items():
+                if isinstance(value, (OStr, OInt, OFloat, OBool)):
+                    tag = {OStr: "str", OInt: "int", OFloat: "float", OBool: "bool"}[type(value)]
+                    bindings[name] = {"t": tag, "v": value.value}
+        wire.write_wire_message({"cmd": "exec", "code": body, "bindings": bindings}, request)
         script = self.shim_dir / f"{self.name}_shim.py"
         # A private session lets cancellation terminate the shim and its engine.
         with subprocess.Popen(

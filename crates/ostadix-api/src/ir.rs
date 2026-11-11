@@ -22,6 +22,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use crate::environment::EnvironmentRefV2;
+pub(crate) use crate::foreign_splice::CODE_SPLICE_BUILTIN;
 pub(crate) use crate::native_leaf_identity::{
     digest as native_leaf_digest, BUILTIN as NATIVE_LEAF_BUILTIN,
 };
@@ -211,6 +212,25 @@ pub enum OIr {
     },
 }
 
+pub(crate) fn is_code_splice(node: &OIr) -> bool {
+    matches!(node, OIr::Invoke { fn_name, .. } if fn_name == CODE_SPLICE_BUILTIN)
+}
+
+/// The execution contract uses this canonical OIR boundary rather than
+/// importing syntax-specific segment classification of its own.
+pub(crate) fn validate_foreign_body(lang: &str, body: &[OIr]) -> Result<(), String> {
+    use crate::foreign_splice::{validate_body, Segment};
+    validate_body(
+        lang,
+        body.iter().map(|node| match node {
+            OIr::Text(text) => Segment::Text(text),
+            OIr::Store { .. } => Segment::Text(""),
+            node if is_code_splice(node) => Segment::Code,
+            _ => Segment::Value,
+        }),
+    )
+}
+
 /// A whole lowered program: the IR form of a parsed `.O` document.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OIrProgram {
@@ -381,6 +401,13 @@ fn reconstruct_node(node: &OIr, out: &mut String) {
             reconstruct_node(expr, out);
         }
         OIr::Invoke { fn_name, args, .. } => {
+            if fn_name == crate::foreign_splice::CODE_SPLICE_BUILTIN {
+                if let [OIr::Load(name)] = args.as_slice() {
+                    out.push_str("$!");
+                    out.push_str(name);
+                    return;
+                }
+            }
             out.push_str(fn_name);
             out.push('(');
             for (index, arg) in args.iter().enumerate() {
@@ -882,6 +909,9 @@ impl PlanNodeKind {
 
     pub fn class(&self) -> PlanNodeClass {
         match self {
+            Self::Call { fn_name, .. } if fn_name == crate::foreign_splice::CODE_SPLICE_BUILTIN => {
+                PlanNodeClass::Control
+            }
             Self::Text
             | Self::Load { .. }
             | Self::Store { .. }
@@ -923,6 +953,12 @@ impl PlanNodeKind {
                 mode,
                 arg_count,
             } => {
+                if fn_name == crate::foreign_splice::CODE_SPLICE_BUILTIN {
+                    return format!(
+                        "call code/{arg_count} [{}; code marker; reinterpretation only as immediate foreign splice; no authority grant]",
+                        mode.label()
+                    );
+                }
                 format!("call {fn_name}/{arg_count} [{}]", mode.label())
             }
             PlanNodeKind::Request {
@@ -2897,12 +2933,14 @@ mod tests {
             ("bash^(echo $((16#ff + 0x1c)))_bash", vec![]),
             ("bash^(echo ${s:-a})_bash", vec![]),
             ("sh^(echo $((c + 1)))_sh", vec![]),
-            // a `$name` splice does not end an arithmetic region.
-            ("bash^(echo $(( $c + a )))_bash", vec!["a"]),
-            ("bash^([[ $c -gt a ]] && echo y)_bash", vec!["a"]),
+            // Native `${name}` keeps arithmetic code in the guest. Its
+            // binding and the surrounding bare arithmetic names are data
+            // dependencies of the receiver.
+            ("bash^(echo $(( ${c} + a )))_bash", vec!["a", "c"]),
+            ("bash^([[ ${c} -gt a ]] && echo y)_bash", vec!["a", "c"]),
             (
-                "bash^(s=abc; echo ${s:$c:a}; x[$c+b]=1)_bash",
-                vec!["a", "b"],
+                "bash^(s=abc; echo ${s:${c}:a}; x[${c}+b]=1)_bash",
+                vec!["a", "b", "c"],
             ),
             // escaped arithmetic opts out like `\${x}`.
             (r#"bash^(echo \$((a + 1)) \$[b])_bash"#, vec![]),
@@ -2912,6 +2950,16 @@ mod tests {
             let execs = exec_data_sources(&three_bindings(body));
             let expected: Vec<String> = expected.into_iter().map(String::from).collect();
             assert_eq!(execs.last().unwrap(), &expected, "{body}");
+        }
+        for body in [
+            "bash^(echo $(( $c + a )))_bash",
+            "bash^([[ $c -gt a ]] && echo y)_bash",
+            "bash^(s=abc; echo ${s:$c:a}; x[$c+b]=1)_bash",
+        ] {
+            let source = three_bindings(body);
+            let backends = BackendRegistry::global().registered_backend_tags();
+            let error = Parser::new(&source, &backends).parse().unwrap_err();
+            assert!(error.to_string().contains("value splice"), "{body}: {error}");
         }
     }
 

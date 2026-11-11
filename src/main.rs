@@ -502,6 +502,8 @@ fn observed_graph_execution(evaluator: Option<&Evaluator>) -> serde_json::Value 
             TraceEvent::NodeDiscarded {id,reason} => serde_json::json!({"event":"discarded","plan_node":id.0,"reason":reason}),
         }).collect::<Vec<_>>();
         serde_json::json!({"schema":"ostadix.graph-execution-trace/v1","events":events,
+            "source_renderings":trace.source_renderings,
+            "source_rendering_scope":"actual-source-fragment-preparation; trusted-inline-presentation-only-workers-excluded; not-guest-execution",
             "publications":trace.publications,
             "publication_scope":"actual-successful-semantic-settlement-outputs"})
     });

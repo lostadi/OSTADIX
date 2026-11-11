@@ -63,7 +63,7 @@ class PythonShimBackendTests(unittest.TestCase):
     def test_parser_recognizes_polyglot_binding_rhs_and_preserves_scopes(self):
         document = parse(
             'O^(let phrase = common_lisp^((princ "hello"))_common_lisp '
-            'javascript^(console.log("$phrase"))_javascript)_O'
+            'javascript^(console.log($phrase))_javascript)_O'
         )
         children = [node for node in document.body[0].body
                     if not (isinstance(node, TextPart) and not node.text.strip())]
@@ -73,12 +73,11 @@ class PythonShimBackendTests(unittest.TestCase):
         self.assertEqual(children[1].language, "javascript")
 
     @unittest.skipUnless(LISP_AVAILABLE and shutil.which("node"), "requires Common Lisp and Node.js")
-    def test_python_lisp_javascript_binding_chain(self):
+    def test_explicit_lisp_code_and_javascript_value_chain(self):
         source = (
-            'O^(let greeting = python^("hello")_python '
-            'let phrase = common_lisp^((princ (concatenate \'string "$greeting" '
-            '" from Python and Lisp")))_common_lisp '
-            'javascript^(console.log("$phrase" + " and JavaScript!"))_javascript)_O'
+            'O^(let lisp_source = python^(\'"hello from Python and Lisp"\')_python '
+            'let phrase = common_lisp^((princ $!lisp_source))_common_lisp '
+            'javascript^(console.log($phrase + " and JavaScript!"))_javascript)_O'
         )
         self.assertEqual(run(source), OStr("hello from Python and Lisp and JavaScript!"))
 
@@ -110,9 +109,9 @@ class PythonShimBackendTests(unittest.TestCase):
                     self.assertTrue(math.isnan(value.value))
                 else:
                     self.assertEqual(value.value, expected)
-        for expression, spelling in (("NaN", "NaN"), ("Infinity", "inf"), ("-Infinity", "-inf")):
+        for expression, spelling in (("NaN", "nan"), ("Infinity", "inf"), ("-Infinity", "-inf")):
             source = (f"O^(let value = javascript^(console.log({expression}))_javascript "
-                      'javascript^(console.log("value:$value"))_javascript)_O')
+                      'javascript^(console.log("value:" + $value))_javascript)_O')
             self.assertEqual(run(source), OStr(f"value:{spelling}"))
 
     def test_binary_float_wire_bits_preserve_finite_values_and_signed_zero(self):
@@ -141,21 +140,22 @@ class PythonShimBackendTests(unittest.TestCase):
             with self.subTest(payload=payload), self.assertRaises(ValueError):
                 _from_wire({"t": "number", "v": payload})
 
-    def test_nonfinite_source_splices_match_native_generic_spelling(self):
-        for name in ("javascript", "common_lisp"):
-            for value, spelling in ((math.nan, "NaN"), (math.inf, "inf"), (-math.inf, "-inf")):
-                with self.subTest(name=name, value=value):
-                    self.assertEqual(ShimBackend(name).render_child(OFloat(value)), spelling)
+    def test_nonfinite_javascript_splices_are_inert_text(self):
+        for value, spelling in ((math.nan, '"nan"'), (math.inf, '"inf"'), (-math.inf, '"-inf"')):
+            with self.subTest(value=value):
+                self.assertEqual(ShimBackend("javascript").render_child(OFloat(value)), spelling)
+        with self.assertRaisesRegex(ValueError, "no declared literal renderer"):
+            ShimBackend("common_lisp").render_child(OStr("ordinary data"))
 
     def test_generic_splices_match_native_scalar_and_collection_policy(self):
         backend = ShimBackend("javascript")
         self.assertEqual(backend.render_child(ONull()), "null")
         self.assertEqual(backend.render_child(OBool(True)), "true")
-        self.assertEqual(backend.render_child(OStr("hello")), "hello")
+        self.assertEqual(backend.render_child(OStr("hello")), '"hello"')
         self.assertEqual(backend.render_child(OFloat(1.5)), "1.5")
         self.assertEqual(backend.render_child(OFloat(-0.0)), "-0.0")
         self.assertEqual(backend.render_child(OMap((("z", OInt(2)), ("a", OBool(False))))),
-                         '{"a": false, "z": 2}')
+                         '({["a"]:false,["z"]:2})')
 
     def test_shim_error_is_not_retried_and_retains_diagnostic(self):
         with tempfile.TemporaryDirectory() as directory:

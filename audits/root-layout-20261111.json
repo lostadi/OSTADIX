@@ -1,0 +1,71 @@
+{
+  "schema": "ostadix.historical-layout-relocation/v1",
+  "base": "1da570dcc61ef10285fc8c8b78a20ca087081daf",
+  "scope": "Historical data and development leftovers relocated byte-for-byte; no production patch or runtime input was removed. Old evidence paths retain their original source coordinates.",
+  "records": [
+    {
+      "old_path": "O-lang-variance-proportional-scheduler.patch",
+      "path": "audits/historical-patches/O-lang-variance-proportional-scheduler.patch",
+      "git_blob_at_base": "62b1a87d8e5dc081aa59896cfda89bec74b50385",
+      "bytes": 99327,
+      "sha256": "4211468aae8ca61aeee8e3eec6ce668f0f9d7a0b0ab8627d21817c4f9b7b00a5",
+      "mode": "0o775"
+    },
+    {
+      "old_path": "olang-c-backend.patch",
+      "path": "audits/historical-patches/olang-c-backend.patch",
+      "git_blob_at_base": "be6aa5d20eb3bd6592d95352a92d7a64f4e6056e",
+      "bytes": 4722,
+      "sha256": "587d6e4f21067a034132c51f2b342474363f3e134b2a9050bcf21b369660c194",
+      "mode": "0o664"
+    },
+    {
+      "old_path": "ostadix-assistant-evidence.patch",
+      "path": "audits/historical-patches/ostadix-assistant-evidence.patch",
+      "git_blob_at_base": "e83c664a664fa45c971767abab696ea7dc816dd3",
+      "bytes": 3189,
+      "sha256": "3333d6dfe7e158bf28ddb704cf9c1d3694fee61e1a4b5b4022021dd2d1d85f69",
+      "mode": "0o775"
+    },
+    {
+      "old_path": "Contents-i386.gz",
+      "path": "audits/historical-inputs/Contents-i386.gz",
+      "git_blob_at_base": "7922b16bb7f5ed1525eebf598e7b601b56eff9d8",
+      "bytes": 16869,
+      "sha256": "79b26e97024813c0042f3ee7437fe950e0920fd68fb8e17e66368044ddd600a8",
+      "mode": "0o664"
+    },
+    {
+      "old_path": "ostadix-runtime-census-v1.tar.gz",
+      "path": "audits/historical-inputs/ostadix-runtime-census-v1.tar.gz",
+      "git_blob_at_base": "baba6ed8cb3637ea043affee188a1a0353471766",
+      "bytes": 24339,
+      "sha256": "79330b1e15ae3e694568312f69a44000a8eb273fab8cdd0d86bde5cc815006da",
+      "mode": "0o664"
+    },
+    {
+      "old_path": "patch_medieval_ragdoll.py",
+      "path": "audits/historical-tools/patch_medieval_ragdoll.py",
+      "git_blob_at_base": "ceef974cbe65e917b32b4f4a8f90249f8367de91",
+      "bytes": 5896,
+      "sha256": "5383af33c0e82f6ba597046de4493d3f51e7e66479e4f2e453e48428228c61f2",
+      "mode": "0o775"
+    },
+    {
+      "old_path": ".arena-upgrade-backup/boxing.O.bak",
+      "path": "audits/historical-inputs/arena-upgrade-backup/boxing.O.bak",
+      "git_blob_at_base": "56e9f16c84ad606c10f0552dd45f02f180a3a5db",
+      "bytes": 99740,
+      "sha256": "110f83e9369e92f5b63378cc5b60f461b18172d98c0d46498721ab03a7b7b158",
+      "mode": "0o775"
+    },
+    {
+      "old_path": ".arena-upgrade-backup/medieval.O.bak",
+      "path": "audits/historical-inputs/arena-upgrade-backup/medieval.O.bak",
+      "git_blob_at_base": "e1cf567887885bf75bb27a0f899b8ba3b5eec143",
+      "bytes": 146054,
+      "sha256": "6177560ecfcee8c3107a55cabcdbf2769ce7c30d555e808020fe8c72c905bb1d",
+      "mode": "0o664"
+    }
+  ]
+}

@@ -1839,6 +1839,10 @@ static bool json_match_literal(JsonParser *p, const char *lit) {
 }
 
 static bool sb_append_codepoint_utf8(StringBuilder *sb, unsigned codepoint) {
+    if (codepoint == 0U) {
+        fprintf(stderr,"C17 NUL text is unsupported by the null-terminated string representation\n");
+        return false;
+    }
     if (codepoint <= 0x7fU) {
         return sb_append_char(sb, (char)codepoint);
     }
@@ -2960,6 +2964,11 @@ static JsonNode *cbor_decode_node(CborReader *r) {
             return NULL;
         }
         if (length > 0U && !cbor_read_exact(r, text, (size_t)length)) {
+            free(text);
+            return NULL;
+        }
+        if (length > 0U && memchr(text, '\0', (size_t)length) != NULL) {
+            fprintf(stderr,"C17 NUL text is unsupported by the null-terminated string representation\n");
             free(text);
             return NULL;
         }

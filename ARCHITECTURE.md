@@ -177,7 +177,7 @@ Ostadix-lang processes hosted code through a 7-stage pipeline:
    values with the renderer embedded in OIR, resolves the block's live backend
    capability, and executes the selected operation. Request values created by
    OIR carry compositional fingerprints into the existing eager/autonomous
-   request scheduler; that scheduler remains a separate authority in V5.
+   request scheduler; that scheduler remains a separate authority in the active V6 ordinary-execution boundary.
 
 7. **Settle and observe** — Materialize successful value, completion, and state
    outputs, select deterministic failures, and emit traces or receipts only
@@ -269,7 +269,7 @@ and actor-state serialization.
 ### Evidence-bound admission
 
 `crates/ostadix-api/src/evidence/` separates pre-execution certificates from post-execution
-observations. `EvidenceBundleV5` records per-operation type, effect, dispatch,
+observations. `EvidenceBundleV6` records per-operation type, effect, dispatch,
 capability, placement, failure, resource-demand, and cost contracts together
 with provenance. Hard contracts determine whether execution is legal. Cost
 estimates are soft evidence: they may eventually rank an already-legal
@@ -308,7 +308,7 @@ event.
 This authority boundary is currently the ordinary OIR execution path only.
 The buffered Request scheduler and `ProjectCoordinator` remain separate, and
 enforced strict hosted effect contracts, renewable CPU/memory/device admission,
-and actor-owned persistent environments remain future work. Evidence schema V5 binds
+and actor-owned persistent environments remain future work. Evidence schema V6 binds
 each dispatch contract to one stable preparation adapter ID. The runtime may
 validate that exact adapter against the admitted OIR, but cannot reclassify the
 operation through a second scheduling authority. The current `LocalWorker`
@@ -349,7 +349,7 @@ lease only when an uncached Nix Request is actually performed; lazy, cached,
 and independent non-Nix members retain their prior capacity and failure
 semantics.
 `ActorResourceId` remains a
-serialization identity in V5, and unknown actor work cannot use this gap to
+serialization identity in the active V6 boundary, and unknown actor work cannot use this gap to
 remove `HostWorld` or actor dependencies.
 
 Post-execution `RuntimeGraphV1` and `ExecutionReceiptV1` artifacts remain typed

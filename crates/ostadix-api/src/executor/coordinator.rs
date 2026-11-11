@@ -268,7 +268,7 @@ impl<'a> Coordinator<'a> {
 
         if physical_attempt_adapter.is_some() {
             if let Err(error) = self.validate_remote_selection() {
-                evaluator.install_execution_trace(std::mem::take(&mut self.trace).into_trace());
+                evaluator.install_execution_trace(self.take_observed_trace());
                 return Err(error);
             }
         }
@@ -279,7 +279,7 @@ impl<'a> Coordinator<'a> {
             match adapter.create_driver() {
                 Ok(driver) => Some(driver),
                 Err(error) => {
-                    evaluator.install_execution_trace(std::mem::take(&mut self.trace).into_trace());
+                    evaluator.install_execution_trace(self.take_observed_trace());
                     return Err(error);
                 }
             }
@@ -287,7 +287,7 @@ impl<'a> Coordinator<'a> {
             match evaluator.take_local_worker_pool(worker_capacity) {
                 Ok(pool) => Some(Box::new(LocalWorkerDriver::from_pool(pool))),
                 Err(error) => {
-                    evaluator.install_execution_trace(std::mem::take(&mut self.trace).into_trace());
+                    evaluator.install_execution_trace(self.take_observed_trace());
                     return Err(error);
                 }
             }
@@ -300,21 +300,29 @@ impl<'a> Coordinator<'a> {
             }
         }
         if let Err(err) = execution {
-            evaluator.install_execution_trace(std::mem::take(&mut self.trace).into_trace());
+            evaluator.install_execution_trace(self.take_observed_trace());
             return Err(err);
         }
 
-        let last = self.commit(scope)?;
+        let result = (|| {
+            let last = self.commit(scope)?;
+            if self.base_policy == Policy::Autonomous {
+                evaluator.flush_autonomous_buffer()?;
+                evaluator.resolve_after_flush(last)
+            } else {
+                Ok(last)
+            }
+        })();
+        evaluator.install_execution_trace(self.take_observed_trace());
+        result
+    }
 
-        let last = if self.base_policy == Policy::Autonomous {
-            evaluator.flush_autonomous_buffer()?;
-            evaluator.resolve_after_flush(last)?
-        } else {
-            last
-        };
-
-        evaluator.install_execution_trace(std::mem::take(&mut self.trace).into_trace());
-        Ok(last)
+    fn take_observed_trace(&mut self) -> ExecutionTrace {
+        let mut trace = std::mem::take(&mut self.trace).into_trace();
+        trace
+            .source_renderings
+            .append(&mut self.frame.trace.source_renderings);
+        trace
     }
 
     /// Literal `Text` plan nodes carry no operation hyperedge; they start
@@ -830,7 +838,7 @@ impl<'a> Coordinator<'a> {
                                 TaskToken(index),
                                 parallel::prepare(
                                     self.ops[index].dispatch_adapter,
-                                    &self.frame,
+                                    &mut self.frame,
                                     self.plan,
                                     id,
                                     self.flat[id.0],
@@ -839,32 +847,33 @@ impl<'a> Coordinator<'a> {
                             )
                         }
                     } else {
+                        let shim_runtime = match self.ops[index].dispatch_adapter {
+                            DispatchAdapterV1::AutonomousEphemeralShimV1 => {
+                                let OIr::Exec { backend, .. } = self.flat[id.0] else {
+                                    unreachable!("ephemeral shim adapter requires an Exec node")
+                                };
+                                let authority_scope =
+                                    self.frame.scope_from_data_edges(id, self.plan)?;
+                                let sandbox = evaluator.authorize_autonomous_ephemeral_shim(
+                                    backend,
+                                    &authority_scope,
+                                )?;
+                                Some(parallel::EphemeralShimRuntime::new(
+                                    evaluator.shim_path(&backend.canonical),
+                                    sandbox,
+                                    self.admitted.executable_leases()?,
+                                    evaluator.morphism_contract(),
+                                ))
+                            }
+                            _ => None,
+                        };
                         let task = parallel::prepare(
                             self.ops[index].dispatch_adapter,
-                            &self.frame,
+                            &mut self.frame,
                             self.plan,
                             id,
                             self.flat[id.0],
-                            match self.ops[index].dispatch_adapter {
-                                DispatchAdapterV1::AutonomousEphemeralShimV1 => {
-                                    let OIr::Exec { backend, .. } = self.flat[id.0] else {
-                                        unreachable!("ephemeral shim adapter requires an Exec node")
-                                    };
-                                    let authority_scope =
-                                        self.frame.scope_from_data_edges(id, self.plan)?;
-                                    let sandbox = evaluator.authorize_autonomous_ephemeral_shim(
-                                        backend,
-                                        &authority_scope,
-                                    )?;
-                                    Some(parallel::EphemeralShimRuntime::new(
-                                        evaluator.shim_path(&backend.canonical),
-                                        sandbox,
-                                        self.admitted.executable_leases()?,
-                                        evaluator.morphism_contract(),
-                                    ))
-                                }
-                                _ => None,
-                            },
+                            shim_runtime,
                         )?;
                         TaskSubmission::new(TaskToken(index), task)
                     },
@@ -2109,7 +2118,7 @@ mod tests {
         let id = coordinator.ops[first].plan_node;
         let task = parallel::prepare(
             coordinator.ops[first].dispatch_adapter,
-            &coordinator.frame,
+            &mut coordinator.frame,
             &plan,
             id,
             coordinator.flat[id.0],
@@ -2224,7 +2233,7 @@ mod tests {
         let first_id = coordinator.ops[first].plan_node;
         let task = parallel::prepare(
             coordinator.ops[first].dispatch_adapter,
-            &coordinator.frame,
+            &mut coordinator.frame,
             &plan,
             first_id,
             coordinator.flat[first_id.0],

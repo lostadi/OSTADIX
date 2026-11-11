@@ -29,6 +29,7 @@ from .parser import (
     LetBinding,
     TextPart,
     VarRef,
+    validate_tree,
 )
 
 
@@ -68,6 +69,7 @@ def evaluate_document(doc: Document, ctx: EvalContext = None) -> OValue:
     an implicit text[0] wrapper so that every document has a single root.
     """
     ctx = ctx or EvalContext()
+    validate_tree(doc)
     scope: Dict[str, OValue] = {}
 
     top_body = doc.body
@@ -139,7 +141,9 @@ def _eval_expression_scoped(
     ctx: EvalContext,
     scope: Dict[str, OValue],
 ) -> OValue:
+    validate_tree(node)
     backend = ctx.backend_for(node.canonical_language)
+    from .foreign_splice import PRESENTATION, render_literal, render_explicit_code
 
     eval_ast = getattr(backend, "eval_ast", None)
     if callable(eval_ast):
@@ -155,14 +159,15 @@ def _eval_expression_scoped(
             # Substitute variable reference from scope.
             val = scope.get(child.name)
             if val is None:
-                # Emit the raw $name text so it reaches the backend
-                # (might be a Python variable already in the backend env).
-                buf.append(f"${child.name}")
+                if node.canonical_language in PRESENTATION and not child.explicit_code:
+                    buf.append(f"${child.name}")
+                    continue
+                raise ValueError(f"undefined O variable ${child.name}; guest-native bindings use ${{name}}")
             else:
-                buf.append(backend.render_child(val))
+                buf.append(render_explicit_code(val) if child.explicit_code else render_literal(node.canonical_language, val, backend.render_child))
         elif isinstance(child, ExpressionNode):
             child_value = _eval_expression(child, ctx, scope)
-            buf.append(backend.render_child(child_value))
+            buf.append(render_literal(node.canonical_language, child_value, backend.render_child))
         else:
             raise TypeError(f"Unknown AST child node: {child!r}")
 

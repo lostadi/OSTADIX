@@ -4,8 +4,38 @@ governance was introduced. It does not reconstruct every historical commit.
 Package SemVer is only one of the independent coordinates documented in
 <a href="docs/VERSIONING.md">docs/VERSIONING.md</a>.</p>
 <h2><a href="https://github.com/lostadi/OSTADIX/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD">Unreleased</a></h2>
+<h3>Changed</h3>
+<ul>
+<li>Foreign value splices now use the receiving backend&#39;s declared data renderer.
+Ordinary holes inside guest strings, comments, unsupported nested syntax or
+adjacent identifiers are rejected before evaluation. SQL templates use
+<code>SELECT $name</code>, rather than <code>SELECT &#39;$name&#39;</code>. Deliberate source generation
+uses the explicit <code>$!name</code> code splice; this records reinterpretation and
+grants no additional authority. The current contract and edition limits are
+in <a href="docs/CURRENT_CONTRACT.md">docs/CURRENT_CONTRACT.md</a>.</li>
+<li>Rust backend steps now have a 120-second default limit.
+<code>O_BACKEND_STEP_TIMEOUT_MS</code> accepts 1 through 604800000 milliseconds; the exact value <code>disabled</code> explicitly
+selects an unbounded step. Operation and heartbeat deadlines remain separate.</li>
+<li>SQLite requests use independent input files and completion framing. Malformed
+literals fail promptly, and the Python shim splits complete SQL statements
+without splitting semicolons inside strings or trigger bodies.</li>
+<li>Execution traces can retain prepared source-rendering observations, including
+explicit code reinterpretation. These observations describe preparation;
+they do not establish guest execution, completion or a universal confinement
+theorem.</li>
+<li>The short README links to the complete preserved reference and a focused
+research note. Publication identity policy now explicitly allows truthful
+AI-assistance and review provenance. Historical root inputs and patches are
+retained under <code>audits/</code> with byte identities.</li>
+</ul>
 <h3>Added</h3>
 <ul>
+<li><p>A required public boundary-contract CI lane and a standalone reproduction
+runner preserve all seven reported splice witnesses and corrected data
+cases. The concurrent CI-shard benchmark compares identical work against a
+Python thread-pool baseline with independent artifact checks; a harness alone
+is not a measured performance result.</p>
+</li>
 <li><p>A runtime-only setup profile builds the evaluator, command front door,
 orchestration compiler, native O-core compiler, and separately locked MCP
 server. Native runtime bundle tooling retains exact source and build

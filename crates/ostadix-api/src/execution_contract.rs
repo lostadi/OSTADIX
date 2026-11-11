@@ -180,6 +180,11 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                     );
                 }
                 let canonical_mode = InvokeMode::for_name(fn_name);
+                if fn_name == crate::ir::CODE_SPLICE_BUILTIN
+                    && !matches!(args.as_slice(), [OIr::Load(_)])
+                {
+                    bail!("explicit code splice requires exactly one variable load; use `$!name` (stored Text stays an ordinary value)");
+                }
                 if *mode != canonical_mode {
                     bail!(
                         "OIR invocation `{fn_name}` uses mode {}, but canonical lowering requires {}",
@@ -224,8 +229,12 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                 lang,
                 attr,
                 backend,
+                body,
                 ..
-            } => validate_exec_metadata(lang, attr.as_deref(), backend)?,
+            } => {
+                validate_exec_metadata(lang, attr.as_deref(), backend)?;
+                crate::ir::validate_foreign_body(lang, body).map_err(anyhow::Error::msg)?;
+            }
             _ => {}
         }
     }

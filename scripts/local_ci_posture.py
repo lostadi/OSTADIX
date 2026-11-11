@@ -10,6 +10,7 @@ started internally by cargo-deny is confined to a temporary repository mirror.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -28,6 +29,7 @@ CI_WORKFLOW = Path(".github/workflows/ci.yml")
 DEPENDABOT = Path(".github/dependabot.yml")
 REQUIRED_JOBS = Path("ci/required-jobs.toml")
 TEST_SUITES = Path("ci/test-suites.toml")
+WORKFLOW_REVIEWS = Path("ci/workflow-reviews.toml")
 SOURCE_RELEASE = Path("scripts/build_source_release.py")
 
 REPORT_SCHEMA = "ostadix.local-ci-posture/v1"
@@ -185,7 +187,7 @@ def _load_toml(
     try:
         with absolute.open("rb") as handle:
             return tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError) as error:
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
         report.finding(check_id, f"cannot load required TOML: {error}", path=path.as_posix())
         return None
 
@@ -440,6 +442,138 @@ def _workflow_job_body(text: str, job_name: str) -> str | None:
         text,
     )
     return None if match is None else match.group("body")
+
+
+def _reviewed_workflow_scope(text: str, review: dict[str, object]) -> bool:
+    """Keep the two source-bound reviews within their declared job scopes."""
+    job = str(review["job"])
+    match = re.search(
+        rf"(?ms)^  {re.escape(job)}:\s*\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\s*$|\Z)",
+        text,
+    )
+    if match is None:
+        return False
+    first_line = text.count("\n", 0, match.start("body")) + 1
+    body = match.group("body")
+    line = int(review["line"])
+    if not first_line <= line < first_line + len(body.splitlines()):
+        return False
+    selected = text.splitlines()[line - 1].strip()
+    if review["finding_id"] == "baseline.workflows.permissions":
+        return (
+            selected == "contents: write"
+            and _workflow_job_needs(body) == ["native"]
+            and re.search(
+                r"(?m)^    if: github\.event_name == 'release' && github\.event\.action == 'published'$",
+                body,
+            ) is not None
+        )
+    if selected != "runs-on: ${{ matrix.runner }}":
+        return False
+    matrix = re.search(
+        r"(?ms)^      matrix:\s*\n(?P<entries>.*?)(?=^    \S|\Z)", body
+    )
+    if matrix is None:
+        return False
+    entries = [
+        line.rstrip()
+        for line in matrix.group("entries").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    return entries == [
+        "        include:",
+        "          - runner: ubuntu-24.04-arm",
+        "            target: aarch64-unknown-linux-gnu",
+        "          - runner: macos-15",
+        "            target: aarch64-apple-darwin",
+    ]
+
+
+def audit_workflow_reviews(report: PostureReport, root: Path) -> None:
+    check_id = "baseline.workflows.reviews"
+    document = _load_toml(report, root, WORKFLOW_REVIEWS, check_id)
+    if document is None:
+        return
+    reviews = document.get("reviews")
+    allowed_scopes = {
+        (".github/workflows/native-runtime-release.yml", "native", "baseline.workflows.self-hosted"),
+        (".github/workflows/native-runtime-release.yml", "publish", "baseline.workflows.permissions"),
+    }
+    required_fields = {"workflow", "sha256", "job", "finding_id", "line", "reason"}
+    malformed = (
+        set(document) != {"schema", "reviews"}
+        or document.get("schema") != "ostadix.workflow-reviews/v1"
+        or not isinstance(reviews, list)
+    )
+    seen = set()
+    if not malformed:
+        for review in reviews:
+            if not isinstance(review, dict) or set(review) != required_fields:
+                malformed = True
+                break
+            strings_valid = all(
+                isinstance(review[key], str) and review[key].strip()
+                for key in required_fields - {"line"}
+            )
+            if not strings_valid or type(review["line"]) is not int or review["line"] <= 0:
+                malformed = True
+                break
+            scope = (review["workflow"], review["job"], review["finding_id"])
+            identity = (review["workflow"], review["finding_id"], review["line"])
+            if (
+                scope not in allowed_scopes
+                or re.fullmatch(r"[0-9a-f]{64}", review["sha256"]) is None
+                or identity in seen
+            ):
+                malformed = True
+                break
+            seen.add(identity)
+    if malformed:
+        report.finding(
+            check_id,
+            "workflow reviews must declare unique supported scopes, exact SHA-256, line and reason",
+            path=WORKFLOW_REVIEWS.as_posix(),
+        )
+        return
+
+    for review in reviews:
+        workflow = str(review["workflow"])
+        path = root / workflow
+        try:
+            if any((root / Path(*Path(workflow).parts[:end])).is_symlink()
+                   for end in range(1, len(Path(workflow).parts) + 1)):
+                raise ValueError("reviewed workflow path contains a symlink")
+            data = path.read_bytes()
+            actual = hashlib.sha256(data).hexdigest()
+            if actual != review["sha256"]:
+                raise ValueError(f"reviewed SHA-256 {review['sha256']} differs from {actual}")
+            if not _reviewed_workflow_scope(data.decode("utf-8"), review):
+                raise ValueError("reviewed job no longer has its declared release or hosted-runner scope")
+        except (OSError, UnicodeError, ValueError) as error:
+            report.finding(check_id, str(error), path=workflow, line=int(review["line"]))
+            continue
+        matches = [
+            record for record in report.checks
+            if record["status"] == "finding"
+            and record["id"] == review["finding_id"]
+            and record.get("path") == workflow
+            and record.get("line") == review["line"]
+        ]
+        if len(matches) != 1:
+            report.finding(
+                check_id,
+                "review does not match exactly one detected workflow finding",
+                path=workflow,
+                line=int(review["line"]),
+            )
+            continue
+        record = matches[0]
+        record["status"] = "pass"
+        record["message"] = (
+            f"reviewed SHA-256 {actual}, job {review['job']}: {review['reason']}; "
+            f"detected: {record['message']}"
+        )
+        record["review"] = dict(review)
 
 
 def _workflow_job_needs(body: str) -> list[str]:
@@ -1256,6 +1390,7 @@ def audit_repository(
         )
         audit_action_pins(report, root, workflows)
         audit_workflow_safety(report, root, workflows)
+        audit_workflow_reviews(report, root)
     audit_required_wiring(report, root)
     audit_dependabot(report, root)
     audit_release_contract(report, root)

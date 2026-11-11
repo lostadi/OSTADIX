@@ -16,6 +16,10 @@ extern "C" {
 #define OLANG_ENV_LINKER_ISOLATED (UINT32_MAX - UINT32_C(1))
 #define OLANG_ENV_MAX_PERSISTENT (UINT32_MAX - UINT32_C(2))
 
+/* Source-splice contract v1; existing AST enum values/union layout unchanged.
+   `$!name` is represented by the existing Call("code", [VarRef(name)]). */
+#define OLANG_SPLICE_CONTRACT_VERSION 1
+
 static inline bool olang_env_is_fresh(uint32_t env_id) {
     return env_id == OLANG_ENV_EPHEMERAL || env_id == OLANG_ENV_LINKER_ISOLATED;
 }
@@ -102,6 +106,8 @@ void parser_init(OParser *p, const char *source, const StringSet *backends);
 /* Parse the full document. Returns a list of ONodes. On error, returns NULL
    and parser->error_msg contains the error description. */
 ONodeList *parser_parse(OParser *p);
+bool olang_node_is_code_splice(const ONode *node);
+bool olang_validate_source_tree(ONode **nodes, size_t len, char *error, size_t error_cap);
 
 /* Free an ONode and all its children */
 void onode_free(ONode *node);

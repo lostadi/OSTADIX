@@ -1,0 +1,59 @@
+<h1>Concurrent CI baseline</h1>
+<p><code>scripts/benchmark_concurrent_baseline.py</code> compares three execution paths over
+the exact three Bash commands in <code>ci_shards.O</code>. The fixture explicitly declares
+independent test shards. Each arm writes its own <code>o-cli</code>, <code>setup</code> and <code>boot-iso</code>
+logs, and receives the same front-door environment and worker budget.</p>
+<p>The Python child dispatches these commands with <code>ThreadPoolExecutor</code>. Serial O
+and graph O both perform their normal parsing and admission. Their complete
+process startup, execution, trace serialization and teardown contribute to the
+measured wall time. The Python process startup, imports, pool and Bash children
+also contribute to its wall time. Python receives the fixture&#39;s independence
+declaration directly. O additionally records its admission and execution trace.</p>
+<p>Run from a checkout with Python 3.11+, Bash, Git, Python&#39;s unittest module,
+<code>grep</code>, <code>sed</code> and <code>tail</code>. Build matching O, <code>olangc</code> and native <code>o-cli</code> binaries
+first. Their exact hashes and the declared build profile enter the report.</p>
+<pre><code class="language-sh">python3 scripts/benchmark_concurrent_baseline.py \
+  --o-bin target/release/O \
+  --olangc-bin target/release/olangc \
+  --native-cli-bin target/release/o-cli \
+  --binary-profile release \
+  --workers 3 --warmups 1 --repetitions 7 \
+  --output /path/to/empty-evidence-directory
+</code></pre>
+<p>Repeat with <code>--workers 1</code> and a fresh output directory for a capacity control.
+All arms share this limit. The three cyclic execution orders rotate across
+samples. Seven measured repetitions give position counts of 3/2/2, recorded
+for each arm. A multiple of three repetitions gives equal position counts.
+Validated warmups are retained and excluded from the reported ratios.</p>
+<p>The output directory preserves each command, exit code, raw stdout/stderr,
+full logs, semantic manifests and raw whole-process times. Independent log
+validation requires exactly the three expected files, one positive <code>Ran N</code>
+summary per file, one terminal exact <code>OK</code>, and matching returned suite counts.
+Skipped, expected-failure, missing, extra and corrupt results fail validation.
+Each three-arm sample must produce an identical semantic manifest. A failed
+sample retains all three arms and produces a failed report without performance
+statistics. Selected source and executable identities are checked again at
+completion.</p>
+<p>Inspection runs outside the sample timer and binds the three task PlanNodeIds
+to the runtime OIR/plan identities. Runtime traces must contain complete,
+successful lifecycle events for those exact nodes and respect the configured
+worker bound. The reported peak counts outstanding admitted Bash operations
+between submission and semantic settlement. Baseline subprocess timestamps
+separately count spawned, unreaped children. These measurements describe their
+respective lifecycle boundaries. Physical CPU overlap needs additional evidence.</p>
+<p>Startup probes record O version reporting and Python imports/empty executor
+creation with their distinct scopes. A separate three-operation Bash <code>:</code>
+control records whole-process cost, including O parsing/admission. Its per-op
+field divides this total by three. It measures an amortized control cost with
+startup included. Control times are kept separate from useful-work times.</p>
+<p>The report provides raw samples, median, median absolute deviation, extrema
+and paired geometric mean ratios for serial/graph, serial/concurrent and
+concurrent/graph. Ratios are descriptive for the recorded machine, source,
+tools, binaries, environment and workload. The harness applies correctness
+gates throughout and leaves performance thresholds to the reader.</p>
+<p>Fixture extraction accepts the reviewed SHA-256 embedded in the runner and
+the exact three-lane static wrapper. It retains body newlines and decodes only
+the O parser&#39;s backslash-dollar escape. A changed fixture requires another
+source review. The focused harness tests use controlled child tools to test
+failure handling. Actual workload qualification comes from the retained logs
+of a completed run against the selected O binaries.</p>

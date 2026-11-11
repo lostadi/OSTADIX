@@ -49,34 +49,9 @@ def _json_to_oval(x: Any) -> OValue:
 
 
 def _render_nix(v: OValue) -> str:
-    """Render an OValue as a syntactically valid Nix expression fragment."""
-    if isinstance(v, ONull):
-        return "null"
-    if isinstance(v, OBool):
-        return "true" if v.value else "false"
-    if isinstance(v, OInt):
-        return str(v.value)
-    if isinstance(v, OFloat):
-        return repr(v.value)
-    if isinstance(v, OStr):
-        # JSON-encode to get Nix double-quoted string with correct escaping.
-        return json.dumps(v.value)
-    if isinstance(v, OStorePath):
-        # A store path can be used directly as a Nix path literal.
-        return json.dumps(v.path)
-    if isinstance(v, OList):
-        items = " ".join(_render_nix(x) for x in v.items)
-        return f"[ {items} ]"
-    if isinstance(v, OMap):
-        pairs = " ".join(f"{k} = {_render_nix(val)};" for k, val in v.pairs)
-        return f"{{ {pairs} }}"
-    if isinstance(v, OBlob):
-        # Base64-encode the blob and carry it as a Nix string — best effort.
-        import base64
-        b64 = base64.b64encode(v.data).decode("ascii")
-        return json.dumps(b64)
-    # OExpr and unknowns: render as a Nix comment placeholder.
-    return json.dumps(repr(v))
+    """Use the same bounded literal profile as document evaluation."""
+    from ..foreign_splice import render_literal
+    return render_literal("nix", v)
 
 
 class NixBackend:

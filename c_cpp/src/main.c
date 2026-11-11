@@ -18,6 +18,10 @@ static char *read_file(const char *path) {
     char *buf = (char *)malloc((size_t)sz + 1);
     if (!buf) { fclose(f); return NULL; }
     size_t n = fread(buf, 1, (size_t)sz, f);
+    if (memchr(buf, '\0', n) != NULL) {
+        fprintf(stderr,"C17 NUL source text is unsupported\n");
+        free(buf);fclose(f);return NULL;
+    }
     buf[n] = 0;
     fclose(f);
     return buf;

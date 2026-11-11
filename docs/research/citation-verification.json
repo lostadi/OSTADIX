@@ -1,0 +1,133 @@
+{
+  "schema": "ostadix.primary-citation-verification/v1",
+  "verified_date": "2026-11-11",
+  "method": "Primary author/institution/conference/project pages and papers checked using web browsing; no verbatim paper passages copied",
+  "entries": [
+    {
+      "key": "matthews2007",
+      "authors": [
+        "Jacob Matthews",
+        "Robert Bruce Findler"
+      ],
+      "title": "Operational Semantics for Multi-Language Programs",
+      "venue": "POPL",
+      "year": 2007,
+      "primary_url": "https://users.cs.northwestern.edu/~robby/pubs/papers/popl2007-mf-bw-save.pdf",
+      "supported_comparison": "Lump/natural embedding distinction and operational boundary modeling."
+    },
+    {
+      "key": "su2006",
+      "authors": [
+        "Zhendong Su",
+        "Gary Wassermann"
+      ],
+      "title": "The Essence of Command Injection Attacks in Web Applications",
+      "venue": "POPL",
+      "year": 2006,
+      "primary_url": "https://www.cs.ucdavis.edu/~su/publications/popl06.pdf",
+      "supported_comparison": "Injection as unintended syntactic structure; grammar-based prevention, not a theorem about OSTADIX."
+    },
+    {
+      "key": "bravenboer2007",
+      "authors": [
+        "Martin Bravenboer",
+        "Eelco Dolstra",
+        "Eelco Visser"
+      ],
+      "title": "Preventing Injection Attacks with Syntax Embeddings",
+      "venue": "GPCE; corresponding TUD-SERG-2007-003 report",
+      "year": 2007,
+      "primary_url": "https://repository.tudelft.nl/file/File_a8f8bddf-3f95-4790-83fb-f6d0c107fe32",
+      "supported_comparison": "Syntax embeddings address injection in host/guest compositions."
+    },
+    {
+      "key": "omar2014",
+      "authors": [
+        "Cyrus Omar",
+        "Darya Kurilova",
+        "Ligia Nistor",
+        "Benjamin Chung",
+        "Alex Potanin",
+        "Jonathan Aldrich"
+      ],
+      "title": "Safely Composable Type-Specific Languages",
+      "venue": "ECOOP",
+      "year": 2014,
+      "primary_url": "https://potanin.github.io/files/OmarKurilovaNistorChungPotaninAldrichECOOP2014.pdf",
+      "supported_comparison": "Expected types drive delimited literal parsing/elaboration; six authors."
+    },
+    {
+      "key": "omar2018",
+      "authors": [
+        "Cyrus Omar",
+        "Jonathan Aldrich"
+      ],
+      "title": "Reasonably Programmable Literal Notation",
+      "venue": "PACMPL 2 (ICFP), article 106",
+      "year": 2018,
+      "primary_url": "https://www.cs.cmu.edu/~aldrich/papers/icfp18-notation.pdf",
+      "supported_comparison": "Typed literal macros; verified exact title/authors/2018 venue and DOI 10.1145/3236801."
+    },
+    {
+      "key": "vanwyk2007",
+      "authors": [
+        "Eric R. Van Wyk",
+        "August C. Schwerdfeger"
+      ],
+      "title": "Context-Aware Scanning for Parsing Extensible Languages",
+      "venue": "GPCE",
+      "year": 2007,
+      "primary_url": "https://www-users.cse.umn.edu/~evw/pubs/vanwyk07gpce/vanwyk07gpce.pdf",
+      "supported_comparison": "Scanner uses parser context for lexical disambiguation; not an OSTADIX lexer proof."
+    },
+    {
+      "key": "eco2014",
+      "authors": [
+        "Lukas Diekmann",
+        "Laurence Tratt"
+      ],
+      "title": "Eco: A Language Composition Editor",
+      "venue": "SLE",
+      "year": 2014,
+      "primary_url": "https://soft-dev.org/pubs/html/diekmann_tratt__eco_a_language_composition_editor/",
+      "supported_comparison": "Incremental composition editor and language boxes."
+    },
+    {
+      "key": "pyhyp2016",
+      "authors": [
+        "Edd Barrett",
+        "Carl Friedrich Bolz",
+        "Lukas Diekmann",
+        "Laurence Tratt"
+      ],
+      "title": "Fine-grained Language Composition: A Case Study",
+      "venue": "ECOOP, LIPIcs 56, 3:1-3:27",
+      "year": 2016,
+      "primary_url": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ECOOP.2016.3",
+      "supported_comparison": "PHP/Python fine-grained composition; distinct from the 2014 Eco paper."
+    },
+    {
+      "key": "cousot1977",
+      "authors": [
+        "Patrick Cousot",
+        "Radhia Cousot"
+      ],
+      "title": "Abstract Interpretation: A Unified Lattice Model for Static Analysis of Programs by Construction or Approximation of Fixpoints",
+      "venue": "POPL",
+      "year": 1977,
+      "primary_url": "https://www.di.ens.fr/~cousot/COUSOTpapers/POPL77.shtml",
+      "supported_comparison": "Abstraction/concretization context; does not supply this implementation with semantic or convergence correctness."
+    },
+    {
+      "key": "graalvm",
+      "authors": [
+        "GraalVM Project"
+      ],
+      "title": "Polyglot Programming",
+      "venue": "Official reference manual",
+      "year": null,
+      "primary_url": "https://www.graalvm.org/latest/reference-manual/polyglot-programming/",
+      "supported_comparison": "Interop message protocol and supported-language value exchange; no blanket arbitrary-language preservation claim."
+    }
+  ]
+}

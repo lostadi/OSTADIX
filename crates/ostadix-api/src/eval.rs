@@ -44,8 +44,8 @@ use crate::eval_core::{
     GraphEvaluationHost,
 };
 pub use crate::eval_core::{
-    render_fidelity, BatchMemberFailure, BatchMemberFailures, ExecutionTrace, RenderFidelity,
-    TraceEvent,
+    render_fidelity, render_splice_fidelity, BatchMemberFailure, BatchMemberFailures,
+    ExecutionTrace, RenderFidelity, SourceRenderingObservationV1, TraceEvent,
 };
 pub use crate::execution_contract::Policy;
 use crate::execution_contract::{
@@ -3407,7 +3407,23 @@ impl Evaluator {
                                 .map_err(anyhow::Error::msg)?;
                         }
                     }
-                    let rendered = render_with(backend.renderer, &resolved);
+                    let rendered = if crate::ir::is_code_splice(child) {
+                        crate::eval_core::render_explicit_code(&resolved)?
+                    } else {
+                        render_with(backend.renderer, &resolved)
+                    };
+                    frame
+                        .trace
+                        .source_renderings
+                        .push(crate::eval_core::observe_source_rendering(
+                            node_id,
+                            *child_id,
+                            &backend.canonical,
+                            backend.renderer,
+                            &resolved,
+                            crate::ir::is_code_splice(child),
+                            &rendered,
+                        ));
                     let name = match child {
                         OIr::Load(name) => Some(name.as_str()),
                         _ => None,
@@ -3425,6 +3441,7 @@ impl Evaluator {
             }
         }
 
+        crate::eval_core::finish_source_preparation(&mut frame.trace, node_id, &buf);
         if let Some(policy) = options.policy() {
             let cacheable = policy == BlockEvalPolicy::Lazy;
             let thunk = OValue::thunk(buf, deps);
@@ -3768,6 +3785,14 @@ impl Evaluator {
         scope: HashMap<String, OValue>,
     ) -> Result<OValue> {
         match fn_name {
+            "code" => {
+                if arg_vals.len() != 1 {
+                    bail!("code requires exactly one variable argument");
+                }
+                // The call's position in OIR, not the resulting OValue, is
+                // the explicit raw-code marker. A let-bound result is data.
+                Ok(arg_vals.into_iter().next().unwrap())
+            }
             "native_call" | "native_get" | "native_set" | "native_release" => {
                 if self.prepared_fragment_callbacks_forbidden {
                     bail!("native.admission-refused: prepared placement cannot acquire owner operation authority");
@@ -4759,7 +4784,7 @@ mod tests {
             GraphNode, NativeBoundary, NativeCodecSafety, NativeIdentity, OBytes, ONative,
             RehydratePolicy, SeqKind, SetKind, SnapshotKind,
         };
-        use RenderFidelity::{Opaque, Presentation, Structural, Typed};
+        use RenderFidelity::{Opaque, Presentation, Reinterpretation, Structural, Typed};
 
         // Expected columns follow `renderers` below: Python, HTML, LaTeX,
         // Markdown, Nix, and the default textual renderer.
@@ -4769,7 +4794,7 @@ mod tests {
             OValue::Number { .. } => (OValue::int(1), [Typed, Presentation, Presentation, Presentation, Typed, Structural]),
             OValue::Text { .. } => (OValue::text("text"), [Structural, Presentation, Presentation, Presentation, Typed, Structural]),
             OValue::Char { .. } => (OValue::char_('λ'), [Structural, Presentation, Presentation, Presentation, Structural, Structural]),
-            OValue::Html { .. } => (OValue::html("<b>text</b>"), [Typed, Presentation, Presentation, Presentation, Structural, Structural]),
+            OValue::Html { .. } => (OValue::html("<b>text</b>"), [Typed, Reinterpretation, Presentation, Presentation, Structural, Structural]),
             OValue::StorePath { .. } => (OValue::store_path("/nix/store/example"), [Typed, Presentation, Presentation, Presentation, Structural, Structural]),
             OValue::Expr { .. } => (OValue::Expr { src: "42".into() }, [Typed, Presentation, Presentation, Presentation, Structural, Structural]),
             OValue::List { .. } => (OValue::list(vec![OValue::int(1)]), [Typed, Presentation, Presentation, Presentation, Typed, Structural]),
@@ -4809,7 +4834,7 @@ mod tests {
                 metadata: BTreeMap::new(),
                 rehydrate: RehydratePolicy::Portable,
             }), [Typed, Opaque, Opaque, Opaque, Opaque, Opaque]),
-            OValue::NixExpr { .. } => (OValue::nix_expr("1 + 1", vec![]), [Typed, Presentation, Presentation, Presentation, Structural, Structural]),
+            OValue::NixExpr { .. } => (OValue::nix_expr("1 + 1", vec![]), [Typed, Presentation, Presentation, Presentation, Reinterpretation, Structural]),
             OValue::Derivation { .. } => (OValue::derivation(
                 "/nix/store/example.drv",
                 vec!["out".into()],
@@ -4841,10 +4866,13 @@ mod tests {
             SpliceRenderer::Markdown => SpliceRenderer::Markdown,
             SpliceRenderer::Nix => SpliceRenderer::Nix,
             SpliceRenderer::Default => SpliceRenderer::Default,
+            SpliceRenderer::Sql => SpliceRenderer::Sql,
+            SpliceRenderer::Shell => SpliceRenderer::Shell,
+            SpliceRenderer::JavaScript => SpliceRenderer::JavaScript,
         );
 
         assert_eq!(cases.len(), 30);
-        assert_eq!(renderers.len(), 6);
+        assert_eq!(renderers.len(), 9);
         assert_eq!(
             cases
                 .iter()
@@ -4858,13 +4886,30 @@ mod tests {
         for (renderer_index, renderer) in renderers.iter().copied().enumerate() {
             for (value, expected) in &cases {
                 let rendered = render_with(renderer, value);
+                let expected_class = if renderer_index < 6 {
+                    expected[renderer_index]
+                } else if matches!(
+                    value,
+                    OValue::Scope { .. }
+                        | OValue::Request { .. }
+                        | OValue::Capability { .. }
+                        | OValue::Snapshot { .. }
+                        | OValue::Group { .. }
+                        | OValue::Graph { .. }
+                        | OValue::Native { .. }
+                        | OValue::Error { .. }
+                ) {
+                    Opaque
+                } else {
+                    Structural
+                };
                 assert_eq!(
                     render_fidelity(renderer, value),
-                    expected[renderer_index],
+                    expected_class,
                     "classification drift for {renderer:?} over {}",
                     value.type_name(),
                 );
-                if expected[renderer_index] == RenderFidelity::Opaque {
+                if expected_class == RenderFidelity::Opaque {
                     assert!(
                         !rendered.is_empty(),
                         "opaque {renderer:?} rendering needs an identifying marker for {}",
@@ -5483,6 +5528,9 @@ mod tests {
             SpliceRenderer::Markdown => SpliceRenderer::Markdown,
             SpliceRenderer::Nix => SpliceRenderer::Nix,
             SpliceRenderer::Default => SpliceRenderer::Default,
+            SpliceRenderer::Sql => SpliceRenderer::Sql,
+            SpliceRenderer::Shell => SpliceRenderer::Shell,
+            SpliceRenderer::JavaScript => SpliceRenderer::JavaScript,
         );
 
         for renderer in renderers {
@@ -6114,8 +6162,8 @@ mod tests {
 
     #[test]
     fn hanging_numbered_bash_block_hits_the_step_limit_and_loses_its_session() -> Result<()> {
-        // bash has no default limit; the opt-in per-step limit must still
-        // cover bash[n], and the killed session must be reported lost rather
+        // The 500 ms test override must cover bash[n], and the killed
+        // session must be reported lost rather
         // than silently restarted.
         if which::which("bash").is_err() {
             return Ok(());
@@ -6141,7 +6189,7 @@ mod tests {
                         .expect_err("a hanging bash[1] block must fail");
                 assert!(
                     format!("{error:#}").contains(
-                        "step exceeded 500 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                        "step exceeded 500 ms (per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
                     ),
                     "{error:#}"
                 );
@@ -6266,7 +6314,7 @@ mod tests {
              bash[1]^(secret_val=5; other=7)_bash[1]\n\
              let braced = bash[1]^(echo ${secret_val})_bash[1]\n\
              let both = bash[1]^(echo $secret_val ${secret_val} ${other})_bash[1]\n\
-             python^(__oval_result__ = f'{$braced}|{$both}')_python\n";
+             python^(__oval_result__ = str($braced) + '|' + str($both))_python\n";
         let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
         let nodes = Parser::new(source, &backends).parse().unwrap();
         assert_eq!(
@@ -6323,7 +6371,7 @@ mod tests {
             "let x = python^(__oval_result__ = [1, 2])_python\n\
              let m = python^(__oval_result__ = {'k': 1})_python\n\
              let n = python^(__oval_result__ = None)_python\n\
-             bash^(echo \"$x|${x}|$n|${n}\"; echo ''${m}'')_bash\n",
+             bash^(printf '%s|%s|%s|%s\\n' $x \"${x}\" $n \"${n}\"; printf '%s' \"${m}\")_bash\n",
         ) else {
             return;
         };
@@ -6331,9 +6379,8 @@ mod tests {
             OValue::Text { v } => v.utf8,
             other => panic!("expected text, got {other:?}"),
         };
-        // `${x}` carries the text the `$x` splice renders; a spliced map's
-        // quotes are bash syntax once spliced, so the map is compared with
-        // its rendering directly.
+        // Ordinary holes are complete literal words. Native `${name}`
+        // bindings carry the same data, including a map's quote characters.
         assert_eq!(text, "[1, 2]|[1, 2]|null|null\n{\"k\": 1}", "{text}");
     }
 
@@ -6395,11 +6442,11 @@ mod tests {
 
     #[test]
     fn plain_bash_blocks_share_a_helper_but_never_a_shell() {
-        // b splices a, so the blocks run one after the other; both shells
+        // b references a, so the blocks run one after the other; both shells
         // report their parent, the helper.
         let Some(result) = run_bash_document(
             "let a = bash^(o_left=1; echo \"${PPID}\")_bash\n\
-             bash^(echo \"${o_left:-unset} ${PPID} $a ${O_BACKEND_SESSION_ID:-none}\")_bash\n",
+             bash^(echo \"${o_left:-unset} ${PPID} ${a} ${O_BACKEND_SESSION_ID:-none}\")_bash\n",
         ) else {
             return;
         };
@@ -6499,7 +6546,7 @@ mod tests {
     fn dollar_splice_of_a_writable_special_sets_it_for_the_session() {
         let Some(result) = run_bash_document(
             "let PATH = python^(__oval_result__ = '/opt/let-only/bin:/usr/bin:/bin')_python\n\
-             let first = bash[1]^(echo \"b1:$PATH\")_bash[1]\n\
+             let first = bash[1]^(printf 'b1:%s' $PATH)_bash[1]\n\
              let second = bash[1]^(echo \"b2:$(/usr/bin/printenv PATH)\")_bash[1]\n\
              python^(__oval_result__ = '|'.join([$first, $second]))_python\n",
         ) else {

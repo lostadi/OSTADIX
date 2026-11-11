@@ -54,7 +54,7 @@ REGISTERED_LANGUAGES = {
     # available inside Python blocks, which re-evaluates an OExpr.
     "quote",
     # Stateless external engines run through the repository's shipped shims.
-    "common_lisp", "javascript",
+    "common_lisp", "javascript", "sql", "bash", "shell",
     # Nix family: typed evaluator, store-path realizer, OS test runner.
     "nix",
     "nix_store",
@@ -91,6 +91,9 @@ class TextPart:
 class VarRef:
     """A ``$NAME`` variable reference that substitutes a prior let-binding."""
     name: str
+    # Source-AST extension v1: explicit source projection is positional, not
+    # a new OValue tag or a sticky permission on the loaded value.
+    explicit_code: bool = False
 
 
 @dataclass
@@ -204,7 +207,9 @@ def parse(src: str) -> Document:
     body = p.parse_body(end_tag=None, sequencing=True)
     if p.pos < len(src):
         raise ParseError(p.pos, "trailing content after document body", src)
-    return Document(body=body)
+    document = Document(body=body)
+    validate_tree(document)
+    return document
 
 
 class _ParserState:
@@ -304,6 +309,12 @@ class _ParserState:
 
             # 2c. $NAME variable reference.
             if c == "$":
+                match = re.match(r"\$!([A-Za-z_][A-Za-z0-9_]*)", self.src[self.pos:])
+                if match:
+                    flush_text()
+                    out.append(VarRef(name=match.group(1), explicit_code=True))
+                    self.pos += match.end()
+                    continue
                 var_m = VAR_RE.match(self.src, self.pos)
                 if var_m:
                     flush_text()
@@ -389,7 +400,7 @@ def pretty(node, indent: int = 0) -> str:
             t = t[:60] + "..."
         return f"{pad}TEXT {t!r}"
     if isinstance(node, VarRef):
-        return f"{pad}VAR ${node.name}"
+        return f"{pad}VAR ${'!' if node.explicit_code else ''}{node.name}"
     if isinstance(node, LetBinding):
         return f"{pad}LET {node.name} = {pretty(node.expr, indent)}"
     if isinstance(node, ExpressionNode):
@@ -407,10 +418,34 @@ def reconstruct_source(node) -> str:
     if isinstance(node, TextPart):
         return node.text
     if isinstance(node, VarRef):
-        return f"${node.name}"
+        return f"${'!' if node.explicit_code else ''}{node.name}"
     if isinstance(node, LetBinding):
         return f"let {node.name} = {reconstruct_source(node.expr)}"
     if isinstance(node, ExpressionNode):
         body = "".join(reconstruct_source(child) for child in node.body)
         return f"{node.opening_tag}{body}{node.closing_tag}"
     raise TypeError(f"Unknown AST node: {node!r}")
+
+
+def validate_tree(node):
+    """Validate a complete executable AST before any producer can run."""
+    from .foreign_splice import validate_segments
+    if isinstance(node, Document):
+        for child in node.body: validate_tree(child)
+    elif isinstance(node, LetBinding):
+        validate_tree(node.expr)
+    elif isinstance(node, VarRef):
+        if type(node.explicit_code) is not bool or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", node.name):
+            raise ValueError("invalid source-AST variable/code flag under splice contract v1")
+    elif isinstance(node, ExpressionNode):
+        if node.canonical_language == "quote": return
+        if node.canonical_language in {"sql", "bash", "shell"} and node.env_id not in (EPHEMERAL_ENV_ID, LINKER_ISOLATED_ENV_ID):
+            raise ValueError("Python-reference SQL/Bash/shell adapters are stateless; numbered guest state is unsupported")
+        validate_segments(node.canonical_language, (
+            ("text", child.text) if isinstance(child, TextPart) else
+            ("text", "") if isinstance(child, LetBinding) else
+            ("code", "") if isinstance(child, VarRef) and child.explicit_code else ("value", "")
+            for child in node.body))
+        for child in node.body: validate_tree(child)
+    elif not isinstance(node, TextPart):
+        raise TypeError(f"unknown node in executable AST: {type(node).__name__}")

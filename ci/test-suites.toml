@@ -49,6 +49,10 @@ probe_args = ["--version"]
 executable = "mcopy"
 probe_args = ["-V"]
 
+[runtime_probes.nix]
+executable = "nix"
+probe_args = ["--version"]
+
 [runtime_probes.node]
 executable = "node"
 probe_args = ["--version"]
@@ -85,6 +89,9 @@ probe_args = ["--version"]
 executable = "xorriso"
 probe_args = ["-version"]
 
+[suites.boundary-contract]
+required_executables = ["bash", "cargo", "cc", "nix", "node", "python3", "rustc", "sqlite3"]
+
 [suites.contracts]
 required_executables = ["python3"]
 
@@ -98,7 +105,7 @@ required_executables = ["cargo", "rustc"]
 required_executables = ["cargo", "rustc"]
 
 [suites.rust-tests]
-required_executables = ["bash", "clang", "node", "openssl", "python3", "sqlite3"]
+required_executables = ["bash", "clang", "nix", "node", "openssl", "python3", "sqlite3"]
 
 [suites.rust-hosted]
 required_executables = ["bash", "clang", "ip", "openssl", "python3", "readelf", "sqlite3"]

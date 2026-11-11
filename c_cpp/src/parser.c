@@ -147,7 +147,12 @@ ONodeList *parser_parse(OParser *p) {
         return NULL;
     }
     p->error_msg[0] = '\0';
-    return parse_until(p, NULL);
+    ONodeList *nodes = parse_until(p, NULL);
+    if (nodes && !olang_validate_source_tree(nodes->items, nodes->len, p->error_msg, sizeof(p->error_msg))) {
+        onode_list_free(nodes);
+        return NULL;
+    }
+    return nodes;
 }
 
 void onode_free(ONode *node) {
@@ -214,6 +219,144 @@ char *reconstruct_source(ONode **nodes, size_t len) {
         reconstruct_node(nodes[i], &sb);
     }
     return sb.buf;
+}
+
+/* Pure C17 source-splice contract v1. No guest runtime is used to check O. */
+typedef enum { SPLICE_UNKNOWN, SPLICE_PRESENTATION, SPLICE_PYTHON, SPLICE_SQL,
+               SPLICE_SHELL, SPLICE_JS, SPLICE_NIX } SpliceProfile;
+
+static SpliceProfile splice_profile(const char *lang) {
+    if (!lang) return SPLICE_UNKNOWN;
+    if (!strcmp(lang,"python") || !strcmp(lang,"py")) return SPLICE_PYTHON;
+    if (!strcmp(lang,"sql")) return SPLICE_SQL;
+    if (!strcmp(lang,"bash") || !strcmp(lang,"shell")) return SPLICE_SHELL;
+    if (!strcmp(lang,"javascript")) return SPLICE_JS;
+    if (!strcmp(lang,"nix") || !strcmp(lang,"nix_expr") || !strcmp(lang,"nix_store") || !strcmp(lang,"nixos_test")) return SPLICE_NIX;
+    const char *presentation[] = {"text","plain","html","markdown","md","latex","tex","O","o","quote",NULL};
+    for (size_t i=0; presentation[i]; i++) if (!strcmp(lang,presentation[i])) return SPLICE_PRESENTATION;
+    return SPLICE_UNKNOWN;
+}
+
+bool olang_node_is_code_splice(const ONode *node) {
+    return node && node->tag == ONODE_CALL && node->data.call.fn_name &&
+        !strcmp(node->data.call.fn_name, "code");
+}
+
+static bool splice_identifier(unsigned char c) {
+    return isalnum(c) || c == '_' || c == '$' || c >= 128;
+}
+
+static size_t splice_simple_parameter_end(const char *src, size_t len, size_t pos) {
+    size_t end = pos + 2;
+    if (end >= len || !(isalpha((unsigned char)src[end]) || src[end] == '_')) return SIZE_MAX;
+    while (end < len && (isalnum((unsigned char)src[end]) || src[end] == '_')) end++;
+    return end < len && src[end] == '}' ? end : SIZE_MAX;
+}
+
+static bool splice_body_valid(const char *lang, ONode **body, size_t count, char *error, size_t cap) {
+    SpliceProfile profile = splice_profile(lang);
+    if (profile == SPLICE_PRESENTATION) return true;
+    size_t len=0, holes_count=0;
+    for (size_t i=0;i<count;i++) {
+        ONode *node=body[i];
+        if (!node || node->tag == ONODE_LET_BINDING) continue;
+        size_t add = node->tag == ONODE_RAW_TEXT ? strlen(node->data.text ? node->data.text : "") : 1;
+        if (add > SIZE_MAX - len - 1) goto memory_error;
+        len += add;
+        if (node->tag != ONODE_RAW_TEXT) holes_count++;
+    }
+    if (!holes_count) return true;
+    char *src=calloc(len+1,1);
+    unsigned char *holes=calloc(len+1,1);
+    if (!src || !holes) { free(src); free(holes); goto memory_error; }
+    size_t pos=0;
+    for (size_t i=0;i<count;i++) {
+        ONode *node=body[i];
+        if (!node || node->tag == ONODE_LET_BINDING) continue;
+        if (node->tag == ONODE_RAW_TEXT) {
+            const char *text=node->data.text ? node->data.text : "";
+            size_t n=strlen(text); memcpy(src+pos,text,n); pos+=n;
+        } else { holes[pos]=olang_node_is_code_splice(node) ? 2 : 1; src[pos++]=' '; }
+    }
+    enum { S_CODE, S_LINE, S_BLOCK, S_QUOTE, S_UNSUPPORTED } state=S_CODE;
+    bool dynamic=false, triple=false, escape=false, doubled=false;
+    char quote=0;
+    for (size_t i=0;i<len;i++) {
+        char ch=src[i], next=src[i+1];
+        if (holes[i]) {
+            if (holes[i]==2) dynamic=true;
+            else if (profile==SPLICE_UNKNOWN || dynamic || state!=S_CODE ||
+                     (i && splice_identifier((unsigned char)src[i-1])) || splice_identifier((unsigned char)next)) {
+                snprintf(error,cap,"foreign value splice in `%s` rejected: quoted/comment, adjacent token, unsupported lexical form/profile or preceding dynamic code; use unquoted value, native ${name}, or explicit $!name",lang);
+                free(src); free(holes); return false;
+            }
+            continue;
+        }
+        if (state==S_LINE) { if(ch=='\n') state=S_CODE; continue; }
+        if (state==S_BLOCK) { if(ch=='*' && next=='/') { state=S_CODE; i++; } continue; }
+        if (state==S_UNSUPPORTED) continue;
+        if (state==S_QUOTE) {
+            if (((profile==SPLICE_NIX || profile==SPLICE_JS) && ch=='$' && next=='{') ||
+                (profile==SPLICE_SHELL && (ch=='`' || (ch=='$' && next=='(')))) { state=S_UNSUPPORTED; continue; }
+            if (profile==SPLICE_SHELL && ch=='$' && next=='{') {
+                size_t end=splice_simple_parameter_end(src,len,i);
+                if(end==SIZE_MAX) state=S_UNSUPPORTED; else i=end;
+            } else if(escape && ch=='\\') { if(i+1<len && !holes[i+1]) i++; }
+            else if(ch==quote) {
+                if(triple) { if(i+2<len && next==quote && src[i+2]==quote) {state=S_CODE;i+=2;} }
+                else if(doubled && next==quote) i++;
+                else state=S_CODE;
+            }
+            continue;
+        }
+        if(profile==SPLICE_JS && (!strncmp(src+i,"<!--",4) || !strncmp(src+i,"-->",3) || (ch=='#' && next=='!'))) state=S_LINE;
+        else if((profile==SPLICE_JS || profile==SPLICE_PYTHON) && ch=='\\') state=S_UNSUPPORTED;
+        else if(profile==SPLICE_NIX && ((ch=='/' && next!='*') || ch=='<')) state=S_UNSUPPORTED;
+        else if(profile==SPLICE_SHELL && ch=='$' && next=='{') {
+            size_t end=splice_simple_parameter_end(src,len,i);
+            if(end==SIZE_MAX) state=S_UNSUPPORTED; else i=end;
+        } else if(profile==SPLICE_SHELL && ((ch=='$' && next=='(') || (ch=='(' && next=='(') || (ch=='[' && (next=='[' || (i && splice_identifier((unsigned char)src[i-1])))))) state=S_UNSUPPORTED;
+        else if((profile==SPLICE_PYTHON || profile==SPLICE_SHELL || profile==SPLICE_NIX) && ch=='#') state=S_LINE;
+        else if((profile==SPLICE_SQL && ch=='-' && next=='-') || (profile==SPLICE_JS && ch=='/' && next=='/')) { state=S_LINE;i++; }
+        else if((profile==SPLICE_SQL || profile==SPLICE_JS || profile==SPLICE_NIX) && ch=='/' && next=='*') {state=S_BLOCK;i++;}
+        else if((profile==SPLICE_JS && ch=='/') || (profile==SPLICE_SHELL && ch=='<' && next=='<') || (profile==SPLICE_NIX && ch=='\'' && next=='\'')) state=S_UNSUPPORTED;
+        else if(ch=='\'' || ch=='"' || ((profile==SPLICE_JS || profile==SPLICE_SHELL) && ch=='`') || (profile==SPLICE_SQL && (ch=='`' || ch=='['))) {
+            if(profile==SPLICE_PYTHON && ((i && (src[i-1]=='f' || src[i-1]=='F' || src[i-1]=='t' || src[i-1]=='T')) || (i>1 && (src[i-1]=='r' || src[i-1]=='R') && (src[i-2]=='f' || src[i-2]=='F' || src[i-2]=='t' || src[i-2]=='T')))) {state=S_UNSUPPORTED;continue;}
+            triple=profile==SPLICE_PYTHON && i+2<len && next==ch && src[i+2]==ch;
+            escape=profile!=SPLICE_SQL && (profile!=SPLICE_SHELL || ch!='\'' || (i && src[i-1]=='$'));
+            doubled=profile==SPLICE_SQL && ch!='['; quote=ch=='[' ? ']' : ch; state=S_QUOTE;
+            if(triple) i+=2;
+        } else if(profile==SPLICE_SHELL && ch=='\\' && i+1<len) { if(holes[i+1]) state=S_UNSUPPORTED; else i++; }
+    }
+    free(src);free(holes);return true;
+memory_error:
+    snprintf(error,cap,"source splice validation allocation overflow/failure");return false;
+}
+
+bool olang_validate_source_tree(ONode **nodes, size_t len, char *error, size_t error_cap) {
+    if(len && !nodes) {snprintf(error,error_cap,"missing executable AST node array");return false;}
+    for(size_t i=0;i<len;i++) {
+        ONode *node=nodes[i];
+        if(!node) {snprintf(error,error_cap,"null node in executable AST");return false;}
+        if(node->tag==ONODE_TYPED_EXPR) {
+            const char *lang=node->data.typed_expr.lang;
+            if(!lang) {snprintf(error,error_cap,"missing executable backend language");return false;}
+            if(lang && !strcmp(lang,"quote")) continue;
+            if(!splice_body_valid(lang,node->data.typed_expr.body,node->data.typed_expr.body_len,error,error_cap) ||
+               !olang_validate_source_tree(node->data.typed_expr.body,node->data.typed_expr.body_len,error,error_cap)) return false;
+        } else if(node->tag==ONODE_LET_BINDING) {
+            ONode *expr=node->data.let_binding.expr;
+            if(!olang_validate_source_tree(&expr,1,error,error_cap)) return false;
+        } else if(node->tag==ONODE_CALL) {
+            if(olang_node_is_code_splice(node) && (node->data.call.args_len!=1 || !node->data.call.args[0] || node->data.call.args[0]->tag!=ONODE_VAR_REF)) {
+                snprintf(error,error_cap,"explicit code requires exactly one variable load ($!name)");return false;
+            }
+            if(!olang_validate_source_tree(node->data.call.args,node->data.call.args_len,error,error_cap)) return false;
+        } else if(node->tag!=ONODE_RAW_TEXT && node->tag!=ONODE_VAR_REF) {
+            snprintf(error,error_cap,"unknown node in executable AST");return false;
+        }
+    }
+    return true;
 }
 
 static bool is_ident_start(unsigned char b) {
@@ -1286,6 +1429,33 @@ static ONodeList *parse_until(OParser *p, const Tag *expected_closer) {
         }
 
         if (current_byte(p) == '$') {
+            if (starts_with(p, "$!") && p->pos + 2 < p->source_len && is_ident_start(p->source[p->pos + 2])) {
+                size_t start = p->pos;
+                ONode **args;
+                ONode *call;
+                char *name;
+                if (!flush_text(nodes, p, text_start, start)) goto code_oom;
+                p->pos += 2;
+                size_t name_start = p->pos;
+                if (!is_ident_start(current_byte(p))) {
+                    parser_set_error(p, "explicit $! code splice requires a variable name");
+                    onode_list_free(nodes); free(closer); return NULL;
+                }
+                while (p->pos < p->source_len && is_ident_continue(current_byte(p))) p->pos++;
+                name = dup_range(p->source + name_start, p->pos - name_start);
+                if (!name) goto code_oom;
+                args = calloc(1, sizeof(*args));
+                if (!args) { free(name); goto code_oom; }
+                args[0] = onode_new_var_ref_owned(name);
+                if (!args[0]) { free(args); goto code_oom; }
+                call = onode_new_call_owned(dup_cstr("code"), args, 1, 1);
+                if (!call || !onode_list_push(nodes, call)) { onode_free(call); goto code_oom; }
+                text_start = p->pos;
+                continue;
+code_oom:
+                parser_set_error(p, "Out of memory in explicit code splice");
+                onode_list_free(nodes); free(closer); return NULL;
+            }
             char *name = try_parse_var_ref(p);
             if (name != NULL) {
                 ONode *var_node;
@@ -1488,6 +1658,12 @@ static void reconstruct_node(const ONode *node, StringBuilder *sb) {
             break;
 
         case ONODE_CALL:
+            if (olang_node_is_code_splice(node) && node->data.call.args_len == 1 &&
+                node->data.call.args[0] && node->data.call.args[0]->tag == ONODE_VAR_REF) {
+                (void)string_builder_append(sb, "$!");
+                (void)string_builder_append(sb, node->data.call.args[0]->data.var_name);
+                break;
+            }
             (void)string_builder_append(sb,
                                         node->data.call.fn_name != NULL
                                             ? node->data.call.fn_name

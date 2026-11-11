@@ -1,0 +1,313 @@
+{
+  "schema": "ostadix.foreign-splice-regression-witnesses/v1",
+  "baseline_commit": "1da570dcc61ef10285fc8c8b78a20ca087081daf",
+  "baseline_binary_sha256": "b318ec235bf1f86f81c857d6c6836f51657176a403b339cc8925a7c210791bbd",
+  "baseline_backends_git_tree": "01aa34c05c7d02d666e8e5c922656f76cbae132f",
+  "baseline_timeout_seconds": 5,
+  "execution_scope": "Observed Linux x86-64 hosted execution against unchanged frozen O and source-revision backends; not native OS or cross-ISA evidence. Full raw failures retained separately by the validation run.",
+  "witnesses": [
+    {
+      "number": 1,
+      "name": "python_apostrophe",
+      "source": "let name = python^( \"O'Brien\" )_python\npython^( [len($name), $name] )_python",
+      "source_sha256_with_final_newline": "cb01e3a21acddbe41ddf0517aeecacdad321313e9a280ec72ab99f0b0500e801",
+      "ordinary_contract_accepts": true,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.134,
+          "value": {
+            "t": "list",
+            "v": [
+              {
+                "t": "number",
+                "v": {
+                  "kind": "int",
+                  "v": "7"
+                }
+              },
+              {
+                "t": "text",
+                "v": {
+                  "utf8": "O'Brien",
+                  "encoding": "utf-8"
+                }
+              }
+            ]
+          },
+          "error_kind": null
+        },
+        {
+          "executor": "graph",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.135,
+          "value": {
+            "t": "list",
+            "v": [
+              {
+                "t": "number",
+                "v": {
+                  "kind": "int",
+                  "v": "7"
+                }
+              },
+              {
+                "t": "text",
+                "v": {
+                  "utf8": "O'Brien",
+                  "encoding": "utf-8"
+                }
+              }
+            ]
+          },
+          "error_kind": null
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "name": "sql_quoted_control",
+      "source": "let name = python^( \"OBrien\" )_python\nsql^( SELECT '$name' AS who; )_sql",
+      "source_sha256_with_final_newline": "13d4eed942b886a9ea499fcefc6a50664b9acf4a65edcf47899aa9013c8b2939",
+      "ordinary_contract_accepts": false,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.111,
+          "value": {
+            "t": "text",
+            "v": {
+              "utf8": "OBrien",
+              "encoding": "utf-8"
+            }
+          },
+          "error_kind": null
+        },
+        {
+          "executor": "graph",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.112,
+          "value": {
+            "t": "text",
+            "v": {
+              "utf8": "OBrien",
+              "encoding": "utf-8"
+            }
+          },
+          "error_kind": null
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "name": "sql_quoted_apostrophe",
+      "source": "let name = python^( \"O'Brien\" )_python\nsql^( SELECT '$name' AS who; )_sql",
+      "source_sha256_with_final_newline": "10d4065f6e886af23101a021509704bf12a8db8a77837ea9ab6d51e2c40faafb",
+      "ordinary_contract_accepts": false,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": -9,
+          "timed_out": true,
+          "seconds": 5.007,
+          "value": null,
+          "error_kind": null
+        },
+        {
+          "executor": "graph",
+          "exit": -9,
+          "timed_out": true,
+          "seconds": 5.007,
+          "value": null,
+          "error_kind": null
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "name": "sql_union_injection",
+      "source": "let name = python^( \"nobody' UNION SELECT 'spliced-as-code\" )_python\nsql^( SELECT '$name' AS who; )_sql",
+      "source_sha256_with_final_newline": "93ab3d26124baf3dabd7ce448be14375a2d044fb10cda95820077c0e9b6b695c",
+      "ordinary_contract_accepts": false,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.106,
+          "value": {
+            "t": "list",
+            "v": [
+              {
+                "t": "map",
+                "v": {
+                  "'nobody'": {
+                    "t": "text",
+                    "v": {
+                      "utf8": "nobody",
+                      "encoding": "utf-8"
+                    }
+                  }
+                }
+              },
+              {
+                "t": "map",
+                "v": {
+                  "'nobody'": {
+                    "t": "text",
+                    "v": {
+                      "utf8": "spliced-as-code",
+                      "encoding": "utf-8"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "error_kind": null
+        },
+        {
+          "executor": "graph",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.111,
+          "value": {
+            "t": "list",
+            "v": [
+              {
+                "t": "map",
+                "v": {
+                  "'nobody'": {
+                    "t": "text",
+                    "v": {
+                      "utf8": "nobody",
+                      "encoding": "utf-8"
+                    }
+                  }
+                }
+              },
+              {
+                "t": "map",
+                "v": {
+                  "'nobody'": {
+                    "t": "text",
+                    "v": {
+                      "utf8": "spliced-as-code",
+                      "encoding": "utf-8"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "error_kind": null
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "name": "bash_quoted_injection",
+      "source": "let s = python^( 'a\"; echo SPLICED-AS-CODE; echo \"' )_python\nbash^( printf '[%s]\\n' \"$s\" )_bash",
+      "source_sha256_with_final_newline": "8b5fca05cc7e9dd5fe4015efa33ec91a3f350edd051e091ed2997ab020473e3e",
+      "ordinary_contract_accepts": false,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.089,
+          "value": {
+            "t": "text",
+            "v": {
+              "utf8": "[a]\nSPLICED-AS-CODE\n",
+              "encoding": "utf-8"
+            }
+          },
+          "error_kind": null
+        },
+        {
+          "executor": "graph",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.099,
+          "value": {
+            "t": "text",
+            "v": {
+              "utf8": "[a]\nSPLICED-AS-CODE\n",
+              "encoding": "utf-8"
+            }
+          },
+          "error_kind": null
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "name": "bash_native_braces",
+      "source": "let s = python^( 'a\"; echo SPLICED-AS-CODE; echo \"' )_python\nbash^( printf '[%s]\\n' \"${s}\" )_bash",
+      "source_sha256_with_final_newline": "9ed5c0fac09cd6abd70508cbcc46b2b2c8f956bcf0cf5e643b43b628ca7cd945",
+      "ordinary_contract_accepts": true,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.088,
+          "value": {
+            "t": "text",
+            "v": {
+              "utf8": "[a\"; echo SPLICED-AS-CODE; echo \"]",
+              "encoding": "utf-8"
+            }
+          },
+          "error_kind": null
+        },
+        {
+          "executor": "graph",
+          "exit": 0,
+          "timed_out": false,
+          "seconds": 0.089,
+          "value": {
+            "t": "text",
+            "v": {
+              "utf8": "[a\"; echo SPLICED-AS-CODE; echo \"]",
+              "encoding": "utf-8"
+            }
+          },
+          "error_kind": null
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "name": "python_quoted_hole",
+      "source": "let name = python^( \"OBrien\" )_python\npython^( \"$name\" )_python",
+      "source_sha256_with_final_newline": "8cc5c37b2860b6b03341303a301f13f3dfd7f8759e83f10138d245d5ac36fba3",
+      "ordinary_contract_accepts": false,
+      "baseline": [
+        {
+          "executor": "serial",
+          "exit": 1,
+          "timed_out": false,
+          "seconds": 0.142,
+          "value": null,
+          "error_kind": "SyntaxError"
+        },
+        {
+          "executor": "graph",
+          "exit": 1,
+          "timed_out": false,
+          "seconds": 0.134,
+          "value": null,
+          "error_kind": "SyntaxError"
+        }
+      ]
+    }
+  ]
+}

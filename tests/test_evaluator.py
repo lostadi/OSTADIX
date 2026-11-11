@@ -579,9 +579,9 @@ def test_nix_render_child_produces_nix_syntax():
     assert b.render_child(OInt(42)) == "42"
     assert b.render_child(OStr("hello")) == '"hello"'
     lst = b.render_child(OList((OInt(1), OInt(2))))
-    assert lst == "[ 1 2 ]"
+    assert lst == "[ (1) (2) ]"
     m = b.render_child(OMap((("x", OInt(1)),)))
-    assert m == "{ x = 1; }"
+    assert m == '{ "x" = 1; }'
 
 
 def test_nix_eval_integer(skip_msg="  (skipping nix eval test -- nix not installed)"):

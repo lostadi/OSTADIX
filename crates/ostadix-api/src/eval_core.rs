@@ -28,11 +28,79 @@ use crate::value::{
 pub struct ExecutionTrace {
     pub events: Vec<TraceEvent>,
     pub backend_crossings: Vec<crate::backend_morphism::BackendCrossingObservationV1>,
+    /// Actual source-fragment preparation, never a guest-execution claim.
+    pub source_renderings: Vec<SourceRenderingObservationV1>,
     /// Actual successful settlement outputs; no static or predicted state.
     pub publications: Vec<serde_json::Value>,
     /// `batch(...)` members that failed and settled as their own error value.
     /// The document still produces a value, but its run is reported failed.
     pub failed_batch_members: Vec<BatchMemberFailure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SourceRenderingObservationV1 {
+    pub schema: &'static str,
+    pub phase: &'static str,
+    pub scope: &'static str,
+    pub receiver_plan_node: usize,
+    pub child_plan_node: usize,
+    pub language: String,
+    pub renderer: String,
+    pub role: &'static str,
+    pub value_type: String,
+    pub fidelity: RenderFidelity,
+    pub reinterpreted_as_code: bool,
+    pub value_sha256: String,
+    pub rendered_fragment_sha256: String,
+    /// Absent if preparation failed before the receiver buffer was complete.
+    pub final_body_sha256: Option<String>,
+}
+
+pub(crate) fn observe_source_rendering(
+    receiver: PlanNodeId,
+    child: PlanNodeId,
+    language: &str,
+    renderer: SpliceRenderer,
+    value: &OValue,
+    explicit_code: bool,
+    fragment: &str,
+) -> SourceRenderingObservationV1 {
+    use sha2::{Digest, Sha256};
+    let fidelity = render_splice_fidelity(renderer, value, explicit_code);
+    SourceRenderingObservationV1 {
+        schema: "ostadix.source-render-observation/v1",
+        phase: "prepared",
+        scope: "rendered_fragment_not_guest_execution",
+        receiver_plan_node: receiver.0,
+        child_plan_node: child.0,
+        language: language.into(),
+        renderer: renderer.label().into(),
+        role: if explicit_code {
+            "explicit_code"
+        } else {
+            "value"
+        },
+        value_type: value.type_name().into(),
+        fidelity,
+        reinterpreted_as_code: fidelity == RenderFidelity::Reinterpretation,
+        value_sha256: crate::backend_morphism::observed_value_sha256(value),
+        rendered_fragment_sha256: hex::encode(Sha256::digest(fragment.as_bytes())),
+        final_body_sha256: None,
+    }
+}
+
+pub(crate) fn finish_source_preparation(
+    trace: &mut ExecutionTrace,
+    receiver: PlanNodeId,
+    body: &str,
+) {
+    use sha2::{Digest, Sha256};
+    let digest = hex::encode(Sha256::digest(body.as_bytes()));
+    for observation in &mut trace.source_renderings {
+        if observation.receiver_plan_node == receiver.0 && observation.final_body_sha256.is_none() {
+            observation.final_body_sha256 = Some(digest.clone());
+        }
+    }
 }
 
 /// One `batch(...)` member that failed and settled as its own error value.
@@ -111,6 +179,7 @@ impl ExecutionTrace {
         Self {
             events: Vec::new(),
             backend_crossings: Vec::new(),
+            source_renderings: Vec::new(),
             publications: Vec::new(),
             failed_batch_members: Vec::new(),
         }
@@ -536,6 +605,9 @@ pub(crate) fn derive_policy_contexts(
 pub(crate) fn render_with(renderer: SpliceRenderer, val: &OValue) -> String {
     match renderer {
         SpliceRenderer::Python => render_python(val),
+        SpliceRenderer::Sql => render_sql(val),
+        SpliceRenderer::Shell => render_shell(val),
+        SpliceRenderer::JavaScript => render_javascript(val),
         SpliceRenderer::Html => render_html(val),
         SpliceRenderer::Latex => render_latex(val),
         SpliceRenderer::Markdown => render_markdown(val),
@@ -550,8 +622,12 @@ pub(crate) fn render_with(renderer: SpliceRenderer, val: &OValue) -> String {
 /// Wire lifting preserves the tagged OValue. A splice renderer projects that
 /// value into a consumer language and may erase tags or retain only a readable
 /// marker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RenderFidelity {
+    /// Explicit source or trusted active markup is reinterpreted as guest
+    /// syntax. This is not a value-preservation or confinement guarantee.
+    Reinterpretation,
     /// The consumer syntax retains the value and its O-level type.
     Typed,
     /// Portable payload or structure survives, but O-level tags or auxiliary
@@ -571,6 +647,9 @@ pub enum RenderFidelity {
 /// is defensive rather than a claimed semantic comparison.
 const fn weaker_for_container(left: RenderFidelity, right: RenderFidelity) -> RenderFidelity {
     match (left, right) {
+        (RenderFidelity::Reinterpretation, _) | (_, RenderFidelity::Reinterpretation) => {
+            RenderFidelity::Reinterpretation
+        }
         (RenderFidelity::Opaque, _) | (_, RenderFidelity::Opaque) => RenderFidelity::Opaque,
         (RenderFidelity::Presentation, _) | (_, RenderFidelity::Presentation) => {
             RenderFidelity::Presentation
@@ -616,6 +695,24 @@ pub fn render_fidelity(renderer: SpliceRenderer, val: &OValue) -> RenderFidelity
     use RenderFidelity::*;
 
     match renderer {
+        SpliceRenderer::Sql | SpliceRenderer::Shell | SpliceRenderer::JavaScript => match val {
+            Scope { .. }
+            | Request { .. }
+            | Capability { .. }
+            | Snapshot { .. }
+            | Group { .. }
+            | Graph { .. }
+            | Native { .. }
+            | Error { .. } => Opaque,
+            List { v } => container_fidelity(renderer, v, Structural),
+            Map { v } => container_fidelity(renderer, v.values(), Structural),
+            Seq { items, .. } | Set { items, .. } => {
+                container_fidelity(renderer, items, Structural)
+            }
+            Object { fields } => container_fidelity(renderer, fields.values(), Structural),
+            EntriesMap { entries } => entry_container_fidelity(renderer, entries, Structural),
+            _ => Structural,
+        },
         SpliceRenderer::Python => match val {
             Null
             | Bool { .. }
@@ -695,11 +792,11 @@ pub fn render_fidelity(renderer: SpliceRenderer, val: &OValue) -> RenderFidelity
             Html { .. }
             | StorePath { .. }
             | Blob { .. }
-            | NixExpr { .. }
             | Thunk { .. }
             | Derivation { .. }
             | System { .. }
             | Expr { .. } => Structural,
+            NixExpr { .. } => Reinterpretation,
             Scope { .. }
             | Request { .. }
             | Capability { .. }
@@ -707,6 +804,7 @@ pub fn render_fidelity(renderer: SpliceRenderer, val: &OValue) -> RenderFidelity
             | Group { .. }
             | Error { .. } => Opaque,
         },
+        SpliceRenderer::Html if matches!(val, Html { .. }) => Reinterpretation,
         SpliceRenderer::Html | SpliceRenderer::Latex | SpliceRenderer::Markdown => match val {
             Null
             | Bool { .. }
@@ -774,6 +872,128 @@ pub fn render_fidelity(renderer: SpliceRenderer, val: &OValue) -> RenderFidelity
             | Native { .. }
             | Error { .. } => Opaque,
         },
+    }
+}
+
+/// Context-sensitive classification for the syntactic `$!name` code path.
+/// Source reinterpretation never inherits the ordinary literal's fidelity.
+pub fn render_splice_fidelity(
+    renderer: SpliceRenderer,
+    val: &OValue,
+    explicit_code: bool,
+) -> RenderFidelity {
+    if explicit_code {
+        RenderFidelity::Reinterpretation
+    } else {
+        render_fidelity(renderer, val)
+    }
+}
+
+/// Deliberate source reinterpretation is syntactic, not a sticky OValue tag.
+/// Calling `code($x)` elsewhere returns the same ordinary value; only an
+/// immediate code invocation in a foreign splice buffer uses this path.
+pub(crate) fn render_explicit_code(val: &OValue) -> Result<String> {
+    match val {
+        OValue::Text { v } => Ok(v.utf8.clone()),
+        OValue::NixExpr { body, .. } => Ok(body.clone()),
+        OValue::Expr { src } => Ok(src.clone()),
+        other => bail!(
+            "explicit code splice requires Text, NixExpr or Expr source, got {}",
+            other.type_name()
+        ),
+    }
+}
+
+fn quoted_sql_text(text: &str) -> String {
+    // sqlite3's .read normalizes CRLF in source lines, including SQL string
+    // literals. A closed hex-to-text expression preserves these UTF-8 bytes.
+    if text.contains(['\0', '\r']) {
+        return format!("CAST(X'{}' AS TEXT)", hex::encode(text.as_bytes()));
+    }
+    format!("'{}'", text.replace('\'', "''"))
+}
+
+fn render_sql(val: &OValue) -> String {
+    match val {
+        OValue::Null => "NULL".into(),
+        OValue::Bool { v } => if *v { "1" } else { "0" }.into(),
+        OValue::Number { v } => {
+            literal_finite_number(v).unwrap_or_else(|| quoted_sql_text(&val.splice_repr()))
+        }
+        _ => quoted_sql_text(&val.splice_repr()),
+    }
+}
+
+fn literal_finite_number(number: &ONumber) -> Option<String> {
+    let value = match number {
+        ONumber::Int { v } => return Some(v.to_string()),
+        ONumber::BinaryFloat {
+            format: FloatFormat::F64,
+            bits,
+        } if bits.len() == 8 => {
+            f64::from_bits(u64::from_be_bytes(bits.as_slice().try_into().ok()?))
+        }
+        ONumber::BinaryFloat {
+            format: FloatFormat::F32,
+            bits,
+        } if bits.len() == 4 => {
+            f32::from_bits(u32::from_be_bytes(bits.as_slice().try_into().ok()?)) as f64
+        }
+        _ => return None,
+    };
+    value.is_finite().then(|| render_float_literal(value))
+}
+
+fn render_shell(val: &OValue) -> String {
+    format!("'{}'", val.splice_repr().replace('\'', "'\\''"))
+}
+
+fn js_string(text: &str) -> String {
+    serde_json::to_string(text)
+        .expect("UTF-8 strings serialize")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
+}
+
+fn render_javascript(val: &OValue) -> String {
+    match val {
+        OValue::Null => "null".into(),
+        OValue::Bool { v } => v.to_string(),
+        OValue::Number { v } => {
+            literal_finite_number(v).unwrap_or_else(|| js_string(&val.splice_repr()))
+        }
+        OValue::List { v } => format!(
+            "[{}]",
+            v.iter()
+                .map(render_javascript)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        OValue::Map { v } => format!(
+            "({{{}}})",
+            sorted_map_entries(v)
+                .iter()
+                .map(|(key, value)| format!("[{}]: {}", js_string(key), render_javascript(value)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        OValue::Object { fields } => format!(
+            "({{{}}})",
+            fields
+                .iter()
+                .map(|(key, value)| format!("[{}]: {}", js_string(key), render_javascript(value)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        OValue::Seq { items, .. } | OValue::Set { items, .. } => format!(
+            "[{}]",
+            items
+                .iter()
+                .map(render_javascript)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        _ => js_string(&val.splice_repr()),
     }
 }
 
@@ -1786,6 +2006,38 @@ mod tests {
     use std::any::TypeId;
 
     use super::{weaker_for_container, ExecutionTrace, RenderFidelity, TraceEvent};
+
+    #[test]
+    fn explicit_source_and_active_markup_cannot_be_upgraded_by_containers() {
+        use super::{render_fidelity, render_splice_fidelity};
+        use crate::{backend_catalog::SpliceRenderer, value::OValue};
+        assert_eq!(
+            render_splice_fidelity(SpliceRenderer::Python, &OValue::str_("1 + 1"), true),
+            RenderFidelity::Reinterpretation
+        );
+        assert_eq!(
+            render_fidelity(SpliceRenderer::Python, &OValue::str_("1 + 1")),
+            RenderFidelity::Structural
+        );
+        assert_eq!(
+            render_fidelity(
+                SpliceRenderer::Nix,
+                &OValue::list(vec![OValue::nix_expr("builtins.currentSystem", vec![])])
+            ),
+            RenderFidelity::Reinterpretation
+        );
+        assert_eq!(
+            render_fidelity(
+                SpliceRenderer::Html,
+                &OValue::list(vec![OValue::html("<script>active()</script>")])
+            ),
+            RenderFidelity::Reinterpretation
+        );
+        assert_eq!(
+            weaker_for_container(RenderFidelity::Opaque, RenderFidelity::Reinterpretation),
+            RenderFidelity::Reinterpretation
+        );
+    }
 
     #[test]
     fn renderer_local_container_combiner_obeys_semilattice_laws() {

@@ -206,7 +206,7 @@ lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),weba
   work (Kernelsu-patched image dated 2026-08-20).
 - `google_images.html` — a stray HTML file at root (search-result dump, not code).
 - `session-ses_fe33.md`, `ostadix-lang-info.md`, `ORIGIN.md`, `llms.txt`, `olango-c-backend.patch`
-  (`olang-c-backend.patch`), `Olang_Mascot_little-o/`, `opencode.jsonc` (OpenCode config for this
+  (`audits/historical-patches/olang-c-backend.patch`), `Olang_Mascot_little-o/`, `opencode.jsonc` (OpenCode config for this
   repo), `opencode.jsonc` — agent/project config/prose.
 - `Dockerfile`, `.dockerignore`, `smoke-docker.sh` — Docker packaging for the runtime.
 - `NOTICE`, `LICENSE` (LGPL-2.1-only), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`,

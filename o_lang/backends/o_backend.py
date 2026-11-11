@@ -61,7 +61,9 @@ class OBackend:
         """Take full control of children: evaluate each in source order."""
         # Deferred import avoids circular imports at module load time.
         from ..evaluator import _eval_expression
-        from ..parser import ExpressionNode, LetBinding, TextPart, VarRef
+        from ..parser import ExpressionNode, LetBinding, TextPart, VarRef, validate_tree
+
+        validate_tree(node)
 
         # Materialize the env (even if unused) so the registry has a slot
         # for this (O, env_id) pair; useful when the user wants to ask

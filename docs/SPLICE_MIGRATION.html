@@ -1,0 +1,58 @@
+<h1>Migrating source splices</h1>
+<p>An ordinary O hole supplies data to a declared receiving renderer. Keep it
+outside the guest language&#39;s strings and comments:</p>
+<pre><code class="language-O">let name = python^(&quot;O&#39;Brien&quot;)_python
+sql^(SELECT $name AS who;)_sql
+python^([len($name), $name])_python
+javascript^(console.log($name))_javascript
+</code></pre>
+<p>The receiver adds its own literal spelling. Adding SQL or Python quotes around
+<code>$name</code> now fails at parse/check time. This is an intentional language change.
+Existing no-hole guest programs continue to use their own language syntax.</p>
+<p>Bash and shell already receive O let bindings through the variable injection
+path. Use the shell&#39;s quoted parameter expansion for interpolation into a
+string, or an unquoted O hole where a complete literal word belongs:</p>
+<pre><code class="language-O">let greeting = python^(&quot;world&quot;)_python
+bash^(printf &#39;hello %s\n&#39; &quot;${greeting}&quot;)_bash
+bash^(printf &#39;%s\n&#39; $greeting)_bash
+</code></pre>
+<p>The second form is rendered as one shell word. In the first form <code>${greeting}</code>
+is native shell syntax; it is not an O source hole. Shell substitution inside
+more complex quoted expressions, including <code>[[</code> conditions, remains outside
+the bounded O-hole lexer. Authored <code>eval</code>, <code>let</code>, <code>declare -i</code> and existing
+integer-variable attributes can reinterpret data during execution; quoting is
+not a general effect-safety guarantee for such code-consuming operations.
+See the <a href="CURRENT_CONTRACT.md">supported profiles and edition limits</a>.</p>
+<p>Use <code>$!name</code> only for deliberate source generation. It inserts the supplied
+text as code and retains the backend&#39;s existing authority. The Rust runtime
+records reinterpretation in its preparation trace; Python and C17 do not
+inherit that trace guarantee. It does not confer a grant, sanitize the code, or establish
+syntactic confinement. Converting a value to code requires this visible intent
+at its immediate insertion; storing <code>code($name)</code> does not make later ordinary
+holes raw. Unsupported executable data profiles fail closed instead of
+silently inserting raw text.</p>
+<p>The greeting example now uses Python, Bash and JavaScript, all of which have
+declared literal profiles. The complete former README remains in the
+<a href="REFERENCE.md">preserved reference</a>; its Common Lisp greeting and older quoted
+hole examples describe that historical source. This guide and the current
+contract govern the revised language. The original Common Lisp adapter is
+retained; a literal-confinement profile for it is not claimed here.</p>
+<p>The SQLite adapter reads each request from its own file. Open quotes can no
+longer consume the completion command. A malformed SQL request reports its
+SQL error, and the persistent session can accept a later request. The Python
+SQLite shim uses SQLite&#39;s complete-statement recognition, including trigger
+bodies and quoted semicolons.</p>
+<p>Rust backend steps have a 120-second default deadline. Set
+<code>O_BACKEND_STEP_TIMEOUT_MS</code> to an integer from 1 through 604800000 milliseconds
+for a different limit, or
+the exact word <code>disabled</code> to opt into an unbounded step. Operation and
+heartbeat deadlines are separate controls.</p>
+<p>Alternate editions have separate execution limits. The Python reference uses
+its in-process Python evaluator and stateless external shim adapters; C17
+retains its own process protocol. The Rust admission and general step-deadline
+guarantees do not automatically apply to those editions.</p>
+<p>The <a href="../tests/fixtures/foreign-splice-witnesses.json">seven original witnesses</a>
+remain unchanged. The <a href="../scripts/reproduce_splice_contract.py">reproduction runner</a>
+tests both their revised outcomes and corrected data-splice forms. See the
+<a href="../evidence/public-contract-20261111/README.md">evidence guide</a> for commands
+and the distinction between historical and fresh results.</p>

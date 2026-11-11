@@ -1,4 +1,4 @@
-//! The opt-in step limit and the hang-warning knobs, shared by backend step
+//! The step limit and the hang-warning knobs, shared by backend step
 //! waits (process) and native leaf child waits (native_leaf).
 //!
 //! why its own root: native_leaf sits below process, so the parsing both need
@@ -12,12 +12,8 @@ use std::time::Duration;
 
 use anyhow::{anyhow, bail, Result};
 
-// why there is no default per-step limit: steps may legitimately run for
-// days, so a silent step is never killed unless the user opts in with
-// O_BACKEND_STEP_TIMEOUT_MS. a hang is surfaced instead by the heartbeat
-// watchdog (warn, never kill) and a crash by reader eof or the leader-exit
-// poll, which fail fast.
 pub(crate) const BACKEND_STEP_TIMEOUT_ENV: &str = "O_BACKEND_STEP_TIMEOUT_MS";
+pub(crate) const DEFAULT_BACKEND_STEP_TIMEOUT: Duration = Duration::from_secs(120);
 // shims send a heartbeat this often while a step runs (passed to the backend
 // as O_BACKEND_HEARTBEAT_INTERVAL_MS). tests shrink it.
 pub(crate) const DEFAULT_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -69,11 +65,24 @@ fn cached(cell: &'static Cached<Option<Duration>>, name: &str) -> Result<Option<
     .map_err(anyhow::Error::msg)
 }
 
-/// The opt-in per-step limit, or `None` when `O_BACKEND_STEP_TIMEOUT_MS` is
-/// unset.
+/// Default steps are bounded. Long-running jobs may select a longer positive
+/// millisecond value or explicitly disable this deadline with `disabled`.
+pub(crate) fn parse_step_timeout(raw: Option<&std::ffi::OsStr>) -> Result<Option<Duration>> {
+    match raw {
+        None => Ok(Some(DEFAULT_BACKEND_STEP_TIMEOUT)),
+        Some(value) if value == "disabled" => Ok(None),
+        Some(_) => parse_timeout_knob(BACKEND_STEP_TIMEOUT_ENV, raw),
+    }
+}
+
 pub(crate) fn step_timeout() -> Result<Option<Duration>> {
     static STEP: Cached<Option<Duration>> = OnceLock::new();
-    cached(&STEP, BACKEND_STEP_TIMEOUT_ENV)
+    STEP.get_or_init(|| {
+        parse_step_timeout(std::env::var_os(BACKEND_STEP_TIMEOUT_ENV).as_deref())
+            .map_err(|error| format!("{error:#}"))
+    })
+    .clone()
+    .map_err(anyhow::Error::msg)
 }
 
 /// How often shims send heartbeats.

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Output, Stdio};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::Duration;
 
@@ -506,7 +506,7 @@ impl BashSession {
             }
         }
         // the shell stays in the backend's process group: the host kills
-        // that group on cancellation or the opt-in limit, and the group kill
+        // that group on cancellation or the step limit, and the group kill
         // must reach the shell and the jobs it started.
         let mut child = command
             .args(["--noprofile", "--norc", "-s"])
@@ -1112,7 +1112,11 @@ struct SqlState {
     // the backend forever on a locked or runaway query. lines arrive over a
     // channel so the wait can be bounded by the per-step limit.
     stdout_rx: Receiver<io::Result<String>>,
-    stderr_rx: Receiver<String>,
+    // The child writes diagnostics directly. Reading after the control marker
+    // avoids racing a separate stderr collector against stdout completion.
+    stderr_path: PathBuf,
+    stderr_offset: u64,
+    reported_sql_error: bool,
     checkpoint_safe: bool,
     // set once a per-step limit killed the session; its state is gone.
     lost: bool,
@@ -1483,6 +1487,8 @@ impl SqlState {
     fn spawn_with_database(tools: &BackendToolchain, database: Option<&[u8]>) -> Result<Self> {
         let dir = TempDir::new("o-backend-sql")?;
         let db_path = dir.path().join("state.sqlite3");
+        let stderr_path = dir.path().join("stderr.log");
+        let stderr = fs::File::create(&stderr_path)?;
         match database {
             Some(database) => fs::write(&db_path, database)
                 .with_context(|| format!("failed to restore sql state db {}", db_path.display()))?,
@@ -1500,7 +1506,7 @@ impl SqlState {
             .arg(&db_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::from(stderr))
             .spawn()
             .context("failed to launch admitted sqlite3 executable")?;
 
@@ -1516,22 +1522,6 @@ impl SqlState {
                 .take()
                 .context("sqlite3 session did not provide stdout")?,
         );
-        let stderr = BufReader::new(
-            child
-                .stderr
-                .take()
-                .context("sqlite3 session did not provide stderr")?,
-        );
-
-        let (stderr_tx, stderr_rx): (Sender<String>, Receiver<String>) = mpsc::channel();
-        thread::spawn(move || {
-            let mut stderr = stderr;
-            let mut line = String::new();
-            while stderr.read_line(&mut line).ok().is_some_and(|n| n > 0) {
-                let _ = stderr_tx.send(std::mem::take(&mut line));
-            }
-        });
-
         let stdout_rx = spawn_line_reader(stdout);
         let mut state = Self {
             _dir: dir,
@@ -1539,7 +1529,9 @@ impl SqlState {
             child,
             stdin: Some(stdin),
             stdout_rx,
-            stderr_rx,
+            stderr_path,
+            stderr_offset: 0,
+            reported_sql_error: false,
             checkpoint_safe: true,
             lost: false,
         };
@@ -1599,7 +1591,7 @@ impl SqlState {
         let limit_text = crate::process::step_limit_text(limit);
         let limit_env = crate::process::BACKEND_STEP_TIMEOUT_ENV;
         let mut message = format!(
-            "backend `sql` {what} {limit_text} (opt-in per-step limit {limit_env}); sqlite3 session was killed",
+            "backend `sql` {what} {limit_text} (per-step limit {limit_env}); sqlite3 session was killed",
         );
         if let Err(error) = reaped {
             message.push_str(&format!("; sqlite3 reap also failed: {error:#}"));
@@ -1610,21 +1602,27 @@ impl SqlState {
     fn shutdown(&mut self, timeout: Duration) -> Result<()> {
         self.stdin.take();
         let status = reap_legacy_child(&mut self.child, timeout)?;
-        if status.success() {
+        let diagnostics = self.drain_stderr()?;
+        if sql_stderr_is_error(&diagnostics) {
+            bail!("sqlite3 shutdown failed\n{}", diagnostics.trim_end());
+        }
+        // The CLI remembers previously reported SQL errors in its final exit
+        // status even when later requests succeed. Do not report those twice.
+        if status.success() || (self.reported_sql_error && status.code() == Some(1)) {
             Ok(())
         } else {
             bail!("sqlite3 session exited with status {status} during shutdown")
         }
     }
 
-    fn drain_stderr(&self) -> String {
-        // Give the stderr collector a brief window after stdout completes.
-        thread::sleep(Duration::from_millis(5));
-        let mut acc = String::new();
-        while let Ok(chunk) = self.stderr_rx.try_recv() {
-            acc.push_str(&chunk);
-        }
-        acc
+    fn drain_stderr(&mut self) -> Result<String> {
+        let mut file = fs::File::open(&self.stderr_path)
+            .context("failed to open sqlite3 session diagnostics")?;
+        file.seek(SeekFrom::Start(self.stderr_offset))?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        self.stderr_offset += bytes.len() as u64;
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
 
     fn exec(&mut self, code: &str) -> Result<OValue> {
@@ -1639,24 +1637,28 @@ impl SqlState {
 
     fn exec_untracked(&mut self, code: &str) -> Result<OValue> {
         // Clear stale stderr from prior statements.
-        let _ = self.drain_stderr();
+        let _ = self.drain_stderr()?;
 
-        // Feed the full block, then a sentinel print so we can delimit replies
-        // without closing the session (which would lose ATTACH state).
-        let mut payload = code.to_string();
-        if !payload.trim_end().ends_with(';') {
-            payload.push(';');
-        }
-        payload.push('\n');
-        payload.push_str(".print __O_SQL_DONE__\n");
-        self.write_raw(&payload)?;
+        // A .read input has its own EOF. An unfinished SQL quote therefore
+        // fails inside that file instead of swallowing the next control line.
+        let input_path = self._dir.path().join("step.sql");
+        let output_path = self._dir.path().join("step-output.json");
+        fs::write(&input_path, code).context("failed to stage sqlite3 input")?;
+        let mut random = [0u8; 16];
+        getrandom::fill(&mut random).map_err(|error| anyhow!("{error}"))?;
+        let marker = format!("__O_SQL_DONE_{}__", hex::encode(random));
+        let control = format!(
+            ".bail off\n.mode json\n.output {}\n.read {}\n.output stdout\n.print {marker}\n",
+            sqlite_shell_path(&output_path)?,
+            sqlite_shell_path(&input_path)?,
+        );
+        self.write_raw(&control)?;
 
-        // without the opt-in limit the read waits as long as sqlite3 runs;
-        // cancellation still ends it, because the host kills this backend's
-        // whole process group, sqlite3 included.
+        // The host also owns cancellation and kills the complete backend
+        // process group, including sqlite3, when a step loses its session.
         let limit = crate::process::backend_step_timeout()?;
         let deadline = limit.map(|limit| std::time::Instant::now() + limit);
-        let mut out = String::new();
+        let mut unexpected_output = String::new();
         loop {
             let received = match deadline {
                 Some(deadline) => self
@@ -1676,7 +1678,7 @@ impl SqlState {
                 Err(mpsc::RecvTimeoutError::Disconnected) => String::new(),
             };
             if line.is_empty() {
-                let err = self.drain_stderr();
+                let err = self.drain_stderr()?;
                 bail!(
                     "sqlite3 session closed unexpectedly{}",
                     if err.is_empty() {
@@ -1686,20 +1688,31 @@ impl SqlState {
                     }
                 );
             }
-            if line.trim_end_matches(['\r', '\n']) == "__O_SQL_DONE__" {
+            if line.trim_end_matches(['\r', '\n']) == marker {
                 break;
             }
-            out.push_str(&line);
+            // Preserve output redirected by guest CLI commands as an explicit
+            // format error after the independent completion marker arrives.
+            unexpected_output.push_str(&line);
         }
 
-        let err = self.drain_stderr();
+        let err = self.drain_stderr()?;
         if sql_stderr_is_error(&err) {
+            self.reported_sql_error = true;
             // Preserve the historical error envelope from the one-shot CLI path
             // so existing triage / test string matches keep working.
             bail!("sqlite3 execution failed (code 1)\n{}", err.trim_end());
         }
+        if !unexpected_output.is_empty() {
+            bail!(
+                "sqlite3 changed its control output unexpectedly\n{}",
+                unexpected_output.trim_end()
+            );
+        }
 
-        let trimmed = out.trim();
+        let output =
+            fs::read_to_string(&output_path).context("failed to read sqlite3 statement output")?;
+        let trimmed = output.trim();
         if trimmed.is_empty() {
             if sql_has_query_result(code) {
                 return Ok(OValue::list(Vec::new()));
@@ -1707,9 +1720,38 @@ impl SqlState {
             return Ok(OValue::str_("Statement executed successfully"));
         }
 
-        let json: Value = serde_json::from_str(trimmed).context("sqlite3 returned non-JSON")?;
+        // sqlite3 emits one JSON document per result-producing statement.
+        // Match the shim's established last-query result for a SQL script.
+        let mut json = None;
+        for value in serde_json::Deserializer::from_str(trimmed).into_iter::<Value>() {
+            json = Some(value.context("sqlite3 returned non-JSON")?);
+        }
+        let json = json.context("sqlite3 returned no JSON result")?;
         sqlite_json_to_ovalue(json)
     }
+}
+
+/// Quote a SQLite CLI argument, whose double-quoted form uses C escapes.
+fn sqlite_shell_path(path: &Path) -> Result<String> {
+    let text = path
+        .to_str()
+        .context("sqlite3 temporary path is not UTF-8")?;
+    let mut quoted = String::from("\"");
+    for character in text.chars() {
+        match character {
+            '\\' => quoted.push_str("\\\\"),
+            '"' => quoted.push_str("\\\""),
+            '\n' => quoted.push_str("\\n"),
+            '\r' => quoted.push_str("\\r"),
+            '\t' => quoted.push_str("\\t"),
+            character if character.is_ascii_control() => {
+                quoted.push_str(&format!("\\{:03o}", character as u32));
+            }
+            character => quoted.push(character),
+        }
+    }
+    quoted.push('"');
+    Ok(quoted)
 }
 
 /// Conservative profile accepted by the first SQL semantic codec.
@@ -3224,14 +3266,17 @@ mod tests {
                     .spawn()?;
                 let stdin = std::io::BufWriter::new(child.stdin.take().unwrap());
                 let stdout_rx = super::spawn_line_reader(child.stdout.take().unwrap());
-                let (_stderr_tx, stderr_rx) = std::sync::mpsc::channel();
+                let stderr_path = dir.path().join("stderr.log");
+                std::fs::write(&stderr_path, [])?;
                 let mut state = super::SqlState {
                     db_path: dir.path().join("state.sqlite3"),
                     _dir: dir,
                     child,
                     stdin: Some(stdin),
                     stdout_rx,
-                    stderr_rx,
+                    stderr_path,
+                    stderr_offset: 0,
+                    reported_sql_error: false,
                     checkpoint_safe: true,
                     lost: false,
                 };
@@ -3240,7 +3285,7 @@ mod tests {
                     .expect_err("a silent sqlite3 must not hang");
                 assert!(
                     format!("{error:#}").contains(
-                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                        "step exceeded 300 ms (per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
                     ),
                     "{error:#}"
                 );
@@ -3264,6 +3309,80 @@ mod tests {
                 panic!("test body panicked; see the assertion above")
             }
         }
+    }
+
+    #[test]
+    fn sqlite_file_requests_recover_from_syntax_errors_and_marker_collisions() -> anyhow::Result<()>
+    {
+        use std::time::Duration;
+        crate::process::set_step_timeout_override(Some(Duration::from_secs(2)));
+        let dir = super::TempDir::new("o-backend-sql test-'\"")?;
+        let db_path = dir.path().join("state.sqlite3");
+        let stderr_path = dir.path().join("stderr.log");
+        let mut child = Command::new("sqlite3")
+            .arg("-batch")
+            .arg(&db_path)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::from(std::fs::File::create(
+                &stderr_path,
+            )?))
+            .spawn()?;
+        let stdin = std::io::BufWriter::new(child.stdin.take().unwrap());
+        let stdout_rx = super::spawn_line_reader(child.stdout.take().unwrap());
+        let mut state = super::SqlState {
+            _dir: dir,
+            db_path,
+            child,
+            stdin: Some(stdin),
+            stdout_rx,
+            stderr_path,
+            stderr_offset: 0,
+            reported_sql_error: false,
+            checkpoint_safe: true,
+            lost: false,
+        };
+        let start = std::time::Instant::now();
+        let error = state.exec("SELECT 'unterminated;").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("sqlite3 execution failed"),
+            "{error:#}"
+        );
+        assert!(!format!("{error:#}").contains("step exceeded"), "{error:#}");
+        assert!(start.elapsed() < Duration::from_secs(2));
+        assert_eq!(
+            state.exec("SELECT 'semi;colon' AS value;")?,
+            OValue::str_("semi;colon")
+        );
+        assert_eq!(state.exec("SELECT 1; SELECT 2;")?, OValue::int(2));
+        assert_eq!(
+            state.exec(
+                "CREATE TABLE items(value); CREATE TABLE audit(value); \
+                CREATE TRIGGER item_log AFTER INSERT ON items BEGIN \
+                INSERT INTO audit VALUES(new.value); \
+                INSERT INTO audit VALUES(new.value + 1); END; \
+                INSERT INTO items VALUES(4); SELECT SUM(value) FROM audit;"
+            )?,
+            OValue::int(9)
+        );
+        assert_eq!(
+            state.exec("SELECT '__O_SQL_DONE__';")?,
+            OValue::str_("__O_SQL_DONE__")
+        );
+        let error = state.exec(".print __O_SQL_DONE__\nSELECT 7;").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("sqlite3 returned non-JSON"),
+            "{error:#}"
+        );
+        let error = state.exec(".output stdout\nSELECT 8;").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("sqlite3 changed its control output unexpectedly"),
+            "{error:#}"
+        );
+        assert_eq!(state.exec("SELECT 42;")?, OValue::int(42));
+        state.shutdown(Duration::from_secs(2))?;
+        crate::process::set_step_timeout_override(None);
+        Ok(())
     }
 
     use std::path::Path;

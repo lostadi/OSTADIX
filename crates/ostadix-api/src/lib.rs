@@ -27,6 +27,7 @@ pub mod execution_contract;
 pub mod execution_fabric;
 pub mod execution_fabric_authority;
 pub mod executor;
+mod foreign_splice;
 pub mod hgraph;
 pub mod hosted_remote;
 pub mod information;

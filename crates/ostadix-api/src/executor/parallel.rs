@@ -29,7 +29,7 @@ pub use crate::dispatch_model::TaskKind;
 pub(crate) use crate::dispatch_model::{adapter_matches, effect_contract_worker_safe};
 use crate::eval_core::{render_with, GraphEvalFrame};
 use crate::evidence::DispatchAdapterV1;
-use crate::ir::{ExecutionPlan, OIr, PlanNodeId, PlanNodeKind};
+use crate::ir::{ExecutionPlan, OIr, PlanNodeId, PlanNodeKind, CODE_SPLICE_BUILTIN};
 use crate::process::run_ephemeral_with_eval_callback_controlled;
 use crate::value::OValue;
 
@@ -486,7 +486,7 @@ pub(crate) fn render_inputs_pure(
 
 /// Build a Send-only task from the frame's already-materialized inputs.
 fn build_task(
-    frame: &GraphEvalFrame,
+    frame: &mut GraphEvalFrame,
     plan: &ExecutionPlan,
     id: PlanNodeId,
     kind: TaskKind,
@@ -515,7 +515,8 @@ fn build_task(
             let children = frame
                 .plan_index
                 .child_schedule(id)
-                .map_err(anyhow::Error::msg)?;
+                .map_err(anyhow::Error::msg)?
+                .to_vec();
             let bindings = frame.exec_scope(id, plan)?;
             if let Some(contract) = morphism_contract {
                 contract
@@ -523,7 +524,7 @@ fn build_task(
                     .map_err(anyhow::Error::msg)?;
             }
             let mut code = String::new();
-            for &child in children {
+            for child in children {
                 match &plan.nodes[child.0].kind {
                     PlanNodeKind::Store { .. } => {}
                     PlanNodeKind::Text => {
@@ -540,7 +541,25 @@ fn build_task(
                                 .validate_value(&language, value)
                                 .map_err(anyhow::Error::msg)?;
                         }
-                        let rendered = render_with(renderer, value);
+                        let rendered = if matches!(&plan.nodes[child.0].kind,
+                            PlanNodeKind::Call { fn_name, .. } if fn_name == CODE_SPLICE_BUILTIN)
+                        {
+                            crate::eval_core::render_explicit_code(value)?
+                        } else {
+                            render_with(renderer, value)
+                        };
+                        let explicit_code = matches!(&plan.nodes[child.0].kind,
+                            PlanNodeKind::Call { fn_name, .. } if fn_name == CODE_SPLICE_BUILTIN);
+                        let observation = crate::eval_core::observe_source_rendering(
+                            id,
+                            child,
+                            &language,
+                            renderer,
+                            value,
+                            explicit_code,
+                            &rendered,
+                        );
+                        frame.trace.source_renderings.push(observation);
                         let name = match &plan.nodes[child.0].kind {
                             PlanNodeKind::Load { name } => Some(name.as_str()),
                             _ => None,
@@ -550,6 +569,7 @@ fn build_task(
                     }
                 }
             }
+            crate::eval_core::finish_source_preparation(&mut frame.trace, id, &code);
             ParallelTaskBody::EphemeralShim {
                 language,
                 code,
@@ -612,7 +632,7 @@ fn build_task(
 /// choose a different execution lane.
 pub(crate) fn prepare(
     adapter: DispatchAdapterV1,
-    frame: &GraphEvalFrame,
+    frame: &mut GraphEvalFrame,
     plan: &ExecutionPlan,
     id: PlanNodeId,
     oir: &OIr,
@@ -893,7 +913,7 @@ mod tests {
         };
         let plan = program.plan();
         let id = plan.roots[0];
-        let frame = GraphEvalFrame {
+        let mut frame = GraphEvalFrame {
             plan_index: crate::ir::ExecutionPlanIndex::new(&plan).unwrap(),
             values: vec![None; plan.nodes.len()],
             base_scope: HashMap::from([("bound".to_string(), OValue::str_("value"))]),
@@ -905,7 +925,7 @@ mod tests {
 
         let error = prepare(
             DispatchAdapterV1::TrustedInlineRendererV1,
-            &frame,
+            &mut frame,
             &plan,
             id,
             &program.nodes[0],
@@ -919,7 +939,7 @@ mod tests {
 
         let task = prepare(
             DispatchAdapterV1::OScopeLoadV1,
-            &frame,
+            &mut frame,
             &plan,
             id,
             &program.nodes[0],

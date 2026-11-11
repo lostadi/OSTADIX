@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import re
@@ -38,12 +39,14 @@ class LocalCiPostureTests(unittest.TestCase):
             ".github/dependabot.yml",
             ".github/workflows/ci.yml",
             ".github/workflows/fuzz.yml",
+            ".github/workflows/native-runtime-release.yml",
             "CITATION.cff",
             "Cargo.lock",
             "Cargo.toml",
             "Dockerfile",
             "ci/required-jobs.toml",
             "ci/test-suites.toml",
+            "ci/workflow-reviews.toml",
             "docs/CI_POSTURE.md",
             "examples/guix-wasm/Dockerfile",
             "scripts/build_source_release.py",
@@ -234,6 +237,118 @@ class LocalCiPostureTests(unittest.TestCase):
 
         self.assertEqual(report.exit_code(), 1)
         self.assertIn("baseline.workflows.permissions", self.finding_ids(report))
+
+    def test_release_workflow_reviews_report_exact_source_and_finding_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)
+            self.copy_baseline_fixture(fixture)
+            report = posture.audit_repository(fixture)
+        reviewed = [record for record in report.checks if "review" in record]
+        self.assertEqual(len(reviewed), 2)
+        for record in reviewed:
+            self.assertEqual(record["status"], "pass")
+            self.assertEqual(record["path"], ".github/workflows/native-runtime-release.yml")
+            self.assertEqual(record["line"], record["review"]["line"])
+            self.assertEqual(record["id"], record["review"]["finding_id"])
+            self.assertIn(record["review"]["sha256"], record["message"])
+            self.assertIn(record["review"]["reason"], record["message"])
+
+    def test_changed_reviewed_workflow_retains_original_findings(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)
+            self.copy_baseline_fixture(fixture)
+            workflow = fixture / ".github/workflows/native-runtime-release.yml"
+            workflow.write_bytes(workflow.read_bytes() + b"\n# requires another review\n")
+            report = posture.audit_repository(fixture)
+        self.assertTrue({
+            "baseline.workflows.reviews",
+            "baseline.workflows.permissions",
+            "baseline.workflows.self-hosted",
+        }.issubset(self.finding_ids(report)))
+
+    def test_malformed_or_missing_review_never_suppresses_findings(self) -> None:
+        variants = [
+            None,
+            "schema = [malformed TOML",
+            'schema = "ostadix.workflow-reviews/v2"\nreviews = []\n',
+        ]
+        original = (ROOT / "ci/workflow-reviews.toml").read_text()
+        variants += [
+            original.replace('job = "publish"', 'job = "other"'),
+            original.replace("line = 96", "line = true"),
+            original.replace('finding_id = "baseline.workflows.permissions"',
+                             'finding_id = "baseline.workflows.risky-triggers"'),
+            original.replace('reason = "Only the release-published', 'unknown = "Only the release-published'),
+        ]
+        for value in variants:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as temporary:
+                fixture = Path(temporary)
+                self.copy_baseline_fixture(fixture)
+                path = fixture / "ci/workflow-reviews.toml"
+                if value is None:
+                    path.unlink()
+                else:
+                    path.write_text(value)
+                report = posture.audit_repository(fixture)
+                self.assertTrue({
+                    "baseline.workflows.reviews",
+                    "baseline.workflows.permissions",
+                    "baseline.workflows.self-hosted",
+                }.issubset(self.finding_ids(report)))
+                self.assertFalse(any("review" in record for record in report.checks))
+
+    def test_unknown_runner_is_rejected_even_after_review_hash_is_refreshed(self) -> None:
+        for runner in ("self-hosted", "unknown-hosted-label", "${{ inputs.runner }}"):
+            with self.subTest(runner=runner), tempfile.TemporaryDirectory() as temporary:
+                fixture = Path(temporary)
+                self.copy_baseline_fixture(fixture)
+                workflow = fixture / ".github/workflows/native-runtime-release.yml"
+                workflow.write_text(workflow.read_text().replace("runner: macos-15", f"runner: {runner}"))
+                reviews = fixture / "ci/workflow-reviews.toml"
+                before = hashlib.sha256((ROOT / ".github/workflows/native-runtime-release.yml").read_bytes()).hexdigest()
+                after = hashlib.sha256(workflow.read_bytes()).hexdigest()
+                reviews.write_text(reviews.read_text().replace(before, after))
+                report = posture.audit_repository(fixture)
+                self.assertIn("baseline.workflows.self-hosted", self.finding_ids(report))
+                self.assertIn("baseline.workflows.reviews", self.finding_ids(report))
+
+    def test_publisher_review_requires_the_release_gate_after_hash_refresh(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)
+            self.copy_baseline_fixture(fixture)
+            workflow = fixture / ".github/workflows/native-runtime-release.yml"
+            before = hashlib.sha256(workflow.read_bytes()).hexdigest()
+            workflow.write_text(workflow.read_text().replace(
+                "if: github.event_name == 'release' && github.event.action == 'published'",
+                "if: always()",
+            ) + "\n      #    if: github.event_name == 'release' && github.event.action == 'published'\n")
+            after = hashlib.sha256(workflow.read_bytes()).hexdigest()
+            reviews = fixture / "ci/workflow-reviews.toml"
+            reviews.write_text(reviews.read_text().replace(before, after))
+            report = posture.audit_repository(fixture)
+        self.assertIn("baseline.workflows.permissions", self.finding_ids(report))
+        self.assertIn("baseline.workflows.reviews", self.finding_ids(report))
+
+    def test_review_does_not_cover_new_writes_or_another_workflow(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)
+            self.copy_baseline_fixture(fixture)
+            workflow = fixture / ".github/workflows/native-runtime-release.yml"
+            before = hashlib.sha256(workflow.read_bytes()).hexdigest()
+            workflow.write_text(workflow.read_text().replace("      actions: read", "      actions: write"))
+            after = hashlib.sha256(workflow.read_bytes()).hexdigest()
+            reviews = fixture / "ci/workflow-reviews.toml"
+            reviews.write_text(reviews.read_text().replace(before, after))
+            another = fixture / ".github/workflows/another.yml"
+            another.write_text("on: push\npermissions: {contents: write}\njobs:\n  other:\n    runs-on: ${{ inputs.runner }}\n")
+            report = posture.audit_repository(fixture)
+        findings = [record for record in report.checks if record["status"] == "finding"]
+        self.assertTrue(any(record["path"] == ".github/workflows/native-runtime-release.yml"
+                            and "actions: write" in record["message"] for record in findings))
+        self.assertTrue(any(record["path"] == ".github/workflows/another.yml"
+                            and record["id"] == "baseline.workflows.permissions" for record in findings))
+        self.assertTrue(any(record["path"] == ".github/workflows/another.yml"
+                            and record["id"] == "baseline.workflows.self-hosted" for record in findings))
 
     def test_required_aggregate_drift_is_a_finding(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

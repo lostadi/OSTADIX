@@ -1,0 +1,13 @@
+<h1>Historical material moved out of the project entry point</h1>
+<p>The <a href="root-layout-20261111.json">relocation manifest</a> identifies eight files moved
+from the repository root without changing their bytes or executable modes.
+They are retained development history, not active build inputs or new supported
+tools. Production patches under their component directories remain in place.</p>
+<p><code>historical-tools/patch_medieval_ragdoll.py</code> is an old, machine-specific game
+editing script. It is retained for provenance and is not run by setup, CI,
+the compiler, or a documented user workflow. Do not treat its hardcoded paths
+as deployment configuration.</p>
+<p>Older evidence manifests retain the paths and exact commits they originally
+recorded. Use their original source coordinate to inspect that layout; moving
+a file does not rerun, invalidate or upgrade a historical experiment. The full
+reference guide and generated HTML exports are retained separately.</p>

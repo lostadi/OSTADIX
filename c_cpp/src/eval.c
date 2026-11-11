@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <math.h>
 
 #include "value.h"
 #include "parser.h"
@@ -225,11 +226,11 @@ static char *render_python(OValue *v) {
         }
         case OVAL_BLOB: {
             SB sb; sb_init(&sb);
-            sb_append(&sb, "OBlob(data=base64.b64decode('");
-            sb_append(&sb, v->data.blob.data ? v->data.blob.data : "");
-            sb_append(&sb, "'), mime='");
-            sb_append(&sb, v->data.blob.mime ? v->data.blob.mime : "");
-            sb_append(&sb, "')");
+            char *data=json_quote(v->data.blob.data ? v->data.blob.data : "");
+            char *mime=json_quote(v->data.blob.mime ? v->data.blob.mime : "");
+            sb_append(&sb, "OBlob(data=base64.b64decode("); sb_append(&sb,data);
+            sb_append(&sb, "), mime="); sb_append(&sb,mime); sb_append(&sb,")");
+            free(data);free(mime);
             return sb_take(&sb);
         }
         case OVAL_EXPR: {
@@ -334,11 +335,79 @@ static char *render_markdown_or_text(OValue *v) {
 
 static char *render_latex(OValue *v) { return render_markdown_or_text(v); }
 
+static char *nix_quote(const char *text) {
+    SB sb;sb_init(&sb);sb_append_c(&sb,'"');
+    for(const char *p=text ? text : "";*p;p++) {
+        if(*p=='"' || *p=='\\' || (*p=='$' && p[1]=='{')) sb_append_c(&sb,'\\');
+        if(*p=='\n') sb_append(&sb,"\\n");
+        else if(*p=='\r') sb_append(&sb,"\\r");
+        else if(*p=='\t') sb_append(&sb,"\\t");
+        else sb_append_c(&sb,*p);
+    }
+    sb_append_c(&sb,'"');return sb_take(&sb);
+}
+
 static char *render_nix(OValue *v) {
-    if (!v) return strdup("");
-    if (v->tag == OVAL_STR || v->tag == OVAL_STORE_PATH) return strdup(v->data.str_val ? v->data.str_val : "");
-    char *r = oval_splice_repr(v);
-    return r ? r : strdup("");
+    if(!v || v->tag==OVAL_NULL) return strdup("null");
+    if(v->tag==OVAL_BOOL || v->tag==OVAL_INT || (v->tag==OVAL_FLOAT && isfinite(v->data.float_val))) return oval_splice_repr(v);
+    SB sb;sb_init(&sb);
+    if(v->tag==OVAL_NIX_EXPR) {
+        sb_append(&sb,"(");sb_append(&sb,v->data.nix_expr.body);sb_append(&sb,")");return sb_take(&sb);
+    }
+    if(v->tag==OVAL_LIST) {
+        sb_append(&sb,"[ ");for(size_t i=0;i<v->data.list.len;i++) {char *s=render_nix(v->data.list.items[i]);sb_append(&sb,"(");sb_append(&sb,s);sb_append(&sb,") ");free(s);}sb_append(&sb,"]");return sb_take(&sb);
+    }
+    if(v->tag==OVAL_MAP) {
+        sb_append(&sb,"{ ");OValueMap *map=v->data.map;
+        for(size_t i=0;i<map->bucket_count;i++) {
+            for(OMapEntry *e=map->buckets[i];e;e=e->next) {
+                char *k=nix_quote(e->key),*s=render_nix(e->value);
+                sb_append(&sb,k);sb_append(&sb," = ");sb_append(&sb,s);sb_append(&sb,"; ");free(k);free(s);
+            }
+        }
+        sb_append(&sb,"}");return sb_take(&sb);
+    }
+    free(sb.buf);char *text=oval_splice_repr(v);char *result=nix_quote(text);free(text);return result;
+}
+
+static char *render_sql(OValue *v) {
+    if(!v || v->tag==OVAL_NULL) return strdup("NULL");
+    if(v->tag==OVAL_BOOL) return strdup(v->data.bool_val ? "1" : "0");
+    if(v->tag==OVAL_INT || (v->tag==OVAL_FLOAT && isfinite(v->data.float_val))) return oval_splice_repr(v);
+    char *text=oval_splice_repr(v);SB sb;sb_init(&sb);
+    if(text && strchr(text,'\r')) {
+        sb_append(&sb,"CAST(X'");for(const unsigned char *p=(unsigned char *)text;*p;p++) {char b[3];snprintf(b,sizeof(b),"%02x",*p);sb_append(&sb,b);}sb_append(&sb,"' AS TEXT)");
+    } else {
+        sb_append_c(&sb,'\'');for(const char *p=text ? text : "";*p;p++) {sb_append_c(&sb,*p);if(*p=='\'') sb_append_c(&sb,'\'');}sb_append_c(&sb,'\'');
+    }
+    free(text);return sb_take(&sb);
+}
+
+static char *render_shell(OValue *v) {
+    char *text=oval_splice_repr(v);SB sb;sb_init(&sb);sb_append_c(&sb,'\'');
+    for(const char *p=text ? text : "";*p;p++) {if(*p=='\'') sb_append(&sb,"'\\''");else sb_append_c(&sb,*p);}
+    sb_append_c(&sb,'\'');free(text);return sb_take(&sb);
+}
+
+static char *render_javascript(OValue *v) {
+    if(!v || v->tag==OVAL_NULL) return strdup("null");
+    if(v->tag==OVAL_BOOL || v->tag==OVAL_INT || (v->tag==OVAL_FLOAT && isfinite(v->data.float_val))) return oval_splice_repr(v);
+    SB sb;sb_init(&sb);
+    if(v->tag==OVAL_LIST) {
+        sb_append(&sb,"[");for(size_t i=0;i<v->data.list.len;i++) {char *s=render_javascript(v->data.list.items[i]);if(i)sb_append(&sb,",");sb_append(&sb,s);free(s);}sb_append(&sb,"]");return sb_take(&sb);
+    }
+    if(v->tag==OVAL_MAP) {
+        sb_append(&sb,"({");OValueMap *map=v->data.map;bool first=true;
+        for(size_t i=0;i<map->bucket_count;i++) {
+            for(OMapEntry *e=map->buckets[i];e;e=e->next) {
+                char *k=json_quote(e->key),*s=render_javascript(e->value);
+                if(!first)sb_append(&sb,",");
+                first=false;sb_append(&sb,"[");sb_append(&sb,k);sb_append(&sb,"]:");sb_append(&sb,s);free(k);free(s);
+            }
+        }
+        sb_append(&sb,"})");return sb_take(&sb);
+    }
+    free(sb.buf);char *text=oval_splice_repr(v);char *result=json_quote(text ? text : "");free(text);return result;
 }
 
 char *olang_render_child(const char *lang, OValue *val) {
@@ -348,8 +417,12 @@ char *olang_render_child(const char *lang, OValue *val) {
     if (strcmp(lang, "markdown") == 0 || strcmp(lang, "md") == 0) return render_markdown_or_text(val);
     if (strcmp(lang, "latex") == 0 || strcmp(lang, "tex") == 0) return render_latex(val);
     if (strcmp(lang, "text") == 0 || strcmp(lang, "plain") == 0) return render_markdown_or_text(val);
-    if (strncmp(lang, "nix", 3) == 0) return render_nix(val);
-    return oval_splice_repr(val);
+    if (!strcmp(lang,"nix") || !strcmp(lang,"nix_expr") || !strcmp(lang,"nix_store") || !strcmp(lang,"nixos_test")) return render_nix(val);
+    if (!strcmp(lang,"sql")) return render_sql(val);
+    if (!strcmp(lang,"bash") || !strcmp(lang,"shell")) return render_shell(val);
+    if (!strcmp(lang,"javascript")) return render_javascript(val);
+    fprintf(stderr,"foreign backend `%s` has no declared literal renderer\n",lang);
+    return NULL;
 }
 
 /* ── Evaluator struct ──────────────────────────────────────────────────── */
@@ -480,6 +553,12 @@ static OValue *eval_node(OEvaluator *ev, ONode *node, bool *err);
 
 static OValue *eval_call(OEvaluator *ev, const char *fn, ONode **args, size_t nargs, bool *err) {
     if (!fn) { *err = true; return NULL; }
+    if (!strcmp(fn,"code")) {
+        if(nargs!=1 || !args[0] || args[0]->tag!=ONODE_VAR_REF) { *err=true; return NULL; }
+        OValue *value=eval_node(ev,args[0],err);
+        if(!value) { fprintf(stderr,"undefined O variable in explicit code splice\n");*err=true; }
+        return value;
+    }
     if (strcmp(fn, "now") == 0) {
         if (nargs != 1) { *err=true; return NULL; }
         OValue *r = eval_node(ev, args[0], err);
@@ -614,7 +693,7 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
 
     /* default splice */
     SB buf; sb_init(&buf);
-    for (size_t i=0; i<body_len; ++i) {
+    for (size_t i=0; !*err && i<body_len; ++i) {
         ONode *ch = body[i];
         if (ch->tag == ONODE_RAW_TEXT) {
             sb_append(&buf, ch->data.text ? ch->data.text : "");
@@ -624,10 +703,14 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
             OValue *val = scope_lookup(ev, ch->data.var_name ? ch->data.var_name : "");
             if (val) {
                 char *r = olang_render_child(lang, val);
+                if(!r) *err=true;
                 sb_append(&buf, r); free(r);
                 oval_release(val);
             } else {
-                sb_append(&buf, "$"); sb_append(&buf, ch->data.var_name ? ch->data.var_name : "");
+                if(!strcmp(lang,"text") || !strcmp(lang,"plain") || !strcmp(lang,"html") ||
+                   !strcmp(lang,"markdown") || !strcmp(lang,"md") || !strcmp(lang,"latex") || !strcmp(lang,"tex")) {
+                    sb_append(&buf,"$");sb_append(&buf,ch->data.var_name ? ch->data.var_name : "");
+                } else {fprintf(stderr,"undefined O variable $%s\n",ch->data.var_name ? ch->data.var_name : "");*err=true;}
             }
             continue;
         }
@@ -637,6 +720,7 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
                                          ch->data.typed_expr.body_len, err);
             if (cv) {
                 char *r = olang_render_child(lang, cv);
+                if(!r) *err=true;
                 sb_append(&buf, r); free(r);
                 oval_release(cv);
             }
@@ -645,7 +729,13 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
         if (ch->tag == ONODE_CALL) {
             OValue *cv = eval_call(ev, ch->data.call.fn_name, ch->data.call.args, ch->data.call.args_len, err);
             if (cv) {
-                char *r = olang_render_child(lang, cv);
+                char *r=NULL;
+                if(olang_node_is_code_splice(ch)) {
+                    if(cv->tag==OVAL_STR || cv->tag==OVAL_EXPR) r=strdup(cv->data.str_val ? cv->data.str_val : "");
+                    else if(cv->tag==OVAL_NIX_EXPR) r=strdup(cv->data.nix_expr.body ? cv->data.nix_expr.body : "");
+                    else fprintf(stderr,"explicit code requires Text, Expr or NixExpr source\n");
+                } else r=olang_render_child(lang, cv);
+                if(!r) *err=true;
                 sb_append(&buf, r); free(r);
                 oval_release(cv);
             }
@@ -653,6 +743,7 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
         }
     }
 
+    if(*err) {free(buf.buf);return NULL;}
     char *bodystr = sb_take(&buf);
 
     if (strcmp(lang, "html") == 0) {
@@ -675,6 +766,9 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
 
     /* dispatch to shim via registry using full loop (supports O.eval reentrancy for python) */
     OValue *bmapv = oval_map();
+    for(ScopeEntry *entry=ev->scope_head;entry;entry=entry->next) {
+        if(!oval_map_get(bmapv,entry->name)) oval_map_set(bmapv,entry->name,entry->val);
+    }
     OValueMap *bindings = bmapv ? bmapv->data.map : NULL;
     char *shim = olang_find_shim(ev, lang);
     olang_process_registry_send_exec(ev->registry, lang, runtime_env_id, bodystr, bindings, shim ? shim : "backends/python_shim.py");
@@ -737,6 +831,11 @@ static OValue *eval_node(OEvaluator *ev, ONode *node, bool *err) {
 OValue *olang_evaluator_eval_document(OEvaluator *ev, ONodeList *nodes) {
     if (!ev) return oval_null();
     if (!nodes) { ev->had_error = true; return oval_null(); }
+    char validation_error[512];
+    if(!olang_validate_source_tree(nodes->items,nodes->len,validation_error,sizeof(validation_error))) {
+        fprintf(stderr,"source validation error: %s\n",validation_error);
+        ev->had_error=true;return oval_null();
+    }
     bool outermost = ev->evaluation_depth == 0;
     if (outermost) ev->had_error = false;
     ev->evaluation_depth++;

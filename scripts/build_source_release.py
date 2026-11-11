@@ -215,6 +215,7 @@ REAL_WORLD_BENCHMARK_INPUT_PATHS = frozenset(
 REAL_WORLD_BENCHMARK_PATHS = frozenset(
     {
         "benchmarks/real_world/README.md",
+        "benchmarks/real_world/CONCURRENT_BASELINE.md",
         "benchmarks/real_world/asset_pipeline.O",
         "benchmarks/real_world/ci_shards.O",
         "benchmarks/real_world/timed_exec.py",
@@ -226,6 +227,48 @@ REAL_WORLD_BENCHMARK_RELEASE_PATHS = REAL_WORLD_BENCHMARK_PATHS | frozenset(
     {
         "scripts/benchmark_real_world.sh",
         "tests/test_benchmark_real_world.py",
+        "scripts/benchmark_concurrent_baseline.py",
+        "tests/test_benchmark_concurrent_baseline.py",
+    }
+)
+PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS = frozenset(
+    {
+        "ci/workflow-reviews.toml",
+        "crates/ostadix-api/src/foreign_splice.rs",
+        "o_lang/foreign_splice.py",
+        "c_cpp/src/parser.c",
+        "tests/test_edition_splice_contract.py",
+        "c_cpp/tests/test_splice_contract.c",
+        "docs/AI_ASSISTED_DEVELOPMENT.md",
+        "docs/COMMIT_AUTHORS.md",
+        "docs/CURRENT_CONTRACT.md",
+        "docs/SPLICE_MIGRATION.md",
+        "docs/REFERENCE.md",
+        "docs/readme-link-map.json",
+        "docs/research/fidelity-boundaries.md",
+        "docs/research/fidelity-boundaries.tex",
+        "docs/research/fidelity-boundaries.bib",
+        "docs/research/fidelity-boundaries.pdf",
+        "docs/research/citation-verification.json",
+        "evidence/public-contract-20261111/README.md",
+        "evidence/public-contract-20261111/baseline-observations.json",
+        "scripts/reproduce_splice_contract.py",
+        "tests/foreign_splice_contract.rs",
+        "tests/fixtures/foreign-splice-witnesses.json",
+        "tests/test_sql_statement_framing.py",
+        "tests/test_reproduce_splice_contract.py",
+    }
+)
+PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS = frozenset(
+    {
+        "audits/HISTORICAL_LAYOUT.html",
+        "benchmarks/real_world/CONCURRENT_BASELINE.html",
+        "docs/AI_ASSISTED_DEVELOPMENT.html",
+        "docs/CURRENT_CONTRACT.html",
+        "docs/REFERENCE.html",
+        "docs/SPLICE_MIGRATION.html",
+        "docs/research/fidelity-boundaries.html",
+        "evidence/public-contract-20261111/README.html",
     }
 )
 OSTADIX_API_RUNTIME_ASSET_PATHS = frozenset(
@@ -312,6 +355,7 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
     "execution_fabric": f"{OSTADIX_API_SOURCE_ROOT}/execution_fabric/mod.rs",
     "execution_fabric_authority": f"{OSTADIX_API_SOURCE_ROOT}/execution_fabric_authority/mod.rs",
     "executor": f"{OSTADIX_API_SOURCE_ROOT}/executor/mod.rs",
+    "foreign_splice": f"{OSTADIX_API_SOURCE_ROOT}/foreign_splice.rs",
     "hgraph": f"{OSTADIX_API_SOURCE_ROOT}/hgraph/mod.rs",
     "hosted_remote": f"{OSTADIX_API_SOURCE_ROOT}/hosted_remote/mod.rs",
     "information": f"{OSTADIX_API_SOURCE_ROOT}/information/mod.rs",
@@ -399,6 +443,8 @@ ALLOWED_EXACT_PATHS = frozenset(
     {
         "boot/boot.sh",
         "boot/README.md",
+        "audits/HISTORICAL_LAYOUT.md",
+        "audits/root-layout-20261111.json",
         "benchmarks/fidelity/README.md",
         "benchmarks/fidelity/RESULTS.md",
         "benchmarks/fidelity/integer_precision.O",
@@ -414,6 +460,7 @@ ALLOWED_EXACT_PATHS = frozenset(
     | REAL_WORLD_BENCHMARK_PATHS
     | OSTADIX_API_RELEASE_PATHS
     | HUMAN_LLM_INTERFACE_RELEASE_PATHS
+    | PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS
 )
 
 ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
@@ -474,9 +521,8 @@ EXCLUDED_EXACT_PATHS = frozenset(
 )
 
 EXCLUDED_BASENAMES = frozenset({".DS_Store", "Thumbs.db"})
-# HTML is normally generated output in this repository. These reviewed browser
-# launchers and Chatprint source inputs are exceptions, so keep the allowlist
-# exact rather than admitting every HTML file under `apps/`.
+# HTML is normally generated output. These reviewed browser inputs and exact
+# public-document companions are exceptions; other generated HTML stays out.
 ALLOWED_HTML_PATHS = frozenset(
     {
         "apps/olang-browser-wasi/index.html",
@@ -485,7 +531,7 @@ ALLOWED_HTML_PATHS = frozenset(
         "apps/browser-chat-pdf/preview.html",
         "apps/browser-chat-pdf/tests/fixtures/generic-chat.html",
     }
-)
+) | PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS
 EXCLUDED_SUFFIXES = (
     ".a",
     ".d",
@@ -1103,6 +1149,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
 ) | (
     HOSTED_HGRAPH_BENCHMARK_RELEASE_PATHS
     | REAL_WORLD_BENCHMARK_RELEASE_PATHS
+    | PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS
     | OSTADIX_API_RELEASE_PATHS
     | frozenset(OSTADIX_API_ROOT_MODULE_PATHS.values())
     | NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS
@@ -2611,6 +2658,7 @@ def _validate_workspace_facade_release_surface(files: dict[str, bytes]) -> None:
         "capability",
         "dispatch_model",
         "eval_core",
+        "foreign_splice",
         "placement_protocol",
         "progress",
         "native_leaf_identity",

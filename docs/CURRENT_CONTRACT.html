@@ -1,0 +1,182 @@
+<h1>Current public contract</h1>
+<p>This page separates the hosted language, its runtime boundary, and the native-system objective. It describes the inspected source baseline <code>1da570dcc61ef10285fc8c8b78a20ca087081daf</code> and the accompanying public-contract changes. A source-backed capability is not a claim that every listed runtime was installed or every test was executed on this revision. Fresh validation belongs in the named result/receipt, with its source and environment.</p>
+<h2>The expression and its value</h2>
+<p><code>LANG^(body)_LANG</code> chooses the evaluator for a syntactic region. The parser&#39;s <code>ONode::TypedExpr</code> stores the language, environment identity, attributes and body. These are <strong>evaluator tags</strong>, not static foreign-language result types. A Python-tagged expression may return a number, text, a collection or an error; it can also perform effects. O-core&#39;s statically checked <code>.oc</code> types are a separate language boundary.</p>
+<p><code>OValue</code> is the interchange algebra. It includes explicit numeric forms, encoded text, bytes, sequences, maps with arbitrary value keys, graphs, native capsules, quoted expressions, scopes and operational values. A rich carrier can represent distinctions that a particular adapter discards. Canonical CBOR preserves the encoded OValue; it does not prove that lifting from, or rendering into, another language preserves its semantics.</p>
+<p>The <a href="../benchmarks/fidelity/README.md">numeric witnesses</a> demonstrate the distinction. Python <code>1.0</code> can return through JavaScript stdout as integer <code>1</code>, changing type dispatch while equality survives. Integer <code>9007199254740993</code> can return as <code>9007199254740992</code>, changing parity. Both ordinary-scalar and tagged-OValue CBOR controls remain exact. Those are dated, concrete cases, not an accuracy survey of all backends.</p>
+<p>Sources: <a href="../crates/ostadix-api/src/parser.rs">parser</a>, <a href="../crates/ostadix-api/src/value.rs">OValue</a>, <a href="../crates/ostadix-api/src/wire.rs">wire framing</a>, <a href="../tests/fidelity_evaluation.rs">witness implementation</a>.</p>
+<h2>Foreign source is another boundary</h2>
+<p>Child values and O bindings must pass through a receiver-specific projection before a foreign evaluator parses its body. Literal data insertion, intentional presentation, and explicit code insertion have different contracts. The <a href="../SPEC.md#4-backend-protocol">SPEC</a> is the normative splice surface; the <a href="research/fidelity-boundaries.md">research note</a> states the conditional confinement result and its limitations.</p>
+<p>The literal contract is deliberately profile-specific. Lexical checks are conservative. Unsupported contexts around ordinary holes include Python f/t-strings, JavaScript/Nix interpolation, complex shell substitution/parameter/array forms, <code>[[</code> conditions, heredocs, ambiguous JavaScript slash, Nix indented strings and path prefixes, and bare Python/JavaScript backslashes. An unsupported prefix may leave later ordinary holes unavailable even after it appears to close. Simple native shell <code>${name}</code> and guest code with no O holes retain their existing path. This is not a full guest-parser proof. Known executable profiles must admit an ordinary value hole in a supported expression position and produce a receiver literal; placing the hole inside a guest string, comment or adjacent identifier is rejected. The literal profiles are Python, SQLite SQL, Bash/shell, JavaScript, and <code>nix</code>, <code>nix_expr</code>, <code>nix_store</code>, <code>nixos_test</code>. TypeScript is not catalog-registered. An explicit <code>$!name</code> insertion lowers to a visible <code>code($name)</code> call and relinquishes literal confinement, including for unknown executable profiles. Only an immediate code-call hole is raw; storing its ordinary returned value does not confer that projection. A subsequent ordinary hole after dynamic code is rejected when its lexical context is unknown. Presentation profiles such as HTML, text, Markdown and LaTeX do not establish executable-language confinement, HTML sanitization or safe browser interpretation. A backend name alone does not establish a literal grammar profile.</p>
+<p>Typed numeric binding, output lifting, literal rendering, source-context validation and authority checks are distinct gates. A statically invalid hole context is refused before execution; a value-dependent projection refusal concerns the receiving backend and does not undo producer effects already used to obtain that value. A syntactically confined value can still lose numeric precision. Explicit code can be authorized to execute yet remain semantically different from its producer. A literal inserted into a deliberately dangerous parent operation does not make the operation safe. In particular, authored <code>eval</code>, Bash <code>let</code>/<code>declare -i</code>, or existing integer-variable attributes can reinterpret data during execution. Lexical acceptance is not a proof of the complete guest grammar or of effect safety. The known nested <code>[[</code> context is refused around ordinary holes; native <code>${name}</code> remains guest syntax with its original semantics.</p>
+<p>The authoritative Rust source now also records actual receiver-fragment preparation under <code>execution_evidence.trace.source_renderings</code>. Records use schema <code>ostadix.source-render-observation/v1</code>, phase <code>prepared</code>, and scope <code>rendered_fragment_not_guest_execution</code>; they identify receiver/child plan nodes, language, renderer, value/code role, fidelity and hashes of the canonical value and rendered fragment. A completed-body hash covers the receiver splice buffer before backend-owned wrappers, preludes or control framing. No raw value or source is added. Partial preparation can retain records without that body hash, and guest failure retains already prepared records. Denied/unused quoted regions get no fabricated observation. Trusted inline presentation-only worker fast paths are outside this coverage. Preparation does not establish dispatch/completion, a pre-admitted final guest program or new authority. These are additive runtime trace fields, not a V6 or wire-version relabel.</p>
+<p>Source guards now exist in the Rust runtime, Python reference and C17 edition. Their source identities and real-engine tests remain edition-specific. Rust admission and prepared-fragment trace guarantees do not transfer to the reference editions. Python external shims use their own timeout; in-process Python and C17 do not inherit the Rust general step-deadline guarantee. C17 rejects embedded-NUL text where its C-string carrier cannot preserve it. The unchanged legacy C++ prototype is outside this qualification.</p>
+<h2>What ordinary admission binds</h2>
+<p>The active Rust path lowers source to OIR and a validated ExecutionPlan, builds and solves Graph V2, analyzes Evidence V6, and constructs <code>AdmittedExecutionV6</code>. The coordinator accepts that admitted object and rechecks its runtime binding. Evidence ties the lowered program, plan, graph, catalog/interface policy, selected direct executables and other declared inputs together. V5 records remain explicit archival/compatibility surfaces.</p>
+<p>This identity is not automatically the identity of the original source bytes. Public evaluator entrypoints also accept an already-lowered <code>OIrProgram</code>. Where the source/intent front door supplies actual and expected source and execution-intent digests, those are checked before fresh admission; the check does not replace admission and is not inherited as the identity of arbitrary nested <code>O.eval</code> fragments.</p>
+<p>Caller-owned initial scope is also not universally digest-bound as a complete immutable input package. Its bindings are installed after ordinary admission; a narrow O-scope <code>Load</code> preparation freezes the value it actually reads. Do not infer a universal initial-scope commitment, whole-process replayability or a closed ambient environment from the lowered-program digest. Direct launcher hashing does not attest arbitrary descendants, dynamic libraries or all effects of hosted code.</p>
+<p>Sources: <a href="../crates/ostadix-api/src/eval.rs">evaluator entrypoints and intent gate</a>, <a href="../crates/ostadix-api/src/evidence/analyze.rs">analysis</a>, <a href="../crates/ostadix-api/src/evidence/fact.rs">V6 evidence</a>, <a href="../crates/ostadix-api/src/evidence/admit.rs">admission</a>, <a href="../crates/ostadix-api/src/executor/coordinator.rs">ordinary coordinator</a>, <a href="../ARCHITECTURE.md#evidence-bound-admission">architecture</a>.</p>
+<h2>Scheduling, state and authority</h2>
+<p>The ordinary OIR coordinator, buffered Request scheduler, and project executor are separate authorities. <code>ProjectCoordinator</code> has its own validated project branches, route policy and execution observations. Successful ordinary admission is not a universal dispatch grant for project routes, a migration warrant, an actor checkpoint or exactly-once external effects.</p>
+<p>An environment index names a runtime environment identity; persistence depends on the backend&#39;s implementation and catalog state-support profile. In particular, the JavaScript backend is <strong>Stateless</strong>. Its proxy/bridge may persist while each execution spawns a fresh Node.js process. <code>javascript[0]</code> therefore does not promise durable JavaScript globals. The legacy JavaScript shim, implemented in Python, likewise launches Node per execution. Consult the actual profile before relying on persistent guest state.</p>
+<p>The compiled catalog describes tags, aliases, adapters, renderers, execution modes, runtime alternatives and declared capabilities. Presence in the catalog, <code>o capabilities</code>, or an executable search result establishes neither health nor authority. Use the operation&#39;s actual prerequisites, admission and retained execution result.</p>
+<p>Sources: <a href="../crates/ostadix-api/src/backend_catalog.inc.rs">catalog declarations</a>, <a href="../crates/ostadix-api/src/backend_catalog.rs">catalog implementation</a>, <a href="../crates/ostadix-api/src/backend.rs">JavaScript native bridge</a>, <a href="../backends/javascript_shim.py">legacy JavaScript shim</a>, <a href="../crates/ostadix-api/src/scheduler.rs">Request scheduler</a>, <a href="../crates/ostadix-api/src/project/executor.rs">project executor</a>, <a href="../src/command_catalog.rs">compiled command catalog</a>.</p>
+<h2>Selected backend capabilities</h2>
+<p>This table describes the current Rust adapters and catalog, not installed-engine
+health or a live-operation grant. Indexed interpreter state, checkpoint support
+and callback support are separate properties.</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Original engine and interpreter state</th>
+<th>Value crossing</th>
+<th>Adapter callbacks</th>
+<th>Checkpoint declaration</th>
+<th>Whole engine lowered through O-core</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Python <code>[n]</code></td>
+<td>Selected Python 3 shim with indexed environments</td>
+<td>Python plain-data profile; rich carrier has its own codec</td>
+<td>Framed <code>O.eval</code> requests</td>
+<td>Bounded <code>ostadix.python-graph/v1</code>, exact implementation</td>
+<td>No</td>
+</tr>
+<tr>
+<td>SQLite <code>[n]</code></td>
+<td>SQLite CLI with persistent connection state</td>
+<td>SQL scalar projection and result lifting</td>
+<td>No evaluator-callback bridge</td>
+<td>Bounded <code>ostadix.sqlite-cli-main/v1</code>, exact implementation</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Bash/shell</td>
+<td>Plain Bash is fresh; Bash <code>[n]</code> has live sessions; shell/sh is always fresh</td>
+<td>One literal word or native quoted parameter expansion</td>
+<td>No in-block evaluator-callback bridge</td>
+<td>Catalog <code>Stateless</code> is not a portable snapshot of numbered Bash</td>
+<td>No</td>
+</tr>
+<tr>
+<td>JavaScript</td>
+<td>Fresh Node per step, even with a persistent proxy</td>
+<td>JavaScript Number/stdout profile can lose distinctions</td>
+<td>Unix <code>O.native_*</code> owner-operation bridge; no general <code>O.eval</code>; unavailable on non-Unix</td>
+<td><code>Stateless</code>; no persistent Node globals</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Unprofiled executable tag</td>
+<td>Adapter-specific, where installed</td>
+<td>Ordinary holes refused; explicit code remains code</td>
+<td>Adapter-specific; not inferred from a tag</td>
+<td>Inspect its declared profile and actual export result</td>
+<td>No general claim</td>
+</tr>
+</tbody></table>
+<p>The catalog&#39;s state-support class does not replace the actual numbered-session
+contract or certify that arbitrary interpreter memory can be checkpointed.
+Callbacks retain their own admission path. Read the implementation and operation
+result before relying on a particular export or import.</p>
+<h2>Capability matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Current bounded capability</th>
+<th>What remains outside that claim</th>
+<th>Source/evidence entry</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Evaluator-tagged <code>.O</code> syntax</td>
+<td>Recursive evaluator regions, O-level bindings and plan dependencies</td>
+<td>Static typing or soundness of arbitrary foreign bodies</td>
+<td><a href="../SPEC.md">SPEC</a>, <a href="../crates/ostadix-api/src/parser.rs">parser</a></td>
+</tr>
+<tr>
+<td>OValue and canonical transport</td>
+<td>Rich tagged carrier and framed CBOR</td>
+<td>Lossless semantics through every adapter</td>
+<td><a href="../SPEC.md">value/wire contracts</a>, <a href="../benchmarks/fidelity/README.md">numeric witnesses</a></td>
+</tr>
+<tr>
+<td>Fidelity intervals</td>
+<td>Definite/possible structural losses, bounded algebra and executable checks</td>
+<td>Proof of every backend loss report; arbitrary mixed-sentinel join lattice</td>
+<td><a href="fidelity-domain.md">domain proof</a></td>
+</tr>
+<tr>
+<td>Ordinary Rust execution</td>
+<td>OIR/plan/Graph V2 plus Evidence/Admission V6</td>
+<td>Universal source-byte or initial-scope commitment; all execution under one authority</td>
+<td><a href="../ARCHITECTURE.md#evidence-bound-admission">architecture</a></td>
+</tr>
+<tr>
+<td>Source/intent front door</td>
+<td>Explicit source and intent digest check before fresh graph admission</td>
+<td>Automatic identity inheritance into every nested evaluation</td>
+<td><a href="UNIFIED_INTENT_FRONT_DOOR_V1.md">front-door contract</a>, <a href="../crates/ostadix-api/src/eval.rs">evaluator</a></td>
+</tr>
+<tr>
+<td>Project execution and planning</td>
+<td>Separate route/project coordinator; bounded static operation planning</td>
+<td>Record validation as behavioral equivalence, live eligibility, recovery execution or permission</td>
+<td><a href="OPERATION_PLANNING_V1.md">planning contract</a>, <a href="../crates/ostadix-api/src/project/executor.rs">executor</a></td>
+</tr>
+<tr>
+<td>Hosted engines</td>
+<td>Original installed engines invoked through declared adapters</td>
+<td>Their implementation bodies automatically compiled through O-core</td>
+<td><a href="RUNTIME_PROVENANCE.md">runtime provenance</a>, <a href="../crates/ostadix-api/src/backend_catalog.inc.rs">catalog</a></td>
+</tr>
+<tr>
+<td>JavaScript indexed environment</td>
+<td>Stable proxy identity; stateless fresh Node execution</td>
+<td>Persistent Node globals or shared in-process objects across steps</td>
+<td><a href="../crates/ostadix-api/src/backend.rs">native bridge</a>, <a href="../crates/ostadix-api/src/backend_catalog.inc.rs">state declaration</a></td>
+</tr>
+<tr>
+<td>Original-source native component</td>
+<td>Pinned u9fs codec and musl component pipeline with its declared closure</td>
+<td>Complete u9fs, Linux, Plan 9, or arbitrary runtime/compiler lowering</td>
+<td><a href="../tools/ocore-runtime/u9fs/NATIVE_PEER.md">component qualification</a></td>
+</tr>
+<tr>
+<td>O-core ISA backends</td>
+<td>x86-64, AArch64 and RV64GC compiler paths with profile-specific support</td>
+<td>Whole-runtime identity across all targets; i686/ARMv7 foundations complete</td>
+<td><a href="../tools/ocore-runtime/isa.requirements.json">ISA requirements</a>, <a href="../tools/ocore-runtime/expansion.requirements.json">expansion requirements</a></td>
+</tr>
+<tr>
+<td>Integrated boot</td>
+<td>Persistent AArch64 O-core monitor with original Linux/Alpine guest and native namespace component</td>
+<td>Full guest-kernel lowering or a completed unified OS</td>
+<td><a href="OKERNEL_PACKAGE_BOOT.md">boot contract</a>, <a href="../boot/README.md">boot entry</a></td>
+</tr>
+<tr>
+<td>Emulated and physical hardware</td>
+<td>Named virtual-device and QEMU gates, plus separately scoped hardware evidence where present</td>
+<td>QEMU success as proof of physical X12 display, keyboard, storage or driver support</td>
+<td><a href="OKERNEL_X12.md">X12 status</a>, <a href="CLAIMS.md">claim inventory</a></td>
+</tr>
+</tbody></table>
+<h2>Validation and development disclosure</h2>
+<p>The <a href="SPLICE_MIGRATION.md">splice migration guide</a> gives revised SQL, Python,
+JavaScript and shell examples and explains the preserved reference&#39;s older
+quoted-hole syntax.</p>
+<p>The published baseline <code>1da570dc</code> has a <a href="https://github.com/lostadi/OSTADIX/actions/runs/42972231895">public CI run</a> that failed on two workflow-posture findings before the Rust jobs. That run supplies no passing Rust-suite claim. Follow-up repairs and new execution results must retain their own source identities; do not relabel this baseline failure as a later success.</p>
+<p>The <a href="../evidence/public-contract-20261111/README.md">seven splice baseline witnesses and reproduction package</a> preserve the original control, injection, syntax-failure and timeout observations. The <a href="../tests/fixtures/foreign-splice-witnesses.json">checked-in witnesses</a> and <a href="../tests/foreign_splice_contract.rs">contract tests</a> define the cases. The <a href="../scripts/reproduce_splice_contract.py">portable runner</a> separates original inputs from revised-contract positive/negative probes; a command&#39;s existence is not an executed revised-result claim.</p>
+<p><a href="CLAIMS.md">CLAIMS.md</a> is the detailed evidence inventory. <a href="CI_POSTURE.md">CI_POSTURE.md</a> describes the static/local audit and optional tools. <a href="REFERENCE.md#running-the-tests">The full reference</a> retains the existing commands and historical results. A passing parse, unit test, object build, source capture, emulated boot, hosted integration and physical-driver test answer different questions. Any report must identify which one actually ran, its prerequisites and its source.</p>
+<p>The <a href="AI_ASSISTED_DEVELOPMENT.md">AI-assisted development disclosure</a> distinguishes substantial tool assistance, maintainership, Git publication identity and evidence responsibility. The existing <a href="../Ostadix-lang_Technical_Whitepaper.pdf">technical whitepaper</a> remains a dated artifact; this page does not rewrite its historical experiment dates or source identities.</p>
+<h2>Engine API inventory</h2>
+<p>These are source inventory counts, not execution or qualification counts.
+Direct engine users may import the 44 public runtime modules. The compatibility
+facade retains its separate existing surface. The historical reference keeps its
+original counts; this inventory is checked against the current source.</p>
+<pre><code class="language-text"># 55 engine modules, 44 public
+# 43 public compatibility reexports
+</code></pre>

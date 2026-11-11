@@ -10,7 +10,9 @@ share syntactic form) generalized across multiple languages.</p>
 <hr>
 <h2>1. Grammar</h2>
 <pre><code>document     ::= body_part*
-body_part    ::= text | expression
+body_part    ::= text | expression | value_hole | code_hole
+value_hole   ::= &quot;$&quot; IDENT                        -- ordinary value insertion
+code_hole    ::= &quot;$!&quot; IDENT                       -- explicit code insertion
 expression   ::= OPENER body_part* CLOSER           -- matching CLOSER required
 OPENER       ::= IDENT (&quot;[&quot; DIGITS &quot;]&quot;)? &quot;^(&quot;
 CLOSER       ::= &quot;)_&quot; IDENT (&quot;[&quot; DIGITS &quot;]&quot;)?       -- must match OPENER&#39;s IDENT
@@ -22,12 +24,25 @@ backslash-escape
                | &quot;\&quot; CLOSER          -- literal closer, not a termination
                | &quot;\&quot; &quot;$&quot; IDENT       -- literal $IDENT, not a VarRef splice
 </code></pre>
-<p>The <code>\$IDENT</code> escape is important when writing real target-language code inside block
-bodies. Ostadix-lang parses <code>$IDENT</code> everywhere (including inside <code>bash^</code>, <code>python^</code>, etc.)
-as a binding reference (VarRef). To write a bare shell variable like <code>$PATH</code> in a
-<code>bash{cap=runner}^(...)_bash{cap=runner}</code> block without triggering an
-&quot;Undefined variable&quot; error, write <code>\$PATH</code>.
-Ostadix-lang strips the backslash and passes <code>$PATH</code> verbatim to the bash backend.</p>
+<p><code>$IDENT</code> denotes an O binding reference; it is not a request to paste arbitrary
+source. In supported executable profiles an ordinary hole must occupy an
+unquoted standalone value position. The parser and lowered-OIR validator reject
+ordinary holes inside guest strings/comments, adjacent to identifier tokens, or
+in unsupported lexical forms before backend effects. This is a bounded lexical
+contract, not a complete guest-language parser or a proof of its grammar.</p>
+<p><code>$!IDENT</code> is explicit code syntax. It lowers to a plan-visible builtin
+<code>code($IDENT)</code> call, with an ordinary dependency on the binding. Only that
+immediate code-call hole selects raw source projection. Calling <code>code($value)</code>
+elsewhere and storing its result returns an ordinary value; it does not attach
+a sticky code permission. Explicit code accepts Text, NixExpr or Expr source;
+other OValue families are refused. It grants no execution authority and carries
+no literal-confinement guarantee, including on an otherwise unknown executable
+profile. A later ordinary hole in the same executable body is rejected when
+preceding dynamic code makes its lexical context unknown.</p>
+<p>To pass native shell syntax rather than an O hole, use the guest binding
+<code>${PATH}</code> or escape the dollar in <code>\$PATH</code>. The backslash escape passes <code>$PATH</code>
+verbatim. In particular, quoted native <code>${name}</code> is distinct from quoted O
+<code>$name</code>: the latter is an unsupported value-hole context, not an escaping idiom.</p>
 <p>An <code>IDENT</code> that is <strong>not in the registered-language set</strong> is NOT treated as an
 opener, even if followed by <code>^(</code>. This keeps inner-language code safe -
 <code>2 ^ (x+1)</code> in a Python body does not parse as a <code>2^(…)_2</code> expression.</p>
@@ -63,19 +78,29 @@ the parsed forest to executable OIR and builds a validated <code>ExecutionPlan</
 that is bare, <code>[*]</code>, or persistent <code>[n]</code>, embedded <code>BackendInterface</code>, and body
 <code>B = [c₁, c₂, …]</code>:</p>
 <ol>
-<li>For each child <code>cᵢ</code>:<ul>
-<li>if <code>cᵢ</code> is text, emit <code>cᵢ</code> verbatim into a splice buffer.</li>
-<li>if <code>cᵢ</code> is an ExpressionNode, recursively evaluate it to get OValue <code>vᵢ</code>,
-then emit <code>E.backend.renderer(vᵢ)</code> into the splice buffer.</li>
+<li>Validate the body&#39;s ordinary-hole contexts using the receiving profile.
+Source parsing and lowered-OIR validation both enforce this boundary.</li>
+<li>For each child <code>cᵢ</code> in planned order:<ul>
+<li>emit a text child verbatim;</li>
+<li>obtain an ordinary child&#39;s computed OValue <code>vᵢ</code> (including a binding
+load) and emit its receiver-specific literal or presentation projection;</li>
+<li>for an immediate explicit <code>code(...)</code> hole, emit its admitted source
+payload and classify the projection as <code>Reinterpretation</code>.</li>
 </ul>
 </li>
 <li>Concatenate the splice buffer → final source string <code>B*</code>.</li>
-<li>Return <code>backend(L).evaluate(B*, env(L, n))</code>.</li>
+<li>Return <code>backend(L).evaluate(B*, env(L, n))</code> under the existing backend
+authority and request controls. Literal rendering does not grant authority.</li>
 </ol>
-<p>Persistent environments: <code>env(L, n)</code> is created exactly once for an explicit
-numeric environment marker and memoized in the process registry. Subsequent
-references to the same <code>(L, n)</code> pair reuse the same process. A bare or <code>[*]</code>
-expression uses fresh physical execution and is destroyed after dispatch.</p>
+<p>Persistent environment identities are memoized by <code>(L, n)</code> in the process
+registry. Their actual guest-state persistence is backend-specific. Reusing a
+proxy process does not establish persistent language state: the JavaScript
+catalog profile is <code>Stateless</code>, and each execution spawns a fresh Node.js
+process even when the proxy identity persists. A bare or <code>[*]</code> expression
+selects fresh physical execution and is cleaned up after dispatch.</p>
+<p>The evaluator tag in syntax selects a language implementation; it is not a
+static foreign-expression result type. OValue tags describe crossing values,
+while O-core has a separate static type system.</p>
 <h3>2.2 Structural backends (<code>eval_ast</code> hook)</h3>
 <p>Some backends need control over how their children are evaluated because the
 default splice-then-evaluate flow is wrong for them. Their OIR
@@ -130,8 +155,9 @@ never mutate either the snapshot or its source scope.</p>
 <h3>2.4 Environment lifetime and forcing contract</h3>
 <p>Environment lifetime and request forcing are part of the stable language core:</p>
 <ul>
-<li>A persistent environment is keyed by <code>(language, env_id)</code> and lives until the
-evaluator drops it or explicitly cleans it up.</li>
+<li>A persistent environment identity is keyed by <code>(language, env_id)</code> and lives
+until cleanup. Guest-state retention additionally depends on the catalog and
+adapter; JavaScript remains stateless across fresh Node.js executions.</li>
 <li>Bare <code>lang^(...)_lang</code> blocks are ephemeral. Explicit <code>lang[n]</code> blocks are
 persistent. Explicit <code>lang[*]</code> blocks are linker-isolated fresh attempts, not
 persistent identities.</li>
@@ -154,7 +180,7 @@ conservatively impure.</li>
 <p>This includes the <code>O</code> interpreter, REPL entries, notebook cells,
 <code>olangc --target script</code>, bare-directory <code>o-link</code>, explicit <code>o-link --run</code>,
 compiled hosted binaries, and source fragments received through <code>O.eval</code>.</p>
-<p>OIR instructions are <code>Text</code>, <code>Load</code>, <code>Store</code>, <code>Invoke</code>, and <code>Exec</code>. Each Exec
+<p>OIR instructions are <code>Text</code>, <code>Load</code>, <code>Store</code>, <code>Invoke</code>, <code>NativeLeaf</code>, and <code>Exec</code>. Each Exec
 owns a <code>BackendInterface</code> containing its canonical backend name, purity,
 splice renderer, and execution mode. Each Invoke owns an <code>InvokeMode</code> that is
 eager, lazy, autonomous, or one of the four group modes. Runtime dispatch,
@@ -927,7 +953,7 @@ sequences) and <code>quote</code> (which captures without evaluating).</li>
 </ul>
 <p><code>render_child</code> is a consumer projection, not the OValue lifting map. Its
 fidelity is classified as typed (<code>T</code>), structural (<code>S</code>), human presentation
-(<code>P</code>), or opaque marker (<code>O</code>). Scalar rows enumerate every possible result; a
+(<code>P</code>), opaque marker (<code>O</code>), or source reinterpretation (<code>R</code>). Scalar rows enumerate every possible result; a
 slash marks a payload-dependent classification. Container rows give the
 starting classification before recursive child folding:</p>
 <table>
@@ -940,6 +966,7 @@ starting classification before recursive child folding:</p>
 <th>LaTeX</th>
 <th>Markdown</th>
 <th>Default</th>
+<th>SQL / Shell / JavaScript</th>
 </tr>
 </thead>
 <tbody><tr>
@@ -950,6 +977,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>Integer</td>
@@ -958,6 +986,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>P</td>
+<td>S</td>
 <td>S</td>
 </tr>
 <tr>
@@ -968,6 +997,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>Rational, binary float F32, BigFloat, complex</td>
@@ -976,6 +1006,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>P</td>
+<td>S</td>
 <td>S</td>
 </tr>
 <tr>
@@ -986,6 +1017,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>Char, symbol, keyword</td>
@@ -994,6 +1026,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>P</td>
+<td>S</td>
 <td>S</td>
 </tr>
 <tr>
@@ -1004,6 +1037,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>Bytes without media type</td>
@@ -1013,14 +1047,26 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>O</td>
+<td>S</td>
 </tr>
 <tr>
-<td>HTML, store path, expr, derivation, system</td>
+<td>HTML</td>
+<td>T</td>
+<td>S</td>
+<td>R</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Store path, expr, derivation, system</td>
 <td>T</td>
 <td>S</td>
 <td>P</td>
 <td>P</td>
 <td>P</td>
+<td>S</td>
 <td>S</td>
 </tr>
 <tr>
@@ -1031,14 +1077,26 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
-<td>NixExpr, thunk</td>
+<td>NixExpr</td>
+<td>T</td>
+<td>R</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Thunk</td>
 <td>T</td>
 <td>S</td>
 <td>P</td>
 <td>P</td>
 <td>P</td>
+<td>S</td>
 <td>S</td>
 </tr>
 <tr>
@@ -1049,6 +1107,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>Tuple sequence</td>
@@ -1057,6 +1116,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>P</td>
+<td>S</td>
 <td>S</td>
 </tr>
 <tr>
@@ -1067,6 +1127,7 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>EntriesMap</td>
@@ -1076,10 +1137,12 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>S</td>
+<td>S</td>
 </tr>
 <tr>
 <td>Scope, graph, native</td>
 <td>T</td>
+<td>O</td>
 <td>O</td>
 <td>O</td>
 <td>O</td>
@@ -1094,10 +1157,12 @@ starting classification before recursive child folding:</p>
 <td>P</td>
 <td>P</td>
 <td>O</td>
+<td>O</td>
 </tr>
 <tr>
 <td>Request, capability, snapshot, group</td>
 <td>T</td>
+<td>O</td>
 <td>O</td>
 <td>O</td>
 <td>O</td>
@@ -1108,7 +1173,9 @@ starting classification before recursive child folding:</p>
 <p><code>T</code> retains the value and its O-level type. For <code>S</code>, portable payload or
 structure survives, but O-level tags or auxiliary metadata may be erased. <code>P</code>
 is an intentional human-facing presentation, and <code>O</code> retains only an
-identifying marker or summary. Python Decimal is <code>T</code> only for a
+identifying marker or summary. <code>R</code> means the receiver deliberately interprets
+the value as syntax; it asserts neither value preservation nor confinement.
+Explicit code holes are <code>R</code> regardless of the ordinary scalar row. Python Decimal is <code>T</code> only for a
 renderer-admitted exact Decimal shape within its portable bounds, and F64 is
 <code>T</code> only for an eight-byte payload; otherwise those forms are <code>S</code>. Nix integer
 is <code>T</code> only in the signed 64-bit range, and Nix Text is <code>T</code> only with explicit
@@ -1118,11 +1185,34 @@ an entries list with domain-separated Unicode code-point keys so
 otherwise-colliding payloads remain reconstructible.</p>
 <p>Every recursive container MUST then fold all child classifications, so its
 result is no stronger than its least faithfully rendered child; <code>EntriesMap</code>
-MUST fold both keys and values. Implementations MUST classify every OValue
+MUST fold both keys and values. Reachable source reinterpretation propagates
+as <code>R</code> through that container; a wrapper cannot upgrade raw code to a typed
+literal classification. Implementations MUST classify every OValue
 variant for every registered renderer. An opaque value MUST render an
 identifying marker rather than silently disappearing.</p>
-<p><code>RenderFidelity</code> can be recomputed on demand as a renderer-local description of
-source projection. It is not stored in OIR, evidence, or admission records.
+<p><code>RenderFidelity</code> remains a descriptive, recomputable renderer-local API. It is
+not a static OIR fact or a new admission/wire schema. Actual receiver-fragment
+preparation also records its classification in the additive
+<code>ExecutionTrace.source_renderings</code> field exposed under
+<code>execution_evidence.trace.source_renderings</code> by the Rust CLI.</p>
+<p>Each <code>ostadix.source-render-observation/v1</code> record has phase <code>prepared</code> and scope
+<code>rendered_fragment_not_guest_execution</code>. It names receiver/child plan IDs,
+language, renderer, role (<code>value</code> or <code>explicit_code</code>), value type, fidelity and
+<code>reinterpreted_as_code</code>; it hashes the canonical observed value and exact
+rendered UTF-8 fragment without adding their raw contents. The optional
+<code>final_body_sha256</code> hashes the completed receiver splice buffer before any
+backend-owned wrapper, prelude or control framing. It is absent after partial
+preparation failure. It does not identify the entire generated guest program.</p>
+<p>Denied or unused quoted regions produce no invented preparation records.
+Prepared records survive later guest failure; a prepared record alone proves
+neither dispatch nor successful execution. Partial preparation (including a
+later NUL refusal) can leave fragment records without a completed-body hash.
+Shared serial/graph body preparation and autonomous shim preparation are
+instrumented; trusted inline presentation-only worker fast paths are explicitly
+outside this observation coverage. Code-bearing Invoke bodies cannot use that
+presentation-only fast path. Existing lifecycle publication/discard events
+remain the execution-settlement evidence. No prepared body hash becomes a
+pre-admitted body identity or grants authority.
 Within a single renderer, nested values use the weaker reachable
 classification; the specification does not impose a global order between
 <code>Structural</code> and <code>Presentation</code>, which are not jointly reachable for any
@@ -1133,6 +1223,94 @@ common <code>Crossing</code> carrier, or Galois connection between those domains
 implemented. In particular, <code>RenderFidelity::Opaque</code> carries neither an exact
 <code>AnnotationKind</code> loss set nor an independent presentation intent, so deriving
 either would invent information that the renderer did not report.</p>
+<h3>4.1 Literal, presentation and explicit-code profiles</h3>
+<p>The revised source data/code guard is implemented in Rust, the Python reference
+and C17, with separate edition-specific tests and carrier limits. Prepared-fragment
+observations and ordinary admission here apply to the Rust runtime; they do not
+establish reference-edition evidence, deadline or checkpoint equivalence. The
+unchanged legacy C++ prototype is outside this qualification. Fresh runtime
+results must identify the exact edition and source tested.</p>
+<p>The declared executable literal/lexical profiles are Python, SQLite SQL,
+Bash/shell, JavaScript, and the Nix-family tags <code>nix</code>, <code>nix_expr</code>, <code>nix_store</code>,
+<code>nixos_test</code>. The low-level lexical alias inventory is unit-checked against
+the compiled catalog; it does not import the higher-level catalog into the
+parser. TypeScript is not
+catalog-registered; related syntax does not establish a supported backend.
+The lexical validator is conservative. Unsupported contexts around ordinary
+holes include Python f/t-strings; JavaScript template and Nix string interpolation;
+shell command/arithmetic substitutions, complex parameter expansions and array
+subscripts and <code>[[</code> conditions; shell heredocs; ambiguous JavaScript slash forms; Nix indented
+strings and unquoted path/search-path prefixes; and bare Python/JavaScript
+backslashes that create line-join or escaped-token ambiguity. JavaScript comment
+recognition also covers Annex B HTML-like and hashbang comments. An unsupported
+prefix may leave context unknown for later ordinary holes even after it appears
+to close. Simple native shell <code>${name}</code> remains supported, and code-free guest
+source is unchanged. Passing this bounded validator is not proof that arbitrary
+parent code is valid, harmless, or accepted by a complete guest grammar.</p>
+<p>SQL ordinary insertion uses one SQL value expression: NULL, boolean/numeric
+projection, or quoted text with apostrophes escaped. Rust and Python carrier
+paths support NUL text using an explicit hexadecimal-to-text construction;
+C17 rejects embedded-NUL text that its C-string carrier cannot preserve. Shell insertion quotes the complete
+rendered payload as one literal word. JavaScript quotes strings and recursively
+projects the supported structural forms. These may erase O-level tags or lose
+numeric precision; syntactic confinement and <code>RenderFidelity</code> are distinct
+from an exact semantic-preservation theorem. SQL text containing carriage
+returns also uses the hexadecimal construction, preserving bytes across the
+CLI file reader&#39;s newline normalization.</p>
+<p>A lexical guard is not a complete guest parser or an effect-safety proof.
+Authored <code>eval</code>, Bash <code>let</code>/<code>declare -i</code>, existing integer-variable attributes
+and other code-consuming APIs can deliberately reinterpret data at execution
+time, just as Python <code>eval</code> can. Their authority and effects remain the guest
+program&#39;s responsibility. A <code>source_renderings</code> value role describes ingress
+projection, not every subsequent use of that value inside the guest.</p>
+<p>The text, HTML, Markdown and LaTeX profiles are intentional presentations,
+not executable-language confinement or HTML sanitization contracts. An OValue
+HTML fragment in the HTML renderer is trusted active markup and therefore
+<code>Reinterpretation</code>; a NixExpr projected as Nix source has the same distinction.
+For an unknown executable profile, ordinary holes fail closed. Explicit
+<code>$!name</code> code holes remain available with no confinement claim and no additional
+authority. Code-free guest source follows its existing backend execution path.</p>
+<p>Migrate source according to the intended boundary:</p>
+<table>
+<thead>
+<tr>
+<th>Intent</th>
+<th>Supported form</th>
+<th>Invalid assumption</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Python value</td>
+<td><code>python^(__oval_result__ = $name)_python</code></td>
+<td>Manually putting guest quotes around an O hole is unnecessary and rejected.</td>
+</tr>
+<tr>
+<td>SQLite text value</td>
+<td><code>sql^(SELECT $name AS who;)_sql</code></td>
+<td><code>SELECT &#39;$name&#39;</code> does not turn an O hole into a safe SQL string.</td>
+</tr>
+<tr>
+<td>Existing shell binding</td>
+<td><code>bash^(printf &#39;%s\n&#39; &quot;${s}&quot;)_bash</code></td>
+<td>Quoted <code>&quot;$s&quot;</code> is an O hole, not native <code>${s}</code> syntax.</td>
+</tr>
+<tr>
+<td>Deliberate receiver code</td>
+<td><code>$!name</code> as an immediate foreign-body hole</td>
+<td><code>code(...)</code> grants neither authority nor a globally sticky code tag.</td>
+</tr>
+</tbody></table>
+<p>The <a href="evidence/public-contract-20261111/README.md">seven original witnesses</a>
+retain controls, actual source-interpretation failures, syntax failure and
+external timeout. The <a href="tests/fixtures/foreign-splice-witnesses.json">fixture inventory</a>
+and <a href="tests/foreign_splice_contract.rs">contract tests</a> identify the seven inputs
+and revised oracles; executed results retain separate source/tool coordinates. The <a href="docs/research/fidelity-boundaries.md">focused research note</a>
+states a conditional grammar-skeleton proposition and the assumptions the
+implementation must separately justify. The <a href="scripts/reproduce_splice_contract.py">portable reproduction runner</a>
+keeps baseline observations distinct from revised-contract positive and
+negative probes. Source-closed ordinary rendering and explicit code still use
+the existing V6 ordinary admission boundary; they do not merge Request or
+project scheduling into it.</p>
 <p>The Python renderer uses <code>OOpaqueValue</code> for O-specific tagged values with no
 native Python form. That handle MUST retain the complete wire object and MUST
 round-trip it unchanged. Deserializing such a handle MUST NOT create a private
@@ -1274,7 +1452,7 @@ output is one rendering of that tree.</p>
 <tr>
 <td><code>sql</code></td>
 <td></td>
-<td>Executes against persistent in-memory SQLite per environment.</td>
+<td>Rust uses a persistent SQLite CLI connection/private DB; Python shim paths have their own state policy.</td>
 </tr>
 <tr>
 <td><code>ruby</code></td>

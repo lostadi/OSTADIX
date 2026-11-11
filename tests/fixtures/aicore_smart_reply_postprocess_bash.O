@@ -12,10 +12,9 @@ is_unsigned_integer() {
 }
 
 is_signed_integer() {
-    case "\$1" in
-        -*) is_unsigned_integer "\${1#-}" ;;
-        *) is_unsigned_integer "\$1" ;;
-    esac
+    # Keep the signed-number check in Bash's regex grammar. Complex parameter
+    # substitutions are outside the bounded O value-hole lexer used below.
+    [[ "\$1" =~ ^-?[0-9]+$ ]]
 }
 
 consider_reply() {

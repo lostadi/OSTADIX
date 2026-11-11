@@ -222,6 +222,11 @@ layer = 5
 allowed_dependencies = ["backend_catalog", "effects", "ir", "value"]
 
 [[root]]
+name = "foreign_splice"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
 name = "execution_fabric"
 layer = 8
 allowed_dependencies = ["canonical_cbor", "world"]
@@ -269,7 +274,7 @@ allowed_dependencies = ["backend_catalog", "cancellation", "canonical_cbor", "ev
 [[root]]
 name = "ir"
 layer = 3
-allowed_dependencies = ["backend_catalog", "environment", "native_leaf_identity", "parser", "value"]
+allowed_dependencies = ["backend_catalog", "environment", "foreign_splice", "native_leaf_identity", "parser", "value"]
 
 [[root]]
 name = "kernel_world"
@@ -325,7 +330,7 @@ allowed_dependencies = ["capability", "value"]
 [[root]]
 name = "parser"
 layer = 1
-allowed_dependencies = ["environment", "syntax_dialect"]
+allowed_dependencies = ["environment", "foreign_splice", "syntax_dialect"]
 
 [[root]]
 name = "placement"

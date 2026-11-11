@@ -542,7 +542,7 @@ impl PreparedLeaf {
         self.execute_watched(arguments, &ChildWatch::from_knobs(None)?)
     }
 
-    /// Run the sealed leaf under `watch`: the opt-in step limit and the
+    /// Run the sealed leaf under `watch`: the configured step limit and the
     /// request's cancellation kill its process group, and a long run warns.
     #[cfg(target_os = "linux")]
     pub(crate) fn execute_watched(
@@ -743,7 +743,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
                 .take()
                 .context("native tool stderr unavailable")?;
             let reader = child_watch::capture(stderr);
-            // admission has no request token; the opt-in limit still applies.
+            // admission has no request token; the configured limit still applies.
             let status = child_watch::wait(&mut child, label, &ChildWatch::from_knobs(None)?)?;
             let stderr = child_watch::captured(reader, "tool stderr")?;
             if !status.success() {

@@ -1,0 +1,1670 @@
+{
+  "schema": "ostadix.readme-relocation/v1",
+  "original_commit": "1da570dcc61ef10285fc8c8b78a20ca087081daf",
+  "original_path": "README.md",
+  "original_sha256": "3b18f2ef35c2c4449662aa185f1f798918110faab490540ee3aec7483a6b057c",
+  "reference_path": "docs/REFERENCE.md",
+  "reference_header_bytes": 547,
+  "reference_body_sha256": "c60d46e04ea2a3dd8e972d7e20ad43e85d1e3cdab4a647c39b1686497f1a9509",
+  "content_preserved_except_recorded_link_destinations": true,
+  "headings": [
+    {
+      "original_line": 5,
+      "heading": "OSTADIX",
+      "anchor": "ostadix",
+      "destination": "docs/REFERENCE.md#ostadix"
+    },
+    {
+      "original_line": 104,
+      "heading": "The system I am building",
+      "anchor": "the-system-i-am-building",
+      "destination": "docs/REFERENCE.md#the-system-i-am-building"
+    },
+    {
+      "original_line": 128,
+      "heading": "Read the technical artifact set",
+      "anchor": "read-the-technical-artifact-set",
+      "destination": "docs/REFERENCE.md#read-the-technical-artifact-set"
+    },
+    {
+      "original_line": 160,
+      "heading": "One workflow for developers and LLMs",
+      "anchor": "one-workflow-for-developers-and-llms",
+      "destination": "docs/REFERENCE.md#one-workflow-for-developers-and-llms"
+    },
+    {
+      "original_line": 192,
+      "heading": "How to read Ostadix-lang",
+      "anchor": "how-to-read-ostadix-lang",
+      "destination": "docs/REFERENCE.md#how-to-read-ostadix-lang"
+    },
+    {
+      "original_line": 216,
+      "heading": "1. Source is executable structure",
+      "anchor": "1-source-is-executable-structure",
+      "destination": "docs/REFERENCE.md#1-source-is-executable-structure"
+    },
+    {
+      "original_line": 228,
+      "heading": "2. The source becomes an admitted graph",
+      "anchor": "2-the-source-becomes-an-admitted-graph",
+      "destination": "docs/REFERENCE.md#2-the-source-becomes-an-admitted-graph"
+    },
+    {
+      "original_line": 240,
+      "heading": "3. Placement is a decision over admitted work",
+      "anchor": "3-placement-is-a-decision-over-admitted-work",
+      "destination": "docs/REFERENCE.md#3-placement-is-a-decision-over-admitted-work"
+    },
+    {
+      "original_line": 255,
+      "heading": "4. Execution preserves evaluator and resource identity",
+      "anchor": "4-execution-preserves-evaluator-and-resource-identity",
+      "destination": "docs/REFERENCE.md#4-execution-preserves-evaluator-and-resource-identity"
+    },
+    {
+      "original_line": 269,
+      "heading": "5. Evidence is part of the execution model",
+      "anchor": "5-evidence-is-part-of-the-execution-model",
+      "destination": "docs/REFERENCE.md#5-evidence-is-part-of-the-execution-model"
+    },
+    {
+      "original_line": 296,
+      "heading": "Quickstart",
+      "anchor": "quickstart",
+      "destination": "docs/REFERENCE.md#quickstart"
+    },
+    {
+      "original_line": 379,
+      "heading": "Offline AI build ZIPs",
+      "anchor": "offline-ai-build-zips",
+      "destination": "docs/REFERENCE.md#offline-ai-build-zips"
+    },
+    {
+      "original_line": 405,
+      "heading": "Zero-configuration LAN execution",
+      "anchor": "zero-configuration-lan-execution",
+      "destination": "docs/REFERENCE.md#zero-configuration-lan-execution"
+    },
+    {
+      "original_line": 490,
+      "heading": "Peer-mesh execution for whole projects",
+      "anchor": "peer-mesh-execution-for-whole-projects",
+      "destination": "docs/REFERENCE.md#peer-mesh-execution-for-whole-projects"
+    },
+    {
+      "original_line": 540,
+      "heading": "Authenticated pure Fabric execution",
+      "anchor": "authenticated-pure-fabric-execution",
+      "destination": "docs/REFERENCE.md#authenticated-pure-fabric-execution"
+    },
+    {
+      "original_line": 591,
+      "heading": "Independent Rust runtime engine",
+      "anchor": "independent-rust-runtime-engine",
+      "destination": "docs/REFERENCE.md#independent-rust-runtime-engine"
+    },
+    {
+      "original_line": 637,
+      "heading": "Maturity at a glance",
+      "anchor": "maturity-at-a-glance",
+      "destination": "docs/REFERENCE.md#maturity-at-a-glance"
+    },
+    {
+      "original_line": 659,
+      "heading": "Boot the current integrated profile",
+      "anchor": "boot-the-current-integrated-profile",
+      "destination": "docs/REFERENCE.md#boot-the-current-integrated-profile"
+    },
+    {
+      "original_line": 684,
+      "heading": "Experimental operation and realization planning",
+      "anchor": "experimental-operation-and-realization-planning",
+      "destination": "docs/REFERENCE.md#experimental-operation-and-realization-planning"
+    },
+    {
+      "original_line": 774,
+      "heading": "Hosted Placement V6",
+      "anchor": "hosted-placement-v6",
+      "destination": "docs/REFERENCE.md#hosted-placement-v6"
+    },
+    {
+      "original_line": 877,
+      "heading": "Hosted V2 development quickstart",
+      "anchor": "hosted-v2-development-quickstart",
+      "destination": "docs/REFERENCE.md#hosted-v2-development-quickstart"
+    },
+    {
+      "original_line": 1242,
+      "heading": "Using Ostadix-lang with AI agents",
+      "anchor": "using-ostadix-lang-with-ai-agents",
+      "destination": "docs/REFERENCE.md#using-ostadix-lang-with-ai-agents"
+    },
+    {
+      "original_line": 1260,
+      "heading": "MCP server for AI-agent tools and URL connectors",
+      "anchor": "mcp-server-for-ai-agent-tools-and-url-connectors",
+      "destination": "docs/REFERENCE.md#mcp-server-for-ai-agent-tools-and-url-connectors"
+    },
+    {
+      "original_line": 1438,
+      "heading": "Getting Started: Full Setup Guide",
+      "anchor": "getting-started-full-setup-guide",
+      "destination": "docs/REFERENCE.md#getting-started-full-setup-guide"
+    },
+    {
+      "original_line": 1458,
+      "heading": "Prerequisites",
+      "anchor": "prerequisites",
+      "destination": "docs/REFERENCE.md#prerequisites"
+    },
+    {
+      "original_line": 1504,
+      "heading": "Option A: Automatic setup",
+      "anchor": "option-a-automatic-setup",
+      "destination": "docs/REFERENCE.md#option-a-automatic-setup"
+    },
+    {
+      "original_line": 1616,
+      "heading": "Recovering stale Nix profile backups",
+      "anchor": "recovering-stale-nix-profile-backups",
+      "destination": "docs/REFERENCE.md#recovering-stale-nix-profile-backups"
+    },
+    {
+      "original_line": 1646,
+      "heading": "Option B: Manual Rust setup",
+      "anchor": "option-b-manual-rust-setup",
+      "destination": "docs/REFERENCE.md#option-b-manual-rust-setup"
+    },
+    {
+      "original_line": 1658,
+      "heading": "O-Git semantic receipt demo",
+      "anchor": "o-git-semantic-receipt-demo",
+      "destination": "docs/REFERENCE.md#o-git-semantic-receipt-demo"
+    },
+    {
+      "original_line": 1678,
+      "heading": "macOS",
+      "anchor": "macos",
+      "destination": "docs/REFERENCE.md#macos"
+    },
+    {
+      "original_line": 1686,
+      "heading": "Debian, Ubuntu, Mint, and Pop!_OS",
+      "anchor": "debian-ubuntu-mint-and-pop_os",
+      "destination": "docs/REFERENCE.md#debian-ubuntu-mint-and-pop_os"
+    },
+    {
+      "original_line": 1697,
+      "heading": "Arch, CachyOS, Manjaro, and EndeavourOS",
+      "anchor": "arch-cachyos-manjaro-and-endeavouros",
+      "destination": "docs/REFERENCE.md#arch-cachyos-manjaro-and-endeavouros"
+    },
+    {
+      "original_line": 1706,
+      "heading": "Fedora, RHEL, Rocky, and related systems",
+      "anchor": "fedora-rhel-rocky-and-related-systems",
+      "destination": "docs/REFERENCE.md#fedora-rhel-rocky-and-related-systems"
+    },
+    {
+      "original_line": 1715,
+      "heading": "NixOS",
+      "anchor": "nixos",
+      "destination": "docs/REFERENCE.md#nixos"
+    },
+    {
+      "original_line": 1723,
+      "heading": "Other systems",
+      "anchor": "other-systems",
+      "destination": "docs/REFERENCE.md#other-systems"
+    },
+    {
+      "original_line": 1730,
+      "heading": "Option C: C17 edition only",
+      "anchor": "option-c-c17-edition-only",
+      "destination": "docs/REFERENCE.md#option-c-c17-edition-only"
+    },
+    {
+      "original_line": 1753,
+      "heading": "Embedding the Python and C17 editions",
+      "anchor": "embedding-the-python-and-c17-editions",
+      "destination": "docs/REFERENCE.md#embedding-the-python-and-c17-editions"
+    },
+    {
+      "original_line": 1778,
+      "heading": "Option D: Build and boot O-core",
+      "anchor": "option-d-build-and-boot-o-core",
+      "destination": "docs/REFERENCE.md#option-d-build-and-boot-o-core"
+    },
+    {
+      "original_line": 1837,
+      "heading": "Build the bootable x86_64 UEFI ISO",
+      "anchor": "build-the-bootable-x86_64-uefi-iso",
+      "destination": "docs/REFERENCE.md#build-the-bootable-x86_64-uefi-iso"
+    },
+    {
+      "original_line": 1904,
+      "heading": "Install absorbed OS, kernel, and userspace capacity",
+      "anchor": "install-absorbed-os-kernel-and-userspace-capacity",
+      "destination": "docs/REFERENCE.md#install-absorbed-os-kernel-and-userspace-capacity"
+    },
+    {
+      "original_line": 1949,
+      "heading": "Build the combined staged-tree OSTADIX x86_64 UEFI ISO",
+      "anchor": "build-the-combined-staged-tree-ostadix-x86_64-uefi-iso",
+      "destination": "docs/REFERENCE.md#build-the-combined-staged-tree-ostadix-x86_64-uefi-iso"
+    },
+    {
+      "original_line": 2166,
+      "heading": "Install the hosted-live ISO on Ventoy",
+      "anchor": "install-the-hosted-live-iso-on-ventoy",
+      "destination": "docs/REFERENCE.md#install-the-hosted-live-iso-on-ventoy"
+    },
+    {
+      "original_line": 2521,
+      "heading": "Hosted Live-World reference",
+      "anchor": "hosted-live-world-reference",
+      "destination": "docs/REFERENCE.md#hosted-live-world-reference"
+    },
+    {
+      "original_line": 2581,
+      "heading": "OSTADIX Alpha native constitution",
+      "anchor": "ostadix-alpha-native-constitution",
+      "destination": "docs/REFERENCE.md#ostadix-alpha-native-constitution"
+    },
+    {
+      "original_line": 2802,
+      "heading": "Project HGraph planning and ordered hosted execution gates",
+      "anchor": "project-hgraph-planning-and-ordered-hosted-execution-gates",
+      "destination": "docs/REFERENCE.md#project-hgraph-planning-and-ordered-hosted-execution-gates"
+    },
+    {
+      "original_line": 2984,
+      "heading": "Docker",
+      "anchor": "docker",
+      "destination": "docs/REFERENCE.md#docker"
+    },
+    {
+      "original_line": 3050,
+      "heading": "Browser AI chat PDF export",
+      "anchor": "browser-ai-chat-pdf-export",
+      "destination": "docs/REFERENCE.md#browser-ai-chat-pdf-export"
+    },
+    {
+      "original_line": 3070,
+      "heading": "Native Android device control",
+      "anchor": "native-android-device-control",
+      "destination": "docs/REFERENCE.md#native-android-device-control"
+    },
+    {
+      "original_line": 3106,
+      "heading": "What gets built",
+      "anchor": "what-gets-built",
+      "destination": "docs/REFERENCE.md#what-gets-built"
+    },
+    {
+      "original_line": 3134,
+      "heading": "Build artifacts and source-only checkout",
+      "anchor": "build-artifacts-and-source-only-checkout",
+      "destination": "docs/REFERENCE.md#build-artifacts-and-source-only-checkout"
+    },
+    {
+      "original_line": 3176,
+      "heading": "Verifying the installation",
+      "anchor": "verifying-the-installation",
+      "destination": "docs/REFERENCE.md#verifying-the-installation"
+    },
+    {
+      "original_line": 3230,
+      "heading": "Table of Contents",
+      "anchor": "table-of-contents",
+      "destination": "docs/REFERENCE.md#table-of-contents"
+    },
+    {
+      "original_line": 3258,
+      "heading": "What is new here?",
+      "anchor": "what-is-new-here",
+      "destination": "docs/REFERENCE.md#what-is-new-here"
+    },
+    {
+      "original_line": 3272,
+      "heading": "1. Typed parentheses: the language is in the syntax",
+      "anchor": "1-typed-parentheses-the-language-is-in-the-syntax",
+      "destination": "docs/REFERENCE.md#1-typed-parentheses-the-language-is-in-the-syntax"
+    },
+    {
+      "original_line": 3304,
+      "heading": "2. OValue: the universal exchange type",
+      "anchor": "2-ovalue-the-universal-exchange-type",
+      "destination": "docs/REFERENCE.md#2-ovalue-the-universal-exchange-type"
+    },
+    {
+      "original_line": 3343,
+      "heading": "3. Explicit persistent environments",
+      "anchor": "3-explicit-persistent-environments",
+      "destination": "docs/REFERENCE.md#3-explicit-persistent-environments"
+    },
+    {
+      "original_line": 3369,
+      "heading": "4. Homoiconicity across languages",
+      "anchor": "4-homoiconicity-across-languages",
+      "destination": "docs/REFERENCE.md#4-homoiconicity-across-languages"
+    },
+    {
+      "original_line": 3423,
+      "heading": "5. Orchestration and machine computation have different IRs",
+      "anchor": "5-orchestration-and-machine-computation-have-different-irs",
+      "destination": "docs/REFERENCE.md#5-orchestration-and-machine-computation-have-different-irs"
+    },
+    {
+      "original_line": 3448,
+      "heading": "Related work and how Ostadix-lang differs",
+      "anchor": "related-work-and-how-ostadix-lang-differs",
+      "destination": "docs/REFERENCE.md#related-work-and-how-ostadix-lang-differs"
+    },
+    {
+      "original_line": 3560,
+      "heading": "Gentle introduction",
+      "anchor": "gentle-introduction",
+      "destination": "docs/REFERENCE.md#gentle-introduction"
+    },
+    {
+      "original_line": 3566,
+      "heading": "What is a programming language, really?",
+      "anchor": "what-is-a-programming-language-really",
+      "destination": "docs/REFERENCE.md#what-is-a-programming-language-really"
+    },
+    {
+      "original_line": 3590,
+      "heading": "Nested expressions",
+      "anchor": "nested-expressions",
+      "destination": "docs/REFERENCE.md#nested-expressions"
+    },
+    {
+      "original_line": 3612,
+      "heading": "Naming values",
+      "anchor": "naming-values",
+      "destination": "docs/REFERENCE.md#naming-values"
+    },
+    {
+      "original_line": 3626,
+      "heading": "Persistent state when you ask for it",
+      "anchor": "persistent-state-when-you-ask-for-it",
+      "destination": "docs/REFERENCE.md#persistent-state-when-you-ask-for-it"
+    },
+    {
+      "original_line": 3643,
+      "heading": "Native computation",
+      "anchor": "native-computation",
+      "destination": "docs/REFERENCE.md#native-computation"
+    },
+    {
+      "original_line": 3669,
+      "heading": "Extended command examples",
+      "anchor": "extended-command-examples",
+      "destination": "docs/REFERENCE.md#extended-command-examples"
+    },
+    {
+      "original_line": 3676,
+      "heading": "Run a hosted O program",
+      "anchor": "run-a-hosted-o-program",
+      "destination": "docs/REFERENCE.md#run-a-hosted-o-program"
+    },
+    {
+      "original_line": 3684,
+      "heading": "Use the REPL",
+      "anchor": "use-the-repl",
+      "destination": "docs/REFERENCE.md#use-the-repl"
+    },
+    {
+      "original_line": 3694,
+      "heading": "Use the local notebook",
+      "anchor": "use-the-local-notebook",
+      "destination": "docs/REFERENCE.md#use-the-local-notebook"
+    },
+    {
+      "original_line": 3705,
+      "heading": "Compile hosted O",
+      "anchor": "compile-hosted-o",
+      "destination": "docs/REFERENCE.md#compile-hosted-o"
+    },
+    {
+      "original_line": 3717,
+      "heading": "Compile O-core",
+      "anchor": "compile-o-core",
+      "destination": "docs/REFERENCE.md#compile-o-core"
+    },
+    {
+      "original_line": 3725,
+      "heading": "Link source into one O document",
+      "anchor": "link-source-into-one-o-document",
+      "destination": "docs/REFERENCE.md#link-source-into-one-o-document"
+    },
+    {
+      "original_line": 3744,
+      "heading": "Hosted language tour",
+      "anchor": "hosted-language-tour",
+      "destination": "docs/REFERENCE.md#hosted-language-tour"
+    },
+    {
+      "original_line": 3746,
+      "heading": "Typed expression syntax",
+      "anchor": "typed-expression-syntax",
+      "destination": "docs/REFERENCE.md#typed-expression-syntax"
+    },
+    {
+      "original_line": 3765,
+      "heading": "Aliases",
+      "anchor": "aliases",
+      "destination": "docs/REFERENCE.md#aliases"
+    },
+    {
+      "original_line": 3779,
+      "heading": "Shebang support",
+      "anchor": "shebang-support",
+      "destination": "docs/REFERENCE.md#shebang-support"
+    },
+    {
+      "original_line": 3790,
+      "heading": "`let` bindings and `$var` splicing",
+      "anchor": "let-bindings-and-var-splicing",
+      "destination": "docs/REFERENCE.md#let-bindings-and-var-splicing"
+    },
+    {
+      "original_line": 3805,
+      "heading": "Python result rules",
+      "anchor": "python-result-rules",
+      "destination": "docs/REFERENCE.md#python-result-rules"
+    },
+    {
+      "original_line": 3823,
+      "heading": "`O^(...)_O` sequencing",
+      "anchor": "o_o-sequencing",
+      "destination": "docs/REFERENCE.md#o_o-sequencing"
+    },
+    {
+      "original_line": 3838,
+      "heading": "Environment lifetime",
+      "anchor": "environment-lifetime",
+      "destination": "docs/REFERENCE.md#environment-lifetime"
+    },
+    {
+      "original_line": 3863,
+      "heading": "Lazy and deferred blocks",
+      "anchor": "lazy-and-deferred-blocks",
+      "destination": "docs/REFERENCE.md#lazy-and-deferred-blocks"
+    },
+    {
+      "original_line": 3888,
+      "heading": "Backend authority is ambient by default",
+      "anchor": "backend-authority-is-ambient-by-default",
+      "destination": "docs/REFERENCE.md#backend-authority-is-ambient-by-default"
+    },
+    {
+      "original_line": 3921,
+      "heading": "`quote^` and `O.eval`",
+      "anchor": "quote-and-oeval",
+      "destination": "docs/REFERENCE.md#quote-and-oeval"
+    },
+    {
+      "original_line": 3940,
+      "heading": "The Nix lattice",
+      "anchor": "the-nix-lattice",
+      "destination": "docs/REFERENCE.md#the-nix-lattice"
+    },
+    {
+      "original_line": 3983,
+      "heading": "Autonomous scheduling",
+      "anchor": "autonomous-scheduling",
+      "destination": "docs/REFERENCE.md#autonomous-scheduling"
+    },
+    {
+      "original_line": 4014,
+      "heading": "Coordination groups",
+      "anchor": "coordination-groups",
+      "destination": "docs/REFERENCE.md#coordination-groups"
+    },
+    {
+      "original_line": 4046,
+      "heading": "Builtin call reference",
+      "anchor": "builtin-call-reference",
+      "destination": "docs/REFERENCE.md#builtin-call-reference"
+    },
+    {
+      "original_line": 4067,
+      "heading": "OValue and the runtime boundary",
+      "anchor": "ovalue-and-the-runtime-boundary",
+      "destination": "docs/REFERENCE.md#ovalue-and-the-runtime-boundary"
+    },
+    {
+      "original_line": 4138,
+      "heading": "OValue and the TCF terminal object",
+      "anchor": "ovalue-and-the-tcf-terminal-object",
+      "destination": "docs/REFERENCE.md#ovalue-and-the-tcf-terminal-object"
+    },
+    {
+      "original_line": 4236,
+      "heading": "Hosted backends",
+      "anchor": "hosted-backends",
+      "destination": "docs/REFERENCE.md#hosted-backends"
+    },
+    {
+      "original_line": 4301,
+      "heading": "Compiler and composition tools",
+      "anchor": "compiler-and-composition-tools",
+      "destination": "docs/REFERENCE.md#compiler-and-composition-tools"
+    },
+    {
+      "original_line": 4303,
+      "heading": "`O`: interpreter and REPL",
+      "anchor": "o-interpreter-and-repl",
+      "destination": "docs/REFERENCE.md#o-interpreter-and-repl"
+    },
+    {
+      "original_line": 4320,
+      "heading": "`olangc`: hosted AOT, WASI, script, OIR, and DOT graph",
+      "anchor": "olangc-hosted-aot-wasi-script-oir-and-dot-graph",
+      "destination": "docs/REFERENCE.md#olangc-hosted-aot-wasi-script-oir-and-dot-graph"
+    },
+    {
+      "original_line": 4366,
+      "heading": "Browser WASI payloads",
+      "anchor": "browser-wasi-payloads",
+      "destination": "docs/REFERENCE.md#browser-wasi-payloads"
+    },
+    {
+      "original_line": 4401,
+      "heading": "Browser Linux-in-WASI payloads",
+      "anchor": "browser-linux-in-wasi-payloads",
+      "destination": "docs/REFERENCE.md#browser-linux-in-wasi-payloads"
+    },
+    {
+      "original_line": 4450,
+      "heading": "Browser-only interactive Guix",
+      "anchor": "browser-only-interactive-guix",
+      "destination": "docs/REFERENCE.md#browser-only-interactive-guix"
+    },
+    {
+      "original_line": 4477,
+      "heading": "Public output forms",
+      "anchor": "public-output-forms",
+      "destination": "docs/REFERENCE.md#public-output-forms"
+    },
+    {
+      "original_line": 4495,
+      "heading": "`o-link`: isolated literal execution, explicit parallelism, and safe projects",
+      "anchor": "o-link-isolated-literal-execution-explicit-parallelism-and-safe-projects",
+      "destination": "docs/REFERENCE.md#o-link-isolated-literal-execution-explicit-parallelism-and-safe-projects"
+    },
+    {
+      "original_line": 4908,
+      "heading": "`o-unlink`: restore either representation",
+      "anchor": "o-unlink-restore-either-representation",
+      "destination": "docs/REFERENCE.md#o-unlink-restore-either-representation"
+    },
+    {
+      "original_line": 4924,
+      "heading": "`o-notebook`: local interactive documents",
+      "anchor": "o-notebook-local-interactive-documents",
+      "destination": "docs/REFERENCE.md#o-notebook-local-interactive-documents"
+    },
+    {
+      "original_line": 4937,
+      "heading": "Architecture",
+      "anchor": "architecture",
+      "destination": "docs/REFERENCE.md#architecture"
+    },
+    {
+      "original_line": 4981,
+      "heading": "Repository layout",
+      "anchor": "repository-layout",
+      "destination": "docs/REFERENCE.md#repository-layout"
+    },
+    {
+      "original_line": 5018,
+      "heading": "Hosted evaluation",
+      "anchor": "hosted-evaluation",
+      "destination": "docs/REFERENCE.md#hosted-evaluation"
+    },
+    {
+      "original_line": 5078,
+      "heading": "OIR and ExecutionPlan",
+      "anchor": "oir-and-executionplan",
+      "destination": "docs/REFERENCE.md#oir-and-executionplan"
+    },
+    {
+      "original_line": 5291,
+      "heading": "O-core native systems language",
+      "anchor": "o-core-native-systems-language",
+      "destination": "docs/REFERENCE.md#o-core-native-systems-language"
+    },
+    {
+      "original_line": 5328,
+      "heading": "Modules, items, and control flow",
+      "anchor": "modules-items-and-control-flow",
+      "destination": "docs/REFERENCE.md#modules-items-and-control-flow"
+    },
+    {
+      "original_line": 5358,
+      "heading": "Static types and aggregates",
+      "anchor": "static-types-and-aggregates",
+      "destination": "docs/REFERENCE.md#static-types-and-aggregates"
+    },
+    {
+      "original_line": 5391,
+      "heading": "Layout and ABI",
+      "anchor": "layout-and-abi",
+      "destination": "docs/REFERENCE.md#layout-and-abi"
+    },
+    {
+      "original_line": 5416,
+      "heading": "Explicit unsafe",
+      "anchor": "explicit-unsafe",
+      "destination": "docs/REFERENCE.md#explicit-unsafe"
+    },
+    {
+      "original_line": 5435,
+      "heading": "Volatile and atomic operations",
+      "anchor": "volatile-and-atomic-operations",
+      "destination": "docs/REFERENCE.md#volatile-and-atomic-operations"
+    },
+    {
+      "original_line": 5457,
+      "heading": "Hardware intrinsics and assembly",
+      "anchor": "hardware-intrinsics-and-assembly",
+      "destination": "docs/REFERENCE.md#hardware-intrinsics-and-assembly"
+    },
+    {
+      "original_line": 5476,
+      "heading": "Linkage and sections",
+      "anchor": "linkage-and-sections",
+      "destination": "docs/REFERENCE.md#linkage-and-sections"
+    },
+    {
+      "original_line": 5491,
+      "heading": "Compiler pipeline",
+      "anchor": "compiler-pipeline",
+      "destination": "docs/REFERENCE.md#compiler-pipeline"
+    },
+    {
+      "original_line": 5515,
+      "heading": "Freestanding kernel proof",
+      "anchor": "freestanding-kernel-proof",
+      "destination": "docs/REFERENCE.md#freestanding-kernel-proof"
+    },
+    {
+      "original_line": 5595,
+      "heading": "Capabilities and syscall ABI",
+      "anchor": "capabilities-and-syscall-abi",
+      "destination": "docs/REFERENCE.md#capabilities-and-syscall-abi"
+    },
+    {
+      "original_line": 5684,
+      "heading": "The freestanding boundary",
+      "anchor": "the-freestanding-boundary",
+      "destination": "docs/REFERENCE.md#the-freestanding-boundary"
+    },
+    {
+      "original_line": 5712,
+      "heading": "Included examples",
+      "anchor": "included-examples",
+      "destination": "docs/REFERENCE.md#included-examples"
+    },
+    {
+      "original_line": 5778,
+      "heading": "Running the tests",
+      "anchor": "running-the-tests",
+      "destination": "docs/REFERENCE.md#running-the-tests"
+    },
+    {
+      "original_line": 5963,
+      "heading": "Status",
+      "anchor": "status",
+      "destination": "docs/REFERENCE.md#status"
+    },
+    {
+      "original_line": 6017,
+      "heading": "Validation at the historical audited master",
+      "anchor": "validation-at-the-historical-audited-master",
+      "destination": "docs/REFERENCE.md#validation-at-the-historical-audited-master"
+    },
+    {
+      "original_line": 6082,
+      "heading": "Implemented",
+      "anchor": "implemented",
+      "destination": "docs/REFERENCE.md#implemented"
+    },
+    {
+      "original_line": 6292,
+      "heading": "Exact implementation boundaries",
+      "anchor": "exact-implementation-boundaries",
+      "destination": "docs/REFERENCE.md#exact-implementation-boundaries"
+    },
+    {
+      "original_line": 6502,
+      "heading": "License",
+      "anchor": "license",
+      "destination": "docs/REFERENCE.md#license"
+    },
+    {
+      "original_line": 6512,
+      "heading": "Citation and authorship",
+      "anchor": "citation-and-authorship",
+      "destination": "docs/REFERENCE.md#citation-and-authorship"
+    },
+    {
+      "original_line": 6516,
+      "heading": "Related preprints",
+      "anchor": "related-preprints",
+      "destination": "docs/REFERENCE.md#related-preprints"
+    },
+    {
+      "original_line": 6524,
+      "heading": "How to cite",
+      "anchor": "how-to-cite",
+      "destination": "docs/REFERENCE.md#how-to-cite"
+    },
+    {
+      "original_line": 6553,
+      "heading": "Archival releases and DOI",
+      "anchor": "archival-releases-and-doi",
+      "destination": "docs/REFERENCE.md#archival-releases-and-doi"
+    },
+    {
+      "original_line": 6574,
+      "heading": "Core contribution",
+      "anchor": "core-contribution",
+      "destination": "docs/REFERENCE.md#core-contribution"
+    }
+  ],
+  "link_relocations": [
+    {
+      "original_start": 31,
+      "original_end": 54,
+      "before": "./assets/olang-logo.png",
+      "after": ".././assets/olang-logo.png"
+    },
+    {
+      "original_start": 1437,
+      "original_end": 1463,
+      "before": "examples/literate_report.O",
+      "after": "../examples/literate_report.O"
+    },
+    {
+      "original_start": 2321,
+      "original_end": 2347,
+      "before": "examples/literate_report.O",
+      "after": "../examples/literate_report.O"
+    },
+    {
+      "original_start": 2380,
+      "original_end": 2407,
+      "before": "docs/HUMAN_LLM_WORKFLOWS.md",
+      "after": "../docs/HUMAN_LLM_WORKFLOWS.md"
+    },
+    {
+      "original_start": 2621,
+      "original_end": 2650,
+      "before": "tools/ocore-runtime/README.md",
+      "after": "../tools/ocore-runtime/README.md"
+    },
+    {
+      "original_start": 2693,
+      "original_end": 2727,
+      "before": "tools/ocore-runtime/u9fs/README.md",
+      "after": "../tools/ocore-runtime/u9fs/README.md"
+    },
+    {
+      "original_start": 2820,
+      "original_end": 2834,
+      "before": "boot/README.md",
+      "after": "../boot/README.md"
+    },
+    {
+      "original_start": 2989,
+      "original_end": 3026,
+      "before": "Ostadix-lang_Technical_Whitepaper.pdf",
+      "after": "../Ostadix-lang_Technical_Whitepaper.pdf"
+    },
+    {
+      "original_start": 3054,
+      "original_end": 3061,
+      "before": "SPEC.md",
+      "after": "../SPEC.md"
+    },
+    {
+      "original_start": 3091,
+      "original_end": 3105,
+      "before": "docs/CLAIMS.md",
+      "after": "../docs/CLAIMS.md"
+    },
+    {
+      "original_start": 3155,
+      "original_end": 3170,
+      "before": "ARCHITECTURE.md",
+      "after": "../ARCHITECTURE.md"
+    },
+    {
+      "original_start": 3196,
+      "original_end": 3210,
+      "before": "DEVELOPMENT.md",
+      "after": "../DEVELOPMENT.md"
+    },
+    {
+      "original_start": 6577,
+      "original_end": 6606,
+      "before": "tools/ocore-runtime/README.md",
+      "after": "../tools/ocore-runtime/README.md"
+    },
+    {
+      "original_start": 6711,
+      "original_end": 6750,
+      "before": "tools/ocore-runtime/u9fs/NATIVE_PEER.md",
+      "after": "../tools/ocore-runtime/u9fs/NATIVE_PEER.md"
+    },
+    {
+      "original_start": 7190,
+      "original_end": 7227,
+      "before": "Ostadix-lang_Technical_Whitepaper.pdf",
+      "after": "../Ostadix-lang_Technical_Whitepaper.pdf"
+    },
+    {
+      "original_start": 7265,
+      "original_end": 7307,
+      "before": "docs/Ostadix-lang_Technical_Whitepaper.tex",
+      "after": "../docs/Ostadix-lang_Technical_Whitepaper.tex"
+    },
+    {
+      "original_start": 7353,
+      "original_end": 7394,
+      "before": "docs/figures/o-linked-codebase-hgraph.dot",
+      "after": "../docs/figures/o-linked-codebase-hgraph.dot"
+    },
+    {
+      "original_start": 7432,
+      "original_end": 7473,
+      "before": "docs/figures/o-linked-codebase-hgraph.svg",
+      "after": "../docs/figures/o-linked-codebase-hgraph.svg"
+    },
+    {
+      "original_start": 7509,
+      "original_end": 7516,
+      "before": "SPEC.md",
+      "after": "../SPEC.md"
+    },
+    {
+      "original_start": 7569,
+      "original_end": 7591,
+      "before": "tools/syntax/README.md",
+      "after": "../tools/syntax/README.md"
+    },
+    {
+      "original_start": 7635,
+      "original_end": 7648,
+      "before": "docs/OCORE.md",
+      "after": "../docs/OCORE.md"
+    },
+    {
+      "original_start": 7667,
+      "original_end": 7682,
+      "before": "ARCHITECTURE.md",
+      "after": "../ARCHITECTURE.md"
+    },
+    {
+      "original_start": 7713,
+      "original_end": 7727,
+      "before": "docs/CLAIMS.md",
+      "after": "../docs/CLAIMS.md"
+    },
+    {
+      "original_start": 8212,
+      "original_end": 8254,
+      "before": "evidence/whitepaper_revision_20261028.json",
+      "after": "../evidence/whitepaper_revision_20261028.json"
+    },
+    {
+      "original_start": 8882,
+      "original_end": 8913,
+      "before": "docs/OIR_EXECUTION_FABRIC_V1.md",
+      "after": "../docs/OIR_EXECUTION_FABRIC_V1.md"
+    },
+    {
+      "original_start": 8973,
+      "original_end": 9026,
+      "before": "docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md",
+      "after": "../docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md"
+    },
+    {
+      "original_start": 9593,
+      "original_end": 9620,
+      "before": "docs/HUMAN_LLM_WORKFLOWS.md",
+      "after": "../docs/HUMAN_LLM_WORKFLOWS.md"
+    },
+    {
+      "original_start": 15095,
+      "original_end": 15119,
+      "before": "docs/SEMANTIC_CUSTODY.md",
+      "after": "../docs/SEMANTIC_CUSTODY.md"
+    },
+    {
+      "original_start": 17364,
+      "original_end": 17386,
+      "before": "tools/syntax/README.md",
+      "after": "../tools/syntax/README.md"
+    },
+    {
+      "original_start": 18415,
+      "original_end": 18454,
+      "before": "DEVELOPMENT.md#native-command-reference",
+      "after": "../DEVELOPMENT.md#native-command-reference"
+    },
+    {
+      "original_start": 18490,
+      "original_end": 18513,
+      "before": "docs/ZERO_CONFIG_LAN.md",
+      "after": "../docs/ZERO_CONFIG_LAN.md"
+    },
+    {
+      "original_start": 18549,
+      "original_end": 18608,
+      "before": "DEVELOPMENT.md#complete-language-source-and-document-checks",
+      "after": "../DEVELOPMENT.md#complete-language-source-and-document-checks"
+    },
+    {
+      "original_start": 19942,
+      "original_end": 19970,
+      "before": "docs/OFFLINE_AI_BUILD_KIT.md",
+      "after": "../docs/OFFLINE_AI_BUILD_KIT.md"
+    },
+    {
+      "original_start": 20054,
+      "original_end": 20087,
+      "before": "docs/ANDROID_RISCV64_TOOLCHAIN.md",
+      "after": "../docs/ANDROID_RISCV64_TOOLCHAIN.md"
+    },
+    {
+      "original_start": 23741,
+      "original_end": 23764,
+      "before": "docs/ZERO_CONFIG_LAN.md",
+      "after": "../docs/ZERO_CONFIG_LAN.md"
+    },
+    {
+      "original_start": 24588,
+      "original_end": 24611,
+      "before": "docs/PROJECT_MESH_V1.md",
+      "after": "../docs/PROJECT_MESH_V1.md"
+    },
+    {
+      "original_start": 25724,
+      "original_end": 25760,
+      "before": "docs/UNIFIED_INTENT_FRONT_DOOR_V1.md",
+      "after": "../docs/UNIFIED_INTENT_FRONT_DOOR_V1.md"
+    },
+    {
+      "original_start": 27935,
+      "original_end": 27966,
+      "before": "docs/OIR_EXECUTION_FABRIC_V1.md",
+      "after": "../docs/OIR_EXECUTION_FABRIC_V1.md"
+    },
+    {
+      "original_start": 28002,
+      "original_end": 28055,
+      "before": "docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md",
+      "after": "../docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md"
+    },
+    {
+      "original_start": 30155,
+      "original_end": 30179,
+      "before": "docs/SEMANTIC_CUSTODY.md",
+      "after": "../docs/SEMANTIC_CUSTODY.md"
+    },
+    {
+      "original_start": 30283,
+      "original_end": 30312,
+      "before": "docs/OPERATION_PLANNING_V1.md",
+      "after": "../docs/OPERATION_PLANNING_V1.md"
+    },
+    {
+      "original_start": 32404,
+      "original_end": 32418,
+      "before": "docs/CLAIMS.md",
+      "after": "../docs/CLAIMS.md"
+    },
+    {
+      "original_start": 32524,
+      "original_end": 32538,
+      "before": "boot/README.md",
+      "after": "../boot/README.md"
+    },
+    {
+      "original_start": 33586,
+      "original_end": 33614,
+      "before": "docs/OKERNEL_PACKAGE_BOOT.md",
+      "after": "../docs/OKERNEL_PACKAGE_BOOT.md"
+    },
+    {
+      "original_start": 33649,
+      "original_end": 33688,
+      "before": "tools/ocore-runtime/u9fs/NATIVE_PEER.md",
+      "after": "../tools/ocore-runtime/u9fs/NATIVE_PEER.md"
+    },
+    {
+      "original_start": 34847,
+      "original_end": 34879,
+      "before": "docs/OPERATION_REALIZATION_V1.md",
+      "after": "../docs/OPERATION_REALIZATION_V1.md"
+    },
+    {
+      "original_start": 38208,
+      "original_end": 38237,
+      "before": "docs/OPERATION_PLANNING_V1.md",
+      "after": "../docs/OPERATION_PLANNING_V1.md"
+    },
+    {
+      "original_start": 40262,
+      "original_end": 40280,
+      "before": "docs/VERSIONING.md",
+      "after": "../docs/VERSIONING.md"
+    },
+    {
+      "original_start": 41535,
+      "original_end": 41574,
+      "before": "docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md",
+      "after": "../docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md"
+    },
+    {
+      "original_start": 41910,
+      "original_end": 41970,
+      "before": "docs/HOSTED_PLACEMENT_V6.md#backend-catalog-v6-hard-rollover",
+      "after": "../docs/HOSTED_PLACEMENT_V6.md#backend-catalog-v6-hard-rollover"
+    },
+    {
+      "original_start": 43457,
+      "original_end": 43480,
+      "before": "docs/ZERO_CONFIG_LAN.md",
+      "after": "../docs/ZERO_CONFIG_LAN.md"
+    },
+    {
+      "original_start": 49813,
+      "original_end": 49840,
+      "before": "docs/HOSTED_PLACEMENT_V6.md",
+      "after": "../docs/HOSTED_PLACEMENT_V6.md"
+    },
+    {
+      "original_start": 60265,
+      "original_end": 60294,
+      "before": "docs/INFORMATION_KERNEL_V1.md",
+      "after": "../docs/INFORMATION_KERNEL_V1.md"
+    },
+    {
+      "original_start": 61255,
+      "original_end": 61278,
+      "before": "docs/IMAGE_ADMISSION.md",
+      "after": "../docs/IMAGE_ADMISSION.md"
+    },
+    {
+      "original_start": 62062,
+      "original_end": 62089,
+      "before": "docs/HOSTED_PLACEMENT_V6.md",
+      "after": "../docs/HOSTED_PLACEMENT_V6.md"
+    },
+    {
+      "original_start": 62792,
+      "original_end": 62808,
+      "before": "docs/AI_GUIDE.md",
+      "after": "../docs/AI_GUIDE.md"
+    },
+    {
+      "original_start": 62884,
+      "original_end": 62892,
+      "before": "llms.txt",
+      "after": "../llms.txt"
+    },
+    {
+      "original_start": 63632,
+      "original_end": 63669,
+      "before": "mcp/ostadix_lang_mcp_server/README.md",
+      "after": "../mcp/ostadix_lang_mcp_server/README.md"
+    },
+    {
+      "original_start": 64086,
+      "original_end": 64110,
+      "before": "deployment/mcp/README.md",
+      "after": "../deployment/mcp/README.md"
+    },
+    {
+      "original_start": 64197,
+      "original_end": 64222,
+      "before": "deployment/mcp/CLIENTS.md",
+      "after": "../deployment/mcp/CLIENTS.md"
+    },
+    {
+      "original_start": 68961,
+      "original_end": 68991,
+      "before": "docs/MCP_RUNTIME_ONBOARDING.md",
+      "after": "../docs/MCP_RUNTIME_ONBOARDING.md"
+    },
+    {
+      "original_start": 76813,
+      "original_end": 76839,
+      "before": "docs/FOREIGN_KERNEL_LAB.md",
+      "after": "../docs/FOREIGN_KERNEL_LAB.md"
+    },
+    {
+      "original_start": 80732,
+      "original_end": 80759,
+      "before": "scripts/setup_components.py",
+      "after": "../scripts/setup_components.py"
+    },
+    {
+      "original_start": 83349,
+      "original_end": 83388,
+      "before": "DEVELOPMENT.md#native-command-reference",
+      "after": "../DEVELOPMENT.md#native-command-reference"
+    },
+    {
+      "original_start": 85006,
+      "original_end": 85061,
+      "before": "setup/os/README.md#recovering-stale-nix-profile-backups",
+      "after": "../setup/os/README.md#recovering-stale-nix-profile-backups"
+    },
+    {
+      "original_start": 95700,
+      "original_end": 95739,
+      "before": "evidence/absorbed_capacity_catalog.toml",
+      "after": "../evidence/absorbed_capacity_catalog.toml"
+    },
+    {
+      "original_start": 96268,
+      "original_end": 96293,
+      "before": "docs/ABSORBED_CAPACITY.md",
+      "after": "../docs/ABSORBED_CAPACITY.md"
+    },
+    {
+      "original_start": 99200,
+      "original_end": 99228,
+      "before": "docs/OSTADIX_BOOT_OBJECTS.md",
+      "after": "../docs/OSTADIX_BOOT_OBJECTS.md"
+    },
+    {
+      "original_start": 102105,
+      "original_end": 102154,
+      "before": "evidence/hosted_live_workstation_apk_packages.txt",
+      "after": "../evidence/hosted_live_workstation_apk_packages.txt"
+    },
+    {
+      "original_start": 113140,
+      "original_end": 113166,
+      "before": "docs/FOREIGN_KERNEL_LAB.md",
+      "after": "../docs/FOREIGN_KERNEL_LAB.md"
+    },
+    {
+      "original_start": 113900,
+      "original_end": 113920,
+      "before": "docs/OSTADIX_BOOT.md",
+      "after": "../docs/OSTADIX_BOOT.md"
+    },
+    {
+      "original_start": 128071,
+      "original_end": 128100,
+      "before": "docs/KERNEL_WORLD_CONTRACT.md",
+      "after": "../docs/KERNEL_WORLD_CONTRACT.md"
+    },
+    {
+      "original_start": 132258,
+      "original_end": 132287,
+      "before": "docs/HOSTED_LIVE_REFERENCE.md",
+      "after": "../docs/HOSTED_LIVE_REFERENCE.md"
+    },
+    {
+      "original_start": 132651,
+      "original_end": 132672,
+      "before": "docs/OSTADIX_WORLD.md",
+      "after": "../docs/OSTADIX_WORLD.md"
+    },
+    {
+      "original_start": 132758,
+      "original_end": 132789,
+      "before": "evidence/world_alpha_gates.toml",
+      "after": "../evidence/world_alpha_gates.toml"
+    },
+    {
+      "original_start": 134413,
+      "original_end": 134451,
+      "before": "docs/HOSTED_WORLD_REFERENCE_PROFILE.md",
+      "after": "../docs/HOSTED_WORLD_REFERENCE_PROFILE.md"
+    },
+    {
+      "original_start": 134820,
+      "original_end": 134851,
+      "before": "evidence/world_contract_v2.toml",
+      "after": "../evidence/world_contract_v2.toml"
+    },
+    {
+      "original_start": 134920,
+      "original_end": 134951,
+      "before": "evidence/world_contract_v1.toml",
+      "after": "../evidence/world_contract_v1.toml"
+    },
+    {
+      "original_start": 155044,
+      "original_end": 155048,
+      "before": "$PWD",
+      "after": "../$PWD"
+    },
+    {
+      "original_start": 155509,
+      "original_end": 155537,
+      "before": "$PWD/examples/docker_literal",
+      "after": "../$PWD/examples/docker_literal"
+    },
+    {
+      "original_start": 155970,
+      "original_end": 155974,
+      "before": "$PWD",
+      "after": "../$PWD"
+    },
+    {
+      "original_start": 156176,
+      "original_end": 156197,
+      "before": "ci/required-jobs.toml",
+      "after": "../ci/required-jobs.toml"
+    },
+    {
+      "original_start": 156323,
+      "original_end": 156342,
+      "before": "ci/test-suites.toml",
+      "after": "../ci/test-suites.toml"
+    },
+    {
+      "original_start": 157020,
+      "original_end": 157042,
+      "before": "apps/browser-chat-pdf/",
+      "after": "../apps/browser-chat-pdf/"
+    },
+    {
+      "original_start": 168090,
+      "original_end": 168108,
+      "before": "docs/VERSIONING.md",
+      "after": "../docs/VERSIONING.md"
+    },
+    {
+      "original_start": 168136,
+      "original_end": 168160,
+      "before": "docs/SEMANTIC_CUSTODY.md",
+      "after": "../docs/SEMANTIC_CUSTODY.md"
+    },
+    {
+      "original_start": 171001,
+      "original_end": 171030,
+      "before": "docs/PYTHON_NATIVE_HANDLES.md",
+      "after": "../docs/PYTHON_NATIVE_HANDLES.md"
+    },
+    {
+      "original_start": 203942,
+      "original_end": 203980,
+      "before": "docs/EXECUTION_OBSERVATION_CONTRACT.md",
+      "after": "../docs/EXECUTION_OBSERVATION_CONTRACT.md"
+    },
+    {
+      "original_start": 215150,
+      "original_end": 215182,
+      "before": "docs/EMBEDDED_RUNTIME_BUNDLES.md",
+      "after": "../docs/EMBEDDED_RUNTIME_BUNDLES.md"
+    },
+    {
+      "original_start": 215417,
+      "original_end": 215445,
+      "before": "docs/LINUX_RUNTIME_ROOTFS.md",
+      "after": "../docs/LINUX_RUNTIME_ROOTFS.md"
+    },
+    {
+      "original_start": 215727,
+      "original_end": 215746,
+      "before": "docs/OLANGC_WASM.md",
+      "after": "../docs/OLANGC_WASM.md"
+    },
+    {
+      "original_start": 216473,
+      "original_end": 216501,
+      "before": "examples/guix-wasm/README.md",
+      "after": "../examples/guix-wasm/README.md"
+    },
+    {
+      "original_start": 219748,
+      "original_end": 219794,
+      "before": "docs/OLANGC_WASM.md#supply-two-explicit-images",
+      "after": "../docs/OLANGC_WASM.md#supply-two-explicit-images"
+    },
+    {
+      "original_start": 220893,
+      "original_end": 220944,
+      "before": "docs/OLANGC_WASM.md#serving-and-origin-requirements",
+      "after": "../docs/OLANGC_WASM.md#serving-and-origin-requirements"
+    },
+    {
+      "original_start": 221624,
+      "original_end": 221672,
+      "before": "docs/OLANGC_WASM.md#limits-and-validation-status",
+      "after": "../docs/OLANGC_WASM.md#limits-and-validation-status"
+    },
+    {
+      "original_start": 222449,
+      "original_end": 222534,
+      "before": "examples/guix-wasm/README.md#browser-only-interactive-guix--implemented-not-qualified",
+      "after": "../examples/guix-wasm/README.md#browser-only-interactive-guix--implemented-not-qualified"
+    },
+    {
+      "original_start": 227230,
+      "original_end": 227271,
+      "before": "docs/figures/o-linked-codebase-hgraph.dot",
+      "after": "../docs/figures/o-linked-codebase-hgraph.dot"
+    },
+    {
+      "original_start": 227300,
+      "original_end": 227341,
+      "before": "docs/figures/o-linked-codebase-hgraph.svg",
+      "after": "../docs/figures/o-linked-codebase-hgraph.svg"
+    },
+    {
+      "original_start": 227397,
+      "original_end": 227438,
+      "before": "docs/figures/o-linked-codebase-hgraph.svg",
+      "after": "../docs/figures/o-linked-codebase-hgraph.svg"
+    },
+    {
+      "original_start": 247136,
+      "original_end": 247160,
+      "before": "docs/SEMANTIC_CUSTODY.md",
+      "after": "../docs/SEMANTIC_CUSTODY.md"
+    },
+    {
+      "original_start": 265236,
+      "original_end": 265270,
+      "before": "benchmarks/hgraph_hosted/README.md",
+      "after": "../benchmarks/hgraph_hosted/README.md"
+    },
+    {
+      "original_start": 265327,
+      "original_end": 265358,
+      "before": "benchmarks/real_world/README.md",
+      "after": "../benchmarks/real_world/README.md"
+    },
+    {
+      "original_start": 284925,
+      "original_end": 284938,
+      "before": "docs/OCORE.md",
+      "after": "../docs/OCORE.md"
+    },
+    {
+      "original_start": 284996,
+      "original_end": 285018,
+      "before": "examples/manifest.json",
+      "after": "../examples/manifest.json"
+    },
+    {
+      "original_start": 297651,
+      "original_end": 297669,
+      "before": "docs/CI_POSTURE.md",
+      "after": "../docs/CI_POSTURE.md"
+    },
+    {
+      "original_start": 298689,
+      "original_end": 298708,
+      "before": "evidence/gates.toml",
+      "after": "../evidence/gates.toml"
+    },
+    {
+      "original_start": 299154,
+      "original_end": 299180,
+      "before": "ocore/kernel/smoke-qemu.sh",
+      "after": "../ocore/kernel/smoke-qemu.sh"
+    },
+    {
+      "original_start": 299667,
+      "original_end": 299710,
+      "before": "ocore/kernel/smoke-x86_64-boot-info-qemu.sh",
+      "after": "../ocore/kernel/smoke-x86_64-boot-info-qemu.sh"
+    },
+    {
+      "original_start": 300738,
+      "original_end": 300775,
+      "before": "ocore/kernel/smoke-x86_64-smp-qemu.sh",
+      "after": "../ocore/kernel/smoke-x86_64-smp-qemu.sh"
+    },
+    {
+      "original_start": 301960,
+      "original_end": 301997,
+      "before": "ocore/kernel/smoke-aarch64-g2-qemu.sh",
+      "after": "../ocore/kernel/smoke-aarch64-g2-qemu.sh"
+    },
+    {
+      "original_start": 302702,
+      "original_end": 302743,
+      "before": "ocore/kernel/smoke-world-identity-qemu.sh",
+      "after": "../ocore/kernel/smoke-world-identity-qemu.sh"
+    },
+    {
+      "original_start": 303781,
+      "original_end": 303822,
+      "before": "ocore/kernel/smoke-world-protocol-qemu.sh",
+      "after": "../ocore/kernel/smoke-world-protocol-qemu.sh"
+    },
+    {
+      "original_start": 305222,
+      "original_end": 305260,
+      "before": "ocore/kernel/smoke-world-value-qemu.sh",
+      "after": "../ocore/kernel/smoke-world-value-qemu.sh"
+    },
+    {
+      "original_start": 307043,
+      "original_end": 307083,
+      "before": "ocore/kernel/smoke-world-receipt-qemu.sh",
+      "after": "../ocore/kernel/smoke-world-receipt-qemu.sh"
+    },
+    {
+      "original_start": 309823,
+      "original_end": 309871,
+      "before": "ocore/kernel/smoke-world-project-runtime-qemu.sh",
+      "after": "../ocore/kernel/smoke-world-project-runtime-qemu.sh"
+    },
+    {
+      "original_start": 311103,
+      "original_end": 311136,
+      "before": "ocore/kernel/smoke-faults-qemu.sh",
+      "after": "../ocore/kernel/smoke-faults-qemu.sh"
+    },
+    {
+      "original_start": 311522,
+      "original_end": 311558,
+      "before": "ocore/kernel/smoke-processes-qemu.sh",
+      "after": "../ocore/kernel/smoke-processes-qemu.sh"
+    },
+    {
+      "original_start": 311947,
+      "original_end": 311983,
+      "before": "ocore/kernel/smoke-scheduler-qemu.sh",
+      "after": "../ocore/kernel/smoke-scheduler-qemu.sh"
+    },
+    {
+      "original_start": 312414,
+      "original_end": 312455,
+      "before": "ocore/kernel/smoke-ipc-foundation-qemu.sh",
+      "after": "../ocore/kernel/smoke-ipc-foundation-qemu.sh"
+    },
+    {
+      "original_start": 312873,
+      "original_end": 312903,
+      "before": "ocore/kernel/smoke-ipc-qemu.sh",
+      "after": "../ocore/kernel/smoke-ipc-qemu.sh"
+    },
+    {
+      "original_start": 313351,
+      "original_end": 313384,
+      "before": "ocore/kernel/smoke-loader-qemu.sh",
+      "after": "../ocore/kernel/smoke-loader-qemu.sh"
+    },
+    {
+      "original_start": 313836,
+      "original_end": 313867,
+      "before": "ocore/kernel/smoke-live-qemu.sh",
+      "after": "../ocore/kernel/smoke-live-qemu.sh"
+    },
+    {
+      "original_start": 314381,
+      "original_end": 314422,
+      "before": "ocore/kernel/smoke-live-semantics-qemu.sh",
+      "after": "../ocore/kernel/smoke-live-semantics-qemu.sh"
+    },
+    {
+      "original_start": 314923,
+      "original_end": 314961,
+      "before": "ocore/kernel/smoke-personality-qemu.sh",
+      "after": "../ocore/kernel/smoke-personality-qemu.sh"
+    },
+    {
+      "original_start": 315490,
+      "original_end": 315520,
+      "before": "ocore/kernel/smoke-m6b-qemu.sh",
+      "after": "../ocore/kernel/smoke-m6b-qemu.sh"
+    },
+    {
+      "original_start": 316115,
+      "original_end": 316166,
+      "before": "ocore/kernel/smoke-live-bounded-personality-qemu.sh",
+      "after": "../ocore/kernel/smoke-live-bounded-personality-qemu.sh"
+    },
+    {
+      "original_start": 317236,
+      "original_end": 317285,
+      "before": "ocore/kernel/smoke-live-linux-personality-qemu.sh",
+      "after": "../ocore/kernel/smoke-live-linux-personality-qemu.sh"
+    },
+    {
+      "original_start": 318447,
+      "original_end": 318490,
+      "before": "ocore/kernel/smoke-live-linux-plan9-qemu.sh",
+      "after": "../ocore/kernel/smoke-live-linux-plan9-qemu.sh"
+    },
+    {
+      "original_start": 320142,
+      "original_end": 320185,
+      "before": "ocore/kernel/smoke-m7b-logical-read-qemu.sh",
+      "after": "../ocore/kernel/smoke-m7b-logical-read-qemu.sh"
+    },
+    {
+      "original_start": 321783,
+      "original_end": 321822,
+      "before": "ocore/kernel/smoke-kernel-world-qemu.sh",
+      "after": "../ocore/kernel/smoke-kernel-world-qemu.sh"
+    },
+    {
+      "original_start": 322379,
+      "original_end": 322428,
+      "before": "ocore/kernel/smoke-kernel-world-execution-qemu.sh",
+      "after": "../ocore/kernel/smoke-kernel-world-execution-qemu.sh"
+    },
+    {
+      "original_start": 323124,
+      "original_end": 323168,
+      "before": "ocore/kernel/smoke-kernel-world-live-qemu.sh",
+      "after": "../ocore/kernel/smoke-kernel-world-live-qemu.sh"
+    },
+    {
+      "original_start": 323782,
+      "original_end": 323838,
+      "before": "ocore/kernel/smoke-kernel-world-execution-device-qemu.sh",
+      "after": "../ocore/kernel/smoke-kernel-world-execution-device-qemu.sh"
+    },
+    {
+      "original_start": 345029,
+      "original_end": 345054,
+      "before": "deployment/mcp/CLIENTS.md",
+      "after": "../deployment/mcp/CLIENTS.md"
+    },
+    {
+      "original_start": 355753,
+      "original_end": 355760,
+      "before": "SPEC.md",
+      "after": "../SPEC.md"
+    },
+    {
+      "original_start": 355814,
+      "original_end": 355829,
+      "before": "ARCHITECTURE.md",
+      "after": "../ARCHITECTURE.md"
+    },
+    {
+      "original_start": 355884,
+      "original_end": 355897,
+      "before": "docs/OCORE.md",
+      "after": "../docs/OCORE.md"
+    },
+    {
+      "original_start": 356034,
+      "original_end": 356055,
+      "before": "docs/OSTADIX_WORLD.md",
+      "after": "../docs/OSTADIX_WORLD.md"
+    },
+    {
+      "original_start": 356167,
+      "original_end": 356205,
+      "before": "docs/HOSTED_WORLD_REFERENCE_PROFILE.md",
+      "after": "../docs/HOSTED_WORLD_REFERENCE_PROFILE.md"
+    },
+    {
+      "original_start": 356298,
+      "original_end": 356325,
+      "before": "docs/HOSTED_PLACEMENT_V6.md",
+      "after": "../docs/HOSTED_PLACEMENT_V6.md"
+    },
+    {
+      "original_start": 356498,
+      "original_end": 356518,
+      "before": "docs/ODOMAIN_PLAN.md",
+      "after": "../docs/ODOMAIN_PLAN.md"
+    },
+    {
+      "original_start": 356584,
+      "original_end": 356603,
+      "before": "docs/LIVE_SYSTEM.md",
+      "after": "../docs/LIVE_SYSTEM.md"
+    },
+    {
+      "original_start": 356682,
+      "original_end": 356713,
+      "before": "docs/PERSONALITY_MEMORY_VIEW.md",
+      "after": "../docs/PERSONALITY_MEMORY_VIEW.md"
+    },
+    {
+      "original_start": 356848,
+      "original_end": 356877,
+      "before": "docs/KERNEL_WORLD_CONTRACT.md",
+      "after": "../docs/KERNEL_WORLD_CONTRACT.md"
+    },
+    {
+      "original_start": 357066,
+      "original_end": 357092,
+      "before": "docs/O_MACHINE_CONTRACT.md",
+      "after": "../docs/O_MACHINE_CONTRACT.md"
+    },
+    {
+      "original_start": 357375,
+      "original_end": 357430,
+      "before": "okernel-multikernel/MULTIKERNEL_PERSONALITY_PROPOSAL.md",
+      "after": "../okernel-multikernel/MULTIKERNEL_PERSONALITY_PROPOSAL.md"
+    },
+    {
+      "original_start": 357691,
+      "original_end": 357698,
+      "before": "LICENSE",
+      "after": "../LICENSE"
+    },
+    {
+      "original_start": 358757,
+      "original_end": 358769,
+      "before": "CITATION.cff",
+      "after": "../CITATION.cff"
+    }
+  ]
+}

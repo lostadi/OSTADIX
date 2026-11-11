@@ -21,6 +21,12 @@ both histories and use fast-forward updates; never overwrite another agent's
 new commits or private working files. Publish validated milestones without
 waiting for the entire native-system objective to be complete.
 
+Lee's Git publication identity is a maintainer identity, not a claim of sole
+manual implementation. Accurately disclose agent/tool assistance, review and
+execution evidence under `docs/AI_ASSISTED_DEVELOPMENT.md`. Factual provenance
+trailers are allowed; do not strip assistance records to satisfy an author
+check. Do not invent human review, source ownership, sign-offs or test results.
+
 Large project artifacts belong in the maintainer's shared artifact store at
 `https://leeostadi.com/s/`, using versioned directories, SHA-256 manifests,
 build/source identities, necessary notices, and recipient prerequisites.

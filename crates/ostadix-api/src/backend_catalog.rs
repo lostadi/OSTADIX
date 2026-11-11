@@ -322,6 +322,12 @@ pub struct BackendInterface {
 pub enum SpliceRenderer {
     /// Python literals (`None`, `True`, `[1, 2]`, …).
     Python,
+    /// SQLite scalar literals; apostrophes are doubled, never raw source.
+    Sql,
+    /// One literal shell word; native `${name}` binding syntax is guest-owned.
+    Shell,
+    /// JavaScript literal values, including JSON-quoted strings.
+    JavaScript,
     /// Embeddable HTML markup (blobs become data-URI `<img>` tags).
     Html,
     /// LaTeX-safe text.
@@ -336,9 +342,12 @@ pub enum SpliceRenderer {
 }
 
 impl SpliceRenderer {
-    const fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::Python => "python",
+            Self::Sql => "sql",
+            Self::Shell => "shell",
+            Self::JavaScript => "javascript",
             Self::Html => "html",
             Self::Latex => "latex",
             Self::Markdown => "markdown",
@@ -744,13 +753,28 @@ pub(crate) fn hash_backend_spec_v3(
     spec: &BackendSpec,
     requirement: &RuntimeRequirementSpec,
 ) {
+    // V3 through V5 predate the dedicated literal renderers. Their published
+    // coordinates describe the original projection, not today's renderer.
+    let archival_renderer = match spec.name {
+        "nix_expr" | "sql" | "bash" | "shell" | "javascript" => SpliceRenderer::Default,
+        _ => spec.renderer,
+    };
+    hash_backend_spec_prefix(hash, spec, requirement, archival_renderer);
+}
+
+fn hash_backend_spec_prefix(
+    hash: &mut Sha256,
+    spec: &BackendSpec,
+    requirement: &RuntimeRequirementSpec,
+    renderer: SpliceRenderer,
+) {
     catalog_hash_field(hash, spec.name.as_bytes());
     catalog_hash_count(hash, spec.aliases.len());
     for alias in spec.aliases {
         catalog_hash_field(hash, alias.as_bytes());
     }
     catalog_hash_field(hash, if spec.pure { b"pure" } else { b"impure" });
-    catalog_hash_field(hash, spec.renderer.label().as_bytes());
+    catalog_hash_field(hash, renderer.label().as_bytes());
     catalog_hash_field(hash, spec.execution.label().as_bytes());
     catalog_hash_count(hash, spec.required_authorities.len());
     for authority in spec.required_authorities {
@@ -828,6 +852,10 @@ pub(crate) fn hash_backend_spec_v5(
     // discriminated optional profile. Length-framed fields make absence,
     // presence, and every profile name unambiguous.
     hash_backend_spec_v4(hash, spec, requirement);
+    hash_morphism_profile(hash, morphism_profile);
+}
+
+fn hash_morphism_profile(hash: &mut Sha256, morphism_profile: Option<BackendMorphismProfileV1>) {
     match morphism_profile {
         None => catalog_hash_field(hash, b"no-backend-morphism-profile"),
         Some(profile) => {
@@ -843,9 +871,11 @@ pub(crate) fn hash_backend_spec_v6(
     requirement: &RuntimeRequirementSpec,
     morphism_profile: Option<BackendMorphismProfileV1>,
 ) {
-    // V6 retains the complete V5 projection shape. Its distinct schema domain
-    // authorizes the expanded runtime alternatives without rewriting V5.
-    hash_backend_spec_v5(hash, spec, requirement, morphism_profile);
+    // V6 retains the V5 field order while binding the actual current renderer
+    // and runtime alternatives. Historical V3–V5 projections stay archival.
+    hash_backend_spec_prefix(hash, spec, requirement, spec.renderer);
+    hash_state_support(hash, &spec.state_support);
+    hash_morphism_profile(hash, morphism_profile);
 }
 
 pub(crate) fn finish_catalog_hash(hash: Sha256) -> String {
@@ -1390,10 +1420,10 @@ mod tests {
         "c5fd5baf4b282230f7be9be65af0728f2dfa722b85876865b8e7608a995df1bf";
     const CATALOG_V5_SOURCE_BYTES: usize = 15_630;
     const CATALOG_V6_WHOLE_SHA256: &str =
-        "df3730ddf88eaea0e2e6e8973841d26718224062274dfbbf2ff1a227b0feb103";
+        "2f573f62b2b0903b574a371f3fed83cd37a0e5b05ceee3047f83af85d8d255cc";
     const CATALOG_V6_SOURCE_SHA256: &str =
-        "6eddd348911053268d339c1e0888b7ab9bb8e4b05b7ecf6f98ec06fa432b37a7";
-    const CATALOG_V6_SOURCE_BYTES: usize = 15_959;
+        "1f8363ab64a4fd38fb516f23588e98955c712c497ba537edadeea87b6dc5ca5c";
+    const CATALOG_V6_SOURCE_BYTES: usize = 15_950;
 
     const CATALOG_V3_SPEC_GOLDENS: &[(&str, &str)] = &[
         (
@@ -1779,7 +1809,7 @@ mod tests {
         ),
         (
             "nix_expr",
-            "c51aa2ff112b34b2605129ce6da079b12c7895e8c86486ba579fb5be7d638626",
+            "98f70d507cb1fcbf11e30da259d32e5b09de3b69a56974abddd497709c1872af",
         ),
         (
             "nix_store",
@@ -1807,7 +1837,7 @@ mod tests {
         ),
         (
             "sql",
-            "39ce9c54a9624fa4e99644899339929e5cb0d756dd29486f100f80c7a2051e2a",
+            "325a07926fb96ff12d3c8c776d67f8935f2842a53d0d474248309b2a52004963",
         ),
         (
             "haskell",
@@ -1831,11 +1861,11 @@ mod tests {
         ),
         (
             "bash",
-            "8200dfb4d9618f68f71858b155b1302c3578d9c853b49f98fc393632b7685df4",
+            "4eabb9db16438b5256e9a827d5c7a7c68badd1f780def7ba82e41dea85b751a1",
         ),
         (
             "shell",
-            "b6a6c2e35f00e2f68edd092625c2fc08b0153cf083ec1f887c6756faf4dc8524",
+            "940feb6dc2d9ac2923eab4fa2f060a8131e08471caeb535009e721d356e4b20f",
         ),
         (
             "rust",
@@ -1883,7 +1913,7 @@ mod tests {
         ),
         (
             "javascript",
-            "cc4dd30821ca87daab896ddbc1e43f88b8399b79985fcad767400bb9085efa0a",
+            "611a154e9fc72dbe2ba048ea240b063a5446845c0dafe438223fbaf9ee43be9f",
         ),
     ];
 
@@ -2912,6 +2942,72 @@ mod tests {
     }
 
     #[test]
+    fn current_literal_renderers_preserve_archival_coordinates_and_bind_v6() {
+        let registry = BackendRegistry::global();
+        for name in ["nix_expr", "sql", "bash", "shell", "javascript"] {
+            let current = registry.get(name).unwrap();
+            assert_ne!(current.renderer, SpliceRenderer::Default);
+            let mut previous = current.clone();
+            previous.renderer = SpliceRenderer::Default;
+            let digest = |version, spec: &BackendSpec| {
+                let mut hash = Sha256::new();
+                let requirement = if version < 6 {
+                    registry.runtime_requirements_for_v5(name)
+                } else {
+                    registry.runtime_requirements_for(name)
+                };
+                match version {
+                    3 => {
+                        catalog_hash_field(&mut hash, BACKEND_CATALOG_SCHEMA_V3.as_bytes());
+                        hash_backend_spec_v3(&mut hash, spec, requirement);
+                    }
+                    4 => {
+                        catalog_hash_field(&mut hash, BACKEND_CATALOG_SCHEMA_V4.as_bytes());
+                        hash_backend_spec_v4(&mut hash, spec, requirement);
+                    }
+                    5 => {
+                        catalog_hash_field(&mut hash, BACKEND_CATALOG_SCHEMA_V5.as_bytes());
+                        hash_backend_spec_v5(
+                            &mut hash,
+                            spec,
+                            requirement,
+                            registry.morphism_profile_for(name),
+                        );
+                    }
+                    6 => {
+                        catalog_hash_field(&mut hash, BACKEND_CATALOG_SCHEMA_V6.as_bytes());
+                        hash_backend_spec_v6(
+                            &mut hash,
+                            spec,
+                            requirement,
+                            registry.morphism_profile_for(name),
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+                finish_catalog_hash(hash)
+            };
+            for version in [3, 4, 5] {
+                assert_eq!(
+                    digest(version, current),
+                    digest(version, &previous),
+                    "V{version} must retain its original renderer coordinate for {name}"
+                );
+            }
+            assert_eq!(
+                Some(digest(6, current)),
+                registry.specification_sha256_v6(name)
+            );
+            assert_ne!(
+                digest(6, current),
+                digest(6, &previous),
+                "current V6 must bind the actual literal renderer for {name}"
+            );
+            assert!(!registry.contains_specification_sha256(&digest(6, &previous)));
+        }
+    }
+
+    #[test]
     fn catalog_v5_hashes_the_profile_partition_while_v4_stays_archival() {
         let registry = BackendRegistry::global();
         let python = registry.get("python").unwrap();
@@ -3107,7 +3203,7 @@ mod tests {
     }
 
     #[test]
-    fn registry_renderers_match_legacy_dispatch() {
+    fn registry_renderers_match_declared_literal_profiles() {
         let reg = BackendRegistry::global();
         assert_eq!(reg.renderer_for("python"), SpliceRenderer::Python);
         assert_eq!(reg.renderer_for("py"), SpliceRenderer::Python);
@@ -3119,9 +3215,29 @@ mod tests {
         assert_eq!(reg.renderer_for("nix"), SpliceRenderer::Nix);
         assert_eq!(reg.renderer_for("nix_store"), SpliceRenderer::Nix);
         assert_eq!(reg.renderer_for("nixos_test"), SpliceRenderer::Nix);
-        // nix_expr splices via the default representation (legacy behavior).
-        assert_eq!(reg.renderer_for("nix_expr"), SpliceRenderer::Default);
+        assert_eq!(reg.renderer_for("nix_expr"), SpliceRenderer::Nix);
+        assert_eq!(reg.renderer_for("sql"), SpliceRenderer::Sql);
+        assert_eq!(reg.renderer_for("bash"), SpliceRenderer::Shell);
+        assert_eq!(reg.renderer_for("shell"), SpliceRenderer::Shell);
+        assert_eq!(reg.renderer_for("javascript"), SpliceRenderer::JavaScript);
         assert_eq!(reg.renderer_for("cobol"), SpliceRenderer::Default);
+    }
+
+    #[test]
+    fn pure_lexical_alias_inventory_matches_catalog_renderers_fail_closed() {
+        use crate::foreign_splice::{validate_body, Segment};
+        for spec in BackendRegistry::global().canonical_specs() {
+            let supported = spec.renderer != SpliceRenderer::Default
+                || matches!(spec.name, "text" | "O" | "quote");
+            for name in std::iter::once(spec.name).chain(spec.aliases.iter().copied()) {
+                assert_eq!(
+                    validate_body(name, [Segment::Value].into_iter()).is_ok(),
+                    supported,
+                    "lexical/literal profile disagreement for {name}"
+                );
+            }
+        }
+        assert!(validate_body("unregistered-language", [Segment::Value].into_iter()).is_err());
     }
 
     #[test]

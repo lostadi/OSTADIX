@@ -1,11 +1,11 @@
-# sql_shim.py executes raw SQL text against sqlite3. It does not bind O values
-# as SQL parameters, so this example uses the literal value instead of `$val`.
+# An ordinary O value hole supplies a closed SQL literal. Leave the hole
+# outside SQL quotes; the renderer supplies the value's SQL spelling.
 O^(
 let val = python^(
 __oval_result__ = 100
 )_python
 
 sql^(
-SELECT 100 * 2 AS doubled
+SELECT $val * 2 AS doubled
 )_sql
 )_O

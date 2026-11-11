@@ -95,7 +95,7 @@ class _OHelpers:
             )
         # Deferred imports to avoid circular imports at module load.
         from ..evaluator import _eval_expression
-        from ..parser import ExpressionNode
+        from ..parser import ExpressionNode, validate_tree
 
         if isinstance(expr, OExpr):
             node = expr.ast
@@ -116,6 +116,7 @@ class _OHelpers:
             )
 
         previous_scope = getattr(self._ctx, "_scope", {})
+        validate_tree(node)
         self._ctx._scope = selected_scope
         try:
             return _eval_expression(node, self._ctx, selected_scope)
@@ -214,17 +215,8 @@ class PythonBackend:
         return env
 
     def render_child(self, child_value: OValue) -> str:
-        """Default rendering of a nested child when we DON'T have access to
-        the env (legacy path via the default evaluator flow).
-
-        When eval_ast takes control (the normal path), we splice via a
-        stash variable instead, which preserves rich values (including
-        OExpr) rather than degrading them to repr.
-        """
-        if isinstance(child_value, OExpr):
-            # Best-effort textual marker -- actual splicing happens in eval_ast.
-            return "None"
-        return repr(to_python(child_value))
+        """Render ordinary data; live Expr values require eval_ast's stash."""
+        return render_literal("python", child_value)
 
     # ------------------------------------------------------------------ #
     # Structural hook: take full control of children so we can:          #
@@ -236,6 +228,10 @@ class PythonBackend:
         # Deferred imports avoid circular imports at module load time.
         from ..evaluator import _eval_expression
         from ..parser import ExpressionNode, TextPart, VarRef
+        from ..foreign_splice import render_explicit_code, render_literal
+        from ..parser import validate_tree
+
+        validate_tree(node)
 
         env = ctx.env_for("python", node.env_id)
         # Bind O to a helper that can re-enter the current evaluator.
@@ -260,18 +256,20 @@ class PythonBackend:
                 # Substitute variable from the document scope.
                 val = scope.get(child.name) if scope else None
                 if val is not None:
+                    if child.explicit_code:
+                        buf.append(render_explicit_code(val))
+                        continue
                     if isinstance(val, OExpr):
                         name = f"{stash_prefix}{stash_idx}"
                         stash_idx += 1
                         stash[name] = val
                         buf.append(name)
                     else:
-                        py_val = to_python(val)
-                        buf.append(repr(py_val))
+                        buf.append(render_literal("python", val))
                 else:
                     # Not in scope — emit as-is so Python's own env can
                     # resolve it (e.g. a previously assigned python variable).
-                    buf.append(f"${child.name}")
+                    raise ValueError(f"undefined O variable ${child.name}")
             elif isinstance(child, ExpressionNode):
                 child_value = _eval_expression(child, ctx, scope)
                 if isinstance(child_value, OExpr):
@@ -286,10 +284,9 @@ class PythonBackend:
                     # that Python can parse. We still stash the lifted
                     # Python value under a name, so rich types (e.g.
                     # OBlob data) survive if users want to retrieve them.
-                    py_val = to_python(child_value)
                     # Use repr-splice as before -- this preserves the
                     # existing semantics (e.g. inline numbers).
-                    buf.append(repr(py_val))
+                    buf.append(render_literal("python", child_value))
             else:
                 raise TypeError(f"Unknown AST child node: {child!r}")
 

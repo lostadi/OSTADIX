@@ -2407,6 +2407,7 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
         src_dir.join("execution_contract.rs"),
         RUNTIME_EXECUTION_CONTRACT_RS,
     )?;
+    fs::write(src_dir.join("foreign_splice.rs"), RUNTIME_FOREIGN_SPLICE_RS)?;
     let execution_fabric_dir = src_dir.join("execution_fabric");
     fs::create_dir_all(&execution_fabric_dir)?;
     for &(relative_path, source) in RUNTIME_EXECUTION_FABRIC_SOURCES {
@@ -3342,6 +3343,7 @@ pub mod registry;
 pub mod ir;
 pub mod effects;
 pub mod execution_contract;
+mod foreign_splice;
 pub mod execution_fabric;
 pub mod execution_fabric_authority;
 pub(crate) mod eval_core;
@@ -5209,6 +5211,7 @@ mod tests {
         );
         assert!(lib_rs.contains("pub mod effects;"));
         assert!(lib_rs.contains("pub mod execution_contract;"));
+        assert!(lib_rs.contains("mod foreign_splice;"));
         assert!(lib_rs.contains("pub(crate) mod eval_core;"));
         assert_eq!(
             lib_rs.matches("mod eval_core;").count(),
@@ -5274,6 +5277,7 @@ mod tests {
             "environment.rs",
             "effects.rs",
             "execution_contract.rs",
+            "foreign_splice.rs",
             "execution_fabric/mod.rs",
             "execution_fabric/codec.rs",
             "execution_fabric/protocol.rs",
@@ -5397,6 +5401,11 @@ mod tests {
             fs::read_to_string(src_dir.join("execution_contract.rs")).unwrap(),
             RUNTIME_EXECUTION_CONTRACT_RS,
             "generated runtimes must receive the canonical execution contract verbatim"
+        );
+        assert_eq!(
+            fs::read_to_string(src_dir.join("foreign_splice.rs")).unwrap(),
+            RUNTIME_FOREIGN_SPLICE_RS,
+            "generated runtimes must receive the literal-hole lexical guard verbatim"
         );
         for &(relative_path, source) in RUNTIME_EXECUTION_FABRIC_SOURCES {
             assert_eq!(

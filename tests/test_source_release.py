@@ -136,6 +136,7 @@ FIXTURE_PRIVATE_ENGINE_MODULES = {
     "capability",
     "dispatch_model",
     "eval_core",
+    "foreign_splice",
     "placement_protocol",
     "progress",
     "native_leaf_identity",
@@ -335,6 +336,39 @@ top-level `doi` field; the existing preprint/package DOI remains under
 The two records remain distinct.
 
 {extra}"""
+
+
+def fixture_public_boundary_link_targets() -> dict[str, bytes]:
+    """Close real new document links inside the otherwise synthetic tree.
+
+    These existing targets need only inert fixture payloads here. The public
+    boundary files themselves retain their actual bytes, and the actual-tree
+    archive test separately validates the complete real source tree.
+    """
+    targets = {}
+    for source in release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS:
+        if not source.endswith(".md"):
+            continue
+        for destination in release._markdown_destinations((PROJECT_ROOT / source).read_text()):
+            target = release._resolve_document_target(source, destination)
+            if not target:
+                continue
+            if (PROJECT_ROOT / target).is_dir():
+                target += "/fixture-linked-resource.txt"
+            targets[target] = (b"text^(fixture-linked-resource)_text\n" if target.endswith(".O")
+                               else b"fixture linked release resource\n")
+    return targets
+
+
+def fixture_public_boundary_examples() -> list[dict]:
+    return [
+        {"path": path.removeprefix("examples/"), "editions": ["rust"],
+         "classification": "unit",
+         "requirements": {"backends": ["text"], "programs": [], "authorities": []},
+         "expected": {"rust": {"patterns": ["fixture-linked-resource"]}}}
+        for path in sorted(fixture_public_boundary_link_targets())
+        if path.startswith("examples/") and path.endswith(".O")
+    ]
 
 
 def fixture_evidence_manifest() -> str:
@@ -940,6 +974,32 @@ class SetupSourceClosureTests(unittest.TestCase):
 
 
 class SourceReleaseTests(unittest.TestCase):
+    def test_public_boundary_html_and_historical_audit_are_exact_optional_paths(self) -> None:
+        self.assertEqual(release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS, {
+            "audits/HISTORICAL_LAYOUT.html",
+            "benchmarks/real_world/CONCURRENT_BASELINE.html",
+            "docs/AI_ASSISTED_DEVELOPMENT.html", "docs/CURRENT_CONTRACT.html",
+            "docs/REFERENCE.html", "docs/SPLICE_MIGRATION.html",
+            "docs/research/fidelity-boundaries.html",
+            "evidence/public-contract-20261111/README.html",
+        })
+        for path in release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS | {
+                "audits/HISTORICAL_LAYOUT.md", "audits/root-layout-20261111.json"}:
+            with self.subTest(path=path):
+                self.assertTrue(release.is_allowed_release_path(path))
+                self.assertNotIn(path, release.REQUIRED_RELEASE_PATHS)
+        for path in ("audits/unreviewed.md", "audits/unreviewed.html",
+                     "benchmarks/real_world/unreviewed.html", "docs/unreviewed.html"):
+            with self.subTest(path=path):
+                self.assertFalse(release.is_allowed_release_path(path))
+
+    def test_required_release_paths_are_not_filtered_out_by_allowlist(self) -> None:
+        self.assertEqual(
+            sorted(path for path in release.REQUIRED_RELEASE_PATHS
+                   if not release.is_allowed_release_path(path)),
+            [],
+        )
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
@@ -1177,6 +1237,7 @@ class SourceReleaseTests(unittest.TestCase):
                 {
                     "schema_version": 1,
                     "examples": [
+                        *fixture_public_boundary_examples(),
                         {
                             "path": "semantic_custody.O",
                             "editions": ["rust"],
@@ -1680,6 +1741,13 @@ class SourceReleaseTests(unittest.TestCase):
             contents[path] = (PROJECT_ROOT / path).read_bytes()
         for path in release.REAL_WORLD_BENCHMARK_RELEASE_PATHS:
             contents[path] = (PROJECT_ROOT / path).read_bytes()
+        # Public boundary artifacts are a real source/evidence closure, not
+        # placeholder fixture prose. Keep it complete before testing unrelated
+        # missing-member and semantic rejection paths below.
+        for path in release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS:
+            contents[path] = (PROJECT_ROOT / path).read_bytes()
+        for path, data in fixture_public_boundary_link_targets().items():
+            contents.setdefault(path, data)
         for path in release.OSTADIX_API_ROOT_MODULE_PATHS.values():
             contents.setdefault(path, "// fixture engine root module\n")
         for path in release.OSTADIX_API_RUNTIME_ASSET_PATHS:
@@ -1841,6 +1909,7 @@ class SourceReleaseTests(unittest.TestCase):
                                 },
                                 "expected": {"rust": {"patterns": ["demo"]}},
                             },
+                            *fixture_public_boundary_examples(),
                             {
                                 "path": "semantic_custody.O",
                                 "editions": ["rust"],
@@ -2431,6 +2500,8 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.HOSTED_HGRAPH_BENCHMARK_RELEASE_PATHS)
             included.update(release.CPU_RUNTIME_BENCHMARK_PATHS)
             included.update(release.REAL_WORLD_BENCHMARK_RELEASE_PATHS)
+            included.update(release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS)
+            included.update(fixture_public_boundary_link_targets())
             included.update(release.OSTADIX_API_RELEASE_PATHS)
             included.update(release.OSTADIX_API_ROOT_MODULE_PATHS.values())
             included.update(release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS)
@@ -2454,6 +2525,12 @@ class SourceReleaseTests(unittest.TestCase):
             }
             for path in included:
                 self.assertIn(f"{prefix}/{path}", names)
+            for path in release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS:
+                self.assertEqual(
+                    archive.read(f"{prefix}/{path}"),
+                    (PROJECT_ROOT / path).read_bytes(),
+                    path,
+                )
             for path in excluded:
                 self.assertNotIn(f"{prefix}/{path}", names)
 
@@ -2619,7 +2696,7 @@ class SourceReleaseTests(unittest.TestCase):
             self._build("broken-reference-links.zip")
 
     def test_browser_chat_pdf_html_allowlist_is_exact_and_packaged(self) -> None:
-        allowed = frozenset(
+        browser_allowed = frozenset(
             {
                 "apps/olang-browser-wasi/index.html",
                 "apps/browser-chat-pdf/mobile/install.template.html",
@@ -2636,7 +2713,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "docs/browser-chat-pdf.html",
             }
         )
-
+        allowed = browser_allowed | release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS
         self.assertEqual(release.ALLOWED_HTML_PATHS, allowed)
         for path in allowed:
             self.assertTrue(release.is_allowed_release_path(path), path)
@@ -2908,6 +2985,25 @@ class SourceReleaseTests(unittest.TestCase):
             r"test_benchmark_real_world\.py",
         ):
             self._build("missing-real-world-benchmark.zip")
+
+    def test_public_boundary_runtime_and_reproduction_are_required_release_closure(self) -> None:
+        self._commit()
+        required = (
+            "crates/ostadix-api/src/foreign_splice.rs",
+            "o_lang/foreign_splice.py",
+            "c_cpp/src/parser.c",
+            "tests/test_edition_splice_contract.py",
+            "c_cpp/tests/test_splice_contract.c",
+            "scripts/reproduce_splice_contract.py",
+            "tests/test_reproduce_splice_contract.py",
+            "docs/CURRENT_CONTRACT.md",
+            "tests/fixtures/foreign-splice-witnesses.json",
+            "evidence/public-contract-20261111/baseline-observations.json",
+        )
+        self.assertTrue(set(required) <= release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS)
+        self._git("rm", *required)
+        self._git("commit", "-q", "-m", "remove public boundary source and evidence closure")
+        self._assert_missing_required_paths("missing-public-boundary.zip", required)
 
     def test_root_license_is_a_required_release_member(self) -> None:
         self._commit()
@@ -4673,12 +4769,29 @@ class SourceReleaseTests(unittest.TestCase):
                 for index in range(1, len(path.split("/")))
             }
             readme = archive.read(f"{prefix}/README.md").decode("utf-8")
-            local_targets = {
+            readme_targets = {
                 target
                 for destination in release._markdown_destinations(readme)
                 if (target := release._resolve_document_target("README.md", destination))
                 is not None
             }
+            self.assertTrue({
+                "docs/CURRENT_CONTRACT.md", "docs/REFERENCE.md",
+                "docs/AI_ASSISTED_DEVELOPMENT.md",
+                "docs/research/fidelity-boundaries.md",
+                "evidence/public-contract-20261111/README.md",
+            } <= readme_targets)
+            reference = archive.read(f"{prefix}/docs/REFERENCE.md").decode("utf-8")
+            reference_targets = {
+                target
+                for destination in release._markdown_destinations(reference)
+                if (target := release._resolve_document_target("docs/REFERENCE.md", destination))
+                is not None
+            }
+            # The large link inventory moved intact into the preserved
+            # reference; retain its coverage floor and close both documents.
+            self.assertGreaterEqual(len(reference_targets), 60)
+            local_targets = readme_targets | reference_targets
             self.assertGreaterEqual(len(local_targets), 60)
             primary_artifact_targets = {
                 "ARCHITECTURE.md",

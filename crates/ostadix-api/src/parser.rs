@@ -474,6 +474,34 @@ impl<'a> Parser<'a> {
             }
 
             if self.current_byte() == Some(b'$') {
+                if self.source[self.pos..].starts_with("$!")
+                    && self
+                        .source
+                        .as_bytes()
+                        .get(self.pos + 2)
+                        .copied()
+                        .is_some_and(is_ident_start)
+                {
+                    let start = self.pos;
+                    self.flush_text(&mut nodes, text_start, start);
+                    let origin = self.begin_origin(start);
+                    self.advance_bytes(2);
+                    let name_start = self.pos;
+                    let name = self.parse_identifier().ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Line {}: `$!` code splice requires a variable name",
+                            self.line
+                        )
+                    })?;
+                    self.record_origin(name_start, self.pos);
+                    self.finish_origin(origin, self.pos);
+                    nodes.push(ONode::Call {
+                        fn_name: crate::foreign_splice::CODE_SPLICE_BUILTIN.into(),
+                        args: vec![ONode::VarRef(name)],
+                    });
+                    text_start = self.pos;
+                    continue;
+                }
                 if let Some(name) = self.try_parse_var_ref()? {
                     let var_start = self.pos_before_var(&name);
                     self.flush_text(&mut nodes, text_start, var_start);
@@ -542,6 +570,23 @@ impl<'a> Parser<'a> {
             self.origin_suppression_depth -= 1;
         }
         let body = body?;
+        if self.origin_suppression_depth == 0 && !owns_quoted_syntax {
+            use crate::foreign_splice::Segment;
+            crate::foreign_splice::validate_body(
+                &tag.lang,
+                body.iter().map(|node| match node {
+                    ONode::RawText(text) => Segment::Text(text),
+                    ONode::LetBinding { .. } => Segment::Text(""),
+                    ONode::Call { fn_name, .. }
+                        if fn_name == crate::foreign_splice::CODE_SPLICE_BUILTIN =>
+                    {
+                        Segment::Code
+                    }
+                    _ => Segment::Value,
+                }),
+            )
+            .map_err(anyhow::Error::msg)?;
+        }
         self.finish_origin(origin, self.pos);
         Ok(ONode::TypedExpr {
             lang: tag.lang,
@@ -1258,6 +1303,13 @@ fn reconstruct_node(node: &ONode, buf: &mut String) {
         }
 
         ONode::Call { fn_name, args } => {
+            if fn_name == crate::foreign_splice::CODE_SPLICE_BUILTIN {
+                if let [ONode::VarRef(name)] = args.as_slice() {
+                    buf.push_str("$!");
+                    buf.push_str(name);
+                    return;
+                }
+            }
             buf.push_str(fn_name);
             buf.push('(');
             for (i, arg) in args.iter().enumerate() {

@@ -266,10 +266,8 @@ struct BackendProcess {
     leader_reaped: bool,
 }
 
-// why no default: an operation (an ephemeral exec, a state checkpoint or
-// restore, a native operation) may run as long as a step may, so it is only
-// bounded when the user opts in with O_BACKEND_OPERATION_TIMEOUT_MS. the
-// value is validated like O_BACKEND_STEP_TIMEOUT_MS.
+// Operations have a separate optional deadline, selected explicitly with
+// O_BACKEND_OPERATION_TIMEOUT_MS. Heartbeats and cancellation remain active.
 pub(crate) const BACKEND_OPERATION_TIMEOUT_ENV: &str = "O_BACKEND_OPERATION_TIMEOUT_MS";
 
 pub(crate) fn backend_operation_timeout() -> Result<Option<Duration>> {
@@ -279,14 +277,14 @@ pub(crate) fn backend_operation_timeout() -> Result<Option<Duration>> {
     )
 }
 
-/// Parse the opt-in `O_BACKEND_STEP_TIMEOUT_MS`. Unset means no limit.
+/// Parse the step deadline. Unset selects 120 seconds; `disabled` is unbounded.
 /// Anything set must be a whole number of milliseconds in `1..=MAXIMUM`; a
 /// malformed, zero or oversized value is a hard error rather than a silent
 /// fallback, because a knob the user set and the runtime ignored is a silent
 /// failure.
 #[cfg(test)]
 fn parse_backend_step_timeout(raw: Option<&std::ffi::OsStr>) -> Result<Option<Duration>> {
-    parse_timeout_knob(BACKEND_STEP_TIMEOUT_ENV, raw)
+    crate::step_knobs::parse_step_timeout(raw)
 }
 
 // why cached: the value is fixed for the process lifetime, so it is parsed
@@ -336,7 +334,7 @@ pub(crate) fn step_limit_exceeded_message(language: &str, limit: Duration) -> St
 /// The reason alone, for callers that already name the backend.
 fn step_limit_exceeded_reason(limit: Duration) -> String {
     format!(
-        "step exceeded {} (opt-in per-step limit {BACKEND_STEP_TIMEOUT_ENV})",
+        "step exceeded {} (per-step limit {BACKEND_STEP_TIMEOUT_ENV})",
         step_limit_text(limit)
     )
 }
@@ -1447,7 +1445,7 @@ impl BackendProcess {
         let payload =
             wire::encode_message(command).context("failed to write backend wire command")?;
         // the plain blocking write unless the frame can outgrow the pipe and
-        // something can end the wait (the opt-in limit or a cancellation
+        // something can end the wait (the step limit or a cancellation
         // token). an empty pipe always holds a small frame; without either an
         // unbounded write is no worse than the unbounded wait that follows.
         if payload.len() + 4 <= BOUNDED_WRITE_THRESHOLD
@@ -1490,12 +1488,14 @@ impl BackendProcess {
             match write_all_polled(fd, &frame, limit, &cancelled) {
                 Ok(PolledWrite::Done) => Ok(()),
                 Ok(PolledWrite::Stalled) => Err(self.retire_after_timeout(anyhow!(
-                    "backend `{}` read no input for {} (opt-in per-step limit {BACKEND_STEP_TIMEOUT_ENV})",
+                    "backend `{}` read no input for {} (per-step limit {BACKEND_STEP_TIMEOUT_ENV})",
                     self.language,
                     step_limit_text(limit.unwrap_or_default())
                 ))),
                 Ok(PolledWrite::Cancelled) => Err(self.retire_after_write_cancel()),
-                Err(error) => Err(anyhow::Error::new(error).context("failed to write backend wire command")),
+                Err(error) => {
+                    Err(anyhow::Error::new(error).context("failed to write backend wire command"))
+                }
             }
         }
         #[cfg(not(unix))]
@@ -1523,7 +1523,7 @@ impl BackendProcess {
     }
 
     /// Wait for one response in `STEP_WATCH_TICK` slices. Each slice checks
-    /// the opt-in limit (kill and evict), leader exit (fail fast even when a
+    /// the step limit (kill and evict), leader exit (fail fast even when a
     /// grandchild holds the pipe), heartbeats (warn only) and the spinner.
     fn recv_response_watched(&mut self, limit: Option<Duration>) -> Result<BackendWireResponseV2> {
         let deadline = match limit {
@@ -3143,7 +3143,7 @@ impl ProcessRegistry {
         let sent = process.begin_exec_with_morphism(code, bindings, morphism_contract);
         process.write_cancellation = None;
         if let Err(error) = &sent {
-            // a write ended by the opt-in limit or cancellation killed the
+            // a write ended by the step limit or cancellation killed the
             // backend: evict it and record a numbered session as lost.
             if session_killed_cause(error).is_some() {
                 drop(self.evict_failed(&key, error));
@@ -3274,7 +3274,7 @@ impl ProcessRegistry {
         let lang_env = session_name(lang, env_id);
         const POLL_INTERVAL: Duration = Duration::from_millis(25);
         let key = self.process_key(lang, env_id, sandbox)?;
-        // the opt-in per-step limit applies here too. one call reads one
+        // the per-step limit applies here too. one call reads one
         // response, so the limit restarts per response exactly as on the
         // uncontrolled path. without it only cancellation, the request
         // deadline or a backend exit end the wait.
@@ -5137,7 +5137,7 @@ mod tests {
                 let message = format!("{error:#}");
                 assert!(
                     message.contains(
-                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                        "step exceeded 300 ms (per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
                     ),
                     "{message}"
                 );
@@ -5179,7 +5179,7 @@ mod tests {
                     .expect_err("a stalled pooled backend must not produce a value");
                 assert!(
                     format!("{error:#}").contains(
-                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                        "step exceeded 300 ms (per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
                     ),
                     "{error:#}"
                 );
@@ -5259,7 +5259,7 @@ mod tests {
     }
 
     const STEP_LIMIT_300_MS: &str =
-        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)";
+        "step exceeded 300 ms (per-step limit O_BACKEND_STEP_TIMEOUT_MS)";
 
     #[test]
     fn cancellation_polled_step_is_bounded_without_a_deadline() -> Result<()> {
@@ -5330,12 +5330,28 @@ mod tests {
     fn step_limit_knob_rejects_invalid_values() {
         // y-d-04: unset is the default; anything set must be valid.
         use std::ffi::OsStr;
-        assert_eq!(parse_backend_step_timeout(None).unwrap(), None);
+        assert_eq!(
+            parse_backend_step_timeout(None).unwrap(),
+            Some(Duration::from_secs(120))
+        );
+        assert_eq!(
+            parse_backend_step_timeout(Some(OsStr::new("disabled"))).unwrap(),
+            None
+        );
         assert_eq!(
             parse_backend_step_timeout(Some(OsStr::new("2000"))).unwrap(),
             Some(Duration::from_secs(2))
         );
-        for bad in ["0", "", "abc", "-5", "1.5", "604800001"] {
+        for bad in [
+            "0",
+            "",
+            "abc",
+            "-5",
+            "1.5",
+            "604800001",
+            "Disabled",
+            " disabled ",
+        ] {
             let error = parse_backend_step_timeout(Some(OsStr::new(bad))).expect_err(bad);
             assert!(
                 format!("{error:#}").contains("O_BACKEND_STEP_TIMEOUT_MS"),
@@ -5390,7 +5406,7 @@ mod tests {
                 .expect_err("a backend that never reads must not wedge the writer");
             assert!(
                 format!("{error:#}").contains(
-                    "read no input for 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    "read no input for 300 ms (per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
                 ),
                 "{error:#}"
             );
@@ -5564,7 +5580,7 @@ mod tests {
 
     #[test]
     fn backend_killed_mid_step_fails_fast_even_with_the_pipe_held_open() -> Result<()> {
-        // y-d-10: no default limit, so a dead backend must be noticed. here a
+        // A dead backend must be noticed before the step deadline. Here a
         // background child keeps the response pipe open, so reader eof never
         // comes; only the leader-exit poll can see the death.
         let temp = tempfile::tempdir()?;
@@ -5641,10 +5657,15 @@ mod tests {
     }
 
     #[test]
-    fn no_default_limit_lets_a_long_silent_step_finish() -> Result<()> {
-        // lee's rule: steps may run for days, so nothing is killed unless the
-        // user opts in. no override and no knob set here.
-        assert_eq!(parse_backend_step_timeout(None)?, None);
+    fn default_limit_allows_a_short_silent_step_and_can_be_disabled() -> Result<()> {
+        assert_eq!(
+            parse_backend_step_timeout(None)?,
+            Some(Duration::from_secs(120))
+        );
+        assert_eq!(
+            parse_backend_step_timeout(Some(std::ffi::OsStr::new("disabled")))?,
+            None
+        );
         assert_eq!(
             parse_timeout_knob(BACKEND_OPERATION_TIMEOUT_ENV, None)?,
             None
@@ -5677,7 +5698,7 @@ mod tests {
 
     #[test]
     fn cancellation_kills_evicts_and_loses_the_session_without_a_limit() -> Result<()> {
-        // cancel ends a silent step with no opt-in limit; the killed python[4]
+        // Cancellation ends a silent step before its deadline; the killed python[4]
         // is reported lost on its next block.
         let temp = tempfile::tempdir()?;
         let shim = silent_shim(temp.path(), "cancelled", true)?;

@@ -106,6 +106,7 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
 pub const RUNTIME_BACKEND_CATALOG_MODULE_RS: &str = include_str!("../backend_catalog.rs");
 pub const RUNTIME_BACKEND_CATALOG_DATA_RS: &str = include_str!("../backend_catalog.inc.rs");
 pub const RUNTIME_EXECUTION_CONTRACT_RS: &str = include_str!("../execution_contract.rs");
+pub const RUNTIME_FOREIGN_SPLICE_RS: &str = include_str!("../foreign_splice.rs");
 pub const RUNTIME_EXECUTION_FABRIC_SOURCES: &[(&str, &str)] = &[
     ("mod.rs", include_str!("../execution_fabric/mod.rs")),
     ("codec.rs", include_str!("../execution_fabric/codec.rs")),

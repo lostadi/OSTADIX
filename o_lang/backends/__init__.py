@@ -38,6 +38,9 @@ def default_registry() -> Dict[str, Backend]:
         "nixos_test": NixOSTestBackend(),
         "common_lisp": ShimBackend("common_lisp"),
         "javascript": ShimBackend("javascript"),
+        "sql": ShimBackend("sql"),
+        "bash": ShimBackend("bash"),
+        "shell": ShimBackend("shell"),
     }
 
 

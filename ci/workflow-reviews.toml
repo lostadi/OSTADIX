@@ -1,0 +1,17 @@
+schema = "ostadix.workflow-reviews/v1"
+
+[[reviews]]
+workflow = ".github/workflows/native-runtime-release.yml"
+sha256 = "4e02eddb556fae2731ea14c602267f78e7d9cde1c0c1f23928d8f59fa4e7f1e3"
+job = "native"
+finding_id = "baseline.workflows.self-hosted"
+line = 37
+reason = "The reviewed include matrix statically selects GitHub-hosted ubuntu-24.04-arm and macos-15 with their matching AArch64 targets. It accepts no input, expression-generated label or self-hosted runner."
+
+[[reviews]]
+workflow = ".github/workflows/native-runtime-release.yml"
+sha256 = "4e02eddb556fae2731ea14c602267f78e7d9cde1c0c1f23928d8f59fa4e7f1e3"
+job = "publish"
+finding_id = "baseline.workflows.permissions"
+line = 96
+reason = "Only the release-published job receives contents write after native builds pass. It verifies both archive source commits and expected targets, then uploads release assets without an overwrite option. Pull-request and build jobs retain contents read."

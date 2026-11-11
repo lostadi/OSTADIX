@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Check commit authors against the allowed-author list.
+"""Check publication identity without suppressing development provenance.
 
-Mentions of tools in ordinary text pass. Only fields that Git, GitHub, Cargo,
-or CFF read as author fields are checked.
+Maintainer Git/Cargo/CFF identities are distinct from implementation assistance.
+Generator, reviewer, test and session records may appear in messages. This check
+validates identity fields, not the truth of a provenance statement.
 """
 
 from __future__ import annotations
@@ -58,37 +59,11 @@ AUTHOR_TRAILER_KEYS = frozenset(
         "authored-by",
         "co-author",
         "co-authored-by",
-        "contributed-by",
-        "contributor",
-        "contributors",
-        "assisted-by",
-        "helped-by",
-        "pair-programmed-by",
-        "reviewed-by",
-        "signed-off-by",
-        "tested-by",
-        "generated-by",
-        "coded-by",
-        "developed-by",
-        "implemented-by",
+        "coauthored-by",
     }
 )
-SUPPLEMENTAL_TRAILER = re.compile(
-    r"(?:^|[-_])(?:co-?author(?:ed)?|contributors?|assisted|assistance|"
-    r"generated|credits?|session|transcript)(?:$|[-_])"
-)
-TOOL_CREDIT = re.compile(
-    r"(?im)^[^\w\n]*(?:(?:this\s+)?(?:commit|change|code|patch)\s+"
-    r"(?:was\s+|is\s+)?)?(?:generated|written|authored|coauthored|co-authored|created|"
-    r"developed|implemented|coded|produced|assisted|reviewed)\s+(?:by|with|using)\s+"
-    r"(?:the\s+)?(?:help\s+of\s+)?(?:an?\s+)?[^\w\n]*(?:AI\b|artificial intelligence\b|"
-    r"LLM\b|ChatGPT\b|Codex\b|Claude\b|Copilot\b|Gemini\b|Grok\b|"
-    r"OpenAI\b|Anthropic\b)"
-)
-TOOL_CREDIT_LABEL = re.compile(
-    r"(?im)^[^\w\n]*(?:AI|LLM)[ -](?:generated|assisted|authored)"
-    r"(?:[.! \t]*$|[ \t]+(?:commit|change|patch|code)[.! \t]*$)"
-)
+# Keep author-identity aliases separate from assistance/review provenance.
+AUTHOR_IDENTITY_TRAILER = re.compile(r"^(?:co-?)?author(?:s|ed)?(?:-by)?$")
 OBJECT_ID = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 ZERO_OBJECT_ID = re.compile(r"^0+$")
 AUTHOR_SURFACES = (
@@ -173,15 +148,8 @@ def commit_violations(commit: CommitMetadata) -> list[Violation]:
     for match in AUTHOR_TRAILER.finditer(commit.message):
         key = match.group("key").lower()
         value = match.group("value").strip()
-        if (
-            key in AUTHOR_TRAILER_KEYS
-            or key == "agent-logs-url"
-            or SUPPLEMENTAL_TRAILER.search(key)
-        ):
+        if key in AUTHOR_TRAILER_KEYS or AUTHOR_IDENTITY_TRAILER.fullmatch(key):
             violations.append(Violation(commit.oid, f"{key} trailer", value))
-    for pattern in (TOOL_CREDIT, TOOL_CREDIT_LABEL):
-        for match in pattern.finditer(commit.message):
-            violations.append(Violation(commit.oid, "disallowed author line", match.group(0)))
     return violations
 
 
@@ -372,22 +340,6 @@ def codeowner_violations(path: Path, revision: str | None = None) -> list[Violat
     return violations
 
 
-def markdown_section(
-    path: Path, heading: str, revision: str | None = None
-) -> tuple[str, int]:
-    lines = metadata_text(path, revision).splitlines()
-    try:
-        heading_index = lines.index(heading)
-    except ValueError:
-        raise RuntimeError(f"missing authorship section {heading!r} in {path.relative_to(ROOT)}")
-    start = heading_index + 1
-    end = next(
-        (index for index in range(start, len(lines)) if lines[index].startswith("## ")),
-        len(lines),
-    )
-    return "\n".join(lines[start:end]), start
-
-
 @lru_cache(maxsize=32)
 def revision_files(revision: str) -> tuple[str, ...]:
     result = subprocess.run(
@@ -431,13 +383,8 @@ def project_metadata_violations(revision: str | None = None) -> list[Violation]:
         path = ROOT / relative
         violations.extend(forbidden_lines(path, metadata_text(path, revision)))
     violations.extend(codeowner_violations(ROOT / ".github/CODEOWNERS", revision))
-    readme = ROOT / "README.md"
-    authorship_section, line_offset = markdown_section(
-        readme, "## Citation and authorship", revision
-    )
-    violations.extend(
-        forbidden_lines(readme, authorship_section, line_offset=line_offset)
-    )
+    # README prose may disclose tools and reviewers. Actual publication-author
+    # declarations below and the canonical Cargo/CFF fields remain checked.
     for relative, patterns in AUTHOR_LINE_PATTERNS.items():
         path = ROOT / relative
         text = metadata_text(path, revision)

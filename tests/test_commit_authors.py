@@ -68,18 +68,18 @@ class AuthorCheckTests(unittest.TestCase):
             commit_violations(commit(author_email="lee@example.invalid")), []
         )
 
-    def test_all_extra_author_trailers_are_rejected_even_for_unknown_tools(self) -> None:
+    def test_extra_author_identity_trailers_remain_rejected(self) -> None:
         for key in (
-            "Co-Authored-By", "Author", "Assisted-By", "Generated-By",
-            "Reviewed-By", "Signed-Off-By", "Tested-By", "Pair-Programmed-By",
-            "CoAuthored-By", "Credits", "Codex-Session-Id", "Agent-Transcript",
+            "Co-Authored-By", "Author", "Authored-By", "Co-Author", "CoAuthored-By",
+            "Coauthor", "Coauthor-By", "Co-Authored", "CoAuthors", "Authors",
+            "Authors-By", "Co-Authors-By",
         ):
             with self.subTest(key=key):
                 self.assertTrue(commit_violations(commit(
                     message=f"Change\n\n{key}: Another Person <person@example.invalid>\n"
                 )))
 
-    def test_explicit_disallowed_author_lines_are_rejected(self) -> None:
+    def test_explicit_ai_assistance_disclosure_is_not_scrubbed(self) -> None:
         for credit in (
             "Generated with Codex", "This commit was written by AI Assistant",
             "🤖 Generated with Claude Code", "Code reviewed by Gemini",
@@ -88,7 +88,18 @@ class AuthorCheckTests(unittest.TestCase):
             "AI-assisted commit", "LLM-generated",
         ):
             with self.subTest(credit=credit):
-                self.assertTrue(commit_violations(commit(message=f"Change\n\n{credit}")))
+                self.assertEqual(commit_violations(commit(message=f"Change\n\n{credit}")), [])
+
+    def test_factual_development_provenance_trailers_are_allowed(self) -> None:
+        for key in (
+            "Assisted-By", "Generated-By", "Reviewed-By", "Tested-By",
+            "Pair-Programmed-By", "Credits", "Codex-Session-Id", "Agent-Transcript",
+            "Contributed-By", "Contributor", "Signed-Off-By",
+        ):
+            with self.subTest(key=key):
+                self.assertEqual(commit_violations(commit(
+                    message=f"Change\n\n{key}: Example development provenance\n"
+                )), [])
 
     def test_factual_ai_tool_descriptions_remain_allowed(self) -> None:
         for message in (
@@ -99,7 +110,7 @@ class AuthorCheckTests(unittest.TestCase):
             with self.subTest(message=message):
                 self.assertEqual(commit_violations(commit(message=message)), [])
 
-    def test_disallowed_author_and_contributor_trailers_are_rejected(self) -> None:
+    def test_contribution_credit_cannot_change_git_publication_identity(self) -> None:
         violations = commit_violations(
             commit(
                 message=(
@@ -109,7 +120,8 @@ class AuthorCheckTests(unittest.TestCase):
                 )
             )
         )
-        self.assertEqual(len(violations), 2)
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].field, "co-authored-by trailer")
 
     def test_project_author_metadata_is_clean(self) -> None:
         self.assertEqual(project_metadata_violations(), [])
@@ -144,11 +156,11 @@ class AuthorCheckTests(unittest.TestCase):
             with self.subTest(invalid=invalid):
                 self.assertTrue(cff_project_author_violations(invalid))
 
-    def test_session_log_trailers_are_rejected(self) -> None:
+    def test_public_session_provenance_links_are_not_scrubbed(self) -> None:
         violations = commit_violations(
             commit(message="Fix runtime\n\nAgent-Logs-Url: https://example.invalid/session\n")
         )
-        self.assertEqual([item.field for item in violations], ["agent-logs-url trailer"])
+        self.assertEqual(violations, [])
 
     def test_copilot_identity_is_rejected_but_tool_documentation_is_allowed(self) -> None:
         self.assertTrue(contains_forbidden_identity("GitHub Copilot <copilot@github.com>"))
@@ -472,8 +484,8 @@ class AuthorCheckPrePushTests(unittest.TestCase):
         self.assertIn("Other Tagger", result.stderr)
         self.git("-c", "tag.gpgsign=false", "tag", "-a", "credit", "-m", "Release\n\nGenerated with AI")
         result = self.push_check(self.git("rev-parse", "refs/tags/credit"))
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("disallowed author line", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("author check: pass", result.stdout)
 
 
 if __name__ == "__main__":

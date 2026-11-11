@@ -245,6 +245,10 @@ static char *read_text_file(const char *path) {
     char *b = (char *)malloc((size_t)sz + 1);
     if (!b) { fclose(f); return NULL; }
     size_t n = fread(b, 1, (size_t)sz, f);
+    if (memchr(b, '\0', n) != NULL) {
+        fprintf(stderr,"C17 NUL source text is unsupported\n");
+        free(b);fclose(f);errno=EINVAL;return NULL;
+    }
     if (n != (size_t)sz) { free(b); fclose(f); errno = EIO; return NULL; }
     b[n] = 0;
     if (fclose(f) != 0) { free(b); return NULL; }
@@ -615,6 +619,9 @@ int main(int argc, char **argv) {
         "#include <stdint.h>\n#include <unistd.h>\n"
         "#if defined(__APPLE__)\n#include <mach-o/dyld.h>\n#endif\n"
         "#include \"value.h\"\n#include \"parser.h\"\n#include \"eval.h\"\n#include \"backends.h\"\n\n"
+        "#if !defined(OLANG_SPLICE_CONTRACT_VERSION) || OLANG_SPLICE_CONTRACT_VERSION != 1\n"
+        "#error generated runtime requires source-splice contract v1\n"
+        "#endif\n\n"
         "static char *append_suffix(const char *a,const char *b){\n"
         "  if(!a||!b)return NULL;\n"
         "  size_t an=strlen(a),bn=strlen(b);\n"

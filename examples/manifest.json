@@ -316,14 +316,14 @@
       "editions": ["rust", "c17", "python"],
       "classification": "integration",
       "requirements": {
-        "backends": ["O", "python", "common_lisp", "javascript"],
-        "programs": ["python3", "sbcl", "node"],
+        "backends": ["O", "python", "bash", "javascript"],
+        "programs": ["python3", "bash", "node"],
         "authorities": ["process"]
       },
       "expected": {
-        "rust": {"patterns": ["hello from Python and Lisp and JavaScript!"]},
-        "c17": {"patterns": ["hello from Python and Lisp and JavaScript!"], "modes": ["interpreter", "aot"]},
-        "python": {"result": {"tag": "str", "value": "hello from Python and Lisp and JavaScript!"}}
+        "rust": {"patterns": ["hello from Python and Bash and JavaScript!"]},
+        "c17": {"patterns": ["hello from Python and Bash and JavaScript!"], "modes": ["interpreter", "aot"]},
+        "python": {"result": {"tag": "str", "value": "hello from Python and Bash and JavaScript!"}}
       }
     },
 {

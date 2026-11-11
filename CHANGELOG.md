@@ -7,8 +7,37 @@ Package SemVer is only one of the independent coordinates documented in
 
 ## [Unreleased]
 
+### Changed
+
+- Foreign value splices now use the receiving backend's declared data renderer.
+  Ordinary holes inside guest strings, comments, unsupported nested syntax or
+  adjacent identifiers are rejected before evaluation. SQL templates use
+  `SELECT $name`, rather than `SELECT '$name'`. Deliberate source generation
+  uses the explicit `$!name` code splice; this records reinterpretation and
+  grants no additional authority. The current contract and edition limits are
+  in [docs/CURRENT_CONTRACT.md](docs/CURRENT_CONTRACT.md).
+- Rust backend steps now have a 120-second default limit.
+  `O_BACKEND_STEP_TIMEOUT_MS` accepts 1 through 604800000 milliseconds; the exact value `disabled` explicitly
+  selects an unbounded step. Operation and heartbeat deadlines remain separate.
+- SQLite requests use independent input files and completion framing. Malformed
+  literals fail promptly, and the Python shim splits complete SQL statements
+  without splitting semicolons inside strings or trigger bodies.
+- Execution traces can retain prepared source-rendering observations, including
+  explicit code reinterpretation. These observations describe preparation;
+  they do not establish guest execution, completion or a universal confinement
+  theorem.
+- The short README links to the complete preserved reference and a focused
+  research note. Publication identity policy now explicitly allows truthful
+  AI-assistance and review provenance. Historical root inputs and patches are
+  retained under `audits/` with byte identities.
+
 ### Added
 
+- A required public boundary-contract CI lane and a standalone reproduction
+  runner preserve all seven reported splice witnesses and corrected data
+  cases. The concurrent CI-shard benchmark compares identical work against a
+  Python thread-pool baseline with independent artifact checks; a harness alone
+  is not a measured performance result.
 - A runtime-only setup profile builds the evaluator, command front door,
   orchestration compiler, native O-core compiler, and separately locked MCP
   server. Native runtime bundle tooling retains exact source and build

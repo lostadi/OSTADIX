@@ -85,6 +85,20 @@ def get_conn(env_id):
     return _connections[env_id]
 
 
+def sql_statements(code):
+    """Use SQLite's completeness rules for quotes, comments and trigger bodies."""
+    start = 0
+    for index, character in enumerate(code):
+        if character == ";" and sqlite3.complete_statement(code[start:index + 1]):
+            yield code[start:index + 1]
+            start = index + 1
+    remaining = code[start:]
+    if remaining.strip():
+        # execute() accepts a final statement without a semicolon and reports
+        # genuine SQLite syntax errors for an unfinished quote or trigger.
+        yield remaining
+
+
 def handle_exec(cmd):
     global _checkpoint_safe
     code = cmd.get("code", "").strip()
@@ -100,17 +114,12 @@ def handle_exec(cmd):
         conn = get_conn(env_id)
         cursor = conn.cursor()
 
-        # Execute all statements. executescript commits implicitly.
-        # For SELECT queries we want to fetch results, so we handle them
-        # individually.
-        statements = [s.strip() for s in code.split(";") if s.strip()]
         rows = []
         description = None
 
-        for stmt in statements:
+        for stmt in sql_statements(code):
             cursor.execute(stmt)
-            upper = stmt.lstrip().upper()
-            if upper.startswith("SELECT") or upper.startswith("WITH") or upper.startswith("PRAGMA"):
+            if cursor.description is not None:
                 rows = cursor.fetchall()
                 description = cursor.description
 
