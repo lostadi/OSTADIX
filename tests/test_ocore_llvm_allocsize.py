@@ -292,10 +292,10 @@ define ptr @caller(i64 %size) {
         cases = [
             ("declare void @unsupported(i64) allocsize(0)", "fixed C profile with an AS0 pointer result"),
             ("declare i64 @unsupported(i64) allocsize(0)", "fixed C profile with an AS0 pointer result"),
-            ("declare <2 x i64> @unsupported(i64) allocsize(0)", "unsupported LLVM type kind 13"),
+            ("declare <2 x i64> @unsupported(i64) allocsize(0)", "fixed C profile with an AS0 pointer result"),
             ("declare ptr addrspace(1) @unsupported(i64) allocsize(0)", "unsupported pointer address space 1"),
             ("declare ptr @unsupported(i65) allocsize(0)", "unsupported integer width i65"),
-            ("declare ptr @unsupported(i64, ...) allocsize(0)", "variadic calling convention"),
+            ("declare ptr @unsupported(i64, ...) allocsize(0)", "fixed C profile with an AS0 pointer result"),
             ("declare fastcc ptr @unsupported(i64) allocsize(0)", "supported fixed C profile"),
         ]
         for triple in TRIPLES:

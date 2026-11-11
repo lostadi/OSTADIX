@@ -304,10 +304,16 @@ define signext i8 @entry(ptr readnone %p, ptr dead_on_unwind %q, i8 zeroext %v) 
                 self.assertTrue(str(raised.exception).strip())
 
     def test_allocator_descriptions_are_preserved_while_unrelated_abi_and_pointer_codegen_contracts_reject_even_unused(self):
-        for attribute in ("byval(i8)", "byref(i8)", "sret(i128)", "inalloca(i8)", "preallocated(i8)",
+        for attribute in ("byval(i8)", "byref(i8)", "inalloca(i8)", "preallocated(i8)",
                           "inreg", "nest", "swiftself", "swifterror", "swiftasync", "alignstack(16)"):
             with self.subTest(attribute=attribute):
                 self.reject(f"declare void @unused(ptr dead_on_unwind {attribute})\n")
+        path = self.write("declare void @unused(ptr dead_on_unwind sret(i128))\n")
+        module = baseline.assert_complete_source_import(self, path, self.library)
+        signature = self.function(module, "unused")["signature"]
+        self.assertEqual(signature["return_storage"]["param"], 0)
+        self.assertEqual(module["types"][signature["return_storage"]["ty"]], {"kind": "int", "bits": 128})
+        self.assertTrue(any("dead_on_unwind" in note for note in module["provenance"]["refinements"]))
         for name in ("readnone", "dead_on_unwind", "allockind"):
             with self.subTest(string_attribute=name):
                 self.reject(f'declare void @unused(ptr) "{name}"="0"\n')

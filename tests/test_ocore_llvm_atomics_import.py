@@ -114,6 +114,8 @@ class LlvmAtomicImportTests(unittest.TestCase):
     def llvm_shape(self, ty):
         if self.api.GetTypeKind(ty) == 14:
             return {"kind": "metadata"}
+        if self.api.GetTypeKind(ty) in {2, 3}:
+            return {"kind": "float", "bits": {2: 32, 3: 64}[self.api.GetTypeKind(ty)]}
         return eh.LlvmEHImportTests.llvm_shape(self, ty)
 
     def tearDown(self):
@@ -603,7 +605,7 @@ define i32 @entry(ptr %p, i32 %value) {
                 self.assertEqual([ops[0]["value"]["kind"], ops[1]["value"]["kind"], ops[2]["expected"]["kind"], ops[2]["replacement"]["kind"]],
                                  ["undef", "poison", "undef", "poison"])
 
-    def test_all_public_floating_rmw_enum_names_are_verified_but_unsupported_as_whole_units_all_three_isas_ll_bc(self):
+    def test_all_public_floating_rmw_enum_names_are_retained_as_source_operations_all_three_isas_ll_bc(self):
         for name in ("xchg", "fadd", "fsub", "fmax", "fmin", "fmaximum", "fminimum"):
             body = f'''define i64 @entry(i64 %x) {{ ret i64 %x }}
 define float @unused_fp(ptr %p, float %value) {{
@@ -612,6 +614,7 @@ define float @unused_fp(ptr %p, float %value) {{
 }}
 '''
             for triple in TRIPLES:
+                modules = []
                 source = self.write(body, triple)
                 for path in (source, self.bitcode(source)):
                     with self.original(path) as (_, module):
@@ -622,13 +625,19 @@ define float @unused_fp(ptr %p, float %value) {{
                         self.assertEqual(RMW_NAMES[raw], name)
                         self.records.append({"outcome": "public-floating-RMW-reference", "input": noundef.artifact(path),
                                              "public_enum": raw, "name": name})
-                    self.reject(path, diagnostic="unsupported LLVM type kind")
+                    module = self.accept(path)
+                    modules.append(module)
+                    function = self.function(module, "unused_fp")
+                    operation, = self.operations(function)
+                    self.assertEqual((operation["op"], operation["kind"], operation["ordering"], operation["alignment"]),
+                                     ("atomic_rmw", name, "seq_cst", 4))
+                    self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 32})
+                baseline.assert_equivalent_source_pair(self, modules)
 
     def test_verified_wide_fp_vector_as1_and_unused_cold_contracts_reject_complete_unit_all_three_isas_ll_bc(self):
         unsupported = (
-            ("define i128 @unused_wide(ptr %p) { %v = load atomic i128, ptr %p seq_cst, align 16\nret i128 %v }", "unsupported integer width i128"),
-            ("define double @unused_fp(ptr %p) { %v = load atomic double, ptr %p acquire, align 8\nret double %v }", "unsupported LLVM type kind"),
-            ("define <2 x i32> @unused_vector(ptr %p) { %v = load atomic <2 x i32>, ptr %p acquire, align 8\nret <2 x i32> %v }", "unsupported LLVM type kind"),
+            ("define i128 @unused_wide(ptr %p) { %v = load atomic i128, ptr %p seq_cst, align 16\nret i128 %v }", "unsupported atomic integer width i128"),
+            ("define <2 x i32> @unused_vector(ptr %p) { %v = load atomic <2 x i32>, ptr %p acquire, align 8\nret <2 x i32> %v }", "volatile/atomic vector memory requires an explicit supported effect realization"),
             ("define i32 @unused_as1(ptr addrspace(1) %p) { %v = load atomic i32, ptr addrspace(1) %p acquire, align 4\nret i32 %v }", "unsupported pointer address space 1"),
             ("@unused_tls = thread_local global i64 37", "TLS globals require explicit"),
             ("declare void @unused_abi(ptr byval(i64))", "unsupported attribute"),
@@ -636,6 +645,13 @@ define float @unused_fp(ptr %p, float %value) {{
         for triple in TRIPLES:
             for extra, diagnostic in unsupported:
                 self.pair(scalar_family() + extra + "\n", triple, False, diagnostic=diagnostic)
+            body = scalar_family() + "define double @unused_fp(ptr %p) { %v = load atomic double, ptr %p acquire, align 8\nret double %v }\n"
+            for module in self.pair(body, triple):
+                function = self.function(module, "unused_fp")
+                operation, = self.operations(function)
+                self.assertEqual((operation["op"], operation["ordering"], operation["alignment"]),
+                                 ("atomic_load", "acquire", 8))
+                self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
 
     def test_invalid_orderings_explicit_alignment_and_compare_types_are_parser_failures_not_importer_guards(self):
         rows = (
@@ -678,8 +694,10 @@ define float @unused_fp(ptr %p, float %value) {{
                         "output": noundef.artifact(output) if output.exists() else None})
                     self.assertEqual(completed.returncode, 0, completed.stderr)
                     self.assertEqual(json.loads(output.read_text()), expected)
-            self.pair(scalar_family() + "@unused_float = global double 1.0\n", triple, False,
-                      diagnostic="unsupported LLVM type kind")
+            for module in self.pair(scalar_family() + "@unused_float = global double 1.0\n", triple):
+                global_ = next(g for g in module["globals"] if g["name"] == "unused_float")
+                self.assertEqual(module["types"][global_["ty"]], {"kind": "float", "bits": 64})
+                self.assertEqual(global_["initializer"]["bytes"], list(bytes.fromhex("000000000000f03f")))
 
     def producer(self, command, source, output, environment=None):
         env = os.environ.copy()
@@ -712,7 +730,7 @@ define float @unused_fp(ptr %p, float %value) {{
                         "-std=c++17" if language == "c++" else "-std=c11", "-O1", "-fno-stack-protector",
                         "-fno-pic", "-fno-pie", "-fno-vectorize", "-fno-slp-vectorize", "-emit-llvm",
                         "-S" if suffix == "ll" else "-c", source, "-o", output], source, output)
-                    if extra:
+                    if diagnostic is not None:
                         self.reject(path, diagnostic=diagnostic)
                     else:
                         module = self.accept(path, frontend="Clang " + language, frontend_version=version)
@@ -720,6 +738,15 @@ define float @unused_fp(ptr %p, float %value) {{
                         self.assertEqual(module["target"]["triple"], triple)
                         self.assertTrue(expected_names.issubset({f["name"] for f in module["functions"]}))
                         self.assertTrue(required_ops.issubset({op["op"] for f in module["functions"] for op in self.operations(f)}))
+                        if label == "float":
+                            global_ = next(g for g in module["globals"] if g["name"] == "unused_float")
+                            self.assertEqual(module["types"][global_["ty"]], {"kind": "float", "bits": 64})
+                            self.assertEqual(global_["initializer"]["bytes"], list(bytes.fromhex("000000000000f03f")))
+                        elif label == "abi":
+                            signature = self.function(module, "unused_abi")["signature"]
+                            self.assertTrue(signature["variadic"])
+                            self.assertEqual(signature["abi"], "c")
+                            self.assertEqual([module["types"][ty] for ty in signature["params"]], [{"kind": "int", "bits": 64}])
                 if modules: self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
             self.assertEqual(noundef.artifact(source), before)
 
@@ -735,7 +762,7 @@ word cas_atomic(word *p, word old, word replacement) { int ok = __atomic_compare
 void fence_atomic(void) { __atomic_thread_fence(__ATOMIC_SEQ_CST); __atomic_signal_fence(__ATOMIC_ACQUIRE); }
 word cold(word x) { return x + 3; }
 '''
-        self.clang_unit(original, "c", (("positive", "", None), ("float", "double unused_float = 1.0;\n", "unsupported LLVM type kind"),
+        self.clang_unit(original, "c", (("positive", "", None), ("float", "double unused_float = 1.0;\n", None),
             ("tls", "_Thread_local word unused_tls = 41;\n", "TLS globals require explicit")),
             {"read_atomic", "write_atomic", "add_atomic", "nand_atomic", "exchange_atomic", "cas_atomic", "fence_atomic", "cold"}, ATOMIC_OPS)
 
@@ -747,8 +774,8 @@ extern "C" word cas_atomic(word *p, word old, word replacement) { bool ok = __at
 extern "C" word cold(word x) { return x + 3; }
 '''
         self.clang_unit(original, "c++", (("positive", "", None),
-            ("float", "extern \"C\" double unused_float(double x) { return x; }\n", "unsupported LLVM type kind"),
-            ("abi", "extern \"C\" word unused_abi(word x, ...) { return x; }\n", "variadic")),
+            ("float", "extern \"C\" double unused_float(double x) { return x; }\n", "returned requires a supported scalar fixed parameter/call argument"),
+            ("abi", "extern \"C\" word unused_abi(word x, ...) { return x; }\n", None)),
             {"add_atomic", "cas_atomic", "cold"}, {"atomic_rmw", "atomic_compare_exchange"})
 
     def test_actual_untouched_rust1971_atomic_whole_units_preserve_real_targets_and_unused_float_boundary_all_three_isas_ll_bc(self):
@@ -777,7 +804,7 @@ use core::sync::atomic::{AtomicU64, Ordering, fence, compiler_fence};
                         "--target=" + target, "-Copt-level=1", "-Cpanic=abort", "-Ccodegen-units=1",
                         "--emit=" + ("llvm-ir" if suffix == "ll" else "llvm-bc"), "-o", output], source, output)
                     if extra:
-                        self.reject(path, diagnostic="unsupported LLVM type kind")
+                        self.reject(path, diagnostic="returned requires a supported scalar fixed parameter/call argument")
                     else:
                         module = self.accept(path, frontend="Rust", frontend_version=version)
                         modules.append(module)

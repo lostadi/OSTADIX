@@ -506,7 +506,7 @@ define ptr @explicit(ptr %p) { %r = call ptr @identity(ptr returned writable der
             self.assertEqual(callee["kind"], "symbol")
             self.assertEqual(callee["name"], "identity")
 
-    def test_unused_unsupported_entities_still_reject_the_complete_unit_all_three_isas(self):
+    def test_unused_entities_are_retained_when_supported_and_reject_complete_unit_otherwise_all_three_isas(self):
         supported = """
 declare ptr @identity(ptr returned writable dereferenceable(8)) nobuiltin
 define ptr @entry(ptr %p) { %r = call ptr @identity(ptr writable returned dereferenceable(8) %p) builtin ret ptr %r }
@@ -522,6 +522,19 @@ define ptr @entry(ptr %p) { %r = call ptr @identity(ptr writable returned derefe
         for triple in TRIPLES:
             for label, addition in additions.items():
                 with self.subTest(triple=triple, case=label):
+                    if label in {"unused floating body", "unused wide sret storage"}:
+                        for module in baseline.assert_complete_source_pair(self, supported + addition, triple):
+                            self.assertEqual({fn["name"] for fn in module["functions"]}, {"identity", "entry", "unused"})
+                            signature = self.function(module, "unused")["signature"]
+                            if label == "unused floating body":
+                                self.assertEqual(module["types"][signature["result"]], {"kind": "float", "bits": 64})
+                                self.assertEqual(self.function(module, "unused")["blocks"][0]["terminator"]["value"],
+                                                 {"kind": "value", "id": self.function(module, "unused")["params"][0]["id"]})
+                            else:
+                                self.assertEqual(signature["return_storage"]["param"], 0)
+                                self.assertEqual(module["types"][signature["return_storage"]["ty"]], {"kind": "int", "bits": 128})
+                                self.assertTrue(any("validated writable=0" in note for note in module["provenance"]["refinements"]))
+                        continue
                     self.reject_verified(supported + addition, triple=triple)
 
     def test_clang22_original_complete_returned_c_units_import_all_three_isas_text_and_bitcode(self):

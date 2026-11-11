@@ -193,16 +193,26 @@ define i7 @raw_attrs(i7 %x) { %r = call fastcc i7 @fast(i7 %x)
             ("declare coldcc i7 @unsupported()", "unsupported calling convention 9"),
             ("declare cc 10 i7 @unsupported()", "unsupported calling convention 10"),
             ("declare fastcc {i7, i65} @unsupported()", "unsupported integer width i65"),
-            ("declare {i7, double} @unsupported()", "unsupported LLVM type kind"),
-            ("declare fastcc void @unsupported({i7, <2 x i7>})", "unsupported LLVM type kind"),
+            ("declare fastcc void @unsupported({i7, <2 x i7>})", "supported integer lanes"),
             ("declare fastcc void @unsupported({i7, ptr addrspace(1)})", "unsupported pointer address space 1"),
             ("declare void @unsupported(ptr byval({i7,i64}))", "unsupported attribute"),
             ("declare void @unsupported(ptr inreg)", "unsupported attribute"),
-            ("declare i7 @unsupported(i64, ...)", "variadic calling convention is unsupported"),
         ]
         for triple in TRIPLES:
             for body, message in cases:
                 self.reject_verified("define i7 @supported() { ret i7 7 }\n" + body + "\n", triple, message, "unsupported")
+            for body, variadic in (("declare {i7, double} @unsupported()", False),
+                                   ("declare i7 @unsupported(i64, ...)", True)):
+                for module in baseline.assert_complete_source_pair(self, "define i7 @supported() { ret i7 7 }\n" + body + "\n", triple):
+                    signature = self.function(module, "unsupported")["signature"]
+                    self.assertEqual(signature["variadic"], variadic)
+                    self.assertEqual(signature["abi"], "c")
+                    if variadic:
+                        self.assertEqual([module["types"][ty] for ty in signature["params"]], [{"kind": "int", "bits": 64}])
+                    else:
+                        result = module["types"][signature["result"]]
+                        self.assertEqual([module["types"][ty] for ty in result["fields"]],
+                                         [{"kind": "int", "bits": 7}, {"kind": "float", "bits": 64}])
 
     def test_owned_intrinsic_declarations_and_calls_remain_exact_c_even_when_fastcc_is_llvm_verified_all_three_isas(self):
         cases = [
@@ -304,7 +314,7 @@ struct Pair unused_pair(word value) { return pair_make(value ^ 9, value + 13); }
             self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
         self.assertEqual(source.read_bytes(), original)
 
-    def test_actual_complete_clang_and_rust_pair_units_reject_retained_unused_float_without_partial_import_all_three_isas(self):
+    def test_actual_complete_clang_and_rust_pair_units_retain_unused_float_and_original_inventory_all_three_isas(self):
         clang, clang_version = baseline.LlvmImportTests.clang22_frontend(self)
         rustc, rust_version = self.rust_compiler()
         for language in ("c", "rs"):
@@ -312,14 +322,16 @@ struct Pair unused_pair(word value) { return pair_make(value ^ 9, value + 13); }
             source.write_text(self.clang_source() + "double unsupported_float(word value) { return (double)value; }\n" if language == "c" else self.rust_source() + '#[no_mangle] pub extern "C" fn unsupported_float(value: u64) -> f64 { value as f64 }\n')
             original = source.read_bytes()
             for triple in TRIPLES:
+                modules = []
                 for suffix in ("ll", "bc"):
                     path = self.clang_compile(clang, source, triple, suffix, False) if language == "c" else self.rust_compile(rustc, source, "riscv64gc-unknown-linux-gnu" if triple == TRIPLES[2] else triple, suffix)
-                    with self.assertRaises(importer.ImportFailure) as raised:
-                        importer.import_module(path, library_path=self.library, frontend="Clang C" if language == "c" else "Rust", frontend_version=clang_version if language == "c" else rust_version)
-                    self.record_import(path, error=raised.exception)
-                    self.assertEqual(raised.exception.stage, "import")
-                    self.assertEqual(raised.exception.symbol, "unsupported_float")
-                    self.assertIn("unsupported LLVM type kind", str(raised.exception))
+                    module = baseline.assert_complete_source_import(self, path, self.library, frontend="Clang C" if language == "c" else "Rust", frontend_version=clang_version if language == "c" else rust_version)
+                    self.record_import(path, module=module)
+                    modules.append(module)
+                    function = self.function(module, "unsupported_float")
+                    self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+                    self.assertTrue(any(op["op"] == "cast" and op["kind"] == "ui_to_fp" for op in self.operations(function)))
+                baseline.assert_equivalent_source_pair(self, modules)
             self.assertEqual(source.read_bytes(), original)
 
 

@@ -313,21 +313,42 @@ define i17 @memory(ptr %out) {
             for body in cases:
                 self.reject_verified("define i7 @supported() { ret i7 7 }\n" + body + "\n", triple, "unsupported integer width i65", "unsupported")
 
-    def test_dead_unselected_or_poison_aggregate_fields_do_not_hide_float_wide_vector_or_address_space_types_all_three_isas(self):
+    def test_dead_aggregate_fields_retain_supported_float_and_reject_unsupported_types_all_three_isas(self):
         for triple in TRIPLES:
-            for unsupported, diagnostic in (("double", "unsupported LLVM type kind"), ("i65", "unsupported integer width i65"),
-                                            ("<2 x i7>", "unsupported LLVM type kind"), ("ptr addrspace(1)", "unsupported pointer address space 1")):
+            body = "define i7 @unsupported() { %unused = extractvalue {i7, double} poison, 0\nret i7 7 }\n"
+            for module in baseline.assert_complete_source_pair(self, body, triple):
+                op, = self.operations(self.function(module, "unsupported"))
+                self.assertEqual((op["op"], op["indices"]), ("extract_value", [0]))
+                aggregate = module["types"][op["aggregate"]["ty"]]
+                self.assertEqual([module["types"][ty] for ty in aggregate["fields"]],
+                                 [{"kind": "int", "bits": 7}, {"kind": "float", "bits": 64}])
+                self.assertEqual(op["aggregate"]["kind"], "poison")
+            for unsupported, diagnostic in (("i65", "unsupported integer width i65"),
+                                            ("<2 x i7>", "supported integer lanes"), ("ptr addrspace(1)", "unsupported pointer address space 1")):
                 body = f"define i7 @unsupported() {{ %unused = extractvalue {{i7, {unsupported}}} poison, 0\nret i7 7 }}\n"
                 self.reject_verified(body, triple, diagnostic, "unsupported")
 
-    def test_nested_symbolic_integer_and_blockaddress_constants_remain_rejected_without_hidden_dependency_escape_all_three_isas(self):
+    def test_nested_symbolic_integer_and_blockaddress_constants_retain_exact_dependencies_all_three_isas(self):
         cases = [
             "@data = global i8 0\ndefine i7 @unsupported() { %a = freeze {i7,i64} {i7 1,i64 ptrtoint(ptr @data to i64)}\nret i7 7 }",
             "define void @target() { entry: br label %label\nlabel: ret void }\ndefine i7 @unsupported() { %a = freeze {i7,ptr} {i7 1,ptr blockaddress(@target,%label)}\nret i7 7 }",
         ]
         for triple in TRIPLES:
             for body in cases:
-                self.reject_verified(body + "\n", triple, "unsupported constant expression", "unsupported")
+                for module in baseline.assert_complete_source_pair(self, body + "\n", triple):
+                    op, = self.operations(self.function(module, "unsupported"))
+                    self.assertEqual(op["op"], "freeze")
+                    self.assert_constant_tree(module, op["value"])
+                    child = op["value"]["elements"][1]
+                    if "@data" in body:
+                        self.assertEqual(child["kind"], "pointer_to_integer")
+                        self.assertEqual(module["types"][child["ty"]], {"kind": "int", "bits": 64})
+                        self.assertEqual(child["pointer"]["kind"], "symbol")
+                        self.assertEqual(child["pointer"]["name"], "data")
+                    else:
+                        self.assertEqual(child["kind"], "block_address")
+                        self.assertEqual((child["function"], child["block"], child["addend"]), ("target", 1, 0))
+                        self.assertEqual(module["types"][child["ty"]], {"kind": "pointer", "address_space": 0})
 
     def test_malformed_paths_wrong_child_types_and_ssa_dominance_fail_at_actual_llvm_boundary_all_three_isas(self):
         cases = [
@@ -428,7 +449,7 @@ word scalar(word value) { return value + state.cells[0]; }
                 self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), source_hash)
 
-    def test_actual_clang22_original_c_and_cpp_complete_units_reject_unused_float_after_retaining_aggregate_body_all_three_isas_text_and_bitcode(self):
+    def test_actual_clang22_original_c_and_cpp_complete_units_retain_unused_float_and_aggregate_bodies_all_three_isas_text_and_bitcode(self):
         clang, version = baseline.LlvmImportTests.clang22_frontend(self)
         for cpp in (False, True):
             source = self.directory / ("whole-record-bad.cpp" if cpp else "whole-record-bad.c")
@@ -436,14 +457,16 @@ word scalar(word value) { return value + state.cells[0]; }
             source.write_text('extern "C" {\n' + code + '}\n' if cpp else code)
             source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
             for triple in TRIPLES:
+                modules = []
                 for suffix in ("ll", "bc"):
                     path = self.clang_compile(clang, source, triple, suffix, cpp)
-                    with self.assertRaises(importer.ImportFailure) as raised:
-                        importer.import_module(path, library_path=self.library, frontend="Clang C++" if cpp else "Clang C", frontend_version=version)
-                    self.assertEqual(raised.exception.stage, "import")
-                    self.record_import(path, error=raised.exception)
-                    self.assertEqual(raised.exception.symbol, "unsupported_pair")
-                    self.assertIn("unsupported LLVM type kind", str(raised.exception))
+                    module = baseline.assert_complete_source_import(self, path, self.library, frontend="Clang C++" if cpp else "Clang C", frontend_version=version)
+                    self.record_import(path, module=module)
+                    modules.append(module)
+                    function = self.function(module, "unsupported_pair")
+                    self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+                    self.assertTrue(any(op["op"] == "cast" and op["kind"] == "ui_to_fp" for op in self.operations(function)))
+                baseline.assert_equivalent_source_pair(self, modules)
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), source_hash)
 
     @staticmethod
@@ -580,7 +603,7 @@ pub extern "C" fn rust_scalar(value: u64) -> u64 { value.wrapping_add(11) }
                 self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), source_hash)
 
-    def test_actual_rust1971_original_whole_units_reject_unused_float_after_retaining_aggregate_return_all_three_isas_text_and_bitcode(self):
+    def test_actual_rust1971_original_whole_units_retain_unused_float_and_aggregate_return_all_three_isas_text_and_bitcode(self):
         rustc, version = self.rust_compiler()
         source = self.directory / "whole-record-bad.rs"
         source.write_text(self.rust_source() + '''#[repr(C)] pub struct Small { pub first: u64, pub second: u64 }
@@ -589,14 +612,16 @@ pub extern "C" fn rust_scalar(value: u64) -> u64 { value.wrapping_add(11) }
 ''')
         source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
         for target in (TRIPLES[0], TRIPLES[1], "riscv64gc-unknown-linux-gnu"):
+            modules = []
             for suffix in ("ll", "bc"):
                 path = self.rust_compile(rustc, source, target, suffix)
-                with self.assertRaises(importer.ImportFailure) as raised:
-                    importer.import_module(path, library_path=self.library, frontend="Rust", frontend_version=version)
-                self.assertEqual(raised.exception.stage, "import")
-                self.record_import(path, error=raised.exception)
-                self.assertEqual(raised.exception.symbol, "unsupported_pair")
-                self.assertIn("unsupported LLVM type kind", str(raised.exception))
+                module = baseline.assert_complete_source_import(self, path, self.library, frontend="Rust", frontend_version=version)
+                self.record_import(path, module=module)
+                modules.append(module)
+                function = self.function(module, "unsupported_pair")
+                self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+                self.assertTrue(any(op["op"] == "cast" and op["kind"] == "ui_to_fp" for op in self.operations(function)))
+            baseline.assert_equivalent_source_pair(self, modules)
         self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), source_hash)
 
 

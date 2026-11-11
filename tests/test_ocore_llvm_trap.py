@@ -326,17 +326,21 @@ void trap_callee(void) { unconditional(); }
             self.assertEqual({key: value for key, value in modules[0].items() if key not in {"name", "provenance"}},
                              {key: value for key, value in modules[1].items() if key not in {"name", "provenance"}})
 
-    def test_actual_clang22_complete_trap_unit_does_not_drop_unused_unsupported_function_all_three_isas_text_and_bitcode(self):
+    def test_actual_clang22_complete_trap_unit_retains_unused_floating_function_all_three_isas_text_and_bitcode(self):
         clang, _ = baseline.LlvmImportTests.clang22_frontend(self)
         source = self.directory / "trap-unused-unsupported.c"
         source.write_text(self.clang_source() + "\ndouble unused_unsupported(double value) { return value * 2.0; }\n")
         for triple in TRIPLES:
+            modules = []
             for suffix in ("ll", "bc"):
                 path = self.compile_clang(clang, source, triple, suffix)
-                with self.assertRaises(importer.ImportFailure) as raised:
-                    importer.import_module(path, library_path=self.library)
-                self.assertEqual(raised.exception.stage, "import")
-                self.assertEqual(raised.exception.symbol, "unused_unsupported")
+                module = baseline.assert_complete_source_import(self, path, self.library)
+                modules.append(module)
+                function = self.function(module, "unused_unsupported")
+                self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+                operation, = self.operations(function)
+                self.assertEqual((operation["op"], operation["kind"]), ("float_binary", "mul"))
+            baseline.assert_equivalent_source_pair(self, modules)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Exercise real LLVM import, including frontend IR; no native code is emitted."""
 
 import ctypes as C
+import copy
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from scripts import ocore_llvm_import as importer
 
@@ -43,6 +45,136 @@ def llvm_library():
                 if stream.read(4) == b"\x7fELF":
                     return candidate.resolve()
     raise unittest.SkipTest("Rust LLVM ELF shared library unavailable")
+
+
+def assert_complete_source_import(test, path, library, *, ignored_functions=(), **kwargs):
+    """Compare complete source inventories/signatures with independent LLVM-C reads.
+
+    This is source extraction evidence. It does not establish native ABI
+    admission or execution. Individual tests additionally check the newly
+    retained operation, attribute, constant or dependency of interest. The
+    sole inventory normalization exception is LLVM's dead legacy
+    llvm.lifetime.start.i64 declaration beside its canonical companion;
+    a definition, ordinary use, different name or signature cannot be omitted.
+    """
+    path = Path(path)
+    test.assertIn(tuple(ignored_functions), ((), ("llvm.lifetime.start.i64",)))
+    original = path.read_bytes()
+    module = importer.import_module(path, library_path=library, **kwargs)
+    api = importer.LLVM(library, kwargs.get("expected_sha256", importer.PINNED_SHA256))
+    context, parsed, message = api.ContextCreate(), importer.P(), importer.P()
+    buffer = api.CreateMemoryBufferWithMemoryRangeCopy(original, len(original), b"independent-complete-inventory")
+
+    def source_shape(ty):
+        kind = api.GetTypeKind(ty)
+        if kind == 0: return {"kind": "void"}
+        if kind in {2, 3, 4, 5}: return {"kind": "float", "bits": {2: 32, 3: 64, 4: 80, 5: 128}[kind]}
+        if kind == 8: return {"kind": "int", "bits": api.GetIntTypeWidth(ty)}
+        if kind == 12: return {"kind": "pointer", "address_space": api.GetPointerAddressSpace(ty)}
+        if kind == 14: return {"kind": "metadata"}
+        if kind in {11, 13}:
+            return {"kind": "array" if kind == 11 else "vector", "element": source_shape(api.GetElementType(ty)),
+                    "len": api.GetArrayLength2(ty) if kind == 11 else api.GetVectorSize(ty)}
+        if kind == 10:
+            fields = (importer.P * api.CountStructElementTypes(ty))()
+            api.GetStructElementTypes(ty, fields)
+            return {"kind": "struct", "packed": bool(api.IsPackedStruct(ty)),
+                    "fields": [source_shape(field) for field in fields]}
+        test.fail(f"independent source type not covered by this assertion: {kind}")
+
+    def owned_shape(ident):
+        ty = module["types"][ident]
+        if ty["kind"] == "struct":
+            return dict(ty, fields=[owned_shape(child) for child in ty["fields"]])
+        if ty["kind"] in {"array", "vector"}:
+            return dict(ty, element=owned_shape(ty["element"]))
+        return ty
+
+    try:
+        status = api.ParseIRInContext2(context, buffer, C.byref(parsed), C.byref(message))
+        test.assertEqual(status, 0, C.string_at(message).decode(errors="replace") if message else "parse failed")
+        if message:
+            api.DisposeMessage(message)
+            message = importer.P()
+        status = api.VerifyModule(parsed, 2, C.byref(message))
+        test.assertEqual(status, 0, C.string_at(message).decode(errors="replace") if message else "verify failed")
+        test.assertEqual(module["target"]["triple"], api.GetTarget(parsed).decode())
+        inventories = (
+            ("functions", "source_function_count", api.GetFirstFunction, api.GetNextFunction),
+            ("globals", "source_global_count", api.GetFirstGlobal, api.GetNextGlobal),
+            ("aliases", "source_alias_count", api.GetFirstGlobalAlias, api.GetNextGlobalAlias),
+        )
+        for key, count, first, next_ in inventories:
+            source = {api.name(value): value for value in api.sequence(first, next_, parsed)}
+            if key == "functions":
+                test.assertTrue(set(ignored_functions) <= set(source))
+                for name in ignored_functions:
+                    declaration = source[name]
+                    is_declaration = api.lib.LLVMIsDeclaration
+                    is_declaration.restype, is_declaration.argtypes = importer.B, [importer.P]
+                    test.assertTrue(is_declaration(declaration), "normalization cannot omit a definition")
+                    test.assertFalse(api.GetFirstUse(declaration), "normalization cannot omit a live ordinary use")
+                    test.assertEqual(api.GetFunctionCallConv(declaration), 0)
+                    test.assertEqual(api.GetLinkage(declaration), 0)
+                    signature = api.GlobalGetValueType(declaration)
+                    test.assertFalse(api.IsFunctionVarArg(signature))
+                    test.assertEqual(api.CountParamTypes(signature), 1)
+                    parameters = (importer.P * 1)()
+                    api.GetParamTypes(signature, parameters)
+                    test.assertEqual(source_shape(api.GetReturnType(signature)), {"kind": "void"})
+                    test.assertEqual(source_shape(parameters[0]), {"kind": "int", "bits": 64})
+                    test.assertIn("llvm.lifetime.start.p0", source)
+                    companion = source["llvm.lifetime.start.p0"]
+                    test.assertTrue(is_declaration(companion))
+                    canonical = api.GlobalGetValueType(companion)
+                    test.assertFalse(api.IsFunctionVarArg(canonical))
+                    test.assertEqual(api.CountParamTypes(canonical), 1)
+                    api.GetParamTypes(canonical, parameters)
+                    test.assertEqual(source_shape(api.GetReturnType(canonical)), {"kind": "void"})
+                    test.assertEqual(source_shape(parameters[0]), {"kind": "pointer", "address_space": 0})
+                source = {name: value for name, value in source.items() if name not in ignored_functions}
+            owned = {value["name"]: value for value in module[key]}
+            test.assertEqual(set(owned), set(source), f"complete original {key} inventory")
+            test.assertEqual(len(module[key]), len(source), "duplicate records must not hide an omission")
+            test.assertEqual(module["provenance"][count], len(source))
+            if key != "functions": continue
+            for name, function in source.items():
+                signature = api.GlobalGetValueType(function)
+                params = (importer.P * api.CountParamTypes(signature))()
+                api.GetParamTypes(signature, params)
+                retained = owned[name]["signature"]
+                test.assertEqual([param["ty"] for param in owned[name]["params"]], retained["params"], name)
+                test.assertEqual(owned_shape(retained["result"]), source_shape(api.GetReturnType(signature)), name)
+                test.assertEqual([owned_shape(ty) for ty in retained["params"]], [source_shape(ty) for ty in params], name)
+                test.assertEqual(retained["variadic"], bool(api.IsFunctionVarArg(signature)), name)
+                test.assertEqual(retained["abi"], {0: "c", 8: "fastcc"}[api.GetFunctionCallConv(function)], name)
+                blocks = list(api.sequence(api.GetFirstBasicBlock, api.GetNextBasicBlock, function))
+                test.assertEqual(len(owned[name]["blocks"]), len(blocks), name)
+                test.assertEqual(owned[name]["entry"] is not None, bool(blocks), name)
+    finally:
+        if message: api.DisposeMessage(message)
+        if parsed: api.DisposeModule(parsed)
+        api.DisposeMemoryBuffer(buffer)
+        api.ContextDispose(context)
+    test.assertEqual(path.read_bytes(), original, "original source bytes must remain unchanged")
+    test.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(original).hexdigest())
+    return module
+
+
+def assert_equivalent_source_pair(test, modules):
+    test.assertEqual(len(modules), 2, "both original text and bitcode must have been imported")
+    test.assertEqual({key: value for key, value in modules[0].items() if key not in {"name", "provenance"}},
+                     {key: value for key, value in modules[1].items() if key not in {"name", "provenance"}})
+
+
+def assert_complete_source_pair(test, body, triple, **kwargs):
+    source = test.write(body, triple)
+    original = source.read_bytes()
+    modules = [assert_complete_source_import(test, path, test.library, **kwargs)
+               for path in (source, test.bitcode(source))]
+    assert_equivalent_source_pair(test, modules)
+    test.assertEqual(source.read_bytes(), original)
+    return modules
 
 
 class LlvmImportTests(unittest.TestCase):
@@ -86,6 +218,59 @@ class LlvmImportTests(unittest.TestCase):
     def operations(self, function):
         return [instruction["operation"]
                 for block in function["blocks"] for instruction in block["instructions"]]
+
+    def test_overflow_intrinsics_keep_exact_fixed_signatures_and_reject_variadic_declarations(self):
+        for triple in TRIPLES:
+            for family in ("sadd", "uadd", "ssub", "usub", "smul", "umul"):
+                name = f"llvm.{family}.with.overflow.i8"
+                for variadic in (False, True):
+                    body = ("define i64 @retained() { ret i64 37 }\n"
+                            f"declare {{i8, i1}} @{name}(i8, i8{', ...' if variadic else ''})\n")
+                    with self.subTest(triple=triple, family=family, variadic=variadic):
+                        path = self.write(body, triple=triple)
+                        if variadic:
+                            with self.assertRaises(importer.ImportFailure) as raised:
+                                importer.import_module(path, library_path=self.library, expected_sha256=self.library_sha256)
+                            self.assertEqual(raised.exception.stage, "import")
+                            self.assertEqual(raised.exception.symbol, name)
+                            self.assertIn("requires its exact unpacked", str(raised.exception))
+                        else:
+                            module = assert_complete_source_import(self, path, self.library,
+                                                                  expected_sha256=self.library_sha256)
+                            signature = self.function(module, name)["signature"]
+                            self.assertFalse(signature["variadic"])
+                            self.assertEqual(signature["param_attributes"], [[], []])
+                            self.assertEqual(signature["result_attributes"], [])
+                            result = module["types"][signature["result"]]
+                            self.assertEqual([module["types"][ident] for ident in result["fields"]],
+                                             [{"kind": "int", "bits": 8}, {"kind": "int", "bits": 1}])
+
+    def test_independent_complete_source_oracle_rejects_missing_duplicate_body_and_signature_records(self):
+        body = "@data = global i8 7\n@alias = alias double(double), ptr @original\ndefine double @original(double %x) { ret double %x }\n"
+        for triple in TRIPLES:
+            path = self.write(body, triple=triple)
+            original = assert_complete_source_import(self, path, self.library, expected_sha256=self.library_sha256)
+            integer = next(index for index, ty in enumerate(original["types"]) if ty == {"kind": "int", "bits": 8})
+            def dropped_function(module): module["functions"].clear()
+            def duplicate_function(module): module["functions"].append(copy.deepcopy(module["functions"][0]))
+            def dropped_global(module): module["globals"].clear()
+            def dropped_alias(module): module["aliases"].clear()
+            def dropped_body(module):
+                module["functions"][0]["blocks"] = []
+                module["functions"][0]["entry"] = None
+            def changed_parameter(module): module["functions"][0]["signature"]["params"] = [integer]
+            def changed_result(module): module["functions"][0]["signature"]["result"] = integer
+            def changed_variadic(module): module["functions"][0]["signature"]["variadic"] = True
+            for mutate in (dropped_function, duplicate_function, dropped_global, dropped_alias, dropped_body,
+                           changed_parameter, changed_result, changed_variadic):
+                changed = copy.deepcopy(original)
+                mutate(changed)
+                with self.subTest(triple=triple, mutation=mutate.__name__), mock.patch.object(importer, "import_module", return_value=changed):
+                    with self.assertRaises(AssertionError):
+                        assert_complete_source_import(self, path, self.library, expected_sha256=self.library_sha256)
+            with self.assertRaises(AssertionError):
+                assert_complete_source_import(self, path, self.library, ignored_functions=("original",),
+                                              expected_sha256=self.library_sha256)
 
     def test_inventory_target_and_input_provenance_on_all_three_isas(self):
         body = """

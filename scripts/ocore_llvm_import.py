@@ -1249,6 +1249,7 @@ class Importer:
             if (result.get("kind") != "struct" or result["packed"]
                     or [self.types[ty] for ty in result["fields"]] != [integer(width), integer(1)]
                     or [self.types[ty] for ty in signature["params"]] != [integer(width), integer(width)]
+                    or signature["variadic"]
                     or signature["result_attributes"] or any(signature["param_attributes"])):
                 self.reject(f"intrinsic {name} requires its exact unpacked {{i{width}, i1}} result and two i{width} parameters without ABI extension attributes")
             return

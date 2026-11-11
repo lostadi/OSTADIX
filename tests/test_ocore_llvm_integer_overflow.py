@@ -461,7 +461,7 @@ int unused_checked(long a,long b,long *out) { return __builtin_saddl_overflow(a,
             self.assertEqual(self.realization(modules[0]), self.realization(modules[1]))
         self.assertEqual(source.read_bytes(), original)
 
-    def test_actual_whole_c_cpp_rust_overflow_units_reject_retained_unused_float_without_partial_import_all_three_isas_ll_bc(self):
+    def test_actual_whole_c_cpp_rust_overflow_units_retain_unused_float_and_complete_inventory_all_three_isas_ll_bc(self):
         clang, clang_version = baseline.LlvmImportTests.clang22_frontend(self)
         rustc, rust_version = self.rust_compiler()
         for language in ("c", "cpp", "rust"):
@@ -470,16 +470,18 @@ int unused_checked(long a,long b,long *out) { return __builtin_saddl_overflow(a,
             source.write_text('extern "C" {\n' + code + '}\n' if language == "cpp" else code)
             original = source.read_bytes()
             for triple in TRIPLES:
+                modules = []
                 for suffix in ("ll", "bc"):
                     target = "riscv64gc-unknown-linux-gnu" if language == "rust" and triple.startswith("riscv64") else triple
                     path = self.rust_compile(rustc, source, target, suffix) if language == "rust" else self.clang_compile(clang, source, triple, suffix, language == "cpp")
-                    with self.assertRaises(importer.ImportFailure) as raised:
-                        importer.import_module(path, library_path=self.library, frontend=language,
-                                               frontend_version=rust_version if language == "rust" else clang_version)
-                    self.record_import(path, error=raised.exception)
-                    self.assertEqual(raised.exception.stage, "import")
-                    self.assertEqual(raised.exception.symbol, "unsupported_float")
-                    self.assertIn("unsupported LLVM type kind", str(raised.exception))
+                    module = baseline.assert_complete_source_import(self, path, self.library, frontend=language,
+                                                                    frontend_version=rust_version if language == "rust" else clang_version)
+                    self.record_import(path, module=module)
+                    modules.append(module)
+                    function = self.function(module, "unsupported_float")
+                    self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+                    self.assertTrue(any(op["op"] == "cast" and op["kind"] == "ui_to_fp" for op in self.operations(function)))
+                baseline.assert_equivalent_source_pair(self, modules)
             self.assertEqual(source.read_bytes(), original)
 
 

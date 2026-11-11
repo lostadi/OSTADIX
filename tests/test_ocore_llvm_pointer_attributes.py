@@ -187,14 +187,29 @@ define signext i8 @entry(ptr dereferenceable_or_null(32) %pointer, i8 zeroext %v
                 self.reject(f'declare ptr @external(ptr) "{name}"="8"\n')
 
     def test_abi_storage_and_special_register_attributes_still_reject_even_unused(self):
-        for attribute in ("byval(i8)", "byref(i8)", "sret(i128)", "inalloca(i8)", "preallocated(i8)",
+        for attribute in ("byval(i8)", "byref(i8)", "inalloca(i8)", "preallocated(i8)",
                           "inreg", "nest", "swiftself", "swifterror", "swiftasync", "alignstack(16)"):
             with self.subTest(attribute=attribute):
                 self.reject(f"declare void @unsupported(ptr align 8 dereferenceable(16) {attribute})\n")
+        for triple in TRIPLES:
+            path = self.write("declare void @unsupported(ptr align 8 dereferenceable(16) sret(i128))\n", triple)
+            module = baseline.assert_complete_source_import(self, path, self.library)
+            signature = self.function(module, "unsupported")["signature"]
+            storage = signature["return_storage"]
+            self.assertEqual(storage["param"], 0)
+            self.assertEqual(module["types"][storage["ty"]], {"kind": "int", "bits": 128})
+            self.assertEqual(module["types"][signature["result"]], {"kind": "void"})
 
     def test_other_pointer_codegen_contracts_are_not_admitted_by_promise_erasure(self):
         self.reject("define ptr @identity(ptr dereferenceable(8) %pointer) null_pointer_is_valid { ret ptr %pointer }\n")
-        self.reject("declare ptr @external(ptr align 8, ...)\n")
+        for triple in TRIPLES:
+            path = self.write("declare ptr @external(ptr align 8, ...)\n", triple)
+            module = baseline.assert_complete_source_import(self, path, self.library)
+            signature = self.function(module, "external")["signature"]
+            self.assertTrue(signature["variadic"])
+            self.assertEqual(signature["abi"], "c")
+            self.assertEqual(signature["param_attributes"], [[]])
+            self.assertTrue(any("erased pointer promise align=8" in note for note in module["provenance"]["refinements"]))
 
     @staticmethod
     def clang_source():
@@ -258,21 +273,25 @@ unsigned char *imported_global(void) { return pointer_storage; }
                 self.assertEqual({key: value for key, value in modules[0].items() if key not in {"name", "provenance"}},
                                  {key: value for key, value in modules[1].items() if key not in {"name", "provenance"}})
 
-    def test_actual_clang22_whole_pointer_unit_with_unused_float_function_rejects_all_three_isas_both_formats(self):
+    def test_actual_clang22_whole_pointer_unit_retains_unused_float_function_all_three_isas_both_formats(self):
         clang, version = baseline.LlvmImportTests.clang22_frontend(self)
         source = self.directory / "pointer-with-float.c"
         source.write_text(self.clang_source() + """
 double unsupported_float(double value) { return value + 1.0; }
 """)
         for triple in TRIPLES:
+            modules = []
             for suffix in ("ll", "bc"):
                 with self.subTest(triple=triple, suffix=suffix):
                     path = self.compile_clang(clang, source, triple, suffix)
-                    with self.assertRaises(importer.ImportFailure) as raised:
-                        importer.import_module(path, library_path=self.library,
-                                               frontend="Clang", frontend_version=version)
-                    self.assertEqual(raised.exception.stage, "import")
-                    self.assertEqual(raised.exception.symbol, "unsupported_float")
+                    module = baseline.assert_complete_source_import(self, path, self.library,
+                                                                   frontend="Clang", frontend_version=version)
+                    modules.append(module)
+                    function = self.function(module, "unsupported_float")
+                    self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+                    operation, = self.operations(function)
+                    self.assertEqual((operation["op"], operation["kind"]), ("float_binary", "add"))
+            baseline.assert_equivalent_source_pair(self, modules)
 
 
 if __name__ == "__main__":

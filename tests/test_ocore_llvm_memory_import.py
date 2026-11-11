@@ -273,7 +273,15 @@ define i64 @entry(i64 %value) {
             self.import_ir(declaration + 'define void @entry() { ret void, !custom !0 }\n'
                            + '!0 = !{ptr @llvm.lifetime.start.i64}\n')
         self.reject(declaration + '@escape = global ptr @llvm.lifetime.start.i64\n', stage="llvm-verify")
-        self.reject(declaration + "define double @unsupported(double %x) { ret double %x }\n")
+        # Floating bodies are retained now; normalization may remove only the
+        # explicitly recognized dead legacy declaration, never this body.
+        path = self.write(declaration + "define double @unsupported(double %x) { ret double %x }\n")
+        module = baseline.assert_complete_source_import(
+            self, path, self.library, ignored_functions=("llvm.lifetime.start.i64",))
+        function = self.function(module, "unsupported")
+        self.assertEqual(module["types"][function["signature"]["result"]], {"kind": "float", "bits": 64})
+        self.assertEqual(function["blocks"][0]["terminator"],
+                         {"op": "return", "value": {"kind": "value", "id": function["params"][0]["id"]}})
         self.reject(companion + """
 declare void @llvm.lifetime.start.i64(i64)
 define void @entry() {

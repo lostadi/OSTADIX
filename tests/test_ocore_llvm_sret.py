@@ -187,9 +187,6 @@ define void @caller(ptr %out) {
             ("%T = type opaque\ndeclare void @unsupported(ptr sret(%T))\n", "supported sized in-memory type"),
             ("declare void @unsupported(ptr sret(void()))\n", "supported sized in-memory type"),
             ("declare void @unsupported(ptr sret(i65))\n", "unsupported integer width i65"),
-            ("declare void @unsupported(ptr sret({i32, i128}))\n", "unsupported integer width i128"),
-            ("declare void @unsupported(ptr sret(double))\n", "unsupported LLVM type kind"),
-            ("declare void @unsupported(ptr sret(<2 x i32>))\n", "unsupported LLVM type kind"),
             ("declare void @unsupported(ptr sret(<vscale x 2 x i32>))\n", "unsupported LLVM type kind"),
             ("declare void @unsupported(ptr sret(ptr addrspace(1)))\n", "unsupported pointer address space 1"),
             ("declare void @unsupported(ptr addrspace(1) sret(i32))\n", "unsupported pointer address space 1"),
@@ -197,6 +194,21 @@ define void @caller(ptr %out) {
         for triple in TRIPLES:
             for body, diagnostic in cases:
                 self.reject_roundtrip("define i64 @supported() { ret i64 9 }\n" + body, triple, diagnostic, "unsupported")
+            for payload, kind in (("{i32, i128}", "struct"), ("double", "float"), ("<2 x i32>", "vector")):
+                body = "define i64 @supported() { ret i64 9 }\n" + f"declare void @unsupported(ptr sret({payload}))\n"
+                for module in baseline.assert_complete_source_pair(self, body, triple):
+                    signature = self.function(module, "unsupported")["signature"]
+                    storage = signature["return_storage"]
+                    self.assertEqual(storage["param"], 0)
+                    ty = module["types"][storage["ty"]]
+                    self.assertEqual(ty["kind"], kind)
+                    if kind == "struct":
+                        self.assertEqual([module["types"][ident] for ident in ty["fields"]],
+                                         [{"kind": "int", "bits": 32}, {"kind": "int", "bits": 128}])
+                    elif kind == "float": self.assertEqual(ty["bits"], 64)
+                    else:
+                        self.assertEqual(ty["len"], 2)
+                        self.assertEqual(module["types"][ty["element"]], {"kind": "int", "bits": 32})
 
     def test_malformed_sret_contracts_reject_at_the_actual_parse_or_verify_boundary_all_three_isas(self):
         cases = [
@@ -222,12 +234,17 @@ define void @caller(ptr %out) {
             ("declare void @unsupported(ptr sret(i32) inreg)\n", "unsupported attribute kind"),
             ("declare void @unsupported(ptr sret(i32), ptr byref(i32))\n", "unsupported attribute kind"),
             ("declare void @unsupported(ptr sret(i32), ptr byval(i32))\n", "unsupported attribute kind"),
-            ("declare void @unsupported(ptr sret(i32), ...)\n", "variadic calling convention"),
             ("declare void @target(ptr sret(i32))\ndefine void @caller(ptr sret(i32) %out) { musttail call void @target(ptr sret(i32) %out)\nret void }\n", "musttail"),
         ]
         for triple in TRIPLES:
             for body, diagnostic in cases:
                 self.reject_roundtrip(body, triple, diagnostic)
+            for module in baseline.assert_complete_source_pair(self, "declare void @unsupported(ptr sret(i32), ...)\n", triple):
+                signature = self.function(module, "unsupported")["signature"]
+                self.assertEqual(signature["abi"], "c")
+                self.assertTrue(signature["variadic"])
+                self.assertEqual(signature["return_storage"]["param"], 0)
+                self.assertEqual(module["types"][signature["return_storage"]["ty"]], {"kind": "int", "bits": 32})
 
     def test_function_and_callsite_storage_contracts_stay_explicit_for_mandatory_native_abi_validation_without_inference_all_three_isas(self):
         body = """
@@ -273,7 +290,11 @@ define void @caller(ptr %out, ptr %function) {
                 self.reject_roundtrip('!llvm.module.flags = !{!0}\n!0 = !{i32 1, !"target-abi", !"' + abi + '"}\n', triple, "unsupported target ABI")
         for abi in ("lp64f", "lp64e", "lp64q", "ilp32", ""):
             self.reject_roundtrip('!llvm.module.flags = !{!0}\n!0 = !{i32 1, !"target-abi", !"' + abi + '"}\n', TRIPLES[2], "unsupported target ABI")
-        self.reject_roundtrip('declare double @unsupported(double)\n!llvm.module.flags = !{!0}\n!0 = !{i32 1, !"target-abi", !"lp64d"}\n', TRIPLES[2], "unsupported LLVM type kind", "unsupported")
+        for module in baseline.assert_complete_source_pair(self, 'declare double @unsupported(double)\n!llvm.module.flags = !{!0}\n!0 = !{i32 1, !"target-abi", !"lp64d"}\n', TRIPLES[2]):
+            self.assertEqual(module["target"]["abi"], "lp64d")
+            signature = self.function(module, "unsupported")["signature"]
+            self.assertEqual(signature["params"], [signature["result"]])
+            self.assertEqual(module["types"][signature["result"]], {"kind": "float", "bits": 64})
 
     def test_lp64d_feature_tokens_obey_order_known_dependencies_and_qualified_unknown_implication_limits(self):
         positive = ("", "-d,+d", "-f,+d", "-zicsr,+v", "-d,+v", "-d,+q", "-d,+zcd",
@@ -363,7 +384,7 @@ struct Big invoke_indirect(Factory function, word value) { return function(value
             self.assertEqual({key: value for key, value in modules[0].items() if key not in {"name", "provenance"}},
                              {key: value for key, value in modules[1].items() if key not in {"name", "provenance"}})
 
-    def test_actual_clang22_complete_units_reject_unused_floating_sret_payload_without_dropping_function_all_three_isas_text_and_bitcode(self):
+    def test_actual_clang22_complete_units_retain_unused_floating_sret_payload_all_three_isas_text_and_bitcode(self):
         clang, version = baseline.LlvmImportTests.clang22_frontend(self)
         source = self.directory / "whole-sret-with-floating.c"
         source.write_text(self.clang_source() + '''struct Bad { double first; double second; double third; double fourth; double fifth; };
@@ -374,15 +395,21 @@ struct Bad unsupported_factory(word value) {
 ''')
         source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
         for triple, abi in ((TRIPLES[0], None), (TRIPLES[1], None), (TRIPLES[2], "lp64d")):
+            modules = []
             for suffix in ("ll", "bc"):
                 path = self.compile_clang(clang, source, triple, abi, suffix)
                 with self.subTest(triple=triple, abi=abi, format=suffix):
-                    with self.assertRaises(importer.ImportFailure) as raised:
-                        importer.import_module(path, library_path=self.library, frontend="Clang C", frontend_version=version)
-                    self.assertEqual(raised.exception.stage, "import")
-                    self.assertEqual(raised.exception.symbol, "unsupported_factory")
-                    self.assertIn("unsupported LLVM type kind", str(raised.exception))
+                    module = baseline.assert_complete_source_import(self, path, self.library, frontend="Clang C", frontend_version=version)
+                    modules.append(module)
+                    function = self.function(module, "unsupported_factory")
+                    storage = function["signature"]["return_storage"]
+                    self.assertEqual(storage["param"], 0)
+                    payload = module["types"][storage["ty"]]
+                    self.assertEqual(payload["kind"], "struct")
+                    self.assertEqual([module["types"][ident] for ident in payload["fields"]], [{"kind": "float", "bits": 64}] * 5)
+                    self.assertTrue(any(op["op"] == "cast" and op["kind"] == "ui_to_fp" for op in self.operations(function)))
                     self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), source_hash)
+            baseline.assert_equivalent_source_pair(self, modules)
 
 
 if __name__ == "__main__":
