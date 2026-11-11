@@ -1,0 +1,769 @@
+{
+  "schema": "ostadix.concurrent-ci-baseline-retained-results/v1",
+  "recorded_date": "2026-11-11",
+  "scope": "Finite Linux x86_64 hosted CI-shard benchmark; exact F/H sources only. Both complete CI runs failed; benchmark MCP jobs passed. No whole-CI/native-OS/original-runtime/general-performance qualification.",
+  "arms": {
+    "serial": "Serial O",
+    "graph": "Graph O",
+    "concurrent": "Matched Python ThreadPoolExecutor/Bash comparator"
+  },
+  "suite_tests_per_arm": {
+    "o-cli": 23,
+    "setup": 42,
+    "boot-iso": 38,
+    "total": 103,
+    "skipped": 0
+  },
+  "shared_context": {
+    "machine": {
+      "cpu_model": "AMD EPYC 7763 64-Core Processor",
+      "logical_cpus": 4,
+      "machine": "x86_64",
+      "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+      "processor": ""
+    },
+    "tools": {
+      "bash": {
+        "bytes": 1540520,
+        "path": "/usr/bin/bash",
+        "sha256": "450c68376d14e5040d36cce58605c35b2211d244f3079297440dc9d602ee4994"
+      },
+      "git": {
+        "bytes": 4771424,
+        "path": "/usr/bin/git",
+        "sha256": "63acee09d55a44c7f4480f3a2c3fb79e7063deaf61df3f920b113ed38c0541e6"
+      },
+      "grep": {
+        "bytes": 191056,
+        "path": "/usr/bin/grep",
+        "sha256": "f3220f0337e256c022274abd6009a0844b16301b875a46fa88cb5f2ffb21d4e1"
+      },
+      "python3": {
+        "bytes": 7468968,
+        "path": "/usr/bin/python3.14",
+        "sha256": "be9a2a5eada8c89c1c399fdfb8397179e877c20d8db0739c802f726d4d0e69fd"
+      },
+      "sed": {
+        "bytes": 117392,
+        "path": "/usr/bin/sed",
+        "sha256": "890da0df81e632cedeb472c1564bf720a4d2568c66f43d45e5d10bedd57ebccb"
+      },
+      "tail": {
+        "bytes": 11807104,
+        "path": "/usr/lib/cargo/bin/coreutils/tail",
+        "sha256": "27a7d8f6a005702618e92c88f20b829d38247ad3369e0c35b1ff219d15194bd1"
+      }
+    },
+    "python_driver": {
+      "bytes": 7468968,
+      "path": "/usr/bin/python3.14",
+      "sha256": "be9a2a5eada8c89c1c399fdfb8397179e877c20d8db0739c802f726d4d0e69fd",
+      "version": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]"
+    },
+    "fixture": {
+      "bytes": 1128,
+      "path": "benchmarks/real_world/ci_shards.O",
+      "sha256": "c29037eee57201c519bfe59ff51dee1c1dcdef1ef0ba967ce5cdb6a21fa429ea"
+    },
+    "harness": {
+      "bytes": 27273,
+      "path": "scripts/benchmark_concurrent_baseline.py",
+      "sha256": "b4f4006adcfc68e9f4e77eb53216325f910f4710a0a239492fb2d138361333f5"
+    },
+    "release_rust_toolchain": "1.97.1",
+    "package_version": "0.4.0",
+    "timing_scope": "Whole child process startup, work and teardown. O parsing/admission are included. Source inspection and independent artifact validation are timed separately, outside samples.",
+    "evidence_cost_scope": "O admission and execution-trace construction/serialization run inside the timed O processes. Python records its own subprocess intervals without equivalent O authority or provenance. Source-file hashing is outside all timed arms.",
+    "control_scope": "Three Bash ':' operations include process startup and O parsing/admission. Diagnostic only, never subtracted from useful-work timings."
+  },
+  "lifecycle_scope": {
+    "O": "Outstanding admitted Bash operations from submission to semantic settlement; no physical CPU-overlap timestamps",
+    "Python": "Spawn-observed to reaped child intervals; no physical CPU-overlap qualification"
+  },
+  "retention": "Exact ZIPs and raw logs remain in the identified GitHub Actions artifacts; source record contains summaries and hashes only. Artifact retention is finite.",
+  "binary_identity_limit": "Executable bytes are not included in the ZIPs. Hashes are recorded and rechecked by the actual CI harness; independent artifact review verifies consistency and source objects, not fresh binary rehash.",
+  "runs": [
+    {
+      "checkpoint": "F",
+      "source_commit": "1e060cde0a9f7da653661a766ea9c4db8a9cfef7",
+      "ci_run": {
+        "id": 43002945659,
+        "url": "https://github.com/lostadi/OSTADIX/actions/runs/43002945659",
+        "conclusion": "failure"
+      },
+      "benchmark_mcp_job": {
+        "id": 130464074291,
+        "url": "https://github.com/lostadi/OSTADIX/actions/runs/43002945659/job/130464074291",
+        "conclusion": "success"
+      },
+      "artifact": {
+        "id": 13849030300,
+        "name": "concurrent-ci-baseline-1e060cde0a9f7da653661a766ea9c4db8a9cfef7-1",
+        "metadata_url": "https://api.github.com/repos/lostadi/OSTADIX/actions/artifacts/13849030300",
+        "zip_url": "https://api.github.com/repos/lostadi/OSTADIX/actions/artifacts/13849030300/zip",
+        "bytes": 571719,
+        "sha256": "b5839216cd1f7915b4cf6b5067eb57812dfb4042c764a531be14fdaadf30bb98"
+      },
+      "independent_review": {
+        "receipt_sha256": "aa1262915bab2eab4003bcf9849ecb976a6a787851180cbb10e4cb4dc7bf93cb",
+        "source_manifest_files_verified_against_Git": 3543,
+        "source_manifest_bytes_verified": 147080287,
+        "validated_arm_invocations": 48,
+        "validated_unskipped_suite_logs": 144,
+        "measurements_rerun": false
+      },
+      "source_identity": {
+        "content_manifest_sha256": "b8ff7ac9ccc542d97538177499bbdec13407676d36dc6cd68828309bb3b8f367",
+        "head": "1e060cde0a9f7da653661a766ea9c4db8a9cfef7"
+      },
+      "source_manifest_member": "workers-3/source-manifest.json",
+      "source_manifest_member_sha256": "36af73fd458c89de5cbdeef6f6ff01df52ab99b24a257c8c79d020ad92cec06e",
+      "binary_profile": "release",
+      "selected_binaries": {
+        "native_cli_bin": {
+          "bytes": 14532200,
+          "path": "/home/runner/work/OSTADIX/OSTADIX/target/release/o-cli",
+          "sha256": "c470c818d4e9801d6e4a9a0763606705affc8049a938f5f0ffdd760a701d403f"
+        },
+        "o_bin": {
+          "bytes": 6391424,
+          "path": "/home/runner/work/OSTADIX/OSTADIX/target/release/O",
+          "sha256": "271fbcf954c478eae74d6d2c30e275e838ec98125d86d6da164b1e79030fe188"
+        },
+        "olangc_bin": {
+          "bytes": 18321608,
+          "path": "/home/runner/work/OSTADIX/OSTADIX/target/release/olangc",
+          "sha256": "a136c624a9faa98ee821129f4c1cf7792ec18416f434b4fb8ccdded769652313"
+        }
+      },
+      "selected_executables_unchanged": true,
+      "worker_profiles": [
+        {
+          "workers": 3,
+          "report_member": "workers-3/result.json",
+          "report_sha256": "4351671b31c2613c4087607e9f28e4dd0938a128667bcc68743d90c08e2ebe69",
+          "warmups": 1,
+          "measured_repetitions": 7,
+          "statistics_ns": {
+            "concurrent": {
+              "max_ns": 6405032573,
+              "median_absolute_deviation_ns": 36773535,
+              "median_ns": 6332941147,
+              "min_ns": 6228534186,
+              "raw_whole_process_ns": [
+                6375951046,
+                6308214795,
+                6348050400,
+                6296167612,
+                6228534186,
+                6332941147,
+                6405032573
+              ]
+            },
+            "graph": {
+              "max_ns": 6395215366,
+              "median_absolute_deviation_ns": 48105814,
+              "median_ns": 6286905178,
+              "min_ns": 6221946146,
+              "raw_whole_process_ns": [
+                6235783152,
+                6257931005,
+                6221946146,
+                6395215366,
+                6335010992,
+                6309192024,
+                6286905178
+              ]
+            },
+            "serial": {
+              "max_ns": 9126030691,
+              "median_absolute_deviation_ns": 22914425,
+              "median_ns": 9060721370,
+              "min_ns": 8946319899,
+              "raw_whole_process_ns": [
+                9126030691,
+                9083635795,
+                8946319899,
+                8968582080,
+                9060721370,
+                9065781045,
+                9060530803
+              ]
+            }
+          },
+          "paired_geometric_mean_ratios": {
+            "concurrent_over_graph": 1.005746435818598,
+            "serial_over_concurrent": 1.4293409012988307,
+            "serial_over_graph": 1.4375545170510413
+          },
+          "measured_orders": [
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ]
+          ],
+          "measured_order_position_counts": {
+            "concurrent": [
+              2,
+              3,
+              2
+            ],
+            "graph": [
+              3,
+              2,
+              2
+            ],
+            "serial": [
+              2,
+              2,
+              3
+            ]
+          },
+          "warmup_whole_process_ns": {
+            "serial": 8883963011,
+            "graph": 6203291112,
+            "concurrent": 6202395381
+          },
+          "noop_whole_process_ns": {
+            "serial": 18104227,
+            "graph": 21668219,
+            "concurrent": 74836114
+          },
+          "startup_probe_whole_process_ns": {
+            "O": 1646497,
+            "Python": 71938160
+          },
+          "source_inspection_ns": {
+            "before": 315249345,
+            "after": 309615894
+          },
+          "observed_lifecycle_peaks": {
+            "serial": [
+              1
+            ],
+            "graph": [
+              3
+            ],
+            "concurrent": [
+              3
+            ]
+          }
+        },
+        {
+          "workers": 1,
+          "report_member": "workers-1/result.json",
+          "report_sha256": "45151a08b1d87b4dcd84d3faca25dcd3a8d5ae4b279cf85476d924716f8531ee",
+          "warmups": 1,
+          "measured_repetitions": 7,
+          "statistics_ns": {
+            "concurrent": {
+              "max_ns": 9084777640,
+              "median_absolute_deviation_ns": 67583449,
+              "median_ns": 8926044802,
+              "min_ns": 8831525721,
+              "raw_whole_process_ns": [
+                9084777640,
+                8831525721,
+                9053901801,
+                8926044802,
+                8858461353,
+                8981550765,
+                8906325391
+              ]
+            },
+            "graph": {
+              "max_ns": 9048408081,
+              "median_absolute_deviation_ns": 20672192,
+              "median_ns": 8871311360,
+              "min_ns": 8712520398,
+              "raw_whole_process_ns": [
+                9048408081,
+                8850639168,
+                8926392892,
+                8887914056,
+                8871311360,
+                8712520398,
+                8852246717
+              ]
+            },
+            "serial": {
+              "max_ns": 8975526062,
+              "median_absolute_deviation_ns": 20025621,
+              "median_ns": 8818820688,
+              "min_ns": 8765976599,
+              "raw_whole_process_ns": [
+                8906496881,
+                8818820688,
+                8975526062,
+                8838846309,
+                8812299093,
+                8808510778,
+                8765976599
+              ]
+            }
+          },
+          "paired_geometric_mean_ratios": {
+            "concurrent_over_graph": 1.007940829589853,
+            "serial_over_concurrent": 0.988589478902818,
+            "serial_over_graph": 0.996439699489107
+          },
+          "measured_orders": [
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ]
+          ],
+          "measured_order_position_counts": {
+            "concurrent": [
+              2,
+              3,
+              2
+            ],
+            "graph": [
+              3,
+              2,
+              2
+            ],
+            "serial": [
+              2,
+              2,
+              3
+            ]
+          },
+          "warmup_whole_process_ns": {
+            "serial": 9075781036,
+            "graph": 9051337018,
+            "concurrent": 9055530548
+          },
+          "noop_whole_process_ns": {
+            "serial": 18304290,
+            "graph": 25772977,
+            "concurrent": 79411676
+          },
+          "startup_probe_whole_process_ns": {
+            "O": 1533948,
+            "Python": 73099488
+          },
+          "source_inspection_ns": {
+            "before": 312582267,
+            "after": 309263070
+          },
+          "observed_lifecycle_peaks": {
+            "serial": [
+              1
+            ],
+            "graph": [
+              1
+            ],
+            "concurrent": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "checkpoint": "H",
+      "source_commit": "4ddaafc1fba74f9b390b6677af7cf1eef5f9781f",
+      "ci_run": {
+        "id": 43005360267,
+        "url": "https://github.com/lostadi/OSTADIX/actions/runs/43005360267",
+        "conclusion": "failure"
+      },
+      "benchmark_mcp_job": {
+        "id": 130472618441,
+        "url": "https://github.com/lostadi/OSTADIX/actions/runs/43005360267/job/130472618441",
+        "conclusion": "success"
+      },
+      "artifact": {
+        "id": 13849048754,
+        "name": "concurrent-ci-baseline-4ddaafc1fba74f9b390b6677af7cf1eef5f9781f-1",
+        "metadata_url": "https://api.github.com/repos/lostadi/OSTADIX/actions/artifacts/13849048754",
+        "zip_url": "https://api.github.com/repos/lostadi/OSTADIX/actions/artifacts/13849048754/zip",
+        "bytes": 571362,
+        "sha256": "6ad0ff4aa16f24a15fefa93de3cd3316d9f69f896a1695a7a0528f6a165e073b"
+      },
+      "independent_review": {
+        "receipt_sha256": "86fbfd7bea0eb7ac9b830cbe3728771b87501cd6e04ffa87b43e6d6c8205bf3d",
+        "source_manifest_files_verified_against_Git": 3543,
+        "source_manifest_bytes_verified": 147081827,
+        "validated_arm_invocations": 48,
+        "validated_unskipped_suite_logs": 144,
+        "measurements_rerun": false
+      },
+      "source_identity": {
+        "content_manifest_sha256": "fda585663f34a16bceeab76457933635e6acc3bd6366867ef2ad03d3366853fc",
+        "head": "4ddaafc1fba74f9b390b6677af7cf1eef5f9781f"
+      },
+      "source_manifest_member": "workers-3/source-manifest.json",
+      "source_manifest_member_sha256": "9baffa24d25f7504556be7e7680ef2baa9a10973767b996db9c2b407939c12e8",
+      "binary_profile": "release",
+      "selected_binaries": {
+        "native_cli_bin": {
+          "bytes": 14532200,
+          "path": "/home/runner/work/OSTADIX/OSTADIX/target/release/o-cli",
+          "sha256": "353797f33a33b520bcecdc2e3ba3d3ff75c83accac2c41e4a8061e6fcba28878"
+        },
+        "o_bin": {
+          "bytes": 6391424,
+          "path": "/home/runner/work/OSTADIX/OSTADIX/target/release/O",
+          "sha256": "271fbcf954c478eae74d6d2c30e275e838ec98125d86d6da164b1e79030fe188"
+        },
+        "olangc_bin": {
+          "bytes": 18321608,
+          "path": "/home/runner/work/OSTADIX/OSTADIX/target/release/olangc",
+          "sha256": "a136c624a9faa98ee821129f4c1cf7792ec18416f434b4fb8ccdded769652313"
+        }
+      },
+      "selected_executables_unchanged": true,
+      "worker_profiles": [
+        {
+          "workers": 3,
+          "report_member": "workers-3/result.json",
+          "report_sha256": "7fba20c2ad61ff1ef3c76934c1db558792b7c1e34f7e944fa1e3e43da91121c9",
+          "warmups": 1,
+          "measured_repetitions": 7,
+          "statistics_ns": {
+            "concurrent": {
+              "max_ns": 5882958290,
+              "median_absolute_deviation_ns": 29684146,
+              "median_ns": 5826227191,
+              "min_ns": 5769144000,
+              "raw_whole_process_ns": [
+                5826663658,
+                5795322428,
+                5850624608,
+                5769144000,
+                5796543045,
+                5882958290,
+                5826227191
+              ]
+            },
+            "graph": {
+              "max_ns": 5879959349,
+              "median_absolute_deviation_ns": 19391287,
+              "median_ns": 5777846028,
+              "min_ns": 5758454741,
+              "raw_whole_process_ns": [
+                5832157562,
+                5879959349,
+                5777846028,
+                5771972324,
+                5830145706,
+                5776116588,
+                5758454741
+              ]
+            },
+            "serial": {
+              "max_ns": 8243578551,
+              "median_absolute_deviation_ns": 82963937,
+              "median_ns": 8153760614,
+              "min_ns": 8059829043,
+              "raw_whole_process_ns": [
+                8070796677,
+                8238480408,
+                8107092446,
+                8059829043,
+                8243578551,
+                8153760614,
+                8225195144
+              ]
+            }
+          },
+          "paired_geometric_mean_ratios": {
+            "concurrent_over_graph": 1.002980795437751,
+            "serial_over_concurrent": 1.4012507504778866,
+            "serial_over_graph": 1.4054275923220563
+          },
+          "measured_orders": [
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ]
+          ],
+          "measured_order_position_counts": {
+            "concurrent": [
+              2,
+              3,
+              2
+            ],
+            "graph": [
+              3,
+              2,
+              2
+            ],
+            "serial": [
+              2,
+              2,
+              3
+            ]
+          },
+          "warmup_whole_process_ns": {
+            "serial": 8164201474,
+            "graph": 5770797825,
+            "concurrent": 5858547777
+          },
+          "noop_whole_process_ns": {
+            "serial": 17120356,
+            "graph": 21022878,
+            "concurrent": 70960019
+          },
+          "startup_probe_whole_process_ns": {
+            "O": 1355665,
+            "Python": 69736671
+          },
+          "source_inspection_ns": {
+            "before": 325374673,
+            "after": 306120728
+          },
+          "observed_lifecycle_peaks": {
+            "serial": [
+              1
+            ],
+            "graph": [
+              3
+            ],
+            "concurrent": [
+              3
+            ]
+          }
+        },
+        {
+          "workers": 1,
+          "report_member": "workers-1/result.json",
+          "report_sha256": "6adfac2745d3d4cc1782c1118c96881dd3ec7b2d9266d52efc5417d9b6ddfb12",
+          "warmups": 1,
+          "measured_repetitions": 7,
+          "statistics_ns": {
+            "concurrent": {
+              "max_ns": 8195867489,
+              "median_absolute_deviation_ns": 24314074,
+              "median_ns": 8160220923,
+              "min_ns": 8106931405,
+              "raw_whole_process_ns": [
+                8106931405,
+                8170612152,
+                8160220923,
+                8195867489,
+                8135906849,
+                8159703497,
+                8190718977
+              ]
+            },
+            "graph": {
+              "max_ns": 8243936015,
+              "median_absolute_deviation_ns": 34167463,
+              "median_ns": 8126663569,
+              "min_ns": 8092496106,
+              "raw_whole_process_ns": [
+                8184634215,
+                8243936015,
+                8195105465,
+                8110410751,
+                8126663569,
+                8092496106,
+                8105817701
+              ]
+            },
+            "serial": {
+              "max_ns": 8305832837,
+              "median_absolute_deviation_ns": 75793362,
+              "median_ns": 8156919080,
+              "min_ns": 8080249223,
+              "raw_whole_process_ns": [
+                8156919080,
+                8083823340,
+                8193313426,
+                8080249223,
+                8267753634,
+                8081125718,
+                8305832837
+              ]
+            }
+          },
+          "paired_geometric_mean_ratios": {
+            "concurrent_over_graph": 1.0010819490860117,
+            "serial_over_concurrent": 1.0008093766102728,
+            "serial_over_graph": 1.0018922014005682
+          },
+          "measured_orders": [
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ],
+            [
+              "concurrent",
+              "serial",
+              "graph"
+            ],
+            [
+              "serial",
+              "graph",
+              "concurrent"
+            ],
+            [
+              "graph",
+              "concurrent",
+              "serial"
+            ]
+          ],
+          "measured_order_position_counts": {
+            "concurrent": [
+              2,
+              3,
+              2
+            ],
+            "graph": [
+              3,
+              2,
+              2
+            ],
+            "serial": [
+              2,
+              2,
+              3
+            ]
+          },
+          "warmup_whole_process_ns": {
+            "serial": 8138457833,
+            "graph": 8186643782,
+            "concurrent": 8201969856
+          },
+          "noop_whole_process_ns": {
+            "serial": 16516885,
+            "graph": 24743749,
+            "concurrent": 72979634
+          },
+          "startup_probe_whole_process_ns": {
+            "O": 1329176,
+            "Python": 67218455
+          },
+          "source_inspection_ns": {
+            "before": 302922254,
+            "after": 302449009
+          },
+          "observed_lifecycle_peaks": {
+            "serial": [
+              1
+            ],
+            "graph": [
+              1
+            ],
+            "concurrent": [
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -57,3 +57,134 @@ the O parser&#39;s backslash-dollar escape. A changed fixture requires another
 source review. The focused harness tests use controlled child tools to test
 failure handling. Actual workload qualification comes from the retained logs
 of a completed run against the selected O binaries.</p>
+<h2>Retained public CI results (2026-11-11)</h2>
+<p>The completed F and H benchmark jobs retained the same reviewed three-lane
+fixture. Both complete CI runs failed; their MCP jobs, including the benchmark
+steps, passed. These are benchmark results for the exact source checkpoints
+below, not whole-CI, native OS or original-runtime qualification.</p>
+<ul>
+<li>F: source <code>1e060cde0a9f7da653661a766ea9c4db8a9cfef7</code>,
+<a href="https://github.com/lostadi/OSTADIX/actions/runs/43002945659">CI run 43002945659</a>
+(failed),
+<a href="https://github.com/lostadi/OSTADIX/actions/runs/43002945659/job/130464074291">MCP job 130464074291</a>
+(passed). Artifact <code>13849030300</code>, ZIP SHA-256
+<code>b5839216cd1f7915b4cf6b5067eb57812dfb4042c764a531be14fdaadf30bb98</code>.</li>
+<li>H: source <code>4ddaafc1fba74f9b390b6677af7cf1eef5f9781f</code>,
+<a href="https://github.com/lostadi/OSTADIX/actions/runs/43005360267">CI run 43005360267</a>
+(failed),
+<a href="https://github.com/lostadi/OSTADIX/actions/runs/43005360267/job/130472618441">MCP job 130472618441</a>
+(passed). Artifact <code>13849048754</code>, ZIP SHA-256
+<code>6ad0ff4aa16f24a15fefa93de3cd3316d9f69f896a1695a7a0528f6a165e073b</code>.</li>
+</ul>
+<p>Both jobs used release binaries and the pinned Rust 1.97.1 CI toolchain. The
+recorded host was Linux x86_64, with four logical CPUs on an AMD EPYC 7763
+64-Core Processor, glibc 2.43 and Python 3.14.4. The JSON record retains the
+exact platform string and selected binary, Python and command-tool hashes.
+The binary bytes are not included in the ZIPs; their identities are recorded
+by the CI harness and checked again at measurement completion.</p>
+<p>Each worker profile retained one validated warmup and seven measured rounds,
+with serial O, graph O and matched concurrent Python in each round. Every arm
+invocation passed 103 unskipped tests: 23 <code>o-cli</code>, 42 <code>setup</code> and 38 <code>boot-iso</code>.
+Each checkpoint therefore retained 48 arm invocations and 144 validated raw
+suite logs. Independent artifact review checked all 3,543 source-manifest
+files against the corresponding Git objects and recomputed the statistics.</p>
+<p>Median whole-process wall time, in seconds:</p>
+<table>
+<thead>
+<tr>
+<th>Checkpoint</th>
+<th align="right">Workers</th>
+<th align="right">Serial O</th>
+<th align="right">Graph O</th>
+<th align="right">Concurrent Python</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>F</td>
+<td align="right">3</td>
+<td align="right">9.060721</td>
+<td align="right">6.286905</td>
+<td align="right">6.332941</td>
+</tr>
+<tr>
+<td>F</td>
+<td align="right">1</td>
+<td align="right">8.818821</td>
+<td align="right">8.871311</td>
+<td align="right">8.926045</td>
+</tr>
+<tr>
+<td>H</td>
+<td align="right">3</td>
+<td align="right">8.153761</td>
+<td align="right">5.777846</td>
+<td align="right">5.826227</td>
+</tr>
+<tr>
+<td>H</td>
+<td align="right">1</td>
+<td align="right">8.156919</td>
+<td align="right">8.126664</td>
+<td align="right">8.160221</td>
+</tr>
+</tbody></table>
+<p>Paired geometric mean wall-time ratios, computed from the seven matched
+measured rounds:</p>
+<table>
+<thead>
+<tr>
+<th>Checkpoint</th>
+<th align="right">Workers</th>
+<th align="right">Serial / graph</th>
+<th align="right">Serial / Python</th>
+<th align="right">Python / graph</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>F</td>
+<td align="right">3</td>
+<td align="right">1.437555</td>
+<td align="right">1.429341</td>
+<td align="right">1.005746</td>
+</tr>
+<tr>
+<td>F</td>
+<td align="right">1</td>
+<td align="right">0.996440</td>
+<td align="right">0.988589</td>
+<td align="right">1.007941</td>
+</tr>
+<tr>
+<td>H</td>
+<td align="right">3</td>
+<td align="right">1.405428</td>
+<td align="right">1.401251</td>
+<td align="right">1.002981</td>
+</tr>
+<tr>
+<td>H</td>
+<td align="right">1</td>
+<td align="right">1.001892</td>
+<td align="right">1.000809</td>
+<td align="right">1.001082</td>
+</tr>
+</tbody></table>
+<p>Graph O and matched concurrent Python are near parity in these records. The
+one-worker controls also keep the three paths close. F and H remain separate
+observations with their own source and executable identities; the table does
+not attribute their timing difference to a source change or establish general
+performance superiority.</p>
+<p>These times include complete child-process startup, work and teardown. O
+parsing, admission and trace construction/serialization are included; Python
+does not perform equivalent O authority or provenance work. Source inspection
+and independent log validation are outside the sample timer, and the separate
+startup/no-op controls are not subtracted. Graph traces show peaks of three
+outstanding admitted Bash operations with three workers and one with one
+worker. Those peaks describe admission-to-settlement overlap, not physical
+CPU overlap. Python&#39;s spawned/unreaped child intervals use their own lifecycle
+boundary.</p>
+<p><a href="results-F-H-20261111.json">The F/H JSON record</a> preserves every measured
+nanosecond sample, median absolute deviation, extrema, paired ratio, selected
+identity and artifact binding. Raw logs remain in the exact CI artifacts;
+they are not copied into the source tree. No measurements were rerun to
+prepare this dated record.</p>

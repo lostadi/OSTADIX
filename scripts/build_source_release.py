@@ -216,6 +216,7 @@ REAL_WORLD_BENCHMARK_PATHS = frozenset(
     {
         "benchmarks/real_world/README.md",
         "benchmarks/real_world/CONCURRENT_BASELINE.md",
+        "benchmarks/real_world/results-F-H-20261111.json",
         "benchmarks/real_world/asset_pipeline.O",
         "benchmarks/real_world/ci_shards.O",
         "benchmarks/real_world/timed_exec.py",
@@ -1148,6 +1149,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "tests/world_protocol.rs",
         "tests/world_receipt.rs",
         "tests/world_native_scalar.rs",
+        "tests/test_ocore_kernel_build_profiles.py",
         "tests/world_value.rs",
     }
 ) | (

@@ -1433,6 +1433,7 @@ class SourceReleaseTests(unittest.TestCase):
             "ocore/kernel/smoke-world-native-scalar-qemu.sh": "#!/bin/sh\nexit 0\n",
             "ocore/kernel/verify-native-scalar.py": "# fixture native verifier\n",
             "tests/world_native_scalar.rs": "// fixture native scalar corpus\n",
+            "tests/test_ocore_kernel_build_profiles.py": "# fixture kernel build profile regression\n",
             "ocore/world/sha256.oc": "module world::sha256;\n",
             "ocore/world/value.oc": "module world::value;\n",
             "ocore/world/value_codec.oc": "module world::value_codec;\n",
@@ -2210,6 +2211,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "ocore/kernel/smoke-world-native-scalar-qemu.sh",
                 "ocore/kernel/verify-native-scalar.py",
                 "tests/world_native_scalar.rs",
+                "tests/test_ocore_kernel_build_profiles.py",
                 "ocore/world/sha256.oc",
                 "ocore/world/value.oc",
                 "ocore/world/value_codec.oc",
@@ -2985,6 +2987,13 @@ class SourceReleaseTests(unittest.TestCase):
             r"test_benchmark_real_world\.py",
         ):
             self._build("missing-real-world-benchmark.zip")
+
+    def test_dated_concurrent_measurements_are_required_release_evidence(self) -> None:
+        self._commit()
+        path = "benchmarks/real_world/results-F-H-20261111.json"
+        self._git("rm", path)
+        self._git("commit", "-q", "-m", "remove dated concurrent measurements")
+        self._assert_missing_required_paths("missing-concurrent-measurements.zip", (path,))
 
     def test_public_boundary_runtime_and_reproduction_are_required_release_closure(self) -> None:
         self._commit()
@@ -4060,6 +4069,7 @@ class SourceReleaseTests(unittest.TestCase):
             "ocore/kernel/smoke-world-native-scalar-qemu.sh",
             "ocore/kernel/verify-native-scalar.py",
             "tests/world_native_scalar.rs",
+            "tests/test_ocore_kernel_build_profiles.py",
         )
         self._commit()
         self._git("rm", *paths)
