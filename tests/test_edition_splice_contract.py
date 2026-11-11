@@ -206,6 +206,38 @@ def check_hand_built_python_and_c17_asts_validate_before_effects(editions):
     assert not marker.exists()
 
 
+def check_shell_quote_and_comment_boundaries(editions, edition):
+    marker = editions / "shell-boundary-must-not-exist"
+    first = f"python^(__import__('pathlib').Path({str(marker)!r}).write_text('effect'))_python\n"
+    payload = "; printf QUOTE_BOUNDARY_CHANGED; # $(printf QUOTE_BOUNDARY_CHANGED)"
+    for prefix, suffix in [
+        (r"\$'a\'b' ", " '"),
+        (r"\\\$'a\'b' ", " '"),
+        (r"$$'a\'b' ", " '"),
+        (r"$$$$'a\'b' ", " '"),
+        ("$\\\n'a\\' ", "'"),
+        ('printf "%s" "$\\\n(printf "%s" "', '")"'),
+        ('printf ignored x#"\n ', '\n"'),
+        ('printf ignored x\\ #"\n ', '\n"'),
+        ('printf ignored x\u00a0#"\n ', '\n"'),
+        ('$payload#"\n ', '\n"'),
+    ]:
+        source = first + _producer(payload) + "bash^(" + prefix + "$payload" + suffix + ")_bash"
+        code, _, error = _run(edition, source, editions)
+        assert code != 0 and "foreign value splice" in error, (prefix, error)
+        assert not marker.exists(), prefix
+    for prefix in (r"$'a\'b'", r"\\$'a\'b'", r"\\\\$'a\'b'", r"$$$'a\'b'", r"\$'a\b'", "$$'plain'"):
+        source = _producer(payload) + "bash^(: " + prefix + "; printf '%s' $payload)_bash"
+        assert _text(edition, source, editions) == payload, prefix
+    for comment in ("# ordinary comment", "printf ignored >/dev/null; # ordinary comment"):
+        source = _producer(payload) + "bash^(" + comment + "\nprintf '%s' $payload)_bash"
+        assert _text(edition, source, editions) == payload
+    code, _, error = _run(edition, first + _producer(payload) + r"shell^(: $'a\'b'; printf '%s' $payload)_shell", editions)
+    assert code != 0 and "foreign value splice" in error
+    assert not marker.exists()
+    assert _text(edition, _producer(payload) + "shell^(printf '%s' $payload)_shell", editions) == payload
+
+
 def check_supported_hello_tutorial(editions, edition):
     source = (ROOT / "examples/hello.O").read_text()
     assert _text(edition, source, editions) == "hello from Python and Bash and JavaScript!"
@@ -306,6 +338,10 @@ class EditionSpliceContractTests(unittest.TestCase):
 
     def test_direct_ast(self):
         check_hand_built_python_and_c17_asts_validate_before_effects(self.editions)
+
+    def test_shell_quote_and_comment_boundaries(self):
+        for edition in ("python", "c17"):
+            with self.subTest(edition=edition): check_shell_quote_and_comment_boundaries(self.editions, edition)
 
     def test_supported_hello(self):
         for edition in ("python", "c17"):

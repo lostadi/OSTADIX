@@ -1044,7 +1044,8 @@ catalog-registered; related syntax does not establish a supported backend.
 The lexical validator is conservative. Unsupported contexts around ordinary
 holes include Python f/t-strings; JavaScript template and Nix string interpolation;
 shell command/arithmetic substitutions, complex parameter expansions and array
-subscripts and `[[` conditions; shell heredocs; ambiguous JavaScript slash forms; Nix indented
+subscripts and `[[` conditions; shell heredocs, backslash-newline joins
+and unproven word-internal `#` contexts; ambiguous JavaScript slash forms; Nix indented
 strings and unquoted path/search-path prefixes; and bare Python/JavaScript
 backslashes that create line-join or escaped-token ambiguity. JavaScript comment
 recognition also covers Annex B HTML-like and hashbang comments. An unsupported
@@ -1052,6 +1053,10 @@ prefix may leave context unknown for later ordinary holes even after it appears
 to close. Simple native shell `${name}` remains supported, and code-free guest
 source is unchanged. Passing this bounded validator is not proof that arbitrary
 parent code is valid, harmless, or accepted by a complete guest grammar.
+The Bash profile consumes an active `$'` quote introducer and native `$$`
+parameter separately; an escaped dollar does not introduce ANSI-C quoting.
+The `shell` backend may use a POSIX shell without that grammar, so ordinary
+holes following `$'` are conservatively unavailable in that profile.
 
 SQL ordinary insertion uses one SQL value expression: NULL, boolean/numeric
 projection, or quoted text with apostrophes escaped. Rust and Python carrier

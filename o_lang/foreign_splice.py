@@ -54,6 +54,8 @@ def validate_segments(language, segments):
                 end = _simple_parameter_end(source, cursor)
                 if end is None: state = "unsupported"
                 else: cursor = end
+            elif profile == "shell" and escape and ch == "\\" and nxt == "\n":
+                state = "unsupported"
             elif escape and ch == "\\":
                 if cursor + 1 not in holes and nxt: cursor += 1
             elif ch == quote:
@@ -70,9 +72,18 @@ def validate_segments(language, segments):
                 end = _simple_parameter_end(source, cursor)
                 if end is None: state = "unsupported"
                 else: cursor = end
+            elif profile == "shell" and ch == "$" and nxt == "'":
+                # Only an active dollar introduces ANSI-C quoting. Escaped
+                # dollars and the consumed native $$ parameter do not.
+                state, quote, triple, escape, doubled = "quote" if language == "bash" else "unsupported", "'", False, True, False
+                cursor += 1
+            elif profile == "shell" and ch == "$" and nxt == "$":
+                cursor += 1
             elif profile == "shell" and (ch == "$" and nxt == "(" or ch == "(" and nxt == "(" or ch == "[" and (nxt == "[" or cursor and identifier(source[cursor - 1]))):
                 state = "unsupported"
-            elif profile in {"python", "shell", "nix"} and ch == "#": state = "line"
+            elif profile == "shell" and ch == "#":
+                state = "line" if _shell_comment_start(source, cursor, holes) else "unsupported"
+            elif profile in {"python", "nix"} and ch == "#": state = "line"
             elif profile == "sql" and ch == "-" and nxt == "-" or profile == "javascript" and ch == "/" and nxt == "/":
                 state, cursor = "line", cursor + 1
             elif profile in {"sql", "javascript", "nix"} and ch == "/" and nxt == "*":
@@ -84,13 +95,21 @@ def validate_segments(language, segments):
                     state = "unsupported"
                 else:
                     triple = profile == "python" and source[cursor:cursor + 3] == [ch] * 3
-                    escape = profile != "sql" and (profile != "shell" or ch != "'" or cursor and source[cursor - 1] == "$")
+                    escape = profile != "sql" and (profile != "shell" or ch != "'")
                     doubled, quote, state = profile == "sql" and ch != "[", "]" if ch == "[" else ch, "quote"
                     if triple: cursor += 2
             elif profile == "shell" and ch == "\\":
-                if cursor + 1 in holes: state = "unsupported"
+                if nxt == "\n" or cursor + 1 in holes: state = "unsupported"
                 elif nxt: cursor += 1
         cursor += 1
+
+
+def _shell_comment_start(source, cursor, holes):
+    if cursor == 0: return True
+    if cursor - 1 in holes or source[cursor - 1] not in " \t\n": return False
+    start = cursor - 1
+    while start and source[start - 1] == "\\": start -= 1
+    return (cursor - 1 - start) % 2 == 0
 
 
 def _simple_parameter_end(source, start):

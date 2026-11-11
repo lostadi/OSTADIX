@@ -246,6 +246,14 @@ static bool splice_identifier(unsigned char c) {
     return isalnum(c) || c == '_' || c == '$' || c >= 128;
 }
 
+static bool splice_shell_comment_start(const char *src, const unsigned char *holes, size_t pos) {
+    if (!pos) return true;
+    if (holes[pos-1] || (src[pos-1]!=' ' && src[pos-1]!='\t' && src[pos-1]!='\n')) return false;
+    size_t start=pos-1;
+    while (start && src[start-1]=='\\') start--;
+    return (pos-1-start)%2==0;
+}
+
 static size_t splice_simple_parameter_end(const char *src, size_t len, size_t pos) {
     size_t end = pos + 2;
     if (end >= len || !(isalpha((unsigned char)src[end]) || src[end] == '_')) return SIZE_MAX;
@@ -301,7 +309,8 @@ static bool splice_body_valid(const char *lang, ONode **body, size_t count, char
             if (profile==SPLICE_SHELL && ch=='$' && next=='{') {
                 size_t end=splice_simple_parameter_end(src,len,i);
                 if(end==SIZE_MAX) state=S_UNSUPPORTED; else i=end;
-            } else if(escape && ch=='\\') { if(i+1<len && !holes[i+1]) i++; }
+            } else if(profile==SPLICE_SHELL && escape && ch=='\\' && next=='\n') state=S_UNSUPPORTED;
+            else if(escape && ch=='\\') { if(i+1<len && !holes[i+1]) i++; }
             else if(ch==quote) {
                 if(triple) { if(i+2<len && next==quote && src[i+2]==quote) {state=S_CODE;i+=2;} }
                 else if(doubled && next==quote) i++;
@@ -315,18 +324,22 @@ static bool splice_body_valid(const char *lang, ONode **body, size_t count, char
         else if(profile==SPLICE_SHELL && ch=='$' && next=='{') {
             size_t end=splice_simple_parameter_end(src,len,i);
             if(end==SIZE_MAX) state=S_UNSUPPORTED; else i=end;
-        } else if(profile==SPLICE_SHELL && ((ch=='$' && next=='(') || (ch=='(' && next=='(') || (ch=='[' && (next=='[' || (i && splice_identifier((unsigned char)src[i-1])))))) state=S_UNSUPPORTED;
-        else if((profile==SPLICE_PYTHON || profile==SPLICE_SHELL || profile==SPLICE_NIX) && ch=='#') state=S_LINE;
+        } else if(profile==SPLICE_SHELL && ch=='$' && next=='\'') {
+            state=!strcmp(lang,"bash") ? S_QUOTE : S_UNSUPPORTED;quote='\'';triple=false;escape=true;doubled=false;i++;
+        } else if(profile==SPLICE_SHELL && ch=='$' && next=='$') i++;
+        else if(profile==SPLICE_SHELL && ((ch=='$' && next=='(') || (ch=='(' && next=='(') || (ch=='[' && (next=='[' || (i && splice_identifier((unsigned char)src[i-1])))))) state=S_UNSUPPORTED;
+        else if(profile==SPLICE_SHELL && ch=='#') state=splice_shell_comment_start(src,holes,i) ? S_LINE : S_UNSUPPORTED;
+        else if((profile==SPLICE_PYTHON || profile==SPLICE_NIX) && ch=='#') state=S_LINE;
         else if((profile==SPLICE_SQL && ch=='-' && next=='-') || (profile==SPLICE_JS && ch=='/' && next=='/')) { state=S_LINE;i++; }
         else if((profile==SPLICE_SQL || profile==SPLICE_JS || profile==SPLICE_NIX) && ch=='/' && next=='*') {state=S_BLOCK;i++;}
         else if((profile==SPLICE_JS && ch=='/') || (profile==SPLICE_SHELL && ch=='<' && next=='<') || (profile==SPLICE_NIX && ch=='\'' && next=='\'')) state=S_UNSUPPORTED;
         else if(ch=='\'' || ch=='"' || ((profile==SPLICE_JS || profile==SPLICE_SHELL) && ch=='`') || (profile==SPLICE_SQL && (ch=='`' || ch=='['))) {
             if(profile==SPLICE_PYTHON && ((i && (src[i-1]=='f' || src[i-1]=='F' || src[i-1]=='t' || src[i-1]=='T')) || (i>1 && (src[i-1]=='r' || src[i-1]=='R') && (src[i-2]=='f' || src[i-2]=='F' || src[i-2]=='t' || src[i-2]=='T')))) {state=S_UNSUPPORTED;continue;}
             triple=profile==SPLICE_PYTHON && i+2<len && next==ch && src[i+2]==ch;
-            escape=profile!=SPLICE_SQL && (profile!=SPLICE_SHELL || ch!='\'' || (i && src[i-1]=='$'));
+            escape=profile!=SPLICE_SQL && (profile!=SPLICE_SHELL || ch!='\'');
             doubled=profile==SPLICE_SQL && ch!='['; quote=ch=='[' ? ']' : ch; state=S_QUOTE;
             if(triple) i+=2;
-        } else if(profile==SPLICE_SHELL && ch=='\\' && i+1<len) { if(holes[i+1]) state=S_UNSUPPORTED; else i++; }
+        } else if(profile==SPLICE_SHELL && ch=='\\' && i+1<len) { if(next=='\n' || holes[i+1]) state=S_UNSUPPORTED; else i++; }
     }
     free(src);free(holes);return true;
 memory_error:

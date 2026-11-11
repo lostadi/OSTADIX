@@ -151,6 +151,10 @@ pub(crate) fn validate_body<'a>(
                     } else {
                         state = State::Unsupported;
                     }
+                } else if profile == Profile::Shell && escape && ch == '\\' && next == Some('\n') {
+                    // Double-quoted line joining can synthesize a nested
+                    // substitution introducer, such as dollar + join + `(`.
+                    state = State::Unsupported;
                 } else if escape && ch == '\\' {
                     // Never skip an O hole: a backslash before it is not a
                     // context escape and cannot suppress its validation.
@@ -193,6 +197,25 @@ pub(crate) fn validate_body<'a>(
                     } else {
                         state = State::Unsupported;
                     }
+                } else if profile == Profile::Shell && ch == '$' && next == Some('\'') {
+                    // Consume the active introducer here. Looking backwards
+                    // from a quote confuses an escaped dollar or native `$$`
+                    // with ANSI-C quoting.
+                    state = if lang == "bash" {
+                        State::Quote {
+                            end: '\'',
+                            triple: false,
+                            escape: true,
+                            doubled: false,
+                        }
+                    } else {
+                        // The shell backend may run a POSIX shell without
+                        // Bash's ANSI-C quote grammar.
+                        State::Unsupported
+                    };
+                    cursor += 1;
+                } else if profile == Profile::Shell && ch == '$' && next == Some('$') {
+                    cursor += 1; // One native PID parameter, not an ANSI-C prefix.
                 } else if profile == Profile::Shell
                     && (ch == '$' && next == Some('(')
                         || ch == '(' && next == Some('(')
@@ -202,9 +225,18 @@ pub(crate) fn validate_body<'a>(
                     // Bash numeric [[ tests recursively interpret operand
                     // strings as arithmetic, even when shell-word quoted.
                     state = State::Unsupported;
-                } else if matches!(profile, Profile::Python | Profile::Shell | Profile::Nix)
-                    && ch == '#'
-                {
+                } else if profile == Profile::Shell && ch == '#' {
+                    let previous_is_hole = hole
+                        .checked_sub(1)
+                        .is_some_and(|previous| holes[previous].0 + 1 == cursor);
+                    state = if shell_comment_start(&source, cursor, previous_is_hole) {
+                        State::LineComment
+                    } else {
+                        // Word-internal # is not a Bash comment. Refuse its
+                        // following holes rather than hide authored quotes.
+                        State::Unsupported
+                    };
+                } else if matches!(profile, Profile::Python | Profile::Nix) && ch == '#' {
                     state = State::LineComment;
                 } else if profile == Profile::Sql && ch == '-' && next == Some('-')
                     || profile == Profile::JavaScript && ch == '/' && next == Some('/')
@@ -247,7 +279,7 @@ pub(crate) fn validate_body<'a>(
                         && source.get(cursor + 2) == Some(&ch);
                     let escape = match profile {
                         Profile::Sql => false,
-                        Profile::Shell if ch == '\'' => cursor > 0 && source[cursor - 1] == '$',
+                        Profile::Shell if ch == '\'' => false,
                         _ => true,
                     };
                     state = State::Quote {
@@ -260,7 +292,11 @@ pub(crate) fn validate_body<'a>(
                         cursor += 2;
                     }
                 } else if profile == Profile::Shell && ch == '\\' {
-                    if holes.get(hole).is_some_and(|(p, _)| *p == cursor + 1) {
+                    if next == Some('\n') {
+                        // Joining tokens can create quote/substitution/heredoc
+                        // syntax absent from the physical source characters.
+                        state = State::Unsupported;
+                    } else if holes.get(hole).is_some_and(|(p, _)| *p == cursor + 1) {
                         // Otherwise this backslash would escape the opening
                         // quote emitted by the value's shell-word renderer.
                         state = State::Unsupported;
@@ -273,6 +309,21 @@ pub(crate) fn validate_body<'a>(
         cursor += 1;
     }
     Ok(())
+}
+
+fn shell_comment_start(source: &[char], cursor: usize, previous_is_hole: bool) -> bool {
+    if cursor == 0 {
+        return true;
+    }
+    if previous_is_hole || !matches!(source[cursor - 1], ' ' | '\t' | '\n') {
+        return false;
+    }
+    let slashes = source[..cursor - 1]
+        .iter()
+        .rev()
+        .take_while(|ch| **ch == '\\')
+        .count();
+    slashes.is_multiple_of(2)
 }
 
 /// Only the simple `${name}` binding form is understood here. Shell default
@@ -397,6 +448,63 @@ mod tests {
         assert!(
             validate_body("bash", [Segment::Text("[[ ${native} -gt 0 ]]")].into_iter()).is_ok(),
             "guest-native code without O holes retains its existing path"
+        );
+    }
+
+    #[test]
+    fn shell_quote_introducers_and_comment_boundaries_are_consumed_in_context() {
+        for before in [
+            r"\$'a\'b' ",
+            r"\\\$'a\'b' ",
+            r"$$'a\'b' ",
+            r"$$$$'a\'b' ",
+            "$\\\n'a\\' ",
+            "printf \"%s\" \"$\\\n(printf \"%s\" \"",
+            "printf '%s' x#\"\n ",
+            "printf '%s' x\\ #\"\n ",
+            "printf '%s' x\u{a0}#\"\n ",
+        ] {
+            assert!(
+                validate_body(
+                    "bash",
+                    [Segment::Text(before), Segment::Value, Segment::Text(" '")].into_iter()
+                )
+                .is_err(),
+                "unsafe shell prefix accepted: {before:?}"
+            );
+        }
+        for before in [
+            r"$'a\'b' ",
+            r"\\$'a\'b' ",
+            r"\\\\$'a\'b' ",
+            r"$$$'a\'b' ",
+            r"\$'a\b' ",
+            "# ordinary comment\nprintf '%s' ",
+            "printf ignored; # ordinary comment\nprintf '%s' ",
+        ] {
+            assert!(
+                validate_body("bash", [Segment::Text(before), Segment::Value].into_iter()).is_ok(),
+                "safe shell prefix refused: {before:?}"
+            );
+        }
+        assert!(validate_body(
+            "shell",
+            [Segment::Text(r"$'a\'b' "), Segment::Value].into_iter()
+        )
+        .is_err());
+        assert!(
+            validate_body(
+                "bash",
+                [
+                    Segment::Value,
+                    Segment::Text("#\"\n "),
+                    Segment::Value,
+                    Segment::Text("\n\"")
+                ]
+                .into_iter()
+            )
+            .is_err(),
+            "a synthetic hole placeholder is not a Bash word delimiter"
         );
     }
 

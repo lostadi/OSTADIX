@@ -143,6 +143,77 @@ fn producer(payload: &str) -> String {
 }
 
 #[test]
+fn shell_quote_and_comment_boundaries_precede_all_producer_effects() {
+    if !support::require_runtimes(&["python3", "bash"]) {
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let marker = directory.path().join("must-not-exist");
+    let first = format!(
+        "python^(__import__('pathlib').Path({:?}).write_text('effect'))_python\n",
+        marker.to_str().unwrap()
+    );
+    let payload = "; printf QUOTE_BOUNDARY_CHANGED; # $(printf QUOTE_BOUNDARY_CHANGED)";
+    for (prefix, suffix) in [
+        (r"\$'a\'b' ", " '"),
+        (r"\\\$'a\'b' ", " '"),
+        (r"$$'a\'b' ", " '"),
+        (r"$$$$'a\'b' ", " '"),
+        ("$\\\n'a\\' ", "'"),
+        ("printf \"%s\" \"$\\\n(printf \"%s\" \"", "\")\""),
+        ("printf ignored x#\"\n ", "\n\""),
+        ("printf ignored x\\ #\"\n ", "\n\""),
+        ("printf ignored x\u{a0}#\"\n ", "\n\""),
+    ] {
+        // Rust's O parser consumes backslash-dollar escapes. Preserve the
+        // exact guest prefix independently of the receiver's quote rules.
+        let prefix = prefix.replace('$', "\\$");
+        let source = format!(
+            "{first}{}bash^({prefix}$payload{suffix})_bash",
+            producer(payload)
+        );
+        for executor in ["serial", "graph"] {
+            for check in [true, false] {
+                let (ok, _, error) = run(&source, executor, check);
+                assert!(
+                    !ok && error.contains("foreign value splice"),
+                    "{source}\n{error}"
+                );
+                assert!(!marker.exists(), "producer ran before refusal: {source}");
+            }
+        }
+    }
+    for prefix in [
+        r"$'a\'b'",
+        r"\\$'a\'b'",
+        r"\\\\$'a\'b'",
+        r"$$$'a\'b'",
+        r"\$'a\b'",
+        "$$'plain'",
+    ] {
+        let prefix = prefix.replace('$', "\\$");
+        let source = format!(
+            "{}bash^(: {prefix}; printf '%s' $payload)_bash",
+            producer(payload)
+        );
+        for executor in ["serial", "graph"] {
+            assert_eq!(value(&source, executor), OValue::str_(payload));
+        }
+    }
+    let source = format!(
+        "{first}{}shell^(: \\$'a\\'b'; printf '%s' $payload)_shell",
+        producer(payload)
+    );
+    for executor in ["serial", "graph"] {
+        let (ok, _, error) = run(&source, executor, false);
+        assert!(!ok && error.contains("foreign value splice"), "{error}");
+        assert!(!marker.exists());
+        let source = format!("{}shell^(printf '%s' $payload)_shell", producer(payload));
+        assert_eq!(value(&source, executor), OValue::str_(payload));
+    }
+}
+
+#[test]
 fn exact_seven_review_witnesses_are_data_or_rejected_before_execution() {
     if !support::require_runtimes(&["python3", "sqlite3", "bash"]) {
         return;
