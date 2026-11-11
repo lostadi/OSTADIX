@@ -184,6 +184,7 @@ fn v5_finalizer_revokes_root_ir_after_reached_same_bytes_policy_replacement() {
     let before_sha = finalizer_sha(&before_bytes);
 
     let mut object_hook_fired = false;
+    assert!(!object_hook_fired);
     // Explicitly INERT object-result hook: no object compiler or child exists.
     let object_result: std::result::Result<(), &'static str> = {
         object_hook_fired = true;
@@ -250,6 +251,7 @@ fn v5_finalizer_retains_valid_root_ir_for_object_error_with_unchanged_policy() {
     let mut ir_complete = true;
     let before = fs::metadata(&fixture.pin.path).unwrap();
     let mut object_hook_fired = false;
+    assert!(!object_hook_fired);
     let object_result: std::result::Result<(), &'static str> = {
         object_hook_fired = true;
         Err("INERT known object-lowering failure; no process was started")

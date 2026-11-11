@@ -3098,6 +3098,7 @@ class SourceReleaseTests(unittest.TestCase):
             "Cargo.lock",
             "ci/architecture-roots.toml",
             "ci/required-jobs.toml",
+            "ci/nix-example-profile.json",
             "ci/test-suites.toml",
             "rust-toolchain.toml",
             "docs/CI_POSTURE.md",
@@ -3105,10 +3106,12 @@ class SourceReleaseTests(unittest.TestCase):
             "scripts/contract_surfaces.py",
             "scripts/check_architecture_boundaries.py",
             "scripts/local_ci_posture.py",
+            "scripts/prepare_ci_nix_profile.py",
             "tests/test_architecture_boundaries.py",
             "tests/test_commit_authors.py",
             "tests/test_contract_surfaces.py",
             "tests/test_local_ci_posture.py",
+            "tests/test_ci_nix_profile.py",
         )
         self._commit()
         self._git("rm", *required)

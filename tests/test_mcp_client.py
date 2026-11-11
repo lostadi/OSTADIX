@@ -33,6 +33,10 @@ with (root / "launches").open("a") as output:
 lock = threading.Lock()
 jobs = set()
 cancelled = set()
+def publish_request_marker(name, request_id):
+    temporary = root / ("." + name + "." + str(threading.get_ident()))
+    temporary.write_text(str(request_id))
+    temporary.replace(root / name)
 def send(value):
     with lock:
         print(json.dumps(value), flush=True)
@@ -41,7 +45,7 @@ def handle(message):
     method = message.get("method")
     if method == "notifications/cancelled":
         cancelled.add(message["params"]["requestId"])
-        (root / "cancelled").write_text(str(message["params"]["requestId"]))
+        publish_request_marker("cancelled", message["params"]["requestId"])
         return
     if request_id is None:
         return
@@ -56,7 +60,7 @@ def handle(message):
         name = message["params"]["name"]
         args = message["params"].get("arguments", {})
         if name == "block":
-            (root / "blocking").write_text(str(request_id))
+            publish_request_marker("blocking", request_id)
             deadline = time.monotonic() + args.get("delay", 5)
             while time.monotonic() < deadline and request_id not in cancelled:
                 time.sleep(0.01)

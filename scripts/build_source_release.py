@@ -234,6 +234,9 @@ REAL_WORLD_BENCHMARK_RELEASE_PATHS = REAL_WORLD_BENCHMARK_PATHS | frozenset(
 PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS = frozenset(
     {
         "ci/workflow-reviews.toml",
+        "ci/nix-example-profile.json",
+        "scripts/prepare_ci_nix_profile.py",
+        "tests/test_ci_nix_profile.py",
         "crates/ostadix-api/src/foreign_splice.rs",
         "o_lang/foreign_splice.py",
         "c_cpp/src/parser.c",
