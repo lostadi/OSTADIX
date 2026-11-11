@@ -304,7 +304,18 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 },
             ],
         )
-        self.assertEqual(len(roots), 54)
+        self.assertEqual(len(roots), 55)
+        foreign_splice_root = next(
+            root for root in roots if root["name"] == "foreign_splice"
+        )
+        self.assertEqual(
+            foreign_splice_root,
+            {"name": "foreign_splice", "layer": 0, "allowed_dependencies": []},
+        )
+        self.assertRegex(
+            (ROOT / manifest["production"]["crate_root"]).read_text(encoding="utf-8"),
+            r"(?m)^mod foreign_splice;\s*$",
+        )
         runtime_provenance_root = next(
             root for root in roots if root["name"] == "runtime_provenance"
         )
