@@ -957,7 +957,7 @@ jobs:
       - name: Prove deterministic x86_64 UEFI ISO boot through OVMF
         run: ocore/kernel/smoke-x86_64-uefi-iso-qemu.sh
       - name: Verify compact native payloads and generated OVFS admission bindings
-        run: python3 -m unittest -v tests.test_ocore_payload_layout tests.test_kernel_image_binding tests.test_ocore_ovfs_pins
+        run: python3 -m unittest -v tests.test_ocore_payload_layout tests.test_kernel_image_binding tests.test_ocore_ovfs_pins tests.test_ocore_kernel_build_profiles
       # BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_CI
       - name: Validate central release-evidence manifest
         run: python3 scripts/release_evidence.py validate
@@ -968,6 +968,20 @@ jobs:
 
       - name: Prove supplemental native scalar execution and unsigned receipts
         run: ocore/kernel/smoke-world-native-scalar-qemu.sh
+      - name: Retain bounded native scalar diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-scalar-diagnostics-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/ocore-native-scalar/fixture.json
+            target/ocore-native-scalar/kernel.o
+            target/ocore-native-scalar/kernel.s
+            target/ocore-native-scalar/kernel.elf
+            target/ocore-native-scalar/results.json
+            target/ocore-native-scalar/transcripts/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Prove Mode 18 progress at shift-1 virtual timer cadence
         env:
