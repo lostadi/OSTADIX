@@ -185,7 +185,7 @@ fn v5_finalizer_revokes_root_ir_after_reached_same_bytes_policy_replacement() {
 
     let mut object_hook_fired = false;
     // Explicitly INERT object-result hook: no object compiler or child exists.
-    let object_result: std::result::Result<(), &'static str> = (|| {
+    let object_result: std::result::Result<(), &'static str> = {
         object_hook_fired = true;
         let replacement = fixture.directory.path().join("replacement-membership.json");
         let mut file = OpenOptions::new()
@@ -200,7 +200,7 @@ fn v5_finalizer_revokes_root_ir_after_reached_same_bytes_policy_replacement() {
         drop(file);
         fs::rename(&replacement, &fixture.pin.path).unwrap();
         Err("INERT known object-lowering failure; no process was started")
-    })();
+    };
     assert!(object_hook_fired);
     assert_eq!(
         object_result,
@@ -250,10 +250,10 @@ fn v5_finalizer_retains_valid_root_ir_for_object_error_with_unchanged_policy() {
     let mut ir_complete = true;
     let before = fs::metadata(&fixture.pin.path).unwrap();
     let mut object_hook_fired = false;
-    let object_result: std::result::Result<(), &'static str> = (|| {
+    let object_result: std::result::Result<(), &'static str> = {
         object_hook_fired = true;
         Err("INERT known object-lowering failure; no process was started")
-    })();
+    };
     assert!(object_hook_fired);
     assert_eq!(
         object_result,

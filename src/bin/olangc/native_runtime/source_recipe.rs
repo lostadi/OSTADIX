@@ -469,8 +469,7 @@ mod tests {
             changed.extend_from_slice(b"\n# changed after capture\n");
             fs::write(path, changed).unwrap();
             let error = immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry)
-                .err()
-                .expect("a changed source implementation must be rejected");
+                .expect_err("a changed source implementation must be rejected");
             assert!(error.to_string().contains("changed during orchestration"));
             fs::write(path, bytes).unwrap();
             assert!(immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry).is_ok());

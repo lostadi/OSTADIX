@@ -6467,49 +6467,64 @@ mod tests {
                 use std::os::unix::process::CommandExt as _;
                 command.process_group(0);
             }
-            // Create the reaper before spawning a child, so failure to start
-            // a thread cannot leave an owned child without a wait path.
-            let (reaper_tx, reaper_rx) = std::sync::mpsc::channel::<std::process::Child>();
+            fn wait_owned_child(
+                mut command: std::process::Command,
+                cancelled: std::sync::mpsc::Receiver<()>,
+            ) -> Result<std::process::ExitStatus, String> {
+                let mut child = command
+                    .spawn()
+                    .map_err(|error| format!("isolated child spawn failed: {error}"))?;
+                let mut poll_error = None;
+                let kill = loop {
+                    match cancelled.try_recv() {
+                        Ok(()) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break true,
+                        Err(std::sync::mpsc::TryRecvError::Empty) => {}
+                    }
+                    match child.try_wait() {
+                        Ok(Some(_)) => break false,
+                        Ok(None) => {}
+                        Err(error) => {
+                            poll_error = Some(format!("isolated child polling failed: {error}"));
+                            break true;
+                        }
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                };
+                if kill {
+                    #[cfg(unix)]
+                    if let Ok(pid) = libc::pid_t::try_from(child.id()) {
+                        // SAFETY: this child owns the private group just created.
+                        unsafe { libc::kill(-pid, libc::SIGKILL) };
+                    }
+                    let _ = child.kill();
+                }
+                // This worker owns the child from spawn through its wait on
+                // every path; no Child handle crosses a channel boundary.
+                let waited = child
+                    .wait()
+                    .map_err(|error| format!("isolated child wait failed: {error}"));
+                match (poll_error, waited) {
+                    (Some(error), Ok(_)) => Err(error),
+                    (Some(error), Err(wait_error)) => Err(format!("{error}; {wait_error}")),
+                    (None, result) => result,
+                }
+            }
+            let (cancel_tx, cancel_rx) = std::sync::mpsc::channel();
             let (reaped_tx, reaped_rx) = std::sync::mpsc::channel();
+            // The worker is created before it spawns the child, so thread
+            // setup failure cannot leave a child without an owner/reaper.
             let _reaper = std::thread::spawn(move || {
-                if let Ok(mut child) = reaper_rx.recv() {
-                    let _ = reaped_tx.send(child.wait());
-                }
+                let _ = reaped_tx.send(wait_owned_child(command, cancel_rx));
             });
-            let mut child = command.spawn().unwrap();
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-            let mut poll_error = None;
-            let mut status = None;
-            while std::time::Instant::now() < deadline {
-                match child.try_wait() {
-                    Ok(Some(_)) => {
-                        // try_wait already reaped it; this cached wait cannot
-                        // block and makes the normal ownership path explicit.
-                        status = Some(child.wait());
-                        break;
-                    }
-                    Ok(None) => {}
-                    Err(error) => {
-                        poll_error = Some(error);
-                        break;
-                    }
+            let outcome = match reaped_rx.recv_timeout(std::time::Duration::from_secs(30)) {
+                Ok(result) => result,
+                Err(error) => {
+                    let _ = cancel_tx.send(());
+                    let reaped = reaped_rx.recv_timeout(std::time::Duration::from_secs(2));
+                    Err(format!("isolated Bash helper test did not finish within 30 seconds: {error}; bounded reap: {reaped:?}"))
                 }
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            let mut reap_outcome = None;
-            if status.is_none() {
-                #[cfg(unix)]
-                if let Ok(pid) = libc::pid_t::try_from(child.id()) {
-                    // SAFETY: this child owns the private group just created.
-                    unsafe { libc::kill(-pid, libc::SIGKILL) };
-                }
-                let _ = child.kill();
-                reaper_tx
-                    .send(child)
-                    .expect("owned child reaper is waiting");
-                reap_outcome = Some(reaped_rx.recv_timeout(std::time::Duration::from_secs(2)));
-            }
-            drop(reaper_tx);
+            };
+            drop(cancel_tx);
             let capture = |path: &std::path::Path| {
                 let mut bytes = Vec::new();
                 std::fs::File::open(path)
@@ -6521,9 +6536,7 @@ mod tests {
             };
             let stdout = capture(&stdout_path);
             let stderr = capture(&stderr_path);
-            let status = status.unwrap_or_else(|| {
-                panic!("isolated Bash helper test timed out or could not be polled: {poll_error:?}; bounded reap: {reap_outcome:?}\n{stdout}\n{stderr}")
-            }).expect("cached child wait failed after successful try_wait");
+            let status = outcome.unwrap_or_else(|error| panic!("{error}\n{stdout}\n{stderr}"));
             assert!(status.success(), "{status}\n{stdout}\n{stderr}");
             assert!(stdout.contains("running 1 test"), "{stdout}\n{stderr}");
             assert!(stdout.contains("1 passed; 0 failed"), "{stdout}\n{stderr}");

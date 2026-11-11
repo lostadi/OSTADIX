@@ -1874,6 +1874,8 @@ struct OwnedBlockBinding {
     value: u64,
 }
 
+type OwnedBlockBindingEvidence = (BTreeMap<(String, usize), OwnedBlockBinding>, Option<Value>);
+
 /// Derive label names from a fresh verified emission/map, then bind them to
 /// retained local ELF identities. A supplied sidecar or success flag is never
 /// authority for a code address, nor is an offset from an ordinary provider.
@@ -1883,7 +1885,7 @@ fn owned_block_bindings(
     definitions: &BTreeMap<String, Definition>,
     sections: &[Section],
     symbol_tables: &BTreeMap<usize, Vec<ObjectSymbol>>,
-) -> Result<(BTreeMap<(String, usize), OwnedBlockBinding>, Option<Value>)> {
+) -> Result<OwnedBlockBindingEvidence> {
     use o_lang::ocore::native_ir::Terminator;
     use o_lang::ocore::native_map::NativeAssemblySiteKind;
     let mut required = BTreeSet::new();
@@ -4027,7 +4029,7 @@ mod tests {
         let required = symbols("consumer", &opaque_storage_module(true, false))
             .unwrap()
             .remove(0);
-        let (closure, issues) = resolve_symbols(&[required.clone()]);
+        let (closure, issues) = resolve_symbols(std::slice::from_ref(&required));
         assert!(!issues.is_empty());
         assert!(!closure
             .to_string()

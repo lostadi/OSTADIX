@@ -263,6 +263,10 @@ fn finalize_membership_custody(
 }
 
 // One shared object-phase boundary keeps preparation errors on the final-custody path.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep IR custody, object emission and pinned postguards explicit at the shared phase boundary"
+)]
 fn run_object_phase<P>(
     output: &Path,
     package: &mut Option<Value>,
@@ -397,6 +401,13 @@ pub(super) fn inventory(
         "scope":"bounded independent definitions/declarations/globals/initializer and intrinsic-site inventory; not executable equivalence or external provider proof"}))
 }
 
+type ProviderPreflight = (
+    Vec<Vec<u8>>,
+    PathBuf,
+    Option<provider_order::SealedOrder>,
+    Option<provider_membership::SelectedMembership>,
+);
+
 fn preflight(
     plan: &Plan,
     input: &Path,
@@ -404,12 +415,7 @@ fn preflight(
     source: &Path,
     output: &Path,
     compiler: &Path,
-) -> Result<(
-    Vec<Vec<u8>>,
-    PathBuf,
-    Option<provider_order::SealedOrder>,
-    Option<provider_membership::SelectedMembership>,
-)> {
+) -> Result<ProviderPreflight> {
     if !matches!(
         plan.schema.as_str(),
         PLAN_FORMAT | provider_order::PLAN_V3 | provider_membership::PLAN_V5
