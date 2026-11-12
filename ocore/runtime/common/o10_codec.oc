@@ -1,0 +1,85 @@
+module runtime::common::o10_codec;
+
+// Byte-oriented O10 framing. The caller owns trusted buffers and bounds.
+// Rlstat remains opaque until its record wire layout is approved.
+static mut BAD_OFFSET: u64 = 0;
+pub unsafe fn read(bytes: *const u8, offset: usize, width: usize) -> u64 {
+    let mut value: u64 = 0; let mut i: usize = 0;
+    while i < width { value |= (volatile_load(bytes + offset + i) as u64) << (8 * i); i += 1; }
+    return value;
+}
+pub unsafe fn write(bytes: *mut u8, offset: usize, value: u64, width: usize) -> void {
+    let mut i: usize = 0;
+    while i < width { volatile_store(bytes + offset + i, (value >> (8 * i)) as u8); i += 1; }
+}
+pub unsafe fn copy(destination: *mut u8, source: *const u8, count: usize) -> void {
+    let mut i: usize = 0;
+    while i < count { volatile_store(destination + i, volatile_load(source + i)); i += 1; }
+}
+pub unsafe fn equal(a: *const u8, b: *const u8, count: usize) -> u64 {
+    let mut i: usize = 0;
+    while i < count { if volatile_load(a + i) != volatile_load(b + i) { return 0; } i += 1; }
+    return 1;
+}
+pub unsafe fn bad_offset() -> u64 { return BAD_OFFSET; }
+unsafe fn bad(offset: u64) -> u64 { BAD_OFFSET = offset; return 0; }
+pub unsafe fn header(output: *mut u8, kind: u64, tag: u64, length: usize) -> usize {
+    write(output, 0, length as u64, 4); write(output, 4, kind, 1); write(output, 5, tag, 2); return length;
+}
+pub unsafe fn error(output: *mut u8, capacity: usize, tag: u64, code: u64, detail: u64) -> usize {
+    if capacity < 19 { return 0; }
+    header(output, 161, tag, 19); write(output, 7, code, 4); write(output, 11, detail, 8); return 19;
+}
+pub fn readonly(kind: u64) -> u64 {
+    return (kind == 162 || kind == 166 || kind == 178 || kind == 190 || kind == 192) as u64;
+}
+pub unsafe fn validate(bytes: *const u8, length: usize, msize: usize) -> u64 {
+    BAD_OFFSET = 0;
+    if length < 7 || length > msize || length > 512 || msize < 7 { return bad(0); }
+    if read(bytes, 0, 4) != length as u64 { return bad(0); }
+    let kind: u64 = read(bytes, 4, 1);
+    let mut expected: usize = 0;
+    if kind == 161 { expected = 19; }
+    if kind == 162 { expected = 19; }
+    if kind == 163 { expected = 35; }
+    if kind == 164 { expected = 39; }
+    if kind == 165 { expected = 31; }
+    if kind == 166 { expected = 31; }
+    if kind == 167 {
+        if length < 14 { return bad(0); }
+        expected = 14 + read(bytes, 12, 2) as usize;
+    }
+    if kind == 168 { expected = 50; }
+    if kind == 169 || kind == 171 || kind == 175 || kind == 177
+        || kind == 181 || kind == 183 || kind == 185 || kind == 197 { expected = 15; }
+    if kind == 170 { expected = 47; }
+    if kind == 172 { expected = 36; }
+    if kind == 173 { expected = 27; }
+    if kind == 174 { expected = 63; }
+    if kind == 176 || kind == 178 || kind == 186 || kind == 190 { expected = 31; }
+    if kind == 179 { expected = 77; }
+    if kind == 180 { expected = 50; }
+    if kind == 182 { expected = 55; }
+    if kind == 184 { expected = 39; }
+    if kind == 187 { expected = 23; }
+    if kind == 188 { expected = 35; }
+    if kind == 189 { expected = 8; }
+    if kind == 191 { expected = length; }
+    if kind == 192 { expected = 41; }
+    if kind == 193 {
+        if length < 17 { return bad(0); }
+        expected = 17 + 48 * read(bytes, 15, 2) as usize;
+        let mut position: usize = 17;
+        while position + 48 <= length {
+            if read(bytes, position + 12, 4) != 0 { return bad((position + 12) as u64); }
+            position += 48;
+        }
+    }
+    if kind == 194 { expected = 25; }
+    if kind == 195 { expected = 7; }
+    if kind == 196 { expected = 33; }
+    if expected == 0 { return bad(4); }
+    if expected != length { return bad(0); }
+    if kind != 162 && readonly(kind) == 1 && read(bytes, 15, 8) != 0 { return bad(15); }
+    return 1;
+}

@@ -24,6 +24,17 @@ use runtime::aarch64::coordinator_uart::mmio_read as coordinator_read;
 use runtime::aarch64::coordinator_uart::mmio_write as coordinator_write;
 use runtime::aarch64::coordinator_uart::inject as coordinator_inject;
 
+use runtime::common::o10_codec::read as o10_read;
+use runtime::common::o10_codec::write as o10_write;
+use runtime::common::o10_codec::header as o10_header;
+use runtime::common::o10_codec::error as o10_error;
+use runtime::common::o10_executor::prepare as o10_prepare;
+use runtime::common::o10_executor::pending as o10_pending;
+use runtime::common::o10_executor::epoch as o10_epoch;
+use runtime::common::o10_executor::commit as o10_commit;
+use runtime::common::namespace_store::session_handle;
+use runtime::common::namespace_store::session_fid_count;
+
 extern "ocore" fn uw_domain_init(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
 extern "ocore" fn uw_domain_reset(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
 extern "ocore" fn uw_current_domain() -> u64;
@@ -72,6 +83,14 @@ static mut CONSOLE_MODE: u64 = 0;
 static mut CONSOLE_PREFIX: u64 = 0;
 static mut INPUT_DROPPED: u64 = 0;
 static mut PLAN9_WITHDRAWN: u64 = 0;
+static mut O10_DOMAIN_GENERATION: [u64; 2] = [1; 2];
+static mut O10_INSTANCE: [u8; 32] = [0; 32];
+static mut O10_SWITCHES: [u64; 2] = [0; 2];
+static mut O10_LAST_IPA: [u64; 2] = [0; 2];
+static mut O10_LEASE_GENERATION: u64 = 1;
+static mut O10_SESSION_GENERATION: u64 = 1;
+static mut O10_WAIT_BIND: u64 = 0;
+static mut O10_REPLY: [u8; 512] = [0; 512];
 static mut LINUX_INPUT: [u8; 4096] = [0; 4096];
 static mut LINUX_INPUT_HEAD: usize = 0;
 static mut LINUX_INPUT_COUNT: usize = 0;
@@ -108,8 +127,12 @@ unsafe fn hex(value: u64) -> void {
 unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
     emit((&FAIL[0]), 27); hex(domain); control_putc(32);
     hex(esr); control_putc(32); hex(ipa); control_putc(32); hex(pc); control_putc(10);
-    if domain < 2 { LIVE[domain as usize] = 0; BLOCKED[domain as usize] = 0; }
-    if domain == 1 { plan9_wire_revoke(); set_level(1, 33, 0); }
+    if domain < 2 { O10_LAST_IPA[domain as usize] = ipa; LIVE[domain as usize] = 0; BLOCKED[domain as usize] = 0; }
+    if domain == 1 {
+        if O10_LEASE_GENERATION == 0xffff_ffff { emit((&FAIL[0]), 27); hex(0x0103); uw_halt(); }
+        O10_LEASE_GENERATION += 1;
+        plan9_wire_revoke(); set_level(1, 33, 0);
+    }
 }
 unsafe fn record_status() -> void {
     volatile_store(0x6d00_0020 as *mut u64, LIVE[0] | (LIVE[1] << 1));
@@ -308,6 +331,7 @@ unsafe fn wake_blocked() -> void {
 }
 
 unsafe fn runnable(domain: u64) -> bool {
+    if domain == 1 && O10_WAIT_BIND == 1 { return false; }
     return LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 0;
 }
 
@@ -442,23 +466,115 @@ unsafe fn progress() -> void {
 // Both guests' stage-2 RAM mappings exclude it and the immutable recovery
 // copies. A marker in guest output or a namespace name cannot invoke it.
 // seq/op/ack/result/kernel_bytes/dtb_bytes occupy 0x6d000070..0x6d00009f.
-unsafe fn native_control() -> void {
-    let sequence: u64 = volatile_load(0x6d00_0070 as *const u64);
-    if sequence == 0 || sequence == volatile_load(0x6d00_0080 as *const u64) { return; }
-    let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
-    let mut result: u64 = 0;
-    if operation == 1 && LIVE[0] == 1 {
-        LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1;
-        plan9_wire_revoke();
-        set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
-        RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
-        result = 1;
+// O10 op10 submission 0x6d0a0000..0x6d0a01ff, completion
+// 0x6d0a0200..0x6d0a03ff, private to EL2/host and outside both stage-2 maps.
+// Legacy op2 retains its bootstrap/session behavior for the M0 rollback path.
+unsafe fn o10_domain(handle: u64) -> u64 {
+    let index: u64 = handle & 0xffff_ffff;
+    if index >= 2 { return MAX; }
+    if (handle >> 32) != O10_DOMAIN_GENERATION[index as usize] { return MAX; }
+    return index;
+}
+unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
+    let kind: u64 = o10_read(request, 4, 1);
+    let tag: u64 = o10_read(request, 5, 2);
+    if kind == 178 || kind == 172 || kind == 174 {
+        let handle: u64 = o10_read(request, 23, 8);
+        let index: u64 = handle & 0xffff_ffff;
+        if index >= 2 { return o10_error(response, 512, tag, 5, 0); }
+        if o10_domain(handle) == MAX {
+            return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[index as usize]);
+        }
+        if kind == 178 {
+            o10_header(response, 179, tag, 77);
+            o10_write(response, 7, handle, 8); o10_write(response, 15, 2, 1);
+            let mut state: u64 = 4;
+            if LIVE[index as usize] == 1 {
+                state = 2;
+                if BLOCKED[index as usize] == 1 || (index == 1 && O10_WAIT_BIND == 1) { state = 3; }
+            } else { if index == 1 && PLAN9_WITHDRAWN == 1 { state = 5; } }
+            o10_write(response, 16, state, 1);
+            let mut j: usize = 0;
+            while j < 16 { volatile_store(response + 17 + j, O10_INSTANCE[index as usize * 16 + j]); j += 1; }
+            o10_write(response, 33, EXITS[index as usize], 8);
+            o10_write(response, 41, O10_SWITCHES[index as usize], 8);
+            o10_write(response, 49, LAST_ESR[index as usize], 8);
+            o10_write(response, 57, O10_LAST_IPA[index as usize], 8);
+            o10_write(response, 65, LAST_PC[index as usize], 8);
+            let mut grant: u64 = 1; if index == 1 { grant = 4; }
+            o10_write(response, 73, (session_handle(grant) != 0) as u64, 4);
+            return 77;
+        }
+        // M0 provisions the existing Plan9 image. Linux replacement is M2.
+        if index != 1 { return o10_error(response, 512, tag, 9, 0); }
+        if kind == 172 {
+            if PLAN9_WITHDRAWN == 1 { return o10_error(response, 512, tag, 12, 5); }
+            if o10_read(request, 31, 1) != 0 { return o10_error(response, 512, tag, 9, 0); }
+            if O10_LEASE_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+            let sessions: u64 = (session_handle(4) != 0) as u64;
+            let fids: u64 = session_fid_count(4);
+            O10_LEASE_GENERATION += 1;
+            LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1; O10_WAIT_BIND = 0;
+            plan9_wire_revoke();
+            set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
+            RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
+            o10_header(response, 173, tag, 27); o10_write(response, 7, handle, 8);
+            o10_write(response, 15, sessions, 4); o10_write(response, 19, sessions, 4);
+            o10_write(response, 23, fids, 4); return 27;
+        }
+        if LIVE[1] != 0 { return o10_error(response, 512, tag, 12, 2); }
+        if o10_read(request, 47, 8) != 1 || o10_read(request, 55, 8) != 2 {
+            return o10_error(response, 512, tag, 5, 0);
+        }
+        if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+        if restore_plan9(false) != 1 { return o10_error(response, 512, tag, 12, 4); }
+        O10_DOMAIN_GENERATION[1] += 1;
+        let mut j: usize = 0;
+        while j < 16 { O10_INSTANCE[16 + j] = volatile_load(request + 31 + j); j += 1; }
+        // The new kernel waits for its explicit namespace transport binding.
+        O10_WAIT_BIND = 1; BLOCKED[1] = 1;
+        o10_header(response, 175, tag, 15);
+        o10_write(response, 7, (O10_DOMAIN_GENERATION[1] << 32) | 1, 8); return 15;
     }
-    // Both EL1 contexts have been saved before progress enters this mailbox.
-    // A withdrawn Plan9 may still be named by uw_current_domain while Linux
-    // is parked. No old frame writes occur after progress; assembly selects
-    // the freshly reset context from this dispatcher's return value.
-    if operation == 2 && PLAN9_WITHDRAWN == 1 && LIVE[1] == 0 {
+    if kind == 184 {
+        let lease: u64 = o10_read(request, 23, 8);
+        let transport: u64 = o10_read(request, 31, 8);
+        if (lease & 0xffff_ffff) != 4 { return o10_error(response, 512, tag, 6, 0); }
+        if (lease >> 32) != O10_LEASE_GENERATION { return o10_error(response, 512, tag, 5, O10_LEASE_GENERATION); }
+        if (transport >> 32) != O10_DOMAIN_GENERATION[1] {
+            return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[1]);
+        }
+        if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
+        if LIVE[1] != 1 { return o10_error(response, 512, tag, 12, 5); }
+        if O10_SESSION_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+        if plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 {
+            return o10_error(response, 512, tag, 12, 4);
+        }
+        O10_SESSION_GENERATION += 1; O10_WAIT_BIND = 0; BLOCKED[1] = 0;
+        o10_header(response, 185, tag, 15);
+        o10_write(response, 7, (O10_SESSION_GENERATION << 32) | 4, 8); return 15;
+    }
+    return o10_error(response, 512, tag, 9, 0);
+}
+unsafe fn o10_mailbox() -> u64 {
+    let request: *const u8 = 0x6d0a_0000 as *const u8;
+    let response: *mut u8 = (&mut O10_REPLY[0]);
+    let size: usize = o10_read(request, 0, 4) as usize;
+    let mut length: usize = o10_prepare(request, size, response, 512);
+    if length == 0 {
+        length = o10_platform(request, response);
+        if o10_pending() != 0 && o10_commit(response as *const u8, length) != 1 { emit((&FAIL[0]), 27); hex(0x0104); uw_halt(); }
+    }
+    let mut index: usize = 0;
+    while index < length {
+        volatile_store(((0x6d0a_0200 as usize) + index) as *mut u8, volatile_load(response + index));
+        index += 1;
+    }
+    return 1;
+}
+
+unsafe fn restore_plan9(bind_wire: bool) -> u64 {
+    let mut result: u64 = 0;
         let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
         let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
         if kernel_bytes != 0 && kernel_bytes <= 0x0100_0000 && dtb_bytes != 0 && dtb_bytes <= 0x0001_0000
@@ -479,7 +595,7 @@ unsafe fn native_control() -> void {
             }
             if uw_domain_reset(1, 0x4010_0000, 0x4000_0000, 0x3c5) == 1 && gic_reset(1) == 1
                 && gic_write(1, 0x080a_0014, 4, 0) == 1
-                && plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) == 1 {
+                && (!bind_wire || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) == 1) {
                 index = 0; while index < 64 { UART[index] = 0; index += 1; }
                 UART[0x30 / 4] = 0x301;
                 RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
@@ -487,6 +603,29 @@ unsafe fn native_control() -> void {
                 PLAN9_WITHDRAWN = 0; BLOCKED[1] = 0; LIVE[1] = 1; result = 1;
             }
         }
+
+    return result;
+}
+
+unsafe fn native_control() -> void {
+    let sequence: u64 = volatile_load(0x6d00_0070 as *const u64);
+    if sequence == 0 || sequence == volatile_load(0x6d00_0080 as *const u64) { return; }
+    let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
+    let mut result: u64 = 0;
+    if operation == 10 { result = o10_mailbox(); }
+    if operation == 1 && o10_epoch() == 0 && LIVE[0] == 1 {
+        LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1;
+        plan9_wire_revoke();
+        set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
+        RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
+        result = 1;
+    }
+    // Both EL1 contexts have been saved before progress enters this mailbox.
+    // A withdrawn Plan9 may still be named by uw_current_domain while Linux
+    // is parked. No old frame writes occur after progress; assembly selects
+    // the freshly reset context from this dispatcher's return value.
+    if operation == 2 && o10_epoch() == 0 && PLAN9_WITHDRAWN == 1 && LIVE[1] == 0 {
+        result = restore_plan9(true);
     }
     if operation == 3 && LIVE[0] == 1 {
         let length: u64 = volatile_load(0x6d06_0000 as *const u64);
@@ -559,7 +698,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
         DEADLINE = now + PERIOD;
     }
     if !runnable(next) { record_status(); busy(0); return MAX; }
-    if next != domain { SWITCHES += 1; }
+    if next != domain { SWITCHES += 1; O10_SWITCHES[next as usize] += 1; }
     if gic_poll(next) != 1 { contain(next, 0x804, next, pc); record_status(); busy(0); return MAX; }
     record_status(); busy(0); return next;
 }
