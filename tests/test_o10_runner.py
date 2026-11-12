@@ -2,6 +2,10 @@
 import importlib.util
 from pathlib import Path
 import struct
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -215,6 +219,35 @@ class O10RunnerTests(unittest.TestCase):
             with patch.object(runner.os, "pread", return_value=struct.pack("<QQ", 1, 1)):
                 value.native_control(1)
             value.write_native.assert_called_once_with(0x6d000070, struct.pack("<QQ", 1, 1))
+
+    def test_frozen_runtime_file_closure_imports_in_isolated_python(self):
+        freezer_spec = importlib.util.spec_from_file_location(
+            "o10_runtime_freezer", ROOT / "scripts/freeze_okernel_unified_runtime.py")
+        freezer = importlib.util.module_from_spec(freezer_spec)
+        freezer_spec.loader.exec_module(freezer)
+        with tempfile.TemporaryDirectory(prefix="o10 frozen runtime ") as temporary:
+            frozen = Path(temporary) / "runtime"
+            for name in freezer.RUNTIME_FILES:
+                destination = frozen / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, destination)
+            copied_runner = frozen / "scripts/okernel_unified_world.py"
+            check = ("import pathlib,runpy,sys; "
+                     "m=runpy.run_path(sys.argv[1],run_name='frozen_import'); "
+                     "assert pathlib.Path(m['o10'].__file__).resolve() == "
+                     "pathlib.Path(sys.argv[1]).parent / 'o10.py'; "
+                     "print('FROZEN_O10_IMPORT_PASS')")
+            argv = [sys.executable, "-I", "-B", "-c", check, str(copied_runner)]
+            result = subprocess.run(argv, cwd=temporary, capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "FROZEN_O10_IMPORT_PASS")
+            # Prove the isolated process cannot satisfy a missing captured
+            # codec using the checkout, PYTHONPATH, or an earlier module import.
+            codec_path = frozen / "scripts/o10.py"
+            codec_path.rename(codec_path.with_suffix(".missing"))
+            missing = subprocess.run(argv, cwd=temporary, capture_output=True, text=True, timeout=15)
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn("No module named 'o10'", missing.stderr)
 
     def test_coordinator_remains_service_operation_three(self):
         value = domain()

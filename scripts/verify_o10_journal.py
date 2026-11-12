@@ -52,7 +52,7 @@ def main():
              "tests/test_o10_native.py", "tests/test_o10_platform.py",
              "scripts/verify_o10_journal.py", "scripts/okernel_unified_world.py",
              "scripts/build_okernel_unified_world.py", "tests/test_o10_runner.py",
-             "ci/language-sources.json", *SOURCES]
+             "ci/language-sources.json", "scripts/freeze_okernel_unified_runtime.py", *SOURCES]
     files = sorted(set(files))
     hashes = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in files}
     log = io.StringIO()
