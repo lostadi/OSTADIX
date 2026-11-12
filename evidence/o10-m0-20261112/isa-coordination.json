@@ -1,0 +1,134 @@
+{
+  "schema": "ostadix.o10-isa-coordination/v1",
+  "milestone": "M0",
+  "updated_at": "2026-11-12T12:41:42.879081+00:00",
+  "source_base": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+  "status": "NOT_DELIVERED",
+  "scope": "Read-only identity/connectivity checks only; no remote compilation, gate qualification, queue delivery, or acknowledgment claimed.",
+  "metadata_source": "/home/ustad/.local/state/ostadix/okernel/current-consolidated-source.json",
+  "historical_delivery_receipt": "/home/ustad/.cache/ostadix-final-master-coordination-wpoc0xfj/result.json",
+  "historical_acknowledgments": "/home/ustad/.cache/ostadix-final-master-coordination-wpoc0xfj/acknowledgments.json",
+  "owners": {
+    "RV64": "Existing OrangePi project threads; preserve previous ownership and paused work.",
+    "AArch64": "M1 Max project owner/account not authenticated; coordinate before changing shared source or toolchain."
+  },
+  "orangepi": {
+    "host": "orangepirv",
+    "address": "100.93.95.114",
+    "account": "orangepi",
+    "online": false,
+    "last_seen": "2026-11-11T18:05:54.1Z",
+    "queue_binary": "/home/orangepi/.local/bin/codex",
+    "thread_ids": [
+      "01a19fbe-fe6a-7a10-8b49-2b3875e19475",
+      "01a142f8-ca9d-7640-8532-d638fa874ab2",
+      "01a1659d-4fac-7e91-ab9a-1d8c41a9ab14"
+    ],
+    "queue_delivery_performed": false
+  },
+  "m1max": {
+    "host": "m1max",
+    "address": "100.101.151.125",
+    "online": true,
+    "account": "ustad is SSH-client default; remote account not confirmed",
+    "queue_ids_known": false,
+    "queue_delivery_performed": false
+  },
+  "checks": [
+    {
+      "argv": [
+        "timeout",
+        "12s",
+        "tailscale",
+        "ssh",
+        "orangepi@orangepirv",
+        "id -un"
+      ],
+      "started_at": "2026-11-12T12:41:18.871480+00:00",
+      "returncode": 124,
+      "stdout": "",
+      "stderr": "",
+      "read_only": true
+    },
+    {
+      "argv": [
+        "timeout",
+        "12s",
+        "tailscale",
+        "ssh",
+        "ustad@m1max",
+        "id -un"
+      ],
+      "started_at": "2026-11-12T12:41:30.875009+00:00",
+      "returncode": 124,
+      "stdout": "",
+      "stderr": "# Tailscale SSH requires an additional check.\n# To authenticate, visit: [redacted identity-check URL]\n",
+      "read_only": true
+    }
+  ],
+  "next_commands": [
+    [
+      "tailscale",
+      "ssh",
+      "orangepi@orangepirv",
+      "id -un"
+    ],
+    [
+      "tailscale",
+      "ssh",
+      "ustad@m1max",
+      "id -un"
+    ]
+  ],
+  "next_steps": [
+    "Restore OrangePi connectivity, authenticate the read-only identity check, and inspect existing thread status before targeted relay.",
+    "Complete Tailscale SSH identity authorization and confirm Mac account/owner before source coordination.",
+    "Only after remote source and tool identities match the branch under test, schedule separate ISA evidence; never count queue acceptance as acknowledgment or successful execution."
+  ],
+  "remote_builds_started": 0,
+  "discovery_checks": [
+    {
+      "argv": [
+        "tailscale",
+        "status",
+        "--json"
+      ],
+      "returncode": 0,
+      "selected_observations": {
+        "BackendState": "Running",
+        "orangepirv": {
+          "Online": false,
+          "LastSeen": "2026-11-11T18:05:54.1Z"
+        },
+        "m1max": {
+          "Online": true,
+          "OS": "macOS"
+        }
+      }
+    },
+    {
+      "argv": [
+        "ssh",
+        "-G",
+        "m1max"
+      ],
+      "returncode": 0,
+      "selected_options": {
+        "user": "ustad",
+        "hostname": "m1max",
+        "port": 22,
+        "stricthostkeychecking": "ask"
+      },
+      "scope": "Local client configuration only; not proof of remote account or authentication."
+    }
+  ],
+  "prepared_message": "O10 M0 coordination from X12: isolated work/o10-m0-20261112 at /home/ustad/OSTADIX-o10-m0-20261112, based on both published masters a8742f638c265d68cde6977aa2783cfad74ccc2a. Python/native codec, synchronous mechanism journal and Plan9 host-shim integration are under validation; no full milestone, physical board, RV64, native Governor, passthrough, or lowered-driver claim. Please report your existing ISA ownership, current source/tool revision, active/paused thread status and any novel reviewed changes before selecting an isolated same-source verification task. Preserve all private WIP, saved states and ownership; do not restart paused work or replace shared compilers. A queue accepting this message is not acknowledgment or execution evidence.",
+  "next_queue_command_template": [
+    "/home/orangepi/.local/bin/codex",
+    "queue",
+    "--thread",
+    "<one verified existing thread id>",
+    "--message",
+    "<prepared_message>"
+  ]
+}

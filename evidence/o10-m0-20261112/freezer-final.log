@@ -1,0 +1,13 @@
+test_capture_tree_materializes_firmware_file_links_and_refuses_directory_links (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_capture_tree_materializes_firmware_file_links_and_refuses_directory_links) ... ok
+test_check_is_readonly_and_binds_all_retained_files (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_check_is_readonly_and_binds_all_retained_files) ... ok
+test_entry_cannot_override_captured_build_or_qemu (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_entry_cannot_override_captured_build_or_qemu) ... ok
+test_entry_executes_only_own_launcher_build_and_qemu (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_entry_executes_only_own_launcher_build_and_qemu) ... ok
+test_entry_rejects_escaped_inventory_and_matching_symlink_bytes (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_entry_rejects_escaped_inventory_and_matching_symlink_bytes) ... ok
+test_explicit_state_required_without_auto_seeding (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_explicit_state_required_without_auto_seeding) ... ok
+test_live_observation_never_discovers_or_adopts_default_state (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_live_observation_never_discovers_or_adopts_default_state) ... ok
+test_packager_refuses_existing_output_before_tool_or_state_actions (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_packager_refuses_existing_output_before_tool_or_state_actions) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.396s
+
+OK

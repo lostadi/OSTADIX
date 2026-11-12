@@ -1,0 +1,74 @@
+{
+  "schema": "ostadix.installation-check/v1",
+  "root": "/home/ustad/ostadix-BM",
+  "tools": [
+    {
+      "name": "ostadix-evaluator",
+      "path": "/home/ustad/.local/bin/ostadix-evaluator",
+      "available": true
+    },
+    {
+      "name": "olangc",
+      "path": "/home/ustad/.local/bin/olangc",
+      "available": true
+    },
+    {
+      "name": "ocorec",
+      "path": "/home/ustad/.local/bin/ocorec",
+      "available": true
+    },
+    {
+      "name": "o-link",
+      "path": "/home/ustad/.local/bin/o-link",
+      "available": true
+    },
+    {
+      "name": "o-unlink",
+      "path": "/home/ustad/.local/bin/o-unlink",
+      "available": true
+    },
+    {
+      "name": "o-node",
+      "path": "/home/ustad/.local/bin/o-node",
+      "available": true
+    },
+    {
+      "name": "octl",
+      "path": "/home/ustad/.local/bin/octl",
+      "available": true
+    },
+    {
+      "name": "o-live-host",
+      "path": "/home/ustad/.local/bin/o-live-host",
+      "available": true
+    },
+    {
+      "name": "ogit",
+      "path": "/home/ustad/.local/bin/ogit",
+      "available": true
+    },
+    {
+      "name": "o-registry",
+      "path": "/home/ustad/.local/bin/o-registry",
+      "available": true
+    },
+    {
+      "name": "o-info",
+      "path": "/home/ustad/.local/bin/o-info",
+      "available": true
+    },
+    {
+      "name": "ostadix-device",
+      "path": "/home/ustad/.local/bin/ostadix-device",
+      "available": true
+    }
+  ],
+  "backends": {
+    "directory": "/home/ustad/ostadix-BM/backends",
+    "shim_count": 22,
+    "python_smoke_passed": true,
+    "probe_detail": "exit=exit status: 0; stdout=\"{\\\"ok\\\":true,\\\"value\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"2\\\"}},\\\"type\\\":\\\"number\\\",\\\"elapsed_ms\\\":64,\\\"execution_evidence\\\":{\\\"schema\\\":\\\"ostadix.native-execution-evidence/v1\\\",\\\"execution_mode\\\":\\\"graph\\\",\\\"source_sha256\\\":\\\"874c445a721cc8e9abe9654fd4453e9e0d5794bee34851a6cc33a2977c7019e6\\\",\\\"source_identity_scope\\\":\\\"submitted_utf8_before_shebang_removal\\\",\\\"parsed_source_sha256\\\":\\\"874c445a721cc8e9abe9654fd4453e9e0d5794bee34851a6cc33a2977c7019e6\\\",\\\"result_content_identity\\\":\\\"137694dd901f74b673b1c4b6c6f138852a785916673984e828017e13a0fcd4ee\\\",\\\"source_intent_gate\\\":null,\\\"admission\\\":{\\\"schema\\\":\\\"oexec.admission/v6\\\",\\\"oir_sha256\\\":\\\"860a657660dbb7510f0493522d24bbe38d53639f625429af6e7ea7d487c18d3f\\\",\\\"plan_sha256\\\":\\\"46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67\\\",\\\"analyzed_graph_sha256\\\":\\\"bf34fb72316e24c5a938a8b23f2b0bb8b6b1e634ec882f6cc368b5825bf6c9db\\\",\\\"evidence_sha256\\\":\\\"2e530219c3ebb6623561db6681e498bf61d4da46b0c59423b3fa1a33904c343a\\\",\\\"admitted_graph_sha256\\\":\\\"75dfd321979aa7d396c9507010778754f875908beb8c0477066d77e0941dc5e9\\\",\\\"admission_sha256\\\":\\\"a291cf2b70fd9df3364b03a2d34303a5ac809b7e2924e46480f7a6c23bb0a987\\\",\\\"executable_manifest_sha256\\\":\\\"499a59bf71d9eec67bec619dd0b248f7468994f9b506528c1e12ba356c72d265\\\"},\\\"trace\\\":{\\\"schema\\\":\\\"ostadix.graph-execution-trace/v1\\\",\\\"events\\\":[{\\\"event\\\":\\\"ready\\\",\\\"plan_node\\\":1},{\\\"event\\\":\\\"started\\\",\\\"plan_node\\\":1},{\\\"event\\\":\\\"finished\\\",\\\"plan_node\\\":1,\\\"value_type\\\":\\\"text\\\",\\\"fingerprint\\\":null},{\\\"event\\\":\\\"ready\\\",\\\"plan_node\\\":0},{\\\"event\\\":\\\"started\\\",\\\"plan_node\\\":0},{\\\"event\\\":\\\"finished\\\",\\\"plan_node\\\":0,\\\"value_type\\\":\\\"number\\\",\\\"fingerprint\\\":null}],\\\"publications\\\":[{\\\"plan_node\\\":0,\\\"outputs\\\":[{\\\"node\\\":0,\\\"kind\\\":\\\"value\\\"},{\\\"node\\\":2,\\\"kind\\\":\\\"completion\\\",\\\"producer\\\":0},{\\\"node\\\":4,\\\"kind\\\":\\\"resource_state\\\",\\\"resource\\\":\\\"HostWorld\\\",\\\"version\\\":1},{\\\"node\\\":6,\\\"kind\\\":\\\"resource_state\\\",\\\"resource\\\":\\\"EvaluatorState\\\",\\\"version\\\":1}]}],\\\"publication_scope\\\":\\\"actual-successful-semantic-settlement-outputs\\\"},\\\"native_leaves\\\":[]}}\\n\"; stderr=\"\"",
+    "other_runtimes": "not probed"
+  },
+  "ready": true
+}

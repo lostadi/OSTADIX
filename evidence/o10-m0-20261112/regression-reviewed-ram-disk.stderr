@@ -1,0 +1,15 @@
+test_real_resize_preserves_every_tree_entry_and_exact_namespace_pair (tests.test_okernel_disk_growth.DiskGrowthTests.test_real_resize_preserves_every_tree_entry_and_exact_namespace_pair) ... ok
+test_resize_failure_keeps_exact_original_head_and_both_images (tests.test_okernel_disk_growth.DiskGrowthTests.test_resize_failure_keeps_exact_original_head_and_both_images) ... ok
+test_running_domain_lock_prevents_cloning_or_publication (tests.test_okernel_disk_growth.DiskGrowthTests.test_running_domain_lock_prevents_cloning_or_publication) ... ok
+test_tree_difference_prevents_publication_even_with_clean_ext4 (tests.test_okernel_disk_growth.DiskGrowthTests.test_tree_difference_prevents_publication_even_with_clean_ext4) ... ok
+test_ungranted_target_is_rejected_before_output (tests.test_okernel_disk_growth.DiskGrowthTests.test_ungranted_target_is_rejected_before_output) ... ok
+test_active_domain_lock_prevents_staging (tests.test_okernel_repository_staging.RepositoryStagingTests.test_active_domain_lock_prevents_staging) ... ok
+test_payload_identity_failure_does_not_publish_or_mutate_base (tests.test_okernel_repository_staging.RepositoryStagingTests.test_payload_identity_failure_does_not_publish_or_mutate_base) ... ok
+test_staging_preserves_installed_state_and_publishes_readonly_generation (tests.test_okernel_repository_staging.RepositoryStagingTests.test_staging_preserves_installed_state_and_publishes_readonly_generation) ... ok
+test_staging_preserves_the_exact_shared_namespace_generation (tests.test_okernel_repository_staging.RepositoryStagingTests.test_staging_preserves_the_exact_shared_namespace_generation) ... ok
+test_unexpected_database_mutation_prevents_publication (tests.test_okernel_repository_staging.RepositoryStagingTests.test_unexpected_database_mutation_prevents_publication) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 27.328s
+
+OK
