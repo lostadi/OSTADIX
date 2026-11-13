@@ -2220,21 +2220,26 @@ impl BackendProcess {
     }
 
     fn finish_reader_before(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
-        while self
-            .reader
-            .as_ref()
-            .is_some_and(|reader| !reader.is_finished())
-        {
-            while self.responses.try_recv().is_ok() {}
-            if Instant::now() >= deadline {
-                return Err(anyhow!(
-                    "backend `{}` response reader did not terminate within {} ms",
-                    self.language,
-                    timeout.as_millis()
-                ));
+        // why recv_timeout and not a sleep: the reader owns the only sender
+        // and drops it when it returns, so Disconnected wakes this the
+        // moment the reader is done; a fixed 2 ms sleep on the first check
+        // cost bash_hello up to 2 ms at exit.
+        if self.reader.is_some() {
+            loop {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                match self.responses.recv_timeout(remaining) {
+                    // late frames are discarded; the process is finishing.
+                    Ok(_) => continue,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        return Err(anyhow!(
+                            "backend `{}` response reader did not terminate within {} ms",
+                            self.language,
+                            timeout.as_millis()
+                        ));
+                    }
+                }
             }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            thread::sleep(Duration::from_millis(2).min(remaining));
         }
         if let Some(reader) = self.reader.take() {
             reader
