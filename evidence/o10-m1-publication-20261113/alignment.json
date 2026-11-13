@@ -1,0 +1,26 @@
+{
+  "schema": "ostadix.o10-m1-toolchain-alignment/v1",
+  "ok": true,
+  "revision": "7655a3e2d5a204a3701af47d841c354877aabb32",
+  "source_root": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+  "build_dirty": false,
+  "runtime_dirty": false,
+  "mcp": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m1-publication-toolchain-20261113/bin/ostadix-mcp",
+    "bytes": 7675144,
+    "sha256": "81fe93e4d74350dc12edbe18e7c88a82d8a5b90be7af1e28a4b379f87e4be17e"
+  },
+  "status": {
+    "running": true,
+    "bridge_pid": 1388379,
+    "mcp_pid": 1388380,
+    "binary": "/home/ustad/.local/state/ostadix/o10-m1-publication-toolchain-20261113/bin/ostadix-mcp",
+    "root": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+    "backends": "/home/ustad/OSTADIX-o10-m1-publish-20261113/backends",
+    "socket": "/tmp/o10-m1-publication-mcp-20261113/038cd9b5f9c80c650fd5c8ff.sock",
+    "started_at": 1794558148.4688191,
+    "stopping": false
+  },
+  "observed": 1794558148.954041,
+  "scope": "fresh private MCP root/commit/process-inode binding and environment/doctor/runtime evidence; reused compiler hashes/source-equality recorded in plan/build; no guest gates"
+}

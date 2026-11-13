@@ -1,0 +1,8 @@
+test_current_and_historical_worker_set_stays_explicit (__main__.RecipeWorkerContractTests.test_current_and_historical_worker_set_stays_explicit) ... ok
+test_every_recipe_inventory_invocation_binds_the_same_helper (__main__.RecipeWorkerContractTests.test_every_recipe_inventory_invocation_binds_the_same_helper) ... ok
+test_stale_helper_binding_stops_before_source_configuration (__main__.RecipeWorkerContractTests.test_stale_helper_binding_stops_before_source_configuration) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.106s
+
+OK

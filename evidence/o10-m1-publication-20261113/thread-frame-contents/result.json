@@ -1,0 +1,2224 @@
+{
+  "schema": "ostadix.thread-frame-content/v1",
+  "scope": "Compare original/refactored frame validation with actual native registries.\n\nThe private content helper is not lifecycle authority. C exposes only test\nviews of real process/thread fields, supplies three privileged architecture\nhooks and delivers one authored ELF fixture through the loader's image API.\nIt does not implement registries or claim closed INSTALL/FP/CPU admission.\n",
+  "commands": [
+    {
+      "name": "fixture-ELF",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-nostdlib",
+        "-static",
+        "-no-pie",
+        "-Wl,-Ttext-segment=0x02000000",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/entry.S",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf"
+      ],
+      "status": 0,
+      "seconds": 0.04453075095079839,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture-ELF.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture-ELF.stderr",
+        "bytes": 95,
+        "sha256": "d757dc4283b8a5881dbec3f027839da0329827cd76361c0098786a476ee96646"
+      }
+    },
+    {
+      "name": "before-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-thread.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before.o"
+      ],
+      "status": 0,
+      "seconds": 0.3090300599578768,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-compile.stderr",
+        "bytes": 92,
+        "sha256": "59160fce2ba3b5fdf87eba86840f5683d3713d430d4ff102a11dd74d04ea7a8c"
+      }
+    },
+    {
+      "name": "before-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before.o"
+      ],
+      "status": 0,
+      "seconds": 0.017770373029634356,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before.o"
+      ],
+      "status": 0,
+      "seconds": 0.01837074791546911,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-symbols.stdout",
+        "bytes": 34113,
+        "sha256": "6fe62af03e8c6dab8edb58979f88b497aab28239f35fa1ae31395bd1fff2668c"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.003157109022140503,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before"
+      ],
+      "status": 0,
+      "seconds": 0.16931030701380223,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/thread.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate.o"
+      ],
+      "status": 0,
+      "seconds": 0.31348463194444776,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-compile.stderr",
+        "bytes": 95,
+        "sha256": "eca0730be72712b78945c804b645ea30eeed3251a1869c5c592e2328eddda502"
+      }
+    },
+    {
+      "name": "candidate-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate.o"
+      ],
+      "status": 0,
+      "seconds": 0.017093359027057886,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate.o"
+      ],
+      "status": 0,
+      "seconds": 0.012918599997647107,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-symbols.stdout",
+        "bytes": 34176,
+        "sha256": "f36abeed98d5a9d3bd0483c373c545aba6c5e65e4df0133cb94d3206889e7eb2"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.0033511400688439608,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate"
+      ],
+      "status": 0,
+      "seconds": 0.14523167605511844,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-public",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 0,
+      "seconds": 0.0018177309539169073,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-public.stdout",
+        "bytes": 75,
+        "sha256": "49ea61c4f198c22ced7792c970dba2dab05c9b2fcecc78729fbd427d2a75fc4f"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-public.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-public",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 0,
+      "seconds": 0.0017482369439676404,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-public.stdout",
+        "bytes": 75,
+        "sha256": "49ea61c4f198c22ced7792c970dba2dab05c9b2fcecc78729fbd427d2a75fc4f"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-public.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-content",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "content"
+      ],
+      "status": 0,
+      "seconds": 0.0016142569947987795,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-content.stdout",
+        "bytes": 84,
+        "sha256": "451903af70ae7427102ca29e61f3860f9c2f345f33323f881c85028fbcaa35bf"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-content.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.o"
+      ],
+      "status": 0,
+      "seconds": 0.2846053639659658,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-compile.stderr",
+        "bytes": 100,
+        "sha256": "8a2a705e3a65d456ca58ca848b94fd7260cebb95e106271ede7cc0f9c1f6d7b0"
+      }
+    },
+    {
+      "name": "missing-active-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.o"
+      ],
+      "status": 0,
+      "seconds": 0.012659552972763777,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.o"
+      ],
+      "status": 0,
+      "seconds": 0.012987077934667468,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-symbols.stdout",
+        "bytes": 34176,
+        "sha256": "4e9978af5e22fc3238816a9f0a1731b1677693025530f7955cafdf97988d6f4a"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.00345900806132704,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active"
+      ],
+      "status": 0,
+      "seconds": 0.18077913497108966,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-rejected",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.001825947081670165,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-rejected.stderr",
+        "bytes": 46,
+        "sha256": "4d476b78555bd813957b88da349ec7ff71b5a47476330cda94d167f537e7d5da"
+      }
+    },
+    {
+      "name": "missing-CS-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.o"
+      ],
+      "status": 0,
+      "seconds": 0.33940826007165015,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-compile.stderr",
+        "bytes": 96,
+        "sha256": "8c60224a6f8f8ff9b58f07bdda3b50bf74cfb536eaf08e7a26350a9f20b47bdb"
+      }
+    },
+    {
+      "name": "missing-CS-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.o"
+      ],
+      "status": 0,
+      "seconds": 0.013447690987959504,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.o"
+      ],
+      "status": 0,
+      "seconds": 0.016895301989279687,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-symbols.stdout",
+        "bytes": 34176,
+        "sha256": "6783245f98132545d35be4e48449a703281da0d606dcc6f6dc9b8cbd6be65472"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.0033116639824584126,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS"
+      ],
+      "status": 0,
+      "seconds": 0.14913512102793902,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-rejected",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.001626466982997954,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-rejected.stderr",
+        "bytes": 46,
+        "sha256": "4e30d8504acc6313405eaab893f66f1d52de9290011b341f97d8ef578c9e3571"
+      }
+    },
+    {
+      "name": "missing-SS-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.o"
+      ],
+      "status": 0,
+      "seconds": 0.3354400040116161,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-compile.stderr",
+        "bytes": 96,
+        "sha256": "aced4621dc90c060bf7f113d3e12bae1bf2c13c9757365a77d47c8769b436c18"
+      }
+    },
+    {
+      "name": "missing-SS-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.o"
+      ],
+      "status": 0,
+      "seconds": 0.01619953301269561,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.o"
+      ],
+      "status": 0,
+      "seconds": 0.018493168987333775,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-symbols.stdout",
+        "bytes": 34176,
+        "sha256": "6783245f98132545d35be4e48449a703281da0d606dcc6f6dc9b8cbd6be65472"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.0034078769385814667,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS"
+      ],
+      "status": 0,
+      "seconds": 0.17035100294742733,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-rejected",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0015267090639099479,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-rejected.stderr",
+        "bytes": 46,
+        "sha256": "d88d81184a7334b90f5f3753499d831e2ffbc529f59c20d379a08e61339ff03c"
+      }
+    },
+    {
+      "name": "missing-rflags-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.o"
+      ],
+      "status": 0,
+      "seconds": 0.2748394910013303,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-compile.stderr",
+        "bytes": 100,
+        "sha256": "8ef2392f00196d46fb59cf1947b8b1560bdad43bb3517d2bdc3765c53c1f8b74"
+      }
+    },
+    {
+      "name": "missing-rflags-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.o"
+      ],
+      "status": 0,
+      "seconds": 0.012637902982532978,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.o"
+      ],
+      "status": 0,
+      "seconds": 0.017891790019348264,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-symbols.stdout",
+        "bytes": 34176,
+        "sha256": "da5d8aa95e086ea6b5e4c51c014c75abdd511e8c7e1bd4fe720e0b4d43e65ada"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.003069389029406011,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags"
+      ],
+      "status": 0,
+      "seconds": 0.13154564995784312,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-rejected",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0016295240493491292,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-rejected.stderr",
+        "bytes": 46,
+        "sha256": "24a8ed25980208fa236ff6bb4f25f46b4807106b8cc011839b47ef359194b8af"
+      }
+    },
+    {
+      "name": "native-stack-bypass-compile",
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.o"
+      ],
+      "status": 0,
+      "seconds": 0.3353374870494008,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-compile.stderr",
+        "bytes": 105,
+        "sha256": "49b0a4d26c8dd7625c6a8918305b7b44f7cd2f13269d8db1dba4bd7ec747c639"
+      }
+    },
+    {
+      "name": "native-stack-bypass-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.o"
+      ],
+      "status": 0,
+      "seconds": 0.01634390198159963,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-undefined.stdout",
+        "bytes": 228,
+        "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.o"
+      ],
+      "status": 0,
+      "seconds": 0.019187420955859125,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-symbols.stdout",
+        "bytes": 34176,
+        "sha256": "18fddb3611a366d7ea6be8003d7d79ee9262e95f8fb4acfb7318aa173031b6ca"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.00491515698377043,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-link",
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visible.o",
+        "-o",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass"
+      ],
+      "status": 0,
+      "seconds": 0.16107402509078383,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-rejected",
+      "argv": [
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass",
+        "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0017022539395838976,
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-rejected.stderr",
+        "bytes": 46,
+        "sha256": "bf073a977dc4be4925e2ea5b6e3767dbd016099a1ad6471090658a0ca88bc919"
+      }
+    }
+  ],
+  "sources_before": [
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+      "bytes": 4364,
+      "sha256": "2e6ce4ff8048471a39bb16ff03d4554ae9886080c475f03e21862925d1d70f45"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+      "bytes": 1199,
+      "sha256": "cc478ec4d354a3c578cad6e350eea37ced3fddefc3dbdb31d0763a4d568868cd"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+      "bytes": 5029,
+      "sha256": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+      "bytes": 48156,
+      "sha256": "b3b327e563b33fdfcc17b71ac2c5d768272a9869c86903297c7512f4efc36669"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+      "bytes": 12424,
+      "sha256": "f91f3667703bf67e5e3d366936cc88a30035f7ed6a0f00c81fe2ef2dedf4840a"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+      "bytes": 26617,
+      "sha256": "19392bab07606405f9c6d946bdb81431ebbdcd95f7517f2c822c02d8a47b7ece"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+      "bytes": 8814,
+      "sha256": "5e7ffd177882b9ff0f0d52df27b46c0ad659816a5b8380a12a0f44d40a9bd133"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+      "bytes": 31536,
+      "sha256": "e7dadfd963601d5aeea170820af5ea670b8ec3453d75af896b235a06bdda1a78"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+      "bytes": 85097,
+      "sha256": "2eb8515fbb79d78dec166ba8266e6f94399e71702180199324cea0ce89b0a088"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+      "bytes": 20043,
+      "sha256": "2ecfad8446b59f9815ce5667803865e93e955be275473548934d23db729fd946"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/thread.oc",
+      "bytes": 55755,
+      "sha256": "eb53d1fd6d748970e3afa5bc3510aba77e1af74f2ef5b9cd8637f76de7aa86d8"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/tests/test_thread_frame_contents.py",
+      "bytes": 22476,
+      "sha256": "604848d25d0538f288e64275e2f257941b0e838429699ec50919273735ae89d9"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/tests/test_process_current_identity.py",
+      "bytes": 21797,
+      "sha256": "83c599b5456eaa4a1e1f082d47ca6a8537367531704144e09b0bf09b6e0e88f0"
+    }
+  ],
+  "tools": [
+    {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "bytes": 3816904,
+      "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+    },
+    {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "bytes": 140592,
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-objcopy",
+      "bytes": 166536,
+      "sha256": "9276e918e3c26d3aa7ef9dd2232cd8ac692f03d3c1f270bfa5144a2b5492b713"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "bytes": 44544,
+      "sha256": "3708df3d7ce16e2c1dcdcd722784ae382d4d582276a71ab7bbe2d542f5621202"
+    },
+    {
+      "path": "/usr/bin/python3.12",
+      "bytes": 8020928,
+      "sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+    }
+  ],
+  "native_FP_admission": false,
+  "complete_INSTALL_authority": false,
+  "cross_ISA_runtime_parity": false,
+  "sources_after": [
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/native_abi.oc",
+      "bytes": 4364,
+      "sha256": "2e6ce4ff8048471a39bb16ff03d4554ae9886080c475f03e21862925d1d70f45"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/personality.oc",
+      "bytes": 1199,
+      "sha256": "cc478ec4d354a3c578cad6e350eea37ced3fddefc3dbdb31d0763a4d568868cd"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/domain.oc",
+      "bytes": 5029,
+      "sha256": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/capability.oc",
+      "bytes": 48156,
+      "sha256": "b3b327e563b33fdfcc17b71ac2c5d768272a9869c86903297c7512f4efc36669"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/pages.oc",
+      "bytes": 12424,
+      "sha256": "f91f3667703bf67e5e3d366936cc88a30035f7ed6a0f00c81fe2ef2dedf4840a"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/memory_object.oc",
+      "bytes": 26617,
+      "sha256": "19392bab07606405f9c6d946bdb81431ebbdcd95f7517f2c822c02d8a47b7ece"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/mapping.oc",
+      "bytes": 8814,
+      "sha256": "5e7ffd177882b9ff0f0d52df27b46c0ad659816a5b8380a12a0f44d40a9bd133"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/elf_loader.oc",
+      "bytes": 31536,
+      "sha256": "e7dadfd963601d5aeea170820af5ea670b8ec3453d75af896b235a06bdda1a78"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/address_space.oc",
+      "bytes": 85097,
+      "sha256": "2eb8515fbb79d78dec166ba8266e6f94399e71702180199324cea0ce89b0a088"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/process.oc",
+      "bytes": 20043,
+      "sha256": "2ecfad8446b59f9815ce5667803865e93e955be275473548934d23db729fd946"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/x86_64/thread.oc",
+      "bytes": 55755,
+      "sha256": "eb53d1fd6d748970e3afa5bc3510aba77e1af74f2ef5b9cd8637f76de7aa86d8"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/tests/test_thread_frame_contents.py",
+      "bytes": 22476,
+      "sha256": "604848d25d0538f288e64275e2f257941b0e838429699ec50919273735ae89d9"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/tests/test_process_current_identity.py",
+      "bytes": 21797,
+      "sha256": "83c599b5456eaa4a1e1f082d47ca6a8537367531704144e09b0bf09b6e0e88f0"
+    }
+  ],
+  "tools_after": [
+    {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "bytes": 3816904,
+      "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+    },
+    {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "bytes": 140592,
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-objcopy",
+      "bytes": 166536,
+      "sha256": "9276e918e3c26d3aa7ef9dd2232cd8ac692f03d3c1f270bfa5144a2b5492b713"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "bytes": 44544,
+      "sha256": "3708df3d7ce16e2c1dcdcd722784ae382d4d582276a71ab7bbe2d542f5621202"
+    },
+    {
+      "path": "/usr/bin/python3.12",
+      "bytes": 8020928,
+      "sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+    }
+  ],
+  "inputs_unchanged": true,
+  "artifacts": [
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before",
+      "bytes": 766592,
+      "sha256": "33431a2702f030880b3d791096f3b2807b57a425db3116fdbd6f1aae1f518044"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-compile.stderr",
+      "bytes": 92,
+      "sha256": "59160fce2ba3b5fdf87eba86840f5683d3713d430d4ff102a11dd74d04ea7a8c"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-public.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-public.stdout",
+      "bytes": 75,
+      "sha256": "49ea61c4f198c22ced7792c970dba2dab05c9b2fcecc78729fbd427d2a75fc4f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-symbols.stdout",
+      "bytes": 34113,
+      "sha256": "6fe62af03e8c6dab8edb58979f88b497aab28239f35fa1ae31395bd1fff2668c"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-thread.oc",
+      "bytes": 55311,
+      "sha256": "22399c74183c513dedf1f8d30ba355cdb9f2b444d05aac03849792978f823f34"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before-visible.o",
+      "bytes": 807680,
+      "sha256": "c6529efbb43ea8ef1cdbe9fa65aa6fa8f15c56345d0753a3bdbc319e477b5662"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/before.o",
+      "bytes": 807600,
+      "sha256": "4f59aa21cb86746503c66eda21bacdbfc16e1386155bece7dbaade26d22ebc3b"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate",
+      "bytes": 766728,
+      "sha256": "adb97db0867ee3f6b8f384e3db998eb3af721259969c27543adfee7fedfc4d4f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-compile.stderr",
+      "bytes": 95,
+      "sha256": "eca0730be72712b78945c804b645ea30eeed3251a1869c5c592e2328eddda502"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-content.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-content.stdout",
+      "bytes": 84,
+      "sha256": "451903af70ae7427102ca29e61f3860f9c2f345f33323f881c85028fbcaa35bf"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-public.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-public.stdout",
+      "bytes": 75,
+      "sha256": "49ea61c4f198c22ced7792c970dba2dab05c9b2fcecc78729fbd427d2a75fc4f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-symbols.stdout",
+      "bytes": 34176,
+      "sha256": "f36abeed98d5a9d3bd0483c373c545aba6c5e65e4df0133cb94d3206889e7eb2"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate-visible.o",
+      "bytes": 808064,
+      "sha256": "4db66e33dc71cf094b6e93d4d51995b7e27299bdce478688648aed342ddb4796"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/candidate.o",
+      "bytes": 807984,
+      "sha256": "9be3894636665e90d851f7970c3bc5e6329adc63d4424d1f080f2b507f22b18a"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/entry.S",
+      "bytes": 84,
+      "sha256": "9723fb2e1ca67c22d8baf28a5826a84c2688b3851dd4ec858e3f00fb443ad43e"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture-ELF.stderr",
+      "bytes": 95,
+      "sha256": "d757dc4283b8a5881dbec3f027839da0329827cd76361c0098786a476ee96646"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture-ELF.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/fixture.elf",
+      "bytes": 4688,
+      "sha256": "0a980da41ab3ba7b3879eb7984f05357a10e57d1e88f45f17266aa191636cce7"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/harness.c",
+      "bytes": 15968,
+      "sha256": "0ea94b8e5e12a3bd0e40a3bb25f4241fcc1d0eb7ce5740ba585221ed46683ff9"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS",
+      "bytes": 766728,
+      "sha256": "aaacd3586b0430d7925ee202186b20e543f685d03d1b7a3d03fad7ae769e39f8"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-compile.stderr",
+      "bytes": 96,
+      "sha256": "8c60224a6f8f8ff9b58f07bdda3b50bf74cfb536eaf08e7a26350a9f20b47bdb"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-rejected.stderr",
+      "bytes": 46,
+      "sha256": "4e30d8504acc6313405eaab893f66f1d52de9290011b341f97d8ef578c9e3571"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-symbols.stdout",
+      "bytes": 34176,
+      "sha256": "6783245f98132545d35be4e48449a703281da0d606dcc6f6dc9b8cbd6be65472"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS-visible.o",
+      "bytes": 807936,
+      "sha256": "ad89bfb3d2f27d9147e88678f2bf9ad5d1a097a3c277c27dd660844d7d8e1e22"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.o",
+      "bytes": 807856,
+      "sha256": "5bb252f5f4822d5219bd1b6df1ba88c7956b094d003d453f0dc96e24f1406b38"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-CS.oc",
+      "bytes": 55721,
+      "sha256": "879465af2f31809acd193e3e7d2af6a1f17616be72beecba6305932fd10ff62b"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS",
+      "bytes": 766728,
+      "sha256": "6765f4ff8be255cee20f9759d5652ec4810c3078e4069972d51941857289ad25"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-compile.stderr",
+      "bytes": 96,
+      "sha256": "aced4621dc90c060bf7f113d3e12bae1bf2c13c9757365a77d47c8769b436c18"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-rejected.stderr",
+      "bytes": 46,
+      "sha256": "d88d81184a7334b90f5f3753499d831e2ffbc529f59c20d379a08e61339ff03c"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-symbols.stdout",
+      "bytes": 34176,
+      "sha256": "6783245f98132545d35be4e48449a703281da0d606dcc6f6dc9b8cbd6be65472"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS-visible.o",
+      "bytes": 807936,
+      "sha256": "49a76dc85ce5d6ec30d21f3684197e16119de7b220a4f0a3b35ade812e6d097a"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.o",
+      "bytes": 807856,
+      "sha256": "f67016ba5c8f3b03e7e94a5f33a4004e9a26ce22c9d607b3a089a011866f47b3"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-SS.oc",
+      "bytes": 55721,
+      "sha256": "a805590bbc5e616bc7693b2d7329ecb856586915be969f264cda89177b4fee39"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active",
+      "bytes": 766728,
+      "sha256": "2c882cfba7ad1c35fc334ad513b95fc1c78859c0d2b66eebdccb6529ab4529d1"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-compile.stderr",
+      "bytes": 100,
+      "sha256": "8a2a705e3a65d456ca58ca848b94fd7260cebb95e106271ede7cc0f9c1f6d7b0"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-rejected.stderr",
+      "bytes": 46,
+      "sha256": "4d476b78555bd813957b88da349ec7ff71b5a47476330cda94d167f537e7d5da"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-symbols.stdout",
+      "bytes": 34176,
+      "sha256": "4e9978af5e22fc3238816a9f0a1731b1677693025530f7955cafdf97988d6f4a"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active-visible.o",
+      "bytes": 807880,
+      "sha256": "403d45c16b67d69772c04e7173ea4f93a465ad2cce03f1e1f8c58887a28a6c26"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.o",
+      "bytes": 807800,
+      "sha256": "6084472c60169b031871b9280bc7f3bb8a4be7395e1285cb56be1b2f8dad1402"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-active.oc",
+      "bytes": 55717,
+      "sha256": "dcf33db4531fbde5fb014b23cdc77bf35dbb21e2165a00c1cdbc610e4942b8ae"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags",
+      "bytes": 766728,
+      "sha256": "ee81901e1b2485648d52890107507bcdd3d0e2ea7b851306ec620b7f6353cb05"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-compile.stderr",
+      "bytes": 100,
+      "sha256": "8ef2392f00196d46fb59cf1947b8b1560bdad43bb3517d2bdc3765c53c1f8b74"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-rejected.stderr",
+      "bytes": 46,
+      "sha256": "24a8ed25980208fa236ff6bb4f25f46b4807106b8cc011839b47ef359194b8af"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-symbols.stdout",
+      "bytes": 34176,
+      "sha256": "da5d8aa95e086ea6b5e4c51c014c75abdd511e8c7e1bd4fe720e0b4d43e65ada"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags-visible.o",
+      "bytes": 807904,
+      "sha256": "542fb7dd58f27d48c5c10e29b54b3dced199c196a9d26929a99ea6b20d68f4ab"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.o",
+      "bytes": 807824,
+      "sha256": "49abd3ed61ed451da89d9b30c6a2d1030f22618d31102228544fefc2d4ef9c6e"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/missing-rflags.oc",
+      "bytes": 55714,
+      "sha256": "6b2283a4bc2891e4dfccf603d03b8570feb54727df8a319c83ac54472fb29d00"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass",
+      "bytes": 766728,
+      "sha256": "717006248589a5a48344b7223b4a6969327503a5d7fbc0f88589cca96c5d890b"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-compile.stderr",
+      "bytes": 105,
+      "sha256": "49b0a4d26c8dd7625c6a8918305b7b44f7cd2f13269d8db1dba4bd7ec747c639"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-rejected.stderr",
+      "bytes": 46,
+      "sha256": "bf073a977dc4be4925e2ea5b6e3767dbd016099a1ad6471090658a0ca88bc919"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-symbols.stdout",
+      "bytes": 34176,
+      "sha256": "18fddb3611a366d7ea6be8003d7d79ee9262e95f8fb4acfb7318aa173031b6ca"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-undefined.stdout",
+      "bytes": 228,
+      "sha256": "49ed4d14718c6db0d6d0c229d8fdf7a639136889464b3e1a2f940df472f26694"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass-visible.o",
+      "bytes": 807920,
+      "sha256": "44252c337837900b0539144024df2494db8a4da336308aa1aaad9b0e7798c144"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.o",
+      "bytes": 807840,
+      "sha256": "713c9cb57279440b33ed2cfa03a5db2a3617250d14a5a2acadc4e5d6196636b4"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/native-stack-bypass.oc",
+      "bytes": 55702,
+      "sha256": "637fcacf096214f0f3ba1e8bc7becbcfdfb2042af6a16b126cab4c93a443e60b"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-publication-20261113/thread-frame-contents/provider.oc",
+      "bytes": 529,
+      "sha256": "90734243737c04a5be094f29beaaafe097cc856ca7b884653806d0d1b8a3db99"
+    }
+  ]
+}
