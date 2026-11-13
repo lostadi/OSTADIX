@@ -502,9 +502,15 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Known issues
 
-- The bash shim's 60 s limit is gone, but the rust, java, cpp, csharp,
-  haskell, ocaml, racket, common_lisp, and webassembly shims still hardcode
-  60 s limits. Moving them under the backend step deadline is a follow-up.
+- No shim applies a fixed limit to running a step any more: every
+  execution, including the Mathematica, MATLAB/Octave and Ubuntu VM shims
+  (formerly 300 s, 120/300 s and 600 s), reads the opt-in
+  `O_BACKEND_STEP_TIMEOUT_MS` and has no default. Compiling a block still has
+  a fixed bound in the C, C++, C#, Haskell, Java, OCaml and Rust shims
+  (120 s) and in the WebAssembly text conversion (30 s).
+- The 30 s heartbeat warning can fire on a step that is still working when
+  the step sends no heartbeat: JavaScript bridge steps and native operations.
+  The warning says the step is still running and never stops it.
 
 ### Release boundary
 
