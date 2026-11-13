@@ -1,0 +1,66 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":1388441,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input_error\":null,\"job_id\":\"job-1388380-1794558148471805065-1-1\",\"pid\":1388441,\"pty\":false,\"restart_persistence\":false,\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-1388380-1794558148471805065-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/tmp/ostadix-mcp-jobs-1388380-1794558148471805065-1/job-1388380-1794558148471805065-1-1/stderr.log\",\"stream\":\"stderr\",\"text\":\"\",\"total_bytes\":0},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":3579,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-1388380-1794558148471805065-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":3579,\"offset\":0,\"path\":\"/tmp/ostadix-mcp-jobs-1388380-1794558148471805065-1/job-1388380-1794558148471805065-1-1/stdout.log\",\"stream\":\"stdout\",\"text\":\"Compile statically typed O-core to freestanding native objects\\n\\nUsage: ocorec [OPTIONS] [INPUTS]...\\n\\nArguments:\\n  [INPUTS]...  .oc sources, or one complete imported native module\\n\\nOptions:\\n      --list-targets\\n          Print the canonical target catalog as JSON without compiling or executing. Catalog membership alone does not qualify target health or semantics\\n      --input-kind <INPUT_KIND>\\n          Input representation. Imported IR is verified before all output [default: ocore] [possible values: ocore, native-ir, llvm-ir]\\n      --llvm-library <LLVM_LIBRARY>\\n          Matching, digest-pinned LLVM parser shared library for LLVM import\\n      --llvm-sha256 <LLVM_SHA256>\\n          SHA-256 pin for an explicitly selected LLVM parser library\\n      --llvm-metadata-diagnostics <LLVM_METADATA_DIAGNOSTICS>\\n          Retain exact raw LLVM metadata printer diagnostics in a separate JSON sidecar. These process-specific bytes never enter canonical module equality and do not constitute native or runtime admission\\n      --tls-profile <TLS_PROFILE>\\n          Explicit native TLS realization for a complete static Linux ELF image. Requested LLVM models remain in IR; genuine TLS storage/providers and a nonpreemptive static final link are required separately [possible values: linux-elf-static-nonpreemptive-v1]\\n      --atomic-profile <ATOMIC_PROFILE>\\n          Explicit ordinary coherent RAM contract for native atomic lowering. Device memory is excluded; RV64 masked subword operations require their entire containing word to be accessible coherent RAM and the execution environment to provide LR/SC eventuality for that region [possible values: coherent-ram-v1]\\n      --wide-volatile-profile <WIDE_VOLATILE_PROFILE>\\n          Explicit wide volatile ordinary-RAM access contract. Target-sized ordered parts are permitted; MMIO and atomicity are excluded [possible values: ordinary-ram-split-v1]\\n      --linux-syscall-profile <LINUX_SYSCALL_PROFILE>\\n          Ordered raw Linux userspace syscalls with a required external Linux provider [possible values: linux-user-raw-v1]\\n      --verify-native\\n          Verify a complete native module without generating machine code\\n      --receipt <RECEIPT>\\n          Write a SHA-256-bound native verification receipt after successful verification\\n      --emit <EMIT>\\n          Output kind [default: obj] [possible values: ast, hir, mir, asm, obj]\\n      --target <TARGET>\\n          Compilation target [default: x86_64-unknown-none]\\n  -o, --output <OUTPUT>\\n          Output path, or `-` for textual output on stdout\\n      --keep-asm\\n          Retain generated assembly next to an object output\\n      --native-map <NATIVE_MAP>\\n          Write an artifact-bound imported-IR instruction-to-assembly map. Offsets describe assembly UTF-8 bytes, not machine PCs or HGraph nodes\\n      --verify-native-map <VERIFY_NATIVE_MAP>\\n          Verify a native map against its module, exact assembly and artifact\\n      --map-assembly <MAP_ASSEMBLY>\\n          Exact generated assembly associated with --verify-native-map\\n      --map-artifact <MAP_ARTIFACT>\\n          Output object or assembly associated with --verify-native-map\\n      --function-sections\\n          Place ordinary functions in separate ELF sections for linker GC\\n      --data-sections\\n          Place ordinary O-core statics in separate ELF sections for linker GC. Explicit source link sections are preserved exactly\\n      --check\\n          Parse each input module without typechecking, executing, or writing artifacts\\n  -h, --help\\n          Print help\\n  -V, --version\\n          Print version\\n\",\"total_bytes\":3579},\"timeout_secs\":30}"
+    }
+  ],
+  "structuredContent": {
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 1388441,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input_error": null,
+    "job_id": "job-1388380-1794558148471805065-1-1",
+    "pid": 1388441,
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes_read": 0,
+      "complete": true,
+      "encoding": "utf8_lossy",
+      "eof": true,
+      "job_id": "job-1388380-1794558148471805065-1-1",
+      "limit_bytes": 65536,
+      "merged_into": null,
+      "next_offset": 0,
+      "offset": 0,
+      "path": "/tmp/ostadix-mcp-jobs-1388380-1794558148471805065-1/job-1388380-1794558148471805065-1-1/stderr.log",
+      "stream": "stderr",
+      "text": "",
+      "total_bytes": 0
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes_read": 3579,
+      "complete": true,
+      "encoding": "utf8_lossy",
+      "eof": true,
+      "job_id": "job-1388380-1794558148471805065-1-1",
+      "limit_bytes": 65536,
+      "merged_into": null,
+      "next_offset": 3579,
+      "offset": 0,
+      "path": "/tmp/ostadix-mcp-jobs-1388380-1794558148471805065-1/job-1388380-1794558148471805065-1-1/stdout.log",
+      "stream": "stdout",
+      "text": "Compile statically typed O-core to freestanding native objects\n\nUsage: ocorec [OPTIONS] [INPUTS]...\n\nArguments:\n  [INPUTS]...  .oc sources, or one complete imported native module\n\nOptions:\n      --list-targets\n          Print the canonical target catalog as JSON without compiling or executing. Catalog membership alone does not qualify target health or semantics\n      --input-kind <INPUT_KIND>\n          Input representation. Imported IR is verified before all output [default: ocore] [possible values: ocore, native-ir, llvm-ir]\n      --llvm-library <LLVM_LIBRARY>\n          Matching, digest-pinned LLVM parser shared library for LLVM import\n      --llvm-sha256 <LLVM_SHA256>\n          SHA-256 pin for an explicitly selected LLVM parser library\n      --llvm-metadata-diagnostics <LLVM_METADATA_DIAGNOSTICS>\n          Retain exact raw LLVM metadata printer diagnostics in a separate JSON sidecar. These process-specific bytes never enter canonical module equality and do not constitute native or runtime admission\n      --tls-profile <TLS_PROFILE>\n          Explicit native TLS realization for a complete static Linux ELF image. Requested LLVM models remain in IR; genuine TLS storage/providers and a nonpreemptive static final link are required separately [possible values: linux-elf-static-nonpreemptive-v1]\n      --atomic-profile <ATOMIC_PROFILE>\n          Explicit ordinary coherent RAM contract for native atomic lowering. Device memory is excluded; RV64 masked subword operations require their entire containing word to be accessible coherent RAM and the execution environment to provide LR/SC eventuality for that region [possible values: coherent-ram-v1]\n      --wide-volatile-profile <WIDE_VOLATILE_PROFILE>\n          Explicit wide volatile ordinary-RAM access contract. Target-sized ordered parts are permitted; MMIO and atomicity are excluded [possible values: ordinary-ram-split-v1]\n      --linux-syscall-profile <LINUX_SYSCALL_PROFILE>\n          Ordered raw Linux userspace syscalls with a required external Linux provider [possible values: linux-user-raw-v1]\n      --verify-native\n          Verify a complete native module without generating machine code\n      --receipt <RECEIPT>\n          Write a SHA-256-bound native verification receipt after successful verification\n      --emit <EMIT>\n          Output kind [default: obj] [possible values: ast, hir, mir, asm, obj]\n      --target <TARGET>\n          Compilation target [default: x86_64-unknown-none]\n  -o, --output <OUTPUT>\n          Output path, or `-` for textual output on stdout\n      --keep-asm\n          Retain generated assembly next to an object output\n      --native-map <NATIVE_MAP>\n          Write an artifact-bound imported-IR instruction-to-assembly map. Offsets describe assembly UTF-8 bytes, not machine PCs or HGraph nodes\n      --verify-native-map <VERIFY_NATIVE_MAP>\n          Verify a native map against its module, exact assembly and artifact\n      --map-assembly <MAP_ASSEMBLY>\n          Exact generated assembly associated with --verify-native-map\n      --map-artifact <MAP_ARTIFACT>\n          Output object or assembly associated with --verify-native-map\n      --function-sections\n          Place ordinary functions in separate ELF sections for linker GC\n      --data-sections\n          Place ordinary O-core statics in separate ELF sections for linker GC. Explicit source link sections are preserved exactly\n      --check\n          Parse each input module without typechecking, executing, or writing artifacts\n  -h, --help\n          Print help\n  -V, --version\n          Print version\n",
+      "total_bytes": 3579
+    },
+    "timeout_secs": 30
+  },
+  "isError": false
+}

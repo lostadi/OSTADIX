@@ -1,0 +1,8 @@
+{
+  "mcp_pid": 1388380,
+  "observed": 1794558148.9539557,
+  "selected_environment_entries": [
+    "O_BACKEND_STEP_TIMEOUT_MS=3600000"
+  ],
+  "scope": "selected actual server worker timeout setting only"
+}
