@@ -889,6 +889,7 @@ mod tests {
             node_policy: vec![Policy::Eager; plan.nodes.len()],
             trace: ExecutionTrace::new(),
             failed_batch_members: std::collections::HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
 
         let error = prepare(
