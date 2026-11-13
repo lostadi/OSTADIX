@@ -2425,9 +2425,25 @@ fn park_plain_bash_helper(process: BackendProcess) {
 /// Stop every parked plain bash helper. Called when a process registry is
 /// torn down, so no helper outlives the evaluation that started it.
 pub(crate) fn retire_plain_bash_helpers() {
-    let mut processes =
+    let processes =
         std::mem::take(&mut *PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner()));
-    for error in force_terminate_all(&mut processes, BACKEND_FALLBACK_REAP_TIMEOUT) {
+    // why graceful first: an idle helper answers shutdown at once, after
+    // stopping its spare shell itself, while a forced kill polls the leader
+    // and the group in 2 ms steps, which a one-block program paid at exit.
+    let timeout = backend_shutdown_timeout();
+    let mut stuck = Vec::new();
+    for mut process in processes {
+        if let Err(error) = process.retire_fresh_attempt(timeout) {
+            lifecycle_trace(
+                "worker.plain_bash_helper_shutdown_failed",
+                format!("{error:#}"),
+            );
+            if !process.terminal {
+                stuck.push(process);
+            }
+        }
+    }
+    for error in force_terminate_all(&mut stuck, BACKEND_FALLBACK_REAP_TIMEOUT) {
         lifecycle_trace("worker.plain_bash_helper_cleanup_failed", error);
     }
 }
