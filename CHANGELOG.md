@@ -358,6 +358,10 @@ Package SemVer is only one of the independent coordinates documented in
   every job it left, within a bounded deadline, and prints
   `bash block left N background job(s); they were stopped`. No backend is
   forked per block. `bash[N]` jobs are stopped when their session ends.
+  N is the number of distinct process groups stopped, so it is the same on
+  every run, and jobs still alive after the window are named. The next
+  block's shell is spawned only when the plan has another plain block, so a
+  one-block program spawns exactly one shell.
 
 - A bash block that ends its `bash[N]` session with a failure, for example
   under a persisted `set -e`, now says that the session ended and its state
@@ -452,6 +456,19 @@ Package SemVer is only one of the independent coordinates documented in
   output.
 
 ### Fixed
+
+- A `setsid` job of a plain bash block no longer survives SIGINT or SIGTERM
+  to O, or a SIGKILL of O. The helper gets SIGTERM, on a cancel and through
+  its parent death signal, and stops its shell and every job before it
+  exits. Only a helper that does not finish within the cleanup window is
+  killed with its group.
+- A forced `now(batch(...))` whose members all failed raises the batch's
+  summary error instead of yielding a list of error slots.
+- `O_BACKEND_SHUTDOWN_TIMEOUT_MS` and the session caps are parsed once, with
+  surrounding whitespace trimmed, and a malformed value is an error at every
+  read, not only at spawn.
+- Isolated project workspaces are created private (0700, random name).
+- A NUL in a `$x` bash splice names `$x` under the graph executor too.
 
 - Backend temp dirs for block files, extracted shims and olangc script mode
   are created with mode 0700 and a random name, also under a custom
