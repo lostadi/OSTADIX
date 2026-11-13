@@ -17,6 +17,7 @@ axum = "0.8"
 base64 = "0.23"
 clap = { version = "4", features = ["derive"] }
 getrandom = "0.3"
+hex = "0.4"
 libc = "0.2"
 rmcp = { version = "=3.8.0", features = ["server", "transport-io", "transport-streamable-http-server"] }
 schemars = "1"
