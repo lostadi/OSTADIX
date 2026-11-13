@@ -18,7 +18,10 @@ WRAPPER = r"""
 pub unsafe fn resident_test_init(mask: u64) -> u64 {
     LIVE[0] = mask & 1; LIVE[1] = (mask >> 1) & 1;
     FREQUENCY = 1000; PERIOD = 10; DEADLINE = 10;
-    return gic_init();
+    if gic_init() != 1 { return 0; }
+    if gic_configure(0, 1, 1 << 50, 1 << 48, 1 << 49, (1 << 33) | (1 << 51)) != 1
+        || gic_configure(1, 1, 1 << 50, 1 << 33, 0, 0) != 1 { return 0; }
+    return 1;
 }
 pub unsafe fn resident_test_live() -> u64 { return LIVE[0] | (LIVE[1] << 1); }
 pub unsafe fn resident_test_mailbox() -> u64 {

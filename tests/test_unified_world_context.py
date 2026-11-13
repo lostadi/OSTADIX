@@ -21,6 +21,10 @@ C = r'''
 #include <stddef.h>
 extern uint64_t uw_domain_init(uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t uw_domain_reset(uint64_t,uint64_t,uint64_t,uint64_t);
+extern uint64_t uw_domain_configure(uint64_t,uint64_t,uint64_t),uw_domain_unconfigure(uint64_t);
+extern uint64_t uw_domain_configured(uint64_t),uw_domain_ram_base(uint64_t),uw_domain_ram_bytes(uint64_t);
+extern uint64_t uw_domain_root(uint64_t),uw_domain_vmid(uint64_t);
+extern uint64_t uw_vgic_hcr_read(uint64_t);
 extern uint64_t uw_current_domain(void),uw_counter_read(void),uw_counter_frequency(void),uw_irq_ack(void);
 extern void uw_irq_eoi(uint64_t),uw_serial_putc(uint64_t);
 extern void uw_vgic_hcr_write(uint64_t,uint64_t),uw_vgic_vmcr_write(uint64_t,uint64_t);
@@ -31,7 +35,11 @@ extern uint64_t uw_timer_deadline(uint64_t,uint64_t),uw_idle_until(uint64_t),uw_
 extern uint8_t guest_begin[],guest_end[];
 void *memset(void *,int,size_t);
 void *memcpy(void *,const void *,size_t);
-static uint64_t deadline,period,visits[2],previous[2];
+#ifndef SECOND_DOMAIN
+#define SECOND_DOMAIN 1
+#endif
+#define BANKS 8
+static uint64_t deadline,period,visits[BANKS],previous[BANKS];
 #ifdef RESET_STRESS
 static uint64_t recycled,*target_context,*survivor_context;
 static uint8_t survivor_copy[4096],target_copy[4096];
@@ -47,6 +55,73 @@ static void tables(uint64_t pa) {
 #endif
 void *memset(void *p,int value,size_t n) {uint8_t *d=p;while(n--)*d++=value;return p;}
 void *memcpy(void *d,const void *s,size_t n) {uint8_t *a=d;const uint8_t *b=s;while(n--)*a++=*b++;return d;}
+
+#ifdef BANK_ADMISSION
+static uint64_t boot_roots[2][512],boot_leaves[2][512];
+static int banks_admission(void) {
+    uint64_t root0=uw_domain_root(0),root1=uw_domain_root(1);
+    if(!root0 || root1-root0!=4096 || uw_domain_vmid(0)!=1 || uw_domain_vmid(1)!=2
+       || uw_domain_ram_base(0)!=0x48000000 || uw_domain_ram_base(1)!=0xb0000000
+       || uw_domain_ram_bytes(0)!=0x20000000 || uw_domain_ram_bytes(1)!=0x20000000)return 0;
+    for(unsigned d=0;d<2;d++){
+        uint64_t *root=(uint64_t *)uw_domain_root(d),*leaf=(uint64_t *)(root[1]&~UINT64_C(4095));
+        memcpy(boot_roots[d],root,4096);memcpy(boot_leaves[d],leaf,4096);
+    }
+    for(unsigned d=2;d<BANKS;d++)
+        if(uw_domain_configured(d) || uw_domain_root(d) || uw_domain_vmid(d)
+           || uw_domain_ram_base(d) || uw_domain_ram_bytes(d)
+           || uw_domain_init(d,0x40000000,0,0x3c5)
+           || uw_domain_reset(d,0x40000000,0,0x3c5) || uw_domain_unconfigure(d))return 0;
+    if(uw_domain_configure(BANKS,0xe2200000,0x200000)
+       || uw_domain_configure(2,0xe2200001,0x200000)
+       || uw_domain_configure(2,0xe2200000,0)
+       || uw_domain_configure(2,0xe2200000,0x200001)
+       || uw_domain_configure(2,0xe2200000,0x20200000)
+       || uw_domain_configure(2,UINT64_C(0xffffffffffe00000),0x200000)
+       || uw_domain_configure(2,0xffe00000,0x400000)
+       || uw_domain_configure(2,0x40000000,0x200000)
+       || uw_domain_configure(2,0x6d000000,0x200000)
+       || uw_domain_configure(2,0x6e000000,0x200000)
+       || uw_domain_configure(2,0x70000000,0x200000)
+       || uw_domain_configure(2,0xd2000000,0x200000)
+       || uw_domain_configure(2,0xe2000000,0x200000)
+       || uw_domain_configure(2,0xe2400000,0x200000)
+       || uw_domain_configure(2,0x48000000,0x200000)
+       || uw_domain_configure(2,0xcfe00000,0x200000))return 0;
+    for(unsigned d=2;d<BANKS;d++) {
+        uint64_t pa=UINT64_C(0xe2600000)+(d-2)*UINT64_C(0x200000);
+        if(uw_domain_configure(d,pa,0x200000)!=1 || uw_domain_configured(d)!=1
+           || uw_domain_ram_base(d)!=pa || uw_domain_ram_bytes(d)!=0x200000
+           || uw_domain_vmid(d)!=d+1 || uw_domain_root(d)!=root0+d*4096
+           || uw_domain_configure(d,pa,0x200000)
+           || uw_domain_init(d,0x40200000,0,0x3c5)
+           || uw_domain_init(d,0x40000001,0,0x3c5)
+           || uw_domain_init(d,0x40000000,0,0)
+           || uw_domain_init(d,0x40000000,d,0x3c5)!=1)return 0;
+        uint64_t *root=(uint64_t *)uw_domain_root(d),*leaf=(uint64_t *)(root[1]&~UINT64_C(4095));
+        if((root[1]&4095)!=3 || leaf[0]!=(pa|0x7fd))return 0;
+        for(unsigned n=0;n<512;n++)if((n!=1 && root[n]) || (n && leaf[n]))return 0;
+        uw_vgic_hcr_write(d,0x80+d);
+        if(uw_vgic_hcr_read(d)!=0x80+d)return 0;
+    }
+    for(unsigned d=2;d<BANKS;d++)
+        if(uw_domain_unconfigure(d)!=1 || uw_domain_configured(d) || uw_domain_root(d)
+           || uw_domain_ram_base(d) || uw_domain_ram_bytes(d) || uw_domain_vmid(d)
+           || uw_vgic_hcr_read(d) || uw_domain_unconfigure(d)
+           || uw_domain_init(d,0x40000000,0,0x3c5)
+           || uw_domain_reset(d,0x40000000,0,0x3c5))return 0;
+    if(uw_domain_configure(2,0xe2200000,0x200000)!=1 || uw_domain_unconfigure(2)!=1)return 0;
+    for(unsigned d=0;d<2;d++) {
+        uint64_t *root=(uint64_t *)uw_domain_root(d),*leaf=(uint64_t *)(root[1]&~UINT64_C(4095));
+        const uint8_t *a=(const uint8_t *)root,*b=(const uint8_t *)boot_roots[d];
+        for(unsigned n=0;n<4096;n++)if(a[n]!=b[n])return 0;
+        a=(const uint8_t *)leaf;b=(const uint8_t *)boot_leaves[d];
+        for(unsigned n=0;n<4096;n++)if(a[n]!=b[n])return 0;
+    }
+    return 1;
+}
+#endif
+
 static void out(const char *s) {while(*s)uw_serial_putc((uint8_t)*s++);}
 static void hex(uint64_t v) {for(int i=60;i>=0;i-=4)uw_serial_putc("0123456789abcdef"[(v>>i)&15]);}
 uint64_t uw_next_deadline(void) {return deadline;}
@@ -63,12 +138,22 @@ uint64_t uw_init(void) {
         out("UNIFIED_CORE_BOUNDED_IDLE_FAIL\n");return 0;
     }
     out("UNIFIED_CORE_BOUNDED_IDLE_PASS\n");
+#ifdef BANK_ADMISSION
+    if(!banks_admission()){out("UNIFIED_CORE_EIGHT_BANK_ADMISSION_FAIL\n");return 0;}
+    out("UNIFIED_CORE_EIGHT_BANK_ADMISSION_PASS\n");
+#endif
+#if SECOND_DOMAIN != 1
+    if(uw_domain_unconfigure(1)!=1 || uw_domain_configure(SECOND_DOMAIN,0xb0000000,0x20000000)!=1) {
+        out("UNIFIED_CORE_HIGH_BANK_CONFIGURE_FAIL\n");return 0;
+    }
+#endif
     memcpy((void *)0x48000000,guest_begin,guest_end-guest_begin);
     memcpy((void *)0xb0000000,guest_begin,guest_end-guest_begin);
 #ifdef RESET_STRESS
     tables(0x48000000);tables(0xb0000000);
 #endif
-    for(unsigned d=0;d<2;d++) {
+    for(unsigned i=0;i<2;i++) {
+        unsigned d=i?SECOND_DOMAIN:0;
         if(uw_domain_init(d,0x40000000,d?0x22:0x11,0x3c5)!=1)return 0;
         uw_vgic_hcr_write(d,1);uw_vgic_vmcr_write(d,(UINT64_C(255)<<24)|2);
 #ifdef VIRTUAL_IRQ_STRESS
@@ -99,90 +184,90 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
     // native idle must convert it back without changing the retained bank.
     uint64_t original_offset=f[61],virtual_cval=uw_timer_read(d,0,0);
     f[61]=1234;uw_timer_write(d,0,1,1);
-    if(uw_timer_deadline(d,0)!=virtual_cval+1234){out("UNIFIED_CORE_CNTVOFF_DEADLINE_FAIL\n");return 2;}
+    if(uw_timer_deadline(d,0)!=virtual_cval+1234){out("UNIFIED_CORE_CNTVOFF_DEADLINE_FAIL\n");return BANKS;}
     f[61]=original_offset;uw_timer_write(d,0,1,3);
     uint64_t native_fpcr,native_fpsr,native_claim;__asm__ volatile("mrs %0,fpcr" : "=r"(native_fpcr));__asm__ volatile("mrs %0,fpsr" : "=r"(native_fpsr));__asm__ volatile("mrs %0,dbgclaimclr_el1" : "=r"(native_claim));
-    if(native_fpcr || native_fpsr) {out("UNIFIED_CORE_NATIVE_FP_ENV_FAIL\n");return 2;}
+    if(native_fpcr || native_fpsr) {out("UNIFIED_CORE_NATIVE_FP_ENV_FAIL\n");return BANKS;}
     if(reason!=1) {
 #ifdef VIRTUAL_IRQ_STRESS
-        if((esr>>26)==1){f[31]+=4;return 1-d;}
+        if((esr>>26)==1){f[31]+=4;return d?0:SECOND_DOMAIN;}
 #endif
-        uw_unexpected_exit(esr,far,f[31]);return 2;
+        uw_unexpected_exit(esr,far,f[31]);return BANKS;
     }
     uint64_t irq=uw_irq_ack();uw_irq_eoi(irq);
-    if(irq!=26) {out("WRONG_PHYSICAL_IRQ ");hex(irq);return 2;}
+    if(irq!=26) {out("WRONG_PHYSICAL_IRQ ");hex(irq);return BANKS;}
     deadline=uw_counter_read()+period;
     // Preemption is legal even halfway through first-instruction bootstrap.
     // Count state assertions only after the guest's explicit setup marker.
-    if(f[20]!=0xfeed)return 1-d;
-    if(f[65]!=((marker&1)<<22) || f[66]!=(marker&31)) {out("UNIFIED_CORE_FP_ENV_FAIL\n");return 2;}
+    if(f[20]!=0xfeed)return d?0:SECOND_DOMAIN;
+    if(f[65]!=((marker&1)<<22) || f[66]!=(marker&31)) {out("UNIFIED_CORE_FP_ENV_FAIL\n");return BANKS;}
     // Both EL1 programs keep IRQ/FIQ masked and execute no WFI/MMIO/HVC.
     // Physical EL2 timer preemption must still reach each world repeatedly.
     if(f[0]!=marker || !(f[32]&0x80) || f[10]<=previous[d] || f[47]!=marker
        || f[48]!=marker || f[49]!=marker || f[39]!=(marker<<12)
        || f[33]!=(0x40010000+(marker<<12)) || f[34]!=(0x40020000+(marker<<12))) {
-        out("UNIFIED_CORE_GPR_SYSREG_FAIL ");hex(d);out(" ");hex(f[31]);out("\n");return 2;
+        out("UNIFIED_CORE_GPR_SYSREG_FAIL ");hex(d);out(" ");hex(f[31]);out("\n");return BANKS;
     }
     const uint8_t *fp=(const uint8_t *)f+1024;
     for(unsigned q=0;q<32;q++)for(unsigned n=0;n<16;n++)if(fp[q*16+n]!=(uint8_t)(marker+q)) {
-        out("UNIFIED_CORE_FP_FAIL ");hex(d);out(" ");hex(q);out("\n");return 2;
+        out("UNIFIED_CORE_FP_FAIL ");hex(d);out(" ");hex(q);out("\n");return BANKS;
     }
     if(uw_timer_read(d,1,0)!=0x12340000+d || uw_timer_read(d,1,1)!=0) {
-        out("UNIFIED_CORE_CNTP_SHADOW_FAIL\n");return 2;
+        out("UNIFIED_CORE_CNTP_SHADOW_FAIL\n");return BANKS;
     }
     if(native_claim || f[70]!=marker || ((f[68]>>1)&1)!=(marker&1) || f[69]!=(marker&1) || f[192]!=(marker<<12)
        || f[224]!=(marker<<20) || f[256]!=marker || f[288]!=marker || (f[79]>>32)!=marker) {
-        out("UNIFIED_CORE_PMU_DEBUG_LOCK_FAIL ");hex(d);out(" ");hex(f[68]);out(" ");hex(f[69]);out(" ");hex(f[79]);out("\n");return 2;
+        out("UNIFIED_CORE_PMU_DEBUG_LOCK_FAIL ");hex(d);out(" ");hex(f[68]);out(" ");hex(f[69]);out(" ");hex(f[79]);out("\n");return BANKS;
     }
 #ifdef VIRTUAL_IRQ_STRESS
     if(uw_vgic_running_priority(d)!=0x80 || f[11]!=27 || f[13]!=0x80 || !f[94] || (f[100]>>62)!=2) {
-        out("UNIFIED_CORE_ACTIVE_IRQ_FAIL ");hex(d);out(" ");hex(f[11]);out(" ");hex(f[13]);out(" ");hex(f[94]);out(" ");hex(f[100]);out("\n");return 2;
+        out("UNIFIED_CORE_ACTIVE_IRQ_FAIL ");hex(d);out(" ");hex(f[11]);out(" ");hex(f[13]);out(" ");hex(f[94]);out(" ");hex(f[100]);out("\n");return BANKS;
     }
 #endif
 #ifdef RESET_STRESS
     if(!(f[35]&1) || (f[41]>>48)!=0x2a || f[12]!=(d&&recycled?UINT64_C(0xaaaabbbbccccdddd):UINT64_C(0x1111222233334444))) {
-        out("UNIFIED_CORE_RESET_TRANSLATION_FAIL ");hex(d);out(" ");hex(f[12]);out(" ");hex(f[41]);out("\n");return 2;
+        out("UNIFIED_CORE_RESET_TRANSLATION_FAIL ");hex(d);out(" ");hex(f[12]);out(" ");hex(f[41]);out("\n");return BANKS;
     }
     if(d)target_context=f;else survivor_context=f;
 #endif
     previous[d]=f[10];visits[d]++;
 #ifdef RESET_STRESS
 #ifdef SELF_RESET
-    if(d && !recycled && visits[0]>=5 && visits[1]>=5) {
+    if(d && !recycled && visits[0]>=5 && visits[SECOND_DOMAIN]>=5) {
 #else
-    if(!d && !recycled && visits[1]>=5) {
+    if(!d && !recycled && visits[SECOND_DOMAIN]>=5) {
 #endif
         // Target1 is not running. Keep its old ASID and TTBR addresses, but
         // change an already-used non-global translation before recycling it.
         ((uint64_t *)0xb1100000)[256]=0x44000f01;
         __asm__ volatile("dsb sy" ::: "memory");
         memcpy(survivor_copy,survivor_context,4096);memcpy(target_copy,target_context,4096);
-        if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(1,0x20000000,0x33,0x3c5)!=0
-           || !same(target_copy,target_context,4096) || uw_domain_reset(1,0x40000000,0x33,0x3c5)!=1) {
-            out("UNIFIED_CORE_RESET_ADMISSION_FAIL\n");return 2;
+        if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(SECOND_DOMAIN,0x20000000,0x33,0x3c5)!=0
+           || !same(target_copy,target_context,4096) || uw_domain_reset(SECOND_DOMAIN,0x40000000,0x33,0x3c5)!=1) {
+            out("UNIFIED_CORE_RESET_ADMISSION_FAIL\n");return BANKS;
         }
         for(unsigned n=0;n<512;n++) {
             uint64_t expected=0;
             if(n==0)expected=0x33;if(n==31)expected=0x40000000;if(n==32)expected=0x3c5;
             if(n==35)expected=0x30d00800;if(n==37)expected=0x300000;if(n==64)expected=1;
-            if(target_context[n]!=expected){out("UNIFIED_CORE_RESET_DIRTY_BANK_FAIL ");hex(n);out("\n");return 2;}
+            if(target_context[n]!=expected){out("UNIFIED_CORE_RESET_DIRTY_BANK_FAIL ");hex(n);out("\n");return BANKS;}
         }
-        if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d){out("UNIFIED_CORE_RESET_SURVIVOR_FAIL\n");return 2;}
-        recycled=1;previous[1]=0;visits[1]=0;
-        uw_vgic_hcr_write(1,1);uw_vgic_vmcr_write(1,(UINT64_C(255)<<24)|2);
-        uw_timer_write(1,0,0,uw_counter_read()+1000000000);uw_timer_write(1,0,1,3);
-        uw_timer_write(1,1,0,0x12340001);uw_timer_write(1,1,1,0);
-        out("UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n");deadline=uw_counter_read()+period;return 1;
+        if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d){out("UNIFIED_CORE_RESET_SURVIVOR_FAIL\n");return BANKS;}
+        recycled=1;previous[SECOND_DOMAIN]=0;visits[SECOND_DOMAIN]=0;
+        uw_vgic_hcr_write(SECOND_DOMAIN,1);uw_vgic_vmcr_write(SECOND_DOMAIN,(UINT64_C(255)<<24)|2);
+        uw_timer_write(SECOND_DOMAIN,0,0,uw_counter_read()+1000000000);uw_timer_write(SECOND_DOMAIN,0,1,3);
+        uw_timer_write(SECOND_DOMAIN,1,0,0x12340000+SECOND_DOMAIN);uw_timer_write(SECOND_DOMAIN,1,1,0);
+        out("UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n");deadline=uw_counter_read()+period;return SECOND_DOMAIN;
     }
 #endif
-    if(visits[0]>=15 && visits[1]>=15) {
+    if(visits[0]>=15 && visits[SECOND_DOMAIN]>=15) {
 #ifdef RESET_STRESS
-        if(!recycled){out("UNIFIED_CORE_RESET_NOT_EXERCISED_FAIL\n");return 2;}
+        if(!recycled){out("UNIFIED_CORE_RESET_NOT_EXERCISED_FAIL\n");return BANKS;}
         out("UNIFIED_CORE_RESET_TRANSLATION_SURVIVOR_PASS\n");
 #endif
-        out("UNIFIED_CORE_PREEMPTION_PASS\n");return 2;
+        out("UNIFIED_CORE_PREEMPTION_PASS\n");return BANKS;
     }
-    return 1-d;
+    return d?0:SECOND_DOMAIN;
 }
 '''
 
@@ -234,7 +319,13 @@ class UnifiedContextTests(unittest.TestCase):
     def test_reset_of_last_current_domain_reselects_fresh_context_after_saved_el2_boundary(self):
         self.exercise(False, reset=True, self_reset=True)
 
-    def exercise(self, virtual_irq, reset=False, self_reset=False):
+    def test_all_eight_banks_admit_confined_ram_and_highest_bank_executes(self):
+        self.exercise(False, second_domain=7, bank_admission=True)
+
+    def test_highest_bank_reset_preserves_survivor_and_target_vmid_translation(self):
+        self.exercise(False, reset=True, second_domain=7)
+
+    def exercise(self, virtual_irq, reset=False, self_reset=False, second_domain=1, bank_admission=False):
         clang, linker, qemu = map(shutil.which, ("clang", "ld.lld", "qemu-system-aarch64"))
         if not all((clang, linker, qemu)):
             self.skipTest("AArch64 clang/lld and QEMU required")
@@ -243,7 +334,7 @@ class UnifiedContextTests(unittest.TestCase):
         (output / "guest.S").write_text(guest_source(virtual_irq,reset))
         commands = [[clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(CORE / "monitor.S"), "-o", str(output / "core.o")],
                     [clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(output / "guest.S"), "-o", str(output / "guest.o")],
-                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
+                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), f"-DSECOND_DOMAIN={second_domain}", *( ["-DBANK_ADMISSION"] if bank_admission else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
                     [linker, "-m", "aarch64elf", "-nostdlib", "--build-id=none", "-T", str(CORE / "linker.ld"), "-o", str(output / "test.elf"), str(output / "core.o"), str(output / "guest.o"), str(output / "fixture.o")]]
         for command in commands:
             result = subprocess.run(command, capture_output=True, text=True, timeout=30)
@@ -264,6 +355,7 @@ class UnifiedContextTests(unittest.TestCase):
         (output / "console.log").write_bytes(received)
         passed=b"UNIFIED_CORE_PREEMPTION_PASS\n" in received
         if reset:passed=passed and b"UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n" in received and b"UNIFIED_CORE_RESET_TRANSLATION_SURVIVOR_PASS\n" in received
+        if bank_admission:passed=passed and b"UNIFIED_CORE_EIGHT_BANK_ADMISSION_PASS\n" in received
         (output / "result.json").write_text(json.dumps({"passed":passed,"argv":command,"scope":"synthetic actualEL2 context/preemption stress, not foreignOS qualification"},indent=2)+"\n")
         self.assertTrue(passed,received.decode(errors="replace")+"\nEvidence: "+str(output))
         print("Actual EL2 context/preemption evidence:",output)
