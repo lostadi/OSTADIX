@@ -527,7 +527,9 @@ the cache directory.</p>
 <li>No shim applies a fixed limit to running a step any more: every
 execution, including the Mathematica, MATLAB/Octave and Ubuntu VM shims
 (formerly 300 s, 120/300 s and 600 s), reads the opt-in
-<code>O_BACKEND_STEP_TIMEOUT_MS</code> and has no default. Compiling a block still has
+<code>O_BACKEND_STEP_TIMEOUT_MS</code> and has no default. The <code>nixos_test</code> shim&#39;s
+<code>nix build</code> wait (formerly 600 s) has no default either; its own
+<code>O_NIXOS_TEST_TIMEOUT_SECONDS</code> stays as the opt-in limit. Compiling a block still has
 a fixed bound in the C, C++, C#, Haskell, Java, OCaml and Rust shims
 (120 s) and in the WebAssembly text conversion (30 s).</li>
 <li>The 30 s heartbeat warning can fire on a step that is still working when

@@ -3843,9 +3843,9 @@ request is built, checked again when it is forced, and can be revoked.
 
 `current_system()` returns the current profile as a referential OSystem value.
 
-`nixos_test^(...)_nixos_test` runs a NixOS test derivation with a default
-600-second wait for `nix build`. Set `O_NIXOS_TEST_TIMEOUT_SECONDS` to a positive,
-finite number of seconds when a cold build or emulated guest needs longer:
+`nixos_test^(...)_nixos_test` runs a NixOS test derivation and waits for
+`nix build` with no limit by default. Set `O_NIXOS_TEST_TIMEOUT_SECONDS` to a
+positive, finite number of seconds to opt in to a limit:
 
 ```sh
 O_NIXOS_TEST_TIMEOUT_SECONDS=3600 o run examples/nixos_test.O
