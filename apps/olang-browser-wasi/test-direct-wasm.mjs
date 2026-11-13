@@ -4,6 +4,7 @@ import { basename } from "node:path";
 import { WASI_PREVIEW1_IMPORTS } from "./wasi-preview1-host.mjs";
 import {
   BROWSER_BUNDLE_SCHEMA,
+  LEGACY_DIRECT_WASI_IMPORTS,
   runOlangBrowserBundle,
   WHOLE_PROGRAM_PROVIDER_SCHEMA,
 } from "./runner.mjs";
@@ -17,6 +18,14 @@ if (!sourcePath || !wasmPath || expectedStdout === undefined) {
 
 const sourceBytes = new Uint8Array(await readFile(sourcePath));
 const wasmBytes = new Uint8Array(await readFile(wasmPath));
+const actualImports = WebAssembly.Module.imports(await WebAssembly.compile(wasmBytes))
+  .map(({ module, name, kind }) => `${module}:${name}:${kind}`).sort();
+const legacyImports = LEGACY_DIRECT_WASI_IMPORTS
+  .map((name) => `wasi_snapshot_preview1:${name}:function`);
+// Match one complete supported contract. Unknown imports still reach the
+// runner's strict ABI rejection; optimization is not a subset allowlist.
+const declaredImports = JSON.stringify(actualImports) === JSON.stringify(legacyImports)
+  ? LEGACY_DIRECT_WASI_IMPORTS : WASI_PREVIEW1_IMPORTS;
 
 async function sha256(bytes) {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
@@ -63,7 +72,7 @@ const manifest = {
   backend_grants: [],
   abi: {
     module: "wasi_snapshot_preview1",
-    imports: [...WASI_PREVIEW1_IMPORTS],
+    imports: [...declaredImports],
     required_exports: ["memory", "_start"],
     local_capabilities: [
       "args",
