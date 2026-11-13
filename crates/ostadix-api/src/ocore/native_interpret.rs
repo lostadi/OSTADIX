@@ -415,6 +415,12 @@ impl<'a> Prepared<'a> {
                                 prepared.scalar_operand(function_id, arg)?;
                             }
                         }
+                        Operation::FloatBinary { .. }
+                        | Operation::FloatNeg { .. }
+                        | Operation::FloatAbs { .. }
+                        | Operation::FCmp { .. } => {
+                            return Err(fail("floating-point execution is not implemented by the integer reference interpreter"));
+                        }
                         Operation::IntegerOverflow { .. }
                         | Operation::ExtractValue { .. }
                         | Operation::InsertValue { .. } => {
@@ -504,6 +510,9 @@ impl<'a> Prepared<'a> {
             Operand::Int { ty, .. } | Operand::Undef { ty } | Operand::Poison { ty } => {
                 self.width(*ty)
             }
+            Operand::Float { .. } => Err(fail(
+                "floating-point constants are not implemented by the integer reference interpreter",
+            )),
             Operand::Aggregate { .. } | Operand::AggregateZero { .. } => Err(fail(
                 "aggregate constants are not implemented by the scalar reference interpreter",
             )),

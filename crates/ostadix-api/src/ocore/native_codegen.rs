@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use super::native_abi::{AbiContext, AbiLocation, AbiPart, AbiPlan, Extension};
+use super::native_abi::{AbiClass, AbiContext, AbiLocation, AbiPart, AbiPlan, Extension};
 use super::native_exception_codegen::{CallSite, ExceptionTables};
 use super::native_ir::*;
 use super::native_map::{NativeAssemblyMap, NativeAssemblySite, NativeAssemblySiteKind};
@@ -28,6 +28,13 @@ mod float_layout {
 
 mod variadic {
     include!("native_variadic_codegen.rs");
+}
+mod floating_transport {
+    include!("native_floating_transport.rs");
+}
+mod floating {
+    use super::*;
+    include!("native_floating_codegen.rs");
 }
 
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
@@ -398,7 +405,8 @@ fn function_values(function: &Function) -> impl Iterator<Item = &Value> {
 fn constant_type(value: &Operand) -> Option<TypeId> {
     match value {
         Operand::Value { .. } => None,
-        Operand::Int { ty, .. }
+        Operand::Float { ty, .. }
+        | Operand::Int { ty, .. }
         | Operand::PointerBits { ty, .. }
         | Operand::Null { ty }
         | Operand::Symbol { ty, .. }
@@ -463,7 +471,9 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             | Type::Pointer { address_space: 0 }
             | Type::Void
             | Type::Metadata {}
-            | Type::Float { bits: 128 }
+            | Type::Float {
+                bits: 32 | 64 | 80 | 128,
+            }
             | Type::Array { .. }
             | Type::Struct { .. }
             | Type::Function { .. } => {}
@@ -566,6 +576,12 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             }
             for instruction in &block.instructions {
                 atomic::audit_instruction(module, instruction, &value_types)?;
+                super::native_floating_helpers::operation_requirement(
+                    module,
+                    target,
+                    instruction,
+                    &value_types,
+                )?;
                 if let Some(result) = instruction.result {
                     // Every component type was audited above. Reject an
                     // unsupported ABI before expanding any aggregate spills.
@@ -611,7 +627,8 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                     } => {
                         let ty = match value {
                             Operand::Value { id } => value_types[id],
-                            Operand::Int { ty, .. }
+                            Operand::Float { ty, .. }
+                            | Operand::Int { ty, .. }
                             | Operand::PointerBits { ty, .. }
                             | Operand::Null { ty }
                             | Operand::Symbol { ty, .. }
@@ -647,6 +664,11 @@ fn volatile_audit(
     } else {
         alignment
     };
+    if scalar_bits(module, ty)? > 64 {
+        return Err(error_diagnostic(
+            "wide volatile floating accesses require a single-access target contract",
+        ));
+    }
     let bytes = u64::from(scalar_bits(module, ty)?.div_ceil(8));
     if !bytes.is_power_of_two() {
         return Err(error_diagnostic("odd-byte volatile access requires a target-specific access-width contract; byte splitting is forbidden"));
@@ -663,6 +685,9 @@ fn scalar_bits(module: &NativeModule, ty: TypeId) -> Result<u16, Diagnostic> {
             bits: bits @ 1..=64,
         } => Ok(bits),
         Type::Pointer { address_space: 0 } => Ok(64),
+        Type::Float {
+            bits: bits @ (32 | 64 | 80 | 128),
+        } => Ok(bits),
         _ => Err(error_diagnostic(format!(
             "imported scalar value/ABI cannot represent type {}",
             ty
@@ -683,6 +708,8 @@ struct Emitter<'a> {
     /// x86/AArch64 register-save area, below the ordinary fixed frame.
     /// RV64 instead saves a0..a7 immediately below the incoming stack area.
     variadic_save: Option<i64>,
+    /// A private 16-byte bit-pattern bridge for x87 ABI transport.
+    floating_scratch: i64,
     abi_plan: AbiPlan,
     abi: &'a AbiContext<'a>,
     /// One eight-byte spill per scalar field, independent of memory padding.
@@ -717,6 +744,7 @@ impl<'a> Emitter<'a> {
             call_return_storage: BTreeMap::new(),
             return_pointer: None,
             variadic_save: None,
+            floating_scratch: 0,
             abi_plan: abi.plan(&function.signature)?,
             abi,
             leaf_layouts,
@@ -740,7 +768,7 @@ impl<'a> Emitter<'a> {
             result.frame = result
                 .frame
                 .checked_add(
-                    i64::try_from(result.leaf_layouts[&value.ty].len().max(1))
+                    i64::try_from(result.value_chunks(value.ty).len().max(1))
                         .ok()
                         .and_then(|parts| parts.checked_mul(8))
                         .ok_or_else(|| error_diagnostic("value spill extent overflow"))?,
@@ -852,7 +880,7 @@ impl<'a> Emitter<'a> {
                     .iter()
                     .filter(|i| matches!(i.operation, Operation::Phi { .. }))
                     .try_fold(0usize, |count, i| {
-                        count.checked_add(result.leaf_layouts[&i.result.unwrap().ty].len())
+                        count.checked_add(result.value_chunks(i.result.unwrap().ty).len())
                     })
             })
             .collect::<Option<Vec<_>>>()
@@ -882,6 +910,20 @@ impl<'a> Emitter<'a> {
             )?;
             result.variadic_save = Some(-result.frame);
         }
+        if module
+            .types
+            .iter()
+            .any(|ty| matches!(ty, Type::Float { bits: 80 }))
+        {
+            result.frame = align(
+                result
+                    .frame
+                    .checked_add(16)
+                    .ok_or_else(|| error_diagnostic("floating scratch extent overflow"))?,
+                16,
+            )?;
+            result.floating_scratch = -result.frame;
+        }
         result.frame = align(result.frame, 16)?;
         Ok(result)
     }
@@ -904,7 +946,8 @@ impl<'a> Emitter<'a> {
     fn ty(&self, value: &Operand) -> TypeId {
         match value {
             Operand::Value { id } => self.types[id],
-            Operand::Int { ty, .. }
+            Operand::Float { ty, .. }
+            | Operand::Int { ty, .. }
             | Operand::PointerBits { ty, .. }
             | Operand::Null { ty }
             | Operand::Symbol { ty, .. }
@@ -982,7 +1025,17 @@ impl<'a> Emitter<'a> {
         self.operand_leaf(out, reg, value, 0);
     }
 
-    fn operand_leaf(&self, out: &mut String, reg: usize, mut value: &Operand, mut leaf: usize) {
+    fn operand_leaf(&self, out: &mut String, reg: usize, value: &Operand, leaf: usize) {
+        self.operand_chunk(out, reg, value, leaf, 0);
+    }
+    fn operand_chunk(
+        &self,
+        out: &mut String,
+        reg: usize,
+        mut value: &Operand,
+        mut leaf: usize,
+        bit_offset: u16,
+    ) {
         // Constants retain their nested source shape. Descend iteratively so
         // aggregate nesting does not consume the compiler's native call stack.
         while let Operand::Aggregate { elements, .. } = value {
@@ -998,7 +1051,16 @@ impl<'a> Emitter<'a> {
             value = selected.expect("verified aggregate constant leaf");
         }
         match value {
-            Operand::Value { id } => self.stack_load(out, reg, self.slots[id] + leaf as i64 * 8),
+            Operand::Value { id } => self.stack_load(
+                out,
+                reg,
+                self.slots[id] + leaf as i64 * 8 + i64::from(bit_offset / 8),
+            ),
+            Operand::Float { bits, .. } => self.immediate(
+                out,
+                reg,
+                (bits.parse::<u128>().unwrap() >> bit_offset) as u64,
+            ),
             Operand::Aggregate { .. } => unreachable!("aggregate descent completed"),
             Operand::Int { bits, .. } | Operand::PointerBits { bits, .. } => {
                 self.immediate(out, reg, bits.parse().unwrap());
@@ -1037,10 +1099,31 @@ impl<'a> Emitter<'a> {
         (first, self.leaf_layouts[&ty].len())
     }
 
+    fn value_chunks(&self, ty: TypeId) -> Vec<(usize, u16)> {
+        self.leaf_layouts[&ty]
+            .iter()
+            .enumerate()
+            .flat_map(|(leaf, (field, _))| {
+                let bits = scalar_bits(self.module, *field).expect("audited scalar leaf");
+                (0..bits).step_by(64).map(move |bit| (leaf, bit))
+            })
+            .collect()
+    }
     fn spill_leaf(&self, out: &mut String, result: Value, leaf: usize) {
+        self.spill_chunk(out, result, leaf, 0);
+    }
+    fn spill_chunk(&self, out: &mut String, result: Value, leaf: usize, bit_offset: u16) {
         let ty = self.leaf_layouts[&result.ty][leaf].0;
-        self.mask(out, 0, scalar_bits(self.module, ty).unwrap());
-        self.stack_store(out, 0, self.slots[&result.id] + leaf as i64 * 8);
+        self.mask(
+            out,
+            0,
+            (scalar_bits(self.module, ty).unwrap() - bit_offset).min(64),
+        );
+        self.stack_store(
+            out,
+            0,
+            self.slots[&result.id] + leaf as i64 * 8 + i64::from(bit_offset / 8),
+        );
     }
 
     /// Reg 1 holds an original memory address, and reg 0 may hold a store
@@ -1276,9 +1359,7 @@ impl<'a> Emitter<'a> {
         }
         for part in &self.abi_plan.args {
             let param = self.function.params[part.param.unwrap()];
-            self.incoming(out, part.location)?;
-            self.mask(out, 0, scalar_bits(self.module, part.ty)?);
-            self.spill_leaf(out, param, part.leaf);
+            self.capture_abi_part(out, part, param)?;
         }
         self.jump(out, &self.block_label(self.function.entry.unwrap()));
         self.map_site(
@@ -1423,6 +1504,10 @@ impl<'a> Emitter<'a> {
                         // rax is also the x86 value scratch. Install its result
                         // last so later aggregate fields cannot overwrite it.
                         for part in self.abi_plan.results.iter().rev() {
+                            if !matches!(part.location, AbiLocation::IndirectResult { .. }) {
+                                self.place_abi_part(out, part, value)?;
+                                continue;
+                            }
                             self.operand_leaf(out, 0, value, part.leaf);
                             self.extend_abi_part(out, part)?;
                             match part.location {
@@ -1656,7 +1741,7 @@ impl<'a> Emitter<'a> {
         Ok(())
     }
     fn extend_abi_part(&self, out: &mut String, part: &AbiPart) -> Result<(), Diagnostic> {
-        let bits = scalar_bits(self.module, part.ty)?;
+        let bits = part.value_bits.min(64);
         self.mask(out, 0, bits);
         if part.extension == Extension::Sign {
             self.signed(out, 0, bits);
@@ -1684,17 +1769,17 @@ impl<'a> Emitter<'a> {
             .collect();
         let mut temporary = 0;
         for (value, incoming) in &phis {
-            for leaf in 0..self.leaf_layouts[&value.ty].len() {
-                self.operand_leaf(out, 0, &incoming.value, leaf);
+            for (leaf, bit) in self.value_chunks(value.ty) {
+                self.operand_chunk(out, 0, &incoming.value, leaf, bit);
                 self.stack_store(out, 0, self.phi_slots[temporary]);
                 temporary += 1;
             }
         }
         temporary = 0;
         for (value, _) in &phis {
-            for leaf in 0..self.leaf_layouts[&value.ty].len() {
+            for (leaf, bit) in self.value_chunks(value.ty) {
                 self.stack_load(out, 0, self.phi_slots[temporary]);
-                self.stack_store(out, 0, self.slots[&value.id] + leaf as i64 * 8);
+                self.spill_chunk(out, *value, leaf, bit);
                 temporary += 1;
             }
         }
@@ -1705,7 +1790,13 @@ impl<'a> Emitter<'a> {
         out: &mut String,
         instruction: &Instruction,
     ) -> Result<(), Diagnostic> {
+        if self.floating_instruction(out, instruction)? {
+            return Ok(());
+        }
         match &instruction.operation {
+            Operation::FloatBinary { .. } | Operation::FloatNeg { .. } | Operation::FCmp { .. } => {
+                unreachable!("floating instruction handled")
+            }
             Operation::AtomicLoad { .. }
             | Operation::AtomicStore { .. }
             | Operation::AtomicFence { .. }
@@ -1775,9 +1866,9 @@ impl<'a> Emitter<'a> {
             }
             Operation::Freeze { value } => {
                 let result = instruction.result.unwrap();
-                for leaf in 0..self.leaf_layouts[&result.ty].len() {
-                    self.operand_leaf(out, 0, value, leaf);
-                    self.spill_leaf(out, result, leaf);
+                for (leaf, bit) in self.value_chunks(result.ty) {
+                    self.operand_chunk(out, 0, value, leaf, bit);
+                    self.spill_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1815,16 +1906,16 @@ impl<'a> Emitter<'a> {
                 let result = instruction.result.unwrap();
                 let aggregate = matches!(
                     self.module.types[result.ty],
-                    Type::Array { .. } | Type::Struct { .. }
+                    Type::Array { .. } | Type::Struct { .. } | Type::Float { bits: 80 | 128 }
                 );
                 self.operand(out, 0, condition);
                 let no = self.label();
                 let done = self.label();
                 self.zero_jump(out, 0, &no, true);
                 if aggregate {
-                    for leaf in 0..self.leaf_layouts[&result.ty].len() {
-                        self.operand_leaf(out, 0, on_true, leaf);
-                        self.spill_leaf(out, result, leaf);
+                    for (leaf, bit) in self.value_chunks(result.ty) {
+                        self.operand_chunk(out, 0, on_true, leaf, bit);
+                        self.spill_chunk(out, result, leaf, bit);
                     }
                 } else {
                     self.operand(out, 0, on_true);
@@ -1832,9 +1923,9 @@ impl<'a> Emitter<'a> {
                 self.jump(out, &done);
                 writeln!(out, "{no}:").unwrap();
                 if aggregate {
-                    for leaf in 0..self.leaf_layouts[&result.ty].len() {
-                        self.operand_leaf(out, 0, on_false, leaf);
-                        self.spill_leaf(out, result, leaf);
+                    for (leaf, bit) in self.value_chunks(result.ty) {
+                        self.operand_chunk(out, 0, on_false, leaf, bit);
+                        self.spill_chunk(out, result, leaf, bit);
                     }
                 } else {
                     self.operand(out, 0, on_false);
@@ -1892,16 +1983,17 @@ impl<'a> Emitter<'a> {
                 } else {
                     *alignment
                 };
-                for leaf in 0..self.leaf_layouts[&ty].len() {
-                    let (field, offset) = self.leaf_layouts[&ty][leaf];
+                for (leaf, bit) in self.value_chunks(ty) {
+                    let (field, base) = self.leaf_layouts[&ty][leaf];
+                    let offset = base + u64::from(bit / 8);
                     self.operand(out, 1, pointer);
                     self.address_offset(out, offset);
                     self.load(
                         out,
-                        u64::from(scalar_bits(self.module, field)?.div_ceil(8)),
+                        u64::from((scalar_bits(self.module, field)? - bit).min(64).div_ceil(8)),
                         offset_alignment(alignment, offset),
                     );
-                    self.spill_leaf(out, result, leaf);
+                    self.spill_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1917,14 +2009,15 @@ impl<'a> Emitter<'a> {
                 } else {
                     *alignment
                 };
-                for leaf in 0..self.leaf_layouts[&ty].len() {
-                    let (field, offset) = self.leaf_layouts[&ty][leaf];
-                    self.operand_leaf(out, 0, value, leaf);
+                for (leaf, bit) in self.value_chunks(ty) {
+                    let (field, base) = self.leaf_layouts[&ty][leaf];
+                    let offset = base + u64::from(bit / 8);
+                    self.operand_chunk(out, 0, value, leaf, bit);
                     self.operand(out, 1, pointer);
                     self.address_offset(out, offset);
                     self.store(
                         out,
-                        u64::from(scalar_bits(self.module, field)?.div_ceil(8)),
+                        u64::from((scalar_bits(self.module, field)? - bit).min(64).div_ceil(8)),
                         offset_alignment(alignment, offset),
                     );
                 }
@@ -2667,22 +2760,8 @@ impl<'a> Emitter<'a> {
             let AbiLocation::Stack { offset } = part.location else {
                 continue;
             };
-            self.operand_leaf(out, 0, &args[part.param.unwrap()], part.leaf);
-            self.extend_abi_part(out, part)?;
-            match self.target {
-                Target::X86_64UnknownNone => writeln!(
-                    out,
-                    "  mov r11, {offset}\n  add r11, rsp\n  mov qword ptr [r11], rax"
-                )
-                .unwrap(),
-                Target::Aarch64UnknownNone => {
-                    arm_immediate(out, "x17", offset);
-                    out.push_str("  add x17, sp, x17\n  str x9, [x17]\n");
-                }
-                Target::Riscv64UnknownNone => {
-                    writeln!(out, "  li ra, {offset}\n  add ra, sp, ra\n  sd t0, 0(ra)").unwrap()
-                }
-            }
+            let _ = offset;
+            self.place_abi_part(out, part, &args[part.param.unwrap()])?;
         }
         // LLVM inserts this storage pointer during target lowering. It is not
         // added to the source signature or represented as a fabricated SSA arg.
@@ -2709,9 +2788,8 @@ impl<'a> Emitter<'a> {
             let AbiLocation::Register(reg) = part.location else {
                 continue;
             };
-            self.operand_leaf(out, 0, &args[part.param.unwrap()], part.leaf);
-            self.extend_abi_part(out, part)?;
-            self.mov(out, reg, self.reg(0));
+            let _ = reg;
+            self.place_abi_part(out, part, &args[part.param.unwrap()])?;
         }
         let call_start = self
             .function
@@ -2791,6 +2869,10 @@ impl<'a> Emitter<'a> {
             // Capture rax first on x86 before using it to spill rdx/rcx.
             // Address scratch is outside every supported return register set.
             for part in &plan.results {
+                if !matches!(part.location, AbiLocation::IndirectResult { .. }) {
+                    self.capture_abi_part(out, part, result)?;
+                    continue;
+                }
                 match part.location {
                     AbiLocation::Register(reg) => self.mov(out, self.reg(0), reg),
                     AbiLocation::IndirectResult { offset } => {

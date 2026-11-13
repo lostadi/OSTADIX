@@ -1,0 +1,546 @@
+{
+  "build_v3": {
+    "argv": [
+      "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+      "build",
+      "--bin",
+      "ocorec",
+      "--bin",
+      "olangc",
+      "--bin",
+      "O",
+      "--offline",
+      "--jobs",
+      "1"
+    ],
+    "binaries": {
+      "O": {
+        "bytes": 24201800,
+        "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/O",
+        "sha256": "e5214df9b1b00c9f950a407c773768267a6333f1f14b3e06b4a8b5be66eb8dff"
+      },
+      "ocorec": {
+        "bytes": 13026640,
+        "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/ocorec",
+        "sha256": "2558efdb73f77e98538b12ede228b54ebdd0fe97ee78df94309894e7996072a9"
+      },
+      "olangc": {
+        "bytes": 47765040,
+        "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/olangc",
+        "sha256": "ba822d6b8610355adbaa60a9940d7a4ec113a49d917f27dbead6c3b383ba7ca2"
+      }
+    },
+    "exit_code": 0,
+    "finished_epoch": 1792493806.5464368,
+    "profile": "development opt0/debug0, incremental0, jobs1",
+    "runner_sha256": "b1d25e429b212e6e0cd340e061bdb948d28ddbbc98e96818efa20ddb0b928c54",
+    "source_after": {
+      "crates/ostadix-api/src/api/aot_source.rs": "b91da4aabaad64617abcf973a289ba700b4eb8cd4c7b22c48ce93410d78543e5",
+      "crates/ostadix-api/src/ocore/native_abi.rs": "0005d81a329da25b2889a47f06f79c4167ef2e9f23dfb88760bf9807c671dd46",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "d15b5bb540e92430a41325af3dd830f327eb23a10e2c7b310c5551f4cd995c6a",
+      "crates/ostadix-api/src/ocore/native_core.rs": "4f4a474314f1512a4bcdf4c3c8a9e381f098dc8ac965abb6a2e0f914b7994189",
+      "crates/ostadix-api/src/ocore/native_float_layout.rs": "3ef61a8871ca9c81c49965a9ee95fa5f7923d159c45c11b9038fe5ef7b981433",
+      "crates/ostadix-api/src/ocore/native_floating_codegen.rs": "6ff9622a0c9ef6103b974e0046431b1276926c67b917b54b4309bf045f277049",
+      "crates/ostadix-api/src/ocore/native_floating_helpers.rs": "4c9eaf6b23dde6ef3212b27352ac51a7d730843064ca606b633c7191682a207b",
+      "crates/ostadix-api/src/ocore/native_floating_transport.rs": "ba1124bfc26c4a6c1783192c332160396510960c40a33ac54ad18c853f9ddf81",
+      "crates/ostadix-api/src/ocore/native_interpret.rs": "cda89f2a21599c847b36220bdb19e5d23ce3e00de39f66a1e9449fbc7d04ce09",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7dbc0170e28dfbdb807c80081649f298b615ecbe3825c9c926a0e17dcca82e98",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "c80b24bab4b87ca0ed3ebffbaafed046a22830482065fab97eda86ec946721a4",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "88bd88798440d78cb1c8eebd3ff39176c609dec367cd35a4d22d352cbf2363be",
+      "scripts/ocore_llvm_import.py": "9c4d01d9ccab17f0d90a579ee7f4d6091cd0d8bc0e5446f795031c63ba4173fa",
+      "src/bin/olangc/native_runtime.rs": "45c8389fe9f93088870e7e8865fdd5f62f3cb4606e6c2d360803d86786a2806d",
+      "src/bin/olangc/native_runtime/artifact.rs": "dbbbbf8fdf6bddd03a2793f533f7c14471cc4a28c9292ad519ad715153cf35a5",
+      "src/bin/olangc/native_runtime/floating_helper_tests.rs": "f18f606317b9d79cb6cbb8c50ea1f4392739c0b1f55a4a83ee349a55a8573481",
+      "src/bin/olangc/native_runtime/object_inventory_tests.rs": "4f903c81b9b6c4c30cb263350f3e48969b0a42702271424d4164bd977b8030d6"
+    },
+    "source_before": {
+      "crates/ostadix-api/src/api/aot_source.rs": "b91da4aabaad64617abcf973a289ba700b4eb8cd4c7b22c48ce93410d78543e5",
+      "crates/ostadix-api/src/ocore/native_abi.rs": "0005d81a329da25b2889a47f06f79c4167ef2e9f23dfb88760bf9807c671dd46",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "d15b5bb540e92430a41325af3dd830f327eb23a10e2c7b310c5551f4cd995c6a",
+      "crates/ostadix-api/src/ocore/native_core.rs": "4f4a474314f1512a4bcdf4c3c8a9e381f098dc8ac965abb6a2e0f914b7994189",
+      "crates/ostadix-api/src/ocore/native_float_layout.rs": "3ef61a8871ca9c81c49965a9ee95fa5f7923d159c45c11b9038fe5ef7b981433",
+      "crates/ostadix-api/src/ocore/native_floating_codegen.rs": "6ff9622a0c9ef6103b974e0046431b1276926c67b917b54b4309bf045f277049",
+      "crates/ostadix-api/src/ocore/native_floating_helpers.rs": "4c9eaf6b23dde6ef3212b27352ac51a7d730843064ca606b633c7191682a207b",
+      "crates/ostadix-api/src/ocore/native_floating_transport.rs": "ba1124bfc26c4a6c1783192c332160396510960c40a33ac54ad18c853f9ddf81",
+      "crates/ostadix-api/src/ocore/native_interpret.rs": "cda89f2a21599c847b36220bdb19e5d23ce3e00de39f66a1e9449fbc7d04ce09",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7dbc0170e28dfbdb807c80081649f298b615ecbe3825c9c926a0e17dcca82e98",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "c80b24bab4b87ca0ed3ebffbaafed046a22830482065fab97eda86ec946721a4",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "88bd88798440d78cb1c8eebd3ff39176c609dec367cd35a4d22d352cbf2363be",
+      "scripts/ocore_llvm_import.py": "9c4d01d9ccab17f0d90a579ee7f4d6091cd0d8bc0e5446f795031c63ba4173fa",
+      "src/bin/olangc/native_runtime.rs": "45c8389fe9f93088870e7e8865fdd5f62f3cb4606e6c2d360803d86786a2806d",
+      "src/bin/olangc/native_runtime/artifact.rs": "dbbbbf8fdf6bddd03a2793f533f7c14471cc4a28c9292ad519ad715153cf35a5",
+      "src/bin/olangc/native_runtime/floating_helper_tests.rs": "f18f606317b9d79cb6cbb8c50ea1f4392739c0b1f55a4a83ee349a55a8573481",
+      "src/bin/olangc/native_runtime/object_inventory_tests.rs": "4f903c81b9b6c4c30cb263350f3e48969b0a42702271424d4164bd977b8030d6"
+    },
+    "source_stable": true,
+    "stage": "complete",
+    "started_epoch": 1792493696.3142464
+  },
+  "created_utc": "2026-10-20T11:20:17.010159+00:00",
+  "current_sources": {
+    "crates/ostadix-api/src/api/aot_source.rs": "b91da4aabaad64617abcf973a289ba700b4eb8cd4c7b22c48ce93410d78543e5",
+    "crates/ostadix-api/src/ocore/native_abi.rs": "0005d81a329da25b2889a47f06f79c4167ef2e9f23dfb88760bf9807c671dd46",
+    "crates/ostadix-api/src/ocore/native_codegen.rs": "d15b5bb540e92430a41325af3dd830f327eb23a10e2c7b310c5551f4cd995c6a",
+    "crates/ostadix-api/src/ocore/native_core.rs": "4f4a474314f1512a4bcdf4c3c8a9e381f098dc8ac965abb6a2e0f914b7994189",
+    "crates/ostadix-api/src/ocore/native_float_layout.rs": "3ef61a8871ca9c81c49965a9ee95fa5f7923d159c45c11b9038fe5ef7b981433",
+    "crates/ostadix-api/src/ocore/native_floating_codegen.rs": "8da78d152be659939574dc2ce6a3578abcb4f785eb9ee0dddabefc3e61940570",
+    "crates/ostadix-api/src/ocore/native_floating_helpers.rs": "4c9eaf6b23dde6ef3212b27352ac51a7d730843064ca606b633c7191682a207b",
+    "crates/ostadix-api/src/ocore/native_floating_transport.rs": "ba1124bfc26c4a6c1783192c332160396510960c40a33ac54ad18c853f9ddf81",
+    "crates/ostadix-api/src/ocore/native_interpret.rs": "5ac82a68202da668db5a519bfc377c1f1944b1f3f2d6b93b98c5ac54f174cad5",
+    "crates/ostadix-api/src/ocore/native_ir.rs": "46dcd92b042b615cd8b05bebf49f13d6d536307033b39b744c554f118773267a",
+    "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "c80b24bab4b87ca0ed3ebffbaafed046a22830482065fab97eda86ec946721a4",
+    "crates/ostadix-api/src/ocore/native_verify.rs": "9398c4dd3bfd943620d513841e2371262b3c7c65f9a2ee257b7e283c72b26e9f",
+    "scripts/ocore_llvm_import.py": "d0f674ea9fb2093a5e5f8e181333b0fe6e1c2e05845ac450a18051db85241a0f",
+    "src/bin/olangc/native_runtime.rs": "3c7d76ddc8be3b03cb144843c2f0c434ff1d01a102bef18924e7488c1beb95f5",
+    "src/bin/olangc/native_runtime/artifact.rs": "dbbbbf8fdf6bddd03a2793f533f7c14471cc4a28c9292ad519ad715153cf35a5",
+    "src/bin/olangc/native_runtime/floating_helper_tests.rs": "f18f606317b9d79cb6cbb8c50ea1f4392739c0b1f55a4a83ee349a55a8573481",
+    "src/bin/olangc/native_runtime/object_inventory_tests.rs": "4f903c81b9b6c4c30cb263350f3e48969b0a42702271424d4164bd977b8030d6",
+    "tests/test_ocore_llvm_import.py": "02923abf1b397ef0ef97ed28f66810a7e5169d04cb7524c2bea7d245bf697833",
+    "tests/test_ocore_native_floating_abi.py": "37d174c5b9b10c733a327d4cf0fea36fa6a87a3a61f9b2949e419e888fe82194",
+    "tests/test_ocore_native_fp_helper_interfaces.py": "db2d00a1147bd492197b45f7cf535eeea2bdca0b9e3cb422be68a9652881ab54",
+    "tests/test_ocore_native_named_quad_abi.py": "926b95379c246b0184b8b6a11c981ddcfba2cdb52c69a9fd928c40e9c371d455"
+  },
+  "independent_qualification_review_complete": false,
+  "native_execution_qualified": false,
+  "open_gates": [
+    "llvm.fabs owned lowering and execution",
+    "complete128-bit native integer semantics and ABI",
+    "wide volatile access target contracts",
+    "FP environment artifact requirements and actual execution entry admission",
+    "manual helper ABI map vs shared planner and genuine helper library execution",
+    "all52original compiler-runtime units through O-core",
+    "all required original engine/producer/provider inventories",
+    "native hardware execution qualification",
+    "all17mechanisms across5ISAprofiles"
+  ],
+  "original_engines_complete": false,
+  "owned29": {
+    "argv": [
+      "/usr/bin/python3",
+      "-m",
+      "unittest",
+      "-v",
+      "tests.test_ocore_native_floating_abi"
+    ],
+    "build_receipt": {
+      "bytes": 5451,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/receipt.json",
+      "sha256": "4bd495fb7d7a661e35534d9f353a96a11456240d25612fc3c7772b5aeeb7b75b"
+    },
+    "compiler_after": {
+      "bytes": 13026640,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/ocorec",
+      "sha256": "2558efdb73f77e98538b12ede228b54ebdd0fe97ee78df94309894e7996072a9"
+    },
+    "compiler_before": {
+      "bytes": 13026640,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/ocorec",
+      "sha256": "2558efdb73f77e98538b12ede228b54ebdd0fe97ee78df94309894e7996072a9"
+    },
+    "compiler_stable": true,
+    "cwd": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020",
+    "exit_code": 1,
+    "finished_at": 1792494687.6946373,
+    "pid_in_launcher_namespace": 1120086,
+    "provider_after": {
+      "bytes": 212024,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/provider.json",
+      "sha256": "184b4e7c261e5a4d64f7931d264ca881fa93c4d0e1c65de6631ad4bc0eaeee62"
+    },
+    "provider_before": {
+      "bytes": 212024,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/provider.json",
+      "sha256": "184b4e7c261e5a4d64f7931d264ca881fa93c4d0e1c65de6631ad4bc0eaeee62"
+    },
+    "provider_closure_complete": false,
+    "provider_stable": true,
+    "reported_seconds": 284.123,
+    "reported_test_methods": 29,
+    "reports": [
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 16320,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-08ys7sz5/report.json",
+          "sha256": "4f5c365e2f2c63acd1ec6dd3c5b1de3a8df233ff4f3ea1bbec58685eb0244143"
+        },
+        "profile": "x86_64",
+        "scope": "wide_transport",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 15122,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-0w2loexz/report.json",
+          "sha256": "328a6c365e90a6e8adc9351834c6fa35bc6e82c5b9dff8baadbf6397eb6d9eb5"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "named_banks",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 31484,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-3ewxulg4/report.json",
+          "sha256": "09050701a2b04aeca92b9fe47abbbb0fbc1ef6b35ae7827d5c90fea6848c4ba6"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "quad_arithmetic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 31493,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-3yr4y2n3/report.json",
+          "sha256": "970b1f20db34549231cdf27a08438e3c6157bb1071ab8e90f7b45867978e6466"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "quad_arithmetic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 20236,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-4axfbno0/report.json",
+          "sha256": "66977a378e527bcd20580994b8affcaf4403fefd3ffee988f0e479bae982994a"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "wide_conversions",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19851,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-4ydvc4nq/report.json",
+          "sha256": "3aaf5f632e3a2cb5b6d0b88e6e4e1fef3103bc993328a33cb0b93b467b390dc8"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "floating_variadic_quad_first",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 30951,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-691t2f10/report.json",
+          "sha256": "9841fa0429ea7b92bb0d92dd883f001fb09b13b94fd08df34784d3fc1518bde1"
+        },
+        "profile": "aarch64",
+        "scope": "quad_arithmetic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 15832,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-6giepkvj/report.json",
+          "sha256": "5d316409e5aec4b293d1c0bdf81e0dfb387b02939a6814598c21d4eb02d0e252"
+        },
+        "profile": "x86_64",
+        "scope": "x87_transport",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 30938,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-7epwxkpv/report.json",
+          "sha256": "bd30b4a99267ddaa805584e3b481244cd5a64b1c0d32b047acf657960124c540"
+        },
+        "profile": "x86_64",
+        "scope": "quad_arithmetic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19843,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-847kkhcx/report.json",
+          "sha256": "261d51b81f4b44e8417eff7a52632ce13bed8fe91baba6f15a95056db0b54f79"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "floating_variadic_quad_first",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19774,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-cj8eua5_/report.json",
+          "sha256": "587b949208a9fc755dd9c5905223a525c1a479b4e2bd099057c246bddec03671"
+        },
+        "profile": "aarch64",
+        "scope": "wide_conversions",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19763,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-cjrjes70/report.json",
+          "sha256": "a5c988fe7c5902ad9917cbc8c23ea8698385ea049761152e0271525d287c64a2"
+        },
+        "profile": "x86_64",
+        "scope": "wide_conversions",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 16331,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-d5o124p7/report.json",
+          "sha256": "5360c5345e153018d9c3033509b57ccfe044d83c267bc0600acb4fdd7df182df"
+        },
+        "profile": "aarch64",
+        "scope": "wide_transport",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 36146,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-ef_e7b69/report.json",
+          "sha256": "e537db27222f46e96f644c9bd4f4f1cb6f755be5f100d8aca23b19d5a88c093b"
+        },
+        "profile": "aarch64",
+        "scope": "scalar",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 36132,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-i3sgw9fo/report.json",
+          "sha256": "3deef1af179c53434b2efadb0aab2ef2fda664132b0a4358cc1f0564469515b4"
+        },
+        "profile": "x86_64",
+        "scope": "scalar",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19147,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-lpswvq23/report.json",
+          "sha256": "a18ddebce8952046037f92802e5aea0de13c5c1e6a47ba6646d8eead0847d09a"
+        },
+        "profile": "aarch64",
+        "scope": "floating_variadic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19601,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-m4pato7h/report.json",
+          "sha256": "4e9d19bdcc1b9e13ad6ed507580898485b4b21b5d91afabd6f3eca6663ddb2ce"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "floating_variadic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19389,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-m9x1puvt/report.json",
+          "sha256": "3ad2de9330c4f0abb0298d8fe7f6a58bb58ec343ade4b60f9c1a4916dbc7fd6f"
+        },
+        "profile": "aarch64",
+        "scope": "floating_variadic_quad_first",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 36680,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-nqbqrh7k/report.json",
+          "sha256": "597b0460296bd0c3c07c78a24cecccf9932b6a9d5d6304f2db537f01342abc26"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "scalar",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 16793,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-pzjfgv8p/report.json",
+          "sha256": "d2d07212b268843e21823d0755400e2cb0b639fb80ed33923b35428db5c7d3f5"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "wide_transport",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19137,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-qul1v4wy/report.json",
+          "sha256": "fd90c2d3ff54e99849915f605bb9125ad1a3ebe0ee40d182df9e599f5d690f48"
+        },
+        "profile": "x86_64",
+        "scope": "floating_variadic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 14660,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-slcz8rr_/report.json",
+          "sha256": "4cd8cc5f4a08bdd8372ccea38022e7297a1ba502676af71785a116133110ef4f"
+        },
+        "profile": "aarch64",
+        "scope": "named_banks",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 20228,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-ta06kf46/report.json",
+          "sha256": "20ba1756f310c3b16d631af1da8b9b18c15c1dfcdfbe48cf4295876666e514be"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "wide_conversions",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 14650,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-ujobk6dj/report.json",
+          "sha256": "56645399ec881918291ce010fa28f9cbb682a877e15bc50c9fdb3c461a326f89"
+        },
+        "profile": "x86_64",
+        "scope": "named_banks",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19609,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-vnqvrsiz/report.json",
+          "sha256": "10919e70d0e1299a7417bcd850b14780f4874a444d96219ed6170fcf85464f08"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "floating_variadic",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 15114,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-vowfgxuk/report.json",
+          "sha256": "9418a563c4b2f88f60c2910fa9a9a35a71b53abb6f61a0702cf7b29d200e74a4"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "named_banks",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 16785,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-wxuqyrz6/report.json",
+          "sha256": "2056f8606d1bf9cc92f4a40f072958ebcfaef99198bc0abfcf2ec69285c51aab"
+        },
+        "profile": "riscv64-lp64",
+        "scope": "wide_transport",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 19379,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-y70pkv7l/report.json",
+          "sha256": "19ae599b39275073e099eb0c79700d15fa9b2fc6e3e9b03e62930d515df7a7db"
+        },
+        "profile": "x86_64",
+        "scope": "floating_variadic_quad_first",
+        "successful_pairings": 0
+      },
+      {
+        "comparisons": 0,
+        "complete": false,
+        "file": {
+          "bytes": 36689,
+          "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases/floating-z71zt95t/report.json",
+          "sha256": "25801d20b134cfe086078d5332aa5e5f52a4caed01e27c5453d26c013c1fa782"
+        },
+        "profile": "riscv64-lp64d",
+        "scope": "scalar",
+        "successful_pairings": 0
+      }
+    ],
+    "runtime_complete": false,
+    "schema": "ocore-floating-owned-suite-launch-v1",
+    "selected_environment": {
+      "OCORE_FP_BUILTINS_AARCH64": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/aarch64/liboriginal-fp-builtins.a",
+      "OCORE_FP_BUILTINS_MANIFEST": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/provider.json",
+      "OCORE_FP_BUILTINS_RISCV64_LP64": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/riscv64-lp64/liboriginal-fp-builtins.a",
+      "OCORE_FP_BUILTINS_RISCV64_LP64D": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/riscv64-lp64d/liboriginal-fp-builtins.a",
+      "OCORE_FP_BUILTINS_X86_64": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-reference-provider/build-v2/x86_64/liboriginal-fp-builtins.a",
+      "OCORE_FP_RETAIN": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/cases",
+      "OCORE_REQUIRE_ALL_ISAS": "1",
+      "OCORE_TEST_CLANG22": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+      "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "OCORE_TEST_OCOREC": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v3/ocorec"
+    },
+    "source_snapshot_meaning": "observed test-time source bytes; compilation provenance is separately bound by build_receipt",
+    "sources_stable": true,
+    "stage": "complete",
+    "started_at": 1792494402.3586395,
+    "stderr": {
+      "bytes": 86165,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/suite.stderr",
+      "sha256": "7020c8c15a215bc698e4b08b21083c33c3af0c2183fd8c26820fd74aa91629b8"
+    },
+    "stdout": {
+      "bytes": 0,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v1/suite.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "provider_closure_complete": false,
+  "schema": "ostadix-native-floating-work-in-progress-v1",
+  "status": "unqualified_recovery_checkpoint",
+  "working_source_is_newer_than_build_v3": true,
+  "working_source_notes": [
+    "FloatAbs changes are initial uncompiled work following owned29 failure; complete integer128 and wide volatile support remains open."
+  ]
+}

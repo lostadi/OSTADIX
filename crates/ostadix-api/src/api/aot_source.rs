@@ -30,12 +30,12 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
     ("common.rs", include_str!("../ocore/common.rs")),
     ("native_abi.rs", include_str!("../ocore/native_abi.rs")),
     (
-        "native_codegen.rs",
-        include_str!("../ocore/native_codegen.rs"),
+        "native_floating_helpers.rs",
+        include_str!("../ocore/native_floating_helpers.rs"),
     ),
     (
-        "native_variadic_codegen.rs",
-        include_str!("../ocore/native_variadic_codegen.rs"),
+        "native_codegen.rs",
+        include_str!("../ocore/native_codegen.rs"),
     ),
     ("native_eh.rs", include_str!("../ocore/native_eh.rs")),
     (
@@ -55,6 +55,18 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
     (
         "native_float_layout.rs",
         include_str!("../ocore/native_float_layout.rs"),
+    ),
+    (
+        "native_variadic_codegen.rs",
+        include_str!("../ocore/native_variadic_codegen.rs"),
+    ),
+    (
+        "native_floating_codegen.rs",
+        include_str!("../ocore/native_floating_codegen.rs"),
+    ),
+    (
+        "native_floating_transport.rs",
+        include_str!("../ocore/native_floating_transport.rs"),
     ),
 ];
 pub const RUNTIME_BACKEND_CATALOG_MODULE_RS: &str = include_str!("../backend_catalog.rs");

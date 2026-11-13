@@ -1055,6 +1055,16 @@ pub fn integer_overflow_intrinsic(name: &str) -> Option<(BinaryOp, bool, u16)> {
 /// Canonical names for the owned LLVM scalar integer min/max profile. Provider
 /// intrinsic-ID lookup alone cannot establish either this spelling or its type.
 /// Wider and vector LLVM overloads require separate supported realizations.
+pub fn float_abs_intrinsic(name: &str) -> Option<u16> {
+    match name {
+        "llvm.fabs.f32" => Some(32),
+        "llvm.fabs.f64" => Some(64),
+        "llvm.fabs.f80" => Some(80),
+        "llvm.fabs.f128" => Some(128),
+        _ => None,
+    }
+}
+
 pub fn integer_minmax_intrinsic(name: &str) -> Option<(IntegerMinMaxKind, u16)> {
     let (operation, width) = name.strip_prefix("llvm.")?.split_once(".i")?;
     let kind = match operation {
@@ -1104,6 +1114,24 @@ impl<'a> Verifier<'a> {
             Ok(())
         } else {
             Err(fail(context, format!("type mismatch: {lhs} versus {rhs}")))
+        }
+    }
+
+    fn floating_width(&self, id: TypeId, context: &str) -> Result<u16> {
+        match self.ty(id, context)? {
+            Type::Float {
+                bits: 32 | 64 | 128,
+            } => {
+                let Type::Float { bits } = self.ty(id, context)? else {
+                    unreachable!()
+                };
+                Ok(*bits)
+            }
+            Type::Float { bits: 80 } if self.module.target.triple.starts_with("x86_64-") => Ok(80),
+            _ => Err(fail(
+                context,
+                "floating value requires supported IEEE32/64/128 or x86 extended80 type",
+            )),
         }
     }
 
@@ -1274,6 +1302,33 @@ impl<'a> Verifier<'a> {
                     if n.bits() > u64::from(*width) {
                         return Err(fail(context, "integer constant exceeds its bit width"));
                     }
+                }
+                *ty
+            }
+            Operand::Float { ty, bits } => {
+                let width = self.floating_width(*ty, context)?;
+                if bits.is_empty() || !bits.bytes().all(|c| c.is_ascii_digit()) {
+                    return Err(fail(
+                        context,
+                        "floating constant requires unsigned decimal significant bits",
+                    ));
+                }
+                let digits = bits.trim_start_matches('0');
+                let raw = if digits.is_empty() {
+                    0
+                } else {
+                    digits.parse::<u128>().map_err(|_| {
+                        fail(
+                            context,
+                            "floating constant exceeds its significant bit width",
+                        )
+                    })?
+                };
+                if width < 128 && raw >> width != 0 {
+                    return Err(fail(
+                        context,
+                        "floating constant exceeds its significant bit width",
+                    ));
                 }
                 *ty
             }
@@ -1977,6 +2032,11 @@ impl<'a> Verifier<'a> {
                         if fields.len() == 2
                         && matches!(self.module.types.get(fields[0]), Some(Type::Int { bits: actual }) if *actual == bits)
                         && matches!(self.module.types.get(fields[1]), Some(Type::Int { bits: 1 })))
+            } else if let Some(bits) = float_abs_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && (bits != 80 || self.module.target.triple.starts_with("x86_64-"))
             } else if let Some((_, bits)) = integer_minmax_intrinsic(&function.name) {
                 sig.params.len() == 2
                     && sig.params.iter().all(|ty| {
@@ -2671,6 +2731,23 @@ impl<'a> Verifier<'a> {
                     }
                 }
             }
+            Operation::FloatBinary { lhs, rhs, .. } => {
+                let ty = operand(lhs)?;
+                self.floating_width(ty, context)?;
+                self.same_type(ty, operand(rhs)?, context)?;
+                self.same_type(ty, result()?, context)?;
+            }
+            Operation::FloatNeg { value, .. } | Operation::FloatAbs { value, .. } => {
+                let ty = operand(value)?;
+                self.floating_width(ty, context)?;
+                self.same_type(ty, result()?, context)?;
+            }
+            Operation::FCmp { lhs, rhs, .. } => {
+                let ty = operand(lhs)?;
+                self.floating_width(ty, context)?;
+                self.same_type(ty, operand(rhs)?, context)?;
+                self.boolean(result()?, context)?;
+            }
             Operation::IntegerOverflow { kind, lhs, rhs, .. } => {
                 let ty = operand(lhs)?;
                 self.same_type(ty, operand(rhs)?, context)?;
@@ -2728,6 +2805,18 @@ impl<'a> Verifier<'a> {
                     (CastOp::ZExt | CastOp::SExt, Type::Int { bits: a }, Type::Int { bits: b }) => {
                         a < b
                     }
+                    (CastOp::FpTrunc, Type::Float { bits: a }, Type::Float { bits: b }) => a > b,
+                    (CastOp::FpExt, Type::Float { bits: a }, Type::Float { bits: b }) => a < b,
+                    (
+                        CastOp::FpToUi | CastOp::FpToSi,
+                        Type::Float { .. },
+                        Type::Int { bits: 1..=64 },
+                    ) => true,
+                    (
+                        CastOp::UiToFp | CastOp::SiToFp,
+                        Type::Int { bits: 1..=64 },
+                        Type::Float { .. },
+                    ) => true,
                     (CastOp::PtrToInt, Type::Pointer { .. }, Type::Int { .. }) => true,
                     (CastOp::IntToPtr, Type::Int { .. }, Type::Pointer { .. }) => true,
                     (
@@ -2742,6 +2831,12 @@ impl<'a> Verifier<'a> {
                     ) => a == b,
                     _ => false,
                 };
+                if matches!(from, Type::Float { .. }) {
+                    self.floating_width(operand(value)?, context)?;
+                }
+                if matches!(to, Type::Float { .. }) {
+                    self.floating_width(result()?, context)?;
+                }
                 if !valid {
                     return Err(fail(context, "invalid cast kind/type/width combination"));
                 }
@@ -3207,10 +3302,15 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
             ..
         } => vec![destination, source, length],
         Operation::Binary { lhs, rhs, .. }
+        | Operation::FloatBinary { lhs, rhs, .. }
+        | Operation::FCmp { lhs, rhs, .. }
         | Operation::IntegerOverflow { lhs, rhs, .. }
         | Operation::IntegerMinMax { lhs, rhs, .. }
         | Operation::ICmp { lhs, rhs, .. } => vec![lhs, rhs],
-        Operation::Cast { value, .. } | Operation::Freeze { value } => vec![value],
+        Operation::Cast { value, .. }
+        | Operation::FloatNeg { value, .. }
+        | Operation::FloatAbs { value, .. }
+        | Operation::Freeze { value } => vec![value],
         Operation::ExtractValue { aggregate, .. } => vec![aggregate],
         Operation::InsertValue {
             aggregate, value, ..
@@ -3444,6 +3544,201 @@ mod tests {
             }),
         });
         module.provenance.source_global_count += 1;
+    }
+
+    #[test]
+    fn fabs_intrinsics_require_exact_declarations_and_typed_unary_results() {
+        for bits in [32u16, 64, 80, 128] {
+            let mut m = module();
+            let ty = m.types.len();
+            m.types.push(Type::Float { bits });
+            let name = format!("llvm.fabs.f{bits}");
+            m.functions.push(
+                serde_json::from_value(json!({"name":name,"linkage":"external",
+                "intrinsic":name,"signature":{"params":[ty],"result":ty,"abi":"c","variadic":false},
+                "params":[{"id":0,"ty":ty}],"entry":null,"blocks":[]}))
+                .unwrap(),
+            );
+            m.provenance.source_function_count += 1;
+            let f = &mut m.functions[0];
+            f.signature.params = vec![ty];
+            f.signature.result = ty;
+            f.params = vec![Value { id: 7, ty }];
+            f.blocks = vec![Block {
+                id: 10,
+                instructions: vec![Instruction {
+                    result: Some(Value { id: 8, ty }),
+                    operation: Operation::FloatAbs {
+                        value: value(7),
+                        flags: FastMathFlags::default(),
+                    },
+                }],
+                terminator: Terminator::Return {
+                    value: Some(value(8)),
+                },
+            }];
+            verify(&m).unwrap();
+            NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+            let mut invalid = m.clone();
+            invalid.functions[1].signature.result = 2;
+            rejects(&invalid, "invalid or unsupported intrinsic declaration");
+            let mut invalid = m.clone();
+            invalid.functions[1].intrinsic = None;
+            rejects(&invalid, "invalid or unsupported intrinsic declaration");
+            let mut invalid = m.clone();
+            invalid.functions[0].blocks[0].instructions[0]
+                .result
+                .as_mut()
+                .unwrap()
+                .ty = 2;
+            rejects(&invalid, "type mismatch");
+        }
+        assert_eq!(float_abs_intrinsic("llvm.fabs.v2f32"), None);
+        assert_eq!(float_abs_intrinsic("llvm.fabs.f16"), None);
+    }
+
+    #[test]
+    fn floating_constants_retain_exact_significant_bits_and_fail_closed_on_invalid_payloads() {
+        for width in [32u16, 64, 80, 128] {
+            let mut m = module();
+            let ty = m.types.len();
+            m.types.push(Type::Float { bits: width });
+            let f = &mut m.functions[0];
+            f.signature.params.clear();
+            f.params.clear();
+            f.signature.result = ty;
+            let raw = if width == 128 {
+                u128::MAX
+            } else {
+                (1u128 << width) - 1
+            };
+            f.blocks = vec![Block {
+                id: 10,
+                instructions: vec![],
+                terminator: Terminator::Return {
+                    value: Some(Operand::Float {
+                        ty,
+                        bits: raw.to_string(),
+                    }),
+                },
+            }];
+            verify(&m).unwrap();
+            let wire = m.to_json().unwrap();
+            let decoded = NativeModule::from_json(&wire).unwrap();
+            assert!(matches!(&decoded.functions[0].blocks[0].terminator,
+                Terminator::Return { value: Some(Operand::Float { ty: actual, bits }) } if *actual == ty && bits == &raw.to_string()));
+            for bad in [
+                "".into(),
+                "-1".into(),
+                "+1".into(),
+                "NaN".into(),
+                "1.0".into(),
+                if width == 128 {
+                    "340282366920938463463374607431768211456".into()
+                } else {
+                    (1u128 << width).to_string()
+                },
+            ] {
+                let mut invalid = m.clone();
+                invalid.functions[0].blocks[0].terminator = Terminator::Return {
+                    value: Some(Operand::Float { ty, bits: bad }),
+                };
+                rejects(&invalid, "floating constant");
+            }
+            if width == 80 {
+                m.target.triple = "aarch64-unknown-linux-gnu".into();
+                rejects(&m, "floating value requires");
+            }
+        }
+        assert!(serde_json::from_value::<FastMathFlags>(json!({"invented":true})).is_err());
+        let flags: FastMathFlags = serde_json::from_value(json!({"nnan":true})).unwrap();
+        assert!(flags.nnan && !flags.ninf && !flags.reassoc && !flags.afn);
+    }
+
+    #[test]
+    fn floating_instructions_require_exact_scalar_types_and_cast_directions() {
+        let mut m = module();
+        let f64 = m.types.len();
+        m.types.push(Type::Float { bits: 64 });
+        let f32 = m.types.len();
+        m.types.push(Type::Float { bits: 32 });
+        let function = &mut m.functions[0];
+        function.signature.params = vec![f64];
+        function.signature.result = f64;
+        function.params = vec![Value { id: 7, ty: f64 }];
+        function.blocks = vec![Block {
+            id: 10,
+            instructions: vec![Instruction {
+                result: Some(Value { id: 8, ty: f64 }),
+                operation: Operation::FloatBinary {
+                    kind: FloatBinaryOp::Add,
+                    lhs: value(7),
+                    rhs: Operand::Float {
+                        ty: f64,
+                        bits: "0".into(),
+                    },
+                    flags: FastMathFlags::default(),
+                },
+            }],
+            terminator: Terminator::Return {
+                value: Some(value(8)),
+            },
+        }];
+        verify(&m).unwrap();
+        let mut invalid = m.clone();
+        if let Operation::FloatBinary { rhs, .. } =
+            &mut invalid.functions[0].blocks[0].instructions[0].operation
+        {
+            *rhs = Operand::Float {
+                ty: f32,
+                bits: "0".into(),
+            };
+        }
+        rejects(&invalid, "type mismatch");
+        for (kind, source, result, valid) in [
+            (CastOp::FpTrunc, f64, f32, true),
+            (CastOp::FpTrunc, f32, f64, false),
+            (CastOp::FpExt, f32, f64, true),
+            (CastOp::FpExt, f64, f32, false),
+            (CastOp::FpToSi, f64, 2, true),
+            (CastOp::FpToUi, f64, 2, true),
+            (CastOp::SiToFp, 2, f64, true),
+            (CastOp::UiToFp, 2, f64, true),
+            (CastOp::FpToSi, 2, f64, false),
+            (CastOp::UiToFp, f64, 2, false),
+        ] {
+            let mut cast = m.clone();
+            let function = &mut cast.functions[0];
+            function.signature.params = vec![source];
+            function.params[0].ty = source;
+            function.signature.result = result;
+            function.blocks[0].instructions[0] = Instruction {
+                result: Some(Value { id: 8, ty: result }),
+                operation: Operation::Cast {
+                    kind,
+                    value: value(7),
+                },
+            };
+            assert_eq!(verify(&cast).is_ok(), valid, "{kind:?}");
+        }
+        let instruction = Instruction {
+            result: Some(Value { id: 8, ty: 1 }),
+            operation: Operation::FCmp {
+                predicate: FloatPredicate::Uno,
+                lhs: value(7),
+                rhs: value(7),
+                flags: FastMathFlags::default(),
+            },
+        };
+        m.functions[0].signature.result = 1;
+        m.functions[0].blocks[0].instructions[0] = instruction;
+        verify(&m).unwrap();
+        m.functions[0].blocks[0].instructions[0]
+            .result
+            .as_mut()
+            .unwrap()
+            .ty = 2;
+        rejects(&m, "i1");
     }
 
     #[test]

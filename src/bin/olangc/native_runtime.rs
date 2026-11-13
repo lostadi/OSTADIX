@@ -41,6 +41,10 @@ mod exception_tests;
 #[path = "native_runtime/atomic_tests.rs"]
 mod atomic_tests;
 
+#[cfg(test)]
+#[path = "native_runtime/floating_helper_tests.rs"]
+mod floating_helper_tests;
+
 fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
@@ -611,6 +615,29 @@ fn requires_unwind_resume(module: &NativeModule) -> bool {
         })
 }
 
+fn floating_requirements(
+    module: &NativeModule,
+) -> Result<Vec<o_lang::ocore::native_floating_helpers::HelperRequirement>> {
+    use o_lang::ocore::{native_floating_helpers, Target};
+    let target = match module.target.triple.split('-').next() {
+        Some("x86_64") => Target::X86_64UnknownNone,
+        Some("aarch64") => Target::Aarch64UnknownNone,
+        Some("riscv64") => Target::Riscv64UnknownNone,
+        _ => bail!("unsupported original architecture for floating helper inventory"),
+    };
+    native_floating_helpers::requirements(module, target).map_err(Into::into)
+}
+
+fn floating_helper_contract(
+    requirement: &o_lang::ocore::native_floating_helpers::HelperRequirement,
+) -> Value {
+    // Primitive types are not invented source TypeIds. The exact ordinary C
+    // signature also makes provider selection check each helper ABI normally.
+    json!({"kind":"function", "params":requirement.params,"result":requirement.result,
+        "abi":"c","variadic":false,"param_attributes":vec![Vec::<String>::new(); requirement.params.len()],
+        "result_attributes":[],"return_storage":null})
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 struct GroupMembership {
     name: String,
@@ -718,6 +745,24 @@ fn symbols(id: &str, module: &NativeModule) -> Result<Vec<Symbol>> {
             ),
         });
     }
+    for requirement in floating_requirements(module)? {
+        result.push(Symbol {
+            unit: id.into(),
+            name: requirement.name.clone(),
+            linkage: "external".into(),
+            visibility: Visibility::Default,
+            definition: false,
+            contract: floating_helper_contract(&requirement),
+            alignment: 0,
+            intrinsic: None,
+            alias_of: None,
+            comdat: None,
+            references: BTreeSet::new(),
+            abi_adaptation: Some(json!({"kind":"compiler_generated_floating_helper",
+                "requirement":requirement,"derivation":"original_verified_operations_and_target",
+                "source_function_inventory_changed":false,"provider_required":true})),
+        });
+    }
     Ok(result)
 }
 
@@ -769,13 +814,18 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                     operand(length);
                 }
                 Operation::Binary { lhs, rhs, .. }
+                | Operation::FloatBinary { lhs, rhs, .. }
+                | Operation::FCmp { lhs, rhs, .. }
                 | Operation::IntegerOverflow { lhs, rhs, .. }
                 | Operation::IntegerMinMax { lhs, rhs, .. }
                 | Operation::ICmp { lhs, rhs, .. } => {
                     operand(lhs);
                     operand(rhs);
                 }
-                Operation::Cast { value, .. } | Operation::Freeze { value } => operand(value),
+                Operation::Cast { value, .. }
+                | Operation::FloatNeg { value, .. }
+                | Operation::FloatAbs { value, .. }
+                | Operation::Freeze { value } => operand(value),
                 Operation::ExtractValue { aggregate, .. } => operand(aggregate),
                 Operation::InsertValue {
                     aggregate, value, ..
@@ -1240,6 +1290,11 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
         });
     }
     let mut definitions = BTreeMap::new();
+    let floating_helpers = floating_requirements(module)?;
+    let floating_helper_names: BTreeSet<_> = floating_helpers
+        .iter()
+        .map(|requirement| requirement.name.as_str())
+        .collect();
     let mut known_symbols: BTreeMap<_, _> = module
         .functions
         .iter()
@@ -1280,6 +1335,11 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
     if requires_unwind_resume(module) {
         known_symbols
             .entry("_Unwind_Resume")
+            .or_insert((Visibility::Default, "external"));
+    }
+    for requirement in &floating_helpers {
+        known_symbols
+            .entry(requirement.name.as_str())
             .or_insert((Visibility::Default, "external"));
     }
     let mut undefined_symbols = BTreeSet::new();
@@ -1341,6 +1401,9 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 bail!("ELF gives a compiler-only metadata declaration a runtime symbol: {name}");
             }
             if section == 0 {
+                if floating_helper_names.contains(name) && !matches!(info & 15, 0 | 2) {
+                    bail!("ELF floating helper dependency is not an ordinary function: {name}");
+                }
                 let (expected_visibility, linkage) =
                     known_symbols.get(name).with_context(|| {
                         format!("ELF introduces an undeclared native dependency: {name}")
@@ -1368,6 +1431,14 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 }
                 undefined_symbols.insert(name.to_owned());
                 continue;
+            }
+            if floating_helper_names.contains(name)
+                && !module
+                    .functions
+                    .iter()
+                    .any(|function| function.name == name && function.entry.is_some())
+            {
+                bail!("ELF defines a generated floating helper without a verified source body: {name}");
             }
             if !matches!(info & 15, 1 | 2 | 6) {
                 if info >> 4 != 0 {
@@ -1933,6 +2004,7 @@ fn object_inventory(bytes: &[u8], arch: &str, module: &NativeModule) -> Result<V
                 "relative32_initializers":relative_initializer_count,"resolved_relative32_initializers":resolved_relative_initializers,
                 "relocation_records":matched_relocations.len(),"scope":"source_defined_globals"},
             "exception_tables":exception_inventory.receipt,
+            "generated_floating_helper_requirements":floating_helpers,
             "thread_local_storage":tls_inventory,
             "code_and_cfi_relocations":"structural_only" }),
     )
@@ -2231,6 +2303,8 @@ fn compile_with_compiler(
                 bail!("native verification receipt is not bound to the imported bytes");
             }
             record["verified"] = json!(true);
+            record["generated_floating_helper_requirements"] =
+                json!(floating_requirements(&module)?);
             record["module"] = json!({"path":imported,"sha256":digest(&imported_bytes),"target":module.target,
                                       "provenance":module.provenance});
             record["verification_receipt"] = json!(verification);
@@ -2301,6 +2375,8 @@ fn compile_with_compiler(
             "unit_id":embedded.unit_id,"sha256":embedded.sha256,"lowered":false});
         let result = (|| -> Result<()> {
             let module = embedded.verify()?;
+            record["generated_floating_helper_requirements"] =
+                json!(floating_requirements(&module)?);
             if module_target.as_ref() != Some(&serde_json::to_value(&module.target)?) {
                 bail!("dependency target/DataLayout/execution profiles differ from captured implementation");
             }

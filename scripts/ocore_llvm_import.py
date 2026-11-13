@@ -13,6 +13,7 @@ import argparse
 import ctypes as C
 import hashlib
 import json
+import re
 import os
 from pathlib import Path
 import sys
@@ -95,6 +96,7 @@ class LLVM:
             "LLVMGetUser": (P, [P]),
             "LLVMGlobalGetValueType": (P, [P]), "LLVMGetTypeKind": (B, [P]),
             "LLVMTypeIsSized": (B, [P]),
+            "LLVMIntTypeInContext": (P, [P, U]), "LLVMConstBitCast": (P, [P, P]),
             "LLVMGetIntTypeWidth": (U, [P]), "LLVMGetPointerAddressSpace": (U, [P]),
             "LLVMGetArrayLength2": (Q, [P]), "LLVMGetElementType": (P, [P]),
             "LLVMCountStructElementTypes": (U, [P]), "LLVMGetStructElementTypes": (None, [P, C.POINTER(P)]),
@@ -114,6 +116,7 @@ class LLVM:
             "LLVMGetPersonalityFn": (P, [P]),
             "LLVMHasPrefixData": (B, [P]), "LLVMHasPrologueData": (B, [P]),
             "LLVMGetFunctionCallConv": (U, [P]), "LLVMGetIntrinsicID": (U, [P]),
+            "LLVMLookupIntrinsicID": (U, [C.c_char_p, S]),
             "LLVMGetAttributeCountAtIndex": (U, [P, U]),
             "LLVMGetAttributesAtIndex": (None, [P, U, C.POINTER(P)]),
             "LLVMGetCallSiteAttributeCount": (U, [P, U]),
@@ -133,6 +136,8 @@ class LLVM:
             "LLVMConstIntGetZExtValue": (Q, [P]), "LLVMGetConstOpcode": (B, [P]),
             "LLVMIsNull": (B, [P]),
             "LLVMGetAggregateElement": (P, [P, U]),
+            "LLVMGetFCmpPredicate": (B, [P]), "LLVMGetFastMathFlags": (U, [P]),
+            "LLVMCanValueUseFastMathFlags": (B, [P]),
             "LLVMGetICmpPredicate": (B, [P]), "LLVMGetICmpSameSign": (B, [P]),
             "LLVMGetNUW": (B, [P]), "LLVMGetNSW": (B, [P]), "LLVMGetExact": (B, [P]),
             "LLVMGetIsDisjoint": (B, [P]), "LLVMGetNNeg": (B, [P]),
@@ -174,7 +179,7 @@ class LLVM:
             "LLVMGetMDNodeNumOperands": (U, [P]), "LLVMGetMDNodeOperands": (None, [P, C.POINTER(P)]),
             "LLVMGetMDString": (P, [P, C.POINTER(U)]),
         }
-        for name in ("Constant", "ConstantInt", "ConstantPointerNull", "ConstantAggregateZero", "ConstantExpr", "AllocaInst",
+        for name in ("Constant", "ConstantInt", "ConstantFP", "ConstantPointerNull", "ConstantAggregateZero", "ConstantExpr", "AllocaInst",
                      "Function", "GlobalVariable", "UndefValue", "PoisonValue", "MDString", "MDNode",
                      "LoadInst", "StoreInst", "FenceInst", "AtomicRMWInst", "AtomicCmpXchgInst"):
             bindings["LLVMIsA" + name] = (P, [P])
@@ -230,16 +235,21 @@ class Importer:
                            for operation in ("sadd", "uadd", "ssub", "usub", "smul", "umul")
                            for bits in range(1, 65)}
     # Exact selected LLVM22 provider IDs, not recognition by a name prefix.
+    FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
                          for kind, intrinsic_id in MINMAX_IDS.items() for bits in range(1, 65)}
     RELATIVE_INTRINSICS = {"llvm.load.relative.i32", "llvm.load.relative.i64"}
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
-    CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
+    FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
+    FLOAT_CMP = dict(enumerate(("false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord",
+                                "uno", "ueq", "ugt", "uge", "ult", "ule", "une", "true")))
+    CAST = {33: "fp_to_ui", 34: "fp_to_si", 35: "ui_to_fp", 36: "si_to_fp",
+            37: "fp_trunc", 38: "fp_ext", 30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
     CMP = dict(zip(range(32, 42), ("eq", "ne", "ugt", "uge", "ult", "ule", "sgt", "sge", "slt", "sle")))
     LINKAGES = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak",
                 6: "weak_odr", 8: "internal", 9: "private"}
@@ -311,18 +321,20 @@ class Importer:
         self.types.append(None)
         if kind == 0:
             result = {"kind": "void"}
-        elif kind == 5:
-            # LLVM FP128 is IEEE binary128, distinct from PPC_FP128 and i128.
-            # Only its storage layout is admitted; value_type and native ABI/
-            # executable-value audits reject every first-class use.
-            if (a.ABISizeOfType(self.layout, llvm_type) != 16
-                    or a.ABIAlignmentOfType(self.layout, llvm_type) != 16):
-                self.reject("binary128 storage layout requires exactly 16-byte ABI size and alignment")
-            result = {"kind": "float", "bits": 128}
-            self.refinements.add("retained IEEE binary128 solely as original 16-byte size/alignment storage layout; alloca/GEP, positive-zero static storage and raw memory copies do not imply floating arithmetic, first-class SSA or ABI support")
+        elif kind in {2, 3, 4, 5}:
+            bits = {2: 32, 3: 64, 4: 80, 5: 128}[kind]
+            expected_size, expected_alignment = {32: (4, 4), 64: (8, 8),
+                                                 80: (16, 16), 128: (16, 16)}[bits]
+            if bits == 80 and not (a.GetTarget(self.module) or b"" ).startswith(b"x86_64-"):
+                self.reject("x87 extended80 requires the x86-64 ELF target profile")
+            if (a.ABISizeOfType(self.layout, llvm_type), a.ABIAlignmentOfType(self.layout, llvm_type)) != (expected_size, expected_alignment):
+                self.reject(f"floating-point f{bits} requires original ABI layout ({expected_size},{expected_alignment})")
+            if a.StoreSizeOfType(self.layout, llvm_type) != (bits + 7) // 8:
+                self.reject("floating-point significant-bit storage size disagrees with LLVM DataLayout")
+            result = {"kind": "float", "bits": bits}
         elif kind == 8:
             bits = a.GetIntTypeWidth(llvm_type)
-            if not 1 <= bits <= 64:
+            if not (1 <= bits <= 64 or bits == 128):
                 self.reject(f"unsupported integer width i{bits}")
             result = {"kind": "int", "bits": bits}
         elif kind == 12:
@@ -341,7 +353,7 @@ class Importer:
         elif kind == 9:
             result = {"kind": "function", "signature": self.signature(llvm_type)}
         else:
-            self.reject(f"unsupported LLVM type kind {kind} (float, vector, token and target types require another lowering)")
+            self.reject(f"unsupported LLVM type kind {kind} (half, bfloat, PPC128, vector, token and target types require another lowering)")
         self.types[ident] = result
         return ident
 
@@ -364,7 +376,7 @@ class Importer:
 
     def scalar(self, llvm_type):
         ty = self.ty(llvm_type)
-        if self.types[ty]["kind"] not in {"int", "pointer"}:
+        if self.types[ty]["kind"] not in {"int", "float", "pointer"}:
             self.reject("aggregate SSA/call values are unsupported")
         return ty
 
@@ -374,9 +386,7 @@ class Importer:
         if kind in {10, 11} and not self.a.TypeIsSized(llvm_type):
             self.reject("aggregate SSA requires a supported sized struct or array")
         ty = self.ty(llvm_type)
-        if self.contains_binary128(ty):
-            self.reject("binary128 is supported only for storage layout, not first-class SSA or ABI values")
-        if self.types[ty]["kind"] not in {"int", "pointer", "struct", "array"}:
+        if self.types[ty]["kind"] not in {"int", "float", "pointer", "struct", "array"}:
             self.reject("unsupported SSA value type")
         if kind in {10, 11}:
             self.refinements.add("aggregate SSA retains original nested struct fields and array elements, typed poison/undef, PHI/select and element-wise freeze; padding is not an SSA field; memory lowering requires original DataLayout leaf offsets and allocation strides; native aggregate C/fastcc ABI classification remains mandatory")
@@ -777,6 +787,14 @@ class Importer:
                 self.refinements.add(f"{self.symbol}: retained metadata-only personality declaration i32(...) with exact C convention and no ABI extension attributes; original declaration, personality references and dependency identity retained; explicit included five-argument C unwinder callback adaptation required; no ordinary variadic call admission")
         return signature
 
+    def float_abs_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.fabs", len(b"llvm.fabs"))
+        if (not expected or name not in self.FLOAT_ABS_INTRINSICS or not a.IsAFunction(value)
+                or a.GetIntrinsicID(value) != expected or a.GetLinkage(value) != 0
+                or a.GetPointerAddressSpace(a.TypeOf(value)) != 0 or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires the exact pinned LLVM fabs intrinsic declaration")
+
     def minmax_identity(self, value, name):
         a = self.a
         if (not a.IsAFunction(value) or name not in self.MINMAX_INTRINSICS
@@ -789,6 +807,15 @@ class Importer:
     def intrinsic_signature(self, name, signature):
         pointer = {"kind": "pointer", "address_space": 0}
         integer = lambda bits: {"kind": "int", "bits": bits}
+        if name in self.FLOAT_ABS_INTRINSICS:
+            expected = {"kind": "float", "bits": self.FLOAT_ABS_INTRINSICS[name]}
+            if (self.types[signature["result"]] != expected
+                    or [self.types[ty] for ty in signature["params"]] != [expected]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires its exact scalar floating unary C signature")
+            return
         if name == self.NOALIAS_INTRINSIC:
             if (self.types[signature["result"]] != {"kind": "void"}
                     or [self.types[ty] for ty in signature["params"]] != [{"kind": "metadata"}]
@@ -1257,6 +1284,65 @@ class Importer:
         return {"name": self.symbol, "ty": self.ty(a.GlobalGetValueType(value)),
                 "aliasee": a.name(target), "linkage": linkage, "visibility": visibility}
 
+    def bounded_integer(self, value):
+        a = self.a
+        if (not a.IsAConstantInt(value) or a.GetIntTypeWidth(a.TypeOf(value)) > 64):
+            self.reject("bounded native index, size or metadata integer requires at most 64 bits")
+        return a.ConstIntGetZExtValue(value)
+
+    def integer_bits(self, value):
+        a = self.a
+        if not a.IsAConstantInt(value):
+            self.reject("integer bits require an exact APInt constant")
+        width = a.GetIntTypeWidth(a.TypeOf(value))
+        if width <= 64:
+            return self.bounded_integer(value)
+        if width != 128:
+            self.reject(f"unsupported integer width i{width}")
+        message = a.PrintValueToString(value)
+        try:
+            text = C.string_at(message).decode("ascii")
+        finally:
+            a.DisposeMessage(message)
+        match = re.fullmatch(r"i128 (-?[0-9]+)", text)
+        if not match:
+            self.reject("unexpected exact i128 APInt printer representation")
+        return int(match[1]) % (1 << 128)
+
+    def float_bits(self, value):
+        """Read APFloat bits by exact constant bitcast; never convert to host double.
+
+        The temporary integer LLVM type is not interned in NativeModule.types.
+        Its only role is extracting all significant bits, including NaN payloads.
+        """
+        a = self.a
+        llvm_type = a.TypeOf(value)
+        ty = self.ty(llvm_type)
+        if self.types[ty]["kind"] != "float" or not a.IsAConstantFP(value):
+            self.reject("floating constant requires exact supported APFloat value")
+        width = self.types[ty]["bits"]
+        integer = a.ConstBitCast(value, a.IntTypeInContext(self.context, width))
+        if not integer or not a.IsAConstantInt(integer):
+            self.reject("LLVM failed to expose exact floating-point constant bits")
+        if width <= 64:
+            return self.bounded_integer(integer)
+        message = a.PrintValueToString(integer)
+        try:
+            text = C.string_at(message).decode("ascii")
+        finally:
+            a.DisposeMessage(message)
+        match = re.fullmatch(r"i" + str(width) + r" (-?[0-9]+)", text)
+        if not match:
+            self.reject("unexpected exact APInt bitcast printer representation")
+        return int(match[1]) % (1 << width)
+
+    def fast_math(self, value):
+        mask = self.a.GetFastMathFlags(value)
+        if mask & ~127:
+            self.reject("unknown LLVM22 fast-math flag bit")
+        return {name: bool(mask & (1 << bit)) for bit, name in
+                enumerate(("reassoc", "nnan", "ninf", "nsz", "arcp", "contract", "afn"))}
+
     def operand(self, value):
         a = self.a
         llvm_type = a.TypeOf(value)
@@ -1291,8 +1377,10 @@ class Importer:
                     self.reject("aggregate constant requires exact typed constant fields/elements")
                 elements.append(self.operand(child))
             return {"kind": "aggregate", "ty": ty, "elements": elements}
+        if a.IsAConstantFP(value):
+            return {"kind": "float", "ty": ty, "bits": str(self.float_bits(value))}
         if a.IsAConstantInt(value):
-            return {"kind": "int", "ty": ty, "bits": str(a.ConstIntGetZExtValue(value))}
+            return {"kind": "int", "ty": ty, "bits": str(self.integer_bits(value))}
         if a.IsAConstantPointerNull(value):
             return {"kind": "null", "ty": ty}
         if a.IsAConstantExpr(value) and a.GetConstOpcode(value) == 40:
@@ -1338,10 +1426,12 @@ class Importer:
             index = a.GetOperand(value, i)
             self.scalar(a.TypeOf(index))
             width = a.GetIntTypeWidth(a.TypeOf(index))
+            if width > 64:
+                self.reject("GEP index requires at most 64 bits; no implicit i128 truncation")
             if i > 1 and a.GetTypeKind(current) == 10:
                 if not a.IsAConstantInt(index):
                     self.reject("nonconstant struct GEP index")
-                field = a.ConstIntGetZExtValue(index)
+                field = self.bounded_integer(index)
                 fields = (P * a.CountStructElementTypes(current))()
                 a.GetStructElementTypes(current, fields)
                 total += a.OffsetOfElement(self.layout, current, field)
@@ -1353,7 +1443,7 @@ class Importer:
                 current = a.GetElementType(current)
             stride = a.ABISizeOfType(self.layout, current)
             if a.IsAConstantInt(index):
-                bits = a.ConstIntGetZExtValue(index)
+                bits = self.bounded_integer(index)
                 signed = bits - (1 << width) if bits & (1 << (width - 1)) else bits
                 total += signed * stride
             elif instructions is None:
@@ -1410,7 +1500,7 @@ class Importer:
         # This compile-time source width is folded into exact pointer bits; it
         # is not an executable integer type or a new native arithmetic promise.
         self.refinements.add(f"{self.symbol}: constant integer-to-pointer source i{width} retains exact zero-extended integral AS0 address bits; no symbol relocation or dereference is introduced")
-        return a.ConstIntGetZExtValue(integer)
+        return self.bounded_integer(integer)
 
     def relative_initializer(self, value, offset):
         """Recognize the exact parsed i32 trunc(i64(target - base)) form."""
@@ -1453,22 +1543,18 @@ class Importer:
     def initializer(self, value, llvm_type, data, relocations, offset=0):
         a, kind = self.a, self.a.GetTypeKind(llvm_type)
         ty = self.ty(llvm_type)
-        if (a.IsAPoisonValue(value) or a.IsAUndefValue(value)) and self.contains_binary128(ty):
-            self.reject("binary128 storage initializer cannot contain poison or undef")
         if a.IsAConstantAggregateZero(value) or a.IsAConstantPointerNull(value):
             return
         if a.IsAPoisonValue(value) or a.IsAUndefValue(value):
             self.refinements.add("global undef/poison initializer refined to zero bytes")
             return
-        if kind == 5:
-            # Constant::isNullValue tests exact positive zero, not a conversion
-            # through host double (which could erase -0, NaNs or tiny values).
-            if not a.IsNull(value):
-                self.reject("binary128 storage initializer requires exact positive zero")
+        if kind in {2, 3, 4, 5}:
+            size = a.StoreSizeOfType(self.layout, llvm_type)
+            data[offset:offset + size] = self.float_bits(value).to_bytes(size, "little")
             return
         if kind == 8 and a.IsAConstantInt(value):
             size = a.StoreSizeOfType(self.layout, llvm_type)
-            data[offset:offset + size] = a.ConstIntGetZExtValue(value).to_bytes(size, "little")
+            data[offset:offset + size] = self.integer_bits(value).to_bytes(size, "little")
         elif kind == 8 and a.IsAConstantExpr(value):
             relocations.append(self.relative_initializer(value, offset))
         elif kind == 12:
@@ -1599,6 +1685,13 @@ class Importer:
     def instruction(self, value, instructions):
         a, opcode = self.a, self.a.GetInstructionOpcode(value)
         self.metadata(value)
+        fabs_call = (opcode == 45 and a.IsAFunction(a.GetCalledValue(value))
+                     and a.name(a.GetCalledValue(value)) in self.FLOAT_ABS_INTRINSICS)
+        if fabs_call:
+            self.float_abs_identity(a.GetCalledValue(value), a.name(a.GetCalledValue(value)))
+        if not fabs_call and opcode not in self.FLOAT_BIN and opcode not in {43, 66} and a.CanValueUseFastMathFlags(value):
+            if any(self.fast_math(value).values()):
+                self.reject("nonzero fast-math flags on cast/select/phi/call require explicit flag representation")
         operand = lambda i: self.operand(a.GetOperand(value, i))
         if opcode == 59:
             self.exception_aggregate(a.TypeOf(value))
@@ -1630,6 +1723,17 @@ class Importer:
                 self.reject("landingpad requires cleanup or at least one clause")
             operation = {"op": "landing_pad", "cleanup": cleanup, "clauses": clauses}
             self.refinements.add(f"{self.symbol}: landingpad retains original unpacked {{ptrAS0,i32}}, cleanup flag and ordered catch/filter typeinfos including empty filters; required native LSDA/CFI and genuine provider closure are separate; no catch-all or cleanup substitution")
+        elif opcode in self.FLOAT_BIN:
+            operation = {"op": "float_binary", "kind": self.FLOAT_BIN[opcode],
+                         "lhs": operand(0), "rhs": operand(1), "flags": self.fast_math(value)}
+        elif opcode == 66:
+            operation = {"op": "float_neg", "value": operand(0), "flags": self.fast_math(value)}
+        elif opcode == 43:
+            predicate = self.FLOAT_CMP.get(a.GetFCmpPredicate(value))
+            if predicate is None:
+                self.reject("unknown LLVM floating-point comparison predicate")
+            operation = {"op": "f_cmp", "predicate": predicate,
+                         "lhs": operand(0), "rhs": operand(1), "flags": self.fast_math(value)}
         elif opcode in self.BIN:
             flags = []
             if opcode in {8, 10, 12, 20}:
@@ -1640,7 +1744,11 @@ class Importer:
                 flags.append("disjoint")
             operation = {"op": "binary", "kind": self.BIN[opcode], "lhs": operand(0), "rhs": operand(1), "flags": flags}
         elif opcode in self.CAST:
-            if opcode == 31 and a.GetNNeg(value):
+            integer_type = a.TypeOf(value) if opcode in {33, 34} else a.TypeOf(a.GetOperand(value, 0))
+            if (opcode in {33, 34, 35, 36} and a.GetTypeKind(integer_type) == 8
+                    and a.GetIntTypeWidth(integer_type) > 64):
+                self.reject("numeric floating/integer128 conversion requires an explicit supported bridge")
+            if opcode in {31, 35} and a.GetNNeg(value):
                 self.refinements.add("zext nneg poison assumption erased")
             if opcode == 30 and (a.GetNSW(value) or a.GetNUW(value)):
                 self.refinements.add("trunc nowrap poison assumptions erased")
@@ -1675,7 +1783,7 @@ class Importer:
             self.refinements.add(f"{self.symbol}: alloca inalloca/swifterror restrictions, if present, refined to ordinary storage; every ABI-dependent use is rejected")
             allocated = a.GetAllocatedType(value)
             self.ty(allocated)
-            size = a.ABISizeOfType(self.layout, allocated) * a.ConstIntGetZExtValue(count)
+            size = a.ABISizeOfType(self.layout, allocated) * self.bounded_integer(count)
             if size >= 1 << 64:
                 self.reject("alloca byte extent exceeds u64")
             operation = {"op": "alloca", "size": size,
@@ -1704,6 +1812,8 @@ class Importer:
                     self.reject(f"intrinsic {intrinsic} requires explicit call lowering")
                 if intrinsic in self.MINMAX_INTRINSICS:
                     self.minmax_identity(callee, intrinsic)
+                if intrinsic in self.FLOAT_ABS_INTRINSICS:
+                    self.float_abs_identity(callee, intrinsic)
             signature = self.signature(a.GetCalledFunctionType(value), value, call=True, intrinsic=intrinsic)
             # A TLS GlobalVariable is the descriptor of current-thread storage,
             # not an ordinary constant Symbol address. Only this owned call
@@ -1721,6 +1831,9 @@ class Importer:
                              "source_instruction": self.instruction_positions[value][1]}
                 self.refinements.add(f"{self.symbol}: retained llvm.experimental.noalias.scope.decl as an exact compiler-only scope marker; original list/scope/domain identity and declaration placement retained; no runtime instruction, metadata ABI, alias-based optimization, purity or memory-effect inference")
                 self.refinements.add("scoped alias metadata graph uses actual parsed metadata identity and deterministic module-local traversal IDs; trusted LLVM printer records attest post-parse storage only; raw pointer fallback labels remain provenance bytes, never graph IDs; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
+            elif intrinsic in self.FLOAT_ABS_INTRINSICS:
+                operation = {"op": "float_abs", "value": args[0], "flags": self.fast_math(value)}
+                self.refinements.add(f"{intrinsic}: exact owned significant-bit sign clearing retains original scalar format, operand, result, NaN payloads and all seven call-site fast-math flags; no comparison, host conversion, arithmetic helper or unresolved intrinsic provider")
             elif intrinsic in self.VARIADIC_INTRINSICS:
                 if intrinsic == "llvm.va_start.p0" and not self.current_variadic:
                     self.reject("llvm.va_start requires an enclosing variadic function definition")
@@ -1775,7 +1888,7 @@ class Importer:
                 volatility = a.GetOperand(value, 3)
                 if not a.IsAConstantInt(volatility):
                     self.reject("memory intrinsic volatility must be a constant i1")
-                volatile = a.ConstIntGetZExtValue(volatility)
+                volatile = self.bounded_integer(volatility)
                 if volatile not in {0, 1}:
                     self.reject("memory intrinsic volatility must be exactly false or true")
                 if intrinsic.startswith("llvm.memset."):
@@ -1808,6 +1921,8 @@ class Importer:
 
     def terminator(self, value):
         a, opcode = self.a, self.a.GetInstructionOpcode(value)
+        if a.CanValueUseFastMathFlags(value) and any(self.fast_math(value).values()):
+            self.reject("nonzero fast-math flags on invoke require explicit flag representation")
         self.metadata(value)
         if opcode == 5:
             if self.exception_handling is None:
@@ -1885,6 +2000,8 @@ class Importer:
             intrinsic = self.symbol
             if intrinsic in self.MINMAX_INTRINSICS:
                 self.minmax_identity(value, intrinsic)
+            if intrinsic in self.FLOAT_ABS_INTRINSICS:
+                self.float_abs_identity(value, intrinsic)
         if a.GetGC(value) or a.HasPrefixData(value) or a.HasPrologueData(value):
             self.reject("unsupported function GC or prefix/prologue data")
         self.exception_handling = None
@@ -1982,8 +2099,8 @@ class Importer:
                             or a.GetIntTypeWidth(a.TypeOf(parts[0])) != 32
                             or a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32):
                         self.reject(f"unsupported module flag {key} types; expected i32 behavior and level")
-                    behavior = a.ConstIntGetZExtValue(parts[0])
-                    level = a.ConstIntGetZExtValue(parts[2])
+                    behavior = self.bounded_integer(parts[0])
+                    level = self.bounded_integer(parts[2])
                     if behavior != expected_behavior or level not in {0, 1, 2} or key in relocation_flags:
                         self.reject(f"unsupported module flag {key}={level}, behavior={behavior}")
                     relocation_flags.add(key)
@@ -1999,8 +2116,8 @@ class Importer:
                             or a.GetIntTypeWidth(a.TypeOf(parts[0])) != 32
                             or a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32):
                         self.reject("unsupported module flag uwtable types; expected i32 behavior and level")
-                    behavior = a.ConstIntGetZExtValue(parts[0])
-                    level = a.ConstIntGetZExtValue(parts[2])
+                    behavior = self.bounded_integer(parts[0])
+                    level = self.bounded_integer(parts[2])
                     if behavior != 7 or level not in {0, 1, 2} or unwind_table_seen:
                         self.reject(f"unsupported module flag uwtable={level}, behavior={behavior}")
                     unwind_table_seen = True
@@ -2016,7 +2133,7 @@ class Importer:
                         self.reject(f"unsupported target ABI {abi}")
                     self.target_abi = abi
                     self.refinements.add(f"verified RISC-V {abi} target ABI")
-                    self.refinements.add("exact RISC-V scalar ABI identity retained independently of target tuning; floating-point first-class values and operations remain unsupported; binary128 storage layout is separately audited")
+                    self.refinements.add("exact RISC-V scalar ABI identity retained independently of target tuning; floating-point values retain original formats and require independently verified target ABI classification")
                     if abi == "lp64d":
                         self.refinements.add("lp64d requires the own RV64GC D/F/Zicsr-enabled, E-disabled execution profile and matching native ELF ABI identity; absent target tuning is qualified by that profile, not inferred from the producer CPU")
                 elif key == "riscv-isa" and riscv64:
@@ -2024,14 +2141,14 @@ class Importer:
                 elif key == "Code Model" and a.IsAConstantInt(parts[2]):
                     if a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32:
                         self.reject(f"unsupported module flag {key} integer width; expected i32")
-                    number = a.ConstIntGetZExtValue(parts[2])
+                    number = self.bounded_integer(parts[2])
                     if not riscv64 or number != 3:
                         self.reject(f"unsupported module flag {key}={number}")
                     self.refinements.add("re-lowered RISC-V Code Model=3 (Medium) under the required static, non-preemptive scalar native linkage profile; own emission and linking must resolve address materialization and relocation spans; mixed precompiled code models are unsupported")
                 elif key in {"frame-pointer", "RtLibUseGOT", "SmallDataLimit"} and a.IsAConstantInt(parts[2]):
                     if a.GetIntTypeWidth(a.TypeOf(parts[2])) != 32:
                         self.reject(f"unsupported module flag {key} integer width; expected i32")
-                    number = a.ConstIntGetZExtValue(parts[2])
+                    number = self.bounded_integer(parts[2])
                     if (key == "frame-pointer" and number not in {0, 1, 2, 4}) or (key == "RtLibUseGOT" and number not in {0, 1}):
                         self.reject(f"unsupported module flag {key}={number}")
                     self.refinements.add(f"erased scalar codegen module flag {key}={number}; own emitters use frame pointers and introduce no LLVM runtime libcalls")
