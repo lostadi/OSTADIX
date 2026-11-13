@@ -1,0 +1,44 @@
+{
+  "scope": "Additional authenticated remote ISA coordination only; not a substitute for X12 same-build M0 acceptance.",
+  "rv": {
+    "host": "orangepirv",
+    "isa": "riscv64",
+    "tests_run": 0,
+    "builds_run": 0,
+    "qualification": false,
+    "execution_rejection": "MCP tool call requires approval, but approval policy is never",
+    "rejection_origin": "Codex tool approval before MCP o_cli dispatch; no approval-policy change or retry",
+    "proof": "rv-codec-rejection-proof.json"
+  },
+  "arm": {
+    "host": "m1max",
+    "hardware": "Apple M1 Max / MacBookPro18,4",
+    "isa": "arm64",
+    "ram_bytes": 68719476736,
+    "tests_run": 0,
+    "qualification": false,
+    "status": "Authenticated identity and project ownership inspected; immutable conformance bundle staged. Additional scoped worker startup pending."
+  },
+  "files": [
+    "orangepi-identity.json",
+    "tailscale-selected.json",
+    "orangepi-project-inspection.json",
+    "orangepi-agent-status-inspection.json",
+    "orangepi-tooling-preview.json",
+    "rv-bundle-preview.json",
+    "rv-bundle-transfer.json",
+    "coordination-messages-preview.json",
+    "coordination-queue-results.json",
+    "remote-workers-launch.json",
+    "coordination-replies-1.json",
+    "rv-worker-observation-1.json",
+    "rv-worker-stuck-observation.json",
+    "rv-worker-acknowledgments.json",
+    "rv-codec-rejection-proof.json",
+    "final-unit-audit-readback.json",
+    "m1max-probe-result.json",
+    "m1max-project-inspection.json",
+    "arm-bundle-preview.json",
+    "arm-bundle-transfer.json"
+  ]
+}

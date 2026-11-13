@@ -1,0 +1,67 @@
+[
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3/monitor-profile.json",
+    "copy": "evidence/o10-m0-20261112/fresh-monitor-build-r3/monitor-profile.json",
+    "sha256": "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/runtime-o10-r3/runtime.json",
+    "copy": "evidence/o10-m0-20261112/full-guest-results-r3/frozen-runtime.json",
+    "sha256": "a0dddd59142a73e751b0eccb52d4bdf529f1ed6a7c5f877fa742491eb4aaf207"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/unified-session-37j7g0o7/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-37j7g0o7.json",
+    "sha256": "92347f5eae23366f4194edddbec24e36530a33ad2ebaaa83ad9b400bf1f61cee"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/unified-session-8hdvkmmp/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-8hdvkmmp.json",
+    "sha256": "1f628a2fe74c70a387b82dc2d8404f0f979de8b68b3c3ffa646e55843e4c853f"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/default_compile/unified-session-h5z1u7ty/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-h5z1u7ty.json",
+    "sha256": "e188d9163ce910ed0317c1bdf79c2db319f60605445496b987ee490b48c2e846"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/provider/unified-session-mjdnow9z/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-mjdnow9z.json",
+    "sha256": "f6333dac67c5230ec9f8741010235989d69474aba1fb3b09b0fa943ab533bac0"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/provider/unified-session-vijtsbno/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-vijtsbno.json",
+    "sha256": "18af274980c612626c73e0c384529278d4e732db631bb9ee51e5a79a5d467f27"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/recovery/unified-session-tp9gxwmp/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-tp9gxwmp.json",
+    "sha256": "145a4ce216c0aa03923315c3600ec4b163fa27ad9a265ac06e8bc948d25ccae7"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/runtime/unified-session-7x0e_f60/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-7x0e_f60.json",
+    "sha256": "77e9d93b025c57d2f275b1817ff9296563e03932a2c6a4641f1b99115a17d1c1"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/runtime/unified-session-amsop73q/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-amsop73q.json",
+    "sha256": "82b84618b1f2693dbb45446115dee40558e86efa0f8171bcd3b767dc414b3225"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/unified-session-0n2a053c/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-0n2a053c.json",
+    "sha256": "c996f9ac31aea3b911056f661e01802ac4f424e82ab5783e06d6c7b52dab0cdd"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/unified-session-p_5lyeeu/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-p_5lyeeu.json",
+    "sha256": "ab72aefbb199669141d57be8a8f50bb8d77874c478ced9f29e39c685825de9b1"
+  },
+  {
+    "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/result.json",
+    "copy": "evidence/o10-m0-20261112/session-manifests-r3/unified-session-wxznbqvl.json",
+    "sha256": "0a449aa279eb03c94ab8bae115b7450249383b8858fbeffdcf69812cb8f0d3c1"
+  }
+]

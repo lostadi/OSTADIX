@@ -114,7 +114,7 @@ Original Linux and Plan 9 source may be compiled into the native O-core
 system wherever required. O-core remains the common execution/resource
 nucleus. Reused implementations become services, libraries, drivers or ABI
 providers with explicit native interfaces and complete dependency closures.
-Compiling and stacking two whole kernels is not the selected final design.
+The target is the hybrid architecture in [O10](O10.md): components with affordable source and interface closures become native services, while whole guest kernels remain available for their hosted components. Governed namespace paths and leases provide the common interface throughout migration.
 
 | Part | Source reuse decision | Present evidence |
 |---|---|---|
@@ -538,8 +538,7 @@ returned their validated work. Root owns current native architecture and
 integration. The original-CAT capture, per-thread FS and linker-map agents have
 also returned ownership; coordinate before changing their shared files.
 The independent support thread retains its original Plan 9 provider lane.
-New dual-kernel packaging is stopped. Live experiments and their saved states
-remain preserved while the native design is developed.
+Dual-kernel work follows the [O10 milestone and acceptance gates](O10.md). Its hybrid migration keeps whole-kernel hosting available while native components are qualified behind the governed namespace. Live experiments and their saved states remain preserved; each qualification run uses a private fork.
 
 One small common-driver adapter is required: Linux UART interrupt delivery now
 uses `kw_uart_irq_level`, like the existing block/network/9P IRQ hooks. The old

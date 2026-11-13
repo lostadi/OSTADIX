@@ -1,0 +1,22 @@
+{
+  "scope": "independent readback of completed subprocess receipts after outer O projection failure; not full milestone qualification",
+  "receipt": {
+    "path": "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/final-unit-r3/result.json",
+    "sha256": "bb5cf1d9d16341aafc6830d22f887699a7399b7d1616f022eb35179df18a5ac3"
+  },
+  "source_hashes_current": true,
+  "unit_tests": 288,
+  "component_ok": true,
+  "component_tests": 65,
+  "component_skips": [],
+  "language_sources": 261,
+  "language_all_passed": true,
+  "subprocess_exit_codes": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "all_timeouts_false": true,
+  "observed": 1794544471.0811172
+}

@@ -2,6 +2,14 @@
 
 ## Implemented and tested now
 
+- O10 M0's host-private operation-10 transport and synchronous 256-outcome
+  journal control Plan 9 withdrawal, restore and grant binding alongside Linux.
+  `scripts/verify_o10_m0.py` passed against one exact AArch64 QEMU/TCG build,
+  seven live checks, all six guest regression gates, 67 O10 tests, 288 kernel
+  unit tests and 261 language-source checks with zero skips.
+  [Acceptance evidence](../evidence/o10-m0-20261112/acceptance-r3d.json)
+  binds the compiled sources and running MCP identity; [O10](O10.md) states the
+  implementation scope and subsequent milestones.
 - Expression-granular recursive evaluator composition is implemented by typed
   expression syntax described in `README.md`, lowered from parser nodes to OIR in
   `crates/ostadix-api/src/ir.rs`, and executed by the Rust evaluator in `crates/ostadix-api/src/eval.rs`.

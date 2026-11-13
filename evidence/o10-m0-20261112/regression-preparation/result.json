@@ -1,0 +1,375 @@
+{
+  "scope": "Private saved-pair fork, checked offline helper deployment and frozen-runtime capture only; no VM",
+  "source": "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+  "seed": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed",
+  "runtime": "/home/ustad/.cache/o10-m0-acceptance-20261112/runtime-o10-r1",
+  "build": "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r2",
+  "started": 1794540250.7317767,
+  "ok": true,
+  "commands": [
+    [
+      "python3",
+      "scripts/fork_okernel_state.py",
+      "--source",
+      "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+      "--output",
+      "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed"
+    ],
+    [
+      "python3",
+      "scripts/freeze_okernel_unified_runtime.py",
+      "--source",
+      "/home/ustad/OSTADIX-o10-m0-20261112",
+      "--build",
+      "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r2",
+      "--qemu",
+      "/usr/bin/qemu-system-aarch64",
+      "--output",
+      "/home/ustad/.cache/o10-m0-acceptance-20261112/runtime-o10-r1"
+    ]
+  ],
+  "helper_deployment": {
+    "schema": "ostadix.package-domain-guest-tools-update/v1",
+    "ok": true,
+    "disk_before": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    "scope": "fixed local guest helper deployment only; installed APK state and user workspace preserved",
+    "tools": [
+      {
+        "guest_path": "/usr/local/bin/pkg",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/pkg",
+          "bytes": 5063,
+          "sha256": "54454075f379f2754de3b131aa7ce0a126d9207d20a428712179b8332cdadb2f"
+        },
+        "sha256": "54454075f379f2754de3b131aa7ce0a126d9207d20a428712179b8332cdadb2f",
+        "bytes": 5063,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "54454075f379f2754de3b131aa7ce0a126d9207d20a428712179b8332cdadb2f",
+          "bytes": 5063
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/pkg-net",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/pkg-net",
+          "bytes": 2424,
+          "sha256": "c5b10a9ac4409298e49f95b77ffda1f388ddb5526a3e73013c54a5c64e067efa"
+        },
+        "sha256": "c5b10a9ac4409298e49f95b77ffda1f388ddb5526a3e73013c54a5c64e067efa",
+        "bytes": 2424,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "c5b10a9ac4409298e49f95b77ffda1f388ddb5526a3e73013c54a5c64e067efa",
+          "bytes": 2424
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/pkg-namespace",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/pkg-namespace",
+          "bytes": 6198,
+          "sha256": "ae45ec6651f87a8a6f75aa453f55260aca764bbc00a21e669e9a278f0f498cbf"
+        },
+        "sha256": "ae45ec6651f87a8a6f75aa453f55260aca764bbc00a21e669e9a278f0f498cbf",
+        "bytes": 6198,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "ae45ec6651f87a8a6f75aa453f55260aca764bbc00a21e669e9a278f0f498cbf",
+          "bytes": 6198
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/pkg-plan9port",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/pkg-plan9port",
+          "bytes": 18698,
+          "sha256": "e2bd9728eb1386087e70e0eed6815a417cce20ac3debac53b39f1e68b608f333"
+        },
+        "sha256": "e2bd9728eb1386087e70e0eed6815a417cce20ac3debac53b39f1e68b608f333",
+        "bytes": 18698,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "e2bd9728eb1386087e70e0eed6815a417cce20ac3debac53b39f1e68b608f333",
+          "bytes": 18698
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/pkg-9p",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/pkg-9p",
+          "bytes": 5306,
+          "sha256": "4e2c74ea2ab3e4f1d4bd378f84714c69650c17209acf85ea9cf74e553abffc75"
+        },
+        "sha256": "4e2c74ea2ab3e4f1d4bd378f84714c69650c17209acf85ea9cf74e553abffc75",
+        "bytes": 5306,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "4e2c74ea2ab3e4f1d4bd378f84714c69650c17209acf85ea9cf74e553abffc75",
+          "bytes": 5306
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/okernel-9p-bridge.c",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/okernel-9p-bridge.c",
+          "bytes": 10828,
+          "sha256": "3bbcd150fb285f940f5af360f7fcc699313931451df726b42129713b8c4c4d3c"
+        },
+        "sha256": "3bbcd150fb285f940f5af360f7fcc699313931451df726b42129713b8c4c4d3c",
+        "bytes": 10828,
+        "mode": "0644",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "3bbcd150fb285f940f5af360f7fcc699313931451df726b42129713b8c4c4d3c",
+          "bytes": 10828
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/u9fs-path-hardening.patch",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/u9fs-path-hardening.patch",
+          "bytes": 4487,
+          "sha256": "60899138e3659bf871b2f6fe081e2e1bd9cc31b0a1431534e134b9bb203d089c"
+        },
+        "sha256": "60899138e3659bf871b2f6fe081e2e1bd9cc31b0a1431534e134b9bb203d089c",
+        "bytes": 4487,
+        "mode": "0644",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "60899138e3659bf871b2f6fe081e2e1bd9cc31b0a1431534e134b9bb203d089c",
+          "bytes": 4487
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/glibc-cc",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/glibc-cc",
+          "bytes": 2089,
+          "sha256": "12df0d38eb3ccc23d8d63bcbb7a37efd9dcb981499fc5b558544efd76828aade"
+        },
+        "sha256": "12df0d38eb3ccc23d8d63bcbb7a37efd9dcb981499fc5b558544efd76828aade",
+        "bytes": 2089,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "12df0d38eb3ccc23d8d63bcbb7a37efd9dcb981499fc5b558544efd76828aade",
+          "bytes": 2089
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/plan9port-activate",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/plan9port-activate",
+          "bytes": 4540,
+          "sha256": "ddce94b00474a752163cf2c7f02a30a0abb7f0841484a9a112b26b19b712f573"
+        },
+        "sha256": "ddce94b00474a752163cf2c7f02a30a0abb7f0841484a9a112b26b19b712f573",
+        "bytes": 4540,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "ddce94b00474a752163cf2c7f02a30a0abb7f0841484a9a112b26b19b712f573",
+          "bytes": 4540
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/status",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/okernel-status",
+          "bytes": 799,
+          "sha256": "432342aa4d5710e078c6db3a6d202d447a7d9b7ee34b66006af567bd7c756c79"
+        },
+        "sha256": "432342aa4d5710e078c6db3a6d202d447a7d9b7ee34b66006af567bd7c756c79",
+        "bytes": 799,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "432342aa4d5710e078c6db3a6d202d447a7d9b7ee34b66006af567bd7c756c79",
+          "bytes": 799
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/okernel-status",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/okernel-status",
+          "bytes": 799,
+          "sha256": "432342aa4d5710e078c6db3a6d202d447a7d9b7ee34b66006af567bd7c756c79"
+        },
+        "sha256": "432342aa4d5710e078c6db3a6d202d447a7d9b7ee34b66006af567bd7c756c79",
+        "bytes": 799,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "432342aa4d5710e078c6db3a6d202d447a7d9b7ee34b66006af567bd7c756c79",
+          "bytes": 799
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/pkg-net-udhcpc",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/pkg-net-udhcpc",
+          "bytes": 1840,
+          "sha256": "6829720cfa52c3ef18f284ea4addb86e84801a90ff1f532a19dc5e2d1594d091"
+        },
+        "sha256": "6829720cfa52c3ef18f284ea4addb86e84801a90ff1f532a19dc5e2d1594d091",
+        "bytes": 1840,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "6829720cfa52c3ef18f284ea4addb86e84801a90ff1f532a19dc5e2d1594d091",
+          "bytes": 1840
+        }
+      },
+      {
+        "guest_path": "/sbin/package-domain-init",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/package-domain-init",
+          "bytes": 3265,
+          "sha256": "7c65740009884e239f5d89c80ff95d447600a144312bb8f24639c65cef634c18"
+        },
+        "sha256": "7c65740009884e239f5d89c80ff95d447600a144312bb8f24639c65cef634c18",
+        "bytes": 3265,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "7c65740009884e239f5d89c80ff95d447600a144312bb8f24639c65cef634c18",
+          "bytes": 3265
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/okernel-shellrc",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/okernel-shellrc",
+          "bytes": 166,
+          "sha256": "132b6467a1f836a169c4a1d991c1e6bee3289eb5e892485a8f56ef37dd8742c6"
+        },
+        "sha256": "132b6467a1f836a169c4a1d991c1e6bee3289eb5e892485a8f56ef37dd8742c6",
+        "bytes": 166,
+        "mode": "0644",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "132b6467a1f836a169c4a1d991c1e6bee3289eb5e892485a8f56ef37dd8742c6",
+          "bytes": 166
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/p9",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/p9",
+          "bytes": 33362,
+          "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+        },
+        "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+        "bytes": 33362,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+          "bytes": 33362
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/p9-controller",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/p9-controller",
+          "bytes": 19477,
+          "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4"
+        },
+        "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+        "bytes": 19477,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+          "bytes": 19477
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/p9-history",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/p9-history",
+          "bytes": 30438,
+          "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4"
+        },
+        "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+        "bytes": 30438,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "ce328adafbb97f4407c8be2c6c6c9ed4d7ac05f97c5ce9911d5f56b5209782d6",
+          "bytes": 30417
+        }
+      },
+      {
+        "guest_path": "/usr/local/bin/p9-install",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/linux/package-domain/p9-install",
+          "bytes": 15229,
+          "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016"
+        },
+        "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016",
+        "bytes": 15229,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016",
+          "bytes": 15229
+        }
+      },
+      {
+        "guest_path": "/usr/local/libexec/p9_protocol.py",
+        "source": {
+          "path": "/home/ustad/OSTADIX-o10-m0-20261112/ocore/guest/plan9/unified/protocol.py",
+          "bytes": 16391,
+          "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+        },
+        "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+        "bytes": 16391,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0,
+        "previous": {
+          "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+          "bytes": 16391
+        }
+      }
+    ],
+    "workspace_and_apk_state_preserved": true,
+    "disk_after": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    "receipt": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l/result.json"
+  },
+  "frozen_manifest_sha256": "67d9655a6db2634912ea80bbdc46ddae0d00e7be9fcf078217d60d634842b881",
+  "finished": 1794540280.0130415
+}

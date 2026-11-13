@@ -528,7 +528,6 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         }
         if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
         if restore_plan9(false) != 1 { return o10_error(response, 512, tag, 12, 4); }
-        O10_DOMAIN_GENERATION[1] += 1;
         let mut j: usize = 0;
         while j < 16 { O10_INSTANCE[16 + j] = volatile_load(request + 31 + j); j += 1; }
         // The new kernel waits for its explicit namespace transport binding.
@@ -574,6 +573,10 @@ unsafe fn o10_mailbox() -> u64 {
 }
 
 unsafe fn restore_plan9(bind_wire: bool) -> u64 {
+    // Shared by legacy pre-claim and O10 replacement. Reject exhaustion before
+    // zeroing RAM or touching architectural state; publish one new identity
+    // only after the complete replacement succeeds.
+    if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return 0; }
     let mut result: u64 = 0;
         let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
         let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
@@ -600,6 +603,7 @@ unsafe fn restore_plan9(bind_wire: bool) -> u64 {
                 UART[0x30 / 4] = 0x301;
                 RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
                 INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
+                O10_DOMAIN_GENERATION[1] += 1;
                 PLAN9_WITHDRAWN = 0; BLOCKED[1] = 0; LIVE[1] = 1; result = 1;
             }
         }
@@ -613,7 +617,8 @@ unsafe fn native_control() -> void {
     let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
     let mut result: u64 = 0;
     if operation == 10 { result = o10_mailbox(); }
-    if operation == 1 && o10_epoch() == 0 && LIVE[0] == 1 {
+    if operation == 1 && o10_epoch() == 0 && LIVE[0] == 1 && O10_LEASE_GENERATION != 0xffff_ffff {
+        O10_LEASE_GENERATION += 1;
         LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1;
         plan9_wire_revoke();
         set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);

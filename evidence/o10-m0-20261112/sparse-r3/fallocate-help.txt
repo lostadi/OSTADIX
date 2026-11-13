@@ -1,0 +1,26 @@
+
+Usage:
+ fallocate [options] <filename>
+
+Preallocate space to, or deallocate space from a file.
+
+Options:
+ -c, --collapse-range remove a range from the file
+ -d, --dig-holes      detect zeroes and replace with holes
+ -i, --insert-range   insert a hole at range, shifting existing data
+ -l, --length <num>   length for range operations, in bytes
+ -n, --keep-size      maintain the apparent size of the file
+ -o, --offset <num>   offset for range operations, in bytes
+ -p, --punch-hole     replace a range with a hole (implies -n)
+ -z, --zero-range     zero and ensure allocation of a range
+ -x, --posix          use posix_fallocate(3) instead of fallocate(2)
+ -v, --verbose        verbose mode
+
+ -h, --help           display this help
+ -V, --version        display version
+
+Arguments:
+ <num> arguments may be followed by the suffixes for
+   GiB, TiB, PiB, EiB, ZiB, and YiB (the "iB" is optional)
+
+For more details see fallocate(1).

@@ -53,6 +53,7 @@ def main():
              "scripts/verify_o10_journal.py", "scripts/okernel_unified_world.py",
              "scripts/build_okernel_unified_world.py", "tests/test_o10_runner.py",
              "ci/language-sources.json", "scripts/freeze_okernel_unified_runtime.py", *SOURCES]
+    files += [str(path.relative_to(ROOT)) for pattern in ("tests/test_o10_*.py", "scripts/verify_o10_*.py") for path in ROOT.glob(pattern)]
     files = sorted(set(files))
     hashes = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in files}
     log = io.StringIO()
@@ -71,7 +72,8 @@ def main():
         run = unittest.TextTestRunner(stream=log, verbosity=2).run(suite)
         record.update(tests_run=run.testsRun, failures=len(run.failures), errors=len(run.errors),
                       skips=[{"test": str(test), "reason": reason} for test, reason in run.skipped])
-        record["component_ok"] = run.wasSuccessful() and not run.skipped and run.testsRun > 0
+        record["source_unchanged"] = hashes == {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in files}
+        record["component_ok"] = run.wasSuccessful() and not run.skipped and run.testsRun > 0 and record["source_unchanged"]
         aligned = revision != "unknown" and args.mcp_release == revision
         regression = json.loads(args.regression_result.read_text()) if args.regression_result else None
         regressions_ok = bool(regression and regression.get("ok") is True

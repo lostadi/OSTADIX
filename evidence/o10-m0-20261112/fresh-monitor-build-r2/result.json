@@ -1,0 +1,32 @@
+{
+  "scope": "Fresh AArch64 monitor artifact build only; no VM boot or full M0 qualification",
+  "started": 1794539760.9244332,
+  "argv": [
+    "python3",
+    "scripts/build_okernel_unified_world.py",
+    "--payload",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui/payload",
+    "--plan9-kernel",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/KERNEL.U",
+    "--derivation-receipt",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/result.json",
+    "--output",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r2",
+    "--ocorec",
+    "/home/ustad/OSTADIX-o10-m0-20261112/target/release/ocorec",
+    "--clang",
+    "/usr/lib/llvm-18/bin/clang",
+    "--lld",
+    "/usr/lib/llvm-18/bin/ld.lld",
+    "--dtc",
+    "/home/ustad/ostadix-BM/target/bm-dev-env/bin/dtc",
+    "--plan9-recovery"
+  ],
+  "compiler_sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42",
+  "compiler_source_provenance": "runtime_review exact Cargo build from5fb; compiler itself has no embedded commit report",
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "ok": true,
+  "correction": "Invoke linker as ld.lld; generic argv0 lld rejects Unix flags.",
+  "returncode": 0,
+  "finished": 1794539764.547912
+}

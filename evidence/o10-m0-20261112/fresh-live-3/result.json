@@ -1,0 +1,279 @@
+{
+  "schema": "ostadix.o10-live-component/v1",
+  "milestone": "M0",
+  "gate_id": "verify_o10_live",
+  "ok": true,
+  "full_milestone_qualified": false,
+  "started": 1794543431.7153695,
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "mcp_release": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "host": "X12",
+  "state": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3",
+  "build": "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3",
+  "output": "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-live-3",
+  "command": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/scripts/verify_o10_live.py",
+    "--state",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3",
+    "--build",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3",
+    "--output",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-live-3",
+    "--mcp-release",
+    "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c"
+  ],
+  "monitor_sha256": "641a0ad14fb96979f7d4b141779f8bbad7b8b854ea1fde4fe1b25d984504aeaf",
+  "profile_sha256": "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e",
+  "source_sha256": {
+    "scripts/verify_o10_live.py": "62cad9b4dba417a070d901fdfdf101a4869e76d5a0b948b3ec344a6e8d77550a",
+    "scripts/o10.py": "0fb04f75a4ecd40c1510db82b702ec3ea03db654f80a468f1a900bfe8d1bf673",
+    "scripts/okernel_unified_world.py": "ce83364c0c1197940f6b0c44db547e1e1053458fff01b2a86f5b267e558d0d46",
+    "scripts/verify_okernel_unified_provider.py": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986",
+    "ocore/runtime/common/o10_codec.oc": "ea9259f69754d8e1ecfbf2371b4732813cfd0e27e928ac24e94a6d05c362322c",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/aarch64/unified_world.oc": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e"
+  },
+  "build_tools": {
+    "ocorec": {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "bytes": 3816904,
+      "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+    },
+    "clang": {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "bytes": 140592,
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "lld": {
+      "path": "/usr/lib/llvm-18/bin/lld",
+      "bytes": 5195712,
+      "sha256": "7ad9a0e8fe6d0e79b71172d731e33872c0274e49fceb7b516d774876d5a58ade"
+    },
+    "dtc": {
+      "path": "/home/ustad/ostadix-BM/target/bm-dev-env/bin/dtc",
+      "bytes": 331,
+      "sha256": "e604bf935a682aa9e691a669f6e0ea8e70e86db317893a173040269b38a50c2e"
+    }
+  },
+  "checks": [
+    "preclaim-legacy-replacement-invalidates-issued-o10-handle",
+    "both-guests-ready-and-governor-claim",
+    "stale-handle-gap-stale-epoch-and-malformed-frames-fail-closed",
+    "withdraw-journal-retry-and-changed-body-rejection",
+    "linux-shell-pid-starttime-and-namespace-survive",
+    "restore-new-generation-explicit-bind-and-original-provider-execution",
+    "private-fork-paired-save"
+  ],
+  "exchanges": [
+    {
+      "request_hex": "13000000a20100000200004f31300000000000",
+      "reply_hex": "23000000a30100000200004f3130000000000000000000000000000000000000000000"
+    },
+    {
+      "request_hex": "1f000000b20200000000000000000000000000000000000000000001000000",
+      "reply_hex": "4d000000b3020000000000010000000203000000000000000000000000000000007f54000000000000a3070000000000000000e007000000000000000000000000a8bd4280c0ffffff01000000"
+    },
+    {
+      "request_hex": "1f000000b20300000000000000000000000000000000000100000001000000",
+      "reply_hex": "4d000000b3030001000000010000000202000000000000000000000000000000003954000000000000a6070000000000000500899300000000000000000000000054c812c0ffffffff01000000"
+    },
+    {
+      "request_hex": "1f000000b20952000000000000000000000000000000000100000001000000",
+      "reply_hex": "13000000a10952050000000200000000000000"
+    },
+    {
+      "request_hex": "1f000000b20400000000000000000000000000000000000100000002000000",
+      "reply_hex": "4d000000b3040001000000020000000202000000000000000000000000000000002979000000000000ee0b0000000000000500879300000000000000000000000028c812c0ffffffff01000000"
+    },
+    {
+      "request_hex": "13000000a20500000200004f31300000000000",
+      "reply_hex": "23000000a30500000200004f3130000000000000000000000000000000000000000000"
+    },
+    {
+      "request_hex": "27000000a406000000000000000000010000000000000001000000000000000000000000000000",
+      "reply_hex": "1f000000a50600010000000000000001000000000000000100000000000000"
+    },
+    {
+      "request_hex": "1f000000b20700010000000000000000000000000000000100000002000000",
+      "reply_hex": "4d000000b3070001000000020000000202000000000000000000000000000000009e7b000000000000fc0b00000000000005008a930000000000000000000000003cca12c0ffffffff01000000"
+    },
+    {
+      "request_hex": "1f000000b21a79010000000000000000000000000000000100000003000000",
+      "reply_hex": "13000000a11a79050000000200000000000000"
+    },
+    {
+      "request_hex": "24000000ac1b790100000000000000030000000000000001000000020000000000000000",
+      "reply_hex": "13000000a11b79040000000100000000000000"
+    },
+    {
+      "request_hex": "24000000ac1c790000000000000000020000000000000001000000020000000000000000",
+      "reply_hex": "13000000a11c79030000000100000000000000"
+    },
+    {
+      "request_hex": "0700000064017d",
+      "reply_hex": "13000000a1017d010000000400000000000000"
+    },
+    {
+      "request_hex": "06000000b2027d",
+      "reply_hex": "13000000a10000010000000000000000000000"
+    },
+    {
+      "request_hex": "13000000a20800000200004f31300000000000",
+      "reply_hex": "23000000a30800000200004f3130000000000001000000000000000100000000000000"
+    },
+    {
+      "request_hex": "24000000ac09000100000000000000020000000000000001000000020000000000000000",
+      "reply_hex": "1b000000ad09000100000002000000010000000100000002000000"
+    },
+    {
+      "request_hex": "24000000ac09000100000000000000020000000000000001000000020000000000000000",
+      "reply_hex": "1b000000ad09000100000002000000010000000100000002000000"
+    },
+    {
+      "request_hex": "24000000ac09000100000000000000020000000000000001000000020000000100000000",
+      "reply_hex": "13000000a10900040000000200000000000000"
+    },
+    {
+      "request_hex": "1f000000a60a00010000000000000000000000000000000200000000000000",
+      "reply_hex": "29000000a70a0001000000001b001b000000ad09000100000002000000010000000100000002000000"
+    },
+    {
+      "request_hex": "1f000000b20b00010000000000000000000000000000000000000001000000",
+      "reply_hex": "4d000000b30b000000000001000000020300000000000000000000000000000000ef6d000000000000210c0000000000000000e007000000000000000000000000a8bd4280c0ffffff01000000"
+    },
+    {
+      "request_hex": "3f000000ae0c00010000000000000003000000000000000100000002000000807f5edb558e84121575b2b2fc47e0c001000000000000000200000000000000",
+      "reply_hex": "0f000000af0c000100000003000000"
+    },
+    {
+      "request_hex": "27000000b80d000100000000000000040000000000000004000000020000000000000003000000",
+      "reply_hex": "13000000a10d00050000000300000000000000"
+    },
+    {
+      "request_hex": "13000000a20e00000200004f31300000000000",
+      "reply_hex": "23000000a30e00000200004f3130000000000001000000000000000400000000000000"
+    },
+    {
+      "request_hex": "27000000b80f000100000000000000050000000000000004000000030000000000000003000000",
+      "reply_hex": "0f000000b90f000400000002000000"
+    },
+    {
+      "request_hex": "1f000000b21d79010000000000000000000000000000000100000002000000",
+      "reply_hex": "13000000a11d79050000000300000000000000"
+    }
+  ],
+  "scope": "live AArch64 QEMU/TCG preclaim legacy/O10 generation continuity, O10 host shim journal negative controls and Plan9 withdraw/restore/bind with surviving Linux shell; no physical hardware or later milestones; full M0 regression qualification remains separate",
+  "session": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl",
+  "qemu_argv": [
+    "/usr/bin/qemu-system-aarch64",
+    "-machine",
+    "virt,virtualization=on,gic-version=3,its=off,memory-backend=unified-ram",
+    "-object",
+    "memory-backend-file,id=unified-ram,size=3G,mem-path=/proc/self/fd/9,share=on",
+    "-accel",
+    "tcg,thread=single",
+    "-cpu",
+    "cortex-a57",
+    "-smp",
+    "1",
+    "-m",
+    "3G",
+    "-nodefaults",
+    "-nic",
+    "none",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-no-reboot",
+    "-no-shutdown",
+    "-qmp",
+    "unix:/tmp/okernel-qmp-1000-a0b89abab302a360-uafsct_9/control.sock,server=on,wait=off",
+    "-kernel",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/monitor.elf",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/inputs/linux.Image,addr=0x48000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/linux.dtb,addr=0x4fe00000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/inputs/linux.initramfs,addr=0x50000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/inputs/plan9.kernel,addr=0xb0100000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/plan9.dtb,addr=0xb0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/inputs/plan9-recovery.kernel,addr=0xd0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/inputs/plan9-recovery.dtb,addr=0xd1000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/disk.ext4,addr=0x70000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/namespace.raw,addr=0x6c000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3/unified-session-wxznbqvl/inputs/plan9-bootstrap.bin,addr=0x6d010000,force-raw=on",
+    "-device",
+    "loader,addr=0x6d000000,data=4466591814534824769,data-len=8",
+    "-device",
+    "loader,addr=0x6d000008,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000010,data=1794543433,data-len=8",
+    "-device",
+    "loader,addr=0x6d020000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d040000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000090,data=6050944,data-len=8",
+    "-device",
+    "loader,addr=0x6d000098,data=503,data-len=8",
+    "-global",
+    "virtio-mmio.force-legacy=false",
+    "-netdev",
+    "user,id=unified-net",
+    "-device",
+    "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"
+  ],
+  "qemu": {
+    "path": "/usr/bin/qemu-system-aarch64",
+    "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c",
+    "version": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)\nCopyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers\n"
+  },
+  "preclaim_legacy": {
+    "old_dom": 4294967297,
+    "new_dom": 8589934593,
+    "old_service": {
+      "generation": "3dfc85971e040341",
+      "instance": "cccbd1206a0e460d7e85d7734d6a63f9"
+    },
+    "new_service": {
+      "generation": "3dfc85971e040341",
+      "instance": "9a08c7cb5eedcb61484cf5a216e84582"
+    },
+    "mailbox_operations": [
+      1,
+      2
+    ],
+    "old_handle_error": {
+      "type": "Rerror",
+      "tag": 21001,
+      "code": 5,
+      "detail": 2
+    }
+  },
+  "lifecycle": {
+    "old_dom": 8589934593,
+    "new_dom": 12884901889,
+    "old_service": {
+      "generation": "3dfc85971e040341",
+      "instance": "9a08c7cb5eedcb61484cf5a216e84582"
+    },
+    "new_service": {
+      "generation": "3dfc85971e040341",
+      "instance": "787bcd852c87b8a01d015710e7b992a3"
+    }
+  },
+  "paired_save": true,
+  "finished": 1794543491.199255
+}

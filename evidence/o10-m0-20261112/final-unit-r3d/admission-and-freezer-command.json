@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_unified_client_acceptance",
+    "tests.test_unified_runtime_acceptance",
+    "tests.test_o10_regressions",
+    "tests.test_freeze_okernel_unified_runtime"
+  ],
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_unified_client_acceptance",
+    "tests.test_unified_runtime_acceptance",
+    "tests.test_o10_regressions",
+    "tests.test_freeze_okernel_unified_runtime"
+  ],
+  "started": 1794547102.0512917,
+  "timed_out": false,
+  "environment_overrides": {},
+  "returncode": 0,
+  "finished": 1794547102.8673737
+}

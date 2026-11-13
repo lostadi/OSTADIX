@@ -176,7 +176,7 @@ class RuntimeOracleTests(unittest.TestCase):
 
     def test_owned_process_requires_pane_parent_native_engine_and_captured_elf_paths(self):
         state, session, record, manifest, proc, process, library, _ = self.process_fixture()
-        with patch.object(module, "R9_MONITOR", record["inputs"]["monitor.elf"]["sha256"]):
+        with patch.dict(module.ADMITTED_RUNTIME_PROFILES, {record["inputs"]["monitor.elf"]["sha256"]: "fixture-profile"}):
             result = module.inspect_owned_qemu(self.runtime, manifest, state, session, record, 10, proc)
             self.assertEqual((result["pid"], result["start_ticks"]), (20, 12345))
             with self.assertRaisesRegex(ValueError, "positively bound"):
@@ -190,7 +190,7 @@ class RuntimeOracleTests(unittest.TestCase):
 
     def test_declared_interpreter_must_really_be_mapped_and_parent_must_match(self):
         state, session, record, manifest, proc, process, _, interpreter = self.process_fixture()
-        with patch.object(module, "R9_MONITOR", record["inputs"]["monitor.elf"]["sha256"]):
+        with patch.dict(module.ADMITTED_RUNTIME_PROFILES, {record["inputs"]["monitor.elf"]["sha256"]: "fixture-profile"}):
             original = (process / "maps").read_text()
             (process / "maps").write_text("".join(line for line in original.splitlines(True) if str(interpreter) not in line))
             with self.assertRaisesRegex(ValueError, "interpreter was not observed"):

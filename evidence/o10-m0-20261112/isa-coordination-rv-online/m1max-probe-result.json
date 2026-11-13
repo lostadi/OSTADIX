@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "timeout",
+    "90s",
+    "tailscale",
+    "ssh",
+    "ustad@m1max",
+    "/usr/bin/uname -m && /usr/sbin/sysctl -n hw.model hw.memsize machdep.cpu.brand_string && /usr/bin/sw_vers"
+  ],
+  "returncode": 0,
+  "started": 1794545191.6905887,
+  "finished": 1794545192.6790292,
+  "stdout": "arm64\nMacBookPro18,4\n68719476736\nApple M1 Max\nProductName:\t\tmacOS\nProductVersion:\t\t26.5.2\nBuildVersion:\t\t25F84\n",
+  "stderr": "",
+  "identity_check_required": false,
+  "scope": "Mac identity unconfirmed unless command actually succeeds; no alternate Mac selected"
+}

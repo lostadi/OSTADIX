@@ -1,0 +1,6 @@
+{
+  "returncode": 0,
+  "stdout": "{\"staging_parent\": {\"path\": \"/home/orangepi/.cache\", \"exists\": true}, \"tools\": {\"sho\": null, \"Sho\": null, \"o\": \"/home/orangepi/.local/bin/o\", \"O\": \"/home/orangepi/.local/bin/O\", \"ocorec\": \"/home/orangepi/.local/bin/ocorec\", \"ostadix-mcp\": \"/home/orangepi/.local/bin/ostadix-mcp\", \"ostadix-mcp-client\": \"/home/orangepi/.local/bin/ostadix-mcp-client\"}, \"processes\": [{\"pid\": 5462, \"command\": \"codex\", \"cwd\": \"/home/orangepi/ostadix-BM\"}, {\"pid\": 5786, \"command\": \"ostadix-mcp\", \"cwd\": \"/home/orangepi/ostadix-BM\"}, {\"pid\": 6239, \"command\": \"ostadix-mcp\", \"cwd\": \"/home/orangepi/ostadix-BM\"}, {\"pid\": 6547, \"command\": \"ostadix-mcp\", \"cwd\": \"/home/orangepi/ostadix-BM\"}], \"/home/orangepi/.local/bin/ostadix-install.json\": {\"repo_root\": \"/home/orangepi/ostadix-BM\"}}\n",
+  "stderr": "",
+  "scope": "Ostadix tool paths/current source metadata/agent process working directories; no configuration secret contents"
+}

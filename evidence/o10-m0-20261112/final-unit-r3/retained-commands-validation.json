@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "scope": "Completed child commands and unchanged source verified after parent return-value projection failure; no commands replayed",
+  "unit_result_sha256": "bb5cf1d9d16341aafc6830d22f887699a7399b7d1616f022eb35179df18a5ac3",
+  "parent_job": "job-905616-1794540001293931787-1-39",
+  "parent_exit_code": 1,
+  "parent_failure": "OValue projection of runpy namespace after all child commands completed",
+  "o10_tests": 65,
+  "kernel_tests": 288,
+  "targeted_tests": 35,
+  "language_sources": 261
+}
