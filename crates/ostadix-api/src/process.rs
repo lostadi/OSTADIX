@@ -688,7 +688,10 @@ fn positive_integer_knob(name: &str, raw: &std::ffi::OsStr) -> Result<usize> {
 /// Validate the teardown budget and the session caps, so a malformed value
 /// fails the spawn instead of silently becoming the default.
 fn check_process_knobs() -> Result<()> {
-    checked_duration_from_env(BACKEND_SHUTDOWN_TIMEOUT_ENV, MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT)?;
+    checked_duration_from_env(
+        BACKEND_SHUTDOWN_TIMEOUT_ENV,
+        MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT,
+    )?;
     for name in [MAX_OPEN_SESSIONS_ENV, MAX_OPEN_SESSIONS_PER_BACKEND_ENV] {
         if let Some(raw) = std::env::var_os(name) {
             positive_integer_knob(name, &raw)?;
@@ -2284,10 +2287,8 @@ pub(crate) struct BackendSessionLimits {
 
 impl BackendSessionLimits {
     fn from_env() -> Self {
-        let total = positive_usize_from_env(
-            MAX_OPEN_SESSIONS_ENV,
-            DEFAULT_MAX_OPEN_BACKEND_SESSIONS,
-        );
+        let total =
+            positive_usize_from_env(MAX_OPEN_SESSIONS_ENV, DEFAULT_MAX_OPEN_BACKEND_SESSIONS);
         let per_backend = positive_usize_from_env(
             MAX_OPEN_SESSIONS_PER_BACKEND_ENV,
             DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND,
@@ -3580,7 +3581,10 @@ mod tests {
         );
         for bad in ["", "abc", "0", "-1", "1.5", " 5"] {
             assert!(duration_knob("K", OsStr::new(bad), max).is_err(), "{bad:?}");
-            assert!(positive_integer_knob("K", OsStr::new(bad)).is_err(), "{bad:?}");
+            assert!(
+                positive_integer_knob("K", OsStr::new(bad)).is_err(),
+                "{bad:?}"
+            );
         }
         assert!(duration_knob("K", OsStr::new("60001"), max).is_err());
         assert_eq!(positive_integer_knob("K", OsStr::new("8")).unwrap(), 8);

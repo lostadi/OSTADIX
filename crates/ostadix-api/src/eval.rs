@@ -6507,7 +6507,10 @@ mod tests {
         assert_eq!(partial.failures.len(), 1, "{error:#}");
         assert_eq!(partial.failures[0].member, 1);
         assert!(partial.failures[0].message.contains("missing"));
-        assert!(format!("{error}").contains("batch member 1 failed"), "{error}");
+        assert!(
+            format!("{error}").contains("batch member 1 failed"),
+            "{error}"
+        );
     }
 
     #[test]
