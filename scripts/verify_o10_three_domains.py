@@ -544,9 +544,9 @@ def start_plan9_counter(domain, observers, record, token, protocol):
             + "/m3-counter-" + token + "-" + secrets.token_hex(4))
     row = dict(phase="preparing-new-explicit-request", path=path, dom=domain.o10_plan9, service=service)
     record.setdefault("plan9_counter_invocations", []).append(row)
+    observers.counter("plan9", path, row)
     invocation = common.publish_counter(domain, protocol, path, record=row)
     row["phase"] = "submitted-once"
-    observers.counter("plan9", path, row)
     observers.progress(["plan9"], baseline={"plan9": 0}, minimum=3)
     return invocation
 
@@ -627,6 +627,13 @@ def create_native(domain, record, expected_image):
     return holder, proof
 
 
+def start_native(domain, holder):
+    state = domain.o10_call("Tstat", dom=holder)
+    need(type(state.get("state")) is int and state["state"] == 1 and state.get("dom") == holder,
+         "binding must preserve the exact native holder PROVISIONED before Tstart")
+    return domain.o10_call("Tstart", dom=holder, inst=secrets.token_bytes(16))
+
+
 def run_cycles(domain, observers, record, runner, token, expected_image):
     handles = dict(linux=domain.o10_linux, plan9=domain.o10_plan9)
     corpus_path = "/n/okernel/work/" + CONTRACT["corpus_name"]
@@ -634,8 +641,7 @@ def run_cycles(domain, observers, record, runner, token, expected_image):
     need(domain.native_volume().get("/work/" + CONTRACT["corpus_name"]) == CORPUS, "native corpus publication differs")
     native, reset_proof = create_native(domain, record, expected_image)
     lease = bind_native(domain, runner.o10, native, 1, record)
-    need(domain.o10_call("Tstat", dom=native)["state"] == 1, "binding must preserve PROVISIONED before Tstart")
-    domain.o10_call("Tstart", dom=native, inst=secrets.token_bytes(16))
+    start_native(domain, native)
     start_row = record["o10_exchanges"][-1]
     observers.native_start(native, reset_proof)
     handles["native"] = native
@@ -723,7 +729,7 @@ def run_cycles(domain, observers, record, runner, token, expected_image):
     need((native & 0xffffffff) == (destroyed & 0xffffffff) and native >> 32 > destroyed >> 32,
          "Tcreate did not reuse the destroyed slot under a higher generation")
     lease = bind_native(domain, runner.o10, native, lease, record)
-    domain.o10_call("Tstart", dom=native, inst=secrets.token_bytes(16))
+    start_native(domain, native)
     observers.native_start(native, reset_proof)
     handles["native"] = native
     observers.progress(["native"], baseline={"native": 0}, minimum=3)

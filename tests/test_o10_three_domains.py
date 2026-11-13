@@ -422,6 +422,94 @@ class ThreeDomainGateTests(unittest.TestCase):
             self.assertTrue(proof["heartbeat_zero"])
             self.assertEqual(len(record["journal_replays"]),1)
 
+    def test_both_native_starts_require_exact_post_bind_provisioned_holder(self):
+        instance = bytes.fromhex("34" * 16)
+        for generation in (1, 9):
+            holder = (generation << 32) | 7
+            domain = WireDomain([dict(type="Rstat", dom=holder, state=1),
+                                 dict(type="Rstart", dom=holder)])
+            with self.subTest(generation=generation), mock.patch.object(gate.secrets, "token_bytes", return_value=instance):
+                reply = gate.start_native(domain, holder)
+            self.assertEqual(reply, dict(type="Rstart", dom=holder))
+            self.assertEqual(domain.calls, [("Tstat", dict(dom=holder)),
+                                           ("Tstart", dict(dom=holder, inst=instance))])
+        holder = (9 << 32) | 7
+        for state in (0, 2, 3, 4, 5, True, None, "1"):
+            domain = WireDomain([dict(type="Rstat", dom=holder, state=state)])
+            with self.subTest(state=state), self.assertRaisesRegex(ValueError, "PROVISIONED"):
+                gate.start_native(domain, holder)
+            self.assertEqual(domain.calls, [("Tstat", dict(dom=holder))])
+        domain = WireDomain([dict(type="Rstat", dom=(8 << 32) | 7, state=1)])
+        with self.assertRaisesRegex(ValueError, "exact native holder"):
+            gate.start_native(domain, holder)
+        self.assertEqual(domain.calls, [("Tstat", dict(dom=holder))])
+
+    def test_plan9_counter_is_armed_before_publication_and_first_append_bracket(self):
+        now = [10.]
+        data = [b""]
+        domain = SimpleNamespace(service=dict(generation="1" * 16, instance="2" * 32),
+                                 o10_plan9=(1 << 32) | 6,
+                                 native_volume=lambda: {path: data[0]})
+        record = {}
+        observers = gate.Observers(domain, record, clock=lambda: now[0])
+        invocation = dict(id="4" * 32, phase="submitted")
+        path = None
+        def publish(actual_domain, protocol, actual_path, *, record):
+            nonlocal path
+            path = actual_path
+            self.assertIs(actual_domain, domain)
+            self.assertIn("plan9", observers.current, "counter must be armed before publication")
+            counter, counter_row = observers.current["plan9"]
+            self.assertEqual(counter.path, path)
+            self.assertEqual(counter.start, 10.)
+            self.assertEqual(counter.data, b"")
+            self.assertIs(counter_row["invocation"], record)
+            record["plan9_counter_request"] = invocation
+            now[0] = 12.
+            data[0] = b"0\n1\n2\n"
+            return invocation
+        with mock.patch.object(gate.common.time, "monotonic", side_effect=lambda: now[0]), \
+                mock.patch.object(gate.common, "publish_counter", side_effect=publish) as publication:
+            actual = gate.start_plan9_counter(domain, observers, record, "nonce", object())
+        self.assertIs(actual, invocation)
+        publication.assert_called_once()
+        observations = record["counters"][0]["observations"]
+        self.assertEqual(observations["start_monotonic"], 10.)
+        self.assertEqual(observations["samples"][0]["earliest_host_seconds"], 0.)
+        self.assertEqual(observations["samples"][0]["observed_host_seconds"], 2.)
+        self.assertEqual(record["plan9_counter_invocations"][0]["phase"], "submitted-once")
+
+    def test_unknown_plan9_publication_retains_armed_counter_and_is_not_resubmitted(self):
+        now, record = [10.], {}
+        domain = SimpleNamespace(service=dict(generation="1" * 16, instance="2" * 32),
+                                 o10_plan9=(1 << 32) | 6)
+        observers = gate.Observers(domain, record, clock=lambda: now[0])
+        unknown = TimeoutError("publication outcome unknown")
+        invocation = dict(id="4" * 32, request=b"intended request bytes",
+                          phase="submission-pending")
+        def publish(actual_domain, protocol, path, *, record):
+            self.assertIn("plan9", observers.current, "counter must be armed before publication")
+            counter, counter_row = observers.current["plan9"]
+            self.assertEqual(counter.start, 10.)
+            self.assertEqual(counter.path, path)
+            self.assertIs(counter_row["invocation"], record)
+            record["plan9_counter_request"] = invocation
+            raise unknown
+        with mock.patch.object(gate.common.time, "monotonic", side_effect=lambda: now[0]), \
+                mock.patch.object(gate.common, "publish_counter", side_effect=publish) as publication, \
+                mock.patch.object(observers, "progress") as progress:
+            with self.assertRaises(TimeoutError) as caught:
+                gate.start_plan9_counter(domain, observers, record, "nonce", object())
+        self.assertIs(caught.exception, unknown)
+        publication.assert_called_once()
+        progress.assert_not_called()
+        self.assertEqual(len(record["plan9_counter_invocations"]), 1)
+        row = record["plan9_counter_invocations"][0]
+        self.assertIs(row["plan9_counter_request"], invocation)
+        self.assertEqual(row["phase"], "preparing-new-explicit-request")
+        self.assertEqual(record["counters"][0]["path"], row["path"])
+        self.assertEqual(observers.current["plan9"][0].start, 10.)
+
     def test_unknown_counter_is_retained_and_new_work_uses_a_different_path(self):
         domain=SimpleNamespace(command=mock.Mock())
         observers=gate.Observers(domain,{})
