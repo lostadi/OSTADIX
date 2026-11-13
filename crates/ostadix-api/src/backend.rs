@@ -1217,7 +1217,7 @@ impl RustBackend {
                 "javascript",
                 "node",
                 "js",
-                &javascript_preamble(&bindings),
+                &javascript_preamble(&bindings)?,
                 code,
             ),
             "ruby" => run_script(
@@ -1225,7 +1225,7 @@ impl RustBackend {
                 "ruby",
                 "ruby",
                 "rb",
-                &ruby_preamble(&bindings),
+                &ruby_preamble(&bindings)?,
                 code,
             ),
             "rust" => run_rust(&self.tools, code),
@@ -2051,7 +2051,7 @@ fn run_javascript_native_bridge(
         &source,
         format!(
             "{JAVASCRIPT_NATIVE_BRIDGE}\n{}\n{code}",
-            javascript_preamble(bindings)
+            javascript_preamble(bindings)?
         ),
     )?;
     let (socket, child_socket) = UnixStream::pair()?;
@@ -2868,52 +2868,123 @@ fn number_scalar_string(value: &ONumber) -> Option<String> {
     }
 }
 
-fn javascript_preamble(bindings: &HashMap<String, OValue>) -> String {
+fn javascript_number_literal(value: &ONumber) -> Option<String> {
+    match value {
+        ONumber::Int { v } => {
+            let max_safe = num_bigint::BigInt::from(9_007_199_254_740_991_i64);
+            let min_safe = -&max_safe;
+            if v >= &min_safe && v <= &max_safe {
+                Some(v.to_string())
+            } else {
+                Some(format!("{v}n"))
+            }
+        }
+        ONumber::BinaryFloat {
+            format: FloatFormat::F32,
+            bits,
+        } if bits.len() == 4 => {
+            let mut raw = [0_u8; 4];
+            raw.copy_from_slice(bits);
+            let value = f32::from_bits(u32::from_be_bytes(raw)) as f64;
+            if !value.is_finite() {
+                None
+            } else if value == 0.0 && value.is_sign_negative() {
+                Some("-0".to_string())
+            } else {
+                Some(value.to_string())
+            }
+        }
+        ONumber::BinaryFloat {
+            format: FloatFormat::F64,
+            bits,
+        } if bits.len() == 8 => {
+            let mut raw = [0_u8; 8];
+            raw.copy_from_slice(bits);
+            let value = f64::from_bits(u64::from_be_bytes(raw));
+            if !value.is_finite() {
+                None
+            } else if value == 0.0 && value.is_sign_negative() {
+                Some("-0".to_string())
+            } else {
+                Some(value.to_string())
+            }
+        }
+        _ => None,
+    }
+}
+
+fn javascript_value_literal(value: &OValue, path: &str) -> Result<String> {
+    match value {
+        OValue::Text { v } => Ok(serde_json::to_string(&v.utf8).unwrap_or_else(|_| "null".to_string())),
+        OValue::Number { v } => javascript_number_literal(v).ok_or_else(|| {
+            anyhow!(
+                "javascript binding `{path}` has unsupported numeric value `{}` (non-finite float or exact rational/decimal/complex cannot cross as a JavaScript binding)",
+                value.type_name()
+            )
+        }),
+        OValue::Bool { v } => Ok(if *v { "true".to_string() } else { "false".to_string() }),
+        OValue::Null => Ok("null".to_string()),
+        OValue::List { v } => {
+            let mut items = Vec::with_capacity(v.len());
+            for (idx, item) in v.iter().enumerate() {
+                items.push(javascript_value_literal(item, &format!("{path}[{idx}]"))?);
+            }
+            Ok(format!("[{}]", items.join(", ")))
+        }
+        OValue::Map { v } => {
+            let mut keys = v.keys().collect::<Vec<_>>();
+            keys.sort();
+            let mut entries = Vec::with_capacity(keys.len());
+            for key in keys {
+                let key_json = serde_json::to_string(key)?;
+                let item = javascript_value_literal(&v[key], &format!("{path}.{key}"))?;
+                entries.push(format!("{key_json}: {item}"));
+            }
+            Ok(format!("{{{}}}", entries.join(", ")))
+        }
+        OValue::Native { .. } => Ok(serde_json::to_string(value)?),
+        other => bail!(
+            "javascript binding `{path}` has unsupported value type `{}`",
+            other.type_name()
+        ),
+    }
+}
+
+fn javascript_preamble(bindings: &HashMap<String, OValue>) -> Result<String> {
+    let mut names = bindings.keys().collect::<Vec<_>>();
+    names.sort();
     let mut preamble = String::new();
-    for (name, value) in bindings {
+    for name in names {
         if !is_identifier(name) {
             continue;
         }
+        let value = &bindings[name];
         match value {
-            OValue::Text { v } => {
-                preamble.push_str(&format!(
-                    "const {name} = {};\n",
-                    serde_json::to_string(&v.utf8).unwrap_or_else(|_| "null".to_string())
-                ));
+            OValue::Text { .. }
+            | OValue::Number { .. }
+            | OValue::Bool { .. }
+            | OValue::Null
+            | OValue::List { .. }
+            | OValue::Map { .. }
+            | OValue::Native { .. } => {
+                let expr = javascript_value_literal(value, name)?;
+                preamble.push_str(&format!("const {name} = {expr};\n"));
             }
-            OValue::Number { v } => {
-                if let Some(value) = number_scalar_string(v) {
-                    preamble.push_str(&format!("const {name} = {value};\n"));
-                }
-            }
-            OValue::Bool { v } => {
-                preamble.push_str(&format!(
-                    "const {name} = {};\n",
-                    if *v { "true" } else { "false" }
-                ));
-            }
-            OValue::Null => preamble.push_str(&format!("const {name} = null;\n")),
-            OValue::List { v } => push_json_const(&mut preamble, name, v),
-            OValue::Map { v } => push_json_const(&mut preamble, name, v),
-            OValue::Native { .. } => push_json_const(&mut preamble, name, value),
             _ => {}
         }
     }
-    preamble
+    Ok(preamble)
 }
 
-fn push_json_const<T: serde::Serialize>(preamble: &mut String, name: &str, value: &T) {
-    if let Ok(json) = serde_json::to_string(value) {
-        preamble.push_str(&format!("const {name} = {json};\n"));
-    }
-}
-
-fn ruby_preamble(bindings: &HashMap<String, OValue>) -> String {
+fn ruby_preamble(bindings: &HashMap<String, OValue>) -> Result<String> {
+    let mut names = bindings.keys().collect::<Vec<_>>();
+    names.sort();
     let mut preamble = String::new();
-    for (name, value) in bindings {
+    for name in names {
         if !is_identifier(name) {
             continue;
         }
+        let value = &bindings[name];
         match value {
             OValue::Text { v } => {
                 preamble.push_str(&format!(
@@ -2922,9 +2993,13 @@ fn ruby_preamble(bindings: &HashMap<String, OValue>) -> String {
                 ));
             }
             OValue::Number { v } => {
-                if let Some(value) = number_scalar_string(v) {
-                    preamble.push_str(&format!("{name} = {value}\n"));
-                }
+                let Some(scalar) = number_scalar_string(v) else {
+                    bail!(
+                        "ruby binding `{name}` has unsupported numeric value `{}`",
+                        value.type_name()
+                    );
+                };
+                preamble.push_str(&format!("{name} = {scalar}\n"));
             }
             OValue::Bool { v } => {
                 preamble.push_str(&format!("{name} = {}\n", if *v { "true" } else { "false" }));
@@ -2933,7 +3008,7 @@ fn ruby_preamble(bindings: &HashMap<String, OValue>) -> String {
             _ => {}
         }
     }
-    preamble
+    Ok(preamble)
 }
 
 fn is_identifier(name: &str) -> bool {
