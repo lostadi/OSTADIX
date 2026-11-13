@@ -25,6 +25,20 @@ SENTINEL = "__O_BASH_BLOCK_DONE__"
 _session = None
 
 
+def _injection(env):
+    """Shell text that assigns the let values, and text that undoes it."""
+    inject, restore, unset = [], [], []
+    for index, name in enumerate(sorted(env)):
+        quoted = shlex.quote(env[name])
+        # declare +x so a name the session already exported stays
+        # invisible to child processes.
+        inject.append(f"declare +x {name}={quoted} || __o_inject_ok=0; ")
+        unset.append(name)
+    if unset:
+        restore.append(f"unset -v {' '.join(unset)} 2>/dev/null || :; ")
+    return "".join(inject), "".join(restore)
+
+
 def send_ok(value):
     write_wire_message({"status": "ok", "value": value})
 
@@ -47,15 +61,21 @@ class BashSession:
         self.serial += 1
         base = os.path.join(self.dir.name, f"block-{self.serial}")
         code_path, out_path, err_path = base + ".sh", base + ".out", base + ".err"
+        # the file holds only the user's code so bash's line numbers match.
         with open(code_path, "w") as f:
-            for name, value in env.items():
-                f.write(f"{name}={shlex.quote(value)}\n")
             f.write(code)
             f.write("\n")
-        unset = f"unset -v {' '.join(sorted(env))} 2>/dev/null; " if env else ""
+        inject, restore = _injection(env)
         self.proc.stdin.write(
-            f"source {shlex.quote(code_path)} </dev/null >{shlex.quote(out_path)} "
-            f"2>{shlex.quote(err_path)}; __o_status=$?; {unset}"
+            # injection runs inside the capture and is checked, like the
+            # native backend.
+            # the refusal sets the status rather than failing a command, so
+            # a persisted `set -e` cannot end the session on it.
+            f"__o_status=125; {{ __o_inject_ok=1; {inject}if (( __o_inject_ok )); then "
+            f"source {shlex.quote(code_path)}; __o_status=$?; else printf 'o: a let value "
+            f"could not be assigned, so the block did not run\\n' >&2; fi; }} "
+            f"</dev/null >{shlex.quote(out_path)} "
+            f"2>{shlex.quote(err_path)}; unset -v __o_inject_ok; {restore}"
             f"printf '\\n{SENTINEL}%d\\n' \"$__o_status\"; unset -v __o_status\n"
         )
         self.proc.stdin.flush()
@@ -76,6 +96,8 @@ class BashSession:
         if os.path.exists(err_path):
             with open(err_path, errors="replace") as f:
                 stderr = f.read()
+        # the session temp path is an implementation detail.
+        stderr = stderr.replace(code_path, "bash").replace(self.dir.name, "<bash session>")
         for path in (code_path, out_path, err_path):
             try:
                 os.remove(path)
@@ -117,8 +139,12 @@ def handle_exec(cmd):
     env = {}
     for name, oval in bindings.items():
         value = _scalar(oval)
-        if value is not None:
-            env[name] = value
+        if value is None:
+            continue
+        if "\0" in value:
+            send_err(f"let `{name}` contains a NUL byte, which a bash variable cannot hold")
+            return
+        env[name] = value
 
     try:
         if _session is None:

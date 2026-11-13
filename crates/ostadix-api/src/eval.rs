@@ -5986,6 +5986,90 @@ mod tests {
         );
     }
 
+    // ------------------------------------------------------------------------
+    // bash let injection
+    // ------------------------------------------------------------------------
+
+    fn run_bash_document(source: &str) -> Option<Result<OValue>> {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return None;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        Some(evaluator.eval_document(nodes))
+    }
+
+    #[test]
+    fn injected_let_is_never_exported_even_when_the_name_was() {
+        let Some(result) = run_bash_document(
+            "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash[1]^(export secret_val=5)_bash[1]\n\
+             bash[1]^(echo \"[${secret_val}][$(bash -c 'echo \\$secret_val')]\")_bash[1]\n",
+        ) else {
+            return;
+        };
+        assert_eq!(result.unwrap(), OValue::str_("[42][]"));
+    }
+
+    #[test]
+    fn failed_let_assignment_is_a_reported_error() {
+        let Some(result) = run_bash_document(
+            "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash[1]^(set -e; readonly secret_val=1)_bash[1]\n\
+             bash[1]^(echo ran ${secret_val})_bash[1]\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("readonly variable"), "{error}");
+        assert!(error.contains("could not be assigned"), "{error}");
+        assert!(!error.contains("session ended"), "{error}");
+    }
+
+    #[test]
+    fn structured_let_renders_the_same_through_dollar_and_braces() {
+        let Some(result) = run_bash_document(
+            "let x = python^(__oval_result__ = [1, 2])_python\n\
+             let m = python^(__oval_result__ = {'k': 1})_python\n\
+             let n = python^(__oval_result__ = None)_python\n\
+             bash^(echo \"$x|${x}|$n|${n}\"; echo ''${m}'')_bash\n",
+        ) else {
+            return;
+        };
+        let text = match result.unwrap() {
+            OValue::Text { v } => v.utf8,
+            other => panic!("expected text, got {other:?}"),
+        };
+        // `${x}` carries the text the `$x` splice renders; a spliced map's
+        // quotes are bash syntax once spliced, so the map is compared with
+        // its rendering directly.
+        assert_eq!(text, "[1, 2]|[1, 2]|null|null\n{\"k\": 1}", "{text}");
+    }
+
+    #[test]
+    fn nul_in_a_bash_let_is_an_explicit_error() {
+        let Some(result) = run_bash_document(
+            "let x = python^(__oval_result__ = 'a\\x00b')_python\n\
+             bash^(echo ${#x})_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("NUL"), "{error}");
+    }
+
+    #[test]
+    fn bash_errors_name_the_block_not_the_session_temp_path() {
+        let Some(result) = run_bash_document("bash^(no_such_command_o_test)_bash\n") else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(!error.contains("o-bash-session"), "{error}");
+        assert!(error.contains("bash: line 1:"), "{error}");
+    }
+
     #[test]
     fn escaped_dollar_opts_out_of_let_references_in_bash() {
         if which::which("bash").is_err() || which::which("python3").is_err() {
