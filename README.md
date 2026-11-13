@@ -1,3 +1,50 @@
+# OSTADIX · BM development line
+
+**Evaluator choice belongs in the expression.**
+
+I created Ostadix-lang around one structural idea: every expression carries the evaluator that gives it meaning. A single program can cross language boundaries while keeping values, operation structure, and execution evidence explicit.
+
+This repository is the BM development line of the same system documented at [lostadi/OSTADIX](https://github.com/lostadi/OSTADIX). It brings together the hosted runtime, O-core native work, compiler and linker tools, and the experiments that connect them. Repository and commit identity matter more than the shared package version.
+
+## Start here
+
+From this checkout, the supported setup path is:
+
+```sh
+bash ./setup.sh -y --minimal
+O examples/hello.O backends
+```
+
+The manifest specifies Rust 1.93.1. Hosted expressions also need the runtime for the selected language. The full guide below explains the native, project, mesh, and device paths separately.
+
+## In the source
+
+| File | Responsibility |
+| --- | --- |
+| [Cargo.toml](Cargo.toml) | Workspace and shipped command targets |
+| [src/main.rs](src/main.rs) | O CLI, parsing and execution entry |
+| [crates/ostadix-api/src/parser.rs](crates/ostadix-api/src/parser.rs) | Public parser module |
+| [crates/ostadix-api/src/ocore/native_verify.rs](crates/ostadix-api/src/ocore/native_verify.rs) | Native verification implementation |
+| [setup.sh](setup.sh) | Installation and toolchain setup |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture |
+
+## Scope
+
+This is an active systems development tree. Hosted execution, native compilation, static planning, VM work, and physical-device behavior have different qualification requirements. A plan describes a proposed route; only the corresponding execution evidence establishes that it ran.
+
+The long technical reference is retained below. Its dated results and experimental sections keep their original scope; they are not a fresh test of this branch.
+
+## Authorship and licenses
+
+Ostadix-lang and O-core are by Lee Daghlar Ostadi. Preserve the repository's LGPL-2.1-only license and all component notices.
+
+---
+
+<details>
+<summary>Previous technical documentation</summary>
+
+This material is retained from the preceding source snapshot. It may include historical names, setup assumptions, experimental claims, and dated results. The project scope above describes what is included here; retaining a result is not a new validation run.
+
 <p align="center">
   <img src="./assets/olang-logo.png" alt="Ostadix-lang" width="900" />
 </p>
@@ -6540,3 +6587,6 @@ content-addressed persistent identifier for the source itself.
 Canonical phrase:
 
     The nesting is the interface.
+
+
+</details>
