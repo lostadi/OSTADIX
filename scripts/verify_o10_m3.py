@@ -537,6 +537,14 @@ def validate_broker(path, provenance_path, provenance, root, revision, execution
                 and job.rsplit("-", 1)[1].isdigit(), "gate ran through another MCP producer")
     return dict(identity=identity(path), observed_process=actual, job_prefix=prefix)
 
+def validate_compiler(compiler, profile):
+    """Bind the selected compiler to the actual compiled-build descriptor."""
+    selected = three.identity(compiler)
+    require(selected == profile.get("tools", {}).get("ocorec"),
+            "primary compiler descriptor differs")
+    return selected
+
+
 def validate_primary(root, path, build, runtime, revision):
     value = document(path)
     require(value.get("schema") == "ostadix.o10-three-domains-gate/v1"
@@ -706,8 +714,7 @@ def validate_acceptance(*, root, build, runtime, primary_result, primary_executi
             "clean exact acceptance source required")
     prov, tools = m2.validate_provenance(provenance, root, expected_revision)
     primary, sessions, profile = validate_primary(root, primary_result, build, runtime, expected_revision)
-    require(digest(compiler) == profile["tools"]["ocorec"]["sha256"]
-            and tools.get("ocorec", {}).get("sha256") == digest(compiler), "primary/observed compiler differs")
+    validate_compiler(compiler, profile)
     resident, resident_sessions, _ = shared.validate_resident(root, resident_result, build, profile, expected_revision)
     guest, guest_sessions, children = validate_guest_regressions(root, guest_result, build, runtime,
                                                                  expected_revision, resident_result)

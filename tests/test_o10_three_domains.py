@@ -545,7 +545,7 @@ class ThreeDomainGateTests(unittest.TestCase):
     def test_manifest_cannot_choose_alternate_engine_or_ldd_before_subprocess(self):
         canonical=dict(engine=gate.identity(Path("/usr/bin/qemu-system-aarch64").resolve()),
                        ldd=gate.identity(Path("/usr/bin/ldd").resolve()))
-        for field,alternate in (("engine",Path(sys.executable).resolve()),("ldd",Path("/usr/bin/true"))):
+        for field,alternate in (("engine",Path(sys.executable).resolve()),("ldd",Path("/usr/bin/true").resolve(strict=True))):
             value=dict(schema=gate.freezer.SCHEMA,passed=True,sources_build_tools_unchanged=True,
                        self_check={"exit_status":0},
                        tools={"qemu-system-aarch64":{"selected":canonical["engine"]}},

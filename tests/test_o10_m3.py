@@ -515,5 +515,56 @@ class OrdinaryInvocationTests(unittest.TestCase):
                 binder.validate_ordinary_invocation(path, root, revision)
 
 
+class CompilerIdentityTests(unittest.TestCase):
+    def test_actual_two_tool_provenance_shape_needs_no_ocorec_entry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            compiler = root / "ocorec"; compiler.write_bytes(b"compiled tool fixture")
+            selected = binder.three.identity(compiler)
+            revision = "a" * 40
+            provenance = dict(schema="ostadix.runtime-provenance/v1",
+                buildCommitMatchesRuntimeSource=True,
+                buildSource=dict(commit=revision, sourceRoot=str(root)),
+                runtimeSource=dict(commit=revision, canonicalRoot=str(root), status="observed"),
+                binary=dict(status="hashed", hashSource="running_process_inode",
+                            canonicalPath=str(compiler), sha256=selected["sha256"]),
+                tools=[dict(name=name, binary=dict(sha256=selected["sha256"]))
+                       for name in ("O", "olangc")])
+            path = root / "provenance.json"; path.write_text(json.dumps(provenance))
+            _, tools = binder.m2.validate_provenance(path, root, revision)
+            self.assertEqual(set(tools), {"O", "olangc"})
+            profile = dict(tools=dict(ocorec=selected))
+            self.assertEqual(binder.validate_compiler(compiler, profile), selected)
+
+    def test_compiler_profile_path_bytes_and_hash_must_all_match(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            compiler = root / "ocorec"; compiler.write_bytes(b"selected compiler")
+            selected = binder.three.identity(compiler)
+            for field, wrong in (("path", str(root / "other-compiler")),
+                                 ("bytes", selected["bytes"] + 1),
+                                 ("sha256", "0" * 64)):
+                profile = dict(tools=dict(ocorec=dict(selected, **{field: wrong})))
+                with self.subTest(field=field), self.assertRaises(shared.EvidenceError):
+                    binder.validate_compiler(compiler, profile)
+            with self.assertRaises(shared.EvidenceError):
+                binder.validate_compiler(compiler, dict(tools={}))
+            compiler.write_bytes(b"changed compiler")
+            with self.assertRaises(shared.EvidenceError):
+                binder.validate_compiler(compiler, dict(tools=dict(ocorec=selected)))
+
+    def test_identical_copy_and_symlink_cannot_replace_selected_compiler(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            compiler = root / "ocorec"; compiler.write_bytes(b"selected compiler")
+            profile = dict(tools=dict(ocorec=binder.three.identity(compiler)))
+            other = root / "other-compiler"; other.write_bytes(compiler.read_bytes())
+            with self.assertRaises(shared.EvidenceError):
+                binder.validate_compiler(other, profile)
+            alias = root / "ocorec-alias"; alias.symlink_to(compiler)
+            with self.assertRaisesRegex(ValueError, "regular evidence file required"):
+                binder.validate_compiler(alias, profile)
+
+
 if __name__ == "__main__":
     unittest.main()
