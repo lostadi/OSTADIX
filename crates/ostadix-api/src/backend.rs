@@ -685,6 +685,9 @@ struct JobSweep {
     survivors: Vec<i32>,
     // why the children could not be listed or reaped, if they could not.
     error: Option<String>,
+    // a block-end walk that overlapped a SIGTERM: the SIGTERM's walk
+    // writes the one notice.
+    quiet: bool,
 }
 
 impl JobSweep {
@@ -692,7 +695,7 @@ impl JobSweep {
     /// see every job.
     fn report(self) -> Result<()> {
         // one line, written once the walk has finished.
-        if self.stopped > 0 {
+        if self.stopped > 0 && !self.quiet {
             eprintln!(
                 "bash block left {} background job(s); they were stopped",
                 self.stopped
@@ -728,8 +731,14 @@ impl JobSweep {
 /// own children here only as it dies, so a scan can come back empty while a
 /// grandchild is still on its way.
 fn stop_backend_descendants(budget: Duration) -> JobSweep {
+    // why one lock over the whole walk: a SIGTERM's walk and the block-end
+    // walk can overlap. they run one after the other, and the groups either
+    // stopped are counted once, in one notice, so the count does not depend
+    // on which walk reached a job first.
+    let mut groups = STOPPED_GROUPS
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let deadline = std::time::Instant::now() + budget;
-    let mut groups = std::collections::HashSet::new();
     let mut sweep = JobSweep::default();
     loop {
         let live = match backend_descendants() {
@@ -780,8 +789,22 @@ fn stop_backend_descendants(budget: Duration) -> JobSweep {
         std::thread::sleep(Duration::from_millis(1));
     }
     sweep.stopped = groups.len();
+    // a block-end walk reports and starts the next block from zero; once a
+    // SIGTERM is being handled, its own walk reports the total instead.
+    if TERMINATING.load(std::sync::atomic::Ordering::SeqCst) {
+        sweep.quiet = true;
+    } else {
+        groups.clear();
+    }
     sweep
 }
+
+/// Groups stopped since the last notice; see [`stop_backend_descendants`].
+static STOPPED_GROUPS: std::sync::Mutex<std::collections::BTreeSet<i32>> =
+    std::sync::Mutex::new(std::collections::BTreeSet::new());
+
+/// Set once a SIGTERM is being handled.
+static TERMINATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The process group of `pid`, or None for a zombie or a vanished pid.
 #[cfg(target_os = "linux")]
@@ -864,7 +887,10 @@ mod bash_termination {
 
     /// Stop the shell and every job, say what was left, and exit.
     pub(super) fn terminate_now() -> ! {
-        let outcome = super::stop_backend_descendants(super::JOB_CLEANUP_WINDOW).report();
+        super::TERMINATING.store(true, std::sync::atomic::Ordering::SeqCst);
+        let mut sweep = super::stop_backend_descendants(super::JOB_CLEANUP_WINDOW);
+        sweep.quiet = false;
+        let outcome = sweep.report();
         if let Err(error) = outcome {
             eprintln!("{error:#}");
         }
