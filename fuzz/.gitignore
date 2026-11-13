@@ -1,7 +1,0 @@
-/artifacts/
-/corpus/*
-!/corpus/parser/
-/corpus/parser/*
-!/corpus/parser/seed-*
-/coverage/
-/target/

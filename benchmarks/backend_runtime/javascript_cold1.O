@@ -1,4 +1,0 @@
-# One hosted JavaScript operation in a fresh O evaluator and native proxy.
-javascript[0]^(
-console.log(1);
-)_javascript[0]

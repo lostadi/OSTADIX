@@ -1,4 +1,0 @@
-androidboot.vbmeta.device_state = "unlocked"
-androidboot.verifiedbootstate = "orange"
-androidboot.verifiedbooterror = "ERROR_VERIFICATION"
-androidboot.verifyerrorpart = "init_boot"

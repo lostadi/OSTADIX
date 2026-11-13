@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "ostadix": {
-      "command": "ostadix-mcp",
-      "args": []
-    }
-  }
-}

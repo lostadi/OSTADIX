@@ -1,9 +1,0 @@
-O^(
-let n = python^(
-__oval_result__ = 21
-)_python
-
-javascript^(
-console.log(n * 2)
-)_javascript
-)_O

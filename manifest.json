@@ -1,0 +1,114 @@
+{
+  "compiler_source": {
+    "advertised_heads": "5cb51201929d239e28e3a9110bff2a9656c6992f HEAD\n",
+    "bundle": {
+      "bytes": 606642,
+      "git_blob_sha1": "ccceb97909645772f3107864835fb28d826ff144",
+      "path": "/tmp/ostadix-source-crash-backup-20261025-r2/source-from-e39.bundle",
+      "sha256": "6f665ed3e783584114b27b355e8f165752305685f152ef5756f57d105d279372"
+    },
+    "bundle_create_exit": 0,
+    "bundle_verify_exit": 0,
+    "commit": "5cb51201929d239e28e3a9110bff2a9656c6992f",
+    "prerequisite": "e39da043a0396a1276fa41fc19f92e00446d27ee",
+    "prerequisite_remote_verified": true,
+    "tree": "21c14bfdef51432cc1da77d2baebbba3c0579b58"
+  },
+  "prior_attempt": "r1 stopped before bundle creation after wrong e472 ancestry assumption; failed-preflight.json retained",
+  "qualification": {
+    "all_ISA_identity": false,
+    "compiler_build": false,
+    "complete_runtime": false,
+    "program_artifact": false,
+    "provider": false
+  },
+  "recovery": [
+    "Restore prerequisite e39da043a0396a1276fa41fc19f92e00446d27ee from canonical repository.",
+    "git fetch source-from-e39.bundle HEAD:refs/heads/recovered-compiler-5cb",
+    "Extract candidate/ entries onto a new5cb worktree preserving exact paths/modes; verify changed_files before use.",
+    "Source-only vector checkpoints remain unbuilt/unqualified and retain historical failures."
+  ],
+  "schema": "ostadix-compiler-recovery-envelope-v1",
+  "vector_work": {
+    "archive": {
+      "bytes": 687772,
+      "git_blob_sha1": "05cd3e3e8dfa0e91ea6da49be128bba9ba8b2ad2",
+      "path": "/tmp/ostadix-source-crash-backup-20261025-r2/unbuilt-vector-checkpoints.tgz",
+      "sha256": "596e338a351cd91260a8940c92b8962b5c6b3047283578a9b352c3b1f7439768"
+    },
+    "base": "5cb51201929d239e28e3a9110bff2a9656c6992f",
+    "candidate": "/tmp/ostadix-native-fixed-vector-20261025-r1",
+    "changed_files": [
+      {
+        "bytes": 15194,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/api/aot_source.rs",
+        "sha256": "45c37e1255a9eaf3c9120695516fad199773bc2a88bcbf6f98ef5dab035b1c1a"
+      },
+      {
+        "bytes": 168448,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/ocore/native_codegen.rs",
+        "sha256": "00827e7adabeeee3f2beb82a6864ee519f20098234ec4f4ff77d6e846ee44ef3"
+      },
+      {
+        "bytes": 95269,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/ocore/native_interpret.rs",
+        "sha256": "7f8b4009e1eec4471ed60fbc470510ad6acb3947100ff0f1d410688e506c674d"
+      },
+      {
+        "bytes": 36050,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/ocore/native_ir.rs",
+        "sha256": "0fa777027d8d79f05f14fb3ce741176d14c83d69d3d5b1c424f8592686fc45a7"
+      },
+      {
+        "bytes": 24697,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/ocore/native_nonlocal.rs",
+        "sha256": "376be842252ff3245c1f4b0ff98b28f9430b5d9d030f3a9bc8903bf8e288547c"
+      },
+      {
+        "bytes": 15892,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/ocore/native_vector_codegen.rs",
+        "sha256": "88068ae80a1c21e59aeef10fe93d35f33ca24ac7c7b27c3db03335bba2ff52e3"
+      },
+      {
+        "bytes": 503463,
+        "mode": 436,
+        "path": "crates/ostadix-api/src/ocore/native_verify.rs",
+        "sha256": "e59de4779989921e8025ec0d1ddb2ccd258152554072a61b54766b15c1aa2dd0"
+      },
+      {
+        "bytes": 229536,
+        "mode": 436,
+        "path": "scripts/ocore_llvm_import.py",
+        "sha256": "a7dd8573c663aee58ddd550f2f0ba5c8232c53ac68897a9dd1b79f6913a2084f"
+      },
+      {
+        "bytes": 110746,
+        "mode": 436,
+        "path": "tests/ocore_llvm_source_inventory.py",
+        "sha256": "1e493d2ab95c787e7295603d7befd77a72c013de78008e989e5b26dab5ba73f0"
+      },
+      {
+        "bytes": 12579,
+        "mode": 436,
+        "path": "tests/test_ocore_aot_native_source_closure.py",
+        "sha256": "a3a47cd3821f4dc183091dec29255ce1b81d0ada450bc0f12fe946845f8cee8e"
+      },
+      {
+        "bytes": 15272,
+        "mode": 436,
+        "path": "tests/test_ocore_llvm_fixed_vector.py",
+        "sha256": "1b35bba089a661cdd206085939870969b4d6328a32892e74bda36e3d3383df93"
+      }
+    ],
+    "executed_source_controls_scope": "7 source-closure controls on their exact earlier source snapshot only; new vector CAPI/Rust/native tests unrun",
+    "members": 34,
+    "unbuilt": true,
+    "unreviewed_current_delta": true
+  }
+}

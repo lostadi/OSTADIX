@@ -1,9 +1,0 @@
-O^(
-let answer = python^(
-__oval_result__ = 40 + 2
-)_python
-
-python^(
-__oval_result__ = $answer + 1
-)_python
-)_O
