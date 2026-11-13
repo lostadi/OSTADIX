@@ -235,6 +235,18 @@ Package SemVer is only one of the independent coordinates documented in
   `$greeting`. To print the literal text `$name`, write `\\$name` inside
   double quotes.
 
+- Breaking: a `let` named `PATH` (or `HOME`, `IFS`, `LC_*`, and other
+  writable bash specials) now takes effect in a bash session only from the
+  first block that names it; on the base it replaced `PATH` for every block
+  from the start, and since the previous entry it was unset after the first
+  block that named it. The naming block assigns the `let` text with the
+  export flag unchanged and nothing restores or unsets it, so later blocks of
+  that `bash[N]` session see the `let` value; a plain block starts fresh, so
+  a later plain block that does not name it sees the host value. A `let`
+  named like a readonly bash variable (`UID`, `EUID`, `PPID`, `BASHPID`, ...)
+  that a bash block references is now a compile error, and a writable special
+  must hold text.
+
 - Bash `let` injection uses `declare +x`, so a name the session or the O
   process already exported no longer leaks the `let` value to child
   processes. A list, map, or null reaches `${x}` as the same text `$x`
