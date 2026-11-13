@@ -990,7 +990,7 @@ impl PlanBuilder {
                 // including bash and sh. Reflective or runtime-built access to
                 // an unreferenced name gets nothing (see
                 // REFLECTION_FULL_SCOPE_FALLBACK). Persistent state lives only
-                // in numbered environments such as python[0];
+                // in numbered environments such as python[0] or bash[0];
                 // plain blocks are ephemeral. Effect ordering does not depend
                 // on these Data edges: Sequence edges and resource-state
                 // chains preserve it independently.
@@ -1102,13 +1102,15 @@ impl PlanBuilder {
     }
 }
 
-/// Shell backends. Their shims export received `let` values as environment
-/// variables for that block only.
+/// Shell backends. They receive no `let` bindings as environment variables.
+/// A shell block sees a `let` value through a `$name` splice, and a bash
+/// block also through braced parameter expansion (see
+/// [`bash_braced_references`]).
 const SHELL_BACKENDS: &[&str] = &["bash", "shell", "sh"];
 
-/// Whether shell blocks receive the `let` bindings they reference. Set to
-/// `false` to pass no `let` values to shell blocks at all.
-const SHELL_RECEIVES_REFERENCED_LETS: bool = true;
+/// Whether shell blocks receive the `let` bindings they reference as
+/// environment variables. Disabled: shell blocks get no `let` values.
+const SHELL_RECEIVES_REFERENCED_LETS: bool = false;
 
 /// Restores the conservative marker fallback: when `true`, a non-shell block
 /// whose text contains a reflective token (Python namespace or frame access,
@@ -1239,6 +1241,46 @@ fn collect_exec_references(
     dynamic
 }
 
+/// Names a bash block references through braced parameter expansion:
+/// `${name}`, `${#name}`, and `${name` followed by an operator such as `:-`,
+/// `%`, `/`, `#`, or `^`. A bare word is not a reference, and indirection
+/// `${!v}` names no binding. The bash backend assigns each received value as
+/// a non-exported shell variable for the block, so bash evaluates every
+/// operator itself and child processes see nothing. Bare `$name` is an O
+/// splice and is handled by the `Load` node instead.
+pub(crate) fn bash_braced_references(body: &[OIr]) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    for node in body {
+        let OIr::Text(text) = node else { continue };
+        let bytes = text.as_bytes();
+        let mut i = 0;
+        while i + 1 < bytes.len() {
+            if bytes[i] != b'$' || bytes[i + 1] != b'{' {
+                i += 1;
+                continue;
+            }
+            let mut start = i + 2;
+            if start < bytes.len() && bytes[start] == b'#' {
+                start += 1;
+            }
+            let mut end = start;
+            if end < bytes.len() && (bytes[end].is_ascii_alphabetic() || bytes[end] == b'_') {
+                end += 1;
+                while end < bytes.len()
+                    && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_')
+                {
+                    end += 1;
+                }
+                if end < bytes.len() && b"}:-=+?#%/^,@[".contains(&bytes[end]) {
+                    names.insert(text[start..end].to_string());
+                }
+            }
+            i = end.max(i + 2);
+        }
+    }
+    names
+}
+
 /// Plan sources of the visible `let` bindings a shim block receives: exactly
 /// the bindings whose names its body references by whole identifier token
 /// or `$name` splice, for every backend and every parallel branch. With
@@ -1252,7 +1294,21 @@ fn shim_scope_sources(
 ) -> Vec<PlanNodeId> {
     let shell = SHELL_BACKENDS.contains(&backend.canonical.as_str());
     if shell && !SHELL_RECEIVES_REFERENCED_LETS {
-        return Vec::new();
+        if backend.canonical != "bash" {
+            return Vec::new();
+        }
+        let names = bash_braced_references(body);
+        let mut seen = std::collections::HashSet::new();
+        let mut sources = Vec::new();
+        for lexical_scope in scope_stack.iter().rev() {
+            for (name, source) in lexical_scope {
+                if seen.insert(name.clone()) && names.contains(name) {
+                    sources.push(*source);
+                }
+            }
+        }
+        sources.sort_by_key(|source| source.0);
+        return sources;
     }
     let mut tokens = std::collections::HashSet::new();
     let mut o_scope = false;
@@ -2095,14 +2151,31 @@ mod tests {
     }
 
     #[test]
-    fn shell_blocks_receive_only_referenced_bindings() {
+    fn bash_braced_expansion_references_only_named_bindings() {
         for (body, expected) in [
-            ("bash^(echo \\$c)_bash", vec!["c".to_string()]),
+            ("bash^(echo ${c})_bash", vec!["c"]),
+            ("bash^(echo \"${a:-x}\" ${#b})_bash", vec!["a", "b"]),
+            ("bash^(echo ${c%2} ${a/4/9})_bash", vec!["a", "c"]),
+            ("bash^(v=a; echo ${!v})_bash", vec![]),
+            ("bash^(echo a b c ${HOME})_bash", vec![]),
+            ("bash[0]^(echo ${b})_bash[0]", vec!["b"]),
+            ("sh^(echo ${c})_sh", vec![]),
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            let expected: Vec<String> = expected.into_iter().map(String::from).collect();
+            assert_eq!(execs.last().unwrap(), &expected, "{body}");
+        }
+    }
+
+    #[test]
+    fn shell_blocks_receive_no_let_bindings() {
+        for (body, expected) in [
+            ("bash^(echo \\$c)_bash", Vec::<String>::new()),
             (
                 "bash^(awk 'BEGIN{print ENVIRON[toupper(\"q\")]}')_bash",
                 vec![],
             ),
-            ("bash[0]^(echo \\$b)_bash[0]", vec!["b".to_string()]),
+            ("bash[0]^(echo \\$b)_bash[0]", vec![]),
             ("shell^(echo hello)_shell", vec![]),
         ] {
             let execs = exec_data_sources(&three_bindings(body));
@@ -2134,7 +2207,7 @@ mod tests {
             Vec::new()
         };
         assert_eq!(execs[5], reflective, "{execs:?}");
-        assert_eq!(execs[6], vec!["c".to_string()], "{execs:?}");
+        assert_eq!(execs[6], Vec::<String>::new(), "{execs:?}");
     }
 
     #[test]
