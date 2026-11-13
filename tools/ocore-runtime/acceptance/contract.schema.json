@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ocore-original-runtime-acceptance-v1",
+  "title": "Original runtime acceptance profile; configuration is not qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "implementation", "requirements", "targets"],
+  "properties": {
+    "schema": {"const": "ocore-original-runtime-acceptance-v1"},
+    "name": {"type": "string", "minLength": 1},
+    "implementation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "upstream_url", "revision", "source_checkout", "recipe", "build_step"],
+      "properties": {
+        "kind": {"enum": ["runtime", "compiler", "jit_engine", "library"]},
+        "upstream_url": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+        "source_checkout": {"type": "string", "minLength": 1},
+        "recipe": {"$ref": "#/$defs/file"},
+        "build_step": {"type": "string", "minLength": 1}
+      }
+    },
+    "requirements": {
+      "type": "object", "additionalProperties": false,
+      "required": ["delivery", "resource_profile", "compiler_output_routing", "jit_generation", "jit_publication", "jit_invalidation"],
+      "properties": {
+        "delivery": {"enum": ["native", "verified_ir", "oir"]},
+        "resource_profile": {"type": "string", "minLength": 1},
+        "compiler_output_routing": {"type": "boolean"},
+        "jit_generation": {"type": "boolean"},
+        "jit_publication": {"type": "boolean"},
+        "jit_invalidation": {"type": "boolean"}
+      }
+    },
+    "targets": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "target", "native_target", "jobs", "unit_inventory", "frontend_tools", "import_profiles", "provider_profiles", "programs"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "target": {"type": "string", "minLength": 1},
+          "native_target": {"type": ["object", "null"]},
+          "jobs": {"type": "integer", "minimum": 1},
+          "unit_inventory": {"type": "string", "minLength": 1},
+          "frontend_tools": {"type": "object", "additionalProperties": {"type": "string"}},
+          "import_profiles": {"type": "object", "additionalProperties": {"type": "string"}},
+          "provider_profiles": {"type": "array", "items": {"$ref": "#/$defs/file"}},
+          "programs": {"type": "array", "items": {"$ref": "#/$defs/program"}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "bytes": {"type": "integer", "minimum": 0}}
+    },
+    "program": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "kind", "required_units", "reference_output", "upstream_targets", "behavior_driver"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["program", "library"]},
+        "required_units": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "reference_output": {"type": "string", "minLength": 1},
+        "upstream_targets": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "behavior_driver": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/file"}]}
+      }
+    }
+  }
+}
