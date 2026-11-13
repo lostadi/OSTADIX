@@ -1,0 +1,71 @@
+{
+  "schema": "ostadix.o10-m1-classification-audit/v1",
+  "scope": "Source reachability and bounded persistent-console corpus; not a full hardware PL011 or arbitrary native-memory-corruption proof.",
+  "runtime_entry": "unified_world.uw_handle_exit -> kernel_world_monitor.kw_handle_exit_checked, plus unified progress -> checked WFI poll",
+  "legacy_terminal_groups": [
+    {
+      "group": "cold boot validation",
+      "reachable": "before guest scheduling only",
+      "classification": "internal admission/selftest/config failure, emits existing terminal diagnostic"
+    },
+    {
+      "group": "finite console health/withdrawal lines",
+      "reachable": "standalone PERSISTENT0 only; console returns first for PERSISTENT1",
+      "classification": "legacy finite test policy"
+    },
+    {
+      "group": "legacy progress/PSCI/kw_handle_exit",
+      "reachable": "no unified runtime import/call",
+      "classification": "standalone compatibility path retained"
+    },
+    {
+      "group": "uart_write invalid register",
+      "reachable": "excluded by checked register/value allowlist before call",
+      "classification": "guest rejection2"
+    },
+    {
+      "group": "kw_unexpected_exit",
+      "reachable": "unified assembly calls uw_unexpected_exit instead",
+      "classification": "standalone exception entry"
+    }
+  ],
+  "remaining_world_MAX_returns": "domain_index invalid index/generation returns MAX; executor maps it to ESTALE. No uw_handle_exit idle/MAX return.",
+  "persistent_statuses": {
+    "accepted": 0,
+    "guest_queue_or_protocol_rejection": 2,
+    "uninitialized_lifecycle_or_native_reset_failure": 3
+  },
+  "internal_diagnostics": {
+    "0x1109": "checked Linux backend failure; arg0 component code, arg1 detail, arg2 retained PC",
+    "0x1014": "impossible persistent held block operation",
+    "0x1111": "namespace frontend lifecycle/session reset",
+    "0x1112": "network frontend lifecycle",
+    "0x1113": "block frontend lifecycle"
+  },
+  "valid_path_parity": [
+    "MMIO decoding, width/alignment and sign-extension mirror standalone handler",
+    "recognized device register operations delegate unchanged production queue modules",
+    "persistent UART configuration latches preserved only within explicit admitted register/value corpus",
+    "finite standalone initialization, withdrawal and terminal policy unchanged"
+  ],
+  "UART_primary": "https://documentation-service.arm.com/static/5e8e36c2fd977155116a90b5?token=",
+  "UART_scope": "Functional mediated console byte stream and declared configuration readback, 8N1/FIFO on-off, no DMA/IrDA/loopback/hardware flow; no physical baud/FIFO timing or complete PL011 claim.",
+  "actual_MMIO_plan": [
+    "Wait root VM/disk allocation; new private fork of preserved seed, same R5 ELF as independent required Tinjection resident gate.",
+    "Harmless Linux busybox devmem0a00000032 must read virtio magic; failure ends this gate without Tinjection substitution.",
+    "Submit one original Plan9 finite0..7 counter loop and observe first bytes before Linux fault.",
+    "Send exactly one busybox devmem0a0000fc32write1 without waiting/retrying Linux completion.",
+    "Require actual Linux FAULTED ESR dataabort IPA0a0000fc, Plan9 same domain/instance, counter advancement and complete validated original provider result.",
+    "Then withdraw Plan9, repeated Tstats zero-live60s, restore Plan9 + fresh providerready; no save of original seed.",
+    "Separately run unchanged default Tinjection fault1 resident gate on another privatefork; both distinct gate IDs and exact sameELF."
+  ],
+  "source_sha256": {
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "ac5767d52312adb9db85c1531895d06d15d3ec4ec05207e618dc9bf0c578b464",
+    "ocore/runtime/aarch64/unified_world.oc": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "fd10114b984f1d3531d00987fdde235d12137451836a16d54c9952c24d93f21a",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "fc6b7bda9f6cb33e99cc36ddca1606d8bd3725cc629fd3f97afed12d7c8ca3b9",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "9d49e871882462a397e3122c1540c816079b3172b1aa72be8c6560a3f0fa68df",
+    "scripts/verify_o10_resident.py": "988b9bcf3ff37f13e58df3259bc734240974f71117db083b1407881dd9e169a6",
+    "scripts/verify_o10_hostile_mmio.py": "99c306934801e82b524112edd2fa3dff1aa46f7d0b55ac39b724a5dbe36fcd2f"
+  }
+}

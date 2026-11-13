@@ -40,6 +40,9 @@ Commands:
   doctor       Check the O-core compiler, linker, ELF, and QEMU prerequisites
   doctor-media Check the optional GRUB, FAT, firmware, and O-core media tools
   build        Build the baseline kernel image
+  unified-build  Build an isolated Linux/Plan9 EL2 profile (arguments forwarded)
+  o10-resident Run the isolated M1 resident-control gate (arguments forwarded)
+  o10-hostile-mmio Run the additional hostile Linux MMIO gate (arguments forwarded)
   image        Rebuild and describe the baseline kernel ELF
   media        Build a deterministic x86_64 GPT/UEFI disk image
   inspect-media  Strictly inspect a generated OSTADIX disk image
@@ -166,6 +169,15 @@ case "$command_name" in
     build)
         require_no_args "$@"
         run_baseline_build
+        ;;
+    unified-build)
+        exec python3 "$ROOT/scripts/build_okernel_unified_world.py" "$@"
+        ;;
+    o10-resident)
+        exec python3 "$ROOT/scripts/verify_o10_resident.py" "$@"
+        ;;
+    o10-hostile-mmio)
+        exec python3 "$ROOT/scripts/verify_o10_hostile_mmio.py" "$@"
         ;;
     image)
         require_no_args "$@"

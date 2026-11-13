@@ -1,7 +1,9 @@
 module runtime::aarch64::unified_world;
 
 use runtime::aarch64::kernel_world_monitor::kw_monitor_init as linux_init;
-use runtime::aarch64::kernel_world_monitor::kw_handle_exit as linux_exit;
+use runtime::aarch64::kernel_world_monitor::kw_handle_exit_checked as linux_exit;
+use runtime::aarch64::kernel_world_monitor::checked_diagnostic as linux_diagnostic;
+use runtime::aarch64::kernel_world_monitor::checked_detail as linux_detail;
 use runtime::aarch64::plan9_namespace_uart::init as plan9_wire_init;
 use runtime::aarch64::plan9_namespace_uart::mmio_read as plan9_wire_read;
 use runtime::aarch64::plan9_namespace_uart::mmio_write as plan9_wire_write;
@@ -34,6 +36,8 @@ use runtime::common::o10_executor::epoch as o10_epoch;
 use runtime::common::o10_executor::commit as o10_commit;
 use runtime::common::namespace_store::session_handle;
 use runtime::common::namespace_store::session_fid_count;
+use runtime::common::namespace_store::revoke as namespace_revoke;
+use runtime::aarch64::kernel_world_profile::O10_QUALIFICATION;
 
 extern "ocore" fn uw_domain_init(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
 extern "ocore" fn uw_domain_reset(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
@@ -105,9 +109,48 @@ unsafe fn busy(value: u64) -> void {
     volatile_store(0x6d00_0008 as *mut u64, value);
     uw_memory_barrier();
 }
+// Internal mechanism failures are distinct from guest containment. Preserve
+// a host-private reason/argument record even if a console counter is corrupt.
+// 1100 unexpected native vector; 1101 invalid current domain; 1102 physical
+// IRQ route; 1103 corrupt vGIC bank; 1104 scheduler result; 1105 console counter;
+// 1106 exhausted lease generation; 1107 failed journal commit; 1108 assembly
+// hook/configuration contract (arguments and return address recorded).
+static INTERNAL: [u8; 31] = b"KW unified internal invariant: ";
+@export
+@no_mangle
+pub unsafe fn uw_internal_failure(reason: u64, arg0: u64, arg1: u64, arg2: u64) -> never {
+    volatile_store(0x6d00_00d0 as *mut u64, reason);
+    volatile_store(0x6d00_00d8 as *mut u64, arg0);
+    volatile_store(0x6d00_00e0 as *mut u64, arg1);
+    volatile_store(0x6d00_00e8 as *mut u64, arg2);
+    uw_memory_barrier();
+    let mut i: usize = 0;
+    while i < 31 { uw_serial_putc(INTERNAL[i] as u64); i += 1; }
+    let mut field: usize = 0;
+    while field < 4 {
+        let mut value: u64 = reason;
+        if field == 1 { value = arg0; }
+        if field == 2 { value = arg1; }
+        if field == 3 { value = arg2; }
+        let mut shift: usize = 60;
+        loop {
+            let digit: u64 = (value >> shift) & 15;
+            if digit < 10 { uw_serial_putc(48 + digit); }
+            else { uw_serial_putc(87 + digit); }
+            if shift == 0 { break; }
+            shift -= 4;
+        }
+        uw_serial_putc(32);
+        field += 1;
+    }
+    uw_serial_putc(10);
+    busy(0);
+    uw_halt();
+}
+
 unsafe fn append_linux(value: u8) -> void {
     let position: u64 = volatile_load(0x6d04_0000 as *const u64);
-    if position == MAX { uw_halt(); }
+    if position == MAX { uw_internal_failure(0x1105, position, 0, 0); }
     volatile_store(((0x6d04_0008 as usize) + (position % 65536) as usize) as *mut u8, value);
     uw_memory_barrier(); volatile_store(0x6d04_0000 as *mut u64, position + 1);
 }
@@ -128,8 +171,9 @@ unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
     emit((&FAIL[0]), 27); hex(domain); control_putc(32);
     hex(esr); control_putc(32); hex(ipa); control_putc(32); hex(pc); control_putc(10);
     if domain < 2 { O10_LAST_IPA[domain as usize] = ipa; LIVE[domain as usize] = 0; BLOCKED[domain as usize] = 0; }
+    if domain == 0 && session_handle(1) != 0 { namespace_revoke(1); }
     if domain == 1 {
-        if O10_LEASE_GENERATION == 0xffff_ffff { emit((&FAIL[0]), 27); hex(0x0103); uw_halt(); }
+        if O10_LEASE_GENERATION == 0xffff_ffff { uw_internal_failure(0x1106, domain, O10_LEASE_GENERATION, 0); }
         O10_LEASE_GENERATION += 1;
         plan9_wire_revoke(); set_level(1, 33, 0);
     }
@@ -273,6 +317,7 @@ unsafe fn uart_write(offset: u64, value: u64) -> bool {
 @export
 @no_mangle
 pub unsafe fn uw_init() -> u64 {
+    volatile_store(0x6d00_00d0 as *mut u64, 0);
     FREQUENCY = uw_counter_frequency(); RTC_START = uw_counter_read();
     RTC_FLOOR = volatile_load(0x6d00_0010 as *const u64);
     if FREQUENCY < 100 || RTC_FLOOR == 0 || RTC_FLOOR > 0xffff_ffff { return 0; }
@@ -323,7 +368,7 @@ unsafe fn wake_blocked() -> void {
     while domain < 2 {
         if LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 1 {
             let pending: u64 = gic_wake_pending(domain);
-            if pending == MAX { contain(domain, 0x805, domain, LAST_PC[domain as usize]); }
+            if pending == MAX { uw_internal_failure(0x1103, domain, 0x805, LAST_PC[domain as usize]); }
             else { if pending == 1 { BLOCKED[domain as usize] = 0; } }
         }
         domain += 1;
@@ -338,8 +383,9 @@ unsafe fn runnable(domain: u64) -> bool {
 @export
 @no_mangle
 pub unsafe fn uw_unexpected_exit(esr: u64, far: u64, pc: u64) -> never {
-    contain(uw_current_domain(), esr, far, pc);
-    record_status(); uw_halt();
+    // Same-EL exceptions and unclassified physical FIQ/SError are mechanism
+    // failures. Unsupported lower synchronous exits use the saved-bank path.
+    uw_internal_failure(0x1100, esr, far, pc);
 }
 
 unsafe fn system_register(domain: u64, frame: *mut u64, esr: u64) -> bool {
@@ -361,8 +407,10 @@ unsafe fn system_register(domain: u64, frame: *mut u64, esr: u64) -> bool {
     }
     volatile_store(frame + 31, volatile_load(frame + 31) + 4); return true;
 }
-unsafe fn psci(frame: *mut u64, ec: u64) -> bool {
+unsafe fn psci(frame: *mut u64, ec: u64, esr: u64) -> bool {
+    if (esr & 0xffff) != 0 { return false; }
     let function: u64 = volatile_load(frame);
+    if (function & 0xff00_0000) != 0x8400_0000 && (function & 0xff00_0000) != 0xc400_0000 { return false; }
     let mut value: u64 = 0xffff_ffff_ffff_fffe;
     if function == 0x8400_0000 { value = 2; }
     else { if function == 0x8400_000a { value = MAX; } }
@@ -450,7 +498,12 @@ unsafe fn coordinator_mmio(frame: *mut u64, esr: u64, ipa: u64) -> bool {
 unsafe fn progress() -> void {
     native_control();
     route_input();
-    if LIVE[0] == 1 { busy(1); linux_exit((&mut POLL_FRAME[0]) as usize, 1 << 26, 0, 0); }
+    if LIVE[0] == 1 {
+        busy(1);
+        let result: u64 = linux_exit((&mut POLL_FRAME[0]) as usize, 1 << 26, 0, 0);
+        if result == 3 { uw_internal_failure(0x1109, linux_diagnostic(), linux_detail(), LAST_PC[0]); }
+        if result != 0 { contain(0, LAST_ESR[0], O10_LAST_IPA[0], LAST_PC[0]); }
+    }
     supply();
     let mut domain: u64 = 0;
     while domain < 2 {
@@ -468,6 +521,7 @@ unsafe fn progress() -> void {
 // seq/op/ack/result/kernel_bytes/dtb_bytes occupy 0x6d000070..0x6d00009f.
 // O10 op10 submission 0x6d0a0000..0x6d0a01ff, completion
 // 0x6d0a0200..0x6d0a03ff, private to EL2/host and outside both stage-2 maps.
+// Internal diagnostic reason/args occupy 0x6d0000d0..0x6d0000ef, also EL2-only.
 // Legacy op2 retains its bootstrap/session behavior for the M0 rollback path.
 unsafe fn o10_domain(handle: u64) -> u64 {
     let index: u64 = handle & 0xffff_ffff;
@@ -478,6 +532,27 @@ unsafe fn o10_domain(handle: u64) -> u64 {
 unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
     let kind: u64 = o10_read(request, 4, 1);
     let tag: u64 = o10_read(request, 5, 2);
+    if kind == 196 {
+        // This executor is reachable only through the host-private mailbox.
+        // Production builds do not admit any fault injection operation.
+        if O10_QUALIFICATION != 1 { return o10_error(response, 512, tag, 9, 0); }
+        let handle: u64 = o10_read(request, 23, 8);
+        let index: u64 = o10_domain(handle);
+        if index == MAX {
+            let slot: u64 = handle & 0xffff_ffff;
+            let mut generation: u64 = 0;
+            if slot < 2 { generation = O10_DOMAIN_GENERATION[slot as usize]; }
+            return o10_error(response, 512, tag, 5, generation);
+        }
+        if o10_read(request, 31, 2) != 1 { return o10_error(response, 512, tag, 9, 0); }
+        if LIVE[index as usize] != 1 {
+            let mut state: u64 = 4;
+            if index == 1 && PLAN9_WITHDRAWN == 1 { state = 5; }
+            return o10_error(response, 512, tag, 12, state);
+        }
+        contain(index, 0x901, 0, LAST_PC[index as usize]);
+        o10_header(response, 197, tag, 15); o10_write(response, 7, handle, 8); return 15;
+    }
     if kind == 178 || kind == 172 || kind == 174 {
         let handle: u64 = o10_read(request, 23, 8);
         let index: u64 = handle & 0xffff_ffff;
@@ -528,7 +603,6 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         }
         if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
         if restore_plan9(false) != 1 { return o10_error(response, 512, tag, 12, 4); }
-        O10_DOMAIN_GENERATION[1] += 1;
         let mut j: usize = 0;
         while j < 16 { O10_INSTANCE[16 + j] = volatile_load(request + 31 + j); j += 1; }
         // The new kernel waits for its explicit namespace transport binding.
@@ -563,7 +637,7 @@ unsafe fn o10_mailbox() -> u64 {
     let mut length: usize = o10_prepare(request, size, response, 512);
     if length == 0 {
         length = o10_platform(request, response);
-        if o10_pending() != 0 && o10_commit(response as *const u8, length) != 1 { emit((&FAIL[0]), 27); hex(0x0104); uw_halt(); }
+        if o10_pending() != 0 && o10_commit(response as *const u8, length) != 1 { uw_internal_failure(0x1107, length as u64, 0, 0); }
     }
     let mut index: usize = 0;
     while index < length {
@@ -574,6 +648,10 @@ unsafe fn o10_mailbox() -> u64 {
 }
 
 unsafe fn restore_plan9(bind_wire: bool) -> u64 {
+    // Shared by legacy pre-claim and O10 replacement. Reject exhaustion before
+    // zeroing RAM or touching architectural state; publish one new identity
+    // only after the complete replacement succeeds.
+    if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return 0; }
     let mut result: u64 = 0;
         let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
         let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
@@ -600,6 +678,7 @@ unsafe fn restore_plan9(bind_wire: bool) -> u64 {
                 UART[0x30 / 4] = 0x301;
                 RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
                 INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
+                O10_DOMAIN_GENERATION[1] += 1;
                 PLAN9_WITHDRAWN = 0; BLOCKED[1] = 0; LIVE[1] = 1; result = 1;
             }
         }
@@ -613,7 +692,8 @@ unsafe fn native_control() -> void {
     let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
     let mut result: u64 = 0;
     if operation == 10 { result = o10_mailbox(); }
-    if operation == 1 && o10_epoch() == 0 && LIVE[0] == 1 {
+    if operation == 1 && o10_epoch() == 0 && LIVE[0] == 1 && O10_LEASE_GENERATION != 0xffff_ffff {
+        O10_LEASE_GENERATION += 1;
         LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1;
         plan9_wire_revoke();
         set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
@@ -639,17 +719,21 @@ unsafe fn native_control() -> void {
 @no_mangle
 pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u64, hpfar: u64) -> u64 {
     busy(1);
-    let domain: u64 = uw_current_domain(); if domain > 1 { return MAX; }
+    let domain: u64 = uw_current_domain(); if domain > 1 { uw_internal_failure(0x1101, domain, 0, 0); }
     EXITS[domain as usize] += 1;
     let frame: *mut u64 = frame_address as *mut u64;
     let pc: u64 = volatile_load(frame + 31); let ec: u64 = esr >> 26;
     LAST_PC[domain as usize] = pc; LAST_ESR[domain as usize] = esr;
     let ipa: u64 = ((hpfar & 0x0000_ffff_ffff_fff0) << 8) | (far & 4095);
     let mut yield_now: bool = false;
-    if reason == 1 {
+    if reason == 2 {
+        // Unsupported lower-EL synchronous entry (for example AArch32) has
+        // reached this point only after assembly saved the entire context.
+        contain(domain, esr, ipa, pc);
+    } else { if reason == 1 {
         let irq: u64 = uw_irq_ack();
         if irq < 1020 { uw_irq_eoi(irq); }
-        if irq != 26 && irq != 1023 { contain(domain, 0x803, irq, pc); }
+        if irq != 26 && irq != 1023 { uw_internal_failure(0x1102, irq, domain, pc); }
         yield_now = true;
     } else {
         let mut accepted: bool = false;
@@ -660,27 +744,31 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
             if (esr & 1) == 0 { BLOCKED[domain as usize] = 1; }
         }
         else { if ec == 0x18 { accepted = system_register(domain, frame, esr); }
-        else { if ec == 0x16 || ec == 0x17 { accepted = psci(frame, ec); }
+        else { if ec == 0x16 || ec == 0x17 { accepted = psci(frame, ec, esr); }
         else { if ec == 0x24 {
             if (ipa >= 0x0800_0000 && ipa < 0x0801_0000) || (ipa >= 0x080a_0000 && ipa < 0x080c_0000) {
                 accepted = controller_mmio(domain, frame, esr, ipa);
             } else {
                 if domain == 0 {
                     if ipa >= 0x0900_1000 && ipa < 0x0900_2000 { accepted = coordinator_mmio(frame, esr, ipa); }
-                    else { accepted = linux_exit(frame_address, esr, far, hpfar) == 0; }
+                    else {
+                        let result: u64 = linux_exit(frame_address, esr, far, hpfar);
+                        if result == 3 { uw_internal_failure(0x1109, linux_diagnostic(), linux_detail(), pc); }
+                        accepted = result == 0;
+                    }
                 }
                 else { accepted = plan9_mmio(frame, esr, ipa); }
             }
         } } } }
         if !accepted { contain(domain, esr, ipa, pc); }
-    }
+    } }
     progress();
     // Marking blocked precedes device/timer resampling and the IRQ check.
     // Native progress is serialized here; arrivals during the sleep are
     // bounded by its physical timer and resampled before any guest restore.
     wake_blocked();
     let mut now: u64 = uw_counter_read();
-    while !runnable(0) && !runnable(1) && (LIVE[0] == 1 || LIVE[1] == 1) {
+    while !runnable(0) && !runnable(1) {
         record_status(); busy(0);
         IDLE_WAITS += 1;
         // Physical UART/SPIs are intentionally masked: keep native mailbox,
@@ -688,7 +776,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
         // timer. This parks the physical CPU rather than re-entering idle EL1.
         let irq: u64 = uw_idle_until(earlier_timer(now + FREQUENCY / 200, now));
         busy(1);
-        if irq != 26 && irq != 1023 { contain(domain, 0x806, irq, pc); record_status(); busy(0); return MAX; }
+        if irq != 26 && irq != 1023 { uw_internal_failure(0x1102, irq, domain, pc); }
         progress(); wake_blocked(); now = uw_counter_read();
     }
     let mut next: u64 = domain;
@@ -697,8 +785,8 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
         if runnable(other) { next = other; }
         DEADLINE = now + PERIOD;
     }
-    if !runnable(next) { record_status(); busy(0); return MAX; }
+    if !runnable(next) { uw_internal_failure(0x1104, next, domain, pc); }
     if next != domain { SWITCHES += 1; O10_SWITCHES[next as usize] += 1; }
-    if gic_poll(next) != 1 { contain(next, 0x804, next, pc); record_status(); busy(0); return MAX; }
+    if gic_poll(next) != 1 { uw_internal_failure(0x1103, next, 0x804, pc); }
     record_status(); busy(0); return next;
 }

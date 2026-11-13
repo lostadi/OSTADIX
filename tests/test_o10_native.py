@@ -37,6 +37,16 @@ static size_t prepare(size_t n){memset(r,0,sizeof r);return E(prepare)(q,n,r,siz
 static void err(size_t n,unsigned code){assert(prepare(n)==19);assert(r[4]==161&&rd(r+7,4)==code);}
 int main(void){
  CORPUS
+ // Negotiate actual executor versions before any Governor exists.
+ frame(162,19,0,0);st(q+7,77,4);memcpy(q+11,"O10\0\0\0\0\0",8);
+ err(19,2);assert(rd(r+11,8)==512&&E(epoch)()==0&&E(last_seq)()==0);
+ st(q+7,512,4);q[13]='1';err(19,2);q[13]='0';
+ st(q+7,78,4);assert(prepare(19)==35&&r[4]==163&&rd(r+7,4)==78);
+ assert(rd(r+19,8)==0&&rd(r+27,8)==0);
+ assert(!memcmp(r+11,"O10\0\0\0\0\0",8));
+ st(q+7,0xffffffffU,4);assert(prepare(19)==35&&rd(r+7,4)==512);
+ st(q+7,128,4);assert(prepare(19)==35&&rd(r+7,4)==128);
+ st(q+7,512,4);assert(prepare(19)==35&&rd(r+7,4)==512);
  // Mutation requires a claimed Governor; rejection does not consume a sequence.
  frame(172,36,0,1);err(36,3);assert(E(last_seq)()==0);
  frame(164,39,0,1);st(q+23,1,8);assert(prepare(39)==31);
@@ -79,6 +89,31 @@ int main(void){
  assert(prepare(39)==31&&E(epoch)()==2&&E(last_seq)()==262);
  frame(176,31,1,260);assert(prepare(31)==15&&r[4]==177);
  frame(176,31,1,263);err(31,3);
+ // Independent little-endian vectors catch high-word truncation in both APIs.
+ const unsigned char wide_bytes[8]={0xef,0xcd,0xab,0x89,0x67,0x45,0x23,0x01};
+ assert(C(read)(wide_bytes,0,8)==UINT64_C(0x0123456789abcdef));
+ unsigned char written[10]={0xaa,0,0,0,0,0,0,0,0,0xbb};
+ C(write)(written,1,UINT64_C(0x0123456789abcdef),8);
+ assert(written[0]==0xaa&&written[9]==0xbb&&!memcmp(written+1,wide_bytes,8));
+ // A wide epoch survives claim/reply/version, and a low-word alias is stale.
+ frame(164,39,2,263);st(q+23,UINT64_C(0x123456789abcdef0),8);st(q+31,2,8);
+ assert(prepare(39)==31&&E(epoch)()==UINT64_C(0x123456789abcdef0)&&E(last_seq)()==263);
+ const unsigned char epoch_bytes[8]={0xf0,0xde,0xbc,0x9a,0x78,0x56,0x34,0x12};
+ assert(!memcmp(r+7,epoch_bytes,8));memcpy(old,q,39);memcpy(saved,r,31);
+ assert(prepare(39)==31&&!memcmp(saved,r,31));
+ frame(176,31,UINT64_C(0x9abcdef0),264);err(31,3);assert(!memcmp(r+11,epoch_bytes,8));
+ frame(176,31,UINT64_C(0x123456789abcdef0),UINT64_C(0x100000108));
+ err(31,4);assert(rd(r+11,8)==263&&E(last_seq)()==263);
+ frame(176,31,UINT64_C(0x123456789abcdef0),264);assert(prepare(31)==0);
+ unsigned char wide_reply[15]={15,0,0,0,177,77,0,0xef,0xcd,0xab,0x89,0x67,0x45,0x23,0x01};
+ assert(E(commit)(wide_reply,15)==1&&E(last_seq)()==264);
+ assert(prepare(31)==15&&!memcmp(r,wide_reply,15));
+ // Same journal slot under a high-word query is NOT_APPLIED, never replayed.
+ frame(166,31,UINT64_C(0x123456789abcdef0),0);st(q+23,UINT64_C(0x100000108),8);
+ assert(prepare(31)==14&&r[7]==0&&rd(r+12,2)==0);
+ st(q+23,264,8);assert(prepare(31)==29&&r[7]==1&&!memcmp(r+14,wide_reply,15));
+ frame(162,19,0,0);st(q+7,512,4);memcpy(q+11,"O10\0\0\0\0\0",8);
+ assert(prepare(19)==35&&!memcmp(r+19,epoch_bytes,8)&&rd(r+27,8)==264);
  puts("O10 native corpus and journal PASS");return 0;
 }
 """
@@ -102,10 +137,29 @@ class O10NativeTests(unittest.TestCase):
             statements.append(f"memset(r,0,512);for(size_t i=0;i<sizeof f{index};i++) C(write)(r,i,C(read)(f{index},i,1),1);")
             statements.append(f"assert(!memcmp(r,f{index},sizeof f{index}));")
             statements.append(f"assert(C(validate)(f{index},sizeof f{index}-1,512)==0);")
+            if wire[4] != corpus.codec.O10_RLSTAT:
+                # Rewrite the outer size too: these reach message-body bounds.
+                statements.append(f"unsigned char short{index}[sizeof f{index}];memcpy(short{index},f{index},sizeof f{index});")
+                statements.append(f"C(write)(short{index},0,sizeof f{index}-1,4);assert(C(validate)(short{index},sizeof f{index}-1,512)==0);")
+                statements.append(f"unsigned char extra{index}[sizeof f{index}+1];memcpy(extra{index},f{index},sizeof f{index});extra{index}[sizeof f{index}]=0;")
+                statements.append(f"C(write)(extra{index},0,sizeof extra{index},4);assert(C(validate)(extra{index},sizeof extra{index},512)==0);")
         statements.extend([
             "frame(100,7,0,0);assert(C(validate)(q,7,512)==0);",
             "frame(178,31,1,1);assert(C(validate)(q,31,512)==0&&C(bad_offset)()==15);",
-            "frame(178,513,1,0);assert(C(validate)(q,512,512)==0);",
+            # Actual 513 accessible bytes and a matching header, not a header mismatch.
+            "unsigned char oversized[513]={0};C(write)(oversized,0,513,4);oversized[4]=191;assert(C(validate)(oversized,sizeof oversized,512)==0);",
+            "assert(C(validate)(oversized,sizeof oversized,513)==0);",
+            "unsigned char flush[7]={7,0,0,0,195,0,0};assert(C(validate)(flush,7,7)==1);",
+            "assert(C(validate)(flush,7,513)==0&&C(bad_offset)()==0);",
+            "assert(C(validate)(flush,7,6)==0);",
+            "frame(191,512,0,0);assert(C(validate)(q,512,512)==1);",
+            # Length-correct variable bodies with inconsistent embedded lengths/counts.
+            "unsigned char outcome[21]={21,0,0,0,167,0,0,1,0,0,0,0,7,0,7,0,0,0,195,0,0};",
+            "assert(C(validate)(outcome,21,512)==1);outcome[12]=8;assert(C(validate)(outcome,21,512)==0);",
+            "outcome[12]=6;assert(C(validate)(outcome,21,512)==0);",
+            "unsigned char wait[65]={65,0,0,0,193,0,0};wait[15]=1;assert(C(validate)(wait,65,512)==1);",
+            "wait[15]=2;assert(C(validate)(wait,65,512)==0);wait[15]=0;assert(C(validate)(wait,65,512)==0);",
+            "wait[15]=1;wait[29]=1;assert(C(validate)(wait,65,512)==0&&C(bad_offset)()==29);",
         ])
         with tempfile.TemporaryDirectory(prefix="o10-native-") as directory:
             output = Path(directory)
