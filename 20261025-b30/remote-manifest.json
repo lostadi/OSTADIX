@@ -1,0 +1,44 @@
+{
+  "schema": "ostadix-source-crash-backup-envelope-v1",
+  "direct_compiler_checkout": false,
+  "compiler_commit": "b30a3dac6677ec3b23cf6afe4b6ba0d5dbf9dad7",
+  "compiler_tree": "4e2369c7ed5631932717d8164da8a4ed1834b8c9",
+  "prerequisite_commit": "230899b6aa4969e0f46951d31694f562f5579f0e",
+  "bundle": {
+    "path": "20261025-b30/source-from-230899.bundle",
+    "bytes": 2444,
+    "sha256": "8b063f09a8c0e6da2d21c47b8c51bf576e93cbd838e2041c0b355c59da1142f5",
+    "encoding": "git-bundle"
+  },
+  "full_source_map": {
+    "files": 2924,
+    "source_bytes": 137104452,
+    "bytes": 560619,
+    "sha256": "9b290bb9ddc7dca56ce57c87f7a2bc4e020157f829eb35473cff0a580befdbfd"
+  },
+  "core_tests": {
+    "source": "230899b6aa4969e0f46951d31694f562f5579f0e",
+    "passed": 312,
+    "failed": 0,
+    "ignored": 0,
+    "new_b30_core_execution_claimed": false
+  },
+  "new_consumer_tests": {
+    "count": 3,
+    "state": "UNRUN"
+  },
+  "current_build": {
+    "source": "b30a3dac6677ec3b23cf6afe4b6ba0d5dbf9dad7",
+    "state": "launched_pending_terminal",
+    "job": "job-200866-1792904784229236095-408-1",
+    "owner": "/home/ustad/.local/state/ostadix-compiler-tools/20261025-fixed-vector-fivebin-build-owner-r2",
+    "output": "/home/ustad/.local/state/ostadix-compiler-tools/20261025-fixed-vector-fivebin-evidence-r2"
+  },
+  "prior_failed_build": {
+    "source": "230899b6aa4969e0f46951d31694f562f5579f0e",
+    "cargo_exit": 101,
+    "diagnostics": "three exhaustive-match E0004 in olangc consumer; preserved"
+  },
+  "recovery": "Restore prerequisite230899 through parent envelope, git bundle verify this payload, import exact b30 commit, and verify tree/map; this envelope is not the compiler source tree.",
+  "compiler_runtime_provider_artifact_ISA_qualified": false
+}
