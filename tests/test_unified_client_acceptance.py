@@ -34,6 +34,15 @@ class ForegroundClientOracleTests(unittest.TestCase):
                        "withdrawn": {"live_domains": 1}, "restored": {"live_domains": 3}}],
                        "coordinator_updates": [{"frame": {"recovered": self.ack}, "ack": {"ok": True}}]}
 
+    def test_superseded_m3_candidate_and_crossed_pairs_are_rejected(self):
+        previous_monitor = "dea3f620c0289a3efba9ea33114fad040ec034e1a138ce10cc498995d1c16fe2"
+        previous_profile = "4815f7d77e3f2f1d9763405447a8a8159243efdc457596c2de7e5324e65af73a"
+        for monitor, profile in ((previous_monitor, previous_profile),
+                                 (GATE.O10_M3_MONITOR, previous_profile),
+                                 (previous_monitor, GATE.O10_M3_PROFILE)):
+            with self.subTest(monitor=monitor, profile=profile), self.assertRaises(ValueError):
+                GATE.admitted_monitor_revision(monitor, profile)
+
     def test_recovery_requires_exact_private_ack_and_native_domain_transition(self):
         self.assertIs(GATE.validate_recovery(self.record, self.evidence), self.record["provider_recoveries"][0])
         cases = []
@@ -118,9 +127,9 @@ class ForegroundClientOracleTests(unittest.TestCase):
 
     def test_m3_compiled_candidate_requires_its_exact_build_pair(self):
         self.assertEqual(GATE.O10_M3_MONITOR,
-                         "dea3f620c0289a3efba9ea33114fad040ec034e1a138ce10cc498995d1c16fe2")
+                         "f300ef705eed2c9bf8d483c999fcf68cee39c101c2a1ec482ddf44437cf6efca")
         self.assertEqual(GATE.O10_M3_PROFILE,
-                         "4815f7d77e3f2f1d9763405447a8a8159243efdc457596c2de7e5324e65af73a")
+                         "4160f22c8bff8021fe187ed8d37bd75103dd82ef0c16a7d36784a5f2482a883c")
         self.assertEqual(GATE.admitted_monitor_revision(
             GATE.O10_M3_MONITOR, GATE.O10_M3_PROFILE), "O10-M3-private-candidate")
         for monitor, profile in GATE.MONITOR_PROFILES.items():

@@ -52,6 +52,15 @@ class RuntimeOracleTests(unittest.TestCase):
         (self.runtime / "runtime.json").write_text(json.dumps(manifest))
         return manifest
 
+    def test_superseded_m3_candidate_and_crossed_pairs_are_rejected(self):
+        previous_monitor = "dea3f620c0289a3efba9ea33114fad040ec034e1a138ce10cc498995d1c16fe2"
+        previous_profile = "4815f7d77e3f2f1d9763405447a8a8159243efdc457596c2de7e5324e65af73a"
+        for monitor, profile in ((previous_monitor, previous_profile),
+                                 (module.O10_M3_MONITOR, previous_profile),
+                                 (previous_monitor, module.O10_M3_PROFILE)):
+            with self.subTest(monitor=monitor, profile=profile), self.assertRaises(ValueError):
+                module.admitted_runtime_profile(monitor, profile)
+
     def test_runtime_admission_preserves_exact_pairs_and_rejects_cross_pair_mix(self):
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.R9_MONITOR], module.R9_PROFILE)
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M0_MONITOR], module.O10_M0_PROFILE)
@@ -62,9 +71,9 @@ class RuntimeOracleTests(unittest.TestCase):
                          "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c")
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M2_MONITOR], module.O10_M2_PROFILE)
         self.assertEqual(module.O10_M3_MONITOR,
-                         "dea3f620c0289a3efba9ea33114fad040ec034e1a138ce10cc498995d1c16fe2")
+                         "f300ef705eed2c9bf8d483c999fcf68cee39c101c2a1ec482ddf44437cf6efca")
         self.assertEqual(module.O10_M3_PROFILE,
-                         "4815f7d77e3f2f1d9763405447a8a8159243efdc457596c2de7e5324e65af73a")
+                         "4160f22c8bff8021fe187ed8d37bd75103dd82ef0c16a7d36784a5f2482a883c")
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M3_MONITOR], module.O10_M3_PROFILE)
         for monitor, profile in module.ADMITTED_RUNTIME_PROFILES.items():
             self.assertEqual(module.admitted_runtime_profile(monitor, profile), profile)
