@@ -238,6 +238,16 @@ Package SemVer is only one of the independent coordinates documented in
   `O_BACKEND_STEP_TIMEOUT_MS` and has no default. The `nixos_test` shim's
   `nix build` wait (formerly 600 s) has no default either; its own
   `O_NIXOS_TEST_TIMEOUT_SECONDS` stays as the opt-in limit.
+- `O_BACKEND_SHUTDOWN_TIMEOUT_MS`, `O_BACKEND_MAX_OPEN_SESSIONS` and
+  `O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND` fail the backend spawn when
+  malformed, zero or (for the shutdown budget) over 60 s, instead of silently
+  using their defaults.
+- A bash block whose stdout or stderr capture file disappears or cannot be
+  read fails with that reason instead of returning empty output.
+- Native leaf tool errors and `O --json` evidence carry the clang and ld
+  file names only: ld's argv0 prefix and the tools' working directory are
+  replaced in stderr, and `assembler.invocation` / `linker.invocation` are
+  reduced to the file name. The admission digest still binds the full paths.
 - Native leaf children (clang, ld and the sealed leaf) run in their own
   process group under the same watch: one stderr warning after the hang
   threshold, the group killed when the opt-in step limit passes or the
