@@ -764,13 +764,36 @@ fn remaining_timeout(deadline: Instant, configured: Duration) -> Result<Duration
 }
 
 fn set_timeouts(stream: &TcpStream, timeout: Duration) -> Result<()> {
-    stream
-        .set_read_timeout(Some(timeout))
-        .context("failed to set hosted transport read timeout")?;
-    stream
-        .set_write_timeout(Some(timeout))
-        .context("failed to set hosted transport write timeout")?;
+    set_retry(stream, "read", |s| s.set_read_timeout(Some(timeout)))?;
+    set_retry(stream, "write", |s| s.set_write_timeout(Some(timeout)))?;
     Ok(())
+}
+
+/// Apply a socket timeout, retrying the rare transient EINVAL that some
+/// platforms return for a socket whose teardown is racing the setsockopt.
+/// Persistent errors are surfaced unchanged.
+fn set_retry(
+    stream: &TcpStream,
+    what: &str,
+    apply: impl Fn(&TcpStream) -> std::io::Result<()>,
+) -> Result<()> {
+    let mut error = match apply(stream) {
+        Ok(()) => return Ok(()),
+        Err(error) => error,
+    };
+    for _ in 0..15 {
+        if error.raw_os_error() == Some(libc::EINVAL) {
+            std::thread::sleep(Duration::new(0, 200_000));
+            error = match apply(stream) {
+                Ok(()) => return Ok(()),
+                Err(error) => error,
+            };
+            continue;
+        }
+        break;
+    }
+    Err(error)
+        .context(format!("failed to set hosted transport {what} timeout"))
 }
 
 fn load_certificates(path: &Path) -> Result<Vec<CertificateDer<'static>>> {
