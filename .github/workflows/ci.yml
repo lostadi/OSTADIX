@@ -43,7 +43,7 @@ jobs:
           import unittest
           suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_prepare_ci_llvm_profile")
           result = unittest.TextTestRunner(verbosity=2).run(suite)
-          if not result.wasSuccessful() or result.testsRun < 26 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
+          if not result.wasSuccessful() or result.testsRun < 27 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
               raise SystemExit("required LLVM archive/refusal controls must execute with no skips")
           PY
       - name: Verify complete-source inventory worker and recipe bindings
@@ -130,7 +130,7 @@ jobs:
                     "source_commit": (root / "target/ocore-constrained-fp/source-commit.txt").read_text().strip()}
           (path.parent / "compiler-pin.json").write_text(json.dumps(record, indent=2) + "\n")
           PYCODE
-      - name: Execute every required original-source constrained-multiply test
+      - name: Execute both required original-source scalar FP suites
         run: |
           set -euo pipefail
           python3 - <<'PYCODE' 2>&1 | tee target/ocore-constrained-fp/tests.log
@@ -142,18 +142,31 @@ jobs:
           environment.update(OCOREC_BIN=compiler["path"], OCOREC_BIN_SHA256=compiler["sha256"],
                              OCORE_MUSL_SOURCE=str(pathlib.Path(os.environ["RUNNER_TEMP"]) / "musl-constrained-fp"),
                              OCORE_CONSTRAINED_FP_REQUIRED="1",
-                             OCORE_CONSTRAINED_FP_OUTPUT=str(evidence / "suite"))
+                             OCORE_CONSTRAINED_FP_OUTPUT=str(evidence / "suite"),
+                             OCORE_FP_REGISTER_BARRIER_REQUIRED="1",
+                             OCORE_FP_REGISTER_BARRIER_OUTPUT=str(evidence / "register-barrier-suite"))
           os.environ.update(environment)
           os.environ["PATH"] = str(pathlib.Path(environment["OCORE_TEST_CLANG"]).parent) + os.pathsep + os.environ["PATH"]
-          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_native_constrained_fmul")
-          discovered = suite.countTestCases()
-          result = unittest.TextTestRunner(verbosity=2).run(suite)
-          unchanged = hashlib.sha256(pathlib.Path(compiler["path"]).read_bytes()).hexdigest() == compiler["sha256"]
           from scripts.prepare_ci_llvm_profile import required_test_report
-          report = required_test_report(discovered, result, unchanged)
-          (evidence / "test-result.json").write_text(json.dumps(report, indent=2) + "\n")
-          if not report["passed"]:
-              raise SystemExit("required constrained FP gate must execute all9 tests with no skips and unchanged compiler")
+          reports = {}
+          for module, result_name in (
+                  ("tests.test_ocore_native_constrained_fmul", "test-result.json"),
+                  ("tests.test_ocore_native_fp_register_barrier", "register-barrier-test-result.json")):
+              suite = unittest.defaultTestLoader.loadTestsFromName(module)
+              discovered = suite.countTestCases()
+              result = unittest.TextTestRunner(verbosity=2).run(suite)
+              unchanged = hashlib.sha256(pathlib.Path(compiler["path"]).read_bytes()).hexdigest() == compiler["sha256"]
+              report = required_test_report(discovered, result, unchanged)
+              report["test_module"] = module
+              reports[module] = report
+              (evidence / result_name).write_text(json.dumps(report, indent=2) + "\n")
+          combined = {"schema": "ostadix.ci-required-scalar-fp-suites/v1", "suites": reports,
+                      "passed": all(report["passed"] for report in reports.values()),
+                      "foreign_ISA_native_execution": False, "whole_musl_lowering": False,
+                      "cross_ISA_raw_NaN_identity": False, "FP_kernel_activation": False}
+          (evidence / "required-suites-result.json").write_text(json.dumps(combined, indent=2) + "\n")
+          if not combined["passed"]:
+              raise SystemExit("both required scalar FP suites must each execute all9 tests with no skips and unchanged compiler")
           PYCODE
       - name: Retain exact prerequisite and original-source execution evidence
         if: always()

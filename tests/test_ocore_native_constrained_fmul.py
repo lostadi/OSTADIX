@@ -164,13 +164,6 @@ class ConstrainedMultiplyTests(unittest.TestCase):
                 if name=="scalbnl":continue
                 module=build/(name+".native.json");receipt=build/(name+".verification.json");assembly=build/(name+".s");obj=build/(name+".owned.o")
                 imported=cls.command(isa+"-"+name+"-import",[cls.compiler,ir,"--input-kind","llvm-ir","--emit","mir","--target",isa+"-unknown-none","--llvm-library",cls.library,"--llvm-sha256",cls.library_sha,"-o",module],expected=None)
-                # The original AArch64 FP-register barrier is a required,
-                # separately unsupported mechanism. Keep that unit RED; never
-                # remove the barrier, substitute a body or call it a skip.
-                if isa=="aarch64" and 'asm sideeffect "", "=w,0"' in ir.read_text():
-                    assert imported.returncode==1 and b"unsupported metadata kind 47" in imported.stderr
-                    cls.units[isa,name]["unmet"]="required original ordered FP-register identity asm/srcloc is unsupported"
-                    continue
                 if imported.returncode:
                     raise AssertionError(isa+"/"+name+": "+imported.stderr.decode(errors="replace"))
                 cls.command(isa+"-"+name+"-verify",[cls.compiler,module,"--input-kind","native-ir","--verify-native","--receipt",receipt])
@@ -205,13 +198,10 @@ class ConstrainedMultiplyTests(unittest.TestCase):
         for isa in PROFILES:
             for name in NAMES:
                 unit=self.units[isa,name]
-                if "unmet" in unit:
-                    self.assertEqual(isa,"aarch64")
-                    self.assertIn('asm sideeffect "", "=w,0"',unit["ir"].read_text())
-                    self.assertNotIn("owned",unit)
-                    continue
                 data=json.loads(unit["module"].read_text())
-                self.assertEqual(data["target"]["strict_fp_profile"],"scalar_dynamic_mul_v1")
+                has_barrier = 'asm sideeffect "", "=w,0"' in unit["ir"].read_text()
+                expected_profile = "scalar_dynamic_mul_register_barrier_v1" if has_barrier else "scalar_dynamic_mul_v1"
+                self.assertEqual(data["target"]["strict_fp_profile"], expected_profile)
                 for kind in ("reference","owned"):
                     require_elf_arch(unit[kind],isa,{1})
                     result=self.command(isa+name+kind+"-undefined",[self.nm,"-u",unit[kind]])

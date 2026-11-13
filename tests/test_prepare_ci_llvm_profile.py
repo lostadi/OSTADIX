@@ -1,5 +1,6 @@
 """Adversarial archive/mandatory-prerequisite controls, using inert tiny inputs."""
 import copy
+import contextlib
 import hashlib
 import io
 import json
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 import tomllib
 import unittest
 from unittest import mock
@@ -168,14 +170,20 @@ class LlvmProfileTests(unittest.TestCase):
         source = self.root / "source"
         source.mkdir()
         (source / "configure").touch()
-        for key in ("OCORE_TEST_CLANG", "OCORE_TEST_LLVM_LIBRARY", "OCORE_MUSL_SOURCE"):
-            environment = dict(os.environ, **tools, OCORE_MUSL_SOURCE=str(source), OCORE_CONSTRAINED_FP_REQUIRED="1", PYTHONDONTWRITEBYTECODE="1")
-            environment[key] = str(self.root / "missing")
-            result = subprocess.run([sys.executable, "-B", "-m", "unittest", "-v", "tests.test_ocore_native_constrained_fmul"], cwd=ROOT, env=environment, capture_output=True, timeout=30)
-            with self.subTest(key=key):
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(b"mandatory constrained FP prerequisites are missing", result.stderr)
-                self.assertNotIn(b"skipped=", result.stderr)
+        for module, required, message in (
+                ("tests.test_ocore_native_constrained_fmul", "OCORE_CONSTRAINED_FP_REQUIRED",
+                 b"mandatory constrained FP prerequisites are missing"),
+                ("tests.test_ocore_native_fp_register_barrier", "OCORE_FP_REGISTER_BARRIER_REQUIRED",
+                 b"mandatory FP register barrier prerequisites are missing")):
+            for key in ("OCORE_TEST_CLANG", "OCORE_TEST_LLVM_LIBRARY", "OCORE_MUSL_SOURCE"):
+                environment = dict(os.environ, **tools, OCORE_MUSL_SOURCE=str(source),
+                                   PYTHONDONTWRITEBYTECODE="1", **{required: "1"})
+                environment[key] = str(self.root / "missing")
+                result = subprocess.run([sys.executable, "-B", "-m", "unittest", "-v", module], cwd=ROOT, env=environment, capture_output=True, timeout=30)
+                with self.subTest(module=module, key=key):
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(message, result.stderr)
+                    self.assertNotIn(b"skipped=", result.stderr)
 
     def test_provision_failure_retains_red_receipt_and_no_environment(self):
         archive = self.root / "invalid.tar.xz"
@@ -320,6 +328,72 @@ class LlvmProfileTests(unittest.TestCase):
 
 
 class RequiredFpContractTests(unittest.TestCase):
+    def test_actual_workflow_controller_requires_both_complete_suites(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        self.assertIn("result.testsRun < 27", workflow[:workflow.index("  ocore-constrained-fp:\n")])
+        start = workflow.index("          import hashlib, json, os, pathlib, unittest\n")
+        stop = workflow.index("          PYCODE\n", start)
+        controller = compile(textwrap.dedent(workflow[start:stop]), "required-fp-workflow", "exec")
+        modules = ("tests.test_ocore_native_constrained_fmul", "tests.test_ocore_native_fp_register_barrier")
+        for variant in ("complete", "first-skip", "second-xfail", "first-empty", "second-mutation"):
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory(prefix="fp-workflow-control-") as directory:
+                root = Path(directory)
+                evidence = root / "target/ocore-constrained-fp"
+                (evidence / "setup").mkdir(parents=True)
+                compiler = evidence / "inert-compiler"
+                compiler.write_bytes(b"inert compiler input: never executed\n")
+                (evidence / "compiler-pin.json").write_text(json.dumps({"path": str(compiler), "sha256": hashlib.sha256(compiler.read_bytes()).hexdigest()}))
+                (evidence / "setup/environment.json").write_text(json.dumps({"OCORE_TEST_CLANG": str(root / "not-executed/clang")}))
+                seen = []
+
+                def load(module):
+                    self.assertIn(module, modules)
+                    seen.append(module)
+                    second = module == modules[1]
+                    if variant == "first-empty" and not second:
+                        return unittest.TestSuite()
+                    cases = [unittest.FunctionTestCase(lambda: None) for _ in range(8)]
+                    if variant == "second-xfail" and second:
+                        class Unmet(unittest.TestCase):
+                            @unittest.expectedFailure
+                            def runTest(self):
+                                self.fail("required profile unsupported")
+                        return unittest.TestSuite(cases + [Unmet()])
+                    if variant == "first-skip" and not second:
+                        def last():
+                            raise unittest.SkipTest("required input absent")
+                    elif variant == "second-mutation" and second:
+                        def last():
+                            compiler.write_bytes(b"changed compiler")
+                    else:
+                        def last():
+                            pass
+                    cases.append(unittest.FunctionTestCase(last))
+                    return unittest.TestSuite(cases)
+
+                with mock.patch.dict(os.environ, {"GITHUB_WORKSPACE": str(root), "RUNNER_TEMP": str(root)}), \
+                        mock.patch.object(unittest.defaultTestLoader, "loadTestsFromName", side_effect=load), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    if variant == "complete":
+                        exec(controller, {"__name__": "__main__"})
+                    else:
+                        with self.assertRaisesRegex(SystemExit, "both required scalar FP suites"):
+                            exec(controller, {"__name__": "__main__"})
+                self.assertEqual(seen, list(modules))
+                combined = json.loads((evidence / "required-suites-result.json").read_text())
+                self.assertEqual(set(combined["suites"]), set(modules))
+                self.assertEqual(combined["passed"], variant == "complete")
+                if variant == "first-skip":
+                    self.assertEqual(combined["suites"][modules[0]]["skipped"], 1)
+                elif variant == "second-xfail":
+                    self.assertEqual(combined["suites"][modules[1]]["expected_failures"], 1)
+                elif variant == "first-empty":
+                    self.assertEqual(combined["suites"][modules[0]]["executed"], 0)
+                elif variant == "second-mutation":
+                    self.assertFalse(combined["suites"][modules[1]]["compiler_unchanged"])
+                self.assertTrue((evidence / "test-result.json").is_file())
+                self.assertTrue((evidence / "register-barrier-test-result.json").is_file())
+
     def test_no_missing_zero_skipped_error_or_changed_compiler_can_pass(self):
         for discovered, executed, skipped, errors, failures, unchanged in (
                 (0, 0, 0, 0, 0, True), (9, 0, 0, 1, 0, True),
@@ -372,7 +446,12 @@ class RequiredFpContractTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", job)
         self.assertNotIn("if sdk is None", job)
         self.assertIn('OCORE_CONSTRAINED_FP_REQUIRED="1"', job)
+        self.assertIn('OCORE_FP_REGISTER_BARRIER_REQUIRED="1"', job)
+        self.assertIn('(\"tests.test_ocore_native_constrained_fmul\", \"test-result.json\")', job)
+        self.assertIn('(\"tests.test_ocore_native_fp_register_barrier\", \"register-barrier-test-result.json\")', job)
         self.assertIn("required_test_report(discovered, result, unchanged)", job)
+        self.assertIn('"passed": all(report["passed"] for report in reports.values())', job)
+        self.assertIn('"required-suites-result.json"', job)
         self.assertIn("if: always()", job)
         self.assertIn("if-no-files-found: error", job)
         required = tomllib.loads((ROOT / "ci/required-jobs.toml").read_text())["required_jobs"]
@@ -384,9 +463,11 @@ class RequiredFpContractTests(unittest.TestCase):
         self.assertIn("needs.ocore-constrained-fp.result", aggregate)
         self.assertIn(" OCORE_CONSTRAINED_FP ", aggregate)
 
-    def test_current_suite_has_nine_real_test_methods(self):
-        suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_native_constrained_fmul")
-        self.assertEqual(suite.countTestCases(), 9)
+    def test_each_required_suite_has_nine_real_test_methods(self):
+        for module in ("tests.test_ocore_native_constrained_fmul", "tests.test_ocore_native_fp_register_barrier"):
+            with self.subTest(module=module):
+                suite = unittest.defaultTestLoader.loadTestsFromName(module)
+                self.assertEqual(suite.countTestCases(), 9)
 
 
 if __name__ == "__main__":

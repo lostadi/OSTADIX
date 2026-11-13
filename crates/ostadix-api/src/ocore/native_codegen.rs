@@ -2545,6 +2545,7 @@ impl<'a> Emitter<'a> {
             | Operation::VectorReduceAdd { .. } => unreachable!("fixed vector instruction handled"),
             Operation::FloatBinary { .. }
             | Operation::ConstrainedFloatBinary { .. }
+            | Operation::FpRegisterBarrier { .. }
             | Operation::FloatNeg { .. }
             | Operation::FloatAbs { .. }
             | Operation::FCmp { .. } => {

@@ -298,6 +298,7 @@ CONSTRAINED_FP_RELEASE_PATHS = frozenset(
         "src/bin/olangc/native_runtime/source_inventory.py",
         "tests/ocore_llvm_source_inventory.py",
         "tests/test_ocore_native_constrained_fmul.py",
+        "tests/test_ocore_native_fp_register_barrier.py",
         "tests/test_prepare_ci_llvm_profile.py",
     }
 )

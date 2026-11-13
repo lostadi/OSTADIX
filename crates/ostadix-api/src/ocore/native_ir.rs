@@ -297,6 +297,9 @@ pub enum StrictFpProfile {
     /// Ordered scalar IEEE32/64 multiplication under the unchanged dynamic
     /// environment; exception-ignore is not a strict/trapping contract.
     ScalarDynamicMulV1,
+    /// ScalarDynamicMulV1 plus ordered exact scalar32/64 register identities.
+    /// The source contract is distinct from platform calls and pure leaves.
+    ScalarDynamicMulRegisterBarrierV1,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -309,6 +312,53 @@ pub enum ConstrainedFpRounding {
 #[serde(rename_all = "snake_case")]
 pub enum ConstrainedFpExceptions {
     Ignore,
+}
+
+/// Exact original AArch64 InlineAsm identity. These bytes are never emitted;
+/// source reimport and inventory, not this structural packet, establish custody.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FpRegisterBarrierSource {
+    pub schema: String,
+    pub site: LlvmMetadataSourceSite,
+    pub original_target: String,
+    pub assembly: Vec<u8>,
+    pub constraints: Vec<u8>,
+    pub side_effects: bool,
+    pub align_stack: bool,
+    pub dialect: u32,
+    pub can_unwind: bool,
+    pub calling_convention: u32,
+    pub tail_kind: u32,
+    pub fast_math: u32,
+    pub operand_bundles: u32,
+    pub call_opcode: u32,
+    pub signature: Signature,
+    pub attributes: Vec<FpRegisterBarrierAttribute>,
+    pub srcloc: Option<FpRegisterBarrierSourceLocation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FpRegisterBarrierAttribute {
+    pub index: u32,
+    pub name: String,
+    pub value: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FpRegisterBarrierSourceLocation {
+    pub node: usize,
+    pub storage: NoAliasNodeStorage,
+    pub operands: Vec<FpRegisterBarrierLocationInteger>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FpRegisterBarrierLocationInteger {
+    pub width: u16,
+    pub bits: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -895,6 +945,11 @@ pub enum Operation {
         flags: FastMathFlags,
     },
     /// Distinct environment-sensitive operation; never ordinary FloatBinary.
+    /// Ordered bit-preserving register materialization, including unused inputs.
+    FpRegisterBarrier {
+        value: Operand,
+        source: Box<FpRegisterBarrierSource>,
+    },
     ConstrainedFloatBinary {
         kind: FloatBinaryOp,
         lhs: Operand,
