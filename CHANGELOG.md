@@ -351,11 +351,13 @@ Package SemVer is only one of the independent coordinates documented in
 
 - A plain bash block that leaves background jobs, including `setsid`,
   `nohup`, `disown`, and double-forked ones, no longer fails with "process
-  group still contains an active descendant": each block's bash is
-  pre-spawned by a per-block backend helper that is the subreaper of its
-  jobs (the O process is not), stops them all when the block ends, and prints
-  `bash block left N background job(s); they were stopped`. `bash[N]` jobs
-  are stopped when their session ends.
+  group still contains an active descendant": plain blocks share one
+  long-lived backend helper that is the subreaper of their jobs (the O
+  process is not). Each block runs in a fresh, pre-spawned bash that sees no
+  earlier block's state; when the block ends the helper stops the shell and
+  every job it left, within a bounded deadline, and prints
+  `bash block left N background job(s); they were stopped`. No backend is
+  forked per block. `bash[N]` jobs are stopped when their session ends.
 
 - A bash block that ends its `bash[N]` session with a failure, for example
   under a persisted `set -e`, now says that the session ended and its state
