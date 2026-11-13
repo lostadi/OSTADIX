@@ -1,0 +1,62 @@
+[
+  {
+    "source_path": "/tmp/ostadix-private-heads-20261113-101529.json",
+    "receipt_path": "heads-private.json",
+    "sha256": "4d948c46fa9415ea98b54f99e4e87f03c278e47fa40ec0c1ba9d611b24917fc0",
+    "bytes": 6972
+  },
+  {
+    "source_path": "/tmp/ostadix-public-heads-20261113-101529.json",
+    "receipt_path": "heads-canonical.json",
+    "sha256": "cf2b665d4b8458af4cd8106c779bdcff9640eeff960c5f136c462f59343928d1",
+    "bytes": 7299
+  },
+  {
+    "source_path": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+    "receipt_path": "public-ui-intent-audit.json",
+    "sha256": "a2b0acd20756baa01bc5bd3240a68a672af8f5e68c7921ea0982f9fa6a169503",
+    "bytes": 19788
+  },
+  {
+    "source_path": "/tmp/ostadix-recovery-semantic-audit-20261113.json",
+    "receipt_path": "recovery-semantic-audit.json",
+    "sha256": "28ae20a39ae2473b849d62069fd4e2fa71387fa4d531eefc6c9a5df05b22d814",
+    "bytes": 6310
+  },
+  {
+    "source_path": "/tmp/ostadix-watchdog-dependency-coordinate-audit-20261113.json",
+    "receipt_path": "dependency-coordinate-audit.json",
+    "sha256": "f219990717ab419137705aaf76eadfd2b49f0459636023acd994c78bd3bb06ad",
+    "bytes": 4331
+  },
+  {
+    "source_path": "/tmp/ostadix-watchdog-review-20261113.json",
+    "receipt_path": "independent-earlier-review.json",
+    "sha256": "bbcd0b791f2a18bacca72983888be655327dd264de80890fbd5ba163d22106ad",
+    "bytes": 3736
+  },
+  {
+    "source_path": "/home/ustad/.local/state/ostadix-remote-integration/watchdog-recovered-review-20261113.json",
+    "receipt_path": "independent-source-review.json",
+    "sha256": "7c8a0a1a0d8d77a69941cfc1bd5847d49132724353e95faf3f1f1e9d211be04b",
+    "bytes": 9054
+  },
+  {
+    "source_path": "/home/ustad/.local/state/ostadix-remote-integration/old-cache-preservation-review-20261113.json",
+    "receipt_path": "old-cache-preservation-review.json",
+    "sha256": "1593451c86f581a697c6ca0e7077c719d25bbc7b9d664365c21be29ffa21c933",
+    "bytes": 25618
+  },
+  {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/install/result.json",
+    "receipt_path": "native-install-result.json",
+    "sha256": "7c83e7ca7e4a0777689e3ed693732664f175d31fdffbf71a8b08edf0b2a8c4e0",
+    "bytes": 125685
+  },
+  {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/result.json",
+    "receipt_path": "native-frame-result.json",
+    "sha256": "eafe4d4df35b5498eac383eaa85d28fa05cae4c9cd5d631d38be5457fb10e3d2",
+    "bytes": 114495
+  }
+]

@@ -1,0 +1,2970 @@
+{
+  "schema": "ostadix.all-branches-accounting/v1",
+  "created_utc": "2026-11-13T10:26:48.401405+00:00",
+  "source": {
+    "head": "adef92238050064ab80fb8e5aab8ad5a6f8841ad",
+    "tree": "e3af3c42c06933dbee41e6f03012a75c49811cb5",
+    "latest_shared_master": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+    "native_copy_head": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+    "native_install_head": "114b83ac12814b3cea6c8ad18cbb822dea490173",
+    "root_native_closure_checkpoint": "9b06307f",
+    "mcp_closure_checkpoint": "451f69e8",
+    "install_runtime_checkpoint": "adef9223"
+  },
+  "scope": "Both authenticated repository branch snapshots. Merged ancestry, dependency coalescing and historical UI semantic preservation are distinguished. Existing remote branch refs remain intact; no force update is authorized.",
+  "source_inputs": {
+    "/tmp/ostadix-private-heads-20261113-101529.json": {
+      "sha256": "4d948c46fa9415ea98b54f99e4e87f03c278e47fa40ec0c1ba9d611b24917fc0",
+      "bytes": 6972
+    },
+    "/tmp/ostadix-public-heads-20261113-101529.json": {
+      "sha256": "cf2b665d4b8458af4cd8106c779bdcff9640eeff960c5f136c462f59343928d1",
+      "bytes": 7299
+    }
+  },
+  "heads": [
+    {
+      "remote": "origin",
+      "branch": "architecture-boundaries-manifest",
+      "sha": "e7ada443f093cdc1eef98355eb565bbaa1b2e45d",
+      "ancestor_of_integration": true,
+      "merge_base": "e7ada443f093cdc1eef98355eb565bbaa1b2e45d",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "author-check-merge-exception",
+      "sha": "ae3e6c2869721230674752d869d098f346144729",
+      "ancestor_of_integration": true,
+      "merge_base": "ae3e6c2869721230674752d869d098f346144729",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "backup/compiler-expansion-20261025-5cb-vector-r1",
+      "sha": "68b14e811005e89df2ba10db2d4ac978be814a27",
+      "ancestor_of_integration": true,
+      "merge_base": "68b14e811005e89df2ba10db2d4ac978be814a27",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "2b7491bdbf75711aa3d1597f525bda4a63b0e71e"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "backup/compiler-expansion-20261025-source-D-r1",
+      "sha": "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+      "ancestor_of_integration": true,
+      "merge_base": "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "2b7491bdbf75711aa3d1597f525bda4a63b0e71e"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "bug-fixes",
+      "sha": "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+      "ancestor_of_integration": true,
+      "merge_base": "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "27fb77281c56f5a74d39b4a779fcbab37ea14d56"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "bug-fixes-rebased",
+      "sha": "c2cd192ca498b93f24b283143642d7e2f50fc2be",
+      "ancestor_of_integration": true,
+      "merge_base": "c2cd192ca498b93f24b283143642d7e2f50fc2be",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "checkpoint/latest-build-source-20261104",
+      "sha": "b7df79c0aa4ede007b87922e4a53fc058642960f",
+      "ancestor_of_integration": true,
+      "merge_base": "b7df79c0aa4ede007b87922e4a53fc058642960f",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "checkpoint/runtime-expansion-20261103",
+      "sha": "adfbdbbc2a948d15d1679cd12e610351a3023973",
+      "ancestor_of_integration": true,
+      "merge_base": "adfbdbbc2a948d15d1679cd12e610351a3023973",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "ci-commit-author-check",
+      "sha": "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+      "ancestor_of_integration": true,
+      "merge_base": "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+      "sha": "295cb28dc38776f7e04a94e77b52fc4e585efbb3",
+      "ancestor_of_integration": false,
+      "merge_base": "1b62bd1c5c0d86e235beb882cf6714e74607e67b",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34",
+      "sha": "c9166da56f83296743e68ed9a81c9311ff432ef8",
+      "ancestor_of_integration": false,
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+      "sha": "42d456326ea142143a68d403fea075a42eb2b905",
+      "ancestor_of_integration": false,
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/apps/mobile-console/libc-0.2.191",
+      "sha": "1bdb0d2595f24033f1c9264c40bfafa5f5efd402",
+      "ancestor_of_integration": true,
+      "merge_base": "1bdb0d2595f24033f1c9264c40bfafa5f5efd402",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/hmac-0.13.0",
+      "sha": "9c7f4cb883ca0ac044bb23090f5feb3612331436",
+      "ancestor_of_integration": false,
+      "merge_base": "1b62bd1c5c0d86e235beb882cf6714e74607e67b",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/hmac-0.13.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/futures-util-0.3.34",
+      "sha": "5289defc1704afdf6cdde5951f8fc9402ec56327",
+      "ancestor_of_integration": false,
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/mcp/ostadix_lang_mcp_server/futures-util-0.3.34",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.191",
+      "sha": "25fe0687f2068bc9062aec7e1bb28b0ed7c3cb11",
+      "ancestor_of_integration": false,
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.191",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.8.0",
+      "sha": "9db59f0add51677d36e8dd79be7d03b684195182",
+      "ancestor_of_integration": false,
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.8.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.3",
+      "sha": "cf1524f17d3240c779e05a4ccfc0fdc0e0950fc9",
+      "ancestor_of_integration": true,
+      "merge_base": "cf1524f17d3240c779e05a4ccfc0fdc0e0950fc9",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+      "sha": "9534cea79764b16fcc5ab15ffd942da622405c0a",
+      "ancestor_of_integration": false,
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/rust-patch-updates-45952e8026",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/cargo/sha2-0.11.0",
+      "sha": "21edc4f45ef8b00830c7b71f9e85f4133c3154ae",
+      "ancestor_of_integration": false,
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "origin:dependabot/cargo/sha2-0.11.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/docker/examples/guix-wasm/library/python-3.15-slim-bookworm",
+      "sha": "0d7cc308c0f4ff670daead4c9aa1bcc181b55172",
+      "ancestor_of_integration": true,
+      "merge_base": "0d7cc308c0f4ff670daead4c9aa1bcc181b55172",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "dependabot/docker/src/bin/olangc/wasm_exit/gcc-16",
+      "sha": "66ace79a8b184944a3addaaf680bda2afccc4eb2",
+      "ancestor_of_integration": true,
+      "merge_base": "66ace79a8b184944a3addaaf680bda2afccc4eb2",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "fix/vscode-run-automation-20261020",
+      "sha": "7423a63af309e0c680a957e812d896db10f823ec",
+      "ancestor_of_integration": true,
+      "merge_base": "7423a63af309e0c680a957e812d896db10f823ec",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "improvement/mcp-onboarding-20261025",
+      "sha": "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+      "ancestor_of_integration": true,
+      "merge_base": "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "7c08ed923077f2bffdcf557f46f2445e8ca5c616"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "integration/native-copy-observation-20261113",
+      "sha": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+      "ancestor_of_integration": true,
+      "merge_base": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      },
+      "previous_snapshot_sha": "c0aeef5d8229722fed989f92c42e0fa0ef6ff124"
+    },
+    {
+      "remote": "origin",
+      "branch": "integration/native-foundations-20261113",
+      "sha": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+      "ancestor_of_integration": true,
+      "merge_base": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "integration/native-install-observation-20261113",
+      "sha": "114b83ac12814b3cea6c8ad18cbb822dea490173",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      },
+      "ancestor_of_integration": true,
+      "merge_base": "114b83ac12814b3cea6c8ad18cbb822dea490173"
+    },
+    {
+      "remote": "origin",
+      "branch": "integration/public-contract-20261111",
+      "sha": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+      "ancestor_of_integration": true,
+      "merge_base": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "master",
+      "sha": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+      "ancestor_of_integration": true,
+      "merge_base": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      },
+      "previous_snapshot_sha": "6390bf2d2d725d477cfa1c1f087fcec426b15315"
+    },
+    {
+      "remote": "origin",
+      "branch": "okernel-v3",
+      "sha": "e9e7a96f96cae01682e331bed6d47790f3c74ab2",
+      "ancestor_of_integration": true,
+      "merge_base": "e9e7a96f96cae01682e331bed6d47790f3c74ab2",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "portfolio/readme-2026-11-06",
+      "sha": "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+      "ancestor_of_integration": true,
+      "merge_base": "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery/orangepirv-runtime-expansion-20261103-8e4f1c",
+      "sha": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+      "ancestor_of_integration": true,
+      "merge_base": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-byte-swap-source-20261022-e4aa036d",
+      "sha": "e4aa036d61baff64302cf5b2aa561ab6456a4896",
+      "ancestor_of_integration": true,
+      "merge_base": "e4aa036d61baff64302cf5b2aa561ab6456a4896",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-combined-catalog-20261022-5fc33651",
+      "sha": "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+      "ancestor_of_integration": true,
+      "merge_base": "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-combined-source-20261022-8c18be95",
+      "sha": "6e063c60a28d62ca4da128178f8426d02f41879e",
+      "ancestor_of_integration": true,
+      "merge_base": "6e063c60a28d62ca4da128178f8426d02f41879e",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-core-test-constructor-repair-20261021-747b3d0f",
+      "sha": "747b3d0f509ac46a12655c6ff028fc67deec47bf",
+      "ancestor_of_integration": true,
+      "merge_base": "747b3d0f509ac46a12655c6ff028fc67deec47bf",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-frozen-native-union-20261021-c18f7c75",
+      "sha": "c18f7c7579cf40c6a4b9f6ffceaf591e112406ae",
+      "ancestor_of_integration": true,
+      "merge_base": "c18f7c7579cf40c6a4b9f6ffceaf591e112406ae",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-machine-source-20261021-4b0fbdad",
+      "sha": "4b0fbdade6031cacffd4a7e32ee03e5c9698c9b8",
+      "ancestor_of_integration": true,
+      "merge_base": "4b0fbdade6031cacffd4a7e32ee03e5c9698c9b8",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-ctpop-20261020",
+      "sha": "528b04ff301d5c4285ac6f3c42bfb765d2ad92ce",
+      "ancestor_of_integration": true,
+      "merge_base": "528b04ff301d5c4285ac6f3c42bfb765d2ad92ce",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-fp-20261020",
+      "sha": "fd55f87124ed55d1be082aaf951283bc6b76546b",
+      "ancestor_of_integration": true,
+      "merge_base": "fd55f87124ed55d1be082aaf951283bc6b76546b",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-integral-rounding-20261021",
+      "sha": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "ancestor_of_integration": true,
+      "merge_base": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-next-source-20261021-12ef9d8a",
+      "sha": "12ef9d8ac5dc45af8233cee5918961d78126b6db",
+      "ancestor_of_integration": true,
+      "merge_base": "12ef9d8ac5dc45af8233cee5918961d78126b6db",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-python-c-rust-20261018",
+      "sha": "ca5b3ac9e46bcc0dfe90f57484d9c136ccb8252d",
+      "ancestor_of_integration": true,
+      "merge_base": "ca5b3ac9e46bcc0dfe90f57484d9c136ccb8252d",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+          "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-runtime-v5-20261020",
+      "sha": "73f66b81737e6c8b55a5612bceae4c54ce6de39c",
+      "ancestor_of_integration": true,
+      "merge_base": "73f66b81737e6c8b55a5612bceae4c54ce6de39c",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-usub-saturation-20261021",
+      "sha": "8ac166a025c6be356b413e87bebe77697e6580ac",
+      "ancestor_of_integration": true,
+      "merge_base": "8ac166a025c6be356b413e87bebe77697e6580ac",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "8ac166a025c6be356b413e87bebe77697e6580ac"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-v6-20261020",
+      "sha": "dc4861001c7645b29161a150d5544ecfc71193b5",
+      "ancestor_of_integration": true,
+      "merge_base": "dc4861001c7645b29161a150d5544ecfc71193b5",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-v6-r2-20261020",
+      "sha": "9b69c4c5362506790bf505d84ba869022b9c8bd7",
+      "ancestor_of_integration": true,
+      "merge_base": "9b69c4c5362506790bf505d84ba869022b9c8bd7",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-v7-20261020",
+      "sha": "2f6de263fd130057ca2fce7ceffbea25d3bf0f3f",
+      "ancestor_of_integration": true,
+      "merge_base": "2f6de263fd130057ca2fce7ceffbea25d3bf0f3f",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-validation-20261020",
+      "sha": "0526fa0e8828334fb4d3f0f5ee3732db8b8acf25",
+      "ancestor_of_integration": true,
+      "merge_base": "0526fa0e8828334fb4d3f0f5ee3732db8b8acf25",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-native-variadic-20261020",
+      "sha": "e39da043a0396a1276fa41fc19f92e00446d27ee",
+      "ancestor_of_integration": true,
+      "merge_base": "e39da043a0396a1276fa41fc19f92e00446d27ee",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+          "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-ocore-native-20261017",
+      "sha": "69109d4ffc083e2eeec8792eee9db44e0364e6a4",
+      "ancestor_of_integration": true,
+      "merge_base": "69109d4ffc083e2eeec8792eee9db44e0364e6a4",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+          "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+          "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b",
+          "353ed11df24fbf65ceffe8e63d491ff9630dab0e",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-opaque-source-20261021-1bb8921e",
+      "sha": "1bb8921e9c25272d92d6971d4d035ac23a97c389",
+      "ancestor_of_integration": true,
+      "merge_base": "1bb8921e9c25272d92d6971d4d035ac23a97c389",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-runtime-acceptance-20261020",
+      "sha": "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+      "ancestor_of_integration": true,
+      "merge_base": "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-runtime-producers-20261020",
+      "sha": "e4727e456bc2c192533090262f3f0096eb3908fc",
+      "ancestor_of_integration": true,
+      "merge_base": "e4727e456bc2c192533090262f3f0096eb3908fc",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-source-provider-group-20261021",
+      "sha": "644b53ead711e418a967ff94c02ba1c7b39ecd26",
+      "ancestor_of_integration": true,
+      "merge_base": "644b53ead711e418a967ff94c02ba1c7b39ecd26",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "recovery-source-provider-repair-20261021-55ed34b5",
+      "sha": "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+      "ancestor_of_integration": true,
+      "merge_base": "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "work/ocore-evidence-review-20261017",
+      "sha": "44cd0329d401a114a434347c469152c42d1cc991",
+      "ancestor_of_integration": true,
+      "merge_base": "44cd0329d401a114a434347c469152c42d1cc991",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "44cd0329d401a114a434347c469152c42d1cc991"
+        ]
+      }
+    },
+    {
+      "remote": "origin",
+      "branch": "work/ocore-native-integration-20261016",
+      "sha": "0c8a1a1218a404765f78a883d2ce63d66e88e74d",
+      "ancestor_of_integration": true,
+      "merge_base": "0c8a1a1218a404765f78a883d2ce63d66e88e74d",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+          "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+          "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+          "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b",
+          "353ed11df24fbf65ceffe8e63d491ff9630dab0e",
+          "44cd0329d401a114a434347c469152c42d1cc991",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+          "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+          "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+          "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+          "8ac166a025c6be356b413e87bebe77697e6580ac",
+          "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+          "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+          "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+          "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "architecture-boundaries-manifest",
+      "sha": "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+      "ancestor_of_integration": true,
+      "merge_base": "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "author-check-merge-exception",
+      "sha": "98b180f7ebc3812f263af1d4321afb0540eab38a",
+      "ancestor_of_integration": true,
+      "merge_base": "98b180f7ebc3812f263af1d4321afb0540eab38a",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "backup/master-before-dependabot-undo-2026-10-31-82f7a39",
+      "sha": "82f7a39d6c9db02a1c4a03c60a69f3e5d5063671",
+      "ancestor_of_integration": false,
+      "merge_base": "0723d563877fa537ea2537f3218bfc9d561fda3e",
+      "mode": "historical_dependency_updates_coalesced_committed",
+      "evidence": {
+        "version_check_key": "canonical:backup/master-before-dependabot-undo-2026-10-31-82f7a39",
+        "working_tree_not_commit": true,
+        "unique_nonmerge_commits": [
+          "0c731c244f6aae9c68fc782420fccddc42996534",
+          "0e433a7bc12f828131f77e6875d9f0d1b7f2f21b"
+        ],
+        "changed_paths": [
+          "Cargo.lock",
+          "mcp/ostadix_lang_mcp_server/Cargo.lock"
+        ],
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "bug-fixes",
+      "sha": "353ed11df24fbf65ceffe8e63d491ff9630dab0e",
+      "ancestor_of_integration": true,
+      "merge_base": "353ed11df24fbf65ceffe8e63d491ff9630dab0e",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "353ed11df24fbf65ceffe8e63d491ff9630dab0e"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "bug-fixes-rebased",
+      "sha": "96277898686b84b0f94dfc77992e25aa9a5b99a5",
+      "ancestor_of_integration": true,
+      "merge_base": "96277898686b84b0f94dfc77992e25aa9a5b99a5",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ci-commit-author-check",
+      "sha": "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b",
+      "ancestor_of_integration": true,
+      "merge_base": "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "cli-error-ux-10775695524624767334",
+      "sha": "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "graceful missing file, permission and read failure handling"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "a1d1e69fea4f263ba40f41d5ee6c0e63e704b9d38f96fef42baeddefa5a77291",
+        "journal_delta_sha256": "f0443948e030b82304c550e1a87c10b7fe077e5c88ba63c850af5865dcc6cd35",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+      "sha": "c14185309eea39886f4d216adedf7ea6556d08d5",
+      "ancestor_of_integration": false,
+      "merge_base": "4fd909c3c5636df9274004f1f8545234faa67bc8",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+      "sha": "de6785ec1427f19102cca7efdc89f5eef5e76cc8",
+      "ancestor_of_integration": false,
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/toml-1.2.1spec-1.1.0",
+      "sha": "3ce2bcb1fc973afb883215a4118830249c5d9259",
+      "ancestor_of_integration": false,
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/apps/android-terminal/runtime/toml-1.2.1spec-1.1.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/hmac-0.13.0",
+      "sha": "ab8be064b3000148e98899de12d3b32c0a4de3c2",
+      "ancestor_of_integration": false,
+      "merge_base": "4fd909c3c5636df9274004f1f8545234faa67bc8",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/hmac-0.13.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.2",
+      "sha": "0c731c244f6aae9c68fc782420fccddc42996534",
+      "ancestor_of_integration": false,
+      "merge_base": "f472c983deb83d260d4d52e77aa4dd8740710dc5",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.2",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/sha2-0.11.1",
+      "sha": "d44d458e264b332795fa87a7274229741aec6f3a",
+      "ancestor_of_integration": false,
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/sha2-0.11.1",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.54.1",
+      "sha": "10cb9bbe99ce40f27fdc91a34054db0c3afb967a",
+      "ancestor_of_integration": false,
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.54.1",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-util-0.7.20",
+      "sha": "e9481ae4ccfe1bda5a54aac173d4fd3836ca6149",
+      "ancestor_of_integration": false,
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-util-0.7.20",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+      "sha": "fdf1111820753b704c1af2500a631701d045126b",
+      "ancestor_of_integration": false,
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/rust-patch-updates-45952e8026",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/rustyline-19.0.0",
+      "sha": "e529b8834bce7e2a3d6b4f06732cb78e5ca69796",
+      "ancestor_of_integration": true,
+      "merge_base": "e529b8834bce7e2a3d6b4f06732cb78e5ca69796",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ],
+        "later_dependency_policy": {
+          "package": "rustyline",
+          "historical_proposal": "19",
+          "current_selection": "18.0.1",
+          "later_policy_commit": "f0500686b8c29a7576c00e3fc261f716af72e036",
+          "reason": "The newer explicit compatibility policy pins Rustyline18 to retain the declared Rust1.93.1 MSRV; preserving older Rustyline19 proposal ancestry does not override that later decision."
+        }
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/tokio-1.54.1",
+      "sha": "35746bd02f1dacad895336c65f816000c29a8435",
+      "ancestor_of_integration": true,
+      "merge_base": "35746bd02f1dacad895336c65f816000c29a8435",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/cargo/toml-1.2.0spec-1.1.0",
+      "sha": "acd56b64ecd13f1076164057112df7b579b84740",
+      "ancestor_of_integration": false,
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "mode": "dependency_coalesced_committed",
+      "evidence": {
+        "proposal_inventory": "/tmp/ostadix-all-pending-dependency-deltas.json",
+        "version_check_key": "canonical:dependabot/cargo/toml-1.2.0spec-1.1.0",
+        "working_tree_not_commit": true,
+        "satisfied": true,
+        "coalescing_commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1"
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "dependabot/docker/rust-1.99.1-slim-bookworm",
+      "sha": "e76e6bc23924e8005405a811596b0dee890088a1",
+      "ancestor_of_integration": true,
+      "merge_base": "e76e6bc23924e8005405a811596b0dee890088a1",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "feat/repl-clear-screen-2213356304128161974",
+      "sha": "11e2694b07bdc66e70b8be417375669a24c05eed",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "clear screen command, aliases, startup/help discovery"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "007fbef84fd738d8ae91b18e12e6d23c5d6316b5420bf0ee771ff6322130eac7",
+        "journal_delta_sha256": "fb35f3da272ce5aef92ccf34c6578e78445fef2798bcdb6f40e3a6debcaa516f",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "fix/hosted-tls-timeout-einval-retry",
+      "sha": "3f94456ea2ac181b3620e8d3cf299355329c2bd3",
+      "ancestor_of_integration": true,
+      "merge_base": "3f94456ea2ac181b3620e8d3cf299355329c2bd3",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "f26d55c78f0676869a903ec24bf01088b653648c"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "integration/native-copy-observation-20261113",
+      "sha": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+      "ancestor_of_integration": true,
+      "merge_base": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      },
+      "previous_snapshot_sha": "236e9f24f854ff609b24456d011cfa144d1f9d64"
+    },
+    {
+      "remote": "canonical",
+      "branch": "integration/native-foundations-20261113",
+      "sha": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+      "ancestor_of_integration": true,
+      "merge_base": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "integration/native-install-observation-20261113",
+      "sha": "114b83ac12814b3cea6c8ad18cbb822dea490173",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      },
+      "ancestor_of_integration": true,
+      "merge_base": "114b83ac12814b3cea6c8ad18cbb822dea490173"
+    },
+    {
+      "remote": "canonical",
+      "branch": "integration/public-contract-20261111",
+      "sha": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+      "ancestor_of_integration": true,
+      "merge_base": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "iphone16pro/p0-recon",
+      "sha": "f26d55c78f0676869a903ec24bf01088b653648c",
+      "ancestor_of_integration": true,
+      "merge_base": "f26d55c78f0676869a903ec24bf01088b653648c",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "f26d55c78f0676869a903ec24bf01088b653648c"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "jules-no-ux-changes-10815942145392224836",
+      "sha": "d214fef5d9ed79ec44995479a091231b44314deb",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "no source behavior change"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "jules-palette-ux-notebook-16726529523203072523",
+      "sha": "2e78a34f22897d25cdda97c1d46790fdd18b1ce5",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names",
+          "accessible code input name"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "3f24755a8f249b318bd6a36d26a334a6f727c7a7621f511a30fd2908f05d20a4",
+        "journal_delta_sha256": "3c584f2f8d8c0ed2867f527a0ac191391b0daa84cd0302420d0b714a08587378",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "jules-repl-ctrl-c-ux-4582478923382288125",
+      "sha": "ac424d942091c8acfd2d93f75dd067af677542be",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "visible Ctrl+C acknowledgement while preserving prompt/input reset"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "d285f3518bf83829f1b059b5d90b2112b8ef7e64f2d0b4b9c91e59b43b0007d1",
+        "journal_delta_sha256": "6dfe34545c04742c60462b434613b9119918a8c88296a5818c82b6870736ddcc",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "jules-ux-cli-file-errors-9567731891484906250",
+      "sha": "20560612c4bc9d3af5ff5c90cf2cd657df9620e8",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "graceful missing file, permission and read failure handling"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "87b60071fd02c73d4e74eb2ea9490e0205a5e3cda27993237d83bf5a06eafc3a",
+        "journal_delta_sha256": "b89306ec81a0b8baa4c2526dd77c1000639b4958ecd06bfa2949cac2d04fbf78",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "main",
+      "sha": "2cfe674e6396a3d1f8fbe95dc10ac51b699d0717",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_base_semantic_preservation",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "covering_integration_commit": "e0de166def34eed1c6edff0422bdddc1f848759b",
+        "source_intent": "Historical UI baseline and merged notebook accessibility controls are retained by current implementation and reviewed UI intents.",
+        "main_contains_accessibility_head": true,
+        "accessibility_head": "91336ddca7af2ddb3d122f6310302eb49649184a",
+        "all_six_control_labels_preserved": true,
+        "ancestry_claimed": false,
+        "whole_tree_byte_identity_claimed": false,
+        "scope": "Semantic preservation of historical UI/base intent; no claim that unrelated Git history was merged or every historical file is byte-identical."
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "master",
+      "sha": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+      "ancestor_of_integration": true,
+      "merge_base": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      },
+      "previous_snapshot_sha": "6390bf2d2d725d477cfa1c1f087fcec426b15315"
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette/a11y-notebook-buttons-2197054148375180996",
+      "sha": "9b1da302a2322bb83d248e386585f6d46262fccd",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "425e4338c4c05fd561beaee8454a816a5c58ac9aff76658afba283adacb26e73",
+        "journal_delta_sha256": "c499880479a1fb54cb9516f652c31c3a7199633ce9968c265c35c67ca10b6a2a",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette/add-aria-labels-2491562967081533933",
+      "sha": "320d87b482e434db81725fcdccfc80b2a6816a99",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "a6169f2bceb4fc8c037bb7c11e2eb406c41ece8a28255f15d8a13e206f9207a7",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette/cli-error-handling-4423928523852424637",
+      "sha": "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "graceful missing file, permission and read failure handling"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "118e2adaf51e50f6939598db4e0488de42f2744ca87e15d2db6814dd0ff9a99c",
+        "journal_delta_sha256": "2e379ac09ecb427583c491f7cdd55479691ab75fb52783e98dcaee4723067ec3",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-a11y-aria-labels-2646689895582229506",
+      "sha": "5df8ca3e62c9c9cb7ef8ec8cc878a86b45020830",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "bc77411555b2b6c113af176d60b0ac7bc829eff3e39e352a4d90339501132f9b",
+        "journal_delta_sha256": "cd86c8b0ce2d16903fef93484a67f582bddf4110bb2216af65bd8ab13b976359",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-a11y-aria-labels-3239229341697886775",
+      "sha": "31d7ca772412243810641cf1d47175cc152e87cf",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "8e90967822399b3c33684d8d8b6acdd84be432b120ee66b62c19207664fc7901",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-a11y-notebook-buttons-8877382972196947979",
+      "sha": "e638002cbb6c265ede815e416b6a7d77574138ee",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "a6169f2bceb4fc8c037bb7c11e2eb406c41ece8a28255f15d8a13e206f9207a7",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-a11y-o-notebook-5879869801819256557",
+      "sha": "91336ddca7af2ddb3d122f6310302eb49649184a",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "covering_foreign_ui_base": "2cfe674e6396a3d1f8fbe95dc10ac51b699d0717",
+        "ancestor_of_foreign_main": true,
+        "added_control_label_lines": 6,
+        "all_six_added_lines_present_in_current_notebook": true,
+        "integration_blob": "src/bin/o-notebook.rs",
+        "integration_lines": [
+          534,
+          537,
+          538,
+          539,
+          540,
+          543
+        ],
+        "scope": "Independent source intent check for branch omitted from original30-head audit; not integration ancestry."
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-a11y-o-notebook-buttons-3740742993044951928",
+      "sha": "5893efabb7b73671649139e330c5753749af14b9",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "8e90967822399b3c33684d8d8b6acdd84be432b120ee66b62c19207664fc7901",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-accessibility-improvements-6900761552579760188",
+      "sha": "f6629dad9127bf45ddffe5dfab9d1d11276863ba",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names",
+          "accessible code input name"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "e09eb22f23b802640da6186f32f7a414822656fa7780f2b514db57a2aa2b0a72",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-add-aria-labels-14417253590846761119",
+      "sha": "7ce8220083facf64bd8219177cdfd4916745b4f8",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "2fd025e2ec9c60acc316f4ef7c8f7f03dd4e58d8efa78ef26e1d8399a45f1397",
+        "journal_delta_sha256": "6822182a747ddb4cb1351ee20ccc4ace3b08137ef1875c17e8054c3a8c01217d",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-add-aria-labels-16419148431743606071",
+      "sha": "f47448ca44142c80d0b264a909be1ec4f318f078",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names",
+          "accessible code input name"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "6b45f8d2cec4ec240c842e0e86b45f6a360d867abbb885d7ceac57a5894e1959",
+        "journal_delta_sha256": "7585a804cf09b47e134908d4170600dd9bc116e97726b11ceb631cc8f63944f3",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-aria-labels-8875698085291375879",
+      "sha": "d2d40cb26e4bac1cba4d6ed3cf78ae8130259fdb",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible toolbar Add/Run All/Clear All/Save/Load/Restart names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [
+          "toolbar aria-labels absent"
+        ],
+        "gap_closure_commit": "e0de166def34eed1c6edff0422bdddc1f848759b",
+        "production_delta_sha256": "54d08f291e3e2a43ab195a8136600c968245a8e11e75432f5feb911731a1c4b0",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-cli-error-ux-9104623671049710645",
+      "sha": "a18400d093c97d6f4550ba591f37bdaf3253de6f",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "graceful missing file, permission and read failure handling"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "45889e9c3a274f4a9c74049446feaede57c57a854ca7c58729458fbd34cc4075",
+        "journal_delta_sha256": "47110f14ee0ce57f6f7ab2bcae2a5f10f4a65916554fc3576a25c67da505659c",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-repl-clear-10920733176746515596",
+      "sha": "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "clear screen command, aliases, startup/help discovery"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "dc9e25c9a9139469f831ef20b69b206eaa5d23af6009eddc4acda4b85d6ea716",
+        "journal_delta_sha256": "c3ae5d564f4911cdc03601e8a5d56dbd67127228de1e2a26b3d3a92389b179e2",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-repl-clear-cmd-8745059712295164011",
+      "sha": "5a2d88cda7c974bb93ef986d526f869e11a250ca",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "clear screen command, aliases, startup/help discovery"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "b1640cd57a8e5e39649fd17608881b218077a70f027165ded1be7dc5d281b36d",
+        "journal_delta_sha256": "f7b79801af2a5c024b2988bca7b1a2e9072b2da5f8b9c99160a8ceb882561af4",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-ux-aria-labels-17543968112545744121",
+      "sha": "d213da3c0c6cc6f4710f364426a987a5e410e7d6",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "1e6a393886d372f27282da951f6a534cdae1f53214cb1b6092631c2ae9d0935d",
+        "journal_delta_sha256": "a8d8393b4536aa990c0199498a0fece1a61b64913c05222e171ae5e5c0af0443",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-ux-focus-styles-16129010864209994965",
+      "sha": "08345d02cf772065f94c0d4ec5cd9b989d7036a2",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "visible keyboard focus for every button"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [
+          "button:focus-visible CSS absent"
+        ],
+        "gap_closure_commit": "e0de166def34eed1c6edff0422bdddc1f848759b",
+        "production_delta_sha256": "ac67de382c762a08d4d6eeca8fe719068059f913963f303d3b0b12f6e698ea7b",
+        "journal_delta_sha256": "95c35c9d8e29b9c1e52d77f9fc04b9d8ee25ebbb832cf94919c9bc9a67da16c2",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-ux-focus-visible-1827802116544364666",
+      "sha": "af86ee920057790f10ce823a28204dc18d8d6e3d",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "visible keyboard focus for every button"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [
+          "button:focus-visible CSS absent"
+        ],
+        "gap_closure_commit": "e0de166def34eed1c6edff0422bdddc1f848759b",
+        "production_delta_sha256": "7ceb5496368217eeaf5a86484a72f3472e69b6c7c2de8b01a5557f5ba463be17",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "palette-ux-improvement-repl-clear-12002940389259549745",
+      "sha": "ab35a13a6c10c325869c7b8be3e1ad5dfd050788",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "clear screen command, aliases, startup/help discovery"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "7c2c4b3797ef1a6e26d2e5c4cdb1ef3905d5f0cb1fd5772cfaba85fc72f47460",
+        "journal_delta_sha256": "4fe2871d4190ee73352a5a39b745653accf68c1d28c859762b9ec06806bc3957",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ux/aria-labels-notebook-8364054777992041889",
+      "sha": "0e2c8931a81a7cad8bcc1bc93f162741569fc8a5",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "2fd025e2ec9c60acc316f4ef7c8f7f03dd4e58d8efa78ef26e1d8399a45f1397",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ux-accessibility-aria-labels-14334279760534824759",
+      "sha": "be46f5f159c0f166dd3f61bd3d71fedfd687734b",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names",
+          "accessible code input name"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "3a29b71230aff3e75b67f7a3a8785d1356ded7ac0e01615ab31374b86a02f7b8",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ux-add-repl-clear-command-14385163191800482413",
+      "sha": "0efe66383c5b0f918632922d877f47f6df41be64",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "clear screen command, aliases, startup/help discovery"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "bc70a507b78968ab5d57b988242a912c0f738fa5d91e4ce71b731ec08f7e0515",
+        "journal_delta_sha256": "6ca65aba312ffbebfc2e01fd8d5c7964b56e10fe60e84f3246f3f71281927283",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ux-aria-labels-17754742340276186369",
+      "sha": "6318810ff04a3b50dd8b926e509c6fe4199a310f",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names",
+          "accessible code input name"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "1a767eac937e3e58db00838fc585f4be6ea748d41f1642f19b869564cc9a074b",
+        "journal_delta_sha256": "e6a7a542be2835c16a4a1736a7dc68a6373afa48102ddc6aa06376033dc3565e",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ux-aria-labels-notebook-13384412976883904429",
+      "sha": "8afe5c0a5c41ad78955bf01cb8f9275053c0f231",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "a6169f2bceb4fc8c037bb7c11e2eb406c41ece8a28255f15d8a13e206f9207a7",
+        "journal_delta_sha256": null,
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "ux-aria-labels-notebook-6048319483155626166",
+      "sha": "5af57b5ad1646a2fe7a4f939e0275d70c09a6b45",
+      "ancestor_of_integration": false,
+      "merge_base": null,
+      "mode": "foreign_historical_ui_intent_coalesced",
+      "evidence": {
+        "review": "/tmp/ostadix-public-ui-intent-audit-20261113.json",
+        "review_source_sha256": "eeaacf7a755d41bee209431d48aff02cb60ff55e0485b35dcf6205e0e2908fdb",
+        "intents": [
+          "accessible run/move up/move down/clear output/delete cell names",
+          "accessible code input name"
+        ],
+        "review_snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+        "reviewed_gaps": [],
+        "gap_closure_commit": null,
+        "production_delta_sha256": "69062912e3f5b8c57c5e965f0f52410191487579fd5619a610cdedb9ae101fd7",
+        "journal_delta_sha256": "e58f1723ed7e0a8be78e180bc7a308b22e1342bc64cf4b31010168b25a375329",
+        "journal_byte_identity_claimed": false
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "work/o10-m0-20261112",
+      "sha": "55fb940e4ad54247826baf12d5e85f339b62911c",
+      "ancestor_of_integration": true,
+      "merge_base": "55fb940e4ad54247826baf12d5e85f339b62911c",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    },
+    {
+      "remote": "canonical",
+      "branch": "work/o10-m1-publish-20261113",
+      "sha": "9a21e81079a41faf402d59b73a929c351b619e18",
+      "ancestor_of_integration": true,
+      "merge_base": "9a21e81079a41faf402d59b73a929c351b619e18",
+      "mode": "merged_history",
+      "evidence": {
+        "git_check": "merge-base --is-ancestor SOURCE INTEGRATION returned0",
+        "covering_maximal_shas": [
+          "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+        ]
+      }
+    }
+  ],
+  "maximal_merged_heads": [
+    {
+      "sha": "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc",
+      "heads": [
+        {
+          "remote": "canonical",
+          "branch": "architecture-boundaries-manifest"
+        }
+      ]
+    },
+    {
+      "sha": "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "ci-commit-author-check"
+        }
+      ]
+    },
+    {
+      "sha": "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "bug-fixes"
+        }
+      ]
+    },
+    {
+      "sha": "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "backup/compiler-expansion-20261025-source-D-r1"
+        }
+      ]
+    },
+    {
+      "sha": "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b",
+      "heads": [
+        {
+          "remote": "canonical",
+          "branch": "ci-commit-author-check"
+        }
+      ]
+    },
+    {
+      "sha": "353ed11df24fbf65ceffe8e63d491ff9630dab0e",
+      "heads": [
+        {
+          "remote": "canonical",
+          "branch": "bug-fixes"
+        }
+      ]
+    },
+    {
+      "sha": "44cd0329d401a114a434347c469152c42d1cc991",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "work/ocore-evidence-review-20261017"
+        }
+      ]
+    },
+    {
+      "sha": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "integration/native-copy-observation-20261113"
+        },
+        {
+          "remote": "canonical",
+          "branch": "integration/native-copy-observation-20261113"
+        }
+      ]
+    },
+    {
+      "sha": "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "recovery-source-provider-repair-20261021-55ed34b5"
+        }
+      ]
+    },
+    {
+      "sha": "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "portfolio/readme-2026-11-06"
+        }
+      ]
+    },
+    {
+      "sha": "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "improvement/mcp-onboarding-20261025"
+        }
+      ]
+    },
+    {
+      "sha": "8ac166a025c6be356b413e87bebe77697e6580ac",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "recovery-native-usub-saturation-20261021"
+        }
+      ]
+    },
+    {
+      "sha": "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "recovery-runtime-acceptance-20261020"
+        }
+      ]
+    },
+    {
+      "sha": "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "recovery-combined-catalog-20261022-5fc33651"
+        }
+      ]
+    },
+    {
+      "sha": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "recovery-native-integral-rounding-20261021"
+        }
+      ]
+    },
+    {
+      "sha": "e7ada443f093cdc1eef98355eb565bbaa1b2e45d",
+      "heads": [
+        {
+          "remote": "origin",
+          "branch": "architecture-boundaries-manifest"
+        }
+      ]
+    },
+    {
+      "sha": "f26d55c78f0676869a903ec24bf01088b653648c",
+      "heads": [
+        {
+          "remote": "canonical",
+          "branch": "iphone16pro/p0-recon"
+        }
+      ]
+    }
+  ],
+  "dependency_version_checks": {
+    "origin:dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0": {
+      "source_sha": "295cb28dc38776f7e04a94e77b52fc4e585efbb3",
+      "merge_base": "1b62bd1c5c0d86e235beb882cf6714e74607e67b",
+      "changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "hmac",
+          "source_requirement": "0.13",
+          "current_requirement": "0.13",
+          "direct_lock_selections": [
+            {
+              "lock": "apps/android-terminal/runtime/Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.13.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34": {
+      "source_sha": "c9166da56f83296743e68ed9a81c9311ff432ef8",
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "ignore",
+          "proposed": "0.4.34",
+          "current": [
+            "0.4.34"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0": {
+      "source_sha": "42d456326ea142143a68d403fea075a42eb2b905",
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "sha2",
+          "source_requirement": "0.11",
+          "current_requirement": "0.11",
+          "direct_lock_selections": [
+            {
+              "lock": "apps/android-terminal/runtime/Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.11.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/hmac-0.13.0": {
+      "source_sha": "9c7f4cb883ca0ac044bb23090f5feb3612331436",
+      "merge_base": "1b62bd1c5c0d86e235beb882cf6714e74607e67b",
+      "changed_paths": [
+        "Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "hmac",
+          "source_requirement": "0.13",
+          "current_requirement": "0.13",
+          "direct_lock_selections": [
+            {
+              "lock": "Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.13.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/mcp/ostadix_lang_mcp_server/futures-util-0.3.34": {
+      "source_sha": "5289defc1704afdf6cdde5951f8fc9402ec56327",
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-channel",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-core",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-io",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-macro",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-sink",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-task",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "futures-util",
+          "proposed": "0.3.34",
+          "current": [
+            "0.3.34"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.191": {
+      "source_sha": "25fe0687f2068bc9062aec7e1bb28b0ed7c3cb11",
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "libc",
+          "proposed": "0.2.191",
+          "current": [
+            "0.2.191"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.8.0": {
+      "source_sha": "9db59f0add51677d36e8dd79be7d03b684195182",
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "rmcp",
+          "proposed": "3.8.0",
+          "current": [
+            "3.8.0"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "rmcp-macros",
+          "proposed": "3.9.0",
+          "current": [
+            "3.10.0"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [
+        {
+          "manifest": "mcp/ostadix_lang_mcp_server/Cargo.toml",
+          "dependency": "rmcp",
+          "source_requirement": "=3.8.0",
+          "current_requirement": "=3.8.0",
+          "direct_lock_selections": [
+            {
+              "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+              "owner": "ostadix-mcp-server",
+              "versions": [
+                "3.8.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/rust-patch-updates-45952e8026": {
+      "source_sha": "9534cea79764b16fcc5ab15ffd942da622405c0a",
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "changed_paths": [
+        "Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "Cargo.lock",
+          "package": "signal-hook",
+          "proposed": "0.4.6",
+          "current": [
+            "0.4.6"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "origin:dependabot/cargo/sha2-0.11.0": {
+      "source_sha": "21edc4f45ef8b00830c7b71f9e85f4133c3154ae",
+      "merge_base": "a9f8c55e857216e027e0112a43af26a577759710",
+      "changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "Cargo.toml",
+          "dependency": "sha2",
+          "source_requirement": "0.11",
+          "current_requirement": "0.11",
+          "direct_lock_selections": [
+            {
+              "lock": "Cargo.lock",
+              "owner": "o-lang",
+              "versions": [
+                "0.11.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        },
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "sha2",
+          "source_requirement": "0.11",
+          "current_requirement": "0.11",
+          "direct_lock_selections": [
+            {
+              "lock": "Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.11.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0": {
+      "source_sha": "c14185309eea39886f4d216adedf7ea6556d08d5",
+      "merge_base": "4fd909c3c5636df9274004f1f8545234faa67bc8",
+      "changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "hmac",
+          "source_requirement": "0.13",
+          "current_requirement": "0.13",
+          "direct_lock_selections": [
+            {
+              "lock": "apps/android-terminal/runtime/Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.13.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0": {
+      "source_sha": "de6785ec1427f19102cca7efdc89f5eef5e76cc8",
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "sha2",
+          "source_requirement": "0.11",
+          "current_requirement": "0.11",
+          "direct_lock_selections": [
+            {
+              "lock": "apps/android-terminal/runtime/Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.11.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/apps/android-terminal/runtime/toml-1.2.1spec-1.1.0": {
+      "source_sha": "3ce2bcb1fc973afb883215a4118830249c5d9259",
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "serde_spanned",
+          "proposed": "1.1.3",
+          "current": [
+            "1.1.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml",
+          "proposed": "1.2.1+spec-1.1.0",
+          "current": [
+            "1.2.1+spec-1.1.0"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml_datetime",
+          "proposed": "1.1.3+spec-1.1.0",
+          "current": [
+            "1.1.3+spec-1.1.0"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml_writer",
+          "proposed": "1.2.0+spec-1.1.0",
+          "current": [
+            "1.2.0+spec-1.1.0"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/hmac-0.13.0": {
+      "source_sha": "ab8be064b3000148e98899de12d3b32c0a4de3c2",
+      "merge_base": "4fd909c3c5636df9274004f1f8545234faa67bc8",
+      "changed_paths": [
+        "Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "package_updates": [],
+      "manifest_requirements": [
+        {
+          "manifest": "crates/ostadix-api/Cargo.toml",
+          "dependency": "hmac",
+          "source_requirement": "0.13",
+          "current_requirement": "0.13",
+          "direct_lock_selections": [
+            {
+              "lock": "Cargo.lock",
+              "owner": "ostadix-api",
+              "versions": [
+                "0.13.0"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.2": {
+      "source_sha": "0c731c244f6aae9c68fc782420fccddc42996534",
+      "merge_base": "f472c983deb83d260d4d52e77aa4dd8740710dc5",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "schemars",
+          "proposed": "1.2.3",
+          "current": [
+            "1.2.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "schemars_derive",
+          "proposed": "1.2.3",
+          "current": [
+            "1.2.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "serde_derive_internals",
+          "proposed": "0.30.0",
+          "current": [
+            "0.30.0"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/sha2-0.11.1": {
+      "source_sha": "d44d458e264b332795fa87a7274229741aec6f3a",
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "block-buffer",
+          "proposed": "0.12.1",
+          "current": [
+            "0.12.1"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "const-oid",
+          "proposed": "0.10.3",
+          "current": [
+            "0.10.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "crypto-common",
+          "proposed": "0.2.2",
+          "current": [
+            "0.2.2"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "digest",
+          "proposed": "0.11.3",
+          "current": [
+            "0.11.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "hybrid-array",
+          "proposed": "0.4.15",
+          "current": [
+            "0.4.15"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "sha2",
+          "proposed": "0.11.1",
+          "current": [
+            "0.11.1"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [
+        {
+          "manifest": "mcp/ostadix_lang_mcp_server/Cargo.toml",
+          "dependency": "sha2",
+          "source_requirement": "0.11",
+          "current_requirement": "0.11",
+          "direct_lock_selections": [
+            {
+              "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+              "owner": "ostadix-mcp-server",
+              "versions": [
+                "0.11.1"
+              ],
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.54.1": {
+      "source_sha": "10cb9bbe99ce40f27fdc91a34054db0c3afb967a",
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "tokio",
+          "proposed": "1.54.1",
+          "current": [
+            "1.54.1"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-util-0.7.20": {
+      "source_sha": "e9481ae4ccfe1bda5a54aac173d4fd3836ca6149",
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "tokio-util",
+          "proposed": "0.7.20",
+          "current": [
+            "0.7.20"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/rust-patch-updates-45952e8026": {
+      "source_sha": "fdf1111820753b704c1af2500a631701d045126b",
+      "merge_base": "02cba9dd64fcb9f8328ccb177c4fc6f3588f9568",
+      "changed_paths": [
+        "Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "Cargo.lock",
+          "package": "signal-hook",
+          "proposed": "0.4.6",
+          "current": [
+            "0.4.6"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "canonical:dependabot/cargo/toml-1.2.0spec-1.1.0": {
+      "source_sha": "acd56b64ecd13f1076164057112df7b579b84740",
+      "merge_base": "0a2d44c528707950452cd14411c4c5dd8cb03dbd",
+      "changed_paths": [
+        "Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "Cargo.lock",
+          "package": "toml",
+          "proposed": "1.2.0+spec-1.1.0",
+          "current": [
+            "1.2.1+spec-1.1.0"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "Cargo.lock",
+          "package": "toml_writer",
+          "proposed": "1.2.0+spec-1.1.0",
+          "current": [
+            "1.2.0+spec-1.1.0"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    },
+    "canonical:backup/master-before-dependabot-undo-2026-10-31-82f7a39": {
+      "source_sha": "82f7a39d6c9db02a1c4a03c60a69f3e5d5063671",
+      "merge_base": "0723d563877fa537ea2537f3218bfc9d561fda3e",
+      "changed_paths": [
+        "Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "package_updates": [
+        {
+          "lock": "Cargo.lock",
+          "package": "libc",
+          "proposed": "0.2.191",
+          "current": [
+            "0.2.191"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "Cargo.lock",
+          "package": "rustls",
+          "proposed": "0.23.46",
+          "current": [
+            "0.23.46"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "schemars",
+          "proposed": "1.2.3",
+          "current": [
+            "1.2.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "schemars_derive",
+          "proposed": "1.2.3",
+          "current": [
+            "1.2.3"
+          ],
+          "version_at_least_proposal": true
+        },
+        {
+          "lock": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "serde_derive_internals",
+          "proposed": "0.30.0",
+          "current": [
+            "0.30.0"
+          ],
+          "version_at_least_proposal": true
+        }
+      ],
+      "manifest_requirements": [],
+      "satisfied": true
+    }
+  },
+  "source_preservation": {
+    "baseline": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+    "deleted_paths": [],
+    "changed_path_count": 606,
+    "archive_rule": "Exact recovery branch archives remain in merged history; newer implementation files retained. Captured historical terminal logs retain exact whitespace."
+  },
+  "historical_draft": {
+    "sha256": "8312807f23bbba18b837497114370ee9852074a1aede0e4f13413bea67e3839e",
+    "interpretation": "Prior working-tree accounting is historical source-analysis evidence; current committed source and validation are recorded separately."
+  },
+  "summary": {
+    "heads": 118,
+    "distinct_shas": 113,
+    "by_remote": {
+      "origin": {
+        "merged_history": 49,
+        "dependency_coalesced_committed": 9
+      },
+      "canonical": {
+        "merged_history": 17,
+        "historical_dependency_updates_coalesced_committed": 1,
+        "foreign_historical_ui_intent_coalesced": 31,
+        "dependency_coalesced_committed": 10,
+        "foreign_historical_ui_base_semantic_preservation": 1
+      }
+    },
+    "ancestry_total": 66,
+    "unaccounted": [],
+    "dependency_checks_satisfied": true,
+    "validation_status": "passed_with_explicit_separate_unexecuted_TLS_consumer"
+  },
+  "dependency_policy_exceptions": [
+    {
+      "package": "rustyline",
+      "historical_proposal": "19",
+      "current_selection": "18.0.1",
+      "later_policy_commit": "f0500686b8c29a7576c00e3fc261f716af72e036",
+      "reason": "The newer explicit compatibility policy pins Rustyline18 to retain the declared Rust1.93.1 MSRV; preserving older Rustyline19 proposal ancestry does not override that later decision."
+    }
+  ]
+}

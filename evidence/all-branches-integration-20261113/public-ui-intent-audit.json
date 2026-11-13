@@ -1,0 +1,428 @@
+{
+  "scope": "Independent static branch-local source intent preservation review; no native/ISA runtime qualification claimed",
+  "snapshot": "e87b3a8da593d2903a77e7bbfc048537ed86ea66",
+  "source_sha256": {
+    "src/main.rs": "7117b5fdc5ebe0996e9e69ca2b56312e6c9bb7c0cb94d3fa8f641e2fc64cc8d1",
+    "src/bin/o-notebook.rs": "c7d0c3b23f5c1e86979dbce3ca9ad965ee23d7730cb38846d1e4bf70f859a3c2",
+    "o_lang/cli.py": "244b67168f489752787ac9fe69110920ad96a816af402eabed8be3c52903521b"
+  },
+  "branches": [
+    {
+      "branch": "cli-error-ux-10775695524624767334",
+      "sha": "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e",
+      "intents": [
+        "graceful missing file, permission and read failure handling"
+      ],
+      "status_at_snapshot": "preserved by current specific file/permission/directory plus OSError/UnicodeError catches; return1 without traceback",
+      "gaps": [],
+      "production_delta_sha256": "a1d1e69fea4f263ba40f41d5ee6c0e63e704b9d38f96fef42baeddefa5a77291",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "f0443948e030b82304c550e1a87c10b7fe077e5c88ba63c850af5865dcc6cd35"
+    },
+    {
+      "branch": "feat/repl-clear-screen-2213356304128161974",
+      "sha": "11e2694b07bdc66e70b8be417375669a24c05eed",
+      "intents": [
+        "clear screen command, aliases, startup/help discovery"
+      ],
+      "status_at_snapshot": "preserved :c/:clear/clear, help aliases; runtime scope/reset logic retained",
+      "gaps": [],
+      "production_delta_sha256": "007fbef84fd738d8ae91b18e12e6d23c5d6316b5420bf0ee771ff6322130eac7",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "fb35f3da272ce5aef92ccf34c6578e78445fef2798bcdb6f40e3a6debcaa516f"
+    },
+    {
+      "branch": "jules-no-ux-changes-10815942145392224836",
+      "sha": "d214fef5d9ed79ec44995479a091231b44314deb",
+      "intents": [
+        "no source behavior change"
+      ],
+      "status_at_snapshot": "empty branch-local code delta",
+      "gaps": [],
+      "production_delta_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "jules-palette-ux-notebook-16726529523203072523",
+      "sha": "2e78a34f22897d25cdda97c1d46790fdd18b1ce5",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names",
+        "accessible code input name"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "3f24755a8f249b318bd6a36d26a334a6f727c7a7621f511a30fd2908f05d20a4",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "3c584f2f8d8c0ed2867f527a0ac191391b0daa84cd0302420d0b714a08587378"
+    },
+    {
+      "branch": "jules-repl-ctrl-c-ux-4582478923382288125",
+      "sha": "ac424d942091c8acfd2d93f75dd067af677542be",
+      "intents": [
+        "visible Ctrl+C acknowledgement while preserving prompt/input reset"
+      ],
+      "status_at_snapshot": "preserved current main.rs709-714",
+      "gaps": [],
+      "production_delta_sha256": "d285f3518bf83829f1b059b5d90b2112b8ef7e64f2d0b4b9c91e59b43b0007d1",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "6dfe34545c04742c60462b434613b9119918a8c88296a5818c82b6870736ddcc"
+    },
+    {
+      "branch": "jules-ux-cli-file-errors-9567731891484906250",
+      "sha": "20560612c4bc9d3af5ff5c90cf2cd657df9620e8",
+      "intents": [
+        "graceful missing file, permission and read failure handling"
+      ],
+      "status_at_snapshot": "preserved by current specific file/permission/directory plus OSError/UnicodeError catches; return1 without traceback",
+      "gaps": [],
+      "production_delta_sha256": "87b60071fd02c73d4e74eb2ea9490e0205a5e3cda27993237d83bf5a06eafc3a",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "b89306ec81a0b8baa4c2526dd77c1000639b4958ecd06bfa2949cac2d04fbf78"
+    },
+    {
+      "branch": "palette/a11y-notebook-buttons-2197054148375180996",
+      "sha": "9b1da302a2322bb83d248e386585f6d46262fccd",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "425e4338c4c05fd561beaee8454a816a5c58ac9aff76658afba283adacb26e73",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "c499880479a1fb54cb9516f652c31c3a7199633ce9968c265c35c67ca10b6a2a"
+    },
+    {
+      "branch": "palette/add-aria-labels-2491562967081533933",
+      "sha": "320d87b482e434db81725fcdccfc80b2a6816a99",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "a6169f2bceb4fc8c037bb7c11e2eb406c41ece8a28255f15d8a13e206f9207a7",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette/cli-error-handling-4423928523852424637",
+      "sha": "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3",
+      "intents": [
+        "graceful missing file, permission and read failure handling"
+      ],
+      "status_at_snapshot": "preserved by current specific file/permission/directory plus OSError/UnicodeError catches; return1 without traceback",
+      "gaps": [],
+      "production_delta_sha256": "118e2adaf51e50f6939598db4e0488de42f2744ca87e15d2db6814dd0ff9a99c",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "2e379ac09ecb427583c491f7cdd55479691ab75fb52783e98dcaee4723067ec3"
+    },
+    {
+      "branch": "palette-a11y-aria-labels-2646689895582229506",
+      "sha": "5df8ca3e62c9c9cb7ef8ec8cc878a86b45020830",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "bc77411555b2b6c113af176d60b0ac7bc829eff3e39e352a4d90339501132f9b",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "cd86c8b0ce2d16903fef93484a67f582bddf4110bb2216af65bd8ab13b976359"
+    },
+    {
+      "branch": "palette-a11y-aria-labels-3239229341697886775",
+      "sha": "31d7ca772412243810641cf1d47175cc152e87cf",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "8e90967822399b3c33684d8d8b6acdd84be432b120ee66b62c19207664fc7901",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette-a11y-notebook-buttons-8877382972196947979",
+      "sha": "e638002cbb6c265ede815e416b6a7d77574138ee",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "a6169f2bceb4fc8c037bb7c11e2eb406c41ece8a28255f15d8a13e206f9207a7",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette-a11y-o-notebook-buttons-3740742993044951928",
+      "sha": "5893efabb7b73671649139e330c5753749af14b9",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "8e90967822399b3c33684d8d8b6acdd84be432b120ee66b62c19207664fc7901",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette-accessibility-improvements-6900761552579760188",
+      "sha": "f6629dad9127bf45ddffe5dfab9d1d11276863ba",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names",
+        "accessible code input name"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "e09eb22f23b802640da6186f32f7a414822656fa7780f2b514db57a2aa2b0a72",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette-add-aria-labels-14417253590846761119",
+      "sha": "7ce8220083facf64bd8219177cdfd4916745b4f8",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "2fd025e2ec9c60acc316f4ef7c8f7f03dd4e58d8efa78ef26e1d8399a45f1397",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "6822182a747ddb4cb1351ee20ccc4ace3b08137ef1875c17e8054c3a8c01217d"
+    },
+    {
+      "branch": "palette-add-aria-labels-16419148431743606071",
+      "sha": "f47448ca44142c80d0b264a909be1ec4f318f078",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names",
+        "accessible code input name"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "6b45f8d2cec4ec240c842e0e86b45f6a360d867abbb885d7ceac57a5894e1959",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "7585a804cf09b47e134908d4170600dd9bc116e97726b11ceb631cc8f63944f3"
+    },
+    {
+      "branch": "palette-aria-labels-8875698085291375879",
+      "sha": "d2d40cb26e4bac1cba4d6ed3cf78ae8130259fdb",
+      "intents": [
+        "accessible toolbar Add/Run All/Clear All/Save/Load/Restart names"
+      ],
+      "status_at_snapshot": "gap requires adding explicit toolbar labels to existing controls",
+      "gaps": [
+        "toolbar aria-labels absent"
+      ],
+      "production_delta_sha256": "54d08f291e3e2a43ab195a8136600c968245a8e11e75432f5feb911731a1c4b0",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette-cli-error-ux-9104623671049710645",
+      "sha": "a18400d093c97d6f4550ba591f37bdaf3253de6f",
+      "intents": [
+        "graceful missing file, permission and read failure handling"
+      ],
+      "status_at_snapshot": "preserved by current specific file/permission/directory plus OSError/UnicodeError catches; return1 without traceback",
+      "gaps": [],
+      "production_delta_sha256": "45889e9c3a274f4a9c74049446feaede57c57a854ca7c58729458fbd34cc4075",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "47110f14ee0ce57f6f7ab2bcae2a5f10f4a65916554fc3576a25c67da505659c"
+    },
+    {
+      "branch": "palette-repl-clear-10920733176746515596",
+      "sha": "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e",
+      "intents": [
+        "clear screen command, aliases, startup/help discovery"
+      ],
+      "status_at_snapshot": "preserved :c/:clear/clear, help aliases; runtime scope/reset logic retained",
+      "gaps": [],
+      "production_delta_sha256": "dc9e25c9a9139469f831ef20b69b206eaa5d23af6009eddc4acda4b85d6ea716",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "c3ae5d564f4911cdc03601e8a5d56dbd67127228de1e2a26b3d3a92389b179e2"
+    },
+    {
+      "branch": "palette-repl-clear-cmd-8745059712295164011",
+      "sha": "5a2d88cda7c974bb93ef986d526f869e11a250ca",
+      "intents": [
+        "clear screen command, aliases, startup/help discovery"
+      ],
+      "status_at_snapshot": "preserved :c/:clear/clear, help aliases; runtime scope/reset logic retained",
+      "gaps": [],
+      "production_delta_sha256": "b1640cd57a8e5e39649fd17608881b218077a70f027165ded1be7dc5d281b36d",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "f7b79801af2a5c024b2988bca7b1a2e9072b2da5f8b9c99160a8ceb882561af4"
+    },
+    {
+      "branch": "palette-ux-aria-labels-17543968112545744121",
+      "sha": "d213da3c0c6cc6f4710f364426a987a5e410e7d6",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "1e6a393886d372f27282da951f6a534cdae1f53214cb1b6092631c2ae9d0935d",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "a8d8393b4536aa990c0199498a0fece1a61b64913c05222e171ae5e5c0af0443"
+    },
+    {
+      "branch": "palette-ux-focus-styles-16129010864209994965",
+      "sha": "08345d02cf772065f94c0d4ec5cd9b989d7036a2",
+      "intents": [
+        "visible keyboard focus for every button"
+      ],
+      "status_at_snapshot": "gap requires current notebook CSS addition",
+      "gaps": [
+        "button:focus-visible CSS absent"
+      ],
+      "production_delta_sha256": "ac67de382c762a08d4d6eeca8fe719068059f913963f303d3b0b12f6e698ea7b",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "95c35c9d8e29b9c1e52d77f9fc04b9d8ee25ebbb832cf94919c9bc9a67da16c2"
+    },
+    {
+      "branch": "palette-ux-focus-visible-1827802116544364666",
+      "sha": "af86ee920057790f10ce823a28204dc18d8d6e3d",
+      "intents": [
+        "visible keyboard focus for every button"
+      ],
+      "status_at_snapshot": "gap requires current notebook CSS addition",
+      "gaps": [
+        "button:focus-visible CSS absent"
+      ],
+      "production_delta_sha256": "7ceb5496368217eeaf5a86484a72f3472e69b6c7c2de8b01a5557f5ba463be17",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "palette-ux-improvement-repl-clear-12002940389259549745",
+      "sha": "ab35a13a6c10c325869c7b8be3e1ad5dfd050788",
+      "intents": [
+        "clear screen command, aliases, startup/help discovery"
+      ],
+      "status_at_snapshot": "preserved :c/:clear/clear, help aliases; runtime scope/reset logic retained",
+      "gaps": [],
+      "production_delta_sha256": "7c2c4b3797ef1a6e26d2e5c4cdb1ef3905d5f0cb1fd5772cfaba85fc72f47460",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "4fe2871d4190ee73352a5a39b745653accf68c1d28c859762b9ec06806bc3957"
+    },
+    {
+      "branch": "ux/aria-labels-notebook-8364054777992041889",
+      "sha": "0e2c8931a81a7cad8bcc1bc93f162741569fc8a5",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "2fd025e2ec9c60acc316f4ef7c8f7f03dd4e58d8efa78ef26e1d8399a45f1397",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "ux-accessibility-aria-labels-14334279760534824759",
+      "sha": "be46f5f159c0f166dd3f61bd3d71fedfd687734b",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names",
+        "accessible code input name"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "3a29b71230aff3e75b67f7a3a8785d1356ded7ac0e01615ab31374b86a02f7b8",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "ux-add-repl-clear-command-14385163191800482413",
+      "sha": "0efe66383c5b0f918632922d877f47f6df41be64",
+      "intents": [
+        "clear screen command, aliases, startup/help discovery"
+      ],
+      "status_at_snapshot": "preserved :c/:clear/clear, help aliases; runtime scope/reset logic retained",
+      "gaps": [],
+      "production_delta_sha256": "bc70a507b78968ab5d57b988242a912c0f738fa5d91e4ce71b731ec08f7e0515",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "6ca65aba312ffbebfc2e01fd8d5c7964b56e10fe60e84f3246f3f71281927283"
+    },
+    {
+      "branch": "ux-aria-labels-17754742340276186369",
+      "sha": "6318810ff04a3b50dd8b926e509c6fe4199a310f",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names",
+        "accessible code input name"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "1a767eac937e3e58db00838fc585f4be6ea748d41f1642f19b869564cc9a074b",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "e6a7a542be2835c16a4a1736a7dc68a6373afa48102ddc6aa06376033dc3565e"
+    },
+    {
+      "branch": "ux-aria-labels-notebook-13384412976883904429",
+      "sha": "8afe5c0a5c41ad78955bf01cb8f9275053c0f231",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "a6169f2bceb4fc8c037bb7c11e2eb406c41ece8a28255f15d8a13e206f9207a7",
+      "journal_delta_present": false,
+      "journal_delta_sha256": null
+    },
+    {
+      "branch": "ux-aria-labels-notebook-6048319483155626166",
+      "sha": "5af57b5ad1646a2fe7a4f939e0275d70c09a6b45",
+      "intents": [
+        "accessible run/move up/move down/clear output/delete cell names",
+        "accessible code input name"
+      ],
+      "status_at_snapshot": "preserved by current cell button labels and Cell input textarea; capitalization/attribute order coalesced",
+      "gaps": [],
+      "production_delta_sha256": "69062912e3f5b8c57c5e965f0f52410191487579fd5619a610cdedb9ae101fd7",
+      "journal_delta_present": true,
+      "journal_delta_sha256": "e58f1723ed7e0a8be78e180bc7a308b22e1342bc64cf4b31010168b25a375329"
+    }
+  ],
+  "summary": {
+    "reviewed": 30,
+    "preserved": 27,
+    "gaps": [
+      {
+        "sha": "d2d40cb26e4bac1cba4d6ed3cf78ae8130259fdb",
+        "intents": [
+          "accessible toolbar Add/Run All/Clear All/Save/Load/Restart names"
+        ]
+      },
+      {
+        "sha": "08345d02cf772065f94c0d4ec5cd9b989d7036a2",
+        "intents": [
+          "visible keyboard focus for every button"
+        ]
+      },
+      {
+        "sha": "af86ee920057790f10ce823a28204dc18d8d6e3d",
+        "intents": [
+          "visible keyboard focus for every button"
+        ]
+      }
+    ],
+    "provenance_note": "Source intent is semantically coalesced. Historical branch-local Jules journal deltas are separately fingerprinted, not claimed byte-identical to current journal."
+  },
+  "revalidation": {
+    "snapshot": "66df6266a62d17e20f14487a9d945f03c50ee1d1",
+    "notebook_sha256": "7976aee67e56e177259427bddc23bfca7e6d2f4825cdcccd4cf716fccbe8c533",
+    "gap_closing_commit": "e0de166def34eed1c6edff0422bdddc1f848759b",
+    "toolbar_labels_present": true,
+    "global_focus_style_present": true,
+    "remaining_source_intent_gaps": [],
+    "actual_cli_checks": {
+      "uid": 1000,
+      "cases": [
+        "missing file",
+        "directory",
+        "invalid UTF8",
+        "permission denied"
+      ],
+      "each_exit": 1,
+      "tracebacks": 0,
+      "stdout_bytes": 0
+    }
+  }
+}

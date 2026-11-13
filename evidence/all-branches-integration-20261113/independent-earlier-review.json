@@ -1,0 +1,95 @@
+{
+  "role": "independent read-only integration/storage reviewer",
+  "reviewed_code_checkpoint": "49886bdfd337d77ab33f8fe9bf391a4a186de52c",
+  "source_mutations_performed": false,
+  "findings": [
+    {
+      "issue": "historical architecture fixture removed wrong source file",
+      "disposition": "writer corrected fixture; independent two architecture assertions passed"
+    },
+    {
+      "issue": "onboarding exact native contract could bypass newer explicit workflow review registry",
+      "disposition": "writer retained registry enforcement; independent source inspection and42 posture/evidence regressions pass"
+    },
+    {
+      "issue": "historical archive attempted deletion of2860 newer paths",
+      "disposition": "all existing3938 paths unchanged and5 exact source archive blobs added; independently compared full Git trees"
+    },
+    {
+      "issue": "M1 QEMU reset tests exposed alignment-trapping C fixture assumption",
+      "disposition": "independently captured ESR0x96000061/FAR8mod16/unalignedSIMDstore; -mstrict-align makes both actualQEMU reset cases pass; writer committedtest-only correction"
+    },
+    {
+      "issue": "three old publicUI heads had two missing notebook intents",
+      "disposition": "e0de166d adds six toolbar labels and globalbuttonfocus; all30 reviewedUI intents now preserved"
+    },
+    {
+      "issue": "SHA2.11 removed digest LowerHex API",
+      "disposition": "independently reviewed required23 hash encoder conversions and unchanged protocol framing; all three HMAC/HKDF wire vectors match independent Python oracle"
+    }
+  ],
+  "independent_execution": [
+    {
+      "checks": "architecturefixture targetedtests",
+      "count": 2,
+      "result": "pass"
+    },
+    {
+      "checks": "posture+nativeevidencefake-tool tests",
+      "count": 42,
+      "result": "pass"
+    },
+    {
+      "checks": "O10M1/MMIO/resident/runner/client/runtimeacceptancetests",
+      "count": 110,
+      "result": "pass"
+    },
+    {
+      "checks": "realQEMU reset+self-reset with strictalign fixture",
+      "count": 2,
+      "result": "pass",
+      "evidence": [
+        "/tmp/ostadix-watchdog-alignment-eog6fdu1",
+        "/tmp/ostadix-watchdog-alignment-exiy08ej"
+      ]
+    },
+    {
+      "checks": "actualPythonreferenceCLImissing/directory/encoding/permission errors uid1000",
+      "count": 4,
+      "result": "each exit1, concisestderr, noTraceback/stdout"
+    }
+  ],
+  "source_preservation_evidence": [
+    "/tmp/ostadix-recovery-semantic-audit-20261113.json",
+    "/tmp/ostadix-public-ui-intent-audit-20261113.json"
+  ],
+  "storage_independent_readback": {
+    "root_target": "/mnt/data-hdd2/ostadix-build/target",
+    "steam_libraries": 3,
+    "migrated_steamapps_registered": 12,
+    "stale_ssd_library_path_absent": true,
+    "ssd_free_bytes_approx": 74525868032
+  },
+  "last_identity_checkpoint": {
+    "commit": "66df6266a62d17e20f14487a9d945f03c50ee1d1",
+    "newly_reachable_commits": 188,
+    "all_author_and_committer_names": "Lee Daghlar Ostadi",
+    "only_emails": [
+      "ostadi.lee@gmail.com",
+      "34668360+lostadi@users.noreply.github.com"
+    ],
+    "violations": 0
+  },
+  "last_baseline_tree_checkpoint": {
+    "base": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+    "head": "66df6266a62d17e20f14487a9d945f03c50ee1d1",
+    "deleted_paths": 0,
+    "modified": 48,
+    "added": 530
+  },
+  "qualification_limits": [
+    "static preservation is not nativeISA/foreignOS runtime qualification",
+    "historical captured evidence kept byte-exact; whole diff whitespace flags intentional captured logs",
+    "fresh complete locked compiler/MCP builds, actual generatedWASI artifact, final unionbranch ledger and fresh bothremote lease remain pending at this report"
+  ]
+}

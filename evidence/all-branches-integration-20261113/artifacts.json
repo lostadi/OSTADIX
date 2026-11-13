@@ -1,0 +1,97 @@
+{
+  "O": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/O",
+    "sha256": "b7b0d725c5098b1c965affab00eaa7fbf1b4f97cc59d70441906d0d4e9ea8ff3",
+    "bytes": 6456416
+  },
+  "o-cli": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-cli",
+    "sha256": "b8301b82884aa6f2dfddb38515ac25c2bf765fb3eb384deb1307853c1d5b975a",
+    "bytes": 15206944
+  },
+  "olangc": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/olangc",
+    "sha256": "60ba913be87164e3529f5484fc6549bc90efc7f0029db04726cd55c704d00eef",
+    "bytes": 18956920
+  },
+  "ocorec": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+    "sha256": "3cd51503dd2ccfdea6c87efd6eb141a7cc217cf8e5f1d7d5a2ac95d453eca650",
+    "bytes": 3816640
+  },
+  "o-link": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-link",
+    "sha256": "a571bef57fc47a0d810de9a71bef1bed8072242fd8c9dd9483831dbafcaf626c",
+    "bytes": 10922232
+  },
+  "o-unlink": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-unlink",
+    "sha256": "3a6ce66d28d4d6703db7e4b8890e95548abdbdeaa6cf7a900d97fea2b06344af",
+    "bytes": 999336
+  },
+  "o-notebook": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-notebook",
+    "sha256": "eb3db39fda08359f8cadcc5cb0e1b0da0b2609bb5e87372c24f33305ab616eb8",
+    "bytes": 6259312
+  },
+  "ogit": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ogit",
+    "sha256": "01f635939e4be5d463df8fe0530049627706e8c3326f93ace82f4ce372f7c64d",
+    "bytes": 760808
+  },
+  "o-live-host": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-live-host",
+    "sha256": "e94d79527f231756edb795d2066186aca9084014a82685b07318cb14ee35d048",
+    "bytes": 2710664
+  },
+  "o-node": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-node",
+    "sha256": "4d9c1addf066bbb8a16775844df15860becbaf3cf2f09670d11b1f3bfd8b91f3",
+    "bytes": 13040200
+  },
+  "octl": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/octl",
+    "sha256": "0e701473184394eccd0893bcffa8785ec32a485794d699d79e36c591fb9fc055",
+    "bytes": 8621696
+  },
+  "o-registry": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-registry",
+    "sha256": "885c0818023aa7f42eb644dc96c5038fbb777b5fc4c46bb5ac350eebd09b1431",
+    "bytes": 1624496
+  },
+  "o-info": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/o-info",
+    "sha256": "5c7372e4f314b2c88bf9334b0a397c541f0fde3da800a8e48a2a77a01d9d64c4",
+    "bytes": 1423384
+  },
+  "ostadix-device": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ostadix-device",
+    "sha256": "edd3487d1a6e4015c4ca7eaad1245abf482d3bd306f57cb8b0602b341c235e59",
+    "bytes": 1050496
+  },
+  "ocore-kernel-world-record": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ocore-kernel-world-record",
+    "sha256": "3fdfe76ae9decddb6a891a1a067560aa7601a0efc8e3055798547a186eb35a91",
+    "bytes": 1255168
+  },
+  "ostadix": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ostadix",
+    "sha256": "5713dc378f5cc1fec2d783cdeb5b3ffa5931bff433d940ef36fd280fe7ac2c3b",
+    "bytes": 1824720
+  },
+  "ostadix-mcp": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-mcp-target/release/ostadix-mcp",
+    "sha256": "0137a4444c514dc53667c4bb4fab0efbeed77e17665bf8ce8e518efbb333f098",
+    "bytes": 7671128
+  },
+  "setup_hello.wasm": {
+    "source_path": "/mnt/data-hdd2/ostadix-integration/target/setup-components/hello.wasm",
+    "sha256": "d1b2d741a6447cce222868adb8c3632df8cdce605843df7a869d628ff06be413",
+    "bytes": 4206208
+  },
+  "inline.wasm": {
+    "source_path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline.wasm",
+    "sha256": "7c7453661a0bc0f13d9666833cef6702c54d1fb2b0754b54161e8c590e05345a",
+    "bytes": 4206143
+  }
+}
