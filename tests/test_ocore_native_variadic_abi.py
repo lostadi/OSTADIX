@@ -414,12 +414,37 @@ class NativeVariadicAbiTests(unittest.TestCase):
         self.assertIs(receipt["verified"], True)
         self.assertEqual(receipt["module_sha256"], artifact(module)["sha256"])
         self.assertEqual(len(receipt["functions"]), len(data["functions"]))
+        # Independently walk the full original LLVM unit, including unused
+        # interfaces, globals, initializers and intrinsic-to-operation mappings.
+        # Provider resolution and general instruction equivalence are separate.
+        from tests.ocore_llvm_source_inventory import Reader, check_inventory
+        helper = Path(__file__).with_name("ocore_llvm_source_inventory.py")
+        helper_before = artifact(helper)
+        reader = getattr(self, "_original_source_inventory_reader", None)
+        if reader is None:
+            reader = Reader(self.library, self.pin)
+            self._original_source_inventory_reader = reader
+        original_inventory = reader.read(llvm)
+        preservation = check_inventory(original_inventory, data)
+        self.assertEqual(artifact(helper), helper_before)
+        inventory_path = self.directory / (name + ".source-inventory.json")
+        preservation_path = self.directory / (name + ".source-preservation.json")
+        inventory_path.write_text(json.dumps(original_inventory, indent=2) + "\n")
+        preservation_path.write_text(json.dumps(preservation, indent=2) + "\n")
+        self.record.setdefault("original_source_inventory_checks", []).append({
+            "input": artifact(llvm), "module": artifact(module),
+            "source_inventory": artifact(inventory_path),
+            "preservation": artifact(preservation_path), "helper": helper_before})
+        self.save()
         self.command([self.compiler, module, "--input-kind", "native-ir", "--emit", "asm", "--target", isa + "-unknown-none", "-o", assembly])
         self.command([self.clang, *self.frontend_flags(profile), "-x", "assembler", "-c", assembly, "-o", obj])
         self.assert_elf(obj, PROFILES[profile][2], 1)
         self.record.setdefault("owned_modules", []).append({"input": artifact(llvm), "module": artifact(module),
             "verification": artifact(verification), "assembly": artifact(assembly), "object": artifact(obj),
-            "original_defined_functions": sorted(defined)})
+            "original_defined_functions": sorted(defined),
+            "source_inventory": artifact(inventory_path),
+            "source_preservation": artifact(preservation_path),
+            "source_inventory_helper": helper_before})
         self.save()
         return obj
 

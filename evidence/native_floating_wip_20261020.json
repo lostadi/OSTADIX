@@ -119,6 +119,65 @@
     "native_hardware_execution_qualified": false,
     "original_provider_bodies_lowered": false
   },
+  "checkpoint_v3": {
+    "C_i128_core_compare": {
+      "bytes": 5406,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/i128-owned-core-v1/launch.json",
+      "sha256": "caa63ee892cccbece41d718c4d2bf4382aeea2b0ef4ac8517b481e0df5915e2a"
+    },
+    "C_i128_division": {
+      "bytes": 4626,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/i128-owned-division-v1/launch.json",
+      "sha256": "0c0e9c0d72076899a2510a756c8431baad2353dc003f87435028bd27e65e98a0"
+    },
+    "authored_literal_i128_ABI": {
+      "bytes": 5777,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/i128-owned-direct-abi-v1/launch.json",
+      "sha256": "d9f0e070bcf1b3d5ece164bd07063000444458ec19ccd79a95b612198533acc0"
+    },
+    "created_utc": "2026-10-20T13:51:31.030305+00:00",
+    "full_build_v4": {
+      "bytes": 85443,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-build-v4/receipt.json",
+      "sha256": "3abc6940f213b63cfcdbad90c133bba1fe41e0de7398ebdee43c94a4def1581c"
+    },
+    "i128_matrix_comparisons": 140032,
+    "i128_matrix_pairings": 64,
+    "i128_oracle_independent_code_review_complete": false,
+    "i128_owned_involving_comparisons": 105024,
+    "i128_tests_passed": 16,
+    "instruction_or_ABI_probes_are_not_original_runtime_acceptance": true,
+    "inventory_controls_v2": {
+      "bytes": 3138,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/source-inventory-controls-v2/launch.json",
+      "sha256": "e7fc8ab16c879c258531d1408165de9dea614a24ae7c6213622168d890f472ca"
+    },
+    "inventory_fp42_v2": {
+      "bytes": 115071,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v2-source-inventory-v2/report.json",
+      "sha256": "1267b55d35506029d889238dd8acc7ca7b2c0fbc5d448a888b9b75edc83e53c1"
+    },
+    "new_i128_reference_provider_only": {
+      "bytes": 110632,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/i128-reference-provider/build-v1/provider.json",
+      "sha256": "6356825a560273265025380b56b3c60794beb7f23da4d511765b289d45e78895"
+    },
+    "owned_full29_v2": {
+      "bytes": 35371,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v2/launch.json",
+      "sha256": "a1bc45adc5e8f4cdef0326009ee0bfd32f90b0807c71d15e414c0c33085a8a12"
+    },
+    "owned_v2_execution_summary": {
+      "bytes": 488,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/floating-owned-controls-v2/execution-summary.json",
+      "sha256": "1fdd89d2c9715a86aee6e733c4c6789593298c7ea370458ba06bdafcc3e350b9"
+    },
+    "owned_v2_failed_methods": 8,
+    "owned_v2_passed_methods": 21,
+    "primary_objective": "End-to-end lowering of arbitrary pinned original runtime implementations; generic acceptance harness and full chibicc/Lua profiles in progress; required unsupported profiles remainRED",
+    "remaining_v2_first_gate": "llvm.ptrmask.p0.i64 explicit lowering",
+    "runtime_and_provider_complete": false
+  },
   "created_utc": "2026-10-20T11:20:17.010159+00:00",
   "current_sources": {
     "crates/ostadix-api/src/api/aot_source.rs": "b91da4aabaad64617abcf973a289ba700b4eb8cd4c7b22c48ce93410d78543e5",
