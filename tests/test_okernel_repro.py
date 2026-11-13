@@ -44,6 +44,7 @@ class SourceSnapshotTests(unittest.TestCase):
             self.assertEqual(git("rev-parse", "HEAD"), before_head)
             self.assertFalse((output / "snapshot.index").exists())
             with tarfile.open(snapshot["archive"]) as archive:
+                self.assertEqual({member.mtime for member in archive.getmembers()}, {1})
                 self.assertEqual(archive.extractfile("tracked").read(), b"working content\n")
                 self.assertEqual(archive.extractfile("new source").read(), b"untracked\n")
                 self.assertNotIn("removed", archive.getnames())

@@ -1,0 +1,11 @@
+{
+  "source": "Lee's instructions in this task",
+  "requested_scope": "Implement the supplied O10 Governor Protocol and Hybrid O-kernel Specification, including its M0 end-state reference amendments",
+  "followups": [
+    "continue",
+    "amd commit / merge to master under my name",
+    "delete whatever you need to make space",
+    "you have permission"
+  ],
+  "open_policy_decisions": "Section11 open questions remain open; no new policy settled"
+}

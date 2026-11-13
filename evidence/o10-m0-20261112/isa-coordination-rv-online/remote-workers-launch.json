@@ -1,0 +1,7 @@
+{
+  "returncode": 0,
+  "stdout": "{\"base\": \"/home/orangepi/.cache/o10-rv-workers-pjefeaac\", \"workers\": [{\"thread\": \"01a1659d-4fac-7e91-ab9a-1d8c41a9ab14\", \"role\": \"RV native codec/journal conformance\", \"supervisor_pid\": 7442, \"directory\": \"/home/orangepi/.cache/o10-rv-workers-pjefeaac/codec\", \"status\": \"LAUNCHED; no acknowledgment or execution pass inferred\"}, {\"thread\": \"01a142f8-ca9d-7640-8532-d638fa874ab2\", \"role\": \"RV independent conformance review\", \"supervisor_pid\": 7443, \"directory\": \"/home/orangepi/.cache/o10-rv-workers-pjefeaac/review\", \"status\": \"LAUNCHED; no acknowledgment or execution pass inferred\"}]}\n",
+  "stderr": "",
+  "started": 1794545168.5710876,
+  "scope": "actual two independent supervised Codex worker launches on previously idle project threads; active owner thread untouched; no permission/model overrides"
+}

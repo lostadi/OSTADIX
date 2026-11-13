@@ -1,0 +1,95 @@
+{
+  "milestone": "M0",
+  "gate_id": "verify_o10_journal",
+  "started": 1794540211.2378657,
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "mcp_release": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "host": "X12",
+  "host_platform": "Linux-7.0.14-ustad-native-20261031-x86_64-with-glibc2.39",
+  "machine_options": null,
+  "session": "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source/o10",
+  "command": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/scripts/verify_o10_journal.py",
+    "--session",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source/o10",
+    "--mcp-release",
+    "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+    "--component-only"
+  ],
+  "observations": {
+    "source": {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+      "stderr": ""
+    },
+    "diff": {
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "returncode": 0,
+      "stdout": "M evidence/o10-m0-20261112/isa-coordination.json\n?? evidence/o10-m0-20261112/acceptance-command-plan.json\n?? evidence/o10-m0-20261112/cleanup-cargo-cache.json\n?? evidence/o10-m0-20261112/cleanup-cargo-test-executables.json\n?? evidence/o10-m0-20261112/cleanup-prior-cargo-caches.json\n?? evidence/o10-m0-20261112/fresh-live-1/\n?? evidence/o10-m0-20261112/fresh-live-fork/\n?? evidence/o10-m0-20261112/fresh-monitor-build-r2/\n?? evidence/o10-m0-20261112/fresh-monitor-build/\n?? mcp/ostadix_lang_mcp_server/target\n?? scripts/verify_o10_live.py\n?? tests/test_o10_live.py",
+      "stderr": ""
+    },
+    "qemu": {
+      "argv": [
+        "qemu-system-aarch64",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)\nCopyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers",
+      "stderr": ""
+    }
+  },
+  "source_sha256": {
+    "ci/language-sources.json": "83adc1680185760b3efd402c4da945c40f7c0bce7bacac9423447c80f6ee7853",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "8aed063c9d1714752401a7d993d86dc934160da037c6b8b63ec7f361559de2b0",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "058883d760f845e3ec615a022b52a223d0aab95640ac9698b4d846fc49ffdac7",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "bd7698a0f2ea71eac9cf117dc237403bf170e358450183716b4047c319ec1ea4",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "ffbf7ecb2394101e94b9f482df7f681852d8bac7dd9267141d4230459bf35081",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/unified_world.oc": "3dae896a51252fde59dde049ee9f2846847537566d4839bea1e8449e12776e2e",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/runtime/common/namespace_store.oc": "eaaedf300be6c15a83803d7a047119b9ddad978cda6edf5b37b0ab48fe342656",
+    "ocore/runtime/common/o10_codec.oc": "ea9259f69754d8e1ecfbf2371b4732813cfd0e27e928ac24e94a6d05c362322c",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "scripts/build_okernel_unified_world.py": "a5e2232fe85aa90bf18853ef533e1e09b47eaf9eec93061d84e9031d1da6a0c9",
+    "scripts/freeze_okernel_unified_runtime.py": "9627a257c42c692aadd443d38ca222e7ca2592b0a05ba0dccb2658f253028a75",
+    "scripts/o10.py": "0fb04f75a4ecd40c1510db82b702ec3ea03db654f80a468f1a900bfe8d1bf673",
+    "scripts/okernel_unified_world.py": "ce83364c0c1197940f6b0c44db547e1e1053458fff01b2a86f5b267e558d0d46",
+    "scripts/verify_o10_journal.py": "2a9c816eb363fc650c3bf02447a5f524a57b5fe490f448e90e42010a64cba1a1",
+    "tests/test_o10_codec.py": "a18945fd31441306c2670c9f120fe04a8b7110a7f46741d676f83639a61ed9c1",
+    "tests/test_o10_native.py": "1d31b64c197291b07d9d3c5747889456ff7e778b28061421ab124c0c641b21a5",
+    "tests/test_o10_platform.py": "87f573e5d44c21668dc0709c2b363c355d5971ba83627898d40f10a5b8e8a3e3",
+    "tests/test_o10_runner.py": "f3095125ebd81466fbb504c1251fcca5b533c2835d677377ec1e5df94cbb286f"
+  },
+  "compiler": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+  "compiler_sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42",
+  "component_ok": true,
+  "ok": false,
+  "qualified": false,
+  "scope": "Python/native structural wire corpus, exactly-once executor journal and x86_64 mailbox/fid component execution; excludes AArch64 EL2 execution, guest boot/replacement and full regression qualification",
+  "tests_run": 27,
+  "failures": 0,
+  "errors": 0,
+  "skips": [],
+  "release_aligned": true,
+  "regression": null,
+  "qualification_note": "This component verifier cannot attest the running MCP release or same-build EL2/guest regression evidence; supplied release/receipt metadata never grants M0 qualification.",
+  "unqualified_reasons": [
+    "external MCP identity and same-build EL2/guest qualification required",
+    "full same-source regression receipt absent or unqualified"
+  ],
+  "finished": 1794540212.4361181
+}

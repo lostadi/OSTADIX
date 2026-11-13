@@ -1,0 +1,15 @@
+{
+  "scope": "Saved-pair copy only; preserved source unchanged, no VM started",
+  "argv": [
+    "python3",
+    "scripts/fork_okernel_state.py",
+    "--source",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+    "--output",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live"
+  ],
+  "ok": true,
+  "returncode": 0,
+  "finished": 1794539806.953296,
+  "fork": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live"
+}

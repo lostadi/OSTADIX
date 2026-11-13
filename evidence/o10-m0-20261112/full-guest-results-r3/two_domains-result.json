@@ -1,0 +1,106 @@
+{
+  "schema": "ostadix.original-linux-plan9-two-domain-acceptance/v1",
+  "ok": true,
+  "started": 1794544396.8444743,
+  "sessions": [
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/unified-session-0n2a053c",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/unified-session-p_5lyeeu"
+  ],
+  "checks": [
+    "both original kernels boot concurrently beneath one native O-core EL2 monitor",
+    "original Plan9 writes a fresh native object read by original Linux",
+    "original guest GCC compiles and executes shared source while Plan9 remains scheduled",
+    "actual two-kernel restart recovers Linux-created native data and compiled executable",
+    "original Plan9 cat reads the exact saved Linux nonce and original echo writes a new response",
+    "original Linux reads exact Plan9 response from the same native store",
+    "fresh native session epoch and one stopped/quiescent paired save preserve both providers' objects"
+  ],
+  "scope": "one O-core EL2 monitor, two simultaneous original kernels and shared native objects; command-service/interactive console qualification remains separate",
+  "first_counters": {
+    "live_domains": 3,
+    "switches": 7565,
+    "linux_exits": 30802,
+    "plan9_exits": 35207,
+    "linux_pc": "0xffffffc08042bda8",
+    "plan9_pc": "0xffffffffc01a1c3c",
+    "linux_esr": "0x7e00000",
+    "plan9_esr": "0x7e00000",
+    "console": 0,
+    "input_dropped": 0,
+    "blocked_domains": 0,
+    "native_idle_waits": 247,
+    "plan9_9p_requests": 215,
+    "plan9_9p_request_bytes": 5475,
+    "plan9_9p_reply_bytes": 8899
+  },
+  "first_epoch": 17012683607566155728,
+  "first_pair": {
+    "schema": "ostadix.package-domain-disk-head/v2",
+    "previous": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    "previous_namespace": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    "session": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/unified-session-0n2a053c",
+    "console_exit_consumed": [],
+    "disk": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/disk-generations/76518ee69019448de0e49fa0b62aef6a336105524bd40e9be62641f8eed724c7.ext4",
+      "bytes": 1073741824,
+      "sha256": "76518ee69019448de0e49fa0b62aef6a336105524bd40e9be62641f8eed724c7"
+    },
+    "namespace": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/namespace-generations/72e2c6b6d5230de0b9057433132274b445186d5c9f67bdc713cf9bc5225d524d.raw",
+      "bytes": 16777216,
+      "sha256": "72e2c6b6d5230de0b9057433132274b445186d5c9f67bdc713cf9bc5225d524d"
+    }
+  },
+  "finished": 1794544515.8887854,
+  "second_counters": {
+    "live_domains": 3,
+    "switches": 5423,
+    "linux_exits": 25726,
+    "plan9_exits": 29164,
+    "linux_pc": "0xffffffc08042bda8",
+    "plan9_pc": "0xffffffffc012ca3c",
+    "linux_esr": "0x7e00000",
+    "plan9_esr": "0x938a0005",
+    "console": 0,
+    "input_dropped": 0,
+    "blocked_domains": 0,
+    "native_idle_waits": 239,
+    "plan9_9p_requests": 174,
+    "plan9_9p_request_bytes": 4645,
+    "plan9_9p_reply_bytes": 6762
+  },
+  "second_epoch": 11638701428743896752,
+  "final_pair": {
+    "schema": "ostadix.package-domain-disk-head/v2",
+    "previous": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/disk-generations/76518ee69019448de0e49fa0b62aef6a336105524bd40e9be62641f8eed724c7.ext4",
+      "bytes": 1073741824,
+      "sha256": "76518ee69019448de0e49fa0b62aef6a336105524bd40e9be62641f8eed724c7"
+    },
+    "previous_namespace": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/namespace-generations/72e2c6b6d5230de0b9057433132274b445186d5c9f67bdc713cf9bc5225d524d.raw",
+      "bytes": 16777216,
+      "sha256": "72e2c6b6d5230de0b9057433132274b445186d5c9f67bdc713cf9bc5225d524d"
+    },
+    "session": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/unified-session-p_5lyeeu",
+    "console_exit_consumed": [],
+    "disk": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/disk-generations/d55237c29c37f54e35d855cab7b9e9d19bbe49b30c087a3684e178c60e9ce949.ext4",
+      "bytes": 1073741824,
+      "sha256": "d55237c29c37f54e35d855cab7b9e9d19bbe49b30c087a3684e178c60e9ce949"
+    },
+    "namespace": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/two_domains/namespace-generations/203ec155c7c647c34d8050a04061065ff9741f1777909bef71e5726a93434e0d.raw",
+      "bytes": 16777216,
+      "sha256": "203ec155c7c647c34d8050a04061065ff9741f1777909bef71e5726a93434e0d"
+    }
+  }
+}

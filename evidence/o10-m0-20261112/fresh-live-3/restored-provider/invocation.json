@@ -1,0 +1,17 @@
+{
+  "paths": {
+    "request": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/request",
+    "submit": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/submit",
+    "started": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/started",
+    "stdout": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/stdout",
+    "stderr": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/stderr",
+    "status": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/status",
+    "result": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/result",
+    "done": "/n/okernel/services/plan9/g3dfc85971e040341/s787bcd852c87b8a01d015710e7b992a3/rbd909bae59f72a7583feabba625ce596/done"
+  },
+  "service": {
+    "generation": "3dfc85971e040341",
+    "instance": "787bcd852c87b8a01d015710e7b992a3"
+  },
+  "id": "bd909bae59f72a7583feabba625ce596"
+}

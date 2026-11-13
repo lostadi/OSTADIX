@@ -1,0 +1,22 @@
+{
+  "m1max": {
+    "Online": true,
+    "OS": "macOS",
+    "LastSeen": "2026-11-12T22:11:51.1Z",
+    "TailscaleIPs": [
+      "100.101.151.125",
+      "fd7a:115c:a1e0::6e2e:977e"
+    ],
+    "DNSName": "m1max.ridgehead-stairs.ts.net."
+  },
+  "orangepirv": {
+    "Online": true,
+    "OS": "linux",
+    "LastSeen": "0001-01-01T00:00:00Z",
+    "TailscaleIPs": [
+      "100.93.95.114",
+      "fd7a:115c:a1e0::392e:5f73"
+    ],
+    "DNSName": "orangepirv.ridgehead-stairs.ts.net."
+  }
+}

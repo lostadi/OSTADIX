@@ -1,0 +1,10 @@
+test_active_domain_lock_prevents_staging (tests.test_okernel_repository_staging.RepositoryStagingTests.test_active_domain_lock_prevents_staging) ... ok
+test_payload_identity_failure_does_not_publish_or_mutate_base (tests.test_okernel_repository_staging.RepositoryStagingTests.test_payload_identity_failure_does_not_publish_or_mutate_base) ... ok
+test_staging_preserves_installed_state_and_publishes_readonly_generation (tests.test_okernel_repository_staging.RepositoryStagingTests.test_staging_preserves_installed_state_and_publishes_readonly_generation) ... ok
+test_staging_preserves_the_exact_shared_namespace_generation (tests.test_okernel_repository_staging.RepositoryStagingTests.test_staging_preserves_the_exact_shared_namespace_generation) ... ok
+test_unexpected_database_mutation_prevents_publication (tests.test_okernel_repository_staging.RepositoryStagingTests.test_unexpected_database_mutation_prevents_publication) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 12.856s
+
+OK

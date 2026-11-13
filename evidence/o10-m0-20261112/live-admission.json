@@ -1,0 +1,8 @@
+{
+  "scope": "Exact observed monitor/profile pair admitted to foreground/runtime regression, full milestone acceptance still requires those gates",
+  "live_receipt": "fresh-live-2/result.json",
+  "live_receipt_sha256": "ebf1570df8bd1988bbaf48cd54a826ba817aa457535cc8dbd9f536415b1547fc",
+  "monitor_sha256": "9a2fea3172725da0096b2aa769f054af5e7d9c08987b882c134a41dd42784e9b",
+  "profile_sha256": "f2fedbcb28d687ebaaa6a68025d2fb7c336165dbbc58f342d9f5cefd5b3c4d3f",
+  "existing_admissions_retained": true
+}

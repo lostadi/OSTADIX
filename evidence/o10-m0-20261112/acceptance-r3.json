@@ -1,0 +1,8 @@
+{
+  "schema": "ostadix.o10-m0-acceptance/v1",
+  "milestone": "M0",
+  "ok": false,
+  "full_milestone_qualified": false,
+  "started": 1794545846.428549,
+  "error": "EvidenceError: guest client session outside private fork"
+}

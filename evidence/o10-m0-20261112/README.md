@@ -1,73 +1,75 @@
-# O10 M0 implementation evidence
+# O10 M0 acceptance evidence
 
-Implementation branch: `work/o10-m0-20261112` on X12.
-Source checkout: `/home/ustad/OSTADIX-o10-m0-20261112`.
+M0 passed `verify_o10_m0`: [acceptance-r3d.json](acceptance-r3d.json).
+The verifier binds the exact compiled sources, compiler, running MCP identity,
+eleven VM sessions and every required completed regression receipt.
 
-The canonical OSTADIX master was fetched at
-`a8742f638c265d68cde6977aa2783cfad74ccc2a`.
-Implementation commits are `5fb4b3d7ebee36c510b7887a1cb4a08142cd3b51`
-and packaging correction `1fc414e7e21b577cbdb9c032a94f51182a0ff96c`.
-The original working checkout and preserved VM states retain their prior contents.
-The Google Doc's complete text, URL and revision are in source-spec.txt/json.
+The scope is the O10 host shim and synchronous journal on the recorded
+AArch64 QEMU/TCG build, plus Python and x86_64 native component execution.
+The Governor runs in the host runner and the namespace uses the existing grants.
 
-## Executed checks
-
-| Check | Result | Scope / receipt |
+| Check | Result | Receipt |
 |---|---|---|
-| O10 wire, journal, runner and mailbox | 24 passed, zero skips | journal-components-packaged/result.json; exact code revision 1fc414e7 |
-| Existing test_okernel_*.py suite | 288 passed, zero skips | unit-regressions-reviewed.json; exact code revision 5fb4b3d7, before the separately tested packaging correction |
-| Frozen runtime tests | 8 passed, zero skips | freezer-final.log; packaging correction 1fc414e7 |
-| Language-source check | 261 classified and parsed, zero failures | language-sources.json/stdout; no programs executed |
-| AArch64 monitor graph | Object emitted successfully | aarch64-compile.json; exact argv, compiler output and object digest; profile in compile-profile.oc.txt |
-| Installation doctor | ready=true, Python smoke passed | doctor.stdout and doctor-command.json |
-| Commit authorship | Passed for implementation commit | command recorded by MCP: python3 scripts/check_commit_authors.py --head HEAD |
+| Live O10 lifecycle and journal | Seven checks passed | fresh-live-3/result.json |
+| Six guest gates | All passed, actual exits 0, zero skips | full-guest-results-r3/aggregate.json |
+| O10 components and evidence guards | 67 passed, zero skips | final-unit-r3d/component/result.json |
+| Existing kernel unit suite | 288 passed: 283 normal + 5 RAM-disk fixtures | final-unit-r3d/result.json |
+| Admission and runtime packaging | 35 passed | final-unit-r3d/admission-and-freezer.stderr |
+| Language inventory | 261 classified and checked, zero failures | final-unit-r3d/language.json |
 
-The initial broad unit run retained seven ENOSPC errors and thirteen fixture
-skips. The disk tests were rerun using a private /dev/shm directory; the original
-source fixtures were located and explicitly supplied. The final 288-test record
-has no errors or skips. Both failed and successful records are retained.
+The six guest gates are two_domains, provider, client, recovery, default_compile
+and runtime. Each ran on a new private fork. The live gate also proves that a
+preclaim legacy replacement advances the Plan 9 domain generation from 1 to 2,
+rejects its old handle with ESTALE, and that O10 restore advances it once to 3.
 
-The implementation and these checks were produced with coordinated coding
-agents through Ostadix MCP. Native platform tests execute the real wire journal,
-mailbox handler and namespace store in an x86 harness. Architectural entrypoints
-outside that corpus terminate through test sentinels. AArch64 evidence here is
-compilation.
+## Identity and custody
 
-## Acceptance and continuation
+Both canonical OSTADIX and ostadix-BM master were fetched at
+`a8742f638c265d68cde6977aa2783cfad74ccc2a`; final-master-fetch.json records the
+authenticated refresh. The qualification source base and rebuilt MCP release are
+`5fb254ae13c978ce2e6010bb3080c3d1c32caa5c`. The checkout was dirty during
+qualification; captured per-file hashes identify the exact admitted working
+sources, including the shared legacy/O10 generation correction.
 
-Full M0 acceptance remains pending. The source identity of the running MCP
-release is unverified. The installed compiler's observed hash differs from the
-historical tool metadata; environment.json records both values explicitly.
-A fresh source-aligned toolchain and MCP, followed by reconnect and the complete
-QEMU guest regression set, are the next gate.
+- Monitor ELF SHA256: `641a0ad14fb96979f7d4b141779f8bbad7b8b854ea1fde4fe1b25d984504aeaf`.
+- Profile SHA256: `0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e`.
+- Compiler SHA256: `11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42`.
 
-The root filesystem had about 0.85 GiB available. Provision build storage before
-the fresh release build; preserved experiments and saved states need Lee's
-approval before deletion. Setup's inspected runtime-only dry run builds O,
-o-cli, olangc, ocorec and MCP, and also installs Cargo-bin commands even when
---no-local-bins is selected. Use an isolated install destination to retain the
-current tools and preserve their hashes.
+fresh-toolchain contains the actual reconnected MCP provenance, schema discovery
+and environment checks. fresh-monitor-build-r3/monitor-profile.json,
+session-manifests-r3 and review-artifact-copies.json preserve the exact small
+review artifacts; large immutable images and VM assets remain on X12.
 
-After source/release alignment, rebuild an admitted monitor from the immutable
-Linux and Plan 9 inputs, fork a saved state for every guest gate, and run the full
-section-9 regression set. Gate outputs must retain the exact build and source
-identities. Only then accept M0 and proceed with the resident-monitor milestone.
+Original workspaces, seed states and immutable inputs were preserved. Authorized
+cleanup removed generated Cargo caches and explicitly inventoried superseded
+private test disk copies. sparse-r3 records byte-identical zero-extent compaction
+of closed private copies, with matching hashes, lengths, inodes and modes.
 
-O10 draft clarifications are documented in docs/O10.md: exact frame retry,
-synchronous sequence admission/error journaling, provisional enum values,
-minimum msize and the restored domain's explicit bind wait. Rlstat's record
-layout and asynchronous takeover need definition before their milestones.
+## Historical runs
 
-The fallback repository ostadix-BM could not be fetched: HTTPS requested
-credentials, and the SSH attempt lacked an existing trusted GitHub host key.
-Canonical OSTADIX's fetched revision is the base actually used.
+Earlier failed and partial results remain in this directory. They include
+missing-fixture/space failures, the old compiler identity discrepancy, a timed
+out controller, pre-correction monitor runs and the first overly broad evidence
+session collector. acceptance-r3d.json is the current qualification conclusion.
 
-## ISA coordination
+The first final-unit controller completed its child commands before an OValue
+projection error; its successful child logs and independent readback are
+retained in final-unit-r3. The final accepted run is final-unit-r3d and completed
+its entire command set. Repository-staging fixtures use private RAM storage.
+archive-repro-diagnosis records the installed Git's relative interpretation of
+the shorthand timestamp and the deterministic explicit ISO timestamp fix.
 
-X12 supplies x86_64 execution.
-isa-coordination.json records the existing Orange Pi thread IDs, account,
-prepared handoff and bounded connection checks. The Orange Pi RV was offline;
-M1 Max was online and required Tailscale's additional SSH identity check.
-The authorization link was presented in chat. Resume authenticated remote
-coordination, inspect the existing agent ownership and source/tool revisions,
-then assign separate RV64 and ARM evidence against the agreed source.
+## ISA coordination and continuation
+
+X12 is x86_64. Authenticated probes verified orangepirv as riscv64 and m1max as
+an Apple M1 Max, arm64, with 64 GiB RAM. Existing owners and workspaces were
+preserved, and separate conformance/review tasks received hash-verified source
+bundles. isa-coordination-rv-online records the bounded coordination evidence.
+
+Remote Codex tool-approval controls rejected MCP execution requests under their
+`never` policy; the retained remote reports qualify source review and staged
+hashes. ARM/RV execution results are separate from M0's X12 gates.
+
+M1 residency and M2 Linux replacement are subsequent branches. Draft 0's seven
+open policy decisions remain with Lee. The full supplied Google Doc text,
+revision and URL are retained in source-spec.txt/json.
