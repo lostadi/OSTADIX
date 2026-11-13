@@ -65,7 +65,7 @@ fn run_cli() -> Result<()> {
                     .context("--backend-grant requires NAME=LANG[:RIGHT,...]")?,
             ),
             "--json" => json_output = true,
-            "--quiet" => o_lang::progress::set_quiet(true),
+            "--quiet" => o_lang::process::set_quiet(true),
             "--check" => check_only = true,
             "--crossing-evidence" => {
                 crossing_evidence = true;
