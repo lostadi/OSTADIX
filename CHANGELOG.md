@@ -230,6 +230,14 @@ Package SemVer is only one of the independent coordinates documented in
 - `O_BACKEND_HEARTBEAT_INTERVAL_MS` and `O_BACKEND_HEARTBEAT_WARN_MS` are
   validated the same way: a malformed, zero or oversized value fails the
   backend spawn instead of silently falling back to 5 s and 30 s.
+- No shim applies a fixed limit to compiling or running a step. Every
+  execution, including the Mathematica, MATLAB/Octave and Ubuntu VM shims
+  (formerly 300 s, 120/300 s and 600 s), and every compile step, in the C,
+  C++, C#, Haskell, Java, OCaml and Rust shims (formerly 120 s) and the
+  WebAssembly text conversion (formerly 30 s), reads the opt-in
+  `O_BACKEND_STEP_TIMEOUT_MS` and has no default. The `nixos_test` shim's
+  `nix build` wait (formerly 600 s) has no default either; its own
+  `O_NIXOS_TEST_TIMEOUT_SECONDS` stays as the opt-in limit.
 - Native leaf children (clang, ld and the sealed leaf) run in their own
   process group under the same watch: one stderr warning after the hang
   threshold, the group killed when the opt-in step limit passes or the
@@ -501,14 +509,6 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Known issues
 
-- No shim applies a fixed limit to running a step any more: every
-  execution, including the Mathematica, MATLAB/Octave and Ubuntu VM shims
-  (formerly 300 s, 120/300 s and 600 s), reads the opt-in
-  `O_BACKEND_STEP_TIMEOUT_MS` and has no default. The `nixos_test` shim's
-  `nix build` wait (formerly 600 s) has no default either; its own
-  `O_NIXOS_TEST_TIMEOUT_SECONDS` stays as the opt-in limit. Compiling a block still has
-  a fixed bound in the C, C++, C#, Haskell, Java, OCaml and Rust shims
-  (120 s) and in the WebAssembly text conversion (30 s).
 - The 30 s heartbeat warning can fire on a step that is still working when
   the step sends no heartbeat: JavaScript bridge steps and native operations.
   The warning says the step is still running and never stops it.
