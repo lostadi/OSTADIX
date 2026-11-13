@@ -116,6 +116,21 @@ class ForegroundClientOracleTests(unittest.TestCase):
             with self.subTest(reverse=monitor), self.assertRaises(ValueError):
                 GATE.admitted_monitor_revision(monitor, GATE.O10_M2_PROFILE)
 
+    def test_m3_compiled_candidate_requires_its_exact_build_pair(self):
+        self.assertEqual(GATE.O10_M3_MONITOR,
+                         "dea3f620c0289a3efba9ea33114fad040ec034e1a138ce10cc498995d1c16fe2")
+        self.assertEqual(GATE.O10_M3_PROFILE,
+                         "4815f7d77e3f2f1d9763405447a8a8159243efdc457596c2de7e5324e65af73a")
+        self.assertEqual(GATE.admitted_monitor_revision(
+            GATE.O10_M3_MONITOR, GATE.O10_M3_PROFILE), "O10-M3-private-candidate")
+        for monitor, profile in GATE.MONITOR_PROFILES.items():
+            if monitor == GATE.O10_M3_MONITOR:
+                continue
+            with self.subTest(monitor=monitor), self.assertRaises(ValueError):
+                GATE.admitted_monitor_revision(GATE.O10_M3_MONITOR, profile)
+            with self.subTest(reverse=monitor), self.assertRaises(ValueError):
+                GATE.admitted_monitor_revision(monitor, GATE.O10_M3_PROFILE)
+
     def test_actual_setup_helper_cannot_satisfy_completion_wait(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)

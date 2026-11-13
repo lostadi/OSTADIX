@@ -188,6 +188,164 @@ class ThreeDomainGateTests(unittest.TestCase):
             with self.subTest(data=malformed),self.assertRaises(ValueError):
                 counter.observe(malformed,counter.start+2)
 
+    def test_observation_anchors_bind_counter_relative_samples_to_the_global_clock(self):
+        now = [10.]
+        domain = SimpleNamespace(native_volume=lambda: {"/work/counter": b"0\n1\n2\n"})
+        record = {}
+        observers = gate.Observers(domain, record, clock=lambda: now[0])
+        self.assertEqual(record["observation_start_monotonic"], 10.)
+        now[0] = 11.
+        with mock.patch.object(gate.common.time, "monotonic", side_effect=lambda: now[0]):
+            row = observers.counter("linux", "/work/counter", {})
+        now[0] = 14.
+        observers.poll(force=True)
+        observations = row["observations"]
+        self.assertEqual(observations["start_monotonic"], 11.)
+        for sample in observations["samples"]:
+            lo = observations["start_monotonic"] + sample["earliest_host_seconds"]
+            hi = observations["start_monotonic"] + sample["observed_host_seconds"]
+            self.assertTrue(10. <= lo <= hi <= 14.)
+        original_pump = mock.Mock()
+        now[0] = 20.
+        self.assertEqual(observers.finish(original_pump), 10.)
+        self.assertIs(domain.pump, original_pump)
+        self.assertEqual(record["observation_end_monotonic"], 20.)
+        self.assertEqual(record["observation_elapsed_seconds"], 10.)
+
+    def test_blocking_counter_or_native_snapshot_cannot_overrun_global_window(self):
+        for kind in ("counter", "native"):
+            now, record = [10.], {}
+            def volume():
+                now[0] = 250.1
+                return {"/work/counter": b"0\n1\n2\n"}
+            domain = SimpleNamespace(native_volume=volume)
+            observers = gate.Observers(domain, record, clock=lambda: now[0])
+            if kind == "counter":
+                with mock.patch.object(gate.common.time, "monotonic", return_value=10.):
+                    observers.counter("linux", "/work/counter", {})
+            else:
+                observers.native_start((1 << 32) | 7, reset_proof((1 << 32) | 7))
+            def native_read(*args):
+                now[0] = 250.1
+                return heartbeat()
+            now[0] = 249.9
+            with self.subTest(kind=kind), mock.patch.object(gate, "ram_read", side_effect=native_read):
+                with self.assertRaisesRegex(ValueError, "exceeded during poll"):
+                    observers.poll(force=True)
+            self.assertFalse(observers.active)
+            self.assertEqual(observers.previous_poll, 250.1)
+            # The overrun evidence is retained, while the observation fails.
+            if kind == "native":
+                self.assertGreater(record["native_heartbeats"][0]["samples"][0]["host_seconds"], 240.)
+            else:
+                self.assertGreater(record["counters"][0]["observations"]["samples"][0]["observed_host_seconds"], 240.)
+
+    def test_finish_requires_positive_bounded_elapsed_and_always_restores_pump(self):
+        for elapsed in (0., -1., 240.001, 240.):
+            now, record = [10.], {}
+            original = mock.Mock()
+            domain = SimpleNamespace(pump=mock.Mock())
+            observers = gate.Observers(domain, record, clock=lambda: now[0])
+            now[0] += elapsed
+            with self.subTest(elapsed=elapsed):
+                if 0 < elapsed <= 240:
+                    self.assertEqual(observers.finish(original), elapsed)
+                else:
+                    with self.assertRaisesRegex(ValueError, "ended outside"):
+                        observers.finish(original)
+            self.assertIs(domain.pump, original)
+            self.assertEqual(record["observation_end_monotonic"], now[0])
+            self.assertEqual(record["observation_elapsed_seconds"], elapsed)
+
+    def test_verify_freezes_observations_before_closure_checks_and_restores_pump_on_failure(self):
+        real_observers = gate.Observers
+        for outcome in ("success", "cycles-failed", "window-overrun"):
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                for name in ("seed", "build", "runtime"):
+                    (folder / name).mkdir()
+                (folder / "build/monitor-profile.json").write_text("{}")
+                now, observed, domains, events = [10.], [], [], []
+                frozen = {"complete_frozen_fixture": True}
+                pin = {"identity": {"sha256": "a" * 64}}
+                class Domain:
+                    def __init__(self, state, build, qemu, **kwargs):
+                        self.session = state / "host-only-session"
+                        self.session.mkdir(parents=True)
+                        self.process = SimpleNamespace(pid=os.getpid(), returncode=None, poll=lambda: 0)
+                        self.record = {}
+                        self.capture = bytearray()
+                        self.original_pump = self.pump
+                        self.snapshots = 0
+                        domains.append(self)
+                    def ready(self):
+                        pass
+                    def o10_claim(self):
+                        pass
+                    def pump(self, duration=.1):
+                        events.append("original-pump")
+                    def native_volume(self):
+                        self.snapshots += 1
+                        return {"/work/counter": b"0\n1\n2\n"}
+                    def close(self):
+                        self.assert_original("close")
+                        now[0] = 30.
+                        self.pump()
+                        self.process.returncode = 0
+                    def assert_original(self, phase):
+                        if self.pump != self.original_pump:
+                            raise AssertionError("observer pump still installed during " + phase)
+                        events.append(phase)
+                def make_observers(domain, record):
+                    value = real_observers(domain, record, clock=lambda: now[0])
+                    observed.append(value)
+                    return value
+                def cycles(domain, observers, record, *args):
+                    now[0] = 11.
+                    observers.counter("linux", "/work/counter", {})
+                    now[0] = 12.
+                    domain.pump()
+                    if outcome == "cycles-failed":
+                        raise ValueError("original cycle failure")
+                    now[0] = 251. if outcome == "window-overrun" else 20.
+                def closure(*args):
+                    domain = domains[0]
+                    domain.assert_original("closure")
+                    self.assertEqual(observed[0].record["observation_end_monotonic"], 20.)
+                    now[0] = 25.
+                    domain.pump()
+                    return frozen
+                runner = SimpleNamespace(UnifiedDomain=Domain, o10=object())
+                with mock.patch.object(gate.common, "load_runtime", return_value=(runner, object(), None)), \
+                        mock.patch.object(gate, "preflight", return_value=("b" * 40, {"source_sha256": {}}, {}, frozen, {})), \
+                        mock.patch.object(gate, "pinned_seed", return_value=pin), \
+                        mock.patch.object(gate, "fork_pinned_seed", return_value={"ok": True}), \
+                        mock.patch.object(gate.common, "trace"), \
+                        mock.patch.object(gate, "Observers", side_effect=make_observers), \
+                        mock.patch.object(gate, "run_cycles", side_effect=cycles), \
+                        mock.patch.object(gate, "native_image_envelope", return_value=b"host fixture"), \
+                        mock.patch.object(gate, "runtime_identity", side_effect=closure), \
+                        mock.patch.object(gate.common.time, "monotonic", side_effect=lambda: now[0]), \
+                        mock.patch.object(gate, "command", return_value={"returncode": 0, "stdout": ""}):
+                    record = gate.verify(execute=True, seed=folder / "seed", seed_head_sha256="a" * 64,
+                                         build=folder / "build", runtime=folder / "runtime",
+                                         output=folder / "output", mcp_release="b" * 40)
+                self.assertEqual(record["gate_passed"], outcome == "success", record.get("error"))
+                self.assertTrue(record["cleanup"]["closed"])
+                self.assertEqual(domains[0].snapshots, 1)
+                self.assertEqual(len(record["counters"][0]["observations"]["samples"]), 3)
+                self.assertEqual(record["counters"][0]["observations"]["start_monotonic"], 11.)
+                self.assertIn("close", events)
+                if outcome == "success":
+                    self.assertLess(events.index("closure"), events.index("close"))
+                    self.assertEqual(record["observation_start_monotonic"], 10.)
+                    self.assertEqual(record["observation_end_monotonic"], 20.)
+                    self.assertEqual(record["observation_elapsed_seconds"], 10.)
+                else:
+                    self.assertNotIn("closure", events)
+                    expected = "original cycle failure" if outcome == "cycles-failed" else "ended outside"
+                    self.assertIn(expected, record["error"])
+
     def test_only_estale_can_refresh_native_lease_and_unknown_is_never_replayed(self):
         domain=WireDomain([o10.O10Error(o10.O10_ESTALE,4),dict(type="Rbind",session=17)])
         record={}

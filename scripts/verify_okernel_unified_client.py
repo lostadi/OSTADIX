@@ -40,8 +40,13 @@ O10_M1_R7_PROFILE = "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce3383223137
 # Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5
 O10_M2_MONITOR = "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
 O10_M2_PROFILE = "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
-MONITOR_REVISIONS = {O10_M2_MONITOR: "O10-M2-private-candidate", O10_M1_R7_MONITOR: "O10-M1-R7-resident-candidate", O10_M0_MONITOR: "O10-M0-live", R8_MONITOR: "R8", R9_MONITOR: "R9", R10_MONITOR: "R10-idle-traffic"}
+# M3 compiled candidate for qualification gates; live acceptance is still required.
+# Build: ~/.cache/o10-m3-qualification-preparation-20261113/unified-build-r1
+O10_M3_MONITOR = "dea3f620c0289a3efba9ea33114fad040ec034e1a138ce10cc498995d1c16fe2"
+O10_M3_PROFILE = "4815f7d77e3f2f1d9763405447a8a8159243efdc457596c2de7e5324e65af73a"
+MONITOR_REVISIONS = {O10_M3_MONITOR: "O10-M3-private-candidate", O10_M2_MONITOR: "O10-M2-private-candidate", O10_M1_R7_MONITOR: "O10-M1-R7-resident-candidate", O10_M0_MONITOR: "O10-M0-live", R8_MONITOR: "R8", R9_MONITOR: "R9", R10_MONITOR: "R10-idle-traffic"}
 MONITOR_PROFILES = {
+    O10_M3_MONITOR: O10_M3_PROFILE,
     O10_M2_MONITOR: O10_M2_PROFILE,
     O10_M1_R7_MONITOR: O10_M1_R7_PROFILE,
     O10_M0_MONITOR: O10_M0_PROFILE,

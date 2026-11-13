@@ -396,6 +396,7 @@ class Observers:
     def __init__(self, domain, record, *, clock=time.monotonic):
         self.domain, self.record, self.clock = domain, record, clock
         self.start = self.previous_poll = clock()
+        record["observation_start_monotonic"] = self.start
         self.active = False
         self.current = {}
         self.native = None
@@ -470,8 +471,19 @@ class Observers:
                                  "native heartbeat lacks completed exact namespace reads")
                         self.native["last"] = decoded
             self.previous_poll = self.clock()
+            need(self.previous_poll - self.start < WINDOW_SECONDS,
+                 "240s three-domain observation window exceeded during poll")
         finally:
             self.active = False
+
+    def finish(self, original_pump):
+        # Freeze observations before source/runtime validation and VM cleanup.
+        self.domain.pump = original_pump
+        end = self.clock()
+        elapsed = end - self.start
+        self.record.update(observation_end_monotonic=end, observation_elapsed_seconds=elapsed)
+        need(0 < elapsed <= WINDOW_SECONDS, "240s three-domain observation window ended outside its bound")
+        return elapsed
 
     def values(self, labels):
         result = {}
@@ -498,7 +510,8 @@ class Observers:
 
 
 def counter_observation(value):
-    result = dict(path=value.path, bytes_hex=value.data.hex(), samples=list(value.entries),
+    result = dict(path=value.path, start_monotonic=value.start,
+                  bytes_hex=value.data.hex(), samples=list(value.entries),
                   timing_scope="host monotonic observation brackets include CPU/QMP pauses; not exact guest timestamps")
     if len(value.entries) >= 3:
         result.update(value.result())
@@ -754,6 +767,7 @@ def verify(*, execute, seed, seed_head_sha256, build, runtime, output, mcp_relea
                   unknown_work_policy="Faulted counter completion remains unknown; each requested new counter has a fresh path/request ID",
                   timing_scope="240s host monotonic observation window after ready, including host/QMP pauses")
     domain = None
+    original_pump = None
     try:
         record["phase"] = "preflight"
         runner, forker, _ = common.load_runtime()
@@ -801,6 +815,7 @@ def verify(*, execute, seed, seed_head_sha256, build, runtime, output, mcp_relea
         record["phase"] = "initial-three-domain-progress"
         run_cycles(domain, observers, record, runner, secrets.token_hex(12),
                    native_image_envelope(artifacts))
+        observers.finish(original_pump)
         record["runner_linux_recoveries"] = safe(domain.record.get("linux_recoveries", []))
         record["runner_plan9_recoveries"] = safe(domain.record.get("provider_recoveries", []))
         need(record["source_sha256"] == {name: digest(ROOT / name) for name in names}, "gate/build source drift")
@@ -814,6 +829,8 @@ def verify(*, execute, seed, seed_head_sha256, build, runtime, output, mcp_relea
         record["traceback"] = traceback.format_exc()
     finally:
         if domain is not None:
+            if original_pump is not None:
+                domain.pump = original_pump
             pending = getattr(domain, "o10_pending", None)
             record["pending_mechanism"] = safe(pending)
             if pending is not None:
