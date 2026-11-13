@@ -1,0 +1,5 @@
+{
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "test_real_reset_helpers_and_image_boundaries (tests.test_o10_linux_reset_native.LinuxResetNativeTests.test_real_reset_helpers_and_image_boundaries) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 2.604s\n\nOK\n"
+}

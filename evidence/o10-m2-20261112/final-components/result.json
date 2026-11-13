@@ -1,0 +1,37 @@
+[
+  {
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "-v",
+      "tests.test_o10_linux_reset_native",
+      "tests.test_kernel_world_virtio_backend",
+      "tests.test_kernel_world_block_alias",
+      "tests.test_kernel_world_net",
+      "tests.test_kernel_world_9p_transport",
+      "tests.test_language_sources"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "test_real_reset_helpers_and_image_boundaries (tests.test_o10_linux_reset_native.LinuxResetNativeTests.test_real_reset_helpers_and_image_boundaries) ... ok\ntest_production_block_backend_selftests (tests.test_kernel_world_virtio_backend.KernelWorldVirtioBackendTests.test_production_block_backend_selftests) ... ok\ntest_legal_readonly_aliases_and_writable_metadata_ring_isolation (tests.test_kernel_world_block_alias.BlockAliasTests.test_legal_readonly_aliases_and_writable_metadata_ring_isolation) ... ok\ntest_real_frontend_queue_and_frame_validation (tests.test_kernel_world_net.KernelWorldNetTests.test_real_frontend_queue_and_frame_validation) ... ok\ntest_real_transport_and_server_share_authorized_objects (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_and_server_share_authorized_objects) ... ok\ntest_real_transport_memory_and_protocol_boundary (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_memory_and_protocol_boundary) ... ok\ntest_coverage_must_name_tracked_harness (tests.test_language_sources.LanguageSourcesTests.test_coverage_must_name_tracked_harness) ... ok\ntest_duplicate_source_fails (tests.test_language_sources.LanguageSourcesTests.test_duplicate_source_fails) ... ok\ntest_expected_failure_does_not_hide_tool_crash (tests.test_language_sources.LanguageSourcesTests.test_expected_failure_does_not_hide_tool_crash) ... ok\ntest_expected_failure_requires_specific_reason_and_diagnostic (tests.test_language_sources.LanguageSourcesTests.test_expected_failure_requires_specific_reason_and_diagnostic) ... ok\ntest_new_tracked_file_requires_classification (tests.test_language_sources.LanguageSourcesTests.test_new_tracked_file_requires_classification) ... ok\ntest_non_parse_success_cannot_pass (tests.test_language_sources.LanguageSourcesTests.test_non_parse_success_cannot_pass) ... ok\ntest_package_mirror_drift_fails (tests.test_language_sources.LanguageSourcesTests.test_package_mirror_drift_fails) ... ok\ntest_paths_cannot_escape_root (tests.test_language_sources.LanguageSourcesTests.test_paths_cannot_escape_root) ... ok\ntest_repository_has_complete_declared_coverage (tests.test_language_sources.LanguageSourcesTests.test_repository_has_complete_declared_coverage) ... ok\ntest_stale_manifest_entry_fails (tests.test_language_sources.LanguageSourcesTests.test_stale_manifest_entry_fails) ... ok\ntest_timeout_is_failure (tests.test_language_sources.LanguageSourcesTests.test_timeout_is_failure) ... ok\ntest_unexpected_success_of_negative_fixture_fails (tests.test_language_sources.LanguageSourcesTests.test_unexpected_success_of_negative_fixture_fails) ... ok\ntest_untracked_work_is_not_included (tests.test_language_sources.LanguageSourcesTests.test_untracked_work_is_not_included) ... ok\n\n----------------------------------------------------------------------\nRan 19 tests in 5.458s\n\nOK\n"
+  },
+  {
+    "argv": [
+      "python3",
+      "scripts/check_language_sources.py",
+      "check",
+      "--o-bin",
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+      "--ocorec",
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "--jobs",
+      "2",
+      "--json-report",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/final-components/language-sources.json"
+    ],
+    "returncode": 0,
+    "stdout": "language-sources: 262 classified (86 .O, 176 .oc); 262 parsed as expected; 0 failed; 0 programs executed\n",
+    "stderr": ""
+  }
+]

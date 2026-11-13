@@ -5,6 +5,7 @@ use runtime::aarch64::kernel_world_virtio::mmio_read as device_read;
 use runtime::aarch64::kernel_world_virtio::mmio_write as device_write;
 use runtime::aarch64::kernel_world_virtio::poll as device_poll;
 use runtime::aarch64::kernel_world_virtio::healthy as device_healthy;
+use runtime::aarch64::kernel_world_virtio::fault_kind as device_fault_kind;
 use runtime::aarch64::kernel_world_virtio::diagnostic as device_diagnostic;
 use runtime::aarch64::kernel_world_virtio::detail as device_detail;
 use runtime::aarch64::kernel_world_virtio::arm_hold_next_read;
@@ -14,6 +15,18 @@ use runtime::aarch64::kernel_world_virtio::note_guest_consumed;
 use runtime::aarch64::kernel_world_virtio::successes;
 use runtime::aarch64::kernel_world_virtio::ioerrs;
 use runtime::aarch64::kernel_world_virtio::generation;
+use runtime::aarch64::kernel_world_virtio::can_detach as block_can_detach;
+use runtime::aarch64::kernel_world_virtio::detach as block_detach;
+use runtime::aarch64::kernel_world_virtio::can_provision as block_can_provision;
+use runtime::aarch64::kernel_world_net::can_detach as net_can_detach;
+use runtime::aarch64::kernel_world_net::detach as net_detach;
+use runtime::aarch64::kernel_world_net::can_provision as net_can_provision;
+use runtime::aarch64::kernel_world_net::provision as net_provision;
+use runtime::aarch64::kernel_world_9p::can_detach as ns_can_detach;
+use runtime::aarch64::kernel_world_9p::detach as ns_detach;
+use runtime::aarch64::kernel_world_9p::can_provision as ns_can_provision;
+use runtime::aarch64::kernel_world_9p::provision as ns_provision;
+use runtime::aarch64::kernel_world_9p::bound as ns_bound;
 use runtime::aarch64::kernel_world_virtio::configure_backing;
 use runtime::aarch64::kernel_world_virtio_selftest::run as device_selftest;
 use runtime::aarch64::kernel_world_virtio_selftest::run_backing as backing_selftest;
@@ -32,6 +45,7 @@ use runtime::aarch64::kernel_world_9p::poll as namespace_poll;
 use runtime::aarch64::kernel_world_9p::mmio_read as namespace_read;
 use runtime::aarch64::kernel_world_9p::mmio_write as namespace_write;
 use runtime::aarch64::kernel_world_9p::healthy as namespace_device_healthy;
+use runtime::aarch64::kernel_world_9p::fault_kind as namespace_fault_kind;
 use runtime::aarch64::kernel_world_9p::diagnostic as namespace_diagnostic;
 use runtime::aarch64::kernel_world_net_host::init as network_host_init;
 use runtime::aarch64::kernel_world_net_host::poll as network_host_poll;
@@ -43,6 +57,7 @@ use runtime::aarch64::kernel_world_net::poll as network_poll;
 use runtime::aarch64::kernel_world_net::mmio_read as network_read;
 use runtime::aarch64::kernel_world_net::mmio_write as network_write;
 use runtime::aarch64::kernel_world_net::healthy as network_healthy;
+use runtime::aarch64::kernel_world_net::fault_kind as network_fault_kind;
 use runtime::aarch64::kernel_world_net::denials as network_denials;
 
 extern "ocore" fn kw_serial_putc(byte: u64) -> void;
@@ -535,4 +550,213 @@ pub unsafe fn kw_handle_exit(frame_address: usize, esr: u64, far: u64, hpfar: u6
 @no_mangle
 pub unsafe fn kw_unexpected_exit(esr: u64, far: u64, pc: u64) -> never {
     terminal(esr, far, pc);
+}
+
+
+// Persistent unified-world entry points return a disposition to the owning
+// scheduler. Guest MMIO/queue rejection must not invoke the standalone
+// profile's terminal policy. 0 = accepted, 2 = guest fault, 3 = internal fault.
+// Called only by the serialized EL2 executor; this is not a guest interface.
+static mut CHECKED_DIAGNOSTIC: u64 = 0;
+static mut CHECKED_DETAIL: u64 = 0;
+pub unsafe fn checked_diagnostic() -> u64 { return CHECKED_DIAGNOSTIC; }
+pub unsafe fn checked_detail() -> u64 { return CHECKED_DETAIL; }
+
+unsafe fn checked_progress() -> u64 {
+    uart_poll_receive();
+    if NAMESPACE == 1 {
+        if namespace_healthy() != 1 {
+            CHECKED_DIAGNOSTIC = 0x1019; CHECKED_DETAIL = namespace_diagnostic(); return 3;
+        }
+        let prior: u64 = namespace_fault_kind();
+        if prior != 0 { CHECKED_DIAGNOSTIC = 0x1111; CHECKED_DETAIL = namespace_diagnostic(); return prior; }
+        namespace_poll();
+        let now: u64 = kw_counter_read();
+        if now >= PEER_NEXT {
+            PEER_NEXT = now + kw_counter_frequency() / 10;
+            namespace_peer_poll();
+        }
+        if namespace_healthy() != 1 {
+            CHECKED_DIAGNOSTIC = 0x1019; CHECKED_DETAIL = namespace_diagnostic(); return 3;
+        }
+        let fault: u64 = namespace_fault_kind();
+        if fault != 0 { CHECKED_DIAGNOSTIC = 0x1111; CHECKED_DETAIL = namespace_diagnostic(); return fault; }
+    }
+    if NETWORK == 1 {
+        let prior: u64 = network_fault_kind();
+        if prior != 0 { CHECKED_DIAGNOSTIC = 0x1112; CHECKED_DETAIL = network_denials(); return prior; }
+        network_host_poll();
+        if network_host_healthy() != 1 {
+            CHECKED_DIAGNOSTIC = 0x1016; CHECKED_DETAIL = network_host_diagnostic(); return 3;
+        }
+        network_poll();
+        if network_host_healthy() != 1 {
+            CHECKED_DIAGNOSTIC = 0x1016; CHECKED_DETAIL = network_host_diagnostic(); return 3;
+        }
+        let fault: u64 = network_fault_kind();
+        if fault != 0 { CHECKED_DIAGNOSTIC = 0x1112; CHECKED_DETAIL = network_denials(); return fault; }
+    }
+    let prior: u64 = device_fault_kind();
+    if prior != 0 { CHECKED_DIAGNOSTIC = 0x1113; CHECKED_DETAIL = device_diagnostic(); return prior; }
+    let status: u64 = device_poll();
+    if status == 2 { CHECKED_DIAGNOSTIC = 0x1014; CHECKED_DETAIL = status; return 3; }
+    let fault: u64 = device_fault_kind();
+    if fault != 0 { CHECKED_DIAGNOSTIC = 0x1113; CHECKED_DETAIL = device_diagnostic(); return fault; }
+    return 0;
+}
+
+// Functional virtual-console register corpus; not a complete PL011 model.
+// Configuration registers retain readback state. The mediated byte stream
+// has no physical baud clock, modem wires, IrDA engine or DMA channel.
+unsafe fn checked_uart_readable(offset: u64) -> bool {
+    return offset == 0 || offset == 4 || offset == 0x18 || offset == 0x20
+        || offset == 0x24 || offset == 0x28 || offset == 0x2c || offset == 0x30
+        || offset == 0x34 || offset == 0x38 || offset == 0x3c || offset == 0x40
+        || offset == 0x48 || offset == 0xfe0 || offset == 0xfe4
+        || offset == 0xfe8 || offset == 0xfec || offset == 0xff0
+        || offset == 0xff4 || offset == 0xff8 || offset == 0xffc;
+}
+unsafe fn checked_uart_writable(offset: u64, value: u64) -> bool {
+    if offset == 0 { return true; }
+    if offset == 4 { return true; } // Clear the modeled receive-error latch.
+    if offset == 0x20 || offset == 0x48 { return value == 0; } // IrDA/DMA absent.
+    if offset == 0x24 { return value <= 0xffff; }
+    if offset == 0x28 { return value <= 0x3f; }
+    // Qualified Linux console is 8N1, with FIFO on or off, and disabled setup.
+    if offset == 0x2c { return value == 0 || value == 0x60 || value == 0x70; }
+    if offset == 0x30 { return (value & ~0xf01) == 0; }
+    if offset == 0x34 { return value == 0 || value == 0x12; }
+    if offset == 0x38 { return value <= 0x7ff; }
+    // Linux6.12.43 pl011_register_port clears pending IRQs with0xffff.
+    // Only implemented ICR bits are applied below; this adds no DMA mode.
+    if offset == 0x44 { return value <= 0x7ff || value == 0xffff; }
+    return false;
+}
+
+pub unsafe fn kw_handle_exit_checked(frame_address: usize, esr: u64, far: u64, hpfar: u64) -> u64 {
+    // The finite standalone withdrawal profile retains its existing handler.
+    if PERSISTENT != 1 { CHECKED_DIAGNOSTIC = 0x1110; return 3; }
+    let frame: *mut u64 = frame_address as *mut u64;
+    let ec: u64 = esr >> 26;
+    let pc: u64 = volatile_load(frame + 31);
+    let ipa: u64 = ((hpfar & 0xffff_fff0) << 8) | (far & 0xfff);
+    if ec == 1 && (esr & 1) == 0 {
+        let result: u64 = checked_progress();
+        if result == 0 { volatile_store(frame + 31, pc + 4); }
+        return result;
+    }
+    // Unified world handles PSCI, GIC, sysregs and WFx itself.
+    if ec != 0x24 || (esr & (1 << 24)) == 0 || (esr & (1 << 25)) == 0
+        || (esr & (1 << 10)) != 0 || (esr & (1 << 7)) != 0 { return 2; }
+    let width: u64 = (1 as u64) << (((esr >> 22) & 3) as usize);
+    let register: usize = ((esr >> 16) & 31) as usize;
+    let writing: bool = (esr & 64) != 0;
+    if width > 4 || (ipa & (width - 1)) != 0 { return 2; }
+    let mut value: u64 = 0;
+    if register != 31 { value = volatile_load(frame + register); }
+    // STRB/STRH/STRW consume only the decoded access width. Saved upper
+    // register bits are not part of the device write or its mode validation.
+    if writing { value &= ((1 as u64) << ((width * 8) as usize)) - 1; }
+    if ipa >= 0x0900_0000 && ipa + width <= 0x0900_1000 {
+        let offset: u64 = ipa - 0x0900_0000;
+        if writing {
+            if !checked_uart_writable(offset, value) { return 2; }
+            if offset == 0x44 { value &= 0x7ff; }
+            if offset == 4 { UART_REGS[1] = 0; }
+            else { uart_write(offset, value); }
+        } else {
+            if !checked_uart_readable(offset) { return 2; }
+            value = uart_read(offset);
+        }
+    } else if ipa >= 0x0a00_0000 && ipa + width <= 0x0a00_0200 {
+        let offset: u64 = ipa - 0x0a00_0000;
+        if writing {
+            if width != 4 { return 2; }
+            if device_write(offset, value & 0xffff_ffff) != 1 {
+                if device_fault_kind() == 3 {
+                    CHECKED_DIAGNOSTIC = 0x1113; CHECKED_DETAIL = device_diagnostic(); return 3;
+                }
+                return 2;
+            }
+        } else {
+            if offset < 0x100 && width != 4 { return 2; }
+            value = device_read(offset & 0xffff_fffc) >> (((offset & 3) * 8) as usize);
+        }
+    } else { if NETWORK == 1 && ipa >= 0x0a00_0200 && ipa + width <= 0x0a00_0400 {
+        let offset: u64 = ipa - 0x0a00_0200;
+        if writing {
+            if width != 4 { return 2; }
+            if network_write(offset, value & 0xffff_ffff) != 1 {
+                if network_fault_kind() == 3 {
+                    CHECKED_DIAGNOSTIC = 0x1112; CHECKED_DETAIL = network_denials(); return 3;
+                }
+                return 2;
+            }
+        } else {
+            if offset < 0x100 && width != 4 { return 2; }
+            value = network_read(offset & 0xffff_fffc) >> (((offset & 3) * 8) as usize);
+        }
+    } else { if NAMESPACE == 1 && ipa >= 0x0a00_0400 && ipa + width <= 0x0a00_0600 {
+        let offset: u64 = ipa - 0x0a00_0400;
+        if writing {
+            if width != 4 { return 2; }
+            if namespace_write(offset, value & 0xffff_ffff) != 1 {
+                if namespace_fault_kind() == 3 {
+                    CHECKED_DIAGNOSTIC = 0x1111; CHECKED_DETAIL = namespace_diagnostic(); return 3;
+                }
+                return 2;
+            }
+        } else {
+            if offset < 0x100 && width != 4 { return 2; }
+            value = namespace_read(offset & 0xffff_fffc) >> (((offset & 3) * 8) as usize);
+        }
+    } else { return 2; } } }
+    if !writing && register != 31 {
+        let mask: u64 = ((1 as u64) << ((width * 8) as usize)) - 1; value &= mask;
+        if (esr & (1 << 21)) != 0 && (value & ((1 as u64) << ((width * 8 - 1) as usize))) != 0 { value |= ~mask; }
+        if (esr & (1 << 15)) == 0 { value &= 0xffff_ffff; }
+        volatile_store(frame + register, value);
+    }
+    volatile_store(frame + 31, pc + 4);
+    return checked_progress();
+}
+
+
+// Linux-only serialized lifecycle. The unified scheduler must first stop the
+// vCPU and route its interrupts off. None of these calls reinitialize the
+// shared namespace store, independent peer or physical network backend.
+pub unsafe fn kw_linux_detach(block: u64, net: u64, ns: u64) -> u64 {
+    if block_can_detach(block) != 1 { return 0; }
+    if NETWORK == 1 && net_can_detach(net) != 1 { return 0; }
+    if NAMESPACE == 1 && ns_can_detach(ns) != 1 { return 0; }
+    RAM_LIVE = 0;
+    kw_uart_irq_level(0);
+    if NAMESPACE == 1 && ns_detach(ns) != 1 { return 0; }
+    if NETWORK == 1 && net_detach(net) != 1 { return 0; }
+    return block_detach(block);
+}
+pub unsafe fn kw_linux_provision(block: u64, net: u64, ns: u64) -> u64 {
+    if RAM_LIVE != 0 || block_can_provision(block) != 1 { return 0; }
+    if NETWORK == 1 && net_can_provision(net) != 1 { return 0; }
+    if NAMESPACE == 1 && ns_can_provision(ns) != 1 { return 0; }
+    // All fallible generation/state checks precede mutation. These fixed
+    // ranges have already passed cold boot profile admission.
+    if device_init(GUEST_BASE, GUEST_SIZE, block) != 1 { return 0; }
+    if NETWORK == 1 && net_provision(GUEST_BASE, GUEST_SIZE, net) != 1 { return 0; }
+    if NAMESPACE == 1 && ns_provision(GUEST_BASE, GUEST_SIZE, ns) != 1 { return 0; }
+    HEALTH_SEEN = 0; CONSUMED_SEEN = 0; ALIVE_SEEN = 0; WITHDRAWAL = 0;
+    LINE_LENGTH = 0; LINE_OVERFLOW = 0; UART_RX_HEAD = 0; UART_RX_COUNT = 0;
+    let mut index: usize = 0;
+    while index < 64 { UART_REGS[index] = 0; index += 1; }
+    index = 0;
+    while index < 256 { UART_RX[index] = 0; LINE[index] = 0; index += 1; }
+    uart_interrupt();
+    return 1;
+}
+pub unsafe fn kw_linux_activate() -> u64 {
+    if RAM_LIVE != 0 || device_fault_kind() != 0 { return 0; }
+    if NETWORK == 1 && network_fault_kind() != 0 { return 0; }
+    if NAMESPACE == 1 && (namespace_fault_kind() != 0 || ns_bound() != 1) { return 0; }
+    RAM_LIVE = 1;
+    return 1;
 }

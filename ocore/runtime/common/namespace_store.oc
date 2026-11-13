@@ -60,6 +60,11 @@ static mut OUT: usize = 0;
 static mut TAG: u64 = 0;
 
 static VERSION: [u8; 6] = b"9P2000";
+static VERSION_U: [u8; 8] = b"9P2000.u";
+// Internal opaque session token = (monotonic serial << 1) | negotiated.u.
+// The bit is representation metadata only. Every operation still validates
+// the full current token. It is NOT O10's published generation/slot handle.
+static mut DIALECT_U: bool = false;
 static OWNER: [u8; 5] = b"ocore";
 static README: [u8; 163] = b"O-core owns this namespace. Linux and the native Plan 9 wire peer share these objects through separately granted 9P2000 sessions. Full Plan 9 ABI is not provided.\n";
 static ERR_PROTOCOL: [u8; 14] = b"Protocol error";
@@ -337,9 +342,9 @@ pub unsafe fn revoke(grant: u64) -> u64 {
 pub unsafe fn session_init(grant: u64, generation: u64) -> u64 {
     if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 || generation == 0 { return 0; }
     let slot: usize = grant as usize;
-    if generation <= GENERATION[slot] || SERIAL == 0xffff_ffff_ffff_ffff { return 0; }
+    if generation <= GENERATION[slot] || SERIAL == 0x7fff_ffff_ffff_ffff { return 0; }
     clear_fids(SESSION[slot]); SERIAL += 1;
-    let handle: u64 = SERIAL;
+    let handle: u64 = SERIAL << 1;
     SESSION[slot] = handle; GENERATION[slot] = generation; VERSIONED[slot] = 0; MSIZE[slot] = MAX_FRAME;
     return handle;
 }
@@ -396,9 +401,17 @@ unsafe fn operation_fid(grant: usize, handle: u64, number: u64) -> usize {
     if !valid_fid(index, grant) { return FID_COUNT; }
     return index;
 }
-unsafe fn operation_version(grant: usize, handle: u64, size: usize) -> usize {
+unsafe fn operation_version(grant: usize, handle: u64, size: usize, dotu: bool) -> usize {
+    if ((handle & 1) != 0) != dotu {
+        // Issue a fresh token on dialect changes: toggling a guessed bit
+        // never aliases a token that has been issued for this session.
+        if SERIAL == 0x7fff_ffff_ffff_ffff { return 0; }
+        SERIAL += 1; let mut next: u64 = SERIAL << 1;
+        if dotu { next = next | 1; }
+        SESSION[grant] = next;
+    }
     let mut agreed: usize = size; if agreed > MAX_FRAME { agreed = MAX_FRAME; }
-    clear_fids(handle); VERSIONED[grant] = 1; MSIZE[grant] = agreed; return agreed;
+    clear_fids(handle); VERSIONED[grant] = 1; MSIZE[grant] = agreed; DIALECT_U = dotu; return agreed;
 }
 unsafe fn prepare_attach(grant: usize, handle: u64, number: u64, result: *mut usize) -> u64 {
     if grant == 0 || grant >= GRANT_SLOTS || current_grant(handle) != grant || VERSIONED[grant] == 0 { return 4; }
@@ -532,7 +545,7 @@ pub unsafe fn local_version(handle: u64, size: usize, result: *mut u64, words: u
     let grant: usize = current_grant(handle); if grant == GRANT_SLOTS { return 4; }
     if size < 256 || size > 0xffff_ffff { return 1; }
     if !local_capacity(result, words, 1) { return 11; }
-    volatile_store(result, operation_version(grant, handle, size) as u64); return 0;
+    volatile_store(result, operation_version(grant, handle, size, (handle & 1) != 0) as u64); return 0;
 }
 pub unsafe fn local_attach(handle: u64, number: u64, result: *mut u64, words: usize) -> u64 {
     let admitted: u64 = local_admission(handle, 19); if admitted != 0 { return admitted; }
@@ -646,6 +659,17 @@ unsafe fn qid(id: usize) -> void {
     emit(metadata_word(id, 0), 1);
     emit(metadata_word(id, 1), 4); emit(metadata_word(id, 2), 8);
 }
+unsafe fn unix_error(code: u64) -> u64 {
+    if code == 1 { return 71; } // EPROTO
+    if code == 2 { return 13; } // EACCES
+    if code == 3 { return 2; } // ENOENT
+    if code == 4 { return 116; } // ESTALE, asm-generic Linux AArch64
+    if code == 5 { return 28; } // ENOSPC
+    if code == 6 { return 17; } // EEXIST
+    if code == 7 { return 20; } // ENOTDIR
+    if code == 8 { return 39; } // ENOTEMPTY
+    return 95; // EOPNOTSUPP
+}
 unsafe fn error(code: u64) -> usize {
     let mut address: usize = (&ERR_PROTOCOL[0]) as usize; let mut count: usize = 14;
     if code == 2 { address = (&ERR_DENIED[0]) as usize; count = 17; }
@@ -656,10 +680,19 @@ unsafe fn error(code: u64) -> usize {
     if code == 7 { address = (&ERR_NOTDIR[0]) as usize; count = 15; }
     if code == 8 { address = (&ERR_NOTEMPTY[0]) as usize; count = 22; }
     if code == 9 { address = (&ERR_UNSUPPORTED[0]) as usize; count = 23; }
-    if !start(107, 9 + count) { return 0; }
-    emit_string(address, count); return OUT;
+    let mut total: usize = 9 + count; if DIALECT_U { total += 4; }
+    if !start(107, total) { return 0; }
+    emit_string(address, count);
+    // Linux6.12.43 client.c consumes the negotiated.u numeric error (<512).
+    // Plain9P2000 keeps the original string-only representation.
+    if DIALECT_U { emit(unix_error(code), 4); }
+    return OUT;
 }
-unsafe fn stat_size(id: usize) -> usize { return 64 + field(id, 64) as usize; }
+unsafe fn stat_size(id: usize) -> usize {
+    let mut size: usize = 64 + field(id, 64) as usize;
+    if DIALECT_U { size += 14; }
+    return size;
+}
 unsafe fn stat(id: usize) -> void {
     // 9P2000 stat including its own two-byte length. Owner strings are native
     // metadata labels; they never establish authority or select a grant.
@@ -668,17 +701,27 @@ unsafe fn stat(id: usize) -> void {
     emit_string(node(id) + 72, field(id, 64) as usize);
     emit_string((&OWNER[0]) as usize, 5); emit_string((&OWNER[0]) as usize, 5);
     emit_string((&OWNER[0]) as usize, 5);
+    if DIALECT_U { emit(0, 2); emit(0, 4); emit(0, 4); emit(0, 4); }
 }
 
 unsafe fn version(grant: usize, handle: u64) -> usize {
     let size: usize = take(4) as usize; let name: usize = string(); let length: usize = STRING_LEN;
-    if !exact() || size < 256 || length != 6 || !equal(name, (&VERSION[0]) as usize, 6) { return error(1); }
-    if !start(101, 19) { return 0; }
-    let agreed: usize = operation_version(grant, handle, size);
-    emit(agreed as u64, 4); emit_string((&VERSION[0]) as usize, 6); return OUT;
+    let dotu: bool = length == 8 && equal(name, (&VERSION_U[0]) as usize, 8);
+    let plain: bool = length == 6 && equal(name, (&VERSION[0]) as usize, 6);
+    if !exact() || size < 256 || (!dotu && !plain) { return error(1); }
+    let mut total: usize = 19; if dotu { total = 21; }
+    if RESPONSE_CAP < total { return 0; }
+    let agreed: usize = operation_version(grant, handle, size, dotu);
+    if agreed == 0 { return error(5); }
+    start(101, total); emit(agreed as u64, 4);
+    if dotu { emit_string((&VERSION_U[0]) as usize, 8); }
+    else { emit_string((&VERSION[0]) as usize, 6); }
+    return OUT;
 }
 unsafe fn attach(grant: usize, handle: u64) -> usize {
     let number: u64 = take(4); let afid: u64 = take(4); string(); string();
+    // Numeric uname, like both text names, is a label, never authority.
+    if DIALECT_U { take(4); }
     if !exact() || number == NOFID || afid != NOFID { return error(1); }
     let mut index: usize = FID_COUNT;
     let result: u64 = prepare_attach(grant, handle, number, &mut index); if result != 0 { return error(result); }
@@ -715,7 +758,10 @@ unsafe fn open(grant: usize, handle: u64, creating: bool) -> usize {
     let mut name: usize = 0; let mut length: usize = 0; let mut permission: u64 = 0;
     if creating { name = string(); length = STRING_LEN; permission = take(4); }
     let mode: u64 = take(1);
+    let mut extension: usize = 0;
+    if creating && DIALECT_U { string(); extension = STRING_LEN; }
     if !exact() || (mode & 0xffff_ffff_ffff_ffec) != 0 { return error(1); }
+    if creating && DIALECT_U && (extension != 0 || (permission & MODE_REJECT) != 0) { return error(9); }
     let mut index: usize = FID_COUNT;
     let prepared: u64 = prepare_open(grant, handle, number, creating, name, length, permission, mode, &mut index);
     if prepared != 0 { return error(prepared); }
@@ -780,13 +826,14 @@ unsafe fn clunk(grant: usize, handle: u64, removing: bool) -> usize {
     let number: u64 = take(4); if !exact() { return error(1); }
     let index: usize = find_fid(handle, number);
     if index == FID_COUNT { return error(4); }
+    let mut error_extra: usize = 0; if DIALECT_U { error_extra = 4; }
     if RESPONSE_CAP < 7 { return 0; }
     // Clunk releases an existing session-local fid even when another fid has
     // already removed its object. Requiring a live object here would leak the
     // old slot on every ordinary unlink/close lifecycle.
     if !removing { apply_clunk(index); start(121, 7); return OUT; }
     if !valid_fid(index, grant) {
-        if RESPONSE_CAP < 36 { return 0; }
+        if RESPONSE_CAP < 36 + error_extra { return 0; }
         apply_clunk(index); return error(4);
     }
     if removing {
@@ -795,15 +842,18 @@ unsafe fn clunk(grant: usize, handle: u64, removing: bool) -> usize {
         // before attempting a removal that may fail, so a too-small output
         // buffer cannot silently revoke a fid without returning any reply.
         let object: usize = F_OBJECT[index];
-        if object <= 5 && RESPONSE_CAP < 26 { return 0; }
+        if object <= 5 {
+            if RESPONSE_CAP < 26 + error_extra { return 0; }
+            apply_clunk(index); return error(2);
+        }
         if directory(object) {
             let mut child: usize = 2;
             while child <= NODE_COUNT {
-                if live(child) && field(child, 8) == object as u64 && RESPONSE_CAP < 31 { return 0; }
+                if live(child) && field(child, 8) == object as u64 && RESPONSE_CAP < 31 + error_extra { return 0; }
                 child += 1;
             }
         }
-        if !next_version(field(object, 8) as usize) && RESPONSE_CAP < 32 { return 0; }
+        if !next_version(field(object, 8) as usize) && RESPONSE_CAP < 32 + error_extra { return 0; }
         let result: u64 = remove_object(object);
         // A remove clunks its fid even when removal fails, per 9P2000.
         apply_clunk(index); if result != 0 { return error(result); }
@@ -825,7 +875,13 @@ unsafe fn wstat(grant: usize, handle: u64) -> usize {
     let mode: u64 = take(4); let atime: u64 = take(4); let mtime: u64 = take(4); let length: u64 = take(8);
     let name: usize = string(); let name_length: usize = STRING_LEN;
     string(); let uid_length: usize = STRING_LEN; string(); let gid_length: usize = STRING_LEN; string(); let muid_length: usize = STRING_LEN;
+    let mut extension_length: usize = 0;
+    let mut nuid: u64 = 0xffff_ffff; let mut ngid: u64 = 0xffff_ffff; let mut nmuid: u64 = 0xffff_ffff;
+    if DIALECT_U { string(); extension_length = STRING_LEN; nuid = take(4); ngid = take(4); nmuid = take(4); }
     if !exact() || packed != POSITION - begin || inner + 2 != packed { return error(1); }
+    if extension_length != 0 { return error(9); }
+    if (nuid != 0 && nuid != 0xffff_ffff) || (ngid != 0 && ngid != 0xffff_ffff)
+        || (nmuid != 0 && nmuid != 0xffff_ffff) { return error(2); }
     let index: usize = find_fid(handle, number); if !valid_fid(index, grant) { return error(4); }
     if !writable(grant) { return error(2); }
     // Identity, ownership, qid and device type cannot be chosen over the wire.
@@ -861,6 +917,10 @@ pub unsafe fn handle(session: u64, request: *const u8, req_len: usize, response:
     REQUEST = request as usize; REQUEST_LEN = req_len; RESPONSE = response as usize; RESPONSE_CAP = response_cap;
     if RESPONSE_CAP > MAX_FRAME { RESPONSE_CAP = MAX_FRAME; }
     TAG = le(REQUEST + 5, 2); POSITION = 7; BAD = 0; OUT = 0;
+    // Transport supplied this trusted opaque name. The bit never admits an
+    // operation: full-token current_grant validation below remains mandatory.
+    // Revoked.u tokens retain their error dialect without retaining rights.
+    DIALECT_U = (session & 1) != 0;
     if le(REQUEST, 4) != req_len as u64 { return error(1); }
     let grant: usize = current_grant(session);
     if grant == GRANT_SLOTS { return error(4); }

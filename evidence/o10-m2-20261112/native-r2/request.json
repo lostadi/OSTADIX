@@ -1,0 +1,6 @@
+{
+  "source": "python^( exec(\"import subprocess,json,os; p=subprocess.run(['python3','-m','unittest','-v','tests.test_o10_linux_reset_native'],cwd='/home/ustad/OSTADIX-o10-m2-20261112',env=dict(os.environ,OCOREC_BIN='/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec'),capture_output=True,text=True); print(json.dumps(dict(returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)))\") )_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "background": true,
+  "timeout_secs": 0
+}

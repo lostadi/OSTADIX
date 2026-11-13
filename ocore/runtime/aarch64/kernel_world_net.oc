@@ -387,3 +387,39 @@ pub unsafe fn transmitted() -> u64 { return TX_COUNT; }
 pub unsafe fn received() -> u64 { return RX_COUNT; }
 pub unsafe fn denials() -> u64 { return DENIED_COUNT; }
 pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && (STATUS & 192) == 0) as u64; }
+
+
+// Trusted persistent-supervisor disposition: unprovisioned mechanism state
+// is not guest queue corruption. No guest field selects this classification.
+pub unsafe fn fault_kind() -> u64 {
+    if ACTIVE != 1 { return 3; }
+    if (STATUS & 192) != 0 { return 2; }
+    return 0;
+}
+
+
+// Outer NIC lifetime is independent; this detaches only Linux's frontend.
+pub unsafe fn generation() -> u64 { return GENERATION; }
+pub unsafe fn can_detach(expected: u64) -> u64 {
+    return (expected != 0 && expected == GENERATION && ACTIVE == 1) as u64;
+}
+pub unsafe fn detach(expected: u64) -> u64 {
+    if can_detach(expected) != 1 { return 0; }
+    ACTIVE = 0;
+    reset_transport();
+    RAM_BASE = 0; RAM_SIZE = 0;
+    let mut index: usize = 0;
+    while index < 32 { IDS[index] = 0; ADDRESSES[index] = 0; LENGTHS[index] = 0; index += 1; }
+    index = 0;
+    while index < 1514 { TX_FRAME[index] = 0; RX_FRAME[index] = 0; index += 1; }
+    return 1;
+}
+
+
+pub unsafe fn can_provision(next: u64) -> u64 {
+    return (ACTIVE == 0 && next != 0 && next <= 0xffff_ffff && next > GENERATION) as u64;
+}
+pub unsafe fn provision(guest_base: u64, guest_size: u64, next: u64) -> u64 {
+    if can_provision(next) != 1 { return 0; }
+    return init(guest_base, guest_size, next);
+}

@@ -1,0 +1,197 @@
+{
+  "commands_and_cases": [
+    {
+      "command": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc",
+        "--target",
+        "aarch64-unknown-none",
+        "--emit",
+        "mir",
+        "-o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.arm.mir"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.o"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/usr/bin/objcopy",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__READY",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__EPOCH",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__SERIAL",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__CLOCK",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__USED",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__FREE_BLOCKS",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__SESSION",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__GENERATION",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__VERSIONED",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__MSIZE",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_SESSION",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_NUMBER",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_OBJECT",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_GENERATION",
+        "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_MODE",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.inspectable.o"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+        "--target",
+        "aarch64-unknown-none",
+        "--emit",
+        "mir",
+        "-o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.arm.mir"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.o"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/usr/bin/objcopy",
+        "--globalize-symbol=_O_runtime__common__namespace_store__READY",
+        "--globalize-symbol=_O_runtime__common__namespace_store__EPOCH",
+        "--globalize-symbol=_O_runtime__common__namespace_store__SERIAL",
+        "--globalize-symbol=_O_runtime__common__namespace_store__CLOCK",
+        "--globalize-symbol=_O_runtime__common__namespace_store__USED",
+        "--globalize-symbol=_O_runtime__common__namespace_store__FREE_BLOCKS",
+        "--globalize-symbol=_O_runtime__common__namespace_store__SESSION",
+        "--globalize-symbol=_O_runtime__common__namespace_store__GENERATION",
+        "--globalize-symbol=_O_runtime__common__namespace_store__VERSIONED",
+        "--globalize-symbol=_O_runtime__common__namespace_store__MSIZE",
+        "--globalize-symbol=_O_runtime__common__namespace_store__F_SESSION",
+        "--globalize-symbol=_O_runtime__common__namespace_store__F_NUMBER",
+        "--globalize-symbol=_O_runtime__common__namespace_store__F_OBJECT",
+        "--globalize-symbol=_O_runtime__common__namespace_store__F_GENERATION",
+        "--globalize-symbol=_O_runtime__common__namespace_store__F_MODE",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.inspectable.o"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/usr/bin/clang",
+        "-O2",
+        "-no-pie",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/harness.c",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.inspectable.o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.inspectable.o",
+        "-o",
+        "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest"
+      ],
+      "exit_code": 0
+    },
+    {
+      "scenario": 0,
+      "exit_code": 0,
+      "stdout": "paired operations=9 whole-volume/state comparisons=10\nnative namespace scenario 0: PASS\n"
+    },
+    {
+      "scenario": 1,
+      "exit_code": 0,
+      "stdout": "paired operations=82 whole-volume/state comparisons=83\nnative namespace scenario 1: PASS\n"
+    },
+    {
+      "scenario": 2,
+      "exit_code": 0,
+      "stdout": "paired operations=28 whole-volume/state comparisons=29\nnative namespace scenario 2: PASS\n"
+    },
+    {
+      "scenario": 3,
+      "exit_code": 0,
+      "stdout": "paired operations=42 whole-volume/state comparisons=43\nnative namespace scenario 3: PASS\n"
+    },
+    {
+      "scenario": 4,
+      "exit_code": 0,
+      "stdout": "paired operations=3068 whole-volume/state comparisons=3070\nnative namespace scenario 4: PASS\n"
+    },
+    {
+      "scenario": 5,
+      "exit_code": 0,
+      "stdout": "paired operations=2054 whole-volume/state comparisons=2056\nnative namespace scenario 5: PASS\n"
+    },
+    {
+      "scenario": 6,
+      "exit_code": 0,
+      "stdout": "paired operations=3 whole-volume/state comparisons=5\nnative namespace scenario 6: PASS\n"
+    },
+    {
+      "scenario": 7,
+      "exit_code": 0,
+      "stdout": "paired operations=3 whole-volume/state comparisons=5\nnative namespace scenario 7: PASS\n"
+    },
+    {
+      "scenario": 8,
+      "exit_code": 0,
+      "stdout": "paired operations=9 whole-volume/state comparisons=11\nnative namespace scenario 8: PASS\n"
+    },
+    {
+      "scenario": 9,
+      "exit_code": 0,
+      "stdout": "paired operations=3 whole-volume/state comparisons=5\nnative namespace scenario 9: PASS\n"
+    },
+    {
+      "scenario": 10,
+      "exit_code": 0,
+      "stdout": "paired operations=3 whole-volume/state comparisons=5\nnative namespace scenario 10: PASS\n"
+    },
+    {
+      "scenario": 11,
+      "exit_code": 0,
+      "stdout": "paired operations=49 whole-volume/state comparisons=50\nnative namespace scenario 11: PASS\n"
+    },
+    {
+      "scenario": 12,
+      "exit_code": 0,
+      "stdout": "paired operations=12 whole-volume/state comparisons=14\nnative namespace scenario 12: PASS\n"
+    },
+    {
+      "scenario": 13,
+      "exit_code": 0,
+      "stdout": "paired operations=147 whole-volume/state comparisons=148\nnative namespace scenario 13: PASS\n"
+    },
+    {
+      "scenario": 14,
+      "exit_code": 0,
+      "stdout": "paired operations=610 whole-volume/state comparisons=611\nnative namespace scenario 14: PASS\n"
+    },
+    {
+      "scenario": 15,
+      "exit_code": 0,
+      "stdout": "paired operations=3592 whole-volume/state comparisons=3593\nnative namespace scenario 15: PASS\n"
+    }
+  ],
+  "baseline_sha256": "13cffe0c19b455314f23e8a53914b585ba43d19d606c07c3f6706793c5f41c53",
+  "current_sha256": "e1c1e24e02ab7179dca982ff0835e58ba6cabdc2c3a012ff1104209f1577cf3e"
+}

@@ -4,6 +4,8 @@ module runtime::aarch64::kernel_world_9p;
 // No host filesystem, guest fid or path string grants ambient authority.
 use runtime::common::namespace_store::session_init;
 use runtime::common::namespace_store::handle;
+use runtime::common::namespace_store::session_handle;
+use runtime::common::namespace_store::revoke_if_current;
 
 extern "ocore" fn kw_guest_address(gpa: u64, length: u64) -> usize;
 extern "ocore" fn kw_memory_barrier() -> void;
@@ -18,6 +20,7 @@ static mut ACTIVE: u64 = 0;
 static mut GENERATION: u64 = 0;
 static mut SESSION: u64 = 0;
 static mut SESSION_EPOCH: u64 = 0;
+static mut BOUND: u64 = 0;
 static mut RAM_BASE: u64 = 0;
 static mut RAM_SIZE: u64 = 0;
 static mut STATUS: u64 = 0;
@@ -101,6 +104,7 @@ unsafe fn reset_transport() -> u64 {
     LAST_USED = 0;
     INTERRUPT = 0;
     ERROR = 0;
+    if BOUND != 1 { SESSION = 0; kw_9p_irq_level(0); return 1; }
     if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return fail(1); }
     SESSION_EPOCH += 1;
     SESSION = session_init(LINUX_NAMESPACE_GRANT, SESSION_EPOCH);
@@ -116,6 +120,7 @@ pub unsafe fn init(guest_base: u64, guest_size: u64, generation: u64) -> u64 {
     RAM_SIZE = guest_size;
     GENERATION = generation;
     ACTIVE = 1;
+    BOUND = 1;
     DENIED_COUNT = 0;
     COMPLETED = 0;
     return reset_transport();
@@ -178,6 +183,7 @@ pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
     }
     if offset == 48 { QUEUE_SEL = value; return 1; }
     if offset == 112 {
+        if (value & 4) != 0 && BOUND != 1 { return fail(32); }
         if (value & STATUS) != STATUS { return fail(12); }
         if (value & 8) != 0 && ((DRIVER_LOW & ~1) != 0 || DRIVER_HIGH != 1) {
             STATUS = value & ~8;
@@ -267,6 +273,7 @@ unsafe fn wire_u32(pointer: *const u8) -> usize {
 }
 
 pub unsafe fn poll() -> u64 {
+    if BOUND != 1 { if (STATUS & 4) != 0 { return fail(32); } return 0; }
     if ACTIVE != 1 || (STATUS & 4) == 0 || (STATUS & 192) != 0 { return 0; }
     if QUEUE_READY != 1 || !queue_valid() { return fail(30); }
     let mut completed: u64 = 0;
@@ -298,6 +305,12 @@ pub unsafe fn poll() -> u64 {
         let reply: usize = handle(SESSION, (&REQUEST[0]), READ_TOTAL, (&mut RESPONSE[0]), capacity);
         if reply < 7 || reply > capacity || wire_u32((&RESPONSE[0])) != reply {
             return fail(50);
+        }
+        if REQUEST[4] == 100 && RESPONSE[4] == 101 {
+            // Version changes replace only the internal opaque session token.
+            // Adopt it from the trusted store, never from a guest field.
+            SESSION = session_handle(LINUX_NAMESPACE_GRANT);
+            if SESSION == 0 { return fail(1); }
         }
         if RESPONSE[5] != REQUEST[5] || RESPONSE[6] != REQUEST[6]
             || (RESPONSE[4] != 107 && RESPONSE[4] as u64 != REQUEST[4] as u64 + 1) {
@@ -334,3 +347,64 @@ pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && (STATUS & 192) == 0) as 
 pub unsafe fn diagnostic() -> u64 { return ERROR; }
 pub unsafe fn completions() -> u64 { return COMPLETED; }
 pub unsafe fn denials() -> u64 { return DENIED_COUNT; }
+
+
+// ERROR1 is a trusted session-generation/reset failure, not a malformed
+// guest descriptor. The persistent supervisor must diagnose it internally.
+pub unsafe fn fault_kind() -> u64 {
+    if ACTIVE != 1 || ERROR == 1 { return 3; }
+    if (STATUS & 192) != 0 { return 2; }
+    return 0;
+}
+
+
+// Compare against both transport generation and current store owner before
+// changing anything: a stale lifecycle caller cannot revoke a rebound wire.
+pub unsafe fn generation() -> u64 { return GENERATION; }
+pub unsafe fn can_detach(expected: u64) -> u64 {
+    if expected == 0 || expected != GENERATION || ACTIVE != 1 { return 0; }
+    let current: u64 = session_handle(LINUX_NAMESPACE_GRANT);
+    if current != 0 && current != SESSION { return 0; }
+    return 1;
+}
+pub unsafe fn detach(expected: u64) -> u64 {
+    if can_detach(expected) != 1 { return 0; }
+    let current: u64 = session_handle(LINUX_NAMESPACE_GRANT);
+    if current != 0 && revoke_if_current(LINUX_NAMESPACE_GRANT, current) != 1 { return 0; }
+    ACTIVE = 0; BOUND = 0; SESSION = 0;
+    reset_transport();
+    RAM_BASE = 0; RAM_SIZE = 0; READ_COUNT = 0; READ_TOTAL = 0; WRITE_TOTAL = 0; CHAIN_COUNT = 0;
+    let mut index: usize = 0;
+    while index < 32 { IDS[index] = 0; ADDRESSES[index] = 0; LENGTHS[index] = 0; index += 1; }
+    index = 0;
+    while index < 8192 { REQUEST[index] = 0; RESPONSE[index] = 0; index += 1; }
+    return 1;
+}
+
+// Replacement allocates mechanism state without minting or binding authority.
+pub unsafe fn provision(guest_base: u64, guest_size: u64, next: u64) -> u64 {
+    if ACTIVE != 0 || guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
+        || next == 0 || next > 0xffff_ffff || next <= GENERATION { return 0; }
+    RAM_BASE = guest_base; RAM_SIZE = guest_size; GENERATION = next;
+    ACTIVE = 1; BOUND = 0; SESSION = 0; DENIED_COUNT = 0; COMPLETED = 0;
+    return reset_transport();
+}
+pub unsafe fn bind_current(expected: u64, session: u64, epoch: u64) -> u64 {
+    if ACTIVE != 1 || BOUND != 0 || expected != GENERATION || session == 0
+        || epoch == 0 || epoch <= SESSION_EPOCH
+        || session_handle(LINUX_NAMESPACE_GRANT) != session { return 0; }
+    SESSION = session; SESSION_EPOCH = epoch; BOUND = 1;
+    return 1;
+}
+
+
+pub unsafe fn can_provision(next: u64) -> u64 {
+    return (ACTIVE == 0 && next != 0 && next <= 0xffff_ffff && next > GENERATION) as u64;
+}
+pub unsafe fn bound() -> u64 { return BOUND; }
+
+
+pub unsafe fn next_session_epoch() -> u64 {
+    if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return 0; }
+    return SESSION_EPOCH + 1;
+}

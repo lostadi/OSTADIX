@@ -1,0 +1,13 @@
+{
+  "schema": "ostadix.o10-m2-base-source/v1",
+  "base_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "M1_source_root": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "M1_candidate": "evidence/o10-m1-20261112/r5-candidate.json",
+  "copied_source_sha256": {
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "ac5767d52312adb9db85c1531895d06d15d3ec4ec05207e618dc9bf0c578b464",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "9d49e871882462a397e3122c1540c816079b3172b1aa72be8c6560a3f0fa68df",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "fc6b7bda9f6cb33e99cc36ddca1606d8bd3725cc629fd3f97afed12d7c8ca3b9",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "fd10114b984f1d3531d00987fdde235d12137451836a16d54c9952c24d93f21a"
+  },
+  "scope": "Only named R5 persistent-handler/frontend modules copied into isolated M2; no final M1 lineage claim."
+}

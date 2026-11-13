@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "test_real_reset_helpers_and_image_boundaries (tests.test_o10_linux_reset_native.LinuxResetNativeTests.test_real_reset_helpers_and_image_boundaries) ... FAIL\n\n======================================================================\nFAIL: test_real_reset_helpers_and_image_boundaries (tests.test_o10_linux_reset_native.LinuxResetNativeTests.test_real_reset_helpers_and_image_boundaries)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_o10_linux_reset_native.py\", line 186, in test_real_reset_helpers_and_image_boundaries\n    self.assertEqual(result.returncode,0,f\"scenario={scenario}: \"+result.stdout+result.stderr)\nAssertionError: -6 != 0 : scenario=0: selftest: /tmp/o10-linux-reset-zpez6xn8/harness.c:63: void held_read(void): Assertion `B(arm_hold_next_read)(1)==1&&B(poll)()==2&&B(pending)()==1&&m[0x5000]==255' failed.\n\n\n----------------------------------------------------------------------\nRan 1 test in 1.656s\n\nFAILED (failures=1)\n"
+}

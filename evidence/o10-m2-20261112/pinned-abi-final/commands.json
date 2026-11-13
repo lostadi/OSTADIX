@@ -1,0 +1,1136 @@
+[
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpifwow4hj.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-000-stdout.log",
+      "bytes": 54
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-000-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpu29y34yw.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-001-stdout.log",
+      "bytes": 56
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-001-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpqdbbr12h.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-002-stdout.log",
+      "bytes": 72
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-002-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmp6lion2cf.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-003-stdout.log",
+      "bytes": 36
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-003-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpqw80j6vw.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-004-stdout.log",
+      "bytes": 34
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-004-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpyo_294mn.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-005-stdout.log",
+      "bytes": 16
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-005-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpfn9vkvf4.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-006-stdout.log",
+      "bytes": 15
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-006-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_codec.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_namespace_peer.oc",
+      "--target",
+      "aarch64-unknown-none",
+      "--emit",
+      "obj",
+      "-o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/arm.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-007-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-007-stderr.log",
+      "bytes": 50
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_codec.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_namespace_peer.oc",
+      "--target",
+      "x86_64-unknown-none",
+      "--emit",
+      "obj",
+      "-o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/native.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-008-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-008-stderr.log",
+      "bytes": 53
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/clang",
+      "-O2",
+      "-no-pie",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/u9fs",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/harness.c",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/native.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-00.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-01.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-02.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-03.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-04.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-05.o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/codec/native-u9fs-m9eo29_f/object-06.o",
+      "-Wl,--wrap=memmove,--wrap=strlen",
+      "-o",
+      "/tmp/ocore-u9fs-peer-wkgtct8t/test"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-009-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-009-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/tmp/ocore-u9fs-peer-wkgtct8t/test"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-010-stdout.log",
+      "bytes": 291
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-010-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpehq0f6vj.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-011-stdout.log",
+      "bytes": 54
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-011-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpbd26x0a9.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-012-stdout.log",
+      "bytes": 56
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-012-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmp8j7osqlh.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-013-stdout.log",
+      "bytes": 72
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-013-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmp73g5oclm.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-014-stdout.log",
+      "bytes": 36
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-014-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmp_umylyu6.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-015-stdout.log",
+      "bytes": 34
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-015-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpussrf23a.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-016-stdout.log",
+      "bytes": 16
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-016-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmp_gpi0w2c.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-017-stdout.log",
+      "bytes": 15
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-017-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmptei_veao.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-018-stdout.log",
+      "bytes": 36
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-018-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpbxffnmru.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-019-stdout.log",
+      "bytes": 56
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-019-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpv189rv10.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-020-stdout.log",
+      "bytes": 72
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-020-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpmhadx44i.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-021-stdout.log",
+      "bytes": 54
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-021-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpakn49vam.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-022-stdout.log",
+      "bytes": 15
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-022-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmp4djsz1xg.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-023-stdout.log",
+      "bytes": 34
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-023-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "nm",
+      "--format=posix",
+      "--extern-only",
+      "/tmp/tmpogzcckmf.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-024-stdout.log",
+      "bytes": 16
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-024-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/clang",
+      "--target=x86_64-unknown-linux-musl",
+      "-ffreestanding",
+      "-nostdinc",
+      "-I",
+      "/tmp/posix-namespace-files-i6n4p17u/x86_64-headers",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/build/include",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/arch/x86_64",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/arch/generic",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/include",
+      "-fsyntax-only",
+      "/tmp/posix-namespace-files-i6n4p17u/abi.c"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-025-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-025-stderr.log",
+      "bytes": 895
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/clang",
+      "--target=aarch64-unknown-linux-musl",
+      "-ffreestanding",
+      "-nostdinc",
+      "-I",
+      "/tmp/posix-namespace-files-i6n4p17u/aarch64-headers",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/build/include",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/arch/aarch64",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/arch/generic",
+      "-I",
+      "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/include",
+      "-fsyntax-only",
+      "/tmp/posix-namespace-files-i6n4p17u/abi.c"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-026-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-026-stderr.log",
+      "bytes": 896
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_codec.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/posix_namespace_files.oc",
+      "--target",
+      "aarch64-unknown-none",
+      "--emit",
+      "obj",
+      "-o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm.o"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-027-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-027-stderr.log",
+      "bytes": 56
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_codec.oc",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/posix_namespace_files.oc",
+      "--target",
+      "x86_64-unknown-none",
+      "--emit",
+      "obj",
+      "-o",
+      "/tmp/posix-namespace-files-i6n4p17u/native.o"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-028-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-028-stderr.log",
+      "bytes": 59
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/ld.lld",
+      "-r",
+      "-o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-closed.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-00.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-01.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-02.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-03.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-04.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-05.o",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-codec/native-u9fs-ytc23wwh/object-06.o"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-029-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-029-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/ld.lld",
+      "-r",
+      "-o",
+      "/tmp/posix-namespace-files-i6n4p17u/native-closed.o",
+      "/tmp/posix-namespace-files-i6n4p17u/native.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-00.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-01.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-02.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-03.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-04.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-05.o",
+      "/tmp/posix-namespace-files-i6n4p17u/codec/native-u9fs-ghrawr7_/object-06.o"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-030-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-030-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/clang",
+      "-O2",
+      "-no-pie",
+      "-I",
+      "/tmp/posix-namespace-files-i6n4p17u/x86_64-headers",
+      "/tmp/posix-namespace-files-i6n4p17u/harness.c",
+      "/tmp/posix-namespace-files-i6n4p17u/native-closed.o",
+      "-o",
+      "/tmp/posix-namespace-files-i6n4p17u/test"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-031-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-031-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/tmp/posix-namespace-files-i6n4p17u/test"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-032-stdout.log",
+      "bytes": 522
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-032-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/nm",
+      "--undefined-only",
+      "/tmp/posix-namespace-files-i6n4p17u/arm-closed.o"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-033-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-033-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/nm",
+      "--undefined-only",
+      "/tmp/posix-namespace-files-i6n4p17u/native-closed.o"
+    ],
+    "cwd": "/tmp/posix-namespace-files-i6n4p17u",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-034-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-034-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc",
+      "--target",
+      "aarch64-unknown-none",
+      "--emit",
+      "mir",
+      "-o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.arm.mir"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-035-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-035-stderr.log",
+      "bytes": 130
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc",
+      "--target",
+      "x86_64-unknown-none",
+      "--emit",
+      "obj",
+      "-o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-036-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-036-stderr.log",
+      "bytes": 124
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/objcopy",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__READY",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__EPOCH",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__SERIAL",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__CLOCK",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__USED",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__FREE_BLOCKS",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__SESSION",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__GENERATION",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__VERSIONED",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__MSIZE",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_SESSION",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_NUMBER",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_OBJECT",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_GENERATION",
+      "--globalize-symbol=_O_runtime__common__namespace_store_baseline__F_MODE",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.inspectable.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-037-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-037-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+      "--target",
+      "aarch64-unknown-none",
+      "--emit",
+      "mir",
+      "-o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.arm.mir"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-038-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-038-stderr.log",
+      "bytes": 129
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+      "--target",
+      "x86_64-unknown-none",
+      "--emit",
+      "obj",
+      "-o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-039-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-039-stderr.log",
+      "bytes": 123
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/objcopy",
+      "--globalize-symbol=_O_runtime__common__namespace_store__READY",
+      "--globalize-symbol=_O_runtime__common__namespace_store__EPOCH",
+      "--globalize-symbol=_O_runtime__common__namespace_store__SERIAL",
+      "--globalize-symbol=_O_runtime__common__namespace_store__CLOCK",
+      "--globalize-symbol=_O_runtime__common__namespace_store__USED",
+      "--globalize-symbol=_O_runtime__common__namespace_store__FREE_BLOCKS",
+      "--globalize-symbol=_O_runtime__common__namespace_store__SESSION",
+      "--globalize-symbol=_O_runtime__common__namespace_store__GENERATION",
+      "--globalize-symbol=_O_runtime__common__namespace_store__VERSIONED",
+      "--globalize-symbol=_O_runtime__common__namespace_store__MSIZE",
+      "--globalize-symbol=_O_runtime__common__namespace_store__F_SESSION",
+      "--globalize-symbol=_O_runtime__common__namespace_store__F_NUMBER",
+      "--globalize-symbol=_O_runtime__common__namespace_store__F_OBJECT",
+      "--globalize-symbol=_O_runtime__common__namespace_store__F_GENERATION",
+      "--globalize-symbol=_O_runtime__common__namespace_store__F_MODE",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.inspectable.o"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-040-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-040-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/usr/bin/clang",
+      "-O2",
+      "-no-pie",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/harness.c",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.inspectable.o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/current.inspectable.o",
+      "-o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-041-stdout.log",
+      "bytes": 0
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-041-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "0"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-042-stdout.log",
+      "bytes": 88
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-042-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "1"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-043-stdout.log",
+      "bytes": 89
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-043-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "2"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-044-stdout.log",
+      "bytes": 89
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-044-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "3"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-045-stdout.log",
+      "bytes": 89
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-045-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "4"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-046-stdout.log",
+      "bytes": 93
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-046-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "5"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-047-stdout.log",
+      "bytes": 93
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-047-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "6"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-048-stdout.log",
+      "bytes": 87
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-048-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "7"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-049-stdout.log",
+      "bytes": 87
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-049-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "8"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-050-stdout.log",
+      "bytes": 88
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-050-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "9"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-051-stdout.log",
+      "bytes": 87
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-051-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "10"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-052-stdout.log",
+      "bytes": 88
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-052-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "11"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-053-stdout.log",
+      "bytes": 90
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-053-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "12"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-054-stdout.log",
+      "bytes": 90
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-054-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "13"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-055-stdout.log",
+      "bytes": 92
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-055-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "14"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-056-stdout.log",
+      "bytes": 92
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-056-stderr.log",
+      "bytes": 0
+    }
+  },
+  {
+    "argv": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/selftest",
+      "15"
+    ],
+    "cwd": "inherited",
+    "returncode": 0,
+    "stdout": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-057-stdout.log",
+      "bytes": 94
+    },
+    "stderr": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/command-057-stderr.log",
+      "bytes": 0
+    }
+  }
+]

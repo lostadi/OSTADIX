@@ -1,0 +1,26 @@
+[
+  {
+    "command": [
+      "clang",
+      "-O2",
+      "-no-pie",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/capacity-delta.c",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/baseline.inspectable.o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/current.inspectable.o",
+      "-o",
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/capacity-delta"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/capacity-delta",
+      "16"
+    ],
+    "exit_code": 0,
+    "stdout": "ACTUAL BEHAVIORAL DELTA protected-root remove cap26: baseline=0 current=26 type=107\\npaired operations=5 whole-volume/state comparisons=6\nnative namespace scenario 16: PASS\n",
+    "stderr": ""
+  }
+]

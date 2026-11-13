@@ -1,0 +1,54 @@
+{
+  "job_id": "job-1288298-1794553216774375502-1-15",
+  "status": {
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 1332690,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input_error": null,
+    "job_id": "job-1288298-1794553216774375502-1-15",
+    "pid": 1332690,
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes": 0,
+      "merged_into": null,
+      "path": "/tmp/ostadix-mcp-jobs-1288298-1794553216774375502-1/job-1288298-1794553216774375502-1-15/stderr.log"
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes": 6976,
+      "path": "/tmp/ostadix-mcp-jobs-1288298-1794553216774375502-1/job-1288298-1794553216774375502-1-15/stdout.log"
+    },
+    "timeout_secs": 600
+  },
+  "read": {
+    "bytes_read": 6976,
+    "complete": true,
+    "encoding": "utf8_lossy",
+    "eof": true,
+    "job_id": "job-1288298-1794553216774375502-1-15",
+    "limit_bytes": 24000,
+    "merged_into": null,
+    "next_offset": 6976,
+    "offset": 0,
+    "path": "/tmp/ostadix-mcp-jobs-1288298-1794553216774375502-1/job-1288298-1794553216774375502-1-15/stdout.log",
+    "stream": "stdout",
+    "text": "{\"ok\":true,\"value\":{\"t\":\"text\",\"v\":{\"utf8\":\"1\\nailed.\\n\\n\\n======================================================================\\nFAIL: test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) (scenario=8)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_local_backend.py\\\", line 219, in test_wire_and_authoritative_state_match_previous_store\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\nAssertionError: -6 != 0 : selftest: /home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-before/artifacts/harness.c:48: uint64_t PAIR_session_init(uint64_t, uint64_t): Assertion `a==b' failed.\\n\\n\\n======================================================================\\nFAIL: test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) (scenario=11)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_local_backend.py\\\", line 219, in test_wire_and_authoritative_state_match_previous_store\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\nAssertionError: -6 != 0 : selftest: /home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-before/artifacts/harness.c:48: uint64_t PAIR_session_init(uint64_t, uint64_t): Assertion `a==b' failed.\\n\\n\\n======================================================================\\nFAIL: test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) (scenario=12)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_local_backend.py\\\", line 219, in test_wire_and_authoritative_state_match_previous_store\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\nAssertionError: -6 != 0 : selftest: /home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-before/artifacts/harness.c:48: uint64_t PAIR_session_init(uint64_t, uint64_t): Assertion `a==b' failed.\\n\\n\\n======================================================================\\nFAIL: test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) (scenario=13)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_local_backend.py\\\", line 219, in test_wire_and_authoritative_state_match_previous_store\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\nAssertionError: -6 != 0 : selftest: /home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-before/artifacts/harness.c:48: uint64_t PAIR_session_init(uint64_t, uint64_t): Assertion `a==b' failed.\\n\\n\\n======================================================================\\nFAIL: test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) (scenario=14)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_local_backend.py\\\", line 219, in test_wire_and_authoritative_state_match_previous_store\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\nAssertionError: -6 != 0 : selftest: /home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-before/artifacts/harness.c:48: uint64_t PAIR_session_init(uint64_t, uint64_t): Assertion `a==b' failed.\\n\\n\\n======================================================================\\nFAIL: test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) (scenario=15)\\n----------------------------------------------------------------------\\nTraceback (most recent call last):\\n  File \\\"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_local_backend.py\\\", line 219, in test_wire_and_authoritative_state_match_previous_store\\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\\nAssertionError: -6 != 0 : selftest: /home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/historical-wire-before/artifacts/harness.c:48: uint64_t PAIR_session_init(uint64_t, uint64_t): Assertion `a==b' failed.\\n\\n\\n----------------------------------------------------------------------\\nRan 1 test in 5.006s\\n\\nFAILED (failures=12)\\n\\n\",\"encoding\":\"utf-8\"}},\"type\":\"text\",\"elapsed_ms\":5118,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"82f02273138457b0e233ea0e54276673ba91c30a1bf7c01ff17aa45bb611bc3b\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"82f02273138457b0e233ea0e54276673ba91c30a1bf7c01ff17aa45bb611bc3b\",\"result_content_identity\":\"dc48e51bea97f27cf390f674258300f1b4f51bfb2e71e904526084310e578ba0\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"8366b96da878df939ba7edddcaab89df5c8e0d76837fb45397ab21c34417b7a9\",\"plan_sha256\":\"46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67\",\"analyzed_graph_sha256\":\"55381902a40ae261e25fe3ea869f57ff3dd68bcc30c76ea962760652d07c73bf\",\"evidence_sha256\":\"f3c1f4909cc3aad7f0bffe1d17600a05bf91184afbfc94858b1db40d7a670e72\",\"admitted_graph_sha256\":\"ac29edd21c69bcdd81518ed999e4b4208f1a0a2579f1d728bf9055af01eba61a\",\"admission_sha256\":\"cf1a0e458d33c4de6e433f5db847590b20c409f686e604bdc482ca8b9f264ede\",\"executable_manifest_sha256\":\"499a59bf71d9eec67bec619dd0b248f7468994f9b506528c1e12ba356c72d265\"},\"trace\":{\"schema\":\"ostadix.graph-execution-trace/v1\",\"events\":[{\"event\":\"ready\",\"plan_node\":1},{\"event\":\"started\",\"plan_node\":1},{\"event\":\"finished\",\"plan_node\":1,\"value_type\":\"text\",\"fingerprint\":null},{\"event\":\"ready\",\"plan_node\":0},{\"event\":\"started\",\"plan_node\":0},{\"event\":\"finished\",\"plan_node\":0,\"value_type\":\"text\",\"fingerprint\":null}],\"publications\":[{\"plan_node\":0,\"outputs\":[{\"node\":0,\"kind\":\"value\"},{\"node\":2,\"kind\":\"completion\",\"producer\":0},{\"node\":4,\"kind\":\"resource_state\",\"resource\":\"HostWorld\",\"version\":1},{\"node\":6,\"kind\":\"resource_state\",\"resource\":\"EvaluatorState\",\"version\":1}]}],\"publication_scope\":\"actual-successful-semantic-settlement-outputs\"},\"native_leaves\":[]}}\n",
+    "total_bytes": 6976
+  }
+}

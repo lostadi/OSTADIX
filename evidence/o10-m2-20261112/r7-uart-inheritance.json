@@ -1,0 +1,9 @@
+{
+  "schema": "ostadix.o10-source-inheritance/v1",
+  "commit": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+  "file": "ocore/runtime/aarch64/kernel_world_monitor.oc",
+  "before_sha256": "1e8231aba1e196eaec0ce0cb4ce4c28c629970bc2f74e04712540661d1b9fc7c",
+  "patch_sha256": "90715627c718aa5a643ad0bb6a52036b821fad1d5f8bdc78633755128ac9ff3b",
+  "after_sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+  "scope": "Identical approved R7 UART patch only; final M1 ancestry integration remains pending."
+}

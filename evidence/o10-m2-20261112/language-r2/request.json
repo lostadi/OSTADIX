@@ -1,0 +1,6 @@
+{
+  "source": "python^( exec(\"import subprocess,json; p=subprocess.run(['python3', 'scripts/check_language_sources.py', 'check', '--o-bin', '/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O', '--ocorec', '/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec', '--jobs', '2', '--json-report', '/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/language-r2/language-sources.json'],cwd='/home/ustad/OSTADIX-o10-m2-20261112',capture_output=True,text=True); print(json.dumps(dict(argv=['python3', 'scripts/check_language_sources.py', 'check', '--o-bin', '/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O', '--ocorec', '/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec', '--jobs', '2', '--json-report', '/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/language-r2/language-sources.json'],returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)))\") )_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "background": true,
+  "timeout_secs": 0
+}

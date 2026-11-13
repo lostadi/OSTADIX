@@ -1,0 +1,45 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":962127,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input_error\":null,\"job_id\":\"job-913129-1794540767633868477-1-28\",\"pid\":962127,\"pty\":false,\"restart_persistence\":false,\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes\":0,\"merged_into\":null,\"path\":\"/tmp/ostadix-mcp-jobs-913129-1794540767633868477-1/job-913129-1794540767633868477-1-28/stderr.log\"},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes\":2599,\"path\":\"/tmp/ostadix-mcp-jobs-913129-1794540767633868477-1/job-913129-1794540767633868477-1-28/stdout.log\"},\"timeout_secs\":null}"
+    }
+  ],
+  "structuredContent": {
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 962127,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input_error": null,
+    "job_id": "job-913129-1794540767633868477-1-28",
+    "pid": 962127,
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes": 0,
+      "merged_into": null,
+      "path": "/tmp/ostadix-mcp-jobs-913129-1794540767633868477-1/job-913129-1794540767633868477-1-28/stderr.log"
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes": 2599,
+      "path": "/tmp/ostadix-mcp-jobs-913129-1794540767633868477-1/job-913129-1794540767633868477-1-28/stdout.log"
+    },
+    "timeout_secs": null
+  },
+  "isError": false
+}

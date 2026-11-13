@@ -1,0 +1,28 @@
+[
+  {
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "-v",
+      "tests.test_kernel_world_virtio_backend",
+      "tests.test_kernel_world_block_alias",
+      "tests.test_kernel_world_net",
+      "tests.test_kernel_world_9p_transport",
+      "tests.test_language_sources"
+    ],
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "test_production_block_backend_selftests (tests.test_kernel_world_virtio_backend.KernelWorldVirtioBackendTests.test_production_block_backend_selftests) ... ok\ntest_legal_readonly_aliases_and_writable_metadata_ring_isolation (tests.test_kernel_world_block_alias.BlockAliasTests.test_legal_readonly_aliases_and_writable_metadata_ring_isolation) ... ok\ntest_real_frontend_queue_and_frame_validation (tests.test_kernel_world_net.KernelWorldNetTests.test_real_frontend_queue_and_frame_validation) ... ok\ntest_real_transport_and_server_share_authorized_objects (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_and_server_share_authorized_objects) ... ok\ntest_real_transport_memory_and_protocol_boundary (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_memory_and_protocol_boundary) ... FAIL\ntest_coverage_must_name_tracked_harness (tests.test_language_sources.LanguageSourcesTests.test_coverage_must_name_tracked_harness) ... ok\ntest_duplicate_source_fails (tests.test_language_sources.LanguageSourcesTests.test_duplicate_source_fails) ... ok\ntest_expected_failure_does_not_hide_tool_crash (tests.test_language_sources.LanguageSourcesTests.test_expected_failure_does_not_hide_tool_crash) ... ok\ntest_expected_failure_requires_specific_reason_and_diagnostic (tests.test_language_sources.LanguageSourcesTests.test_expected_failure_requires_specific_reason_and_diagnostic) ... ok\ntest_new_tracked_file_requires_classification (tests.test_language_sources.LanguageSourcesTests.test_new_tracked_file_requires_classification) ... ok\ntest_non_parse_success_cannot_pass (tests.test_language_sources.LanguageSourcesTests.test_non_parse_success_cannot_pass) ... ok\ntest_package_mirror_drift_fails (tests.test_language_sources.LanguageSourcesTests.test_package_mirror_drift_fails) ... ok\ntest_paths_cannot_escape_root (tests.test_language_sources.LanguageSourcesTests.test_paths_cannot_escape_root) ... ok\ntest_repository_has_complete_declared_coverage (tests.test_language_sources.LanguageSourcesTests.test_repository_has_complete_declared_coverage) ... ERROR\ntest_stale_manifest_entry_fails (tests.test_language_sources.LanguageSourcesTests.test_stale_manifest_entry_fails) ... ok\ntest_timeout_is_failure (tests.test_language_sources.LanguageSourcesTests.test_timeout_is_failure) ... ok\ntest_unexpected_success_of_negative_fixture_fails (tests.test_language_sources.LanguageSourcesTests.test_unexpected_success_of_negative_fixture_fails) ... ok\ntest_untracked_work_is_not_included (tests.test_language_sources.LanguageSourcesTests.test_untracked_work_is_not_included) ... ok\n\n======================================================================\nERROR: test_repository_has_complete_declared_coverage (tests.test_language_sources.LanguageSourcesTests.test_repository_has_complete_declared_coverage)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_language_sources.py\", line 38, in test_repository_has_complete_declared_coverage\n    entries = sources.load_manifest(sources.ROOT)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/check_language_sources.py\", line 64, in load_manifest\n    raise SourceError(f\"untracked coverage reference: {coverage['path']}\")\nscripts.check_language_sources.SourceError: untracked coverage reference: tests/test_o10_linux_reset_native.py\n\n======================================================================\nFAIL: test_real_transport_memory_and_protocol_boundary (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_memory_and_protocol_boundary)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_kernel_world_9p_transport.py\", line 350, in test_real_transport_memory_and_protocol_boundary\n    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\nAssertionError: 1 != 0 : error: ocorec failed\nphase: native compilation\ncause: unknown value `runtime::common::namespace_store::session_handle`\n\n  --> /home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_9p.oc:360:24\n  360 |     let current: u64 = session_handle(LINUX_NAMESPACE_GRANT);\n      |                        ^^^^^^^^^^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_9p.oc' (parse only; does not typecheck or execute)\n\n\n\n----------------------------------------------------------------------\nRan 18 tests in 0.938s\n\nFAILED (failures=1, errors=1)\n"
+  },
+  {
+    "argv": [
+      "python3",
+      "scripts/check_language_sources.py",
+      "check"
+    ],
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "language-sources: untracked coverage reference: tests/test_o10_linux_reset_native.py\n"
+  }
+]

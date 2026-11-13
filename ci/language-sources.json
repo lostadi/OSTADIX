@@ -964,6 +964,21 @@
         "ocore/runtime/common/o10_codec.oc",
         "ocore/runtime/common/o10_executor.oc"
       ]
+    },
+    {
+      "id": "o10-linux-reset-images",
+      "category": "runtime-module",
+      "reason": "Trusted immutable Linux replacement image registry and confined private-RAM copy helpers. No O10 integration/guest boot claim.",
+      "coverage": [
+        {
+          "path": "tests/test_o10_linux_reset_native.py",
+          "kind": "runtime",
+          "conditions": "Already-built native compiler and clang; executes real helpers on Linux x86_64 mapped test windows and checks AArch64 MIR compilation."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/linux_domain_images.oc"
+      ]
     }
   ],
   "expected_parse_failures": {

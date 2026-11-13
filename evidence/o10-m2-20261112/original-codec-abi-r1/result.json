@@ -1,0 +1,30 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_okernel_u9fs_peer",
+    "tests.test_posix_namespace_files"
+  ],
+  "env": {
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz"
+  },
+  "hashes_before": {
+    "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc": "e1c1e24e02ab7179dca982ff0835e58ba6cabdc2c3a012ff1104209f1577cf3e",
+    "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/u9fs_namespace_peer.oc": "784ce1766fa4af2392547be08bd6d17826362dab3289648c92d24020b9efb409",
+    "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/posix_namespace_files.oc": "7b6f91418dd7d6ae41e4ec8bee2720e965205e9f92d384afc9157afdf974434e",
+    "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_okernel_u9fs_peer.py": "205915f345994a72c334d5220f45b9ad98cdf48d702da147732e75cff141e31a",
+    "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_posix_namespace_files.py": "dad25881e8f721dbe89b055aabc41c3e2011bcabd8ef4f430e5fa7f4dbd0bd15",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42",
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json": "0c27a483b847a0f1b66d7c4bf574e90db45ec25463dd55a1c424f07309e8b5e2",
+    "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz": "56887d41253810986cfeb7a8a559b193b5d4c302ace18bff0a03c48f1dea9bcd"
+  },
+  "hashes_unchanged": true,
+  "exit_code": 0,
+  "scope": "Ordinary original-codec native ABI compatibility only; no guest/device/live execution.",
+  "milestone_qualified": false
+}

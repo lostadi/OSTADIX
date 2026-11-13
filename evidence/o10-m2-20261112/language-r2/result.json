@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "python3",
+    "scripts/check_language_sources.py",
+    "check",
+    "--o-bin",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "--ocorec",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "--jobs",
+    "2",
+    "--json-report",
+    "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/language-r2/language-sources.json"
+  ],
+  "returncode": 0,
+  "stdout": "language-sources: 262 classified (86 .O, 176 .oc); 262 parsed as expected; 0 failed; 0 programs executed\n",
+  "stderr": ""
+}

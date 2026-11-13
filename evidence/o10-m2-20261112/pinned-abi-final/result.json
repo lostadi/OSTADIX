@@ -1,0 +1,25 @@
+{
+  "command": [
+    "python3",
+    "-c",
+    "exact source retained in run_units.py.txt"
+  ],
+  "env": {
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_NAMESPACE_LOCAL_TEST_OUTPUT": "/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts"
+  },
+  "source_sha256": {
+    "tests/test_namespace_local_backend.py": "68dac34c7aa944810cae5a4bdca867874622d67d3ec43d27541270962e23e62d",
+    "tests/fixtures/namespace_store_before_local.oc.txt": "13cffe0c19b455314f23e8a53914b585ba43d19d606c07c3f6706793c5f41c53",
+    "ocore/runtime/common/namespace_store.oc": "e1c1e24e02ab7179dca982ff0835e58ba6cabdc2c3a012ff1104209f1577cf3e",
+    "ocore/runtime/common/u9fs_namespace_peer.oc": "784ce1766fa4af2392547be08bd6d17826362dab3289648c92d24020b9efb409",
+    "ocore/runtime/common/posix_namespace_files.oc": "7b6f91418dd7d6ae41e4ec8bee2720e965205e9f92d384afc9157afdf974434e"
+  },
+  "source_unchanged": true,
+  "exit_code": 0,
+  "scope": "Ordinary pinned original-codec ABI and16-case historical semantic-name/wire/state differential only. Full inner commands/output retained. No guest/device/live execution.",
+  "milestone_qualified": false
+}

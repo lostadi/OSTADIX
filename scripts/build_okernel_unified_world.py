@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (
     "ocore/runtime/aarch64/unified_world.oc",
     "ocore/runtime/aarch64/unified_gic.oc",
+    "ocore/runtime/aarch64/linux_domain_images.oc",
     "ocore/runtime/aarch64/kernel_world_monitor.oc",
     "ocore/runtime/aarch64/kernel_world_virtio.oc",
     "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
@@ -324,8 +325,123 @@ def plan9_recovery_contract(kernel_bytes: int, dtb_bytes: int) -> dict:
             "pause": 1, "restart": 2}
 
 
+def derive_linux_initramfs(data: bytes, original_init: bytes) -> tuple[bytes, dict]:
+    """Rebuild newc deterministically; only /init body may change.
+
+    The volatile /run bind overlay remains below the new root mount across
+    switch_root. The package disk's original helper is read but never edited.
+    """
+    marker = b"mkdir -p /newroot/dev /newroot/proc /newroot/sys\n"
+    if original_init.count(marker) != 1 or original_init.count(b"exec switch_root /newroot /sbin/package-domain-init\n") != 1:
+        raise ValueError("unexpected original package init layout")
+    overlay = b"""# O10 Linux transport: install a volatile .u mount helper before first mount.
+o10_init_fail() { echo 'O10 BOOTSTRAP ERROR: unsupported package namespace layout'; exec /bin/sh -i; }
+original=/newroot/usr/local/bin/pkg-namespace
+[ -f "$original" ] && [ ! -L "$original" ] || o10_init_fail
+[ "$(/bin/busybox grep -Fc 'version=9p2000,' "$original")" = 1 ] || o10_init_fail
+mkdir -p /newroot/run
+mount -t tmpfs tmpfs /newroot/run || o10_init_fail
+/bin/busybox sed 's/version=9p2000,/version=9p2000.u,/' "$original" > /newroot/run/o10-pkg-namespace || o10_init_fail
+chmod 0755 /newroot/run/o10-pkg-namespace || o10_init_fail
+mount --bind /newroot/run/o10-pkg-namespace "$original" || o10_init_fail
+mount -o remount,bind,ro "$original" || o10_init_fail
+"""
+    expected = original_init.replace(marker, overlay + marker)
+    output = bytearray()
+    offset = 0
+    changed = False
+    trailer = False
+    entries = 0
+    while offset < len(data):
+        header = bytearray(data[offset:offset + 110])
+        if len(header) != 110 or header[:6] != b"070701":
+            raise ValueError("Linux initrd must be an ordinary uncompressed newc archive")
+        try:
+            fields = [int(header[6 + i * 8:14 + i * 8], 16) for i in range(13)]
+        except ValueError as error:
+            raise ValueError("malformed Linux newc header") from error
+        size, namesize = fields[6], fields[11]
+        name_end = offset + 110 + namesize
+        if namesize < 1 or name_end > len(data) or data[name_end - 1] != 0:
+            raise ValueError("malformed Linux newc name")
+        name = data[offset + 110:name_end - 1]
+        if b"\0" in name:
+            raise ValueError("embedded NUL in Linux newc name")
+        # The kernel extracts C-string paths. Alternate spellings of /init
+        # must not overwrite the one exact admitted entry after validation.
+        components = []
+        for component in name.split(b"/"):
+            if component in (b"", b"."):
+                continue
+            if component == b"..":
+                if components:
+                    components.pop()
+            else:
+                components.append(component)
+        if components == [b"init"] and name != b"init":
+            raise ValueError("ambiguous Linux init archive path")
+        start = (name_end + 3) & ~3
+        end = start + size
+        if end > len(data):
+            raise ValueError("truncated Linux newc entry")
+        body = data[start:end]
+        if name == b"init":
+            if changed or fields[1] != 0o100755 or body != original_init:
+                raise ValueError("unexpected original Linux init content or mode")
+            body = expected
+            header[54:62] = f"{len(body):08x}".encode()
+            changed = True
+        output += header
+        output += name + b"\0"
+        output += b"\0" * (-len(output) % 4)
+        output += body
+        output += b"\0" * (-len(output) % 4)
+        offset = (end + 3) & ~3
+        entries += 1
+        if name == b"TRAILER!!!":
+            if size != 0 or any(data[offset:]):
+                raise ValueError("unexpected Linux newc trailer/data")
+            trailer = True
+            break
+    if not changed or not trailer:
+        raise ValueError("Linux initrd lacks exactly one admitted init and trailer")
+    output += b"\0" * (-len(output) % 512)
+    result = bytes(output)
+    return result, {"schema": "ostadix.o10-linux-initramfs/v1",
+                    "original_sha256": hashlib.sha256(data).hexdigest(),
+                    "derived_sha256": hashlib.sha256(result).hexdigest(),
+                    "original_init_sha256": hashlib.sha256(original_init).hexdigest(),
+                    "derived_init_sha256": hashlib.sha256(expected).hexdigest(),
+                    "entries": entries, "changed_entries": ["init"],
+                    "disk_script_modified": False, "namespace_version": "9P2000.u"}
+
+
+def admit_linux_initramfs(path: Path, metadata: dict, original_init: bytes) -> tuple[bytes, dict]:
+    """Verify the complete original payload identity before deriving /init."""
+    expected = metadata.get("artifacts", {}).get("initramfs.cpio")
+    if not isinstance(expected, dict) or path.is_symlink() or not path.is_file():
+        raise ValueError("Linux initramfs requires an admitted regular payload artifact")
+    data = path.read_bytes()
+    if (type(expected.get("bytes")) is not int or len(data) != expected["bytes"]
+            or hashlib.sha256(data).hexdigest() != expected.get("sha256")):
+        raise ValueError("Linux initramfs differs from its admitted payload metadata")
+    return derive_linux_initramfs(data, original_init)
+
+
+def linux_recovery_contract(kernel_bytes: int, dtb_bytes: int, initrd_bytes: int) -> dict:
+    if not 0 < kernel_bytes <= 0x7e00000 or not 0 < dtb_bytes <= 0x10000 or not 0 < initrd_bytes <= 0x8000000:
+        raise ValueError("Linux immutable copies exceed their protected source/destination windows")
+    return {"kernel_image": 3, "aux_image": 4, "namespace_version": "9P2000.u",
+            "kernel_backup_address": 0xd2000000, "kernel_max_bytes": 0x7e00000,
+            "dtb_backup_address": 0xe2000000, "dtb_max_bytes": 0x10000,
+            "initrd_backup_address": 0xda000000, "initrd_max_bytes": 0x8000000,
+            "kernel_bytes_address": 0x6d000100, "dtb_bytes_address": 0x6d000108,
+            "initrd_bytes_address": 0x6d000110}
+
+
 def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: Path,
-          clang: str, lld: str, dtc: str, *, plan9_recovery: bool = False) -> dict:
+          clang: str, lld: str, dtc: str, *, plan9_recovery: bool = False,
+          o10_qualification: bool = False) -> dict:
     if output.exists() or output.is_symlink():
         raise ValueError("unified output must be a new isolated directory")
     metadata = json.loads((payload / "linux-payload.json").read_text())
@@ -347,9 +463,12 @@ def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: 
     for required in ("CONFIG_ARM_GIC_V3=y", "CONFIG_PROC_CHILDREN=y"):
         if required not in config.splitlines():
             raise ValueError("unified Linux payload requires " + required)
-    initrd_size = (payload / "initramfs.cpio").stat().st_size
+    original_init = (ROOT / "ocore/guest/linux/package-domain/init").read_bytes()
+    derived_initrd, initrd_derivation = admit_linux_initramfs(payload / "initramfs.cpio", metadata, original_init)
+    initrd_size = len(derived_initrd)
     if not 0 < initrd_size <= 0x08000000:
         raise ValueError("Linux initramfs exceeds its declared guest window")
+    linux_recovery_contract(image.stat().st_size, 1, initrd_size)
     spec = importlib.util.spec_from_file_location("unified_plan9_admission", ROOT / "scripts/probe_okernel_plan9.py")
     admission = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(admission)
@@ -363,7 +482,7 @@ def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: 
     output.mkdir(parents=True)
     inputs = output / "inputs"
     inputs.mkdir()
-    for name, source in (("linux.Image", image), ("linux.initramfs", payload / "initramfs.cpio"),
+    for name, source in (("linux.Image", image), ("linux-original.initramfs", payload / "initramfs.cpio"),
                          ("linux.config", payload / "linux.config"),
                          ("linux-payload.json", payload / "linux-payload.json"),
                          ("plan9.uimage", plan9), ("plan9-derivation.json", derivation)):
@@ -372,6 +491,16 @@ def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: 
             capture(source, inputs / name)
         else:
             capture_expected(expected_capture, inputs / name)
+    if fingerprint(inputs / "linux-original.initramfs") != initrd_derivation["original_sha256"]:
+        raise ValueError("original Linux initrd changed during derivation/capture")
+    if fingerprint(inputs / "linux.Image") != metadata["artifacts"]["Image"]["sha256"]:
+        raise ValueError("Linux Image changed after payload admission")
+    if fingerprint(inputs / "linux.config") != metadata["artifacts"]["linux.config"]["sha256"]:
+        raise ValueError("Linux configuration changed after payload admission")
+    if json.loads((inputs / "linux-payload.json").read_text()) != metadata:
+        raise ValueError("Linux payload metadata changed during capture")
+    (inputs / "linux.initramfs").write_bytes(derived_initrd)
+    (inputs / "linux.initramfs").chmod(0o400)
     userland_captures = {}
     for name, item in admitted.get("admission_copies", {}).items():
         destination = inputs / "plan9-userland" / name
@@ -380,12 +509,13 @@ def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: 
     (inputs / "plan9.kernel").write_bytes(kernel)
     (inputs / "plan9.kernel").chmod(0o400)
     profile = output / "profile.oc"
-    profile.write_text("""module runtime::aarch64::kernel_world_profile;
+    profile.write_text(f"""module runtime::aarch64::kernel_world_profile;
 pub const PERSISTENT: u64 = 1;
 pub const BACKING_BASE: usize = 0x7000_0000;
 pub const BACKING_BYTES: usize = 1_073_741_824;
 pub const NETWORK: u64 = 1;
 pub const NAMESPACE: u64 = 1;
+pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
 """)
     (output / "linux.dts").write_text(linux_dts((ROOT / "ocore/kernel/aarch64/kernel_world/guest.dts").read_text(), initrd_size))
     capture(ROOT / "ocore/kernel/aarch64/plan9_probe/guest.dts", output / "plan9.dts")
@@ -410,16 +540,26 @@ pub const NAMESPACE: u64 = 1;
                               "ocore/kernel/aarch64/unified_world/linker.ld",
                               "ocore/kernel/aarch64/kernel_world/guest.dts",
                               "ocore/kernel/aarch64/plan9_probe/guest.dts",
-                              "scripts/build_okernel_unified_world.py", "scripts/probe_okernel_plan9.py"]
+                              "scripts/build_okernel_unified_world.py", "scripts/probe_okernel_plan9.py",
+                              "ocore/guest/linux/package-domain/init"]
     if admitted["admission_kind"] == "qualified-original-userland":
         tracked += ["scripts/build_okernel_plan9_userland.py", "scripts/build_okernel_plan9_original.py",
                     "scripts/plan9_userland_admission.py"]
     before = {name: fingerprint(ROOT / name) for name in tracked}
+    if before["ocore/guest/linux/package-domain/init"] != initrd_derivation["original_init_sha256"]:
+        raise ValueError("original Linux init template changed during derivation")
     if (admitted["admission_kind"] == "qualified-original-userland"
             and before["scripts/plan9_userland_admission.py"] != admitted["provider_admission"]["export_verifier"]["sha256"]):
         raise ValueError("read-only Plan9 verifier changed before build capture")
     for command in commands:
         subprocess.run(command, check=True)
+    linux_recovery = linux_recovery_contract((inputs / "linux.Image").stat().st_size,
+                                             (output / "linux.dtb").stat().st_size,
+                                             (inputs / "linux.initramfs").stat().st_size)
+    for name, source in (("linux-recovery.Image", inputs / "linux.Image"),
+                         ("linux-recovery.dtb", output / "linux.dtb"),
+                         ("linux-recovery.initramfs", inputs / "linux.initramfs")):
+        capture_expected(identity(source), inputs / name)
     recovery = None
     if plan9_recovery:
         recovery = plan9_recovery_contract(len(kernel), (output / "plan9.dtb").stat().st_size)
@@ -438,10 +578,12 @@ pub const NAMESPACE: u64 = 1;
         captured_sources[name] = identity(target, output)
     artifacts = {name: identity(output / name, output) for name in
                  ("monitor.elf", "linux.dtb", "plan9.dtb", "profile.oc",
-                  "inputs/linux.Image", "inputs/linux.initramfs", "inputs/linux.config",
+                  "inputs/linux.Image", "inputs/linux.initramfs", "inputs/linux-original.initramfs", "inputs/linux.config",
                   "inputs/linux-payload.json", "inputs/plan9.uimage", "inputs/plan9.kernel",
                   "inputs/plan9-derivation.json")}
     artifacts.update(userland_captures)
+    for name in ("inputs/linux-recovery.Image", "inputs/linux-recovery.dtb", "inputs/linux-recovery.initramfs"):
+        artifacts[name] = identity(output / name, output)
     if recovery is not None:
         for name in ("inputs/plan9-recovery.kernel", "inputs/plan9-recovery.dtb"):
             artifacts[name] = identity(output / name, output)
@@ -482,6 +624,12 @@ pub const NAMESPACE: u64 = 1;
         manifest["plan9_command_provider"] = admitted["provider_admission"]
     manifest["o10"] = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
                        "completion": 0x6d0a0200, "msize": 512}
+    manifest["o10_qualification"] = bool(o10_qualification)
+    manifest["linux_recovery"] = linux_recovery
+    manifest["linux_initramfs_derivation"] = initrd_derivation
+    manifest["loader_addresses"].update({"inputs/linux-recovery.Image": linux_recovery["kernel_backup_address"],
+                                         "inputs/linux-recovery.dtb": linux_recovery["dtb_backup_address"],
+                                         "inputs/linux-recovery.initramfs": linux_recovery["initrd_backup_address"]})
     if recovery is not None:
         manifest["plan9_recovery"] = recovery
         manifest["loader_addresses"].update({"inputs/plan9-recovery.kernel": recovery["kernel_backup_address"],
@@ -502,11 +650,12 @@ def main() -> int:
     parser.add_argument("--lld", default="ld.lld")
     parser.add_argument("--dtc", default="dtc")
     parser.add_argument("--plan9-recovery", action="store_true", help="provision private native Plan9 pause/restart backup windows")
+    parser.add_argument("--o10-qualification", action="store_true", help="admit host-private O10 fault injection; production defaults off")
     args = parser.parse_args()
     try:
         build(args.payload.resolve(), args.plan9_kernel.resolve(), args.derivation_receipt.resolve(),
               args.output.absolute(), args.ocorec.resolve(), args.clang, args.lld, args.dtc,
-              plan9_recovery=args.plan9_recovery)
+              plan9_recovery=args.plan9_recovery, o10_qualification=args.o10_qualification)
         return 0
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print("Unified profile build failed: " + str(error), file=sys.stderr)

@@ -1,0 +1,54 @@
+{
+  "job_id": "job-1288298-1794553216774375502-1-20",
+  "status": {
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 1336856,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input_error": null,
+    "job_id": "job-1288298-1794553216774375502-1-20",
+    "pid": 1336856,
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes": 0,
+      "merged_into": null,
+      "path": "/tmp/ostadix-mcp-jobs-1288298-1794553216774375502-1/job-1288298-1794553216774375502-1-20/stderr.log"
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes": 2188,
+      "path": "/tmp/ostadix-mcp-jobs-1288298-1794553216774375502-1/job-1288298-1794553216774375502-1-20/stdout.log"
+    },
+    "timeout_secs": 600
+  },
+  "read": {
+    "bytes_read": 2188,
+    "complete": true,
+    "encoding": "utf8_lossy",
+    "eof": true,
+    "job_id": "job-1288298-1794553216774375502-1-20",
+    "limit_bytes": 24000,
+    "merged_into": null,
+    "next_offset": 2188,
+    "offset": 0,
+    "path": "/tmp/ostadix-mcp-jobs-1288298-1794553216774375502-1/job-1288298-1794553216774375502-1-20/stdout.log",
+    "stream": "stdout",
+    "text": "{\"ok\":true,\"value\":{\"t\":\"text\",\"v\":{\"utf8\":\"0\\n\\ntest_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) ... ok\\n\\n----------------------------------------------------------------------\\nRan 1 test in 15.437s\\n\\nOK\\n\\n\",\"encoding\":\"utf-8\"}},\"type\":\"text\",\"elapsed_ms\":15561,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"fc832a3998f67e3866194f3aaf0b61bef1021fb47c7bcd6484e3886b55ba3b53\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"fc832a3998f67e3866194f3aaf0b61bef1021fb47c7bcd6484e3886b55ba3b53\",\"result_content_identity\":\"33ec4cfc57ab9f357f40f2d652cd4b620bb7320bcfa041e6801e1554d0309183\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"2d062639ac05cb4bb8dbafc30d86383bafc505017e7f3f579c1677e9d78a0fda\",\"plan_sha256\":\"46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67\",\"analyzed_graph_sha256\":\"4ef54b6252a83f7eaa5891a2155fb86d1d15b31aadfbf2c4b936f38f0f6ff2a9\",\"evidence_sha256\":\"c71b741338b7699c97ac6cc28d06d151dc024188b998db8a468c0a99463dbb0f\",\"admitted_graph_sha256\":\"da3371f8dd1348a8178aa9d3b070a02a09a66e0f533acca86042e1fdafa121ca\",\"admission_sha256\":\"61f538c255de9baaa016c407ad6a9661d025bf9226cb6a95c1fc440d4712e3f1\",\"executable_manifest_sha256\":\"499a59bf71d9eec67bec619dd0b248f7468994f9b506528c1e12ba356c72d265\"},\"trace\":{\"schema\":\"ostadix.graph-execution-trace/v1\",\"events\":[{\"event\":\"ready\",\"plan_node\":1},{\"event\":\"started\",\"plan_node\":1},{\"event\":\"finished\",\"plan_node\":1,\"value_type\":\"text\",\"fingerprint\":null},{\"event\":\"ready\",\"plan_node\":0},{\"event\":\"started\",\"plan_node\":0},{\"event\":\"finished\",\"plan_node\":0,\"value_type\":\"text\",\"fingerprint\":null}],\"publications\":[{\"plan_node\":0,\"outputs\":[{\"node\":0,\"kind\":\"value\"},{\"node\":2,\"kind\":\"completion\",\"producer\":0},{\"node\":4,\"kind\":\"resource_state\",\"resource\":\"HostWorld\",\"version\":1},{\"node\":6,\"kind\":\"resource_state\",\"resource\":\"EvaluatorState\",\"version\":1}]}],\"publication_scope\":\"actual-successful-semantic-settlement-outputs\"},\"native_leaves\":[]}}\n",
+    "total_bytes": 2188
+  }
+}

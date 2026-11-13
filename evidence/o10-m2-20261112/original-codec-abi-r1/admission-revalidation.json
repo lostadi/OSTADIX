@@ -1,0 +1,226 @@
+{
+  "x86_64": {
+    "manifest": {
+      "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+      "bytes": 8049,
+      "sha256": "0c27a483b847a0f1b66d7c4bf574e90db45ec25463dd55a1c424f07309e8b5e2"
+    },
+    "validated_records": [
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/lowered/unit-000000/module.o",
+        "bytes": 24824,
+        "sha256": "86f578e6849caef9260c4a5d9b19e0f7f628310337a251b50071a1c9e18607f6"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/lowered/unit-000001/module.o",
+        "bytes": 8024,
+        "sha256": "05e6460e1acd47cc6416c62263d2f97cd6cd5865246931215a682a269d9cd534"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/lowered/unit-000002/module.o",
+        "bytes": 7760,
+        "sha256": "135862081e6e9df99c2e70c7a8540d071d522864ece88e15496e33ae5367f1af"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/lowered/unit-000003/module.o",
+        "bytes": 24256,
+        "sha256": "5130f65d05c5cc97977b66f3eda4d82f215b0b5541440fd2a9749e986ea02b75"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/memory/lowered/unit-000000/module.o",
+        "bytes": 4440,
+        "sha256": "49da035e7d23475f44da6cfafb19fa0de15b1d4ea4ba3e129e3d257368036fb7"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/memory/lowered/unit-000001/module.o",
+        "bytes": 13872,
+        "sha256": "38164d2030c56999761d5237703b58eefa87fdb3b28da99237cd852b89b3eb9b"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/memory/lowered/unit-000002/module.o",
+        "bytes": 1680,
+        "sha256": "e95d410f0baade35480b757b497ff3a0b29a2a2c1c30f18da88b9c528f6498d2"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/memory/source-recipe.json",
+        "bytes": 4187,
+        "sha256": "97e3079543e98276435d0daa8b7803ccec08a82bd7e9968b1539e820d334ab1a"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/source-recipe.json",
+        "bytes": 4188,
+        "sha256": "be04bf559c04e88c84bcc537f252c88899d5c40bb293bc8e37781234a48e4763"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/memory/lowered/coverage.json",
+        "bytes": 35189,
+        "sha256": "ab5d69cccc0e19ac97921872a752b8e045f331089afa77f7dba382c7d7fb426c"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/lowered/coverage.json",
+        "bytes": 93908,
+        "sha256": "3ae22b5351aaedad5737cd091ab6a23dc848f6fafb2668d4ff21f27e14c603c7"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/memory/lowered/runtime.native-ir.json",
+        "bytes": 352640,
+        "sha256": "60f0ab3be9783090522b696c9363f104e68938dc3a1edac4a6792fa1b2df26d4"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/codecs/lowered/runtime.native-ir.json",
+        "bytes": 1712693,
+        "sha256": "eab281d2ca942da2a72e403104838b2a3d8a27b0938121968037152c91e0bf4a"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/semantic-test/verify",
+        "bytes": 93192,
+        "sha256": "db8d0b745da7a622a8a7a795cdcabc76f237c7fd5af4f047810ef79e7cc61747"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/u9fs/verify_component.c",
+        "bytes": 6858,
+        "sha256": "67c2b083df8f92f397d2f006f7a3608102cedaa335bbfecb429113cc04acf906"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/u9fs/carrier-x86_64.S",
+        "bytes": 358,
+        "sha256": "ad3315e7928c192950fa90f7ea6809d4f34ab08beb00b37757473cc99c1f5923"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/commands.json",
+        "bytes": 26831,
+        "sha256": "8cb4d00445abf68c954dc35e70162b725c476d3fe768575a5d94677a5e8eeb13"
+      }
+    ],
+    "validation": "exact original object/symbol closure and source recipe/coverage/semantic admission records PASS"
+  },
+  "aarch64": {
+    "manifest": {
+      "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json",
+      "bytes": 8109,
+      "sha256": "ac0cef228e48932f4fdc31da9fa650fb87fbb119dfce64e37aaf37d48eecd548"
+    },
+    "validated_records": [
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/lowered/unit-000000/module.o",
+        "bytes": 37352,
+        "sha256": "dd0e3d71f049dd01289c4cf144ab1ea540fad766044741e6db8cb23bc067d8ee"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/lowered/unit-000001/module.o",
+        "bytes": 8568,
+        "sha256": "0a0dba8c2505c00d44163dab2b74f74e6dfbfd5712274144de27e1f097e08fbf"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/lowered/unit-000002/module.o",
+        "bytes": 8096,
+        "sha256": "787b85dde080b0168ace2575c911ed61c0439654056c342a9c47823c15ca86f3"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/lowered/unit-000003/module.o",
+        "bytes": 38032,
+        "sha256": "8668908a63842c647756af21484c2dac8b7f73f9f124d77c418b477dde42b78a"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/memory/lowered/unit-000000/module.o",
+        "bytes": 1760,
+        "sha256": "e61f36dcd6f6885cb3d4506c84395b2868b187a1650a37215227522677f177ed"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/memory/lowered/unit-000001/module.o",
+        "bytes": 4688,
+        "sha256": "bed860d630e939fc6a2c8e2060e868fe5cf4d195b143c643e3274703c6e4f6e5"
+      },
+      {
+        "group": "objects",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/memory/lowered/unit-000002/module.o",
+        "bytes": 15136,
+        "sha256": "f9c9912678f88a092c198fb5bca4d0885171527671c9edc5a198ad3626df21fc"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/memory/source-recipe.json",
+        "bytes": 4205,
+        "sha256": "0506b7150e06fbf8a85ad786d2c3808117459ea8cedda5bc8683844b5674ef4e"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/source-recipe.json",
+        "bytes": 4206,
+        "sha256": "b791aaf7e8920a1104ab06c18b5b511a3df489576a2fd9f2870cb7d9b6eb28b6"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/memory/lowered/coverage.json",
+        "bytes": 35395,
+        "sha256": "1532ee19d60bd49bb43f4082810489d5b6bbaca5bafd70205a16c76b0d840ae1"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/lowered/coverage.json",
+        "bytes": 94186,
+        "sha256": "13a5c9db4926f677087987f6d9018217b1f30b8bff06b34a19b14defe691d88e"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/memory/lowered/runtime.native-ir.json",
+        "bytes": 355034,
+        "sha256": "112d5717c6867e883c70d8671eedd0f46c6911ae78875ee1f0c1fd9225be2244"
+      },
+      {
+        "group": "receipts",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/codecs/lowered/runtime.native-ir.json",
+        "bytes": 1715273,
+        "sha256": "d5dcaba731459b47d4de70bb6556c01207364df05d97a84ab4c46f2bfe91b9bf"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/semantic-test/verify",
+        "bytes": 121840,
+        "sha256": "da7db298e51081c10e18a22d2d874cfc1c5f24a3bc872a120150907e4d84ed0d"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/u9fs/verify_component.c",
+        "bytes": 6858,
+        "sha256": "67c2b083df8f92f397d2f006f7a3608102cedaa335bbfecb429113cc04acf906"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/u9fs/carrier-aarch64.S",
+        "bytes": 293,
+        "sha256": "0093b99d33ea2a6dcd721660c6607503e9c8e8bb5ad2d5d2c9d29307068fadcd"
+      },
+      {
+        "group": "evidence",
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/commands.json",
+        "bytes": 27002,
+        "sha256": "5967ac5c4d7a2cbbfd63674e66d54144a4bd778748834944090dc5564d8ee29b"
+      }
+    ],
+    "validation": "exact original object/symbol closure and source recipe/coverage/semantic admission records PASS"
+  }
+}

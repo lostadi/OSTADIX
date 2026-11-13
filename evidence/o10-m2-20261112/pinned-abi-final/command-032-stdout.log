@@ -1,0 +1,7 @@
+binary 0/4K/64K/1MiB reads use unchanged shared volume: PASS
+owner/ns/generation keyed descriptions, independent offsets, seek/stat/buffer bounds: PASS
+independent 9P frontend mutations immediately visible; failed opens clunk fids: PASS
+removed object reports ESTALE without poisoning unrelated open files: PASS
+every local/file operation detects withdrawn session without wire roundtrip: PASS
+Original u9fs codec actual exchanges: 3434
+native read-only POSIX regular-file component: PASS; no EL0/app/kernel qualification

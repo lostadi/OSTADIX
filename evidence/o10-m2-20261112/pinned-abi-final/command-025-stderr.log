@@ -1,0 +1,11 @@
+In file included from /tmp/posix-namespace-files-i6n4p17u/abi.c:2:
+In file included from /tmp/posix-namespace-files-i6n4p17u/x86_64-headers/plan9.h:48:
+In file included from /home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/include/sys/types.h:70:
+/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/include/endian.h:31:23: warning: operator '<<' has lower precedence than '+'; '+' will be evaluated first [-Wshift-op-parentheses]
+   31 |         return __bswap32(__x)+0ULL<<32 | __bswap32(__x>>32);
+      |                ~~~~~~~~~~~~~~^~~~~~~
+/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/include/endian.h:31:23: note: place parentheses around the '+' expression to silence this warning
+   31 |         return __bswap32(__x)+0ULL<<32 | __bswap32(__x>>32);
+      |                              ^    
+      |                (                  )
+1 warning generated.

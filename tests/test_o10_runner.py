@@ -22,6 +22,7 @@ def domain():
     value.coordinator_uart = runner.COORDINATOR_UART
     value.o10_profile = runner.O10_PROFILE
     value.legacy_control = False
+    value.linux_recovery = None
     value.o10_epoch = value.o10_sequence = value.o10_tag = 0
     value.control_sequence = 0
     value.o10_claimed = False
@@ -248,6 +249,65 @@ class O10RunnerTests(unittest.TestCase):
             missing = subprocess.run(argv, cwd=temporary, capture_output=True, text=True, timeout=15)
             self.assertNotEqual(missing.returncode, 0)
             self.assertIn("No module named 'o10'", missing.stderr)
+
+    def provider_domain(self, live):
+        value = domain()
+        value.native_store_ready = value.provider_ready = True
+        value.provider_failed = value.control_active = False
+        value.live = True
+        value.service = {"generation": "a" * 16, "instance": "b" * 32}
+        value.counters = Mock(return_value={"live_domains": live})
+        value.native_control = Mock()
+        value.recycle_plan9 = Mock()
+        value.native_volume = Mock()
+        value.native_volume.return_value.get.side_effect = [
+            runner.protocol.ready_marker(**value.service), FileNotFoundError("no reset request")]
+        value.selector = Mock()
+        value.selector.select.return_value = []
+        value.qmp = None
+        value.capture = value.plan9_capture = b""
+        value.guest_coordinator_online = False
+        value.last_provider_poll = value.last_coordinator_poll = 0
+        value.record = {}
+        value.session = Path("/unused-provider-test")
+        return value
+
+    def test_watch_provider_preserves_plan9_when_only_linux_faulted(self):
+        for live in (2, 3):
+            with self.subTest(live=live):
+                value = self.provider_domain(live)
+                value.watch_provider()
+                self.assertTrue(value.provider_ready)
+                value.native_control.assert_not_called()
+                value.recycle_plan9.assert_not_called()
+
+    def test_pump_does_not_withdraw_plan9_after_linux_fault(self):
+        value = self.provider_domain(2)
+        with patch.object(runner.os, "write") as output:
+            runner.UnifiedDomain.pump(value, 0)
+        self.assertTrue(value.provider_ready)
+        self.assertFalse(value.provider_failed)
+        value.native_control.assert_not_called()
+        value.recycle_plan9.assert_not_called()
+        output.assert_not_called()
+
+    def test_plan9_failure_reports_linux_survival_from_actual_live_mask(self):
+        for live in (0, 1):
+            with self.subTest(live=live):
+                value = self.provider_domain(live)
+                with patch.object(runner.os, "write") as output, patch.object(runner.common, "write_json"):
+                    runner.UnifiedDomain.pump(value, 0)
+                self.assertTrue(value.provider_failed)
+                self.assertFalse(value.provider_ready)
+                value.native_control.assert_called_once_with(1)
+                value.recycle_plan9.assert_not_called()
+                value.native_volume.assert_not_called()
+                self.assertEqual(value.record["provider_failure"]["counters"]["live_domains"], live)
+                text = output.call_args.args[1].decode()
+                self.assertIn("pending work is not replayed", text)
+                self.assertIn("Linux remains available." if live else "Linux is stopped.", text)
+                if not live:
+                    self.assertNotIn("Linux remains available.", text)
 
     def test_coordinator_remains_service_operation_three(self):
         value = domain()
