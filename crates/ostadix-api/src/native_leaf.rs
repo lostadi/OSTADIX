@@ -38,6 +38,10 @@ pub const NATIVE_CLANG_ENV: &str = "O_NATIVE_CLANG";
 /// Absolute path of the ld that links native leaves; when unset, the
 /// absolute entries of PATH are searched.
 pub const NATIVE_LD_ENV: &str = "O_NATIVE_LD";
+/// Expected SHA-256 of the clang bytes; a different clang is refused.
+pub const NATIVE_CLANG_SHA256_ENV: &str = "O_NATIVE_CLANG_SHA256";
+/// Expected SHA-256 of the ld bytes; a different ld is refused.
+pub const NATIVE_LD_SHA256_ENV: &str = "O_NATIVE_LD_SHA256";
 pub const PROFILE: &str = "linux-elf-i64-acyclic-v1";
 const MAGIC: u64 = u64::from_le_bytes(*b"OCI64v1\0");
 
@@ -676,6 +680,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         fn tool(
             name: &str,
             pin_env: &str,
+            sha_env: &str,
             search_path: &Option<std::ffi::OsString>,
         ) -> Result<(ToolIdentity, SealedImage)> {
             let invocation = locate_tool(name, pin_env, std::env::var_os(pin_env), search_path)?;
@@ -684,6 +689,8 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             if !bytes.starts_with(b"\x7fELF") {
                 bail!("native leaf {name} must be an ELF executable, not a script launcher");
             }
+            // the sealed copy is what runs, so checking these bytes checks it.
+            check_tool_sha256(name, sha_env, std::env::var(sha_env).ok(), &digest(&bytes))?;
             let image = SealedImage::new(&bytes)?;
             Ok((
                 ToolIdentity {
@@ -734,8 +741,14 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             }
             Ok(())
         }
-        let (assembler, assembler_image) = tool("clang", NATIVE_CLANG_ENV, &tool_search_path)?;
-        let (linker, linker_image) = tool("ld", NATIVE_LD_ENV, &tool_search_path)?;
+        let (assembler, assembler_image) = tool(
+            "clang",
+            NATIVE_CLANG_ENV,
+            NATIVE_CLANG_SHA256_ENV,
+            &tool_search_path,
+        )?;
+        let (linker, linker_image) =
+            tool("ld", NATIVE_LD_ENV, NATIVE_LD_SHA256_ENV, &tool_search_path)?;
         let mut assembly =
             crate::ocore::native_codegen::emit(&audited.descriptor.module, audited.target)
                 .map_err(|e| anyhow::anyhow!("{}", e.message))?;
@@ -889,6 +902,25 @@ fn locate_tool(
         "locate trusted native leaf {name}: {pin_env} is unset and no absolute PATH \
          entry has an executable {name}"
     )
+}
+
+/// Refuse tool bytes whose SHA-256 differs from the pin in `sha_env`. a pin
+/// that is not 64 lowercase hex digits is an error, not "no pin".
+fn check_tool_sha256(name: &str, sha_env: &str, pin: Option<String>, actual: &str) -> Result<()> {
+    let Some(pin) = pin else {
+        return Ok(());
+    };
+    if pin.len() != 64
+        || !pin
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        bail!("{sha_env} must be 64 lowercase hex digits, got {pin:?}");
+    }
+    if pin != actual {
+        bail!("native leaf {name} has SHA-256 {actual}, but {sha_env} pins {pin}; refusing it");
+    }
+    Ok(())
 }
 
 /// Tool stderr with the private build directory replaced by a fixed name:
@@ -1101,6 +1133,36 @@ mod tests {
             "{error:#}"
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_tool_whose_bytes_differ_from_its_pin_is_refused() {
+        let actual = digest(b"clang bytes");
+        check_tool_sha256("clang", NATIVE_CLANG_SHA256_ENV, None, &actual).unwrap();
+        check_tool_sha256(
+            "clang",
+            NATIVE_CLANG_SHA256_ENV,
+            Some(actual.clone()),
+            &actual,
+        )
+        .unwrap();
+        let other = digest(b"another clang");
+        let error =
+            check_tool_sha256("clang", NATIVE_CLANG_SHA256_ENV, Some(other), &actual).unwrap_err();
+        assert!(format!("{error:#}").contains("refusing it"), "{error:#}");
+        for malformed in ["", "abc", &actual.to_uppercase()] {
+            let error = check_tool_sha256(
+                "clang",
+                NATIVE_CLANG_SHA256_ENV,
+                Some(malformed.to_string()),
+                &actual,
+            )
+            .unwrap_err();
+            assert!(
+                format!("{error:#}").contains("64 lowercase hex"),
+                "{error:#}"
+            );
+        }
     }
 
     #[test]
