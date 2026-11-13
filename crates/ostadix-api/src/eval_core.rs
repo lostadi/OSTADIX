@@ -123,8 +123,35 @@ impl GraphEvalFrame {
                 scope.insert(name.clone(), self.value(child)?.clone());
             }
         }
+        if matches!(
+            &plan.nodes[node_id.0].kind,
+            PlanNodeKind::Exec { backend, .. } if backend.canonical == "bash"
+        ) {
+            for (name, value) in scope.iter_mut() {
+                *value = bash_let_value(name, value)?;
+            }
+        }
         Ok(scope)
     }
+}
+
+/// The value a bash block receives for a referenced `let`, the same for the
+/// shim and the native backend. Text, numbers, and booleans pass through and
+/// the backend renders them as scalars. A list, map, null, or any other value
+/// becomes the text the `$name` splice renders, so `$x` and `${x}` agree. A
+/// NUL byte cannot live in a bash variable, so it is an error instead of a
+/// silent truncation.
+pub(crate) fn bash_let_value(name: &str, value: &OValue) -> Result<OValue> {
+    let value = match value {
+        OValue::Text { .. } | OValue::Number { .. } | OValue::Bool { .. } => value.clone(),
+        other => OValue::str_(render_with(SpliceRenderer::Default, other)),
+    };
+    if let OValue::Text { v } = &value {
+        if v.utf8.contains('\0') {
+            bail!("let `{name}` contains a NUL byte, which a bash variable cannot hold");
+        }
+    }
+    Ok(value)
 }
 
 /// Original inputs temporarily replaced at one operation's execution boundary.

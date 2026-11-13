@@ -235,6 +235,16 @@ Package SemVer is only one of the independent coordinates documented in
   `$greeting`. To print the literal text `$name`, write `\\$name` inside
   double quotes.
 
+- Bash `let` injection uses `declare +x`, so a name the session or the O
+  process already exported no longer leaks the `let` value to child
+  processes. A list, map, or null reaches `${x}` as the same text `$x`
+  splices, instead of nothing. A NUL byte in a value is an error instead of a
+  silent truncation. Each injected assignment runs inside the block's
+  capture and is checked; one that fails (for example on a name an earlier
+  `bash[N]` block made readonly) is a reported error and the block does not
+  run. Bash error messages say `bash: line N:` with the block's
+  own line numbers instead of a session temp path.
+
 - Bash blocks again see `let` values that bash reads as bare names in
   arithmetic context: `$(( ))`, `(( ))`, `for (( ))`, `$[ ]`, `let`
   arguments, `declare -i x=EXPR`, `${s:off:len}`, `[[ -eq ]]`-style
