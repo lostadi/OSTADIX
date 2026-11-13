@@ -1905,6 +1905,10 @@ impl<'a> Emitter<'a> {
             Operation::IntegerMinMax { kind, lhs, rhs } => {
                 self.integer_min_max(out, *kind, lhs, rhs)
             }
+            Operation::IntegerCountLeadingZeros { value, .. } => {
+                self.integer_count_leading_zeros(out, value)
+            }
+            Operation::IntegerAbs { value, .. } => self.integer_abs(out, value),
             Operation::ICmp {
                 predicate,
                 lhs,
@@ -2022,6 +2026,13 @@ impl<'a> Emitter<'a> {
                         writeln!(out, "  .option push\n  .option norvc\n  lui t0, %tprel_hi({global})\n  add t0, t0, tp, %tprel_add({global})\n  addi t0, t0, %tprel_lo({global})\n  .option pop").unwrap();
                     }
                 }
+            }
+            Operation::PtrMask { pointer, mask } => {
+                // Verified integral64/64 AS0: retain source provenance in IR;
+                // target address bits are the base pointer AND the exact mask.
+                self.operand(out, 0, pointer);
+                self.operand(out, 1, mask);
+                self.simple_binary(out, "and");
             }
             Operation::Gep { base, offset, .. } => {
                 self.operand(out, 0, base);
@@ -2186,6 +2197,57 @@ impl<'a> Emitter<'a> {
         } else {
             writeln!(out, "  {operation} {a}, {a}, {b}").unwrap();
         }
+    }
+
+    fn integer_count_leading_zeros(&mut self, out: &mut String, value: &Operand) {
+        self.operand(out, 0, value);
+        let bits = self.bits(value);
+        match self.target {
+            Target::X86_64UnknownNone => {
+                // BSR has an undefined destination for zero: branch around it.
+                let zero = self.label();
+                let done = self.label();
+                let source = if bits == 32 { "eax" } else { "rax" };
+                writeln!(out, "  test {source}, {source}\n  jz {zero}").unwrap();
+                if bits == 32 {
+                    out.push_str("  bsr eax, eax\n  xor eax, 31\n");
+                } else {
+                    out.push_str("  bsr rax, rax\n  xor rax, 63\n");
+                }
+                writeln!(out, "  jmp {done}\n{zero}:\n  mov rax, {bits}\n{done}:").unwrap();
+            }
+            Target::Aarch64UnknownNone => out.push_str(if bits == 32 {
+                "  clz w9, w9\n"
+            } else {
+                "  clz x9, x9\n"
+            }),
+            Target::Riscv64UnknownNone => {
+                // RV64GC does not imply Zbb. Count exact source-width bits with
+                // a bounded owned loop; zero terminates after exactly N steps.
+                let again = self.label();
+                let done = self.label();
+                self.immediate(out, 1, u64::from(bits));
+                self.immediate(out, 2, 0);
+                writeln!(out, "  li t3, {}", (1u64 << (bits - 1)) as i64).unwrap();
+                writeln!(out, "{again}:\n  and t4, t0, t3\n  bnez t4, {done}\n  addi t2, t2, 1\n  beq t2, t1, {done}\n  slli t0, t0, 1\n  j {again}\n{done}:\n  mv t0, t2").unwrap();
+            }
+        }
+    }
+
+    fn integer_abs(&mut self, out: &mut String, value: &Operand) {
+        self.operand(out, 0, value);
+        self.signed(out, 0, self.bits(value));
+        // Unsigned two's-complement magnitude, then normal original-width
+        // result masking. INT_MIN never invokes signed host overflow.
+        out.push_str(match self.target {
+            Target::X86_64UnknownNone => {
+                "  mov rcx, rax\n  sar rcx, 63\n  xor rax, rcx\n  sub rax, rcx\n"
+            }
+            Target::Aarch64UnknownNone => {
+                "  asr x10, x9, #63\n  eor x9, x9, x10\n  sub x9, x9, x10\n"
+            }
+            Target::Riscv64UnknownNone => "  srai t1, t0, 63\n  xor t0, t0, t1\n  sub t0, t0, t1\n",
+        });
     }
 
     fn integer_min_max(

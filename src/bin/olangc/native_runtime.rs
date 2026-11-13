@@ -825,6 +825,8 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                 Operation::Cast { value, .. }
                 | Operation::FloatNeg { value, .. }
                 | Operation::FloatAbs { value, .. }
+                | Operation::IntegerCountLeadingZeros { value, .. }
+                | Operation::IntegerAbs { value, .. }
                 | Operation::Freeze { value } => operand(value),
                 Operation::ExtractValue { aggregate, .. } => operand(aggregate),
                 Operation::InsertValue {
@@ -848,6 +850,10 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                 | Operation::NoAliasScopeDecl { .. } => {}
                 Operation::ThreadLocalAddress { global } => {
                     tls_references.insert(global.clone());
+                }
+                Operation::PtrMask { pointer, mask } => {
+                    operand(pointer);
+                    operand(mask);
                 }
                 Operation::Gep { base, offset, .. } => {
                     operand(base);

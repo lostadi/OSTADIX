@@ -295,6 +295,7 @@ impl<'a> Prepared<'a> {
             function.intrinsic.as_deref().is_some_and(|name| {
                 !matches!(name, "llvm.assume" | "llvm.trap" | NOALIAS_SCOPE_DECL)
                     && super::native_verify::integer_minmax_intrinsic(name).is_none()
+                    && super::native_verify::integer_unary_intrinsic(name).is_none()
             }) || function.blocks.iter().any(|block| {
                 block.instructions.iter().any(|instruction| {
                     matches!(
@@ -304,6 +305,7 @@ impl<'a> Prepared<'a> {
                             | Operation::MemoryCopy { .. }
                             | Operation::Alloca { .. }
                             | Operation::Gep { .. }
+                            | Operation::PtrMask { .. }
                             | Operation::Load { .. }
                             | Operation::Store { .. }
                     )
@@ -311,7 +313,7 @@ impl<'a> Prepared<'a> {
             })
         }) {
             return Err(fail(
-                "memory operations and lifetime markers are not implemented",
+                "memory operations and lifetime markers are not implemented (including pointer masks)",
             ));
         }
         let mut prepared = Self {
@@ -391,7 +393,9 @@ impl<'a> Prepared<'a> {
                                 prepared.scalar_operand(function_id, operand)?;
                             }
                         }
-                        Operation::Freeze { value } => {
+                        Operation::IntegerCountLeadingZeros { value, .. }
+                        | Operation::IntegerAbs { value, .. }
+                        | Operation::Freeze { value } => {
                             prepared.scalar_operand(function_id, value)?;
                         }
                         Operation::Phi { incoming } => {
@@ -432,12 +436,15 @@ impl<'a> Prepared<'a> {
                         Operation::Alloca { .. }
                         | Operation::ThreadLocalAddress { .. }
                         | Operation::Gep { .. }
+                        | Operation::PtrMask { .. }
                         | Operation::Load { .. }
                         | Operation::Store { .. }
                         | Operation::Lifetime { .. }
                         | Operation::MemorySet { .. }
                         | Operation::MemoryCopy { .. } => {
-                            return Err(fail("memory operations are not implemented"));
+                            return Err(fail(
+                                "memory operations and pointer masks are not implemented",
+                            ));
                         }
                         Operation::AtomicLoad { .. }
                         | Operation::AtomicStore { .. }
@@ -604,6 +611,18 @@ impl<'a> Prepared<'a> {
                     lhs
                 } else {
                     rhs
+                }
+            }
+            Operation::IntegerCountLeadingZeros { value, .. } => {
+                let input = self.operand(frame, value)? & mask(width);
+                BigUint::from(u64::from(width) - input.bits())
+            }
+            Operation::IntegerAbs { value, .. } => {
+                let input = self.operand(frame, value)? & mask(width);
+                if input.bit(u64::from(width - 1)) {
+                    (BigUint::one() << usize::from(width)) - input
+                } else {
+                    input
                 }
             }
             Operation::ICmp {

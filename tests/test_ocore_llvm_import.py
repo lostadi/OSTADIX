@@ -2018,6 +2018,68 @@ define i32 @entry(i8 %byte) {
         self.assertEqual(json.loads(completed.stderr)["error"]["stage"], "parse")
         self.assertFalse(output.exists(), "invalid import published a partial artifact")
 
+    def test_pointer_mask_preserves_original_base_mask_declarations_globals_and_relocations_all_three_isas(self):
+        from tests import test_ocore_llvm_memory_import as memory
+        body = """
+@anchor = global i64 7, align 8
+@slot = global ptr @anchor, align 8
+declare ptr @llvm.ptrmask.p0.i64(ptr, i64)
+declare i64 @unused_dependency(i64)
+define ptr @mask_value(ptr %base, i64 %mask) {
+  %r = call ptr @llvm.ptrmask.p0.i64(ptr %base, i64 %mask)
+  ret ptr %r
+}
+define ptr @mask_global() {
+  %r = call ptr @llvm.ptrmask.p0.i64(ptr @anchor, i64 -16)
+  ret ptr %r
+}
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                source = self.write(body, triple=triple, layout=LAYOUT + "-i128:128")
+                binary = memory.LlvmMemoryImportTests.bitcode(self, source)
+                for path in (source, binary):
+                    module = importer.import_module(path, library_path=self.library, expected_sha256=self.library_sha256)
+                    self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+                    self.assertEqual({fn["name"] for fn in module["functions"]}, {"mask_value", "mask_global", "llvm.ptrmask.p0.i64", "unused_dependency"})
+                    self.assertEqual({g["name"] for g in module["globals"]}, {"anchor", "slot"})
+                    self.assertEqual(module["provenance"]["source_function_count"], 4)
+                    self.assertEqual(module["provenance"]["source_global_count"], 2)
+                    declaration = self.function(module, "llvm.ptrmask.p0.i64")
+                    self.assertEqual(declaration["intrinsic"], declaration["name"])
+                    self.assertIsNone(declaration["entry"])
+                    function = self.function(module, "mask_value")
+                    operations = self.operations(function)
+                    self.assertEqual(operations, [{"op":"ptr_mask", "pointer":{"kind":"value", "id":function["params"][0]["id"]}, "mask":{"kind":"value", "id":function["params"][1]["id"]}}])
+                    global_operation = self.operations(self.function(module, "mask_global"))[0]
+                    self.assertEqual(global_operation["op"], "ptr_mask")
+                    self.assertEqual(global_operation["pointer"]["name"], "anchor")
+                    self.assertEqual(global_operation["mask"]["bits"], str((1 << 64) - 16))
+                    slot = next(g for g in module["globals"] if g["name"] == "slot")
+                    self.assertEqual(slot["initializer"]["relocations"][0]["symbol"], "anchor")
+                    self.assertTrue(any("original underlying object/provenance" in item for item in module["provenance"]["refinements"]))
+
+    def test_pointer_mask_rejects_foreign_address_spaces_index_widths_and_intrinsic_escapes(self):
+        self.reject("declare ptr addrspace(1) @llvm.ptrmask.p1.i64(ptr addrspace(1), i64)",
+                    layout=LAYOUT + "-p1:64:64-ni:1")
+        self.reject("declare ptr @llvm.ptrmask.p0.i32(ptr, i32)",
+                    layout="e-p:64:64:64:32-i64:64")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)",
+                    layout="e-p:64:64:64:32-i64:64")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)",
+                    layout="e-p:64:64-i64:64-A1")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)\n@escape = global ptr @llvm.ptrmask.p0.i64", stage="llvm-verify")
+
+    def test_pointer_mask_does_not_reclassify_ordinary_functions_or_erase_call_constraints(self):
+        body = "declare ptr @pointer_mask_like(ptr, i64)\ndefine ptr @f(ptr %p, i64 %m) { %r = call ptr @pointer_mask_like(ptr %p, i64 %m)\n ret ptr %r }"
+        module = self.import_ir(body)
+        operation = self.operations(self.function(module, "f"))[0]
+        self.assertEqual(operation["op"], "call")
+        self.assertEqual(operation["callee"]["name"], "pointer_mask_like")
+        self.assertIsNone(self.function(module, "pointer_mask_like")["entry"])
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)\ndefine ptr @f(ptr %p, i64 %m) { %r = call ptr @llvm.ptrmask.p0.i64(ptr %p, i64 %m) [ \"deopt\"(i32 1) ]\n ret ptr %r }")
+        self.reject("declare ptr @llvm.ptrmask.p0.i64(ptr, i64)\ndefine ptr @f(ptr %p, i64 %m) { %r = musttail call ptr @llvm.ptrmask.p0.i64(ptr %p, i64 %m)\n ret ptr %r }")
+
     def test_owned_scalar_fabs_keeps_declarations_formats_operands_and_fast_math_flags(self):
         for triple in TRIPLES:
             widths = (32, 64, 80, 128) if triple.startswith("x86_64") else (32, 64, 128)

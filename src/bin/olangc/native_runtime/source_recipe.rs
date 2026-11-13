@@ -10,6 +10,7 @@ use std::path::Component;
 pub(super) const RECIPE_FORMAT: &str = "ocore-runtime-recipe-v1";
 const RECEIPT_SCHEMA: &str = "ocore-native-source-recipe-v1";
 const CAPTURE_WORKER: &str = include_str!("../../../../scripts/ocore_runtime_capture.py");
+const PRODUCER_REGISTRY: &str = include_str!("../../../../scripts/ocore_producer_registry.json");
 const RUST_PAYLOAD: &str =
     include_str!("../../../../tools/ocore-runtime/rust/payload_inventory.py");
 
@@ -115,10 +116,17 @@ fn write_receipt(output: &Path, receipt: &Value) -> Result<()> {
     .context("write original-source orchestration receipt")
 }
 
-fn immutable_driver(recipe: &Path, bytes: &[u8], worker: &Path, helper: &Path) -> Result<()> {
+fn immutable_driver(
+    recipe: &Path,
+    bytes: &[u8],
+    worker: &Path,
+    helper: &Path,
+    registry: &Path,
+) -> Result<()> {
     if fs::read(recipe)? != bytes
         || fs::read(worker)? != CAPTURE_WORKER.as_bytes()
         || fs::read(helper)? != RUST_PAYLOAD.as_bytes()
+        || fs::read(registry)? != PRODUCER_REGISTRY.as_bytes()
     {
         bail!("source recipe or embedded capture implementation changed during orchestration");
     }
@@ -179,12 +187,14 @@ pub(super) fn compile(
     // Preserve the registered helper's script-relative lookup without relying
     // on a repository checkout next to the installed olangc executable.
     let worker = output.join("driver/scripts/ocore_runtime_capture.py");
+    let registry = output.join("driver/scripts/ocore_producer_registry.json");
     let helper = output.join("driver/tools/ocore-runtime/rust/payload_inventory.py");
     let mut receipt = json!({"schema":RECEIPT_SCHEMA,"stage":"capture","success":false,
         "recipe":{"path":recipe,"sha256":digest(recipe_bytes),"bytes":recipe_bytes.len()},
         "source":source,"build":build,"capture_directory":capture,"lowered_directory":lowered,
         "requested_target":target,"output_kind":output_kind,"unit_inventory":inventory,
         "capture_worker":{"path":worker,"sha256":digest(CAPTURE_WORKER.as_bytes()),"bytes":CAPTURE_WORKER.len()},
+        "producer_registry":{"path":registry,"sha256":digest(PRODUCER_REGISTRY.as_bytes()),"bytes":PRODUCER_REGISTRY.len()},
         "rust_payload_helper":{"path":helper,"sha256":digest(RUST_PAYLOAD.as_bytes()),"bytes":RUST_PAYLOAD.len()},
         "capture_process":null,"capture_report":null,"lowering_receipt":null,
         "worker_capture_complete":false,"capture_complete":false,"lowering_complete":false,
@@ -196,6 +206,7 @@ pub(super) fn compile(
         fs::create_dir_all(worker.parent().unwrap())?;
         fs::create_dir_all(helper.parent().unwrap())?;
         fs::write(&worker, CAPTURE_WORKER.as_bytes())?;
+        fs::write(&registry, PRODUCER_REGISTRY.as_bytes())?;
         fs::write(&helper, RUST_PAYLOAD.as_bytes())?;
         let log = output.join("capture.log");
         let log_file = fs::File::create(&log)?;
@@ -251,7 +262,7 @@ pub(super) fn compile(
             let captured: Value = serde_json::from_slice(&fs::read(&report)?)?;
             receipt["worker_capture_complete"] = json!(captured["capture_complete"] == true);
         }
-        immutable_driver(&recipe, recipe_bytes, &worker, &helper)?;
+        immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry)?;
         if !status.success() {
             bail!(
                 "original-source capture failed ({status}); see {}",
@@ -295,7 +306,7 @@ pub(super) fn compile(
             );
             receipt["capture_reverification"] = artifact_record(&replay)?;
         }
-        immutable_driver(&recipe, recipe_bytes, &worker, &helper)?;
+        immutable_driver(&recipe, recipe_bytes, &worker, &helper, &registry)?;
         if fs::read(&report)? != report_bytes {
             bail!("captured source-build report changed during native lowering");
         }

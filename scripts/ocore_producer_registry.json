@@ -1,0 +1,33 @@
+{
+  "schema": "ocore-producer-registry-v1",
+  "capability_scope": "Trusted adapter availability only; not unit import, engine, dependency or execution qualification.",
+  "producers": [
+    {
+      "id": "clang-llvm-v1",
+      "adapter": "clang",
+      "unit_kind": "clang",
+      "wrappers": [{"name": "cc", "kind": "clang"}, {"name": "cxx", "kind": "cxx"}],
+      "capture": {
+        "available": true,
+        "policies": {
+          "frontend-replay-v1": {"format": "llvm-text", "frontend_replay": true}
+        }
+      },
+      "import": {"available": true, "adapter": "llvm-ir", "formats": ["llvm-text"]}
+    },
+    {
+      "id": "rustc-llvm-v1",
+      "adapter": "rustc",
+      "unit_kind": "rustc",
+      "wrappers": [{"name": "rustc-wrapper", "kind": "rustc"}],
+      "capture": {
+        "available": true,
+        "policies": {
+          "frontend-replay-v1": {"format": "llvm-text", "frontend_replay": true},
+          "rust-embedded-bc-v1": {"format": "llvm-bitcode", "frontend_replay": false}
+        }
+      },
+      "import": {"available": true, "adapter": "llvm-ir", "formats": ["llvm-text", "llvm-bitcode"]}
+    }
+  ]
+}

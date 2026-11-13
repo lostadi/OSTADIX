@@ -236,14 +236,17 @@ class Importer:
                            for operation in ("sadd", "uadd", "ssub", "usub", "smul", "umul")
                            for bits in range(1, 65)}
     # Exact selected LLVM22 provider IDs, not recognition by a name prefix.
+    INTEGER_UNARY_INTRINSICS = {f"llvm.{kind}.i{bits}": (kind, bits)
+                                for kind in ("ctlz", "abs") for bits in (32, 64)}
     FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
                          for kind, intrinsic_id in MINMAX_IDS.items() for bits in range(1, 65)}
     RELATIVE_INTRINSICS = {"llvm.load.relative.i32", "llvm.load.relative.i64"}
+    POINTER_MASK_INTRINSIC = "llvm.ptrmask.p0.i64"
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
@@ -676,6 +679,13 @@ class Importer:
                 # realizes this promise without inferring ordinary purity.
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar-fabs sign-bit clear; defined operand bits yield a defined same-format result; input poison/undef and all fast-math flags remain represented; no input noundef, ordinary function purity or optimization inferred")
+            elif (intrinsic == self.POINTER_MASK_INTRINSIC and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: exact scalar pointer-mask nocreateundeforpoison promise realized for defined pointer/mask inputs; original underlying-object provenance and input poison/undef retained; no ordinary function purity or integer pointer reconstruction inferred")
+            elif (intrinsic in self.INTEGER_UNARY_INTRINSICS and name == "immarg" and index == 2
+                    and not call and a.IsEnumAttribute(attribute) and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{intrinsic}: original second-argument immarg retained as an exact constant i1 poison-control field on every owned operation")
             elif (intrinsic in self.MEMORY_INTRINSICS and name == "immarg" and index == 4
                     and not call and a.IsEnumAttribute(attribute) and a.GetEnumAttributeValue(attribute) == 0):
                 self.refinements.add(f"{intrinsic}: volatile immarg contract retained by validating every direct call's constant i1 operand")
@@ -799,6 +809,18 @@ class Importer:
                 self.refinements.add(f"{self.symbol}: retained metadata-only personality declaration i32(...) with exact C convention and no ABI extension attributes; original declaration, personality references and dependency identity retained; explicit included five-argument C unwinder callback adaptation required; no ordinary variadic call admission")
         return signature
 
+    def integer_unary_identity(self, value, name):
+        a = self.a
+        kind, _ = self.INTEGER_UNARY_INTRINSICS[name]
+        base = f"llvm.{kind}".encode("ascii")
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (not expected or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM integer-{kind} declaration identity")
+
+        self.refinements.add(f"{name}: exact intrinsic declaration validated after pinned LLVM22.1.6 UpgradeIntrinsicFunction attribute normalization; input_sha256 binds the original unit bytes; declaration defaults are not inherited by call sites, whose ABI extension attributes remain independently checked")
+
     def float_abs_identity(self, value, name):
         a = self.a
         expected = a.LookupIntrinsicID(b"llvm.fabs", len(b"llvm.fabs"))
@@ -806,6 +828,28 @@ class Importer:
                 or a.GetIntrinsicID(value) != expected or a.GetLinkage(value) != 0
                 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0 or a.GetFirstBasicBlock(value)):
             self.reject(f"intrinsic {name} requires the exact pinned LLVM fabs intrinsic declaration")
+
+    def pointer_mask_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.ptrmask", len(b"llvm.ptrmask"))
+        if (name != self.POINTER_MASK_INTRINSIC or not expected or not a.IsAFunction(value)
+                or a.GetIntrinsicID(value) != expected or a.GetLinkage(value) != 0
+                or a.GetPointerAddressSpace(a.TypeOf(value)) != 0 or a.GetFirstBasicBlock(value)):
+            self.reject("pointer mask requires the exact pinned llvm.ptrmask.p0.i64 declaration")
+        pointer = a.GetReturnType(a.GlobalGetValueType(value))
+        layout = (a.GetDataLayoutStr(self.module) or b"").decode()
+        if (a.GetTypeKind(pointer) != 12 or a.GetPointerAddressSpace(pointer) != 0
+                or a.ABISizeOfType(self.layout, pointer) != 8 or not layout.startswith("e")):
+            self.reject("pointer mask requires an integral little-endian AS0 64-bit pointer/index profile")
+        for token in layout.split("-"):
+            if token.startswith(("p:", "p0:")):
+                fields = token.split(":")
+                if fields[1] != "64" or (len(fields) >= 5 and fields[4] != "64"):
+                    self.reject("pointer mask requires equal64-bit pointer and index widths")
+            if token.startswith("ni:") and "0" in token.split(":")[1:]:
+                self.reject("pointer mask requires integral AS0 pointers")
+            if token[:1] in {"A", "G", "P"} and token[1:] != "0":
+                self.reject("pointer mask requires default address spaces")
 
     def minmax_identity(self, value, name):
         a = self.a
@@ -819,6 +863,15 @@ class Importer:
     def intrinsic_signature(self, name, signature):
         pointer = {"kind": "pointer", "address_space": 0}
         integer = lambda bits: {"kind": "int", "bits": bits}
+        if name in self.INTEGER_UNARY_INTRINSICS:
+            _, width = self.INTEGER_UNARY_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width), integer(1)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width},i1) C signature without ABI extension attributes")
+            return
         if name in self.FLOAT_ABS_INTRINSICS:
             expected = {"kind": "float", "bits": self.FLOAT_ABS_INTRINSICS[name]}
             if (self.types[signature["result"]] != expected
@@ -843,6 +896,14 @@ class Importer:
                     or signature["result_attributes"] or any(signature["param_attributes"])
                     or signature.get("return_storage") is not None):
                 self.reject("llvm.threadlocal.address.p0 requires exact ptrAS0(ptrAS0) signature without ABI extension attributes")
+            return
+        if name == self.POINTER_MASK_INTRINSIC:
+            if (self.types[signature["result"]] != pointer
+                    or [self.types[ty] for ty in signature["params"]] != [pointer, integer(64)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject("pointer mask requires exact C ptrAS0(ptrAS0,i64) signature without ABI attributes")
             return
         if name in self.RELATIVE_INTRINSICS:
             width = int(name.rsplit(".i", 1)[1])
@@ -1822,10 +1883,14 @@ class Importer:
                 intrinsic = a.name(callee)
                 if intrinsic not in self.INTRINSICS:
                     self.reject(f"intrinsic {intrinsic} requires explicit call lowering")
+                if intrinsic in self.INTEGER_UNARY_INTRINSICS:
+                    self.integer_unary_identity(callee, intrinsic)
                 if intrinsic in self.MINMAX_INTRINSICS:
                     self.minmax_identity(callee, intrinsic)
                 if intrinsic in self.FLOAT_ABS_INTRINSICS:
                     self.float_abs_identity(callee, intrinsic)
+                if intrinsic == self.POINTER_MASK_INTRINSIC:
+                    self.pointer_mask_identity(callee, intrinsic)
             signature = self.signature(a.GetCalledFunctionType(value), value, call=True, intrinsic=intrinsic)
             # A TLS GlobalVariable is the descriptor of current-thread storage,
             # not an ordinary constant Symbol address. Only this owned call
@@ -1843,6 +1908,23 @@ class Importer:
                              "source_instruction": self.instruction_positions[value][1]}
                 self.refinements.add(f"{self.symbol}: retained llvm.experimental.noalias.scope.decl as an exact compiler-only scope marker; original list/scope/domain identity and declaration placement retained; no runtime instruction, metadata ABI, alias-based optimization, purity or memory-effect inference")
                 self.refinements.add("scoped alias metadata graph uses actual parsed metadata identity and deterministic module-local traversal IDs; trusted LLVM printer records attest post-parse storage only; raw pointer fallback labels remain provenance bytes, never graph IDs; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
+            elif intrinsic == self.POINTER_MASK_INTRINSIC:
+                operation = {"op": "ptr_mask", "pointer": args[0], "mask": args[1]}
+                self.refinements.add("llvm.ptrmask.p0.i64 retained as explicit typed pointer-base and mask operands with same AS0 pointer result; exact integral64-bit pointer/index address masking preserves the original underlying object/provenance per llvmorg-22.1.6 LangRef; no ptrtoint/inttoptr reconstruction, fresh allocation, alias optimization or unresolved intrinsic provider")
+            elif intrinsic in self.INTEGER_UNARY_INTRINSICS:
+                control = a.GetOperand(value, 1)
+                if (not a.IsAConstantInt(control) or a.GetTypeKind(a.TypeOf(control)) != 8
+                        or a.GetIntTypeWidth(a.TypeOf(control)) != 1):
+                    self.reject(f"{intrinsic} requires an exact constant i1 poison-control operand")
+                flag = self.bounded_integer(control)
+                if flag not in {0, 1}:
+                    self.reject(f"{intrinsic} has a non-boolean poison control")
+                kind, width = self.INTEGER_UNARY_INTRINSICS[intrinsic]
+                operation = {"op": "integer_count_leading_zeros" if kind == "ctlz" else "integer_abs",
+                             "value": args[0],
+                             "zero_is_poison" if kind == "ctlz" else "int_min_is_poison": bool(flag)}
+                boundary = "zero yields the original source width" if kind == "ctlz" else "INT_MIN yields its original wrapped bit pattern"
+                self.refinements.add(f"{intrinsic}: exact original i{width} operand/result and constant poison flag={flag} retained; {boundary}; when flag=true the boundary result is a permitted deterministic poison refinement under llvm_defined_behavior_v1, and when false it is defined LLVM behavior; no duplicated operand use, optimization assumption, target-extension instruction or runtime helper")
             elif intrinsic in self.FLOAT_ABS_INTRINSICS:
                 operation = {"op": "float_abs", "value": args[0], "flags": self.fast_math(value)}
                 self.refinements.add(f"{intrinsic}: exact owned significant-bit sign clearing retains original scalar format, operand, result, NaN payloads and all seven call-site fast-math flags; no comparison, host conversion, arithmetic helper or unresolved intrinsic provider")
@@ -2010,10 +2092,14 @@ class Importer:
             if self.symbol not in self.INTRINSICS or not a.GetIntrinsicID(value):
                 self.reject(f"intrinsic {self.symbol} requires explicit lowering")
             intrinsic = self.symbol
+            if intrinsic in self.INTEGER_UNARY_INTRINSICS:
+                self.integer_unary_identity(value, intrinsic)
             if intrinsic in self.MINMAX_INTRINSICS:
                 self.minmax_identity(value, intrinsic)
             if intrinsic in self.FLOAT_ABS_INTRINSICS:
                 self.float_abs_identity(value, intrinsic)
+            if intrinsic == self.POINTER_MASK_INTRINSIC:
+                self.pointer_mask_identity(value, intrinsic)
         if a.GetGC(value) or a.HasPrefixData(value) or a.HasPrologueData(value):
             self.reject("unsupported function GC or prefix/prologue data")
         self.exception_handling = None
