@@ -262,6 +262,8 @@ struct BackendProcess {
     graceful_term_sent: bool,
     // the backend said its job cleanup failed; it is never reused.
     job_cleanup_failed: bool,
+    // the leader child has already been waited/reaped by reap_leader_only.
+    leader_reaped: bool,
 }
 
 // why no default: an operation (an ephemeral exec, a state checkpoint or
@@ -1278,16 +1280,11 @@ impl BackendProcess {
 
         #[cfg(unix)]
         command.process_group(0);
-        // a bash backend must not outlive O: after exec it arms its parent
-        // death signal (SIGTERM, which stops its jobs) and checks that this
-        // pid is still its parent. why not a pre_exec hook: any hook makes
-        // std fork in full instead of using vfork-style spawning, which cost
-        // every bash_hello a slower spawn.
-        if lang == "bash" {
-            command.env(BACKEND_PARENT_PID_ENV, std::process::id().to_string());
-        } else {
-            command.env_remove(BACKEND_PARENT_PID_ENV);
-        }
+        // a backend must not outlive O: after exec it arms its parent death
+        // signal and checks that this pid is still its parent. why not a
+        // pre_exec hook: any hook makes std fork in full instead of using
+        // vfork-style spawning, which cost every bash_hello a slower spawn.
+        command.env(BACKEND_PARENT_PID_ENV, std::process::id().to_string());
 
         // while the spinner is on, backend stderr goes through the one
         // status writer so a block's stderr never lands inside the spinner
@@ -1301,14 +1298,10 @@ impl BackendProcess {
             } else {
                 Stdio::inherit()
             });
-        // a bash backend is forked from one long-lived thread: the parent
+        // every backend is forked from one long-lived thread: the parent
         // death signal fires when the forking thread exits, and a worker
         // thread may exit while its helper is parked or its session lives on.
-        let spawned = if lang == "bash" {
-            spawn_from_long_lived_thread(command)
-        } else {
-            command.spawn()
-        };
+        let spawned = spawn_from_long_lived_thread(command);
         let mut child =
             spawned.with_context(|| format!("failed to spawn backend process for `{lang}`"))?;
         if let Some(mut stderr) = child.stderr.take() {
@@ -1439,6 +1432,7 @@ impl BackendProcess {
             plain_bash_next: false,
             graceful_term_sent: false,
             job_cleanup_failed: false,
+            leader_reaped: false,
             label: lang.to_string(),
             pulse,
             write_cancellation: None,
@@ -2044,6 +2038,13 @@ impl BackendProcess {
     fn finish_graceful_shutdown(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
         self.wait_for_leader_exit_before(deadline, timeout)?;
         self.finish_reader_before(deadline, timeout)?;
+        // on linux, kill(-group, 0) checks whether any member remains in the
+        // process group without requiring an unreaped leader to anchor the
+        // group. reaping the leader first removes its zombie from the group so
+        // an empty group returns ESRCH at once instead of falling back to a
+        // full /proc/*/stat scan on every backend exit.
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        self.reap_leader_only()?;
         self.wait_for_owned_group_quiescence_before(deadline, timeout)?;
         self.reap_leader_and_mark_terminal()
     }
@@ -2134,6 +2135,20 @@ impl BackendProcess {
                 false
             }
         };
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        let leader_reaped = if leader_exited && reader_finished {
+            match self.reap_leader_only() {
+                Ok(()) => true,
+                Err(error) => {
+                    failures.push(format!("backend leader reap failed: {error:#}"));
+                    false
+                }
+            }
+        } else {
+            false
+        };
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        let leader_reaped = true;
         let group_quiescent = match self.wait_for_owned_group_quiescence_before(deadline, timeout) {
             Ok(()) => true,
             Err(error) => {
@@ -2141,7 +2156,7 @@ impl BackendProcess {
                 false
             }
         };
-        if leader_exited && reader_finished && group_quiescent {
+        if leader_exited && reader_finished && leader_reaped && group_quiescent {
             if let Err(error) = self.reap_leader_and_mark_terminal() {
                 failures.push(format!("backend leader reap failed: {error:#}"));
             }
@@ -2155,7 +2170,7 @@ impl BackendProcess {
     }
 
     fn wait_for_leader_exit_before(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
-        if self.leader_exited_without_reaping()? {
+        if self.leader_reaped || self.leader_exited_without_reaping()? {
             return Ok(());
         }
         let mut waiter = ExitWaiter::new(self.child.id());
@@ -2242,10 +2257,16 @@ impl BackendProcess {
         }
     }
 
-    fn reap_leader_and_mark_terminal(&mut self) -> Result<()> {
+    fn reap_leader_only(&mut self) -> Result<()> {
         self.child
             .wait()
             .context("failed to reap backend leader after termination")?;
+        self.leader_reaped = true;
+        Ok(())
+    }
+
+    fn reap_leader_and_mark_terminal(&mut self) -> Result<()> {
+        self.reap_leader_only()?;
         self.terminal = true;
         lifecycle_trace(
             "worker.backend_wait_returned",
@@ -2628,7 +2649,7 @@ impl PlainBashHelperKey {
 static PLAIN_BASH_HELPERS: Mutex<Vec<BackendProcess>> = Mutex::new(Vec::new());
 
 /// A parked helper for `key`, or a new one from `spawn`.
-/// Set on a bash backend: the host's pid, for [`arm_parent_death_signal`].
+/// Set on every backend: the host's pid, for [`arm_parent_death_signal`].
 pub(crate) const BACKEND_PARENT_PID_ENV: &str = "O_BACKEND_PARENT_PID";
 
 /// PR_SET_PDEATHSIG with SIGTERM, then a check that the parent is still

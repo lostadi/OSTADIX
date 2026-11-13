@@ -637,7 +637,7 @@ def _ambient_fingerprint():
         "environment": [
             [key, value]
             for key, value in sorted(os.environ.items())
-            if key not in {"O_BACKEND_SESSION_ID", "O_BACKEND_NATIVE_INSTANCE_ID", "O_LIFECYCLE_TRACE"}
+            if key not in {"O_BACKEND_SESSION_ID", "O_BACKEND_NATIVE_INSTANCE_ID", "O_LIFECYCLE_TRACE", "O_BACKEND_PARENT_PID"}
         ],
         "sys_path": list(sys.path),
         "decimal_context": {
