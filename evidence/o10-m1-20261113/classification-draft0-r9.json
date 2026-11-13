@@ -1,0 +1,357 @@
+{
+  "schema": "ostadix.o10-m1-max-classification/v1",
+  "contract_id": "O10-Draft0-M1",
+  "baseline_revision": "808996422536667e61a7da52f29c75e2fa3a5f48",
+  "implementation_revision": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+  "rows": [
+    {
+      "id": "invalid_current",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 647
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 722
+      },
+      "classification": "internal_diagnostic",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          1
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      },
+      "diagnostic": 4353
+    },
+    {
+      "id": "idle_unexpected_irq",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 696
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 779
+      },
+      "classification": "internal_diagnostic",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          9
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      },
+      "diagnostic": 4354
+    },
+    {
+      "id": "no_runnable_domain",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 705
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 771
+      },
+      "classification": "resident_continuation",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          0
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      }
+    },
+    {
+      "id": "vgic_poll_failure",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 707
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 790
+      },
+      "classification": "internal_diagnostic",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          5
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      },
+      "diagnostic": 4355,
+      "detail": 2052
+    }
+  ],
+  "auxiliary_rows": [
+    {
+      "id": "defensive_selected_result",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 705
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 788
+      },
+      "classification": "defensive_diagnostic",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          33
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model-diagnostic-only"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      },
+      "diagnostic": 4356,
+      "note": "not reachable under serialized valid scheduler state; direct diagnostic invocation does not execute the guard"
+    },
+    {
+      "id": "vgic_wake_failure",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 326
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 371
+      },
+      "classification": "internal_diagnostic",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          34
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      },
+      "diagnostic": 4355,
+      "detail": 2053
+    },
+    {
+      "id": "psci_unsupported_result",
+      "baseline": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "73c84a5f772c3fa67a8c8d93dfc3802dc2ca0896d0f7d2f969d80ce0ff37ae0e",
+        "git_blob": "89ac9f51f8ebf1eeea71ef9d85d553f95f437aff",
+        "line": 368
+      },
+      "current": {
+        "path": "ocore/runtime/aarch64/unified_world.oc",
+        "sha256": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+        "git_blob": "a4bf04626e3dcad652f35998a57287554fbd40b2",
+        "line": 416
+      },
+      "classification": "guest_result",
+      "test": {
+        "path": "tests/test_o10_resident_native.py",
+        "method": "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary",
+        "sha256": "7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd",
+        "scenario_ids": [
+          35
+        ],
+        "configurations": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "scope": "native-host-register-model"
+      },
+      "execution": {
+        "source": "component_receipt",
+        "method_log_token": "test_resident_paths_and_qualification_boundary"
+      },
+      "value": "18446744073709551615"
+    }
+  ],
+  "scope": "Source classification and native host-register-model coverage only; actual zero-runnable EL2 continuation is independently required from the resident gate. Diagnostic-only test does not prove defensive scheduler-guard reachability.",
+  "notes": [
+    "Exactly four literal return MAX statements in baseline uw_handle_exit; none remain in current uw_handle_exit.",
+    "Timer all-ones architectural sentinel and O10 stale reference sentinels remain outside these four dispatch return sites."
+  ],
+  "retained_run_ref": {
+    "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/native-classification-r9/result.json",
+    "sha256": "b750f561bacc8a6042aaaf8c12bb5bfe8a916688a72cb00ccc517906478e3765"
+  }
+}

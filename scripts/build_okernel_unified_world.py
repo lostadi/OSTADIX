@@ -325,7 +325,8 @@ def plan9_recovery_contract(kernel_bytes: int, dtb_bytes: int) -> dict:
 
 
 def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: Path,
-          clang: str, lld: str, dtc: str, *, plan9_recovery: bool = False) -> dict:
+          clang: str, lld: str, dtc: str, *, plan9_recovery: bool = False,
+          o10_qualification: bool = False) -> dict:
     if output.exists() or output.is_symlink():
         raise ValueError("unified output must be a new isolated directory")
     metadata = json.loads((payload / "linux-payload.json").read_text())
@@ -380,12 +381,13 @@ def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: 
     (inputs / "plan9.kernel").write_bytes(kernel)
     (inputs / "plan9.kernel").chmod(0o400)
     profile = output / "profile.oc"
-    profile.write_text("""module runtime::aarch64::kernel_world_profile;
+    profile.write_text(f"""module runtime::aarch64::kernel_world_profile;
 pub const PERSISTENT: u64 = 1;
 pub const BACKING_BASE: usize = 0x7000_0000;
 pub const BACKING_BYTES: usize = 1_073_741_824;
 pub const NETWORK: u64 = 1;
 pub const NAMESPACE: u64 = 1;
+pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
 """)
     (output / "linux.dts").write_text(linux_dts((ROOT / "ocore/kernel/aarch64/kernel_world/guest.dts").read_text(), initrd_size))
     capture(ROOT / "ocore/kernel/aarch64/plan9_probe/guest.dts", output / "plan9.dts")
@@ -482,6 +484,7 @@ pub const NAMESPACE: u64 = 1;
         manifest["plan9_command_provider"] = admitted["provider_admission"]
     manifest["o10"] = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
                        "completion": 0x6d0a0200, "msize": 512}
+    manifest["o10_qualification"] = bool(o10_qualification)
     if recovery is not None:
         manifest["plan9_recovery"] = recovery
         manifest["loader_addresses"].update({"inputs/plan9-recovery.kernel": recovery["kernel_backup_address"],
@@ -502,11 +505,12 @@ def main() -> int:
     parser.add_argument("--lld", default="ld.lld")
     parser.add_argument("--dtc", default="dtc")
     parser.add_argument("--plan9-recovery", action="store_true", help="provision private native Plan9 pause/restart backup windows")
+    parser.add_argument("--o10-qualification", action="store_true", help="admit host-private O10 fault injection; production defaults off")
     args = parser.parse_args()
     try:
         build(args.payload.resolve(), args.plan9_kernel.resolve(), args.derivation_receipt.resolve(),
               args.output.absolute(), args.ocorec.resolve(), args.clang, args.lld, args.dtc,
-              plan9_recovery=args.plan9_recovery)
+              plan9_recovery=args.plan9_recovery, o10_qualification=args.o10_qualification)
         return 0
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print("Unified profile build failed: " + str(error), file=sys.stderr)

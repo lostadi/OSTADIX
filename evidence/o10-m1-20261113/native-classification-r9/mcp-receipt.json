@@ -1,0 +1,53 @@
+{
+  "status": {
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 1240334,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input_error": null,
+    "job_id": "job-970229-1794546654681308571-1-85",
+    "pid": 1240334,
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes": 0,
+      "merged_into": null,
+      "path": "/tmp/ostadix-mcp-jobs-970229-1794546654681308571-1/job-970229-1794546654681308571-1-85/stderr.log"
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes": 4707,
+      "path": "/tmp/ostadix-mcp-jobs-970229-1794546654681308571-1/job-970229-1794546654681308571-1-85/stdout.log"
+    },
+    "timeout_secs": 600
+  },
+  "read": {
+    "bytes_read": 4707,
+    "complete": true,
+    "encoding": "utf8_lossy",
+    "eof": true,
+    "job_id": "job-970229-1794546654681308571-1-85",
+    "limit_bytes": 12000,
+    "merged_into": null,
+    "next_offset": 4707,
+    "offset": 0,
+    "path": "/tmp/ostadix-mcp-jobs-970229-1794546654681308571-1/job-970229-1794546654681308571-1-85/stdout.log",
+    "stream": "stdout",
+    "text": "{\"ok\":true,\"value\":{\"t\":\"text\",\"v\":{\"utf8\":\"{\\\"scope\\\": \\\"Ordinary existing host-register model only:112 prior cases plus four each direct1104 disposition, blocked wake1103/detail805, PSCI_FEATURES guestMAX. No guest/EL2/device-probe execution; direct1104 is not scheduler guard reachability.\\\", \\\"command\\\": [\\\"python3\\\", \\\"-m\\\", \\\"unittest\\\", \\\"-v\\\", \\\"tests.test_o10_resident_native\\\"], \\\"source_revision\\\": \\\"cb53ca51c5e8ef3e4692870640d71935a82556fa\\\", \\\"test_sha256\\\": \\\"7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd\\\", \\\"source_sha256\\\": {\\\"tests/test_o10_resident_native.py\\\": \\\"7bf11bff0ca255d1db354e56d77a31d837988b3d6f113827e1282479b997d2fd\\\", \\\"ocore/runtime/aarch64/unified_world.oc\\\": \\\"30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13\\\", \\\"ocore/runtime/aarch64/unified_gic.oc\\\": \\\"176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7\\\", \\\"ocore/runtime/aarch64/kernel_world_monitor.oc\\\": \\\"0cb597599754cd94d9520dbfff36fbb40e68832dbb0941372be66385c5e0f3eb\\\", \\\"ocore/runtime/aarch64/kernel_world_virtio.oc\\\": \\\"9d49e871882462a397e3122c1540c816079b3172b1aa72be8c6560a3f0fa68df\\\", \\\"ocore/runtime/aarch64/kernel_world_virtio_selftest.oc\\\": \\\"8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5\\\", \\\"ocore/runtime/aarch64/kernel_world_net_host.oc\\\": \\\"414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44\\\", \\\"ocore/runtime/aarch64/kernel_world_net.oc\\\": \\\"fc6b7bda9f6cb33e99cc36ddca1606d8bd3725cc629fd3f97afed12d7c8ca3b9\\\", \\\"ocore/runtime/aarch64/kernel_world_9p.oc\\\": \\\"fd10114b984f1d3531d00987fdde235d12137451836a16d54c9952c24d93f21a\\\", \\\"ocore/runtime/aarch64/plan9_namespace_uart.oc\\\": \\\"a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9\\\", \\\"ocore/runtime/aarch64/coordinator_uart.oc\\\": \\\"36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a\\\", \\\"ocore/runtime/common/namespace_store.oc\\\": \\\"eaaedf300be6c15a83803d7a047119b9ddad978cda6edf5b37b0ab48fe342656\\\", \\\"ocore/runtime/common/o10_codec.oc\\\": \\\"f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82\\\", \\\"ocore/runtime/common/o10_executor.oc\\\": \\\"fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9\\\", \\\"ocore/runtime/common/namespace_peer.oc\\\": \\\"0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11\\\"}, \\\"compiler\\\": \\\"/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec\\\", \\\"compiler_sha256\\\": \\\"11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42\\\", \\\"exit_code\\\": 0, \\\"source_unchanged\\\": true, \\\"scenarios\\\": 124, \\\"milestone_qualified\\\": false}\\ntest_resident_paths_and_qualification_boundary (tests.test_o10_resident_native.O10ResidentNativeTests.test_resident_paths_and_qualification_boundary) ... ok\\n\\n----------------------------------------------------------------------\\nRan 1 test in 16.971s\\n\\nOK\\n\\n\",\"encoding\":\"utf-8\"}},\"type\":\"text\",\"elapsed_ms\":17195,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"b560075b0a3bf98ecb11ecb48f89122f2f5a6dab3879aaf0cea849235ddd8f6a\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"b560075b0a3bf98ecb11ecb48f89122f2f5a6dab3879aaf0cea849235ddd8f6a\",\"result_content_identity\":\"c4617e983331a85e1e1c1915dfd5ef10fac692b1804c0b94064ce048a2aa06a7\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"c4acd78b35d8d6fade2b810df6acee747d49e8cb9858205e4793f945474a3748\",\"plan_sha256\":\"46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67\",\"analyzed_graph_sha256\":\"24fcae87f1119d58b54e5a74bc2bd25684ee5e69ccc6caf3bdd5cfeed0d7b9e4\",\"evidence_sha256\":\"30a6aee81710ce004566c97862d7d5c2f12aaacec2d9eaa2e499b190930edcc9\",\"admitted_graph_sha256\":\"9d779fe080c12ba0b0cc3abd8a4d9562925bca7c6b08b32d1465debb5d22de8e\",\"admission_sha256\":\"9913c6647c94d1473623a06317c40f52d5745dc356069b544520aa9860eb3bdd\",\"executable_manifest_sha256\":\"499a59bf71d9eec67bec619dd0b248f7468994f9b506528c1e12ba356c72d265\"},\"trace\":{\"schema\":\"ostadix.graph-execution-trace/v1\",\"events\":[{\"event\":\"ready\",\"plan_node\":1},{\"event\":\"started\",\"plan_node\":1},{\"event\":\"finished\",\"plan_node\":1,\"value_type\":\"text\",\"fingerprint\":null},{\"event\":\"ready\",\"plan_node\":0},{\"event\":\"started\",\"plan_node\":0},{\"event\":\"finished\",\"plan_node\":0,\"value_type\":\"text\",\"fingerprint\":null}],\"publications\":[{\"plan_node\":0,\"outputs\":[{\"node\":0,\"kind\":\"value\"},{\"node\":2,\"kind\":\"completion\",\"producer\":0},{\"node\":4,\"kind\":\"resource_state\",\"resource\":\"HostWorld\",\"version\":1},{\"node\":6,\"kind\":\"resource_state\",\"resource\":\"EvaluatorState\",\"version\":1}]}],\"publication_scope\":\"actual-successful-semantic-settlement-outputs\"},\"native_leaves\":[]}}\n",
+    "total_bytes": 4707
+  }
+}

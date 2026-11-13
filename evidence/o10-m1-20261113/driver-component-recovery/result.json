@@ -1,0 +1,25 @@
+{
+  "schema": "ostadix.o10-m1-driver-component/v1",
+  "milestone": "M1",
+  "qualified": false,
+  "scope": "13 unit guards for the M1 six-guest regression driver; no VM qualification",
+  "argv": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-p",
+    "test_o10_m1_regressions.py",
+    "-v"
+  ],
+  "returncode": 0,
+  "tests": 13,
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "source_sha256": {
+    "scripts/verify_o10_m1_regressions.py": "6d1beecf7a384cfac9f7e8834b27deff24a1c655f05c0b0c12843f4baac76080",
+    "tests/test_o10_m1_regressions.py": "a7bcf0f11c3a2638635a5d71afcff1f49d6d33f781d3eec7a386a051f149d466"
+  },
+  "recorded": 1794547243.1969843
+}

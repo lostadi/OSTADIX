@@ -73,7 +73,7 @@ _start:
     bl uw_console_init
     bl uw_init
     cmp x0, #1
-    b.ne uw_halt
+    b.ne uw_internal_abort
     bl uw_next_deadline
     adrp x1, uw_deadline
     str x0, [x1, :lo12:uw_deadline]
@@ -266,7 +266,7 @@ uw_physical_gic_init:
     and x1, x0, #31
     add x1, x1, #1
     cmp x1, #16
-    b.hi uw_halt
+    b.hi uw_internal_abort
     adrp x2, uw_lr_count
     str x1, [x2, :lo12:uw_lr_count]
     ubfx x0, x0, #26, #3 // PREbits minus1: implemented active priorities
@@ -282,7 +282,7 @@ uw_physical_gic_init:
     mrs x0, cntfrq_el0
     mov x1, #100
     udiv x0, x0, x1
-    cbz x0, uw_halt
+    cbz x0, uw_internal_abort
     adrp x1, uw_tick_period
     str x0, [x1, :lo12:uw_tick_period]
     dsb sy
@@ -388,8 +388,9 @@ kw_serial_console_init:
     ret
 .global kw_revoke_guest_ram
 kw_revoke_guest_ram:
-    // The persistent profile has no recover-and-resume RAM withdrawal route.
-    b uw_halt
+    // Unsupported native callback is a mechanism contract violation, not a
+    // guest exit; the generic assembly guard publishes diagnostic 0x1108.
+    b uw_internal_abort
 
 // Saved-bank hooks; no O-core caller ever touches the currently live ICH bank.
 .global uw_vgic_lr_count
@@ -400,11 +401,11 @@ uw_vgic_lr_count:
 .global uw_vgic_lr_read
 uw_vgic_lr_read:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x3, uw_lr_count
     ldr x3, [x3, :lo12:uw_lr_count]
     cmp x1, x3
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x3, uw_contexts
     add x3, x3, :lo12:uw_contexts
     add x3, x3, x0, lsl #12
@@ -414,11 +415,11 @@ uw_vgic_lr_read:
 .global uw_vgic_lr_write
 uw_vgic_lr_write:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x3, uw_lr_count
     ldr x3, [x3, :lo12:uw_lr_count]
     cmp x1, x3
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x3, uw_contexts
     add x3, x3, :lo12:uw_contexts
     add x3, x3, x0, lsl #12
@@ -429,7 +430,7 @@ uw_vgic_lr_write:
 .global uw_vgic_hcr_read
 uw_vgic_hcr_read:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
     add x2, x2, x0, lsl #12
@@ -438,7 +439,7 @@ uw_vgic_hcr_read:
 .global uw_vgic_hcr_write
 uw_vgic_hcr_write:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
     add x2, x2, x0, lsl #12
@@ -448,7 +449,7 @@ uw_vgic_hcr_write:
 .global uw_vgic_vmcr_read
 uw_vgic_vmcr_read:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
     add x2, x2, x0, lsl #12
@@ -457,7 +458,7 @@ uw_vgic_vmcr_read:
 .global uw_vgic_vmcr_write
 uw_vgic_vmcr_write:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
     add x2, x2, x0, lsl #12
@@ -467,7 +468,7 @@ uw_vgic_vmcr_write:
 .global uw_vgic_running_priority
 uw_vgic_running_priority:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x1, uw_contexts
     add x1, x1, :lo12:uw_contexts
     add x1, x1, x0, lsl #12
@@ -499,9 +500,9 @@ uw_vgic_running_priority:
 .global uw_timer_read
 uw_timer_read:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     cmp x1, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x3, uw_contexts
     add x3, x3, :lo12:uw_contexts
     add x3, x3, x0, lsl #12
@@ -517,7 +518,7 @@ uw_timer_read:
     cmp x2, #2
     b.eq 3f
     cmp x2, #1
-    b.ne uw_halt
+    b.ne uw_internal_abort
     ldr x0, [x3]
     and x0, x0, #3
     tbz x0, #0, 4f
@@ -533,9 +534,9 @@ uw_timer_read:
 .global uw_timer_write
 uw_timer_write:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     cmp x1, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x4, uw_contexts
     add x4, x4, :lo12:uw_contexts
     add x4, x4, x0, lsl #12
@@ -546,7 +547,7 @@ uw_timer_write:
     cmp x2, #0
     b.eq 2f
     cmp x2, #2
-    b.ne uw_halt
+    b.ne uw_internal_abort
     mrs x5, cntpct_el0
     cbnz x1, 3f
     ldr x6, [x4, #32]
@@ -574,9 +575,9 @@ uw_timer_pending:
 .global uw_timer_deadline
 uw_timer_deadline:
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     cmp x1, #2
-    b.hs uw_halt
+    b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
     add x2, x2, x0, lsl #12
@@ -3207,12 +3208,16 @@ uw_vectors:
     UW_VECTOR uw_lower_irq
     UW_VECTOR uw_unexpected
     UW_VECTOR uw_unexpected
-    UW_VECTOR uw_unexpected
-    UW_VECTOR uw_unexpected
+    UW_VECTOR uw_lower_unaccepted // Lower AArch32 sync: unsupported guest ISA.
+    UW_VECTOR uw_lower_irq
     UW_VECTOR uw_unexpected
     UW_VECTOR uw_unexpected
 
 .section .text, "ax", %progbits
+uw_lower_unaccepted:
+    stp x0, x1, [sp, #-16]!
+    mov x0, #2
+    b uw_exception
 uw_lower_sync:
     stp x0, x1, [sp, #-16]!
     mov x0, #0
@@ -3233,6 +3238,8 @@ uw_exception:
     msr tpidr_el2, x0
     adrp x0, uw_current
     ldr x0, [x0, :lo12:uw_current]
+    cmp x0, #2
+    b.hs uw_invalid_current
     adrp x1, uw_contexts
     add x1, x1, :lo12:uw_contexts
     add x0, x1, x0, lsl #12
@@ -3267,7 +3274,7 @@ uw_exception:
     mrs x4, hpfar_el2
     bl uw_handle_exit
     cmp x0, #2
-    b.hs uw_halt
+    b.hs uw_invalid_dispatch
     adrp x1, uw_current
     str x0, [x1, :lo12:uw_current]
     adrp x19, uw_contexts
@@ -3307,6 +3314,27 @@ uw_enter_saved:
     ldp x28, x29, [x30, #224]
     ldr x30, [x30, #240]
     eret
+uw_internal_abort:
+    mov x3, x30
+    mov x2, x1
+    mov x1, x0
+    mov x0, #0x1108
+    bl uw_internal_failure
+    b uw_halt
+uw_invalid_current:
+    mov x1, x0
+    mov x0, #0x1101
+    mov x2, xzr
+    mov x3, xzr
+    bl uw_internal_failure
+    b uw_halt
+uw_invalid_dispatch:
+    mov x1, x0
+    mov x0, #0x1104
+    mov x2, xzr
+    mov x3, xzr
+    bl uw_internal_failure
+    b uw_halt
 uw_unexpected:
     msr daifset, #0xf
     mrs x0, esr_el2

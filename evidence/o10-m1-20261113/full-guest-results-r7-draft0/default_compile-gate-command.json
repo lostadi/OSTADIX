@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m1-20261112/scripts/verify_okernel_p9_default_compile.py",
+    "--state",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile",
+    "--build",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7"
+  ],
+  "started": 1794557010.7173886,
+  "returncode": 0,
+  "timed_out": false,
+  "finished": 1794557149.5475447
+}

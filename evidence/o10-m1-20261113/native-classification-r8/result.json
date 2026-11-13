@@ -1,0 +1,35 @@
+{
+  "scope": "Existing ordinary host-register model only; preserves112 prior scenarios and adds four direct defensive1104 disposition assertions. Does not establish reachability of postselection guard or execute guest/EL2/device probes.",
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_o10_resident_native"
+  ],
+  "source_revision": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+  "test_sha256": "04353889411f41a113797549deec093c4ec37ac253a03b6da3f6ff505107edd5",
+  "source_sha256": {
+    "tests/test_o10_resident_native.py": "04353889411f41a113797549deec093c4ec37ac253a03b6da3f6ff505107edd5",
+    "ocore/runtime/aarch64/unified_world.oc": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "0cb597599754cd94d9520dbfff36fbb40e68832dbb0941372be66385c5e0f3eb",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "9d49e871882462a397e3122c1540c816079b3172b1aa72be8c6560a3f0fa68df",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "fc6b7bda9f6cb33e99cc36ddca1606d8bd3725cc629fd3f97afed12d7c8ca3b9",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "fd10114b984f1d3531d00987fdde235d12137451836a16d54c9952c24d93f21a",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/common/namespace_store.oc": "eaaedf300be6c15a83803d7a047119b9ddad978cda6edf5b37b0ab48fe342656",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11"
+  },
+  "compiler": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+  "compiler_sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42",
+  "exit_code": 0,
+  "source_unchanged": true,
+  "scenarios": 116,
+  "milestone_qualified": false
+}

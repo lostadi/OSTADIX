@@ -334,3 +334,12 @@ pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && (STATUS & 192) == 0) as 
 pub unsafe fn diagnostic() -> u64 { return ERROR; }
 pub unsafe fn completions() -> u64 { return COMPLETED; }
 pub unsafe fn denials() -> u64 { return DENIED_COUNT; }
+
+
+// ERROR1 is a trusted session-generation/reset failure, not a malformed
+// guest descriptor. The persistent supervisor must diagnose it internally.
+pub unsafe fn fault_kind() -> u64 {
+    if ACTIVE != 1 || ERROR == 1 { return 3; }
+    if (STATUS & 192) != 0 { return 2; }
+    return 0;
+}

@@ -153,6 +153,21 @@ class O10CodecTests(unittest.TestCase):
         self.assert_bad(frame, 15)
         self.assertEqual(codec.decode(codec.encode("Rwait", next=0, events=[]))["events"], [])
 
+    def test_event_integer_errors_name_the_actual_field_offset(self):
+        event = {"cursor": 1, "type": 2, "flags": 0, "dom": 3, "lease": 4, "arg0": 5, "arg1": 6}
+        fields = (("cursor", 17, 64), ("type", 25, 16), ("flags", 27, 16),
+                  ("dom", 33, 64), ("lease", 41, 64), ("arg0", 49, 64), ("arg1", 57, 64))
+        for index in (0, 1):
+            for field, offset, bits in fields:
+                for invalid in (-1, 1 << bits, True):
+                    with self.subTest(event=index, field=field, invalid=invalid):
+                        bad = dict(event, **{field: invalid})
+                        events = [event] * index + [bad]
+                        with self.assertRaises(codec.O10Error) as caught:
+                            codec.encode("Rwait", next=2, events=events)
+                        self.assertEqual(caught.exception.code, codec.O10_EBADMSG)
+                        self.assertEqual(caught.exception.detail, offset + index * 48)
+
     def test_snapshot_mutable_input_and_opaque_lstat(self):
         frame = bytearray(codec.encode("Rlstat", record=b"\0\x80opaque"))
         decoded = codec.decode(frame)

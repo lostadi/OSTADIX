@@ -626,3 +626,12 @@ pub unsafe fn written_bytes() -> u64 { return WRITTEN_BYTES; }
 pub unsafe fn backing_base() -> usize { return BACKING_BASE; }
 pub unsafe fn backing_length() -> u64 { return BACKING_LENGTH; }
 pub unsafe fn backing_writable() -> u64 { return BACKING_WRITABLE; }
+
+
+// Persistent supervision requires a provisioned live transport. Withdrawing
+// and retired states belong to the separate finite standalone test protocol.
+pub unsafe fn fault_kind() -> u64 {
+    if STATE == STATE_LIVE { return 0; }
+    if STATE == STATE_FAILED && FAILURE != 0 { return 2; }
+    return 3;
+}

@@ -1,0 +1,27 @@
+{
+  "command": "kernel",
+  "args": [
+    "unified-build",
+    "--payload",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui/payload",
+    "--plan9-kernel",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/KERNEL.U",
+    "--derivation-receipt",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/result.json",
+    "--output",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification",
+    "--ocorec",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "--clang",
+    "/usr/lib/llvm-18/bin/clang",
+    "--lld",
+    "/usr/lib/llvm-18/bin/ld.lld",
+    "--dtc",
+    "/home/ustad/ostadix-BM/target/bm-dev-env/bin/dtc",
+    "--plan9-recovery",
+    "--o10-qualification"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 0
+}
