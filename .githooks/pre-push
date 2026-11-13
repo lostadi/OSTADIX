@@ -1,5 +1,5 @@
 #!/bin/sh
-# One policy implementation serves local publication and CI.
+# one author check serves this hook and ci.
 set -eu
 root=$(git rev-parse --show-toplevel)
-exec python3 "$root/scripts/check_attribution.py" --pre-push
+exec python3 "$root/scripts/check_commit_authors.py" --pre-push

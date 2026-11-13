@@ -158,7 +158,7 @@ check 'nix\{lazy\}\^' \
 check 'fresh current-master observation' \
     "the preserved master audit is historical, not a fresh current-checkout observation"
 check 'G0 source-digest lineage is not continuous|G0 and dependent G2 therefore do not validate' \
-    "the sealed attribution-rewrite bridge restores current G0/G2 ledger validation"
+    "the sealed history-rewrite bridge restores current G0/G2 ledger validation"
 check '26 of 26 fresh portable native execution gates' \
     "the 26-gate native result is a preserved historical observation, not a fresh result"
 
