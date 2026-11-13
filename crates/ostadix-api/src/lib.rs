@@ -55,6 +55,7 @@ pub mod resource_identity;
 pub mod runtime_exec;
 pub mod scheduler;
 pub mod shims;
+pub(crate) mod step_knobs;
 pub mod syntax_dialect;
 pub mod value;
 pub mod version;
