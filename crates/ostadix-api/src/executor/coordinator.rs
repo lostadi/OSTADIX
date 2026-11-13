@@ -203,6 +203,7 @@ impl<'a> Coordinator<'a> {
             base_scope: std::collections::HashMap::new(),
             node_policy,
             trace: ExecutionTrace::new(),
+            failed_batch_members: std::collections::HashSet::new(),
         };
 
         Ok(Self {
@@ -1193,14 +1194,13 @@ impl<'a> Coordinator<'a> {
                             kind: WorkerFailureKind::Infrastructure,
                         });
                     }
-                    if crate::eval_core::batch_member_absorbs_failure(
+                    if let Some((failure, value)) = crate::eval_core::settle_batch_member_failure(
                         self.plan,
-                        &self.frame.plan_index,
+                        &mut self.frame,
                         id,
+                        &error,
                     ) {
-                        let message = format!("{error:#}");
-                        self.trace.batch_member_failed(id, message.clone());
-                        let value = OValue::error(message);
+                        self.trace.batch_member_failed(failure);
                         let output_type = value.type_name().to_string();
                         let fingerprint = trace_fingerprint(&value);
                         if let Err(error) = self.frame.set_value(id, value) {
@@ -1440,14 +1440,13 @@ impl<'a> Coordinator<'a> {
                         RuntimeCrossingStateV1::Failed
                     };
                 }
-                if crate::eval_core::batch_member_absorbs_failure(
+                if let Some((failure, value)) = crate::eval_core::settle_batch_member_failure(
                     self.plan,
-                    &self.frame.plan_index,
+                    &mut self.frame,
                     id,
+                    &err,
                 ) {
-                    let message = format!("{err:#}");
-                    self.trace.batch_member_failed(id, message.clone());
-                    let value = OValue::error(message);
+                    self.trace.batch_member_failed(failure);
                     self.trace.finished(
                         id,
                         value.type_name().to_string(),
