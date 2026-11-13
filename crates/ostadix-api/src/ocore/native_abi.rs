@@ -237,7 +237,9 @@ impl<'a> AbiContext<'a> {
             Type::Float { bits } => Some(*bits),
             _ => None,
         };
-        let implicit = result_float.is_none() && result_leaves.len() > result_registers.len();
+        let result_i128 = matches!(self.ty(signature.result)?, Type::Int { bits: 128 });
+        let implicit =
+            result_float.is_none() && !result_i128 && result_leaves.len() > result_registers.len();
         let mut placement = Placement::new(self.target, &signature.abi);
         placement.hard_float = self.module.target.abi.as_deref() == Some("lp64d");
         let mut storage = if let Some(explicit) = &signature.return_storage {
@@ -284,6 +286,16 @@ impl<'a> AbiContext<'a> {
                 for transfer in placement.floating(*bits, param >= named_count)? {
                     args.push(transfer.part(Some(param), ty));
                 }
+                continue;
+            }
+            if matches!(self.ty(ty)?, Type::Int { bits: 128 }) {
+                self.audit_i128_layout(ty)?;
+                args.extend(
+                    placement
+                        .wide_integer(param >= named_count)?
+                        .into_iter()
+                        .map(|transfer| transfer.part(Some(param), ty)),
+                );
                 continue;
             }
             let leaves = self.value_leaves(ty)?;
@@ -371,6 +383,21 @@ impl<'a> AbiContext<'a> {
                     .into_iter()
                     .map(|transfer| transfer.part(None, signature.result)),
             );
+        } else if result_i128 {
+            self.audit_i128_layout(signature.result)?;
+            for (index, register) in result_registers[..2].iter().copied().enumerate() {
+                results.push(
+                    FloatTransfer {
+                        location: AbiLocation::Register(register),
+                        class: AbiClass::General,
+                        value_bits: 64,
+                        bit_offset: index as u16 * 64,
+                        location_bits: 64,
+                        nan_box: false,
+                    }
+                    .part(None, signature.result),
+                );
+            }
         } else {
             results
                 .try_reserve(result_leaves.len())
@@ -436,6 +463,13 @@ impl<'a> AbiContext<'a> {
             .get(ty)
             .and_then(|x| *x)
             .ok_or_else(|| fail(format!("type {ty} is missing or unsized")))
+    }
+
+    fn audit_i128_layout(&self, ty: TypeId) -> Result<(), Diagnostic> {
+        if self.allocation(ty)? != (16, 16) {
+            return Err(fail("i128 value ABI requires size 16 and alignment 16"));
+        }
+        Ok(())
     }
 
     fn audit_float_layout(&self, ty: TypeId, bits: u16) -> Result<(), Diagnostic> {
@@ -639,6 +673,80 @@ impl Placement {
         }
     }
 
+    /// Scalar i128 has two INTEGER-class eightbytes on SysV, an aligned
+    /// register pair on AAPCS64, and the base integer psABI pair on RV64.
+    /// This is not an aggregate classification or a fastcc legalization rule.
+    fn wide_integer(&mut self, unnamed: bool) -> Result<Vec<FloatTransfer>, Diagnostic> {
+        let locations = match self.target {
+            Target::X86_64UnknownNone => {
+                if self.next + 1 < self.registers.len() {
+                    [self.ordinary()?, self.ordinary()?]
+                } else {
+                    // SysV reverts an unsuccessful whole-argument register
+                    // allocation: the remaining register belongs to later args.
+                    let base = self.block(2, 16)?;
+                    [
+                        AbiLocation::Stack { offset: base },
+                        AbiLocation::Stack {
+                            offset: add(base, 8)?,
+                        },
+                    ]
+                }
+            }
+            Target::Aarch64UnknownNone => {
+                // AAPCS64 C.8-C.10: 16-byte fundamental values require an
+                // even NGRN and cannot split between registers and the stack.
+                self.next = (self.next + 1) & !1;
+                if self.next + 1 < self.registers.len() {
+                    [self.ordinary()?, self.ordinary()?]
+                } else {
+                    self.next = self.registers.len();
+                    let base = self.block(2, 16)?;
+                    [
+                        AbiLocation::Stack { offset: base },
+                        AbiLocation::Stack {
+                            offset: add(base, 8)?,
+                        },
+                    ]
+                }
+            }
+            Target::Riscv64UnknownNone => {
+                // A named 2*XLEN scalar may straddle a7/stack. A variadic
+                // 16-byte-aligned scalar needs an even pair; failure closes
+                // the GP bank for all following unnamed arguments.
+                if unnamed {
+                    self.next = (self.next + 1) & !1;
+                }
+                if self.next + 1 < self.registers.len()
+                    || (!unnamed && self.next < self.registers.len())
+                {
+                    [self.ordinary()?, self.ordinary()?]
+                } else {
+                    self.next = self.registers.len();
+                    let base = self.block(2, 16)?;
+                    [
+                        AbiLocation::Stack { offset: base },
+                        AbiLocation::Stack {
+                            offset: add(base, 8)?,
+                        },
+                    ]
+                }
+            }
+        };
+        Ok(locations
+            .into_iter()
+            .enumerate()
+            .map(|(index, location)| FloatTransfer {
+                location,
+                class: AbiClass::General,
+                value_bits: 64,
+                bit_offset: index as u16 * 64,
+                location_bits: 64,
+                nan_box: false,
+            })
+            .collect())
+    }
+
     fn floating(&mut self, bits: u16, unnamed: bool) -> Result<Vec<FloatTransfer>, Diagnostic> {
         if !matches!(bits, 32 | 64 | 80 | 128)
             || (bits == 80 && self.target != Target::X86_64UnknownNone)
@@ -661,38 +769,7 @@ impl Placement {
                 }]);
             }
             if bits == 128 {
-                // Named scalars may straddle a7 and the stack. Unnamed
-                // 16-byte-aligned values require an even pair; a failed pair
-                // closes the GP bank for every subsequent unnamed argument.
-                if unnamed {
-                    self.next = (self.next + 1) & !1;
-                }
-                let locations = if self.next + 1 < self.registers.len() {
-                    [self.ordinary()?, self.ordinary()?]
-                } else if !unnamed && self.next < self.registers.len() {
-                    [self.ordinary()?, self.ordinary()?]
-                } else {
-                    self.next = self.registers.len();
-                    let base = self.block(2, 16)?;
-                    [
-                        AbiLocation::Stack { offset: base },
-                        AbiLocation::Stack {
-                            offset: add(base, 8)?,
-                        },
-                    ]
-                };
-                return Ok(locations
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, location)| FloatTransfer {
-                        location,
-                        class: AbiClass::General,
-                        value_bits: 64,
-                        bit_offset: index as u16 * 64,
-                        location_bits: 64,
-                        nan_box: false,
-                    })
-                    .collect());
+                return self.wide_integer(unnamed);
             }
             return Ok(vec![FloatTransfer {
                 location: self.ordinary()?,
@@ -828,9 +905,14 @@ pub fn audit_signature(
             param,
         )?;
     }
-    let mut roots: Vec<_> = sig.params.iter().copied().map(|id| (id, false)).collect();
+    let mut roots: Vec<_> = sig
+        .params
+        .iter()
+        .copied()
+        .map(|id| (id, false, false))
+        .collect();
     if !matches!(ty(sig.result)?, Type::Void) {
-        roots.push((sig.result, false));
+        roots.push((sig.result, false, false));
     }
     if let Some(storage) = &sig.return_storage {
         if storage.param > 1
@@ -844,20 +926,25 @@ pub fn audit_signature(
                 "typed sret requires original AS0 pointer parameter0/1 and void result",
             ));
         }
-        roots.push((storage.ty, true));
+        // Payload storage is not a by-value ABI interface. Keep its
+        // visitation context distinct so it cannot authorize a value root.
+        roots.push((storage.ty, false, true));
     }
     let mut seen = HashSet::new();
-    while let Some((id, nested)) = roots.pop() {
-        if !seen.insert((id, nested)) {
+    while let Some((id, nested, storage)) = roots.pop() {
+        if !seen.insert((id, nested, storage)) {
             continue;
         }
         match ty(id)? {
             Type::Int { bits: 1..=64 } | Type::Pointer { address_space: 0 } => (),
+            Type::Int { bits: 128 } if storage || (!nested && sig.abi == "c") => (),
+            Type::Int { bits: 128 } => return Err(fail("i128 aggregate value ABI and fastcc require explicit lowering")),
+            Type::Float { bits } if storage => audit_float_format(target, *bits)?,
             Type::Float { bits } if !nested => audit_float_type(module, target, &sig.abi, *bits)?,
             Type::Float { .. } => return Err(fail("floating-point aggregate ABI/HFA requires explicit lowering")),
-            Type::Array { element, .. } => roots.push((*element, true)),
-            Type::Struct { fields, .. } => roots.extend(fields.iter().map(|id| (*id, true))),
-            _ => return Err(fail(format!("unsupported original ABI type {id}; i128, vectors and opaque/byval ABI require explicit lowering"))),
+            Type::Array { element, .. } => roots.push((*element, true, storage)),
+            Type::Struct { fields, .. } => roots.extend(fields.iter().map(|id| (*id, true, storage))),
+            _ => return Err(fail(format!("unsupported original ABI type {id}; vectors, unsupported integer widths and opaque/byval ABI require explicit lowering"))),
         }
     }
     Ok(())
@@ -874,15 +961,20 @@ fn audit_float_type(
             "floating-point ABI is currently implemented only for LLVM C signatures",
         ));
     }
-    if !matches!(bits, 32 | 64 | 80 | 128) || (bits == 80 && target != Target::X86_64UnknownNone) {
-        return Err(fail("unsupported target floating-point scalar width"));
-    }
+    audit_float_format(target, bits)?;
     if target == Target::Riscv64UnknownNone
         && !matches!(module.target.abi.as_deref(), Some("lp64" | "lp64d"))
     {
         return Err(fail(
             "floating-point RV64 ABI requires explicit original lp64 or lp64d",
         ));
+    }
+    Ok(())
+}
+
+fn audit_float_format(target: Target, bits: u16) -> Result<(), Diagnostic> {
+    if !matches!(bits, 32 | 64 | 80 | 128) || (bits == 80 && target != Target::X86_64UnknownNone) {
+        return Err(fail("unsupported target floating-point scalar width"));
     }
     Ok(())
 }
@@ -895,7 +987,7 @@ fn audit_attributes(module: &NativeModule, attrs: &[String], ty: TypeId) -> Resu
     let mut seen = HashSet::new();
     for attr in attrs {
         if !matches!(attr.as_str(), "signext" | "zeroext")
-            || !matches!(ty, Type::Int { .. })
+            || !matches!(ty, Type::Int { bits: 1..=64 })
             || !seen.insert(attr.as_str())
         {
             return Err(fail(format!(
@@ -1009,9 +1101,9 @@ fn prepare_call_signature(
             }
         } else {
             match module.types.get(ty) {
-                Some(Type::Int { bits: 1..=64 } | Type::Pointer { address_space: 0 }) => (),
+                Some(Type::Int { bits: 1..=64 | 128 } | Type::Pointer { address_space: 0 }) => (),
                 Some(Type::Float { bits }) => audit_float_type(module, target, &signature.abi, *bits)?,
-                _ => return Err(fail("variadic arguments require scalar integers up to 64 bits, AS0 pointers or supported floating-point scalars; aggregates require additional ABI lowering")),
+                _ => return Err(fail("variadic arguments require scalar integers up to 64 bits or exactly i128, AS0 pointers or supported floating-point scalars; aggregates require additional ABI lowering")),
             }
         }
     }
@@ -1089,6 +1181,7 @@ mod tests {
                 abi: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
             },
             semantics: Semantics::LlvmDefinedBehaviorV1,
             types: vec![
@@ -1612,7 +1705,7 @@ mod tests {
         let target = Target::X86_64UnknownNone;
         let mut m = module(target);
         let float = push(&mut m, Type::Float { bits: 64 });
-        let wide = push(&mut m, Type::Int { bits: 128 });
+        let wide = push(&mut m, Type::Int { bits: 65 });
         let zero_float = push(
             &mut m,
             Type::Array {
@@ -1884,7 +1977,7 @@ mod tests {
                     packed: false,
                 },
             );
-            let wide = push(&mut m, Type::Int { bits: 128 });
+            let wide = push(&mut m, Type::Int { bits: 65 });
             let other_as = push(&mut m, Type::Pointer { address_space: 1 });
             let mut sig = signature(vec![], 1, "c");
             sig.variadic = true;
@@ -2207,5 +2300,201 @@ mod tests {
         assert!(plan(&m, target, &attributed).is_err());
         m.target.data_layout = m.target.data_layout.replace("f128:128", "f128:64");
         assert!(plan(&m, target, &signature(vec![f128], f128, "c")).is_err());
+    }
+    fn wide_integer_module(target: Target) -> (NativeModule, TypeId) {
+        let mut m = module(target);
+        m.target.data_layout.push_str("-i128:128-f128:128");
+        let wide = push(&mut m, Type::Int { bits: 128 });
+        (m, wide)
+    }
+
+    #[test]
+    fn scalar_i128_preserves_two_chunks_and_two_register_results_all_isas() {
+        for (target, input, output) in [
+            (Target::X86_64UnknownNone, ["rdi", "rsi"], ["rax", "rdx"]),
+            (Target::Aarch64UnknownNone, ["x0", "x1"], ["x0", "x1"]),
+            (Target::Riscv64UnknownNone, ["a0", "a1"], ["a0", "a1"]),
+        ] {
+            let (m, wide) = wide_integer_module(target);
+            let p = plan(&m, target, &signature(vec![wide], wide, "c")).unwrap();
+            assert!(p.storage.is_none());
+            for (parts, registers) in [(&p.args, input), (&p.results, output)] {
+                assert_eq!(parts.len(), 2);
+                for (index, part) in parts.iter().enumerate() {
+                    assert_eq!(part.location, AbiLocation::Register(registers[index]));
+                    assert_eq!(
+                        (part.ty, part.leaf, part.offset),
+                        (wide, 0, index as u64 * 8)
+                    );
+                    assert_eq!(
+                        (part.value_bits, part.bit_offset, part.location_bits),
+                        (64, index as u16 * 64, 64)
+                    );
+                    assert_eq!(part.class, AbiClass::General);
+                    assert_eq!(part.extension, Extension::None);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sysv_i128_rolls_back_failed_pair_and_keeps_last_gp_for_following_scalar() {
+        let target = Target::X86_64UnknownNone;
+        let (m, wide) = wide_integer_module(target);
+        let params = [vec![1; 5], vec![wide, 1, wide]].concat();
+        let p = plan(&m, target, &signature(params, 0, "c")).unwrap();
+        assert_eq!(
+            regs(&p.args[5..]),
+            vec![
+                AbiLocation::Stack { offset: 0 },
+                AbiLocation::Stack { offset: 8 },
+                AbiLocation::Register("r9"),
+                AbiLocation::Stack { offset: 16 },
+                AbiLocation::Stack { offset: 24 },
+            ]
+        );
+        assert_eq!(p.stack_bytes, 32);
+    }
+
+    #[test]
+    fn aapcs_i128_even_pair_stack_alignment_and_named_metadata_are_exact() {
+        let target = Target::Aarch64UnknownNone;
+        let (m, wide) = wide_integer_module(target);
+        let p = plan(&m, target, &signature(vec![1, wide, 1], 0, "c")).unwrap();
+        assert_eq!(
+            regs(&p.args),
+            vec![
+                AbiLocation::Register("x0"),
+                AbiLocation::Register("x2"),
+                AbiLocation::Register("x3"),
+                AbiLocation::Register("x4")
+            ]
+        );
+        let mut sig = signature(vec![1; 9], 0, "c");
+        sig.variadic = true;
+        let actual = [sig.params.clone(), vec![wide, 1]].concat();
+        let p = plan_call(&m, target, &sig, &actual, &vec![vec![]; actual.len()]).unwrap();
+        assert_eq!(p.variadic.unwrap().named_stack_bytes, 8);
+        assert_eq!(
+            regs(&p.args[9..]),
+            vec![
+                AbiLocation::Stack { offset: 16 },
+                AbiLocation::Stack { offset: 24 },
+                AbiLocation::Stack { offset: 32 }
+            ]
+        );
+        let p = plan(
+            &m,
+            target,
+            &signature([vec![1; 7], vec![wide, 1]].concat(), 0, "c"),
+        )
+        .unwrap();
+        assert_eq!(
+            regs(&p.args[7..]),
+            vec![
+                AbiLocation::Stack { offset: 0 },
+                AbiLocation::Stack { offset: 8 },
+                AbiLocation::Stack { offset: 16 }
+            ]
+        );
+    }
+
+    #[test]
+    fn rv_i128_named_split_and_unnamed_even_pair_sticky_stack_are_distinct() {
+        let target = Target::Riscv64UnknownNone;
+        let (m, wide) = wide_integer_module(target);
+        let p = plan(
+            &m,
+            target,
+            &signature([vec![1; 7], vec![wide, 1]].concat(), 0, "c"),
+        )
+        .unwrap();
+        assert_eq!(
+            regs(&p.args[7..]),
+            vec![
+                AbiLocation::Register("a7"),
+                AbiLocation::Stack { offset: 0 },
+                AbiLocation::Stack { offset: 8 }
+            ]
+        );
+        for named in [5, 7] {
+            let mut sig = signature(vec![1; named], 0, "c");
+            sig.variadic = true;
+            let actual = [sig.params.clone(), vec![wide, 1]].concat();
+            let p = plan_call(&m, target, &sig, &actual, &vec![vec![]; actual.len()]).unwrap();
+            let expected = if named == 5 {
+                vec![
+                    AbiLocation::Register("a6"),
+                    AbiLocation::Register("a7"),
+                    AbiLocation::Stack { offset: 0 },
+                ]
+            } else {
+                vec![
+                    AbiLocation::Stack { offset: 0 },
+                    AbiLocation::Stack { offset: 8 },
+                    AbiLocation::Stack { offset: 16 },
+                ]
+            };
+            assert_eq!(regs(&p.args[named..]), expected);
+            assert_eq!(p.variadic.unwrap().named_gp, named);
+        }
+    }
+
+    #[test]
+    fn i128_abi_guards_do_not_reject_typed_memory_or_authorize_aggregate_values() {
+        for target in [
+            Target::X86_64UnknownNone,
+            Target::Aarch64UnknownNone,
+            Target::Riscv64UnknownNone,
+        ] {
+            let (mut m, wide) = wide_integer_module(target);
+            let fp = push(&mut m, Type::Float { bits: 128 });
+            let storage = push(
+                &mut m,
+                Type::Struct {
+                    fields: vec![wide, fp],
+                    packed: false,
+                },
+            );
+            let empty = push(
+                &mut m,
+                Type::Array {
+                    element: wide,
+                    len: 0,
+                },
+            );
+            let mut sig = signature(vec![2], 0, "c");
+            sig.return_storage = Some(ReturnStorage {
+                param: 0,
+                ty: storage,
+            });
+            assert!(plan(&m, target, &sig).is_ok());
+            for value in [storage, empty] {
+                let mut value_sig = sig.clone();
+                value_sig.params.push(value);
+                assert!(audit_signature(&m, target, &value_sig).is_err());
+            }
+            assert!(plan(&m, target, &signature(vec![wide], wide, "fastcc")).is_err());
+            for bits in [65, 127, 129] {
+                let unsupported = push(&mut m, Type::Int { bits });
+                assert!(
+                    audit_signature(&m, target, &signature(vec![unsupported], 0, "c")).is_err()
+                );
+            }
+            for attr in ["signext", "zeroext"] {
+                let mut attributed = signature(vec![wide], wide, "c");
+                attributed.param_attributes = vec![vec![attr.into()]];
+                assert!(audit_signature(&m, target, &attributed).is_err());
+                attributed.param_attributes.clear();
+                attributed.result_attributes = vec![attr.into()];
+                assert!(audit_signature(&m, target, &attributed).is_err());
+                let mut variadic = signature(vec![], 0, "c");
+                variadic.variadic = true;
+                assert!(plan_call(&m, target, &variadic, &[wide], &[vec![attr.into()]]).is_err());
+                assert!(plan_call(&m, target, &variadic, &[wide], &[]).is_err());
+            }
+            m.target.data_layout = m.target.data_layout.replace("i128:128", "i128:64");
+            assert!(plan(&m, target, &signature(vec![wide], wide, "c")).is_err());
+        }
     }
 }

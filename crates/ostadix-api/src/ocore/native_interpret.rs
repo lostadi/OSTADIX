@@ -768,6 +768,7 @@ mod tests {
                 abi: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
                 data_layout: "e-p:64:64-i64:64-i128:128".into(),
                 pointer_bits: 64,
                 little_endian: true,

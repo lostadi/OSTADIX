@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn package_rechecks_hashes_bodies_inventories_profiles_and_closure() {
         let source = package("provider");
-        for case in 0..9 {
+        for case in 0..10 {
             let mut altered = source.clone();
             match case {
                 0 => altered.modules[0].sha256 = "0".repeat(64),
@@ -555,6 +555,10 @@ mod tests {
                     name: "absent".into(),
                     capture_sha256: "a".repeat(64),
                 }),
+                9 => {
+                    altered.target.wide_volatile_profile =
+                        Some(WideVolatileProfile::OrdinaryRamSplitV1)
+                }
                 _ => unreachable!(),
             }
             assert!(
@@ -692,6 +696,7 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run"),
@@ -792,6 +797,7 @@ mod tests {
                     llvm_sha256: None,
                     tls_profile: None,
                     atomic_profile,
+                    wide_volatile_profile: None,
                     dependencies: &[],
                 },
                 Path::new("/compiler-must-not-run")
@@ -799,5 +805,34 @@ mod tests {
             .is_err());
             assert!(!output.exists());
         }
+    }
+    #[test]
+    fn package_keeps_wide_volatile_profile_and_rejects_removal_from_either_target() {
+        let old = package("provider");
+        assert!(serde_json::to_value(&old.target)
+            .unwrap()
+            .get("wide_volatile_profile")
+            .is_none());
+        let mut module: Value = serde_json::from_slice(&module("provider", false)).unwrap();
+        module["target"]["wide_volatile_profile"] = json!("ordinary_ram_split_v1");
+        let unit = serde_json::to_vec(&module).unwrap();
+        let profiled =
+            Artifact::build("provider", &"a".repeat(64), &[("unit".into(), unit)], &[]).unwrap();
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&profiled).unwrap()).is_ok());
+        let mut missing_header = profiled.clone();
+        missing_header.target.wide_volatile_profile = None;
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&missing_header).unwrap()).is_err());
+        let mut missing_module = profiled.clone();
+        let mut ir: Value = serde_json::from_str(&missing_module.modules[0].native_ir).unwrap();
+        ir["target"]
+            .as_object_mut()
+            .unwrap()
+            .remove("wide_volatile_profile");
+        missing_module.modules[0].native_ir = ir.to_string();
+        missing_module.modules[0].sha256 = digest(missing_module.modules[0].native_ir.as_bytes());
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&missing_module).unwrap()).is_err());
+        let mut unknown = serde_json::to_value(&profiled).unwrap();
+        unknown["target"]["wide_volatile_profile"] = json!("ordinary_mmio");
+        assert!(Artifact::from_bytes(&serde_json::to_vec(&unknown).unwrap()).is_err());
     }
 }

@@ -2030,6 +2030,9 @@ define i32 @entry(i8 %byte) {
             with self.subTest(triple=triple):
                 module = self.import_ir("\n".join(rows), triple=triple, layout=LAYOUT + "-i128:128-f80:128")
                 self.assertEqual(module["provenance"]["source_function_count"], 2 * len(widths))
+                self.assertTrue(any("nocreateundeforpoison=0 realized by the exact owned scalar-fabs" in item
+                                    for item in module["provenance"]["refinements"]))
+                self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(self.source.read_bytes()).hexdigest())
                 for width in widths:
                     decl = self.function(module, f"llvm.fabs.f{width}")
                     self.assertEqual(decl["intrinsic"], f"llvm.fabs.f{width}")
@@ -2044,6 +2047,52 @@ define i32 @entry(i8 %byte) {
         self.reject('declare <2 x float> @llvm.fabs.v2f32(<2 x float>)')
         self.reject('declare float @llvm.fabs.f32(float)\n@escape = global ptr @llvm.fabs.f32', stage="llvm-verify")
         self.reject('declare float @llvm.experimental.constrained.sqrt.f32(float, metadata, metadata)')
+        self.reject('define float @ordinary(float %x) nocreateundeforpoison { ret float %x }')
+        self.reject('declare float @llvm.fabs.f32(float)\ndefine float @strict_abs(float %x) strictfp { %r = call float @llvm.fabs.f32(float %x)\n ret float %r }')
+
+    def test_wide_volatile_profile_is_explicit_preserves_operations_and_rejects_foreign_or_non_lp64_targets(self):
+        body = "define i128 @touch(ptr %p, i128 %x) { %old = load volatile i128, ptr %p, align 16\n store volatile i128 %x, ptr %p, align 16\n ret i128 %old }"
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                source = self.write(body, triple=triple, layout=LAYOUT + "-i128:128")
+                plain = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256)
+                selected = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
+                                                  wide_volatile_profile="ordinary-ram-split-v1")
+                self.assertNotIn("wide_volatile_profile", plain["target"])
+                self.assertEqual(selected["target"]["wide_volatile_profile"], "ordinary_ram_split_v1")
+                self.assertEqual(selected["provenance"]["input_sha256"], hashlib.sha256(source.read_bytes()).hexdigest())
+                self.assertEqual(plain["functions"], selected["functions"])
+                self.assertEqual(plain["types"], selected["types"])
+                self.assertEqual(plain["globals"], selected["globals"])
+                operations = self.operations(self.function(selected, "touch"))
+                self.assertEqual([op["op"] for op in operations], ["load", "store"])
+                self.assertTrue(all(op["volatile"] and op["alignment"] == 16 for op in operations))
+                self.assertTrue(any("no MMIO, no indivisibility or atomicity" in item for item in selected["provenance"]["refinements"]))
+        output = self.directory / "profile.native.json"
+        command = [sys.executable, str(SCRIPT), str(source), "--llvm-library", str(self.library),
+                   "--llvm-sha256", self.library_sha256, "--wide-volatile-profile", "ordinary-ram-split-v1",
+                   "-o", str(output)]
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(output.read_text())["target"]["wide_volatile_profile"], "ordinary_ram_split_v1")
+        rejected = self.directory / "must-not-publish.native.json"
+        command[command.index("ordinary-ram-split-v1")] = "ordinary-mmio"
+        command[-1] = str(rejected)
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertFalse(rejected.exists())
+        self.assertEqual(json.loads(completed.stderr)["error"]["stage"], "import")
+        for triple, layout, profile in [(TRIPLES[0], LAYOUT, "ordinary-mmio"),
+                                        ("x86_64-pc-windows-msvc", LAYOUT, "ordinary-ram-split-v1"),
+                                        ("i386-unknown-linux-gnu", "e-p:32:32-i64:64", "ordinary-ram-split-v1"),
+                                        (TRIPLES[0], "e-p:32:32-i64:64", "ordinary-ram-split-v1"),
+                                        (TRIPLES[0], "e-p:64:64:64:32-i64:64", "ordinary-ram-split-v1")]:
+            with self.subTest(triple=triple, layout=layout, profile=profile):
+                source = self.write("define i64 @f() { ret i64 1 }", triple=triple, layout=layout)
+                with self.assertRaises(importer.ImportFailure) as raised:
+                    importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
+                                           wide_volatile_profile=profile)
+                self.assertEqual(raised.exception.stage, "import")
 
     def test_i128_constants_and_initializers_preserve_top_bits_negative_values_and_padding(self):
         patterns = (0, 1, 1 << 127, (1 << 128) - 1, -1, -(1 << 127))

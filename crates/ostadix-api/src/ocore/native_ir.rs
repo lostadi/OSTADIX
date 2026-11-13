@@ -193,12 +193,23 @@ pub struct TargetLayout {
     /// property for these regions; this does not promise starvation freedom.
     #[serde(default)]
     pub atomic_profile: Option<AtomicProfile>,
+    /// Explicit ordinary-RAM realization for wide volatile accesses. Native
+    /// accesses may use ordered target-sized parts: this excludes MMIO and
+    /// provides no indivisibility or atomicity. Original operations are retained.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wide_volatile_profile: Option<WideVolatileProfile>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AtomicProfile {
     CoherentRamV1,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WideVolatileProfile {
+    OrdinaryRamSplitV1,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

@@ -157,10 +157,10 @@ pub fn operation_requirement(
                 }
             }
         }
-        Operation::FloatNeg { value, .. } => {
+        Operation::FloatNeg { value, .. } | Operation::FloatAbs { value, .. } => {
             let numeric = operand_type(module, value, value_types)?;
             if numeric != result_type()? {
-                return Err(fail("floating negation operand/result type mismatch"));
+                return Err(fail("floating sign operation operand/result type mismatch"));
             }
             match numeric {
                 Float {
@@ -168,7 +168,7 @@ pub fn operation_requirement(
                 } => None,
                 Float { bits: 80 } if target == Target::X86_64UnknownNone => None,
                 Float { bits: 80 } => return Err(fail("x87 transport requires x86-64")),
-                _ => return Err(fail("floating negation requires a floating type")),
+                _ => return Err(fail("floating sign operation requires a floating type")),
             }
         }
         Operation::FCmp { lhs, rhs, .. } => {
@@ -563,6 +563,17 @@ mod tests {
                 operation_requirement(&m, target, &neg, &BTreeMap::new()).unwrap(),
                 None
             );
+            let abs = Instruction {
+                result: neg.result.clone(),
+                operation: Operation::FloatAbs {
+                    value: constant(ty),
+                    flags: FastMathFlags::default(),
+                },
+            };
+            assert_eq!(
+                operation_requirement(&m, target, &abs, &BTreeMap::new()).unwrap(),
+                None
+            );
         }
         for ty in [4, 5, 6, 7] {
             assert!(operation_requirement(
@@ -696,5 +707,55 @@ mod tests {
         m.target.abi = Some("lp64d".into());
         operation.result.as_mut().unwrap().ty = 1;
         assert!(operation_requirement(&m, target, &operation, &values).is_err());
+    }
+    #[test]
+    fn exact_quad_i128_bitcasts_need_no_provider_but_numeric_bridges_stay_closed() {
+        for (target, abi) in [
+            (Target::X86_64UnknownNone, None),
+            (Target::Aarch64UnknownNone, None),
+            (Target::Riscv64UnknownNone, Some("lp64d")),
+        ] {
+            let mut m = module(target, abi);
+            let wide = m.types.len();
+            m.types.push(Type::Int { bits: 128 });
+            for (source, destination) in [(6, wide), (wide, 6)] {
+                let value = if source == wide {
+                    Operand::Int {
+                        ty: wide,
+                        bits: "340282366920938463463374607431768211455".into(),
+                    }
+                } else {
+                    constant(source)
+                };
+                let instruction = Instruction {
+                    result: Some(Value {
+                        id: 0,
+                        ty: destination,
+                    }),
+                    operation: Operation::Cast {
+                        kind: CastOp::Bitcast,
+                        value: value.clone(),
+                    },
+                };
+                assert_eq!(
+                    operation_requirement(&m, target, &instruction, &BTreeMap::new()).unwrap(),
+                    None
+                );
+                for kind in if source == wide {
+                    [CastOp::SiToFp, CastOp::UiToFp]
+                } else {
+                    [CastOp::FpToSi, CastOp::FpToUi]
+                } {
+                    let numeric = Instruction {
+                        result: instruction.result,
+                        operation: Operation::Cast {
+                            kind,
+                            value: value.clone(),
+                        },
+                    };
+                    assert!(operation_requirement(&m, target, &numeric, &BTreeMap::new()).is_err());
+                }
+            }
+        }
     }
 }

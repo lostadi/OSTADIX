@@ -76,6 +76,49 @@
     "stage": "complete",
     "started_epoch": 1792493696.3142464
   },
+  "checkpoint_v2": {
+    "all_ISA_profiles_qualified": false,
+    "all_original_engine_lanes_complete": false,
+    "both_new_codegen_modules_included": true,
+    "build_snapshot": {
+      "bytes": 42544,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fp-recovery-checkpoint-v2/build-at-checkpoint.json",
+      "sha256": "679d21c1da97ea29774deead887aa05f1435ca41d72efbe137d15d3d0dd85e50"
+    },
+    "created_epoch": 1792499344.319478,
+    "derived_runtime_source_closure": {
+      "after_adding_both_wide_codegen_modules": true,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tests.test_ocore_aot_native_source_closure"
+      ],
+      "failures": 0,
+      "seconds": 2.921,
+      "skips": 0,
+      "standalone_runtime_execution_qualified": false,
+      "tests": 5
+    },
+    "finite_scalar_matrix_comparisons": 7680,
+    "finite_scalar_owned_involving_comparisons": 5760,
+    "finite_scalar_postvalidation": {
+      "bytes": 22650,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/finite-scalar-diagnostic-v1/postvalidation-summary.json",
+      "sha256": "7d427d8ecb436b1e1b9859757ceb5101edfcdd2a3080b15392db2610564d81ef"
+    },
+    "finite_scalar_reference_reference_comparisons": 1920,
+    "focused_importer": {
+      "bytes": 4845,
+      "path": "/home/orangepi/ostadix-BM/target/native-fp-worktree-20261020/target/fabs-i128-profile-importer-v3-lm4q5dh3/receipt.json",
+      "sha256": "59b21d2dd486a2520f64830b848fad65b2f3a06c7eac74a4843439709c80df01"
+    },
+    "focused_importer_methods_passed": 4,
+    "focused_importer_skips": 0,
+    "full_build_stage": "running",
+    "native_hardware_execution_qualified": false,
+    "original_provider_bodies_lowered": false
+  },
   "created_utc": "2026-10-20T11:20:17.010159+00:00",
   "current_sources": {
     "crates/ostadix-api/src/api/aot_source.rs": "b91da4aabaad64617abcf973a289ba700b4eb8cd4c7b22c48ce93410d78543e5",
@@ -541,6 +584,7 @@
   "status": "unqualified_recovery_checkpoint",
   "working_source_is_newer_than_build_v3": true,
   "working_source_notes": [
-    "FloatAbs changes are initial uncompiled work following owned29 failure; complete integer128 and wide volatile support remains open."
+    "Unqualified in-progress scalar i128 ABI/codegen, exact i128 import, FloatAbs and explicit ordinary-RAM wide volatile transport. Full V4 compilation is running; no owned execution of these new changes is claimed.",
+    "Prior full29 failure is retained above. Additional finite scalar diagnostic is separately bounded and does not establish full runtime, provider, generated-program or hardware support."
   ]
 }

@@ -370,6 +370,11 @@ struct Cli {
     #[arg(long, value_parser = ["coherent-ram-v1"], requires = "native_runtime")]
     atomic_profile: Option<String>,
 
+    /// Explicit native wide volatile ordinary-RAM realization. MMIO and
+    /// indivisibility/atomicity are excluded; dependencies remain separate.
+    #[arg(long, requires = "native_runtime", value_parser = ["ordinary-ram-split-v1"])]
+    wide_volatile_profile: Option<String>,
+
     /// Compilation target
     #[arg(long, value_enum, default_value_t = CompileTarget::Binary)]
     target: CompileTarget,
@@ -542,6 +547,7 @@ fn run_cli() -> Result<()> {
                 llvm_sha256: cli.llvm_sha256.as_deref(),
                 tls_profile: cli.tls_profile.as_deref(),
                 atomic_profile: cli.atomic_profile.as_deref(),
+                wide_volatile_profile: cli.wide_volatile_profile.as_deref(),
                 dependencies: &cli.native_runtime_dependency,
             },
             native_runtime::NativeSourceOptions {
