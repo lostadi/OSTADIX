@@ -1038,31 +1038,30 @@ Adding a new language: write a Backend subclass, add it to
   execution plan and HGraph, each shim block is given only the visible `let`
   bindings whose names its body references, either as a `$name` splice or as a
   whole identifier token anywhere in its OIR subtree, including nested typed
-  blocks, and this applies to each
-  branch of `autonomous(...)` and coordination groups separately. Shell blocks
-  (`bash`, `sh`, `shell`) are the exception: they use only the reference rules
-  below, which also cover bare names in arithmetic contexts and array
-  subscripts, not whole-token matching. Access that
-  does not name a binding gets nothing: Python `globals()`, `vars()`, or frame
-  access, JavaScript `globalThis` or a read of the script source, a shell
-  `${!name}` indirection, and a child process reading environment variables by
-  a computed name see only the referenced bindings. `O.scope` inside a block
-  and an O-level `scope()` call are O syntax and reference every visible `let`
-  binding, and `O.eval` of a quoted expression references the names that
-  expression uses. Variables created inside a block belong to that block's
-  environment: a plain block such as `bash^(...)_bash` or
-  `python^(...)_python` is ephemeral, and its state disappears when the block
-  finishes. A numbered environment such as `bash[0]^(...)_bash[0]` or
+  blocks, and this applies to each branch of `autonomous(...)` and
+  coordination groups separately. Shell blocks (`bash`, `sh`, `shell`) are the
+  exception: they use only the reference rules below, which also cover bare
+  names in arithmetic contexts and array subscripts, not whole-token matching.
+  Access that does not name a binding gets nothing: Python `globals()`,
+  `vars()`, or frame access, JavaScript `globalThis` or a read of the script
+  source, a shell `${!name}` indirection, and a child process reading
+  environment variables by a computed name see only the referenced bindings.
+  `O.scope` inside a block and an O-level `scope()` call are O syntax and
+  reference every visible `let` binding, and `O.eval` of a quoted expression
+  references the names that expression uses. Variables created inside a block
+  belong to that block's environment: a plain block such as `bash^(...)_bash`
+  or `python^(...)_python` is ephemeral, and its state disappears when the
+  block finishes. A numbered environment such as `bash[0]^(...)_bash[0]` or
   `python[0]^(...)_python[0]` keeps its interpreter state across blocks with
   the same number and never shares it with another number. In a numbered bash
   environment, an injected `let` value with an ordinary name is unset after
   each block that references it, so it does not persist as session state. A
   `let` named like a writable bash special (`PATH`, `HOME`, `IFS`, `LC_*`) is
   the exception: it is neither restored nor unset, and stays as the last block
-  left it (see below). Shell blocks (`bash`, `sh`, `shell`) receive no
-  `let` bindings as environment variables. A shell block reads a `let` value
-  through a `$name` splice, which O substitutes into the block text. A bash
-  block also references a `let` through braced parameter expansion: `${name}`,
+  left it (see below). Shell blocks (`bash`, `sh`, `shell`) receive no `let`
+  bindings as environment variables. A shell block reads a `let` value through
+  a `$name` splice, which O substitutes into the block text. A bash block also
+  references a `let` through braced parameter expansion: `${name}`,
   `${#name}`, or `${name` followed by an operator such as `:-`, `%`, `/`, or
   `^`. Each such reference is a data edge from the binding to the block. A
   reference is a textual occurrence, not a shell parse: `'${x}'` in single
@@ -1078,63 +1077,65 @@ Adding a new language: write a Backend subclass, add it to
   `PPID`, `BASHPID`, `SHELLOPTS`, ...) that a bash block references is a
   compile error. A writable bash special such as `PATH`, `HOME`, `IFS`, or
   `LC_*` must hold text. A block that references it, including through a
-  `$name` splice, assigns the `let` value with the export flag unchanged, and nothing restores or unsets it
-  afterwards: in a `bash[N]` session the `let` takes effect from the first
-  block that names it and stays for later blocks exactly as left, whereas
-  plain blocks are fresh processes, so a later plain block that does not
-  name it sees the host value. A block that names such a `let` and then
-  runs `export PATH=...`, or `cd` for `PWD`, keeps its own change for later
-  blocks, since nothing restores the special. The readonly check covers the
-  document's own `let` bindings; a readonly name that reaches a block another
-  way, such as an embedder's base scope, fails at runtime instead, because
-  every injected assignment is checked. Bash also reads a bare name as a variable in
-  arithmetic context, so a bare `let` name is a reference there too, with the
-  same edge and injection: inside `$(( ))`, `(( ))`, `for (( ; ; ))`, and
-  `$[ ]`; in the arguments of the `let` builtin; on the right of a
-  `declare -i`, `local -i`, or `typeset -i` assignment in the same statement;
-  in the offset and length of `${s:offset:length}`; as an operand of the
-  `[[ ]]` operators `-eq`, `-ne`, `-lt`, `-le`, `-gt`, and `-ge`; and in any
-  array subscript, `name[...]=` or `${name[...]}`. A `let` name in a
-  subscript counts as a reference whatever the array kind. `[[ == ]]`, `!=`,
-  and `=~` compare strings and are not references, and `[ ]` or `test` is
-  not arithmetic. These rules are textual as well: `((`, `name[`, `let`, or
-  `[[` inside quotes, comments, or heredocs also count, which only
-  over-includes, and `\$((x))` or `\$[x]` opts out like `\${x}`. A bare word such as `v=name` is not a reference, and
-  indirection `${!v}` names no binding. Names built at runtime get nothing:
-  with `v=name`, both `${!v}` and `$((v + 1))` read an unset `name`, and the
-  same holds for a later plain assignment to a `-i` variable, a nameref
-  (`declare -n`), and `eval`. Session variables of a `bash[N]` environment
-  must be read as `\$z`, because O splices every `$IDENT`; `$z` is an O
-  splice and fails as an undefined variable. Any session variable with a
-  `let`'s name, other than a writable bash special, is unset after every block
-  that references that `let`, including the block that assigned it, so a later
-  block that does not reference the `let` sees it unset. Sibling `bash[N]`
-  branches of one `batch(...)` or other parallel group share the one session
-  of environment N: they run in no fixed order and never concurrently, and
-  each sees the session state the other left. If a block ends the session,
-  for example through `exit` or a failing command under a persisted
-  `set -e`, the block fails with a message saying the session ended, and the
-  next block of that environment starts a fresh session. Bash error messages
-  name the block as `bash: line N:` with the block's own line numbers. In
-  bash blocks a bare `$name` is always an O splice, so a bash local or
-  session variable must be written `\$name`. Each plain bash block runs in a
-  fresh bash that its own backend helper process spawns before the block
-  arrives; that helper, never the O process, is the subreaper of everything
-  the block starts. The block ends at the end-of-script sentinel line, not
-  at stdout EOF, so a job holding stdout open cannot stall it: when the
-  block ends, every background job it left, including ones
-  detached with `setsid`, `nohup`, `disown`, or a double fork, is killed and
-  reaped within 2 s, and stderr says `bash block left N background job(s);
-  they were stopped`. A `bash[N]` session's jobs live until the session
-  ends and are stopped the same way then. A descendant that makes itself a
-  subreaper, or one started by an external service manager, is not caught;
-  only a cgroup could hold it. A failing member of `batch(...)` settles as its
+  `$name` splice, assigns the `let` value with the export flag unchanged, and
+  nothing restores or unsets it afterwards: in a `bash[N]` session the `let`
+  takes effect from the first block that names it and stays for later blocks
+  exactly as left, whereas plain blocks are fresh processes, so a later plain
+  block that does not name it sees the host value. A block that names such a
+  `let` and then runs `export PATH=...`, or `cd` for `PWD`, keeps its own
+  change for later blocks, since nothing restores the special. The readonly
+  check covers the document's own `let` bindings; a readonly name that reaches
+  a block another way, such as an embedder's base scope, fails at runtime
+  instead, because every injected assignment is checked. Bash also reads a
+  bare name as a variable in arithmetic context, so a bare `let` name is a
+  reference there too, with the same edge and injection: inside `$(( ))`, `((
+  ))`, `for (( ; ; ))`, and `$[ ]`; in the arguments of the `let` builtin; on
+  the right of a `declare -i`, `local -i`, or `typeset -i` assignment in the
+  same statement; in the offset and length of `${s:offset:length}`; as an
+  operand of the `[[ ]]` operators `-eq`, `-ne`, `-lt`, `-le`, `-gt`, and
+  `-ge`; and in any array subscript, `name[...]=` or `${name[...]}`. A `let`
+  name in a subscript counts as a reference whatever the array kind. `[[ ==
+  ]]`, `!=`, and `=~` compare strings and are not references, and `[ ]` or
+  `test` is not arithmetic. These rules are textual as well: `((`, `name[`,
+  `let`, or `[[` inside quotes, comments, or heredocs also count, which only
+  over-includes, and `\$((x))` or `\$[x]` opts out like `\${x}`. A bare word
+  such as `v=name` is not a reference, and indirection `${!v}` names no
+  binding. Names built at runtime get nothing: with `v=name`, both `${!v}` and
+  `$((v + 1))` read an unset `name`, and the same holds for a later plain
+  assignment to a `-i` variable, a nameref (`declare -n`), and `eval`. Session
+  variables of a `bash[N]` environment must be read as `\$z`, because O
+  splices every `$IDENT`; `$z` is an O splice and fails as an undefined
+  variable. Any session variable with a `let`'s name, other than a writable
+  bash special, is unset after every block that references that `let`,
+  including the block that assigned it, so a later block that does not
+  reference the `let` sees it unset. Sibling `bash[N]` branches of one
+  `batch(...)` or other parallel group share the one session of environment N:
+  they run in no fixed order and never concurrently, and each sees whatever
+  state the other left behind, so a result that depends on which branch ran
+  first is order-dependent by design. If a block ends the session, for example through
+  `exit` or a failing command under a persisted `set -e`, the block fails with
+  a message saying the session ended, and the next block of that environment
+  starts a fresh session. Bash error messages name the block as `bash: line
+  N:` with the block's own line numbers. In bash blocks a bare `$name` is
+  always an O splice, so a bash local or session variable must be written
+  `\$name`. Each plain bash block runs in a fresh bash that its own backend
+  helper process spawns before the block arrives; that helper, never the O
+  process, is the subreaper of everything the block starts. The block ends at
+  the end-of-script sentinel line, not at stdout EOF, so a job holding stdout
+  open cannot stall it: when the block ends, every background job it left,
+  including ones detached with `setsid`, `nohup`, `disown`, or a double fork,
+  is killed and reaped within 2 s, and stderr says `bash block left N
+  background job(s); they were stopped`. A `bash[N]` session's jobs live until
+  the session ends and are stopped the same way then. A descendant that makes
+  itself a subreaper, or one started by an external service manager, is not
+  caught; only a cgroup could hold it. A failing member of `batch(...)` settles as its
   own error value; the other members still return their values, and the batch
   fails only when every member failed. When any member failed, `O` prints the
   document value, reports each member error on stderr, and exits with status
-  1. Effect ordering is unaffected: source sequence edges and resource-state
-  chains are independent of these data edges. The Python ref impl threads the
-  complete scope through `_eval_expression`.
+  1. Effect ordering is unaffected: source
+  sequence edges and resource-state chains are independent of these data
+  edges. The Python ref impl threads the complete scope through
+  `_eval_expression`.
 * **Async coordination.** `{lazy}` and `{defer}` attributes create
   deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
   deferred requests require explicit `now()`. `lazy(…)` and `autonomous(…)`
