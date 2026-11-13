@@ -1,0 +1,188 @@
+{
+  "schema": "ostadix.source-native-boot-integration/v1",
+  "date": "2026-11-03",
+  "status": "runtime_and_source_release_checks_passed",
+  "scope": "Default repository boot entry selects prepared original-codec Linux guest under O-core; native x86 profiles and the AArch64 withdrawal contract are preserved. No physical-host kernel replacement or complete original-kernel lowering claim.",
+  "repositories": [
+    {
+      "name": "lostadi/OSTADIX",
+      "base": "b47ff1e002cdf940138995ee4f693a33677c22ca",
+      "code_commit": "5d60b5bf5e397066696547d082e2a8f21727ce46",
+      "release_fix_commit": "e29dcdb33904c869466e8a1b5ba9d66815450c34"
+    },
+    {
+      "name": "lostadi/ostadix-BM",
+      "base": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+      "code_commit": "5f461a0bb06c059884167e74662a832192069001",
+      "release_fix_commit": "f8f06f188834cfd75baa1ada879dcd504d46c1a0"
+    }
+  ],
+  "actual_default_entry": [
+    {
+      "path": "/home/ustad/.cache/okernel-boot-integration-20261103/default-entry/result.json",
+      "bytes": 3109,
+      "sha256": "0b0f7c8c56a92c1b8d3601a48e146008307f412b20fb94acb91d10fdcad1d994"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-boot-integration-20261103/bm-default-entry/result.json",
+      "bytes": 3130,
+      "sha256": "beb176ff024d35bae89e694be1677281f6239ddbfe0ee444525e713efaec537a"
+    }
+  ],
+  "native_codec_live": {
+    "path": "/home/ustad/.cache/okb20261103/package-domain/native-codec-live-b6987d01af9748b08eace8c0ec01b018.json",
+    "bytes": 13437,
+    "sha256": "9246eae4c6b01ca1acbfb9a2ace887d33bbd3f37125e150c72225e30bc0a2959"
+  },
+  "preserved_profiles": {
+    "native_mode0": {
+      "path": "/home/ustad/.cache/okernel-boot-integration-20261103/native-baseline.log",
+      "bytes": 1139,
+      "sha256": "37ae81bae00e9521d1b6a60fbbc07061132af7f0ebcfd7fbba90b8e386d61e6c"
+    },
+    "native_mode16": {
+      "path": "/home/ustad/.cache/okernel-boot-integration-20261103/native-console.log",
+      "bytes": 1966,
+      "sha256": "fe2cbead98216ca480210574ec7b3f9219a0b0c0c090e3a825424a534afe1478"
+    },
+    "aarch64_withdrawal": {
+      "path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/result.json",
+      "bytes": 5179,
+      "sha256": "df9b8f38cb90ce202779c2aec3910d2b39342866a313e4a9ba9befd77ed41f5e"
+    }
+  },
+  "preservation_audits": [
+    {
+      "path": "/home/ustad/.cache/okernel-boot-integration-20261103/preservation-audit.json",
+      "bytes": 1424,
+      "sha256": "60faedcd7163a411fba11be683fe39974ee43e7c6a81183ccb4e9b93f7aa623c"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-boot-preservation-review.json",
+      "bytes": 12943,
+      "sha256": "bfef2d5a1376823e4756cbd37759b15e0102dac1000f21800112bc0192409fa7"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-boot-bm-validation/preservation-audit.json",
+      "bytes": 6861,
+      "sha256": "9e47f6f2b68061ccce19ac7ed695afe6cbd2be31c65a241efddf255fd56df6fb"
+    }
+  ],
+  "compiler_and_codecs": {
+    "path": "/home/ustad/.cache/okernel-boot-compiler-validation/qualification.json",
+    "bytes": 4954,
+    "sha256": "4cfd4bb22228b3bb4e9a608fc07e1954c68123bc7c68bfbab442e5a247d78de2"
+  },
+  "source_language_check": {
+    "path": "/home/ustad/.cache/okernel-boot-integration-20261103/language-sources.json",
+    "bytes": 188330,
+    "sha256": "43f426d2a96e259bb040b3ee3e9868027873feea5f6195e3917662097909db1e"
+  },
+  "bm_qualification": {
+    "path": "/home/ustad/.cache/okernel-boot-bm-validation/qualification.json",
+    "bytes": 5504,
+    "sha256": "1d37f4b5a50c81ed53510dba4a8eb877471d3eb66967353b4e361c11c23e186e"
+  },
+  "known_baseline_issue": {
+    "description": "One BM architecture check reproduces unchanged baseline shims/private include manifest failure; no policy weakened. 145 other architecture tests pass; actual compiler builds and boot tests pass.",
+    "baseline": {
+      "path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-baseline-failure.json",
+      "bytes": 736,
+      "sha256": "5e05f13ee789eb790e59f62289a0d6a968af422cdd17a59365598bba457f96f6"
+    },
+    "unchanged_blobs": {
+      "path": "/home/ustad/.cache/okernel-boot-bm-validation/architecture-unchanged-blob-proof.json",
+      "bytes": 1292,
+      "sha256": "b91e9756fabe129e8faddf09f78ddd58085e47dd255f63d06a00beaa643a9050"
+    }
+  },
+  "default_prepared_state": "/home/ustad/.local/state/ostadix/okernel/native-source/package-domain",
+  "source_release": {
+    "schema": "ostadix.okernel-boot-source-release-validation/v1",
+    "status": "passed",
+    "scope": "Source archive closure and preservation; no kernel runtime code changed by this followup",
+    "baseline_commit": "b47ff1e002cdf940138995ee4f693a33677c22ca",
+    "code_commit_before_metadata_followup": "5d60b5bf5e397066696547d082e2a8f21727ce46",
+    "sources": [
+      {
+        "path": "/home/ustad/OSTADIX-okernel-boot-20261103/scripts/build_source_release.py",
+        "bytes": 198321,
+        "sha256": "7e69ec54b2832751fa82cd011de17b3d702205a48c5b48f4ce3f2200bd7aeef5"
+      },
+      {
+        "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tests/test_source_release.py",
+        "bytes": 235363,
+        "sha256": "a7cbf3b6295eadb1d9a3c21db2da8443422d8f810fdeaf3a2a46bd642bcb10ae"
+      }
+    ],
+    "tests": [
+      {
+        "suite": "SourceReleaseTests",
+        "methods": 87,
+        "passed": 87,
+        "skipped": 0,
+        "log": {
+          "path": "/home/ustad/.cache/okernel-boot-source-release-final.log",
+          "bytes": 14823,
+          "sha256": "daabeaab056386ffd4e49f1232b142f61609cbb14d1aafe6d2f00a0432c308fb"
+        }
+      },
+      {
+        "suite": "WorkspaceFacadeReleaseValidationTests",
+        "methods": 9,
+        "passed": 9,
+        "skipped": 0,
+        "log": {
+          "path": "/home/ustad/.cache/okernel-boot-source-release-workspace-final.log",
+          "bytes": 1725,
+          "sha256": "e8a91948f6149c115ae037df66cfb869b4f870649ef67affea4f47775db295a3"
+        }
+      }
+    ],
+    "coverage": [
+      "Actual-tree CLI archive build, deterministic byte equality and verification",
+      "Default boot entry and native-codec source/provider closure retained",
+      "Missing boot dependency or private runtime helper source rejected",
+      "Non-executable boot script rejected",
+      "Only exact reviewed u9fs hardening source patch retained; arbitrary patches remain excluded",
+      "Private progress/step_knobs helper modules included without public API export",
+      "No previously allowed source-release path removed across2877 baseline tracked paths"
+    ],
+    "preservation_review": {
+      "path": "/home/ustad/.cache/okernel-boot-preservation-review.json",
+      "bytes": 12943,
+      "sha256": "bfef2d5a1376823e4756cbd37759b15e0102dac1000f21800112bc0192409fa7"
+    }
+  },
+  "bm_actual_source_release": {
+    "passed": true,
+    "methods": 1,
+    "log_sha256": "11e6eee1976dfedd0f445e654907897a967b5c3bcd312e4de6d33f8747a6d383"
+  },
+  "known_baseline_html_drift": {
+    "scope": "Canonical full HTML export check; the affected Markdown and HTML files are byte-identical to the untouched master base. New boot documentation exports match pinned rendering.",
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "sha256": "dcf765b6c4a23fff760def60655c5de9f14f7762e6e231c32025c52221b35415",
+        "unchanged_from_base": true
+      },
+      {
+        "path": "CHANGELOG.html",
+        "sha256": "aa9b2eb8cdec16564a9d7cae38c1ff5f08505b6635697f79cd30633e3bd87d62",
+        "unchanged_from_base": true
+      },
+      {
+        "path": "SPEC.md",
+        "sha256": "108ca9034e19bdc2d3a83ca416ca452f72842940fb71626f1a8d17edfd9ed49f",
+        "unchanged_from_base": true
+      },
+      {
+        "path": "SPEC.html",
+        "sha256": "30e90e6ad1a6ebb91f546e858452799043dea45da0776798f54af16ff9a0edc2",
+        "unchanged_from_base": true
+      }
+    ],
+    "output": "drift: CHANGELOG.html\ndrift: SPEC.html\nhtml-exports: 101 complete documents; 2284716 bytes; 2 drifted\n"
+  }
+}
