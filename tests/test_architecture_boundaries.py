@@ -238,11 +238,6 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "included_from": "crates/ostadix-api/src/project/lower.rs",
                 },
                 {
-                    "path": "crates/ostadix-api/src/private_dir.inc.rs",
-                    "owner": "shims",
-                    "included_from": "crates/ostadix-api/src/shims.rs",
-                },
-                {
                     "path": "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
@@ -265,6 +260,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                     "module_path": ["ocore", "native_codegen", "variadic"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/private_dir.inc.rs",
+                    "owner": "shims",
+                    "included_from": "crates/ostadix-api/src/shims.rs",
+                    "module_path": ["shims"],
                 },
             ],
         )
@@ -892,11 +893,11 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         for relative, owner in (
             ("crates/ostadix-api/src/backend_catalog.inc.rs", "backend_catalog"),
             ("crates/ostadix-api/src/project/input_kind.inc.rs", "project"),
-            ("crates/ostadix-api/src/private_dir.inc.rs", "shims"),
             ("crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_core.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_float_layout.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "ocore"),
+            ("crates/ostadix-api/src/private_dir.inc.rs", "shims"),
         ):
             with self.subTest(fragment=relative):
                 with tempfile.TemporaryDirectory() as directory:
@@ -991,14 +992,28 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             self.assertIn("also has conventional ownership", result.stderr)
 
     def test_fragment_include_site_must_match_declared_module_identity(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            write_minimal_tree(root)
-            parent = root / "crates/ostadix-api/src/ocore/native_codegen.rs"
-            parent.write_text(parent.read_text().replace("mod float_layout", "mod different"), encoding="utf-8")
-            result = run_checker(root)
-            self.assertEqual(result.returncode, 1)
-            self.assertIn("include site resolves to `ocore::native_codegen::different`", result.stderr)
+        for relative, original, replacement, actual_module in (
+            (
+                "crates/ostadix-api/src/ocore/native_codegen.rs",
+                "mod float_layout",
+                "mod different",
+                "ocore::native_codegen::different",
+            ),
+            (
+                "crates/ostadix-api/src/shims.rs",
+                'include!("private_dir.inc.rs");',
+                'mod different { include!("private_dir.inc.rs"); }',
+                "shims::different",
+            ),
+        ):
+            with self.subTest(parent=relative), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                parent = root / relative
+                parent.write_text(parent.read_text().replace(original, replacement), encoding="utf-8")
+                result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f"include site resolves to `{actual_module}`", result.stderr)
 
     def test_fragment_with_children_cannot_move_into_a_block(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -857,7 +857,8 @@ fn linkage(value: &str, definition: bool, context: &str) -> Result<()> {
         return Err(fail(context, "weak linkage requires a definition"));
     }
     let valid = match value {
-        "external" | "extern_weak" => true,
+        "external" => true,
+        "extern_weak" => !definition,
         "private"
         | "internal"
         | "available_externally"
@@ -1754,6 +1755,178 @@ pub fn verify(module: &NativeModule) -> Result<()> {
         }
         v.function(function)?;
     }
+    verify_strict_fp_profile(module)
+}
+
+/// Independently gate the required realization at both admission and emission.
+/// Keep operation matches exhaustive: future native operations need an explicit
+/// environment audit before they can enter a strictfp-integer module.
+pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
+    match module.target.strict_fp_profile {
+        None => return Ok(()),
+        Some(StrictFpProfile::IntegerOnlyV1) => {}
+    }
+    fn value_type(module: &NativeModule, ty: TypeId) -> Result<()> {
+        match module.types.get(ty) {
+            Some(Type::Void | Type::Metadata {} | Type::Int { .. } | Type::Pointer { .. }) => Ok(()),
+            Some(Type::Struct { fields, .. }) => {
+                for ty in fields { value_type(module, *ty)?; }
+                Ok(())
+            }
+            Some(Type::Array { element, .. }) => value_type(module, *element),
+            _ => Err(fail("strict_fp_profile", "integer_only_v1 excludes floating-point and unsupported executable value/ABI types")),
+        }
+    }
+    fn signature(module: &NativeModule, signature: &Signature) -> Result<()> {
+        value_type(module, signature.result)?;
+        for ty in &signature.params {
+            value_type(module, *ty)?;
+        }
+        Ok(())
+    }
+    fn operand(module: &NativeModule, value: &Operand) -> Result<()> {
+        match value {
+            Operand::Value { .. } => Ok(()),
+            Operand::Int { ty, .. }
+            | Operand::PointerBits { ty, .. }
+            | Operand::Null { ty }
+            | Operand::Symbol { ty, .. }
+            | Operand::SymbolOffset { ty, .. }
+            | Operand::Aggregate { ty, .. }
+            | Operand::AggregateZero { ty }
+            | Operand::Undef { ty }
+            | Operand::Poison { ty } => value_type(module, *ty),
+        }
+    }
+    fn binary(kind: BinaryOp) {
+        match kind {
+            BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::UDiv
+            | BinaryOp::SDiv
+            | BinaryOp::URem
+            | BinaryOp::SRem
+            | BinaryOp::Shl
+            | BinaryOp::LShr
+            | BinaryOp::AShr
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor => {}
+        }
+    }
+    for function in &module.functions {
+        signature(module, &function.signature)?;
+        for parameter in &function.params {
+            value_type(module, parameter.ty)?;
+        }
+        for block in &function.blocks {
+            for instruction in &block.instructions {
+                if let Some(result) = instruction.result {
+                    value_type(module, result.ty)?;
+                }
+                for value in instruction_operands(&instruction.operation) {
+                    operand(module, value)?;
+                }
+                match &instruction.operation {
+                    Operation::Binary { kind, .. } | Operation::IntegerOverflow { kind, .. } => {
+                        binary(*kind)
+                    }
+                    Operation::Cast { kind, .. } => match kind {
+                        CastOp::Trunc
+                        | CastOp::ZExt
+                        | CastOp::SExt
+                        | CastOp::PtrToInt
+                        | CastOp::IntToPtr
+                        | CastOp::Bitcast => {}
+                    },
+                    Operation::AtomicRmw { kind, .. } => match kind {
+                        AtomicRmwOp::Fadd
+                        | AtomicRmwOp::Fsub
+                        | AtomicRmwOp::Fmax
+                        | AtomicRmwOp::Fmin
+                        | AtomicRmwOp::Fmaximum
+                        | AtomicRmwOp::Fminimum => {
+                            return Err(fail(
+                                "strict_fp_profile",
+                                "integer_only_v1 excludes floating-point atomic operations",
+                            ))
+                        }
+                        AtomicRmwOp::Xchg
+                        | AtomicRmwOp::Add
+                        | AtomicRmwOp::Sub
+                        | AtomicRmwOp::And
+                        | AtomicRmwOp::Nand
+                        | AtomicRmwOp::Or
+                        | AtomicRmwOp::Xor
+                        | AtomicRmwOp::Max
+                        | AtomicRmwOp::Min
+                        | AtomicRmwOp::Umax
+                        | AtomicRmwOp::Umin
+                        | AtomicRmwOp::UincWrap
+                        | AtomicRmwOp::UdecWrap
+                        | AtomicRmwOp::UsubCond
+                        | AtomicRmwOp::UsubSat => {}
+                    },
+                    Operation::Call {
+                        signature: call, ..
+                    } => signature(module, call)?,
+                    Operation::Trap {}
+                    | Operation::Assume { .. }
+                    | Operation::NoAliasScopeDecl { .. }
+                    | Operation::Lifetime { .. }
+                    | Operation::MemorySet { .. }
+                    | Operation::MemoryCopy { .. }
+                    | Operation::IntegerMinMax { .. }
+                    | Operation::ICmp { .. }
+                    | Operation::Select { .. }
+                    | Operation::Freeze { .. }
+                    | Operation::ExtractValue { .. }
+                    | Operation::InsertValue { .. }
+                    | Operation::Alloca { .. }
+                    | Operation::ThreadLocalAddress { .. }
+                    | Operation::Gep { .. }
+                    | Operation::Load { .. }
+                    | Operation::Store { .. }
+                    | Operation::AtomicLoad { .. }
+                    | Operation::AtomicStore { .. }
+                    | Operation::AtomicFence { .. }
+                    | Operation::AtomicCompareExchange { .. }
+                    | Operation::LandingPad { .. }
+                    | Operation::EhTypeId { .. }
+                    | Operation::Phi { .. } => {}
+                }
+            }
+            match &block.terminator {
+                Terminator::Return { value: Some(value) }
+                | Terminator::Branch {
+                    condition: value, ..
+                }
+                | Terminator::Switch {
+                    condition: value, ..
+                }
+                | Terminator::Resume { value } => operand(module, value)?,
+                Terminator::Invoke {
+                    callee,
+                    signature: call,
+                    args,
+                    result,
+                    ..
+                } => {
+                    signature(module, call)?;
+                    if let Some(result) = result {
+                        value_type(module, result.ty)?;
+                    }
+                    for value in std::iter::once(callee).chain(args) {
+                        operand(module, value)?;
+                    }
+                }
+                Terminator::Return { value: None }
+                | Terminator::Jump { .. }
+                | Terminator::Unreachable => {}
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1829,6 +2002,12 @@ impl<'a> Verifier<'a> {
         let context = format!("global {:?}", global.name);
         let layout = self.sized(global.ty, &context)?;
         linkage(&global.linkage, global.initializer.is_some(), &context)?;
+        if global.linkage == "extern_weak" && global.thread_local {
+            return Err(fail(
+                &context,
+                "extern_weak TLS declarations are not implemented",
+            ));
+        }
         visibility(&global.linkage, global.visibility, &context)?;
         alignment(global.alignment, true, &context)?;
         if global.thread_local {
@@ -2051,6 +2230,11 @@ impl<'a> Verifier<'a> {
             }
         }
         linkage(&function.linkage, function.entry.is_some(), &context)?;
+        if function.linkage == "extern_weak"
+            && (function.intrinsic.is_some() || function.name.starts_with("llvm."))
+        {
+            return Err(fail(&context, "intrinsic cannot be an extern_weak declaration"));
+        }
         visibility(&function.linkage, function.visibility, &context)?;
         if function.linkage == "common" {
             return Err(fail(&context, "common linkage is only valid for globals"));
@@ -3444,6 +3628,56 @@ mod tests {
             "expected {text:?}, got {}",
             error.message
         );
+    }
+
+    #[test]
+    fn strict_fp_profile_survives_wire_and_rejects_unknown_realizations() {
+        let mut m = module();
+        let plain = serde_json::to_value(&m).unwrap();
+        assert!(plain["target"].get("strict_fp_profile").is_none());
+        verify(&m).unwrap();
+        m.target.strict_fp_profile = Some(StrictFpProfile::IntegerOnlyV1);
+        verify(&m).unwrap();
+        let wire = m.to_json().unwrap();
+        let roundtrip = NativeModule::from_json(&wire).unwrap();
+        assert_eq!(
+            roundtrip.target.strict_fp_profile,
+            Some(StrictFpProfile::IntegerOnlyV1)
+        );
+        let mut unknown = serde_json::from_slice::<serde_json::Value>(&wire).unwrap();
+        unknown["target"]["strict_fp_profile"] = json!("unchecked_fp_v1");
+        assert!(NativeModule::from_json(&serde_json::to_vec(&unknown).unwrap()).is_err());
+    }
+
+    #[test]
+    fn strict_fp_profile_independently_rejects_float_values_and_atomic_operations() {
+        let mut m = module();
+        m.target.strict_fp_profile = Some(StrictFpProfile::IntegerOnlyV1);
+        let float = m.types.len();
+        m.types.push(Type::Float { bits: 128 });
+        // Opaque raw storage is harmless; it grants no executable FP support.
+        verify_strict_fp_profile(&m).unwrap();
+        m.functions[0].signature.result = float;
+        assert!(verify_strict_fp_profile(&m)
+            .unwrap_err()
+            .message
+            .contains("value/ABI"));
+        m.functions[0].signature.result = 2;
+        // Check the profile's own operation gate, independently of ordinary
+        // type checking which also rejects an integer-typed floating RMW.
+        m.functions[0].blocks[0].instructions[0].operation = Operation::AtomicRmw {
+            kind: AtomicRmwOp::Fadd,
+            pointer: Operand::Null { ty: 3 },
+            value: integer(2, 0),
+            alignment: 8,
+            volatile: false,
+            ordering: AtomicOrdering::Monotonic,
+            sync_scope: 0,
+        };
+        assert!(verify_strict_fp_profile(&m)
+            .unwrap_err()
+            .message
+            .contains("floating-point atomic"));
     }
 
     fn global(module: &mut NativeModule) {

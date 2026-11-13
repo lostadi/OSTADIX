@@ -1,12 +1,12 @@
 # Supply the archive through --build-context guix-distribution=/absolute/path.
 # No daemon or package installation runs in this recipe. The only Guix command
 # authorizes an official substitute signing key from the verified distribution.
-FROM --platform=linux/amd64 docker.io/library/python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83 AS guix-distribution-unpacked
+FROM --platform=linux/amd64 docker.io/library/python:3.15-slim-bookworm@sha256:122756f3fe72c4f5d3d71897888204ee85774bc79de952555b8a474e1d0a5d53 AS guix-distribution-unpacked
 COPY --from=guix-distribution guix-binary-1.5.0.x86_64-linux.tar.xz /tmp/guix-binary.tar.xz
 COPY extract-guix.py /tmp/extract-guix.py
 RUN --network=none python3 /tmp/extract-guix.py /tmp/guix-binary.tar.xz /
 
-FROM --platform=linux/amd64 docker.io/library/python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83
+FROM --platform=linux/amd64 docker.io/library/python:3.15-slim-bookworm@sha256:122756f3fe72c4f5d3d71897888204ee85774bc79de952555b8a474e1d0a5d53
 # Keep the binary distribution's complete store/profile closure and symlinks.
 COPY --from=guix-distribution-unpacked /gnu /gnu
 COPY --from=guix-distribution-unpacked /var/guix /var/guix

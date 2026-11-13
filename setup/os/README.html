@@ -33,3 +33,21 @@ packages such as matplotlib are reported but never installed implicitly.</p>
 </code></pre>
 <p>The platform entrypoints require the surrounding repository because they invoke
 <code>../../setup.sh</code>; use a source checkout or source release, not a copied script.</p>
+<h2>Recovering stale Nix profile backups</h2>
+<p>When Nix is selected, setup checks for <code>.backup-before-nix</code> conflicts before
+installing packages or editor support. An existing Nix executable is reused;
+its normal installer backups are left alone.</p>
+<p>If a previous uninstall left only recognized Nix startup blocks, inspect and
+then explicitly request recovery with:</p>
+<pre><code class="language-bash">./setup.sh --full --repair-nix-profiles --dry-run
+./setup.sh --full --repair-nix-profiles
+</code></pre>
+<p>Recovery archives the original files in a private, uniquely named directory
+under <code>/etc</code>, prints its location, and never restores an old backup over the
+current shell profile. It accepts only empty files or the exact standard Nix
+startup block, including repeated blocks. Custom content, symbolic links,
+unreadable files, and evidence of an existing installation require manual
+recovery. No Nix store or volume is deleted.</p>
+<p><code>--yes</code> alone does not enable recovery. <code>--check</code> remains an inspection even
+with the repair option, and <code>--dry-run</code> never archives files. Use <code>--no-nix</code> to
+continue setup without the Nix dependency profile.</p>
