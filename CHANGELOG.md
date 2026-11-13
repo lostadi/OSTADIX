@@ -378,9 +378,8 @@ Package SemVer is only one of the independent coordinates documented in
   one private ISO snapshot, and graphical monitor operations share one absolute
   deadline. Aggregate re-smoke v2 does not select or execute the remaining five
   menu entries.
-- Project authorship metadata and new commit attribution now reject Claude and
-  Codex identities; contribution credit remains assigned to the responsible
-  human contributors.
+- Project author metadata and new commits are checked against the
+  allowed-author list.
 - Information Provenance V2 adds an authority-free, content-addressed sidecar
   over frozen Information Atom V1 identities plus a higher-layer execution
   analyzer that admits only its recomputed image. Acquisition origin is
