@@ -1,0 +1,37 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_okernel_repository_staging"
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_okernel_repository_staging"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "started": 1794555827.0493925,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "TMPDIR": "/dev/shm/o10-m1-unit-staging-_ilcohtu"
+  },
+  "finished": 1794555837.0360076,
+  "log": {
+    "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/ram-disk.log",
+    "sha256": "21df17470f83cd1a05b201cb3a13b62d8db657119aaa5cd74733caf74a34faf1"
+  }
+}

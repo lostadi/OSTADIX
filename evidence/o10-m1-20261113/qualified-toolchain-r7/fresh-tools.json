@@ -1,0 +1,866 @@
+{
+  "tools": [
+    {
+      "name": "o_analyze_intent",
+      "description": "Analyze a .O program without executing it and issue a bounded, expiring, one-use same-intent handle (not authorization or a capability)",
+      "inputSchema": {
+        "properties": {
+          "cwd": {
+            "default": null,
+            "description": "Optional working directory (relative paths use O_LANG_ROOT)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "Path to a .O program (absolute paths default cwd to their parent; relative paths use cwd/O_LANG_ROOT)",
+            "type": "string"
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Analysis timeout seconds (default 120)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ttl_secs": {
+            "default": null,
+            "description": "One-use handle lifetime in seconds (default 120; maximum 900)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_capabilities",
+      "description": "Discover every Ostadix command family, resolved executables, help invocations, and task guides. Filter with query to keep context compact.",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "description": "Optional case-insensitive capability, command, or family search.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_cli",
+      "description": "Run any cataloged Ostadix CLI with full literal argv, cwd, per-child env, stdin, optional PTY, and background jobs. Includes compiler/linker, projects, node/session/registry, O-core, live, capacity, and device operations. The selected CLI retains its own admission rules; this is direct execution and may mutate local or remote state.",
+      "inputSchema": {
+        "properties": {
+          "args": {
+            "default": [],
+            "description": "Literal argument array. All CLI options/subcommands are available; no shell expansion is performed.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "background": {
+            "default": false,
+            "description": "Return a job_id immediately. Use status/read/write/cancel across calls in this MCP session.",
+            "type": "boolean"
+          },
+          "command": {
+            "description": "Exact Ostadix command ID from o_capabilities, such as O, o, olangc, o-link, octl, or ocorec.",
+            "type": "string"
+          },
+          "cwd": {
+            "description": "Working directory; relative paths resolve against O_LANG_ROOT.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Per-child environment overrides; never changes another job or the MCP process environment.",
+            "type": "object"
+          },
+          "pty": {
+            "default": false,
+            "description": "Allocate a Unix terminal for REPLs and terminal programs. Terminal output is merged in stdout.",
+            "type": "boolean"
+          },
+          "stdin": {
+            "description": "Initial stdin text. Foreground pipe jobs receive EOF after this text; background jobs keep input open.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "description": "Foreground default 120 seconds, background default no deadline. Zero explicitly disables the deadline.",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "o_doctor",
+      "description": "Toolchain doctor with exact runtime provenance and client configuration file hashes. Default inventory only; execution_check explicitly runs a fixed Python 1+1 program with a 1..10 second deadline and bounded output. It does not qualify every runtime or native execution.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "execution_check": {
+            "description": "Explicitly run only the fixed Python 1 + 1 smoke. Default false: inventory only.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "description": "Fixed smoke deadline in seconds (1..10); default 5. No arbitrary source or command is accepted.",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_env",
+      "description": "Report exact running MCP binary hash/architecture, compiled source identity, independently observed source root/commit/dirty state, selected tools/backends, client configuration file hashes and all-runtime inventory. Read-only; no execution health claim. Returns legacy text plus structured runtime provenance.",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_eval",
+      "description": "Execute inline polyglot O source via O --eval without a temporary source file. Supports interpreter options, cwd, per-call env, stdin, PTY, and background jobs; hosted code has the same capabilities as normal O execution.",
+      "inputSchema": {
+        "properties": {
+          "args": {
+            "default": [],
+            "description": "Interpreter options, such as --json, --executor graph, --workers, or backend grants.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "background": {
+            "default": false,
+            "type": "boolean"
+          },
+          "cwd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "type": "object"
+          },
+          "pty": {
+            "default": false,
+            "type": "boolean"
+          },
+          "source": {
+            "description": "Complete inline O source, including nested hosted languages. Passed literally to O --eval.",
+            "type": "string"
+          },
+          "stdin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "o_execute",
+      "description": "Primary Ostadix computation interface. Supply exactly one complete O source or existing program/project path. Execute by default, or check syntax, plan, or compile an artifact. Preserves native runtime admission, project placement, structured results and job evidence; route selects project work and node sends a complete ordinary document to one authenticated peer. mode admitted binds local ordinary O source and intent before fresh admission. Expert CLI tools remain available.",
+      "inputSchema": {
+        "$defs": {
+          "Action": {
+            "enum": [
+              "execute",
+              "check",
+              "plan",
+              "compile"
+            ],
+            "type": "string"
+          },
+          "Mode": {
+            "enum": [
+              "direct",
+              "admitted"
+            ],
+            "type": "string"
+          },
+          "Placement": {
+            "enum": [
+              "auto",
+              "local",
+              "mesh-required"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/Action",
+            "description": "execute (default), check (parse only), plan (non-executing schedule), or compile."
+          },
+          "background": {
+            "default": false,
+            "description": "Return the managed execution job immediately after any required analysis.",
+            "type": "boolean"
+          },
+          "cwd": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Per-child environment overrides, isolated from other calls.",
+            "type": "object"
+          },
+          "mode": {
+            "$ref": "#/$defs/Mode",
+            "description": "admitted executes through native fresh admission. Ordinary source also\nbinds an internally analyzed source/intent digest; no client handle is needed."
+          },
+          "node": {
+            "description": "Send an ordinary complete document to this native node. This is not\ngraph partitioning. env/cwd configure the local client, not the remote\nworkspace. Cancelling the client cannot cancel remote effects.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "description": "Required destination for binary/wasm compilation, relative to cwd.\nir/dot return their text in result and do not accept output.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "Existing .O file or project directory. Absolute paths default cwd to\nthe file's parent or the project directory; relative paths use cwd/root.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "$ref": "#/$defs/Placement",
+            "description": "auto uses the local O runtime for ordinary source and native mesh-prefer\nplacement for projects. mesh-required is supported only for project execution."
+          },
+          "route": {
+            "description": "Explicit project route or route-set for execute, plan, or IR/DOT output.\nMarked operation projects retain their native planner's route selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "Complete O source. Supply exactly one of source or path.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stdin": {
+            "description": "Initial stdin. Foreground sends EOF; background keeps the pipe open.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target": {
+            "description": "For compile: ir, dot, binary (default), or wasm. script is an execution\ntarget and belongs to action execute or the expert o_cli interface.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "description": "Overall operation budget in seconds. Foreground default 120; background\ndefault unlimited. Zero disables the local deadline. Selected-node\nexecution also retains native IO/publication deadlines (see its result).",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workers": {
+            "description": "Positive ordinary-O graph worker capacity; also supported for ordinary plans.",
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "o_execute_intent",
+      "description": "Consume a one-use o_analyze_intent handle and ask O to recompute the same stable Intent V1 before fresh V6 admission and dispatch",
+      "inputSchema": {
+        "properties": {
+          "cwd": {
+            "default": null,
+            "description": "Working directory resolving to the same canonical cwd analyzed earlier",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "handle": {
+            "description": "Opaque one-use handle returned by o_analyze_intent",
+            "type": "string"
+          },
+          "path": {
+            "description": "Path resolving to the same canonical .O program analyzed earlier",
+            "type": "string"
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Execution timeout seconds (default 120)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "handle",
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_guide",
+      "description": "Read shared human and LLM workflows for operations, runtime, compiler, projects, mesh, core, live, capacity, device, or agents. Defaults to topic all; the human CLI exposes the same content with o guide.",
+      "inputSchema": {
+        "properties": {
+          "topic": {
+            "description": "Workflow topic: all, operations, runtime, compiler, projects, mesh, core, live, capacity, device, agents.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_information_inspect",
+      "description": "Inspect exactly one existing local Information V1 head through the fixed read-only o-info path; no cloud, network, mutation, dispatch, or arbitrary subcommands",
+      "inputSchema": {
+        "properties": {
+          "head": {
+            "default": null,
+            "description": "Fixed local head name (default main; maximum 128 ASCII token bytes)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "description": "Existing local Information V1 state directory (absolute or relative to O_LANG_ROOT; maximum 4096 UTF-8 bytes)",
+            "type": "string"
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Read-only inspection timeout seconds (default 10; maximum 30)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_job_cancel",
+      "description": "Cancel one managed job and wait for its owned process cleanup. Other jobs continue independently.",
+      "inputSchema": {
+        "properties": {
+          "job_id": {
+            "description": "Job ID returned by this MCP session. Jobs do not survive server shutdown.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_job_list",
+      "description": "List managed jobs in this MCP server session, including completion and exit status. Does not wait for running work.",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_job_read",
+      "description": "Read a bounded stdout or stderr page using byte cursors. Complete output remains in disk logs; reading does not block or stop execution.",
+      "inputSchema": {
+        "properties": {
+          "encoding": {
+            "description": "utf8_lossy (default) for text previews, or base64 for lossless binary/UTF-8 byte retrieval.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum bytes in this page, default 65536, maximum 262144. Full logs remain on disk.",
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "offset": {
+            "description": "Byte cursor from a previous read; default zero.",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stream": {
+            "description": "stdout (default) or stderr; PTY output is merged in stdout.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_job_status",
+      "description": "Inspect a managed job's state, exit code, log paths, and cleanup evidence. A started job is not a successful result.",
+      "inputSchema": {
+        "properties": {
+          "job_id": {
+            "description": "Job ID returned by this MCP session. Jobs do not survive server shutdown.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "o_job_write",
+      "description": "Send literal input or EOF to a running managed job, including REPLs and PTY terminal programs. Input can cause the selected program to perform actions.",
+      "inputSchema": {
+        "properties": {
+          "close": {
+            "default": false,
+            "description": "Close pipe stdin after writing; on a canonical PTY send terminal EOF.",
+            "type": "boolean"
+          },
+          "input": {
+            "default": "",
+            "description": "Literal stdin text, including newlines or terminal control characters when needed.",
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "timeout_secs": {
+            "description": "Maximum seconds to wait for input acceptance, including any earlier write; default 30. Zero disables the deadline.",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "o_olangc",
+      "description": "Run olangc on a .O file, or materialize an exact binary/WASM Cargo project without invoking Cargo",
+      "inputSchema": {
+        "properties": {
+          "materialize_only": {
+            "default": null,
+            "description": "Materialize the exact binary/WASM Cargo project into a new directory beneath the MCP server cwd without invoking Cargo",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "default": null,
+            "description": "Optional -o output path (relative paths use O_LANG_ROOT)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "Path to a .O program (relative paths use O_LANG_ROOT)",
+            "type": "string"
+          },
+          "target": {
+            "default": null,
+            "description": "olangc target: ir | dot | script | wasm | binary. Omitted target defaults to binary and builds an executable; script executes the program. Use ir or dot for non-executing analysis.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Timeout seconds (default 180)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_operation",
+      "description": "Manage a declared operation through the same native planner, executor and retained records as the human o CLI. Describe by default; list realizations, plan or explain compatibility and selection, explicitly run, observe an exact retained run, or replan with caller-supplied target exclusions. Replanning does not dispatch. Returns the unchanged native JSON report plus job evidence. Use o_guide topic operations for the full workflow and o_cli for expert record inspection/verification.",
+      "inputSchema": {
+        "$defs": {
+          "Action": {
+            "enum": [
+              "describe",
+              "realizations",
+              "plan",
+              "explain",
+              "run",
+              "observe",
+              "replan"
+            ],
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/Action",
+            "description": "describe (default), realizations, plan, explain (plan with causal\nreasons), run (the only action that dispatches), observe, or replan."
+          },
+          "background": {
+            "default": false,
+            "description": "Return a managed job immediately. Use o_job_status/read to inspect its\nresult. Full native JSON and stderr remain in the retained job logs.",
+            "type": "boolean"
+          },
+          "cwd": {
+            "description": "Working directory. An absolute path defaults this to the project;\nrelative paths default to O_LANG_ROOT, matching o_execute.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "env": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Per-child environment overrides, isolated from other jobs and calls.",
+            "type": "object"
+          },
+          "path": {
+            "description": "Existing operation-project directory containing olang.project.toml with\nan explicit [operation] section. Relative paths use cwd or O_LANG_ROOT.",
+            "type": "string"
+          },
+          "run": {
+            "description": "Retained run ID or last-run; accepted only by observe and replan.\nOmission uses native last-run. Exact IDs avoid ambiguity between runs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "description": "Foreground default 120 seconds; background default no deadline.\nZero disables the local deadline. Native execution limits still apply.",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "without_targets": {
+            "default": [],
+            "description": "Exact declared target IDs to exclude. Required only for replan, which\ncomputes an alternative without dispatching it.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "o_run",
+      "description": "Execute one complete .O source document or existing path through Ostadix's unified, project-aware front door and return its structured result",
+      "inputSchema": {
+        "properties": {
+          "cwd": {
+            "default": null,
+            "description": "Optional working directory (relative paths use O_LANG_ROOT)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "default": null,
+            "description": "Operation mode: execute (default) or check (non-executing unified static plan and graph validation)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node_id": {
+            "default": null,
+            "description": "Optional discovered node identity for placement=node; omitted uses the remembered or deterministic node selection",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "default": null,
+            "description": "Existing .O program or project path. Supply exactly one of path or source",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "default": null,
+            "description": "Execution placement: local (default unified front door), node (complete document on one selected hosted node), or project_mesh (project route on authenticated peers; never ordinary OIR graph splitting)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "default": null,
+            "description": "Optional project route ID when a project or lifted bundle has no unambiguous default",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "default": null,
+            "description": "Complete .O source document. Supply exactly one of source or path",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Timeout seconds (default 120)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_runtimes",
+      "description": "Discover executable requirements for every canonical Ostadix backend without blocking on missing optional runtimes",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_search_run",
+      "description": "Run a bundled O work program or an explicitly selected a18re search program with correct absolute backends",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "description": "Leaf O program name, with optional .O suffix; bundled names resolve under examples/, external work names under search/",
+            "type": "string"
+          },
+          "timeout_secs": {
+            "default": null,
+            "description": "Timeout seconds (default 300)",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "work": {
+            "default": null,
+            "description": "Optional a18re/work root; default A18_WORK, existing ~/a18re, or the bundled O_LANG_ROOT",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "o_smoke",
+      "description": "Smoke-test O toolchain with a fixed Python-only computation (expect 2) and correct backends path",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      }
+    }
+  ]
+}

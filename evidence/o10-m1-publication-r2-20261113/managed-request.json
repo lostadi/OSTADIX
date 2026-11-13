@@ -1,0 +1,9 @@
+{
+  "source": "python^(\nfrom pathlib import Path\nexec(Path('/home/ustad/.cache/o10-m1-publication-r2-20261113/verify-publication.py').read_text())\n)_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+  "background": true,
+  "timeout_secs": 0,
+  "env": {
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000"
+  }
+}

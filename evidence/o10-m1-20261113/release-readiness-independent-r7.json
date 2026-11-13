@@ -1,0 +1,149 @@
+{
+  "schema": "ostadix.o10-m1-independent-release-readiness/v1",
+  "reviewer": "/root/acceptance_audit",
+  "review_kind": "read-only repository and retained evidence inspection through Ostadix MCP",
+  "mechanism_revision": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+  "latest_master_reviewed": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+  "merge_base": "808996422536667e61a7da52f29c75e2fa3a5f48",
+  "verdict": "Pending completed six-gate guest aggregate and final explicit Draft 0 binder receipt; no blocking mismatch found in reviewed completed evidence.",
+  "milestone_qualified": false,
+  "observed": {
+    "component_tests": 147,
+    "okernel_unit_tests": 288,
+    "targeted_tests": 74,
+    "actual_el2_context_tests_in_targeted": 4,
+    "language_sources": 261,
+    "native_host_register_model_scenarios": 124,
+    "skips": [],
+    "unit_captured_source_count": 1996,
+    "component_captured_source_count": 39,
+    "current_source_drifts": [],
+    "build_artifact_drifts": [],
+    "build_source_capture_drifts": [],
+    "incoming_master_compiled_source_overlap": [],
+    "incoming_master_rust_changes": [],
+    "resident_seconds": 60.24371229996905,
+    "resident_samples": 182
+  },
+  "extra_probe": {
+    "qualified": false,
+    "observed_gate_passed": false,
+    "requirement_scope": "Added extended claim; explicit Draft 0 original M1 acceptance does not require this claim.",
+    "operational_retry": "Stopped per supervising agent report; no retry or operational replacement performed or proposed by this reviewer."
+  },
+  "scope_limits": [
+    "All foreign-guest execution evidence is AArch64 QEMU/TCG; no physical-board qualification.",
+    "124 native scenarios use explicit architectural register models and do not execute production AArch64 assembly.",
+    "The four targeted actual EL2 tests exercise synthetic contexts; they do not establish arbitrary foreign guest or MMIO compatibility.",
+    "Scenario33 verifies direct diagnostic disposition for 0x1104 and does not claim defensive scheduler guard reachability.",
+    "Source revision is cb53ca51 with recorded helper/test file hashes; do not relabel observed execution as execution of a later publication merge commit."
+  ],
+  "final_binder": {
+    "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+    "argv": [
+      "python3",
+      "scripts/verify_o10_m1.py",
+      "--acceptance-scope",
+      "draft0",
+      "--expected-revision",
+      "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+      "--build",
+      "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7",
+      "--resident-result",
+      "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/result.json",
+      "--hostile-mmio-result",
+      "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/result.json",
+      "--guest-result",
+      "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/result.json",
+      "--component-result",
+      "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/component/result.json",
+      "--unit-result",
+      "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/result.json",
+      "--provenance",
+      "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/fresh-env.json",
+      "--compiler",
+      "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "--classified-paths-result",
+      "/home/ustad/.cache/o10-m1-acceptance-20261112/classification-draft0-r9.json",
+      "--output",
+      "/home/ustad/.cache/o10-m1-acceptance-20261112/acceptance-draft0-r7.json"
+    ],
+    "not_executed_by_reviewer": true,
+    "preconditions": [
+      "Wait for guest aggregate ok=true with all six exact same-build gate receipts and no skips.",
+      "Keep reviewed source/helper closure and cb53ca51 worktree intact until binder seals receipt.",
+      "Output path must remain new; existing historical receipts are immutable."
+    ]
+  },
+  "publication_plan": [
+    "Finish and seal the explicit Draft 0 acceptance on the preserved cb53ca51 validation worktree.",
+    "Retain the failed extra receipt separately and explicitly unqualified; default extended acceptance stays strict.",
+    "Copy the sealed evidence and review receipt with a content-hash artifact index; retain original provenance and disclose local prerequisites.",
+    "In a separate publication checkout integrate latest master while preserving both histories; verify the R7 compiled AArch64 closure remains identical.",
+    "Run appropriate affected integration checks for incoming x86 process/thread, source-release, libc inventory and CI changes; distinguish those checks from the original R7 execution.",
+    "Publish validated source/evidence using the repository author and assistance policy; state the exact validation source/build and later integration commit separately."
+  ],
+  "reviewed_utc": "2026-11-13T08:06:23.135407+00:00",
+  "tracked_worktree_edits": [
+    "scripts/o-kernel.sh",
+    "scripts/verify_o10_m1.py",
+    "scripts/verify_o10_m1_regressions.py",
+    "scripts/verify_okernel_unified_client.py",
+    "scripts/verify_okernel_unified_runtime.py",
+    "tests/test_o10_m1.py",
+    "tests/test_o10_m1_regressions.py",
+    "tests/test_o10_resident_native.py",
+    "tests/test_unified_client_acceptance.py",
+    "tests/test_unified_runtime_acceptance.py"
+  ],
+  "reviewed_inputs": {
+    "binder": {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/scripts/verify_o10_m1.py",
+      "sha256": "d844e48777c76ddf31af696dc24124833eee8b444ce59f328453f28cc4bd41c7"
+    },
+    "unit": {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/result.json",
+      "sha256": "c99f76921a4dc7600ad77b1061bf46c47fcf9384fa53d988521e36af24b92c1a"
+    },
+    "component": {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/component/result.json",
+      "sha256": "47798967a7277782703a5e2672f976dbb92a7b3e0cfd91c6ffde55df2be9f27c"
+    },
+    "language": {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/language.json",
+      "sha256": "52e79bf30943cd44a76c34751ce253b4f313ebb0a0c7684d654f94359a31a324"
+    },
+    "classification": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/classification-draft0-r9.json",
+      "sha256": "18ae2d32c3be59cc8633892786d67b1a4f947d47511b3b1de14248b689019b00"
+    },
+    "resident": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/result.json",
+      "sha256": "e01017f5f430078cf129c9339ce263c783bf3c17ca940514d989a8e7bc1d0a77"
+    },
+    "extra": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/result.json",
+      "sha256": "393733f18084ad3d66433d751fa75a9ef7a95e51364aff748a4902f5c0bf09ec"
+    },
+    "provenance": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/fresh-env.json",
+      "sha256": "5f72ee14934af2f2c8bfac8a939178a83e4bf437a292b3bcbb0ce97a0c610445"
+    },
+    "profile": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7/monitor-profile.json",
+      "sha256": "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938"
+    }
+  },
+  "guest_aggregate_observation": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/result.json",
+    "ok": false,
+    "gate_ids_passed": [
+      "two_domains",
+      "provider",
+      "client",
+      "recovery",
+      "default_compile"
+    ],
+    "note": "Read while parent-owned run is active; not a final acceptance result."
+  }
+}

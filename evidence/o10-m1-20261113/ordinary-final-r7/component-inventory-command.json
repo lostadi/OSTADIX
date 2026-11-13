@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m1-20261112",
+    "[]",
+    "test_o10_*.py"
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m1-20261112",
+    "[]",
+    "test_o10_*.py"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "started": 1794554100.5570166,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": null,
+    "U9FS_ARCHIVE": null,
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": null,
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": null,
+    "OCORE_U9FS_MANIFEST": null,
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "TMPDIR": null
+  },
+  "finished": 1794554100.671687,
+  "log": {
+    "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7/component-inventory.log",
+    "sha256": "5bde6e99aa4793197a6f101e855aa1e05d5c6a6977026ab6e1464b15202b7069"
+  }
+}

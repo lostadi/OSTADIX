@@ -1,0 +1,6 @@
+{
+  "source": "python^( exec(\"import subprocess,json,os\\nr=subprocess.run(['python3', '-m', 'unittest', '-v', 'tests.test_o10_resident','tests.test_o10_hostile_mmio', 'tests.test_o10_resident_native', 'tests.test_o10_platform', 'tests.test_o10_native', 'tests.test_o10_codec', 'tests.test_unified_world_profile', 'tests.test_o10_runner', 'tests.test_freeze_okernel_unified_runtime', 'tests.test_unified_world_context'],cwd='/home/ustad/OSTADIX-o10-m1-20261112',env=dict(os.environ,OCOREC_BIN='/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec'),capture_output=True,text=True)\\nprint(json.dumps({'returncode':r.returncode,'stdout':r.stdout,'stderr':r.stderr}))\") )_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 180
+}

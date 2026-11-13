@@ -1,0 +1,100 @@
+{
+  "schema": "ostadix.disposable-test-head-retirement/v1",
+  "ok": true,
+  "started": 1794557136.6955924,
+  "authorization": "Lee explicitly authorized necessary space cleanup. Only two closed private O10 resident-test fork disk and namespace copies are retired.",
+  "qualification_effect": "Passed and historical receipts, terminal logs, ELF/profile, native sources, immutable boot images and original seed state are preserved. These two disposable heads intentionally cease to be resumable.",
+  "roots": [
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-3/state",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/state"
+  ],
+  "free_before": 7027974144,
+  "files": [
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-3/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54671197,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-3/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54671199,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-3/state/unified-session-ogik9g1n/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54671273,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-3/state/unified-session-ogik9g1n/inputs/namespace.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54671274,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54679427,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54679431,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/state/unified-session-razwq3al/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54679580,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde",
+      "removed": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/state/unified-session-razwq3al/inputs/namespace.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54679582,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f",
+      "removed": true
+    }
+  ],
+  "active_qemu": [],
+  "open_file_references": [],
+  "exclusive_locks_acquired": true,
+  "finished": 1794557148.8907056,
+  "free_after": 10299432960,
+  "allocated_bytes_retired": 4362092544
+}

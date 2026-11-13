@@ -1,0 +1,9 @@
+{
+  "source": "python^(\nfrom pathlib import Path\nimport subprocess,json\nv=subprocess.run(['python3', '/home/ustad/OSTADIX-o10-m1-20261112/scripts/freeze_okernel_unified_runtime.py', '--source', '/home/ustad/OSTADIX-o10-m1-20261112', '--build', '/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7', '--qemu', '/usr/bin/qemu-system-aarch64', '--output', '/home/ustad/.cache/o10-m1-acceptance-20261112/frozen-runtime-r7'],capture_output=True,text=True)\nr={'argv':['python3', '/home/ustad/OSTADIX-o10-m1-20261112/scripts/freeze_okernel_unified_runtime.py', '--source', '/home/ustad/OSTADIX-o10-m1-20261112', '--build', '/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7', '--qemu', '/usr/bin/qemu-system-aarch64', '--output', '/home/ustad/.cache/o10-m1-acceptance-20261112/frozen-runtime-r7'],'returncode':v.returncode,'stdout':v.stdout,'stderr':v.stderr}\nPath('/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/freeze-r7/command.json').write_text(json.dumps(r,indent=2))\nassert v.returncode==0,repr(r)\nprint(json.dumps(r))\n)_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 0,
+  "env": {
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000"
+  }
+}
