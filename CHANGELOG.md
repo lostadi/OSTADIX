@@ -359,8 +359,9 @@ Package SemVer is only one of the independent coordinates documented in
   `bash block left N background process(es); they were stopped`. No backend is
   forked per block. `bash[N]` jobs are stopped when their session ends.
   N is the number of distinct processes left, taken once before any kill, so
-  it is the same on every run, and jobs still alive after the window are named
-  and fail the block. The next
+  it is the same on every run. A cancel says `bash block cancelled; stopped N
+  process(es)`, counting the foreground command too. Jobs
+  still alive after the window are named and fail the block. The next
   block's shell is spawned only when the plan has another plain block, so a
   one-block program spawns exactly one shell.
 
