@@ -48,15 +48,26 @@ Using the updated standalone source worker and rebuilding a compiler that
 embeds it are separate operations. This change does not admit original assembly
 or resolve the unclassified producer events.
 
-The combined source now also accepts the independently reviewed C-family stdin
+The earlier combined source also accepted the independently reviewed C-family stdin
 capture worker, SHA-256
 `758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36`.
-The helper still admits only those three exact executable revisions, and every
+That helper admitted only those three exact executable revisions, and every
 recipe binds the exact updated helper bytes. A self-consistent session record
 for any other worker is rejected before execution. Fourteen original-frontend
 stdin cases cover byte fidelity and unsupported/ambiguous capture boundaries;
 they do not qualify complete libc import. The older source-build counts and
 failures above remain historical receipts, not a rerun with the merged compiler.
+
+The current inventory helper also admits the exact reviewed capture worker
+`303aac632cac6caff5179372811d98081e57eb98bfae34b43db9e1ecf90033b0`,
+which preserves original compiler results while rejecting malformed or unbound
+capture claims. All four revisions are explicit digest pins; a session cannot
+select an arbitrary self-consistent worker. Every invocation in the three
+static recipes binds the updated helper bytes. Loader and recipe regressions
+cover current-worker loading, mutated/unknown worker refusal and stale helper
+rejection before source configuration. This compatibility repair does not
+rerun the full source builds, resolve assembly/probe/provider obligations or
+qualify libc execution, complete O-core lowering or the native OS.
 
 Prerequisites are GNU Make, a clean complete original source checkout at the pinned commit, the matching scoped LLVM 22.1.6 SDK and any installation-specific compatibility libraries. Headers come from the original source and its per-architecture Make generation; they require no manually supplied pthread definitions or POSIX ABI macros. A recipe and helper snapshot should be placed in a new empty directory before starting:
 

@@ -368,10 +368,11 @@ unsafe fn blocked_physical_active(index: usize) -> bool {
     return false;
 }
 
-unsafe fn validate_frame_words(slot: usize, frame: *const u64) -> bool {
-    if slot >= MAX_THREADS
-        || frame as usize == 0
-        || !active_state(STATES[slot]) {
+// Content validation is deliberately separate from slot lifecycle authority.
+// A later closed install transaction may inspect its filled EMPTY slot here;
+// this private helper does not authenticate that transaction or its reference.
+unsafe fn validate_frame_contents(slot: usize, frame: *const u64) -> bool {
+    if slot >= MAX_THREADS || frame as usize == 0 {
         return false;
     }
     let stack: usize = volatile_load(frame + FRAME_RSP) as usize;
@@ -401,6 +402,15 @@ unsafe fn validate_frame_words(slot: usize, frame: *const u64) -> bool {
         1,
         VM_USER | VM_READ | VM_WRITE | VM_STACK
     );
+}
+
+unsafe fn validate_frame_words(slot: usize, frame: *const u64) -> bool {
+    if slot >= MAX_THREADS
+        || frame as usize == 0
+        || !active_state(STATES[slot]) {
+        return false;
+    }
+    return validate_frame_contents(slot, frame);
 }
 
 unsafe fn validate_frame(slot: usize) -> bool {

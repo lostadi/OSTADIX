@@ -232,6 +232,71 @@ REAL_WORLD_BENCHMARK_RELEASE_PATHS = REAL_WORLD_BENCHMARK_PATHS | frozenset(
         "tests/test_benchmark_concurrent_baseline.py",
     }
 )
+NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
+    {
+        "scripts/ocore_runtime_capture.py",
+        "scripts/ocore_producer_registry.json",
+        "tools/ocore-runtime/libc/README.md",
+        "tools/ocore-runtime/libc/build_inventory.py",
+        "tools/ocore-runtime/libc/x86_64.static.recipe.json",
+        "tools/ocore-runtime/libc/aarch64.static.recipe.json",
+        "tools/ocore-runtime/libc/riscv64.static.recipe.json",
+        "tools/ocore-runtime/libc/test_build_inventory.py",
+        "tools/ocore-runtime/libc/test_inventory_worker_identity.py",
+        "tools/ocore-runtime/libc/test_inventory_recipe_worker_contract.py",
+        "tests/test_process_current_identity.py",
+        "tests/test_thread_frame_contents.py",
+        *(
+            f"ocore/runtime/x86_64/{name}.oc"
+            for name in (
+                "native_abi", "personality", "domain", "capability", "pages",
+                "memory_object", "mapping", "elf_loader", "address_space", "process", "thread",
+            )
+        ),
+    }
+)
+# Required inputs for the mandatory O10 component CI lane. This guards the
+# monitor source set, original protocol, host helpers and every discovered
+# component test; it does not admit full guest execution or native M0 itself.
+O10_COMPONENT_RELEASE_PATHS = frozenset(
+    {
+        "scripts/o10.py",
+        "scripts/verify_o10_journal.py",
+        "scripts/verify_o10_live.py",
+        "scripts/verify_o10_m0.py",
+        "scripts/verify_o10_regressions.py",
+        "scripts/build_okernel_unified_world.py",
+        "scripts/okernel_unified_world.py",
+        "scripts/okernel-unified-console.sh",
+        "scripts/okernel_native_volume.py",
+        "scripts/okernel_package_domain.py",
+        "scripts/freeze_okernel_unified_runtime.py",
+        "scripts/verify_okernel_unified_provider.py",
+        "scripts/verify_okernel_unified_client.py",
+        "scripts/verify_okernel_unified_console.py",
+        "scripts/verify_okernel_unified_runtime.py",
+        "scripts/fork_okernel_state.py",
+        "ocore/guest/plan9/unified/protocol.py",
+        "ci/language-sources.json",
+        *(
+            f"tests/test_o10_{name}.py"
+            for name in ("codec", "live", "m0", "native", "platform", "regressions", "runner")
+        ),
+        *(
+            f"ocore/runtime/aarch64/{name}.oc"
+            for name in (
+                "unified_world", "unified_gic", "kernel_world_monitor",
+                "kernel_world_virtio", "kernel_world_virtio_selftest",
+                "kernel_world_net_host", "kernel_world_net", "kernel_world_9p",
+                "plan9_namespace_uart", "coordinator_uart",
+            )
+        ),
+        *(
+            f"ocore/runtime/common/{name}.oc"
+            for name in ("namespace_store", "o10_codec", "o10_executor", "namespace_peer")
+        ),
+    }
+)
 PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS = frozenset(
     {
         "ci/workflow-reviews.toml",
@@ -1155,6 +1220,8 @@ REQUIRED_RELEASE_PATHS = frozenset(
 ) | (
     HOSTED_HGRAPH_BENCHMARK_RELEASE_PATHS
     | REAL_WORLD_BENCHMARK_RELEASE_PATHS
+    | NATIVE_FOUNDATION_RELEASE_PATHS
+    | O10_COMPONENT_RELEASE_PATHS
     | PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS
     | OSTADIX_API_RELEASE_PATHS
     | frozenset(OSTADIX_API_ROOT_MODULE_PATHS.values())
