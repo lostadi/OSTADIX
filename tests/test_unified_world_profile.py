@@ -94,7 +94,22 @@ class UnifiedWorldProfileTests(unittest.TestCase):
                 payload, plan9, derivation, cls.recovery_output, tool,
                 str(tool), str(tool), str(tool), plan9_recovery=True)
             cls.recovery_calls, cls.calls = cls.calls, normal_calls
+            cls.calls = []
+            cls.qualification_output = directory / "qualification profile"
+            cls.qualification_profile = BUILDER.build(
+                payload, plan9, derivation, cls.qualification_output, tool,
+                str(tool), str(tool), str(tool), plan9_recovery=True, o10_qualification=True)
+            cls.calls = normal_calls
         cls.template = (ROOT / "ocore/kernel/aarch64/kernel_world/guest.dts").read_text()
+
+    def test_fault_injection_requires_explicit_qualification_build(self):
+        self.assertIs(self.profile["o10_qualification"], False)
+        self.assertIn("pub const O10_QUALIFICATION: u64 = 0;", (self.output / "profile.oc").read_text())
+        self.assertIs(self.recovery_profile["o10_qualification"], False)
+        self.assertIs(self.qualification_profile["o10_qualification"], True)
+        self.assertIn("pub const O10_QUALIFICATION: u64 = 1;",
+                      (self.qualification_output / "profile.oc").read_text())
+        RUNNER.validate_profile(self.qualification_profile)
 
     def test_builder_manifest_is_accepted_and_artifacts_are_bound(self):
         RUNNER.validate_profile(self.profile)

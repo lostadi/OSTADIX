@@ -1,0 +1,1 @@
+O10 hostile MMIO gate: FAIL: guest command failed: test "$(busybox devmem 0x0a000000 32)" = 0x74726976; b'UNIFIED_COMMAND_e02f10ea8ca54f769dbe09d91fab2fce:1'

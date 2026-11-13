@@ -1,0 +1,157 @@
+{
+  "schema": "ostadix.disposable-test-head-retirement/v1",
+  "ok": true,
+  "started": 1794552808.9550724,
+  "authorization": "Root explicitly authorized ONLY three closed failed R6/R7 forks; successfulR7resident/originals/updatedseed/immutablekernels/DTBs/runtime/build/logs/receipts/terminaldata preserved.",
+  "qualification_effect": "Historical failure receipts/logs remain; these disposable failed test heads intentionally cease to be resumable.",
+  "failed_receipts": [
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/result.json",
+      "sha256": "badb6ffd2a28a527432f591b1daeb54922423591768f84e57364cb45e1faf7c4",
+      "error": "TimeoutError: missing b'OKERNEL PACKAGE DOMAIN READY'; inspect /home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/unified-session-2nhaa2gx"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/result.json",
+      "sha256": "ea0e93eda8f4d3d74aaef1f44cd04d2080338956a2b47e4741c3e776413dc9cc",
+      "error": "TimeoutError: missing b'OKERNEL PACKAGE DOMAIN READY'; inspect /home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/unified-session-m9_zwki7"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/result.json",
+      "sha256": "393733f18084ad3d66433d751fa75a9ef7a95e51364aff748a4902f5c0bf09ec",
+      "error": "RuntimeError: guest command failed: test \"$(busybox devmem 0x0a000000 32)\" = 0x74726976; b'UNIFIED_COMMAND_e02f10ea8ca54f769dbe09d91fab2fce:1'"
+    }
+  ],
+  "roots": [
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state"
+  ],
+  "free_before": 20184862720,
+  "files": [
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54678766,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54678770,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/unified-session-2nhaa2gx/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54678918,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/unified-session-2nhaa2gx/inputs/namespace.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54678921,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54678764,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54678768,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/unified-session-m9_zwki7/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54678917,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/unified-session-m9_zwki7/inputs/namespace.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54678919,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54679429,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54679437,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/unified-session-5fvxlwv_/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "inode": 54679581,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/unified-session-5fvxlwv_/inputs/namespace.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "inode": 54679584,
+      "device": 64512,
+      "mode": 33024,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    }
+  ],
+  "deleted": [
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/unified-session-2nhaa2gx/inputs/disk.ext4",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r6/state/unified-session-2nhaa2gx/inputs/namespace.raw",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/unified-session-m9_zwki7/inputs/disk.ext4",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6/state/unified-session-m9_zwki7/inputs/namespace.raw",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/unified-session-5fvxlwv_/inputs/disk.ext4",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7/state/unified-session-5fvxlwv_/inputs/namespace.raw"
+  ],
+  "qemu_matches": [],
+  "finished": 1794552809.1365848,
+  "free_after": 26727989248
+}

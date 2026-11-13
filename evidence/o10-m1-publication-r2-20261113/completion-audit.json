@@ -1,0 +1,75 @@
+{
+  "schema": "ostadix.o10-m1-publication-completion-audit/v1",
+  "ok": true,
+  "recorded": 1794559127.849008,
+  "integration_result": {
+    "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m1-publication-r2-20261113/result.json",
+    "sha256": "e2c66b22c847355a8f05d373e6257ef6fbe6128e69bad570ffff76ec8b68a555"
+  },
+  "managed_job": "job-1456435-1794558803884813214-1-2",
+  "actual_exit_code": 0,
+  "counts": {
+    "affected_tests": 127,
+    "inventory_worker_contract_tests": 3,
+    "o10_component_tests": 147,
+    "language_sources": 261,
+    "O_sources": 86,
+    "oc_sources": 175,
+    "executed_language_programs": 0,
+    "skips": 0,
+    "rendered_documents_checked": 114
+  },
+  "controller": {
+    "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m1-publication-r2-20261113/controller-source.py",
+    "sha256": "6e7196a386973fde5369e90f0d51bbec48401b4a2f517f2f11279ca9f5e6d8b1"
+  },
+  "compiler_reuse": {
+    "rust_cargo_files_identical": 462,
+    "reused_tools": {
+      "O": {
+        "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+        "sha256": "23b74ad28c055f02e803b8d9d73cb7aa372620eba62d51a73722e31739be97cc"
+      },
+      "o-cli": {
+        "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/o-cli",
+        "sha256": "be6717cac80e423df455f17f338a242e7b0ac2dc1e381d773e64f4ddca1129ae"
+      },
+      "olangc": {
+        "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/olangc",
+        "sha256": "888c038a2210dff2a6217ff802da82cf0f5cfe097e3aff20dddce7ef41adb177"
+      },
+      "ocorec": {
+        "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+      }
+    }
+  },
+  "compiled_r7_source_unchanged": true,
+  "incoming_compiled_overlap": [],
+  "first_failed_integration": {
+    "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m1-publication-20261113/result.json",
+    "sha256": "8d843a36ace2c49402ece8300d7adbfdce59725dcb326c170597c918074b7df5",
+    "scope": "retained failed release-closure assertion before focused fix; not qualifying"
+  },
+  "scope": "Merged-source host component/native-oracle/parser/docs/author integration checks; unchanged historical R7 guest receipts retain their original scope and are not replayed",
+  "commit_identity": [
+    "55cf34d4a3bc0cec0bf948e5c529baa918eeaff6",
+    "Lee Daghlar Ostadi <ostadi.lee@gmail.com>",
+    "Lee Daghlar Ostadi <ostadi.lee@gmail.com>"
+  ],
+  "language_source_results_passed": 261,
+  "language_expected_rejections": [
+    {
+      "path": "audits/nano-source-validation-20260918/rejected-program.O",
+      "category": "historical-snapshot",
+      "status": "passed",
+      "exit_code": 1,
+      "detail": "expected rejection observed"
+    }
+  ],
+  "evidence_credential_transcript_scan": {
+    "files": 69,
+    "pattern_hits": [],
+    "scope": "bounded known-key/bearer/private-key/raw-transcript pattern scan, not a general secret-detection guarantee"
+  }
+}

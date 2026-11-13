@@ -1,0 +1,60 @@
+{
+  "schema": "ostadix.o10-m1-candidate-evidence/v1",
+  "base_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "branch": "work/o10-m1-20261112",
+  "candidate_uncommitted": true,
+  "milestone_qualified": false,
+  "scope": "M1 candidate component/native-model checks and one actual QEMU resident-control gate; no physical-board, Linux-restore, native-Governor or full same-build regression claim.",
+  "build_manifest": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r3/monitor-profile.json",
+    "sha256": "a1eb7ed82a0bba84394e3c138468cb33ac0eecd0f626e9b9a6ce5d689e41810e"
+  },
+  "resident_gate": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-3/result.json",
+    "sha256": "f069fb49deb2cde4391c1cb4fcf159b3e7bf78ab0035409c737ff4f07114beab",
+    "gate_passed": true,
+    "zero_runnable_seconds": 60.19016997201834,
+    "samples": 195,
+    "build_sources_unchanged": true
+  },
+  "source_sha256": {
+    "ocore/runtime/aarch64/unified_world.oc": "676af46a403659c44b595d536fba188c33a21a8bdd7d82fbeb7f45dcde9018b4",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "058883d760f845e3ec615a022b52a223d0aab95640ac9698b4d846fc49ffdac7",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "ffbf7ecb2394101e94b9f482df7f681852d8bac7dd9267141d4230459bf35081",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "bd7698a0f2ea71eac9cf117dc237403bf170e358450183716b4047c319ec1ea4",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "8aed063c9d1714752401a7d993d86dc934160da037c6b8b63ec7f361559de2b0",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/common/namespace_store.oc": "eaaedf300be6c15a83803d7a047119b9ddad978cda6edf5b37b0ab48fe342656",
+    "ocore/runtime/common/o10_codec.oc": "ea9259f69754d8e1ecfbf2371b4732813cfd0e27e928ac24e94a6d05c362322c",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "scripts/build_okernel_unified_world.py": "d365673ce59407a80cda7e07e5dc18170523c015ff97dd35f4cfa5f8e9d7d694",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+  },
+  "limitations": [
+    "M1 source changes remain uncommitted and unmerged pending independent root review.",
+    "MCP/fresh compiler binary was built at base5fb from M0 root; separate runtime bridge uses M1 root, not a final committed M1 release.",
+    "Every full regression must pass without skips on the accepted M1 build before milestone qualification."
+  ],
+  "current_source_rebuild_pending": false,
+  "diagnostic_correction": "Unsupported lower synchronous fault now preserves actual ESR/IPA; first live gate retained at its recorded source snapshot.",
+  "unit_result": "unit-r5-gates/result.json",
+  "unit_tests": 76,
+  "unit_skips": 0,
+  "native_classified_scenarios": 110,
+  "legacy_generation_correction": "Inherited root M0 shared-restore generation/capacity fix and legacy withdraw lease advance; r1/r2 preserved at their recorded source snapshots.",
+  "containment_correction": "R4 in progress: checked Linux MMIO/backend progress separates guest rejection from internal failure; r3 resident proof preserved at its source snapshot.",
+  "current_candidate": "r5-candidate.json",
+  "current_candidate_guest_gates_pending": true
+}

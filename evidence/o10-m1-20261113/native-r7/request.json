@@ -1,0 +1,6 @@
+{
+  "source": "python^( exec(\"from pathlib import Path; import subprocess,json,os,hashlib; r=Path('/home/ustad/OSTADIX-o10-m1-20261112'); names=['ocore/runtime/aarch64/kernel_world_monitor.oc','scripts/okernel_unified_world.py','tests/test_o10_resident_native.py','tests/test_o10_runner.py']; before={n:hashlib.sha256((r/n).read_bytes()).hexdigest() for n in names};cmd=['python3','-m','unittest','-v','tests.test_o10_resident_native','tests.test_o10_runner','tests.test_o10_platform','tests.test_unified_world_profile'];p=subprocess.run(cmd,cwd=r,env=dict(os.environ,OCOREC_BIN='/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec'),capture_output=True,text=True);after={n:hashlib.sha256((r/n).read_bytes()).hexdigest() for n in names};print(json.dumps(dict(argv=cmd,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr,source_sha256=before,sources_unchanged=before==after,scope='Native host-register corpus +Python runner/profile checks only; not guestboot qualification')))\") )_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 0
+}

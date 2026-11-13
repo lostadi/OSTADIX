@@ -1,0 +1,54 @@
+{
+  "schema": "ostadix.o10-m1-r5-candidate/v1",
+  "milestone_qualified": false,
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "source_dirty": true,
+  "build": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r5/monitor-profile.json",
+    "sha256": "2a6876bcdb0c266c21b085b4ea9d736b177f7f62ea9870c2aa3813ce4c7caf25"
+  },
+  "runtime": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/frozen-runtime-r5/runtime.json",
+    "sha256": "b72409362a4eabbb5d4168986a2f2b07d6b48d3f2bde839c1fceba429a96e8e7",
+    "passed": true,
+    "changed_capture_sources": []
+  },
+  "unit_result": "unit-r5-gates/result.json",
+  "unit_tests": 76,
+  "unit_skips": 0,
+  "native_classified_scenarios": 110,
+  "source_sha256": {
+    "ocore/runtime/aarch64/unified_world.oc": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "ac5767d52312adb9db85c1531895d06d15d3ec4ec05207e618dc9bf0c578b464",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "9d49e871882462a397e3122c1540c816079b3172b1aa72be8c6560a3f0fa68df",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "fc6b7bda9f6cb33e99cc36ddca1606d8bd3725cc629fd3f97afed12d7c8ca3b9",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "fd10114b984f1d3531d00987fdde235d12137451836a16d54c9952c24d93f21a",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/common/namespace_store.oc": "eaaedf300be6c15a83803d7a047119b9ddad978cda6edf5b37b0ab48fe342656",
+    "ocore/runtime/common/o10_codec.oc": "ea9259f69754d8e1ecfbf2371b4732813cfd0e27e928ac24e94a6d05c362322c",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "scripts/build_okernel_unified_world.py": "d365673ce59407a80cda7e07e5dc18170523c015ff97dd35f4cfa5f8e9d7d694",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+  },
+  "classification_audit": "r5-classification-audit.json",
+  "scope": "R5 compiled component corpus and fresh runtime capture only. Required Tinjection resident and additional actual hostile-MMIO guest gates await root VM coordination.",
+  "pending": [
+    "M0 final accepted commit inheritance",
+    "independent source review",
+    "two distinct actual guest resident gates on exact R5 ELF",
+    "complete same-build guest regression set",
+    "aligned committed-release provenance"
+  ]
+}

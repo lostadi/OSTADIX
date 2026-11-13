@@ -343,11 +343,13 @@ class UnifiedDomain:
                     self.native_control(1)
                 finally:
                     self.control_active = False
+                counters = self.counters()
                 self.record["provider_failure"] = {"error": str(error), "time": time.time(),
-                                                    "counters": self.counters()}
+                                                    "counters": counters}
                 common.write_json(self.session / "result.json", self.record)
+                survivor = "Linux remains available." if counters["live_domains"] & 1 else "Linux is stopped."
                 os.write(sys.stdout.fileno(), ("\r\nPlan 9 provider withdrawn: " + str(error) +
-                         "\r\nLinux remains available. Save and restart to restore Plan 9; pending work is not replayed.\r\n").encode())
+                         "\r\n" + survivor + " Save and restart to restore Plan 9; pending work is not replayed.\r\n").encode())
 
     def provider_bootstrap(self) -> bytes:
         service = self.service
@@ -662,7 +664,7 @@ class UnifiedDomain:
         # bound to exact current-generation requests and completed captures.
         if not self.native_store_ready:
             return
-        if self.provider_ready and self.counters()["live_domains"] != 3:
+        if self.provider_ready and not (self.counters()["live_domains"] & 2):
             raise RuntimeError("the original Plan9 domain was withdrawn")
         volume = self.native_volume()
         service = self.service

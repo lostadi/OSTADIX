@@ -1,0 +1,6 @@
+test_resident_paths_and_qualification_boundary (tests.test_o10_resident_native.O10ResidentNativeTests.test_resident_paths_and_qualification_boundary) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 16.971s
+
+OK

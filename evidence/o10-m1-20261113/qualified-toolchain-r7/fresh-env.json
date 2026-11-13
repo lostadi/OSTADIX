@@ -1,0 +1,161 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "O_LANG_ROOT=/home/ustad/OSTADIX-o10-m1-20261112\nO_BACKENDS_DIR=/home/ustad/OSTADIX-o10-m1-20261112/backends\nO_bin=/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O\nolangc=/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/olangc\npython_shim=/home/ustad/OSTADIX-o10-m1-20261112/backends/python_shim.py (ok)\nruntime-summary backend-count=30 builtin-backends=7 located-backends=21 missing-backends=2\nnote=always pass absolute backends dir to O; never bare \"backends\" from unrelated cwd; never put $VAR inside .O sources\nruntime-binary=\"/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/ostadix-mcp\" sha256=\"a0fde77c94cbdbb69de01413cd3e83e480a2ffcd97323e8d4527e81c882e6245\" architecture=\"x86_64\" os=\"linux\"\nbuild-source=\"/home/ustad/OSTADIX-o10-m1-20261112\" commit=\"cb53ca51c5e8ef3e4692870640d71935a82556fa\" dirty=true target=\"x86_64-unknown-linux-gnu\"\nruntime-source=\"/home/ustad/OSTADIX-o10-m1-20261112\" commit=\"cb53ca51c5e8ef3e4692870640d71935a82556fa\" dirty=true status=\"observed\"\nbuild-commit-matches-runtime-source=true backend-root=\"/home/ustad/OSTADIX-o10-m1-20261112/backends\"\nclient-configuration=\"/home/ustad/.codex/config.toml\" status=\"hashed\" sha256=\"0af5299e1b85ee6f1cfab5d2a4791d4ab28c716518b3700033e8d8eed49217d7\" (contents omitted)\nclient-configuration=\"/home/ustad/.gemini/settings.json\" status=\"hashed\" sha256=\"c4aaedc9adf6ade310733298d28703c591af8701b8e27432b4c7b905087ca70c\" (contents omitted)\nclient-configuration=\"/home/ustad/OSTADIX-o10-m1-20261112/.mcp.json\" status=\"hashed\" sha256=\"58e02837fac1c85f6dd106b5bc40a959cf5e909728e90f2425e6f0774b83afa6\" (contents omitted)\nexecution-check=\"not_requested\" executed=false (fixed Python smoke only; other runtimes not qualified)\n"
+    }
+  ],
+  "structuredContent": {
+    "backendRoot": "/home/ustad/OSTADIX-o10-m1-20261112/backends",
+    "backendRootExists": true,
+    "binary": {
+      "architecture": "x86_64",
+      "bytes": 7675144,
+      "canonicalPath": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/ostadix-mcp",
+      "exists": true,
+      "hashSource": "running_process_inode",
+      "path": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/ostadix-mcp",
+      "runningArchitecture": "x86_64",
+      "runningOs": "linux",
+      "sha256": "a0fde77c94cbdbb69de01413cd3e83e480a2ffcd97323e8d4527e81c882e6245",
+      "status": "hashed"
+    },
+    "buildCommitMatchesRuntimeSource": true,
+    "buildSource": {
+      "commit": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+      "dirty": true,
+      "dirtyScope": "tracked_and_nonignored_untracked_when_build_script_ran",
+      "host": "x86_64-unknown-linux-gnu",
+      "note": "Build metadata identifies source observed during compilation; it does not identify another selected executable or qualify a runtime.",
+      "profile": "release",
+      "sourceRoot": "/home/ustad/OSTADIX-o10-m1-20261112",
+      "target": "x86_64-unknown-linux-gnu"
+    },
+    "clientConfiguration": {
+      "files": [
+        {
+          "contentsReturned": false,
+          "exists": false,
+          "path": "/home/ustad/.claude.json",
+          "status": "unavailable"
+        },
+        {
+          "architecture": null,
+          "bytes": 674,
+          "canonicalPath": "/home/ustad/.codex/config.toml",
+          "contentsReturned": false,
+          "exists": true,
+          "path": "/home/ustad/.codex/config.toml",
+          "sha256": "0af5299e1b85ee6f1cfab5d2a4791d4ab28c716518b3700033e8d8eed49217d7",
+          "status": "hashed"
+        },
+        {
+          "contentsReturned": false,
+          "exists": false,
+          "path": "/home/ustad/.config/Claude/claude_desktop_config.json",
+          "status": "unavailable"
+        },
+        {
+          "architecture": null,
+          "bytes": 121,
+          "canonicalPath": "/home/ustad/.gemini/settings.json",
+          "contentsReturned": false,
+          "exists": true,
+          "path": "/home/ustad/.gemini/settings.json",
+          "sha256": "c4aaedc9adf6ade310733298d28703c591af8701b8e27432b4c7b905087ca70c",
+          "status": "hashed"
+        },
+        {
+          "contentsReturned": false,
+          "exists": false,
+          "path": "/home/ustad/.mcp.json",
+          "status": "unavailable"
+        },
+        {
+          "contentsReturned": false,
+          "exists": false,
+          "path": "/home/ustad/Library/Application Support/Claude/claude_desktop_config.json",
+          "status": "unavailable"
+        },
+        {
+          "architecture": null,
+          "bytes": 98,
+          "canonicalPath": "/home/ustad/OSTADIX-o10-m1-20261112/.mcp.json",
+          "contentsReturned": false,
+          "exists": true,
+          "path": "/home/ustad/OSTADIX-o10-m1-20261112/.mcp.json",
+          "sha256": "58e02837fac1c85f6dd106b5bc40a959cf5e909728e90f2425e6f0774b83afa6",
+          "status": "hashed"
+        }
+      ],
+      "scope": "Known local client configuration paths and exact file hashes only. Their presence does not prove which client configuration launched this process; contents, arguments, tokens, and arbitrary environment values are not returned."
+    },
+    "configuredPaths": {
+      "BACKENDS_DIR": null,
+      "O_BACKENDS_DIR": "/home/ustad/OSTADIX-o10-m1-20261112/backends",
+      "O_LANG_ROOT": "/home/ustad/OSTADIX-o10-m1-20261112"
+    },
+    "executionCheck": {
+      "executed": false,
+      "requested": false,
+      "status": "not_requested"
+    },
+    "installationManifest": {
+      "claimsVerifiedByThisReport": false,
+      "exists": false,
+      "path": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/ostadix-install.json",
+      "rawContentsReturned": false,
+      "status": "unavailable"
+    },
+    "limits": {
+      "binaryHashBytes": 1073741824,
+      "configurationHashBytes": 2097152,
+      "gitCommandTimeoutMs": 1000,
+      "qualification": "Identity and a fixed Python smoke are separate from native admission, every-runtime health, and cross-architecture qualification."
+    },
+    "runtimeSource": {
+      "canonicalRoot": "/home/ustad/OSTADIX-o10-m1-20261112",
+      "commit": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+      "dirty": true,
+      "dirtyScope": "tracked_and_nonignored_untracked",
+      "root": "/home/ustad/OSTADIX-o10-m1-20261112",
+      "sourceManifest": {
+        "claimsVerifiedByThisReport": false,
+        "exists": false,
+        "path": "/home/ustad/OSTADIX-o10-m1-20261112/SOURCE-MANIFEST.json",
+        "rawContentsReturned": false,
+        "status": "unavailable"
+      },
+      "status": "observed"
+    },
+    "schema": "ostadix.runtime-provenance/v1",
+    "tools": [
+      {
+        "binary": {
+          "architecture": "x86_64",
+          "bytes": 6396112,
+          "canonicalPath": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+          "exists": true,
+          "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+          "sha256": "23b74ad28c055f02e803b8d9d73cb7aa372620eba62d51a73722e31739be97cc",
+          "status": "hashed"
+        },
+        "name": "O"
+      },
+      {
+        "binary": {
+          "architecture": "x86_64",
+          "bytes": 18333024,
+          "canonicalPath": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/olangc",
+          "exists": true,
+          "path": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/olangc",
+          "sha256": "888c038a2210dff2a6217ff802da82cf0f5cfe097e3aff20dddce7ef41adb177",
+          "status": "hashed"
+        },
+        "name": "olangc"
+      }
+    ],
+    "transport": "stdio"
+  },
+  "isError": false
+}

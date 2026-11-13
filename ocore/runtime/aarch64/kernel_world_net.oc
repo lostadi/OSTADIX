@@ -387,3 +387,12 @@ pub unsafe fn transmitted() -> u64 { return TX_COUNT; }
 pub unsafe fn received() -> u64 { return RX_COUNT; }
 pub unsafe fn denials() -> u64 { return DENIED_COUNT; }
 pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && (STATUS & 192) == 0) as u64; }
+
+
+// Trusted persistent-supervisor disposition: unprovisioned mechanism state
+// is not guest queue corruption. No guest field selects this classification.
+pub unsafe fn fault_kind() -> u64 {
+    if ACTIVE != 1 { return 3; }
+    if (STATUS & 192) != 0 { return 2; }
+    return 0;
+}

@@ -1,0 +1,10 @@
+{
+  "OSTADIX_MCP": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ostadix-mcp",
+  "O_LANG_ROOT": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "O_BACKENDS_DIR": "/home/ustad/OSTADIX-o10-m1-20261112/backends",
+  "OSTADIX_MCP_CLIENT_DIR": "/tmp/o10-m1-mcp-20261112",
+  "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+  "O_LANG_OLANGC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/olangc",
+  "O_LANG_OCLI_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/o-cli",
+  "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec"
+}

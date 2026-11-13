@@ -1,0 +1,42 @@
+{
+  "schema": "ostadix.repository-publication-preflight/v1",
+  "time": 1794557724.7571645,
+  "fetches": [
+    {
+      "name": "canonical",
+      "argv": [
+        "git",
+        "-c",
+        "credential.helper=",
+        "-c",
+        "credential.helper=!gh auth git-credential",
+        "fetch",
+        "--no-write-fetch-head",
+        "https://github.com/lostadi/OSTADIX.git",
+        "refs/heads/master:refs/remotes/o10-sync-canonical/master"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "tip": "6390bf2d2d725d477cfa1c1f087fcec426b15315"
+    },
+    {
+      "name": "bm",
+      "argv": [
+        "git",
+        "-c",
+        "credential.helper=",
+        "-c",
+        "credential.helper=!gh auth git-credential",
+        "fetch",
+        "--no-write-fetch-head",
+        "https://github.com/lostadi/ostadix-BM.git",
+        "refs/heads/master:refs/remotes/o10-sync-bm/master"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "tip": "6390bf2d2d725d477cfa1c1f087fcec426b15315"
+    }
+  ]
+}

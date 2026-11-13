@@ -1,0 +1,19 @@
+{
+  "command": "kernel",
+  "args": [
+    "o10-hostile-mmio",
+    "--state",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+    "--build",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7",
+    "--session",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r7",
+    "--qemu",
+    "/usr/bin/qemu-system-aarch64",
+    "--mcp-release",
+    "cb53ca51c5e8ef3e4692870640d71935a82556fa"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 0
+}

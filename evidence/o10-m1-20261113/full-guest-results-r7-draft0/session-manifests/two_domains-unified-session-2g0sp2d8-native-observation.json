@@ -1,0 +1,17 @@
+{
+  "live_domains": 3,
+  "switches": 4119,
+  "linux_exits": 24970,
+  "plan9_exits": 24286,
+  "linux_pc": "0xffffffc08042bda8",
+  "plan9_pc": "0xffffffffc01a1c3c",
+  "linux_esr": "0x7e00000",
+  "plan9_esr": "0x7e00000",
+  "console": 0,
+  "input_dropped": 0,
+  "blocked_domains": 3,
+  "native_idle_waits": 321,
+  "plan9_9p_requests": 141,
+  "plan9_9p_request_bytes": 3886,
+  "plan9_9p_reply_bytes": 5226
+}

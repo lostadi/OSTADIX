@@ -89,6 +89,18 @@ class ForegroundClientOracleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "profile/input identity"):
             GATE.admitted_monitor_revision(GATE.R9_MONITOR, GATE.O10_M0_PROFILE)
 
+    def test_r7_resident_candidate_requires_its_exact_observed_profile(self):
+        self.assertEqual(GATE.admitted_monitor_revision(
+            GATE.O10_M1_R7_MONITOR, GATE.O10_M1_R7_PROFILE),
+            "O10-M1-R7-resident-candidate")
+        for monitor, profile in GATE.MONITOR_PROFILES.items():
+            if monitor == GATE.O10_M1_R7_MONITOR:
+                continue
+            with self.subTest(monitor=monitor), self.assertRaises(ValueError):
+                GATE.admitted_monitor_revision(GATE.O10_M1_R7_MONITOR, profile)
+            with self.subTest(reverse=monitor), self.assertRaises(ValueError):
+                GATE.admitted_monitor_revision(monitor, GATE.O10_M1_R7_PROFILE)
+
     def test_actual_setup_helper_cannot_satisfy_completion_wait(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)

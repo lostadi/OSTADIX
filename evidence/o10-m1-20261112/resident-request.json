@@ -1,0 +1,19 @@
+{
+  "command": "kernel",
+  "args": [
+    "o10-resident",
+    "--state",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+    "--build",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification",
+    "--session",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1",
+    "--qemu",
+    "/usr/bin/qemu-system-aarch64",
+    "--mcp-release",
+    "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c (fresh bridge, dirty M1 source; full milestone unqualified)"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 0
+}
