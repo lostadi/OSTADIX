@@ -1,0 +1,101 @@
+#!/bin/sh
+set -eu
+sources="${OSTADIX_PKG_SOURCES:-/sources}"
+work="${OSTADIX_PKG_WORK:-/work}"
+prefix="${OSTADIX_PKG_PREFIX:-/usr/local}"
+loader_path="${OSTADIX_PKG_LOADER_PATH:-/etc/ld-musl-aarch64.path}"
+namespace_helper="${OSTADIX_PKG_NAMESPACE_HELPER:-/usr/local/bin/pkg-namespace}"
+plan9port_helper="${OSTADIX_PKG_PLAN9PORT_HELPER:-/usr/local/libexec/pkg-plan9port}"
+publish_namespace() {
+    if [ -x "$namespace_helper" ] && "$namespace_helper" status >/dev/null 2>&1; then
+        "$namespace_helper" "$@"
+    elif [ "${OSTADIX_PKG_NAMESPACE_REQUIRED:-0}" = 1 ]; then
+        echo 'Required native package namespace is unavailable; shared publication failed.' >&2
+        return 1
+    fi
+}
+case "${1:-help}" in
+    install)
+        shift
+        if [ "$#" -eq 0 ]; then echo 'Usage: pkg install NAME...' >&2; exit 2; fi
+        for package in "$@"; do
+            case "$package" in
+                zlib) "$0" source zlib ;;
+                plan9port) "$plan9port_helper" install ;;
+                *) apk add "$package"; publish_namespace publish-apk "$package" ;;
+            esac
+        done
+        ;;
+    add|del|search|info|list|update|upgrade|policy)
+        exec apk "$@"
+        ;;
+    source)
+        if [ "$#" -eq 2 ] && [ "$2" = plan9port ]; then exec "$plan9port_helper" source; fi
+        if [ "$#" -ne 2 ] || [ "$2" != zlib ]; then
+            echo 'Source providers: zlib (patched upstream 1.3.2), plan9port (original rc/mk/9p command-line scope).' >&2
+            exit 2
+        fi
+        apk add gcc make musl-dev patch
+        cd "$sources/zlib"
+        sha512sum -c SHA512SUMS
+        mkdir -p "$work/sources"
+        # Every automatic build starts from the authenticated archive. Keep
+        # previous source/work trees intact so user edits cannot be overwritten
+        # or silently mistaken for the registered upstream package.
+        build_root="$(mktemp -d "$work/sources/zlib-build.XXXXXXXX")"
+        tar -xzf "$sources/zlib/zlib-1.3.2.tar.gz" -C "$build_root"
+        cd "$build_root/zlib-1.3.2"
+        patch -p1 < "$sources/zlib/CVE-2026-85091.patch"
+        # This virtual profile starts without a wall-clock RTC. Source release
+        # mtimes must not appear to Make as years in the future. Only metadata
+        # changes here; source and patch bytes were verified above.
+        export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"
+        case "$SOURCE_DATE_EPOCH" in
+            ''|*[!0-9]*) echo 'SOURCE_DATE_EPOCH must be a nonnegative integer' >&2; exit 2 ;;
+        esac
+        find . -exec touch -h -d "@$SOURCE_DATE_EPOCH" '{}' +
+        receipt="$build_root/receipt"
+        mkdir "$receipt"
+        printf 'incomplete\n' > "$receipt/status"
+        cp "$sources/zlib/SHA512SUMS" "$receipt/upstream.sha512"
+        find . -type f -exec sha256sum '{}' + | LC_ALL=C sort > "$receipt/source-files.sha256"
+        gcc --version > "$receipt/compiler-version.txt"
+        sha256sum "$(command -v gcc)" > "$receipt/compiler.sha256"
+        apk info -vv > "$receipt/installed-packages.txt"
+        printf 'SOURCE_DATE_EPOCH=%s\nCFLAGS=-O2\nprefix=%s\n' "$SOURCE_DATE_EPOCH" "$prefix" > "$receipt/environment.txt"
+        printf '%s\n' './configure --prefix=PREFIX --shared --disable-crcvx' 'make clean' 'make -j2' 'make check' 'make install' > "$receipt/commands.txt"
+        CFLAGS=-O2 ./configure --prefix="$prefix" --shared --disable-crcvx
+        make clean
+        make -j2
+        make check
+        make install
+        for artifact in "$prefix/lib"/libz*; do
+            if [ -f "$artifact" ]; then sha256sum "$artifact"; fi
+        done > "$receipt/outputs.sha256"
+        if [ ! -s "$receipt/outputs.sha256" ]; then
+            echo 'Source build installed no zlib library outputs.' >&2
+            exit 1
+        fi
+        # Add the new library prefix without discarding administrator paths.
+        {
+            printf '%s\n' "$prefix/lib"
+            if [ -f "$loader_path" ]; then tr ': ' '\n\n' < "$loader_path";
+            else printf '%s\n' /lib /usr/lib; fi
+        } | awk 'NF && !seen[$0]++' > "$receipt/loader-path.txt"
+        cat "$receipt/loader-path.txt" > "$loader_path"
+        printf 'complete\n' > "$receipt/status"
+        publish_namespace publish-source zlib "$receipt"
+        sync
+        echo 'OKERNEL SOURCE BUILD zlib PASS'
+        printf 'Source build receipt: %s\n' "$receipt"
+        ;;
+    help|--help|-h)
+        echo 'pkg install NAME...   Prefer a registered source provider; otherwise use original signed APKs'
+        echo 'pkg add NAME...       Explicit original APK installation with its full dependency closure'
+        echo 'pkg source zlib       Build, check and install original patched zlib source with GCC and Make'
+        echo 'pkg source plan9port  Build original Plan9port rc/mk/9p tools for this Linux ABI'
+        echo 'pkg search PATTERN    Search configured signed repository indexes'
+        echo 'apk is also available directly with its full original command interface.'
+        ;;
+    *) echo 'Unknown command. Run: pkg help' >&2; exit 2 ;;
+esac

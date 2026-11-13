@@ -10,6 +10,11 @@ use runtime::aarch64::kernel_world_virtio::query_completion;
 use runtime::aarch64::kernel_world_virtio::note_guest_consumed;
 use runtime::aarch64::kernel_world_virtio::denials;
 use runtime::aarch64::kernel_world_virtio::pending;
+use runtime::aarch64::kernel_world_virtio::configure_backing;
+use runtime::aarch64::kernel_world_virtio::writes;
+use runtime::aarch64::kernel_world_virtio::flushes;
+use runtime::aarch64::kernel_world_virtio::read_bytes;
+use runtime::aarch64::kernel_world_virtio::written_bytes;
 
 extern "ocore" fn kw_guest_address(gpa: u64, length: u64) -> usize;
 
@@ -43,7 +48,7 @@ unsafe fn configure(base: u64, generation: u64) -> bool {
         offset += 1;
     }
     if mmio_write(112, 1) == 0 || mmio_write(112, 3) == 0
-        || mmio_write(36, 0) == 0 || mmio_write(32, 102) == 0
+        || mmio_write(36, 0) == 0 || mmio_write(32, mmio_read(16)) == 0
         || mmio_write(36, 1) == 0 || mmio_write(32, 1) == 0
         || mmio_write(112, 11) == 0 || mmio_write(48, 0) == 0
         || mmio_write(56, 32) == 0
@@ -120,4 +125,146 @@ pub unsafe fn run(base: u64) -> u64 {
         return 0;
     }
     return 5;
+}
+
+unsafe fn enqueue(base: u64, ordinal: u64) -> void {
+    put16(base + 0x1004 + ordinal * 2, 0);
+    put16(base + 0x1002, ordinal + 1);
+    volatile_store(kw_guest_address(base + 0x5000, 1) as *mut u8, 255);
+}
+
+// Runs only in the persistent profile with a 4-KiB outer scratch disk outside
+// guest-owned RAM and outside the injected disk image. All requests use the
+// production descriptor validation/copy/publication paths. Returns the next
+// unused generation after the historical run() cases, or zero on failure.
+pub unsafe fn run_backing(base: u64, backing: usize) -> u64 {
+    if (base & 4095) != 0 || (backing & 4095) != 0
+        || configure_backing(0x4008_0000, 4096, 1) != 0
+        || configure_backing(0x4800_0000, 4096, 1) != 0
+        || configure_backing(0x6e00_0000, 4096, 1) != 0
+        || configure_backing(0x6dff_f000, 8192, 1) != 0
+        || configure_backing(0x6e1f_f000, 8192, 1) != 0
+        || configure_backing(0x6c00_0000, 4096, 1) != 0
+        || configure_backing(0x6bff_f000, 8192, 1) != 0
+        || configure_backing(0x6cff_f000, 8192, 1) != 0
+        || configure_backing(0x6d00_0000, 4096, 1) != 0
+        || configure_backing(0xafff_f000, 8192, 1) != 0
+        || configure_backing(backing + 1, 4096, 1) != 0
+        || configure_backing(backing, 0, 1) != 0
+        || configure_backing(backing, 4095, 1) != 0
+        || configure_backing(backing, 4096, 2) != 0
+        || configure_backing(backing, 4096, 1) != 1 {
+        return 0;
+    }
+    let mut index: usize = 0;
+    while index < 4096 {
+        volatile_store((backing + index) as *mut u8, 0);
+        index += 1;
+    }
+    if !configure(base, 5) || mmio_read(16) != 582 || mmio_read(256) != 8
+        || configure_backing(backing, 4096, 0) != 0 {
+        return 0;
+    }
+    // A write must consume read-only guest data, not overwrite that buffer.
+    put32(base + 0x3000, 1);
+    put64(base + 0x3008, 1);
+    desc(base, 1, base + 0x4000, 512, 1, 2);
+    index = 0;
+    while index < 512 {
+        volatile_store(kw_guest_address(base + 0x4000 + index as u64, 1) as *mut u8,
+            (index ^ 0xa5) as u8);
+        index += 1;
+    }
+    if poll() != 1 || byte(base + 0x5000) != 0 || writes() != 1
+        || written_bytes() != 512 || read_bytes() != 0
+        || volatile_load(kw_guest_address(base + 0x2008, 4) as *const u32) != 1
+        || mmio_write(100, 1) != 1 {
+        return 0;
+    }
+    index = 0;
+    while index < 512 {
+        if volatile_load((backing + 512 + index) as *const u8) != (index ^ 0xa5) as u8 {
+            return 0;
+        }
+        volatile_store(kw_guest_address(base + 0x4000 + index as u64, 1) as *mut u8, 0);
+        index += 1;
+    }
+    put32(base + 0x3000, 0);
+    desc(base, 1, base + 0x4000, 512, 3, 2);
+    enqueue(base, 1);
+    if poll() != 1 || byte(base + 0x5000) != 0 || read_bytes() != 512
+        || byte(base + 0x4000) != 0xa5 || byte(base + 0x41ff) != 0x5a
+        || volatile_load(kw_guest_address(base + 0x2010, 4) as *const u32) != 513
+        || mmio_write(100, 1) != 1 {
+        return 0;
+    }
+    put32(base + 0x3000, 4);
+    put64(base + 0x3008, 0);
+    desc(base, 0, base + 0x3000, 16, 1, 2);
+    enqueue(base, 2);
+    if poll() != 1 || byte(base + 0x5000) != 0 || flushes() != 1
+        || writes() != 1 || written_bytes() != 512
+        || volatile_load(kw_guest_address(base + 0x2018, 4) as *const u32) != 1
+        || mmio_write(100, 1) != 1 {
+        return 0;
+    }
+    // Wrong write-buffer direction fails before touching storage.
+    put32(base + 0x3000, 1);
+    put64(base + 0x3008, 2);
+    desc(base, 0, base + 0x3000, 16, 1, 1);
+    enqueue(base, 3);
+    if poll() != 0 || denials() != 1 || byte(base + 0x5000) != 255
+        || volatile_load((backing + 1024) as *const u8) != 0 {
+        return 0;
+    }
+    // A valid first segment and invalid later segment must not partially write.
+    if !configure(base, 6) { return 0; }
+    put32(base + 0x3000, 1);
+    put64(base + 0x3008, 1);
+    desc(base, 1, base + 0x4000, 512, 1, 3);
+    desc(base, 3, base + 65536, 512, 1, 2);
+    if poll() != 0 || denials() != 1 || writes() != 0
+        || volatile_load((backing + 512) as *const u8) != 0xa5 {
+        return 0;
+    }
+    if !configure(base, 7) { return 0; }
+    put32(base + 0x3000, 1);
+    put64(base + 0x3008, 8);
+    desc(base, 1, base + 0x4000, 512, 1, 2);
+    if poll() != 0 || denials() != 1 || writes() != 0 { return 0; }
+    if !configure(base, 8) { return 0; }
+    put32(base + 0x3000, 1);
+    desc(base, 1, base + 0x4000, 512, 1, 2);
+    desc(base, 2, base + 0x4001, 1, 2, 0);
+    if poll() != 0 || denials() != 1 || writes() != 0 { return 0; }
+
+    if configure_backing(backing, 4096, 0) != 1 || !configure(base, 9)
+        || mmio_read(16) != 614 { return 0; }
+    put32(base + 0x3000, 1);
+    put64(base + 0x3008, 1);
+    desc(base, 1, base + 0x4000, 512, 1, 2);
+    if poll() != 1 || byte(base + 0x5000) != 1 || writes() != 0
+        || written_bytes() != 0
+        || volatile_load((backing + 512) as *const u8) != 0xa5
+        || mmio_write(100, 1) != 1 { return 0; }
+    put32(base + 0x3000, 4);
+    put64(base + 0x3008, 0);
+    desc(base, 0, base + 0x3000, 16, 1, 2);
+    enqueue(base, 1);
+    if poll() != 1 || byte(base + 0x5000) != 0 || flushes() != 1
+        || mmio_write(100, 1) != 1 { return 0; }
+    // Cyclic descriptor chains remain rejected on a backed device.
+    put32(base + 0x3000, 1);
+    desc(base, 0, base + 0x3000, 16, 1, 1);
+    desc(base, 1, base + 0x4000, 512, 1, 0);
+    enqueue(base, 2);
+    if poll() != 0 || denials() != 1 { return 0; }
+    if configure_backing(backing, 4096, 1) != 1 || !configure(base, 10) { return 0; }
+    // FLUSH carries a header and status, never a data payload.
+    put32(base + 0x3000, 4);
+    if poll() != 0 || denials() != 1 || flushes() != 0
+        || configure_backing(0, 0, 0) != 1 {
+        return 0;
+    }
+    return 11;
 }

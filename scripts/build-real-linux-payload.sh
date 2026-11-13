@@ -9,6 +9,8 @@ VERSION=6.12.43
 SHA256=0fcbbbbcd456e87bbbfc8bf37af541fda62ccfcce76903503424fd101ef7bdee
 URL="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$VERSION.tar.xz"
 JOBS="${OCORE_LINUX_JOBS:-4}"
+PROFILE="${OCORE_LINUX_PROFILE:-withdrawal}"
+TOOLCHAIN="${OCORE_LINUX_TOOLCHAIN:-gcc}"
 export ARCH=arm64
 export KBUILD_BUILD_TIMESTAMP='1970-01-01 00:00:00 +0000'
 export KBUILD_BUILD_USER=ostadi
@@ -20,10 +22,25 @@ if [[ "$(uname -s)" != Linux ]]; then
   echo 'Build this payload in a Linux environment (for example Multipass moral-gaur).' >&2
   exit 2
 fi
-if [[ "$(uname -m)" != aarch64 && -z "${CROSS_COMPILE:-}" ]]; then
-  export CROSS_COMPILE=aarch64-linux-gnu-
-fi
-for tool in make gcc flex bison bc curl tar sha256sum python3; do
+case "$PROFILE" in withdrawal|package-domain) ;; *) echo "unknown Linux profile: $PROFILE" >&2; exit 2 ;; esac
+case "$TOOLCHAIN" in
+  gcc)
+    if [[ "$(uname -m)" != aarch64 && -z "${CROSS_COMPILE:-}" ]]; then
+      export CROSS_COMPILE=aarch64-linux-gnu-
+    fi
+    COMPILER="${CROSS_COMPILE:-}gcc"
+    TOOLCHAIN_TOOLS=("$COMPILER")
+    ;;
+  llvm)
+    # Linux's documented integrated LLVM cross-build selects ARCH=arm64.
+    # No target GNU assembler, linker or cross-GCC is silently substituted.
+    export LLVM=1 LLVM_IAS=1
+    COMPILER=clang
+    TOOLCHAIN_TOOLS=(clang ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-readelf llvm-strip)
+    ;;
+  *) echo "OCORE_LINUX_TOOLCHAIN must be gcc or llvm" >&2; exit 2 ;;
+esac
+for tool in make gcc flex bison bc curl tar sha256sum python3 "${TOOLCHAIN_TOOLS[@]}"; do
   command -v "$tool" >/dev/null || { echo "missing dependency: $tool" >&2; exit 2; }
 done
 mkdir -p "$BUILD" "$OUT"
@@ -70,6 +87,9 @@ with tarfile.open(archive) as source:
 PY
 SRC="$BUILD/linux-$VERSION"
 OBJ="$BUILD/build"
+if [[ "$PROFILE" != withdrawal || "$TOOLCHAIN" != gcc ]]; then
+  OBJ="$BUILD/build-$PROFILE-$TOOLCHAIN"
+fi
 mkdir -p "$OBJ"
 make -C "$SRC" O="$OBJ" tinyconfig
 CONFIG="$SRC/scripts/config"
@@ -80,6 +100,18 @@ for symbol in EXPERT MULTIUSER PRINTK BINFMT_ELF BLK_DEV_INITRD RD_GZIP \
   POSIX_TIMERS; do
   "$CONFIG" --file "$OBJ/.config" --enable "$symbol"
 done
+if [[ "$PROFILE" == package-domain ]]; then
+  # Ordinary Linux userspace retains normal process/filesystem/IPC semantics.
+  # Networking APIs alone do not imply an attached virtual network device.
+  for symbol in SHMEM BINFMT_SCRIPT FILE_LOCKING EPOLL SIGNALFD TIMERFD EVENTFD \
+    INOTIFY_USER AIO ADVISE_SYSCALLS SYSVIPC SYSCTL UNIX98_PTYS PROC_CHILDREN \
+    EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY OVERLAY_FS \
+    NET UNIX INET PACKET NETDEVICES ETHERNET VIRTIO_NET NET_9P NET_9P_VIRTIO 9P_FS \
+    NAMESPACES UTS_NS IPC_NS PID_NS NET_NS \
+    FHANDLE FACCESSAT2 FUSE_FS; do
+    "$CONFIG" --file "$OBJ/.config" --enable "$symbol"
+  done
+fi
 "$CONFIG" --file "$OBJ/.config" --disable RANDOMIZE_BASE --disable MODULES \
   --disable DEBUG_INFO --disable ARM64_VA_BITS_52 --disable ARM64_VA_BITS_48 \
   --enable ARM64_VA_BITS_39 --disable ARM64_PA_BITS_52 --enable ARM64_PA_BITS_48 \
@@ -92,10 +124,18 @@ for symbol in BINFMT_ELF BLK_DEV_INITRD ARM_GIC ARM_ARCH_TIMER \
     exit 2
   fi
 done
+if [[ "$PROFILE" == package-domain ]]; then
+  for symbol in BINFMT_SCRIPT FILE_LOCKING EXT4_FS TMPFS PROC_FS PROC_CHILDREN SYSFS UNIX NET_9P NET_9P_VIRTIO 9P_FS; do
+    if ! grep -qx "CONFIG_${symbol}=y" "$OBJ/.config"; then
+      echo "required package-domain kernel option did not resolve: $symbol" >&2
+      exit 2
+    fi
+  done
+fi
 make -C "$SRC" O="$OBJ" -j"$JOBS" Image
 cp "$OBJ/arch/arm64/boot/Image" "$OUT/Image"
 cp "$OBJ/.config" "$OUT/linux.config"
-python3 - "$OUT" "$VERSION" "$SHA256" "$URL" <<'PY'
+python3 - "$OUT" "$VERSION" "$SHA256" "$URL" "$PROFILE" "$COMPILER" <<'PY'
 import hashlib
 import json
 import os
@@ -103,7 +143,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-out, version, source_sha, source_url = sys.argv[1:]
+out, version, source_sha, source_url, profile, compiler = sys.argv[1:]
 out = Path(out)
 image = (out / "Image").read_bytes()
 if image[56:60] != b"ARM\x64":
@@ -114,7 +154,8 @@ manifest = {
     "source_url": source_url,
     "source_archive_sha256": source_sha,
     "source_modifications": False,
-    "compiler": subprocess.check_output([os.environ.get("CROSS_COMPILE", "") + "gcc", "--version"], text=True).splitlines()[0],
+    "profile": profile,
+    "compiler": subprocess.check_output([compiler, "--version"], text=True).splitlines()[0],
     "artifacts": {
         name: {"sha256": hashlib.sha256((out / name).read_bytes()).hexdigest(), "bytes": (out / name).stat().st_size}
         for name in ("Image", "linux.config")

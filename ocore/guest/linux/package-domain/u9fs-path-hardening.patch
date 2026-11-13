@@ -1,0 +1,210 @@
+--- a/u9fs.c
++++ b/u9fs.c
+@@ -72,6 +72,7 @@
+ void*	erealloc(void*, size_t);
+ char*	estrdup(char*);
+ char*	estrpath(char*, char*, int);
++int	componentvalid(char*, int);
+ int	okuser(char*);
+ int	groupchange(User*, User*, char**);
+ 
+@@ -147,6 +148,7 @@
+ int	chatty9p = 0;
+ int	network = 1;
+ int	old9p = -1;
++int	badframe;	/* A bounded protocol error followed by connection close. */
+ int	authed;
+ char*	root;
+ User*	none;
+@@ -206,15 +208,25 @@
+ 		sysfatal("couldn't read message");
+ 
+ 	len = GBIT32(rxbuf);
+-	if(len <= BIT32SZ)
+-		sysfatal("bogus message");
++	if(len < BIT32SZ+BIT8SZ+BIT16SZ || len > msize){
++		memset(fc, 0, sizeof *fc);
++		fc->type = Terror;
++		fc->tag = NOTAG;
++		if(len >= BIT32SZ+BIT8SZ+BIT16SZ && readn(fd, rxbuf+BIT32SZ, BIT8SZ+BIT16SZ) == BIT8SZ+BIT16SZ)
++			fc->tag = GBIT16(rxbuf+BIT32SZ+BIT8SZ);
++		badframe = 1;
++		return;
++	}
+ 
+ 	len -= BIT32SZ;
+ 	if(readn(fd, rxbuf+BIT32SZ, len) != len)
+ 		sysfatal("short message");
+ 
+-	if(convM2S(rxbuf, len+BIT32SZ, fc) != len+BIT32SZ)
+-		sysfatal("badly sized message type %d", rxbuf[0]);
++	if(convM2S(rxbuf, len+BIT32SZ, fc) != len+BIT32SZ){
++		memset(fc, 0, sizeof *fc);
++		fc->type = Terror;
++		fc->tag = GBIT16(rxbuf+BIT32SZ+BIT8SZ);
++	}
+ }
+ 
+ void
+@@ -372,12 +384,18 @@
+ 			fprint(2, "-> %F\n", &tx);
+ 
+ 		(old9p ? putfcallold : putfcallnew)(wfd, &tx);
++		if(badframe)
++			return;
+ 	}
+ }
+ 
+ void
+ rversion(Fcall *rx, Fcall *tx)
+ {
++	if(rx->msize < 256){
++		seterror(tx, "msize too small");
++		return;
++	}
+ 	if(msize > rx->msize)
+ 		msize = rx->msize;
+ 	tx->msize = msize;
+@@ -489,6 +507,12 @@
+ 		return;
+ 	}
+ 
++	/* Validate the whole walk before allocating/changing a fid. */
++	for(i=0; i<rx->nwname; i++)
++		if(!componentvalid(rx->wname[i], 1)){
++			seterror(tx, "invalid path component");
++			return;
++		}
+ 	nfid = nil;
+ 	if(rx->newfid != rx->fid && (nfid = newfid(rx->newfid, &e)) == nil){
+ 		seterror(tx, e);
+@@ -564,6 +588,10 @@
+ 	char *e;
+ 	Fid *fid;
+ 
++	if(!componentvalid(rx->name, 0)){
++		seterror(tx, "invalid create component");
++		return;
++	}
+ 	if((fid = oldfid(rx->fid, &e)) == nil){
+ 		seterror(tx, e);
+ 		return;
+@@ -687,18 +715,45 @@
+ defrog(char *s)
+ {
+ 	char *d, *dst, buf[3];
++	int value;
+ 
+ 	d = dst = emalloc(strlen(s) + 1);
+-	for(; *s; s++)
+-		if(*s == '\\' && strlen(s) >= 3){
+-			buf[0] = *++s;			/* skip \ */
++	for(; *s; s++){
++		if(*s == '\\'){
++			if(strlen(s) < 3 || !strchr("0123456789abcdefABCDEF", s[1])
++			|| !strchr("0123456789abcdefABCDEF", s[2]))
++				goto invalid;
++			buf[0] = *++s;
+ 			buf[1] = *++s;
+ 			buf[2] = 0;
+-			*d++ = strtoul(buf, NULL, 16);
+-		} else
+-			*d++ = *s;
++			value = strtoul(buf, NULL, 16);
++		}else
++			value = (uchar)*s;
++		if(value == 0 || value == '/')
++			goto invalid;
++		*d++ = value;
++	}
+ 	*d = 0;
+ 	return dst;
++invalid:
++	free(dst);
++	return nil;
++}
++
++/* 9P names are single components. Decoding precedes authority decisions;
++ * parent walks clamp at the named root, and create/rename cannot name dots. */
++int
++componentvalid(char *s, int walk)
++{
++	char *decoded;
++	int valid;
++
++	decoded = defrog(s);
++	if(decoded == nil)
++		return 0;
++	valid = decoded[0] && (walk || (strcmp(decoded, ".") && strcmp(decoded, "..")));
++	free(decoded);
++	return valid;
+ }
+ 
+ void
+@@ -940,6 +995,10 @@
+ 		return;
+ 	}
+ 
++	if(d.name[0] && !componentvalid(d.name, 0)){
++		seterror(tx, "invalid rename component");
++		return;
++	}
+ 	if(fidstat(fid, &e) < 0){
+ 		seterror(tx, e);
+ 		return;
+@@ -1234,19 +1293,20 @@
+ {
+ 	char *r, *s;
+ 
++	if(frog)
++		q = defrog(q);
++	else
++		q = estrdup(q);
+ 	if(strcmp(q, "..") == 0){
+ 		r = estrdup(p);
+ 		if((s = strrchr(r, '/')) && s > r)
+ 			*s = '\0';
+ 		else if(s == r)
+ 			s[1] = '\0';
++		free(q);
+ 		return r;
+ 	}
+ 
+-	if(frog)
+-		q = defrog(q);
+-	else
+-		q = strdup(q);
+ 	r = emalloc(strlen(p)+1+strlen(q)+1);
+ 	strcpy(r, p);
+ 	if(r[0]=='\0' || r[strlen(r)-1] != '/')
+--- a/convM2S.c
++++ b/convM2S.c
+@@ -11,7 +11,7 @@
+ 		return nil;
+ 	n = GBIT16(p);
+ 	p += BIT16SZ - 1;
+-	if(p+n+1 > ep)
++	if(p+n+1 > ep || memchr(p+1, 0, n) != nil)
+ 		return nil;
+ 	/* move it down, on top of count, to make room for '\0' */
+ 	memmove(p, p + 1, n);
+--- a/convM2D.c
++++ b/convM2D.c
+@@ -32,6 +32,8 @@
+ 	char *sv[4];
+ 	int i, ns;
+ 
++	if(nbuf < STATFIXLEN || GBIT16(buf)+BIT16SZ != nbuf || statcheck(buf, nbuf) < 0)
++		return 0;
+ 	p = buf;
+ 	ebuf = buf + nbuf;
+ 
+@@ -65,7 +67,7 @@
+ 			return 0;
+ 		ns = GBIT16(p);
+ 		p += BIT16SZ;
+-		if(p + ns > ebuf)
++		if(p + ns > ebuf || memchr(p, 0, ns) != nil)
+ 			return 0;
+ 		if(strs){
+ 			sv[i] = strs;
