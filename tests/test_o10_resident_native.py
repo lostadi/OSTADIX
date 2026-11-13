@@ -43,6 +43,7 @@ extern size_t NS(handle)(uint64_t,const uint8_t*,size_t,uint8_t*,size_t);
 static uint64_t linux_session,plan9_session;
 extern uint64_t UW(resident_test_init)(uint64_t),UW(resident_test_live)(void),UW(resident_test_mailbox)(void);
 extern uint64_t uw_handle_exit(uintptr_t,uint64_t,uint64_t,uint64_t,uint64_t);
+extern uint64_t _O_runtime__aarch64__kernel_world_monitor__resident_test_uart_value(uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_net__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_9p__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_9p__fault_kind(void);
@@ -272,6 +273,24 @@ int main(int argc,char**argv){
     }
     assert(NS(session_handle)(4)==plan9_session&&stat_session(plan9_session)==125);
    }else assert(!"virtual UART corpus halted monitor");
+  }else if(scenario==32){
+   // Actual Linux6.12.43 PL011 registration: IMSC0 then writew ICR0xffff.
+   // The real observed syndrome is STRH from SRT9; X9 upper bits must not
+   // influence the access. This would have contained Linux before R7.
+   assert(!SERVICES);namespace_sessions();assert(UW(resident_test_init)(3)==1);current=0;
+   assert(_O_runtime__aarch64__kernel_world_virtio__init(0x40000000,65536,1)==1);
+   const uint64_t esr=0x93490045;
+   int code=setjmp(stop);if(!code){
+    registers[9]=0x1122334455660000;
+    assert(uw_handle_exit((uintptr_t)registers,0,esr,0x38,0x90000)<2);
+    assert(_O_runtime__aarch64__kernel_world_monitor__resident_test_uart_value(0x38/4)==0);
+    registers[9]=0xaabbccddeeffffff;
+    assert(uw_handle_exit((uintptr_t)registers,0,esr,0x44,0x90000)<2);
+    assert(_O_runtime__aarch64__kernel_world_monitor__resident_test_uart_value(0x44/4)==0x7ff);
+    assert(UW(resident_test_live)()==3&&halt_count==0);
+    assert(NS(session_handle)(1)==linux_session&&stat_session(linux_session)==125);
+    assert(NS(session_handle)(4)==plan9_session&&NS(session_fid_count)(4)==1&&stat_session(plan9_session)==125);
+   }else assert(!"ordinary Linux PL011 registration halted the monitor");
   }else assert(!"unknown scenario");
  puts("resident native scenario PASS");return 0;
 }
@@ -294,6 +313,10 @@ class O10ResidentNativeTests(unittest.TestCase):
             block=output/"block.oc"
             block.write_text((ROOT/block_name).read_text()+
                 "\npub unsafe fn resident_test_hold() -> void { PENDING = 1; PENDING_TYPE = 0; }\n")
+            monitor_name="ocore/runtime/aarch64/kernel_world_monitor.oc"
+            monitor=output/"monitor.oc"
+            monitor.write_text((ROOT/monitor_name).read_text()+
+                "\npub unsafe fn resident_test_uart_value(index: usize) -> u64 { return UART_REGS[index] as u64; }\n")
             for configuration in ((0,1),(1,1),(0,0),(1,0)):
                 qualification,services=configuration
                 profile=output/"profile.oc"
@@ -301,7 +324,7 @@ class O10ResidentNativeTests(unittest.TestCase):
                     "pub const PERSISTENT: u64 = 1;\npub const BACKING_BASE: usize = 0x7000_0000;\n"
                     "pub const BACKING_BYTES: usize = 1_073_741_824;\npub const NETWORK: u64 = "+str(services)+";\n"
                     "pub const NAMESPACE: u64 = "+str(services)+";\npub const O10_QUALIFICATION: u64 = "+str(qualification)+";\n")
-                command=[str(compiler),str(profile),str(world),*(str(block if name==block_name else ROOT/name) for name in sources[1:]),
+                command=[str(compiler),str(profile),str(world),*(str(block if name==block_name else monitor if name==monitor_name else ROOT/name) for name in sources[1:]),
                          "--target","x86_64-unknown-none","--emit","obj","--function-sections","-o",str(output/"native.o")]
                 result=subprocess.run(command,capture_output=True,text=True,timeout=120)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -321,7 +344,7 @@ class O10ResidentNativeTests(unittest.TestCase):
                          str(output/"harness.c"),str(output/"sentinels.c"),str(output/"native.o"),"-o",str(output/"selftest")]
                 result=subprocess.run(command,capture_output=True,text=True,timeout=120)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-                for scenario in list(range(17))+([20,21,22,25,26,27,29,30,31] if services else [17,18,19,23,24,25,26,27,28,29,30,31]):
+                for scenario in list(range(17))+([20,21,22,25,26,27,29,30,31] if services else [17,18,19,23,24,25,26,27,28,29,30,31,32]):
                     result=subprocess.run([str(output/"selftest"),str(scenario)],capture_output=True,text=True,timeout=10)
                     self.assertEqual(result.returncode,0,f"qualification={qualification} scenario={scenario}: "+result.stdout+result.stderr)
 
