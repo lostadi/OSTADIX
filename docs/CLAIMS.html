@@ -1,6 +1,25 @@
 <h1>Claim-accuracy inventory</h1>
 <h2>Implemented and tested now</h2>
 <ul>
+<li><p>O10 M1 keeps the EL2 monitor resident with zero runnable guests and restores
+the original Plan 9 provider through O10. <code>verify_o10_m1.py --acceptance-scope draft0</code> passed the 60.24-second resident test, source-bound classified-path
+checks, all six same-build guest gates, 147 O10 tests, 288 kernel unit tests,
+74 targeted tests and 261 language-source checks with zero skips.
+<a href="../evidence/o10-m1-20261113/acceptance-draft0-r7.json">Acceptance evidence</a>
+identifies the exact R7 artifact and source/MCP closure. Scope: AArch64 QEMU/TCG;
+classified-path evidence includes the bounded native host register model.
+The retained additional guest-MMIO probe remains unqualified;
+<a href="O10.md">O10</a> documents the explicit Draft 0 contract and subsequent work.</p>
+</li>
+<li><p>O10 M0&#39;s host-private operation-10 transport and synchronous 256-outcome
+journal control Plan 9 withdrawal, restore and grant binding alongside Linux.
+<code>scripts/verify_o10_m0.py</code> passed against one exact AArch64 QEMU/TCG build,
+seven live checks, all six guest regression gates, 67 O10 tests, 288 kernel
+unit tests and 261 language-source checks with zero skips.
+<a href="../evidence/o10-m0-20261112/acceptance-r3d.json">Acceptance evidence</a>
+binds the compiled sources and running MCP identity; <a href="O10.md">O10</a> states the
+implementation scope and subsequent milestones.</p>
+</li>
 <li><p>Expression-granular recursive evaluator composition is implemented by typed
 expression syntax described in <code>README.md</code>, lowered from parser nodes to OIR in
 <code>crates/ostadix-api/src/ir.rs</code>, and executed by the Rust evaluator in <code>crates/ostadix-api/src/eval.rs</code>.</p>

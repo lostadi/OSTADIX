@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/scripts/verify_okernel_unified_runtime.py",
+    "--state",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/runtime",
+    "--runtime",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/runtime-o10-r3",
+    "--client-sha256",
+    "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+  ],
+  "started": 1794545398.6425414,
+  "returncode": 0,
+  "timed_out": false,
+  "finished": 1794545732.8277183
+}

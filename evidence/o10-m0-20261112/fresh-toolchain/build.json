@@ -1,0 +1,105 @@
+{
+  "schema": "o10.isolated-toolchain-build/v1",
+  "revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "source_root": "/home/ustad/OSTADIX-o10-m0-20261112",
+  "method": "exact setup.sh build_rust runtime-only and build_mcp_server Cargo recipes; no system dependency installation or global publication",
+  "commands": [
+    [
+      "/home/ustad/.cargo/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--package",
+      "o-lang",
+      "--target-dir",
+      "/home/ustad/OSTADIX-o10-m0-20261112/target",
+      "--bin",
+      "O",
+      "--bin",
+      "o-cli",
+      "--bin",
+      "olangc",
+      "--bin",
+      "ocorec"
+    ],
+    [
+      "/home/ustad/.cargo/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--manifest-path",
+      "/home/ustad/OSTADIX-o10-m0-20261112/mcp/ostadix_lang_mcp_server/Cargo.toml",
+      "--target-dir",
+      "/home/ustad/OSTADIX-o10-m0-20261112/mcp/ostadix_lang_mcp_server/target"
+    ]
+  ],
+  "environment": {
+    "CARGO_HOME": "/dev/shm/o10-toolchain-20261112/cargo-home",
+    "RUSTUP_HOME": "/home/ustad/.rustup",
+    "CARGO_NET_OFFLINE": "true",
+    "CARGO_BUILD_JOBS": "4"
+  },
+  "started": 1794539084.7289164,
+  "results": [
+    {
+      "command": [
+        "/home/ustad/.cargo/bin/cargo",
+        "build",
+        "--release",
+        "--locked",
+        "--package",
+        "o-lang",
+        "--target-dir",
+        "/home/ustad/OSTADIX-o10-m0-20261112/target",
+        "--bin",
+        "O",
+        "--bin",
+        "o-cli",
+        "--bin",
+        "olangc",
+        "--bin",
+        "ocorec"
+      ],
+      "exit_code": 0,
+      "finished": 1794539689.7014706
+    },
+    {
+      "command": [
+        "/home/ustad/.cargo/bin/cargo",
+        "build",
+        "--release",
+        "--locked",
+        "--manifest-path",
+        "/home/ustad/OSTADIX-o10-m0-20261112/mcp/ostadix_lang_mcp_server/Cargo.toml",
+        "--target-dir",
+        "/home/ustad/OSTADIX-o10-m0-20261112/mcp/ostadix_lang_mcp_server/target"
+      ],
+      "exit_code": 0,
+      "finished": 1794539873.8043573
+    }
+  ],
+  "artifacts": {
+    "O": {
+      "path": "/dev/shm/o10-toolchain-20261112/main-target/release/O",
+      "sha256": "23b74ad28c055f02e803b8d9d73cb7aa372620eba62d51a73722e31739be97cc"
+    },
+    "o-cli": {
+      "path": "/dev/shm/o10-toolchain-20261112/main-target/release/o-cli",
+      "sha256": "be6717cac80e423df455f17f338a242e7b0ac2dc1e381d773e64f4ddca1129ae"
+    },
+    "olangc": {
+      "path": "/dev/shm/o10-toolchain-20261112/main-target/release/olangc",
+      "sha256": "888c038a2210dff2a6217ff802da82cf0f5cfe097e3aff20dddce7ef41adb177"
+    },
+    "ocorec": {
+      "path": "/dev/shm/o10-toolchain-20261112/main-target/release/ocorec",
+      "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+    },
+    "ostadix-mcp": {
+      "path": "/dev/shm/o10-toolchain-20261112/mcp-target/release/ostadix-mcp",
+      "sha256": "271e7f9b90dfa430cdb0ec8a819343e52490db6ab8d82be3653f00432ce3ef5d"
+    }
+  },
+  "finished": 1794539873.8808162,
+  "ok": true
+}

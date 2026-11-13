@@ -2,6 +2,24 @@
 
 ## Implemented and tested now
 
+- O10 M1 keeps the EL2 monitor resident with zero runnable guests and restores
+  the original Plan 9 provider through O10. `verify_o10_m1.py --acceptance-scope
+  draft0` passed the 60.24-second resident test, source-bound classified-path
+  checks, all six same-build guest gates, 147 O10 tests, 288 kernel unit tests,
+  74 targeted tests and 261 language-source checks with zero skips.
+  [Acceptance evidence](../evidence/o10-m1-20261113/acceptance-draft0-r7.json)
+  identifies the exact R7 artifact and source/MCP closure. Scope: AArch64 QEMU/TCG;
+  classified-path evidence includes the bounded native host register model.
+  The retained additional guest-MMIO probe remains unqualified;
+  [O10](O10.md) documents the explicit Draft 0 contract and subsequent work.
+- O10 M0's host-private operation-10 transport and synchronous 256-outcome
+  journal control Plan 9 withdrawal, restore and grant binding alongside Linux.
+  `scripts/verify_o10_m0.py` passed against one exact AArch64 QEMU/TCG build,
+  seven live checks, all six guest regression gates, 67 O10 tests, 288 kernel
+  unit tests and 261 language-source checks with zero skips.
+  [Acceptance evidence](../evidence/o10-m0-20261112/acceptance-r3d.json)
+  binds the compiled sources and running MCP identity; [O10](O10.md) states the
+  implementation scope and subsequent milestones.
 - Expression-granular recursive evaluator composition is implemented by typed
   expression syntax described in `README.md`, lowered from parser nodes to OIR in
   `crates/ostadix-api/src/ir.rs`, and executed by the Rust evaluator in `crates/ostadix-api/src/eval.rs`.

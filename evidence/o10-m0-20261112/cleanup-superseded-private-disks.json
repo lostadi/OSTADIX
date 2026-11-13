@@ -1,0 +1,152 @@
+{
+  "authorization": "Lee: delete whatever you need to make space",
+  "scope": "generated disk copies in superseded PRIVATE O10 qualification forks only; source seed/build/runtime and original saved states retained",
+  "reason": "legacy generation alias fixed; new ELF requires fresh qualification",
+  "before_free_bytes": 962965504,
+  "deleted": [
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live/unified-session-ijdzrqo7/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-2/disk-generations/9d522a1ceb89b82f2281f9c4732a2949d6863d8e7cf9b7747984cb1112340d1c.ext4",
+      "bytes": 1073741824,
+      "sha256": "9d522a1ceb89b82f2281f9c4732a2949d6863d8e7cf9b7747984cb1112340d1c"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-2/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+      "bytes": 1073741824,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-2/unified-session-xpngu58f/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/provider/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/provider/disk-generations/8423c2f84f68fc44309a727d58be09e8a1efe0fcb6aaaff2ce8b997467e1371e.ext4",
+      "bytes": 1073741824,
+      "sha256": "8423c2f84f68fc44309a727d58be09e8a1efe0fcb6aaaff2ce8b997467e1371e"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/provider/disk-generations/fbe352a1dc89d88344e6c7f8bebc16979ce033b4c32ef0477ee4a89721c84714.ext4",
+      "bytes": 1073741824,
+      "sha256": "fbe352a1dc89d88344e6c7f8bebc16979ce033b4c32ef0477ee4a89721c84714"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/provider/unified-session-1vuarc4b/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "8423c2f84f68fc44309a727d58be09e8a1efe0fcb6aaaff2ce8b997467e1371e"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/provider/unified-session-87weuwcx/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/two_domains/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/two_domains/disk-generations/4365ffd52c2e6506ecc71e173df9231f61cd62c390864339b49e6f7467476a60.ext4",
+      "bytes": 1073741824,
+      "sha256": "4365ffd52c2e6506ecc71e173df9231f61cd62c390864339b49e6f7467476a60"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/two_domains/disk-generations/7fd30e2ec977c3a5dcb5f770e6889bf3d2534991fbbce65c5efecc48be443051.ext4",
+      "bytes": 1073741824,
+      "sha256": "7fd30e2ec977c3a5dcb5f770e6889bf3d2534991fbbce65c5efecc48be443051"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/two_domains/unified-session-_89wgjdy/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-1/states/two_domains/unified-session-_iaw8fia/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "4365ffd52c2e6506ecc71e173df9231f61cd62c390864339b49e6f7467476a60"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/provider/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/provider/disk-generations/08436256ebbd562512a7eeb6b9f9bbecca8091f100aee3e875373bfe472daf76.ext4",
+      "bytes": 1073741824,
+      "sha256": "08436256ebbd562512a7eeb6b9f9bbecca8091f100aee3e875373bfe472daf76"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/provider/disk-generations/bd6cdf48e5c0bbf41a786561746ea530c50e49f62bbbd2ff10be7c47a2661025.ext4",
+      "bytes": 1073741824,
+      "sha256": "bd6cdf48e5c0bbf41a786561746ea530c50e49f62bbbd2ff10be7c47a2661025"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/provider/unified-session-245po52a/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/provider/unified-session-wa3lxvg7/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "bd6cdf48e5c0bbf41a786561746ea530c50e49f62bbbd2ff10be7c47a2661025"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/recovery/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/recovery/disk-generations/ac3d1a474878a31d02135d2570edf4a63aa5026b678df25e3f82cc1fccba1869.ext4",
+      "bytes": 1073741824,
+      "sha256": "ac3d1a474878a31d02135d2570edf4a63aa5026b678df25e3f82cc1fccba1869"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/recovery/unified-session-ooux9wkl/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/client/disk-generations/01138d5e0716cd3ab79e21040861215acaa60ebc139af67a7059f4fc487c81a1.ext4",
+      "bytes": 1073741824,
+      "sha256": "01138d5e0716cd3ab79e21040861215acaa60ebc139af67a7059f4fc487c81a1"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/client/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/client/disk-generations/c54ef4ad8984a39fefb523a4a5ee9fd79d1f6be37f0965a86303c1e1bae88da5.ext4",
+      "bytes": 1073741824,
+      "sha256": "c54ef4ad8984a39fefb523a4a5ee9fd79d1f6be37f0965a86303c1e1bae88da5"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/client/unified-session-j9jg1322/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "c54ef4ad8984a39fefb523a4a5ee9fd79d1f6be37f0965a86303c1e1bae88da5"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-2/states/client/unified-session-jj2d74hz/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    }
+  ],
+  "busy_states": [],
+  "started": 1794542765.9037147,
+  "after_free_bytes": 31029321728,
+  "finished": 1794542801.4084191
+}

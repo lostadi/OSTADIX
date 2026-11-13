@@ -1,0 +1,41 @@
+{
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "results": [
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "tests.test_unified_client_acceptance",
+        "tests.test_unified_runtime_acceptance",
+        "tests.test_o10_regressions",
+        "tests.test_freeze_okernel_unified_runtime"
+      ],
+      "rc": 0,
+      "skipped": false,
+      "tail": "tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_entry_rejects_escaped_inventory_and_matching_symlink_bytes) ... ok\ntest_explicit_state_required_without_auto_seeding (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_explicit_state_required_without_auto_seeding) ... ok\ntest_live_observation_never_discovers_or_adopts_default_state (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_live_observation_never_discovers_or_adopts_default_state) ... ok\ntest_packager_refuses_existing_output_before_tool_or_state_actions (tests.test_freeze_okernel_unified_runtime.FrozenRuntimeTests.test_packager_refuses_existing_output_before_tool_or_state_actions) ... ok\n\n----------------------------------------------------------------------\nRan 32 tests in 0.715s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/render_docs.py",
+        "write"
+      ],
+      "rc": 1,
+      "skipped": false,
+      "tail": "html-exports: [Errno 2] No such file or directory: 'marked'\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "rc": 0,
+      "skipped": false,
+      "tail": ""
+    }
+  ],
+  "ok": false
+}

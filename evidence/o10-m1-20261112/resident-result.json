@@ -1,0 +1,6097 @@
+{
+  "schema": "ostadix.o10-resident-gate/v1",
+  "milestone": "M1",
+  "gate_id": "verify_o10_resident",
+  "gate_passed": true,
+  "milestone_qualified": false,
+  "started_unix": 1794540907.630009,
+  "session": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1",
+  "source_state": "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+  "build": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification/monitor-profile.json",
+    "bytes": 25054,
+    "sha256": "59caa413e9c12bec06103499be4f5b8f16022cb030e05c92c8550dc8a344e94a"
+  },
+  "mcp_release": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c (fresh bridge, dirty M1 source; full milestone unqualified)",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "returncode": 0,
+      "stdout": " M docs/O10.md\n M ocore/kernel/aarch64/unified_world/monitor.S\n M ocore/runtime/aarch64/unified_world.oc\n M scripts/build_okernel_unified_world.py\n M scripts/o-kernel.sh\n M tests/test_o10_platform.py\n M tests/test_unified_world_context.py\n M tests/test_unified_world_profile.py\n?? evidence/o10-m1-20261112/\n?? scripts/verify_o10_resident.py\n?? tests/test_o10_resident.py\n?? tests/test_o10_resident_native.py\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)\nCopyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers\n",
+      "stderr": ""
+    }
+  ],
+  "samples": [
+    {
+      "seconds": 0.13033988396637142,
+      "linux": {
+        "type": "Rstat",
+        "tag": 5,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 6,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 538,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 0.7984786429442465,
+      "linux": {
+        "type": "Rstat",
+        "tag": 7,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 8,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 644,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 1.212090445915237,
+      "linux": {
+        "type": "Rstat",
+        "tag": 9,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 10,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 716,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 1.9002692599315196,
+      "linux": {
+        "type": "Rstat",
+        "tag": 11,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 12,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 813,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 2.25533265597187,
+      "linux": {
+        "type": "Rstat",
+        "tag": 13,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 14,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 872,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 2.557480796938762,
+      "linux": {
+        "type": "Rstat",
+        "tag": 15,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 16,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 930,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 2.846812840900384,
+      "linux": {
+        "type": "Rstat",
+        "tag": 17,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 18,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 985,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 3.1745724809588864,
+      "linux": {
+        "type": "Rstat",
+        "tag": 19,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 20,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1044,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 3.493302918970585,
+      "linux": {
+        "type": "Rstat",
+        "tag": 21,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 22,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1103,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 3.7914249940076843,
+      "linux": {
+        "type": "Rstat",
+        "tag": 23,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 24,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1158,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 4.108522676979192,
+      "linux": {
+        "type": "Rstat",
+        "tag": 25,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 26,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1216,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 4.443583384971134,
+      "linux": {
+        "type": "Rstat",
+        "tag": 27,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 28,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1275,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 4.760312864906155,
+      "linux": {
+        "type": "Rstat",
+        "tag": 29,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 30,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1333,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 5.088116545928642,
+      "linux": {
+        "type": "Rstat",
+        "tag": 31,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 32,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1391,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 5.371696847956628,
+      "linux": {
+        "type": "Rstat",
+        "tag": 33,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 34,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1446,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 5.68513035599608,
+      "linux": {
+        "type": "Rstat",
+        "tag": 35,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 36,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1503,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 5.975214551901445,
+      "linux": {
+        "type": "Rstat",
+        "tag": 37,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 38,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1559,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 6.293477093917318,
+      "linux": {
+        "type": "Rstat",
+        "tag": 39,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 40,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1617,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 6.6102227659430355,
+      "linux": {
+        "type": "Rstat",
+        "tag": 41,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 42,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1675,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 6.9322841089451686,
+      "linux": {
+        "type": "Rstat",
+        "tag": 43,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 44,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1733,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 7.23240476695355,
+      "linux": {
+        "type": "Rstat",
+        "tag": 45,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 46,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1791,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 7.528373926994391,
+      "linux": {
+        "type": "Rstat",
+        "tag": 47,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 48,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1846,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 7.836026495904662,
+      "linux": {
+        "type": "Rstat",
+        "tag": 49,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 50,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1903,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 8.157777026994154,
+      "linux": {
+        "type": "Rstat",
+        "tag": 51,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 52,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 1961,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 8.496991547988728,
+      "linux": {
+        "type": "Rstat",
+        "tag": 53,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 54,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2020,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 8.807110309950076,
+      "linux": {
+        "type": "Rstat",
+        "tag": 55,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 56,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2077,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 9.106251937919296,
+      "linux": {
+        "type": "Rstat",
+        "tag": 57,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 58,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2135,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 9.436125067993999,
+      "linux": {
+        "type": "Rstat",
+        "tag": 59,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 60,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2193,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 9.753277331939898,
+      "linux": {
+        "type": "Rstat",
+        "tag": 61,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 62,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2251,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 10.073582887998782,
+      "linux": {
+        "type": "Rstat",
+        "tag": 63,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 64,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2308,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 10.390396400005557,
+      "linux": {
+        "type": "Rstat",
+        "tag": 65,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 66,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2367,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 10.715302704949863,
+      "linux": {
+        "type": "Rstat",
+        "tag": 67,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 68,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2425,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 11.03399287397042,
+      "linux": {
+        "type": "Rstat",
+        "tag": 69,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 70,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2483,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 11.349483604892157,
+      "linux": {
+        "type": "Rstat",
+        "tag": 71,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 72,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2541,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 11.666254601906985,
+      "linux": {
+        "type": "Rstat",
+        "tag": 73,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 74,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2599,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 11.962238379986957,
+      "linux": {
+        "type": "Rstat",
+        "tag": 75,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 76,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2655,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 12.260416609002277,
+      "linux": {
+        "type": "Rstat",
+        "tag": 77,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 78,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2711,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 12.59041455492843,
+      "linux": {
+        "type": "Rstat",
+        "tag": 79,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 80,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2771,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 12.918381907977164,
+      "linux": {
+        "type": "Rstat",
+        "tag": 81,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 82,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2829,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 13.235729394946247,
+      "linux": {
+        "type": "Rstat",
+        "tag": 83,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 84,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2888,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 13.559665646986105,
+      "linux": {
+        "type": "Rstat",
+        "tag": 85,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 86,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 2947,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 13.872439139988273,
+      "linux": {
+        "type": "Rstat",
+        "tag": 87,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 88,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3005,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 14.219629669911228,
+      "linux": {
+        "type": "Rstat",
+        "tag": 89,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 90,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3066,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 14.579502730979584,
+      "linux": {
+        "type": "Rstat",
+        "tag": 91,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 92,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3124,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 14.91522486298345,
+      "linux": {
+        "type": "Rstat",
+        "tag": 93,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 94,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3189,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 15.230145197943784,
+      "linux": {
+        "type": "Rstat",
+        "tag": 95,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 96,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3246,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 15.539685530937277,
+      "linux": {
+        "type": "Rstat",
+        "tag": 97,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 98,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3304,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 15.846486855996773,
+      "linux": {
+        "type": "Rstat",
+        "tag": 99,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 100,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3362,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 16.174556029960513,
+      "linux": {
+        "type": "Rstat",
+        "tag": 101,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 102,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3426,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 16.475888845976442,
+      "linux": {
+        "type": "Rstat",
+        "tag": 103,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 104,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3483,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 16.792557931970805,
+      "linux": {
+        "type": "Rstat",
+        "tag": 105,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 106,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3541,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 17.10975323698949,
+      "linux": {
+        "type": "Rstat",
+        "tag": 107,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 108,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3599,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 17.44004001398571,
+      "linux": {
+        "type": "Rstat",
+        "tag": 109,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 110,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3660,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 17.764448795001954,
+      "linux": {
+        "type": "Rstat",
+        "tag": 111,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 112,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3718,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 18.0945426489925,
+      "linux": {
+        "type": "Rstat",
+        "tag": 113,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 114,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3776,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 18.44414625200443,
+      "linux": {
+        "type": "Rstat",
+        "tag": 115,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 116,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3835,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 18.83620593091473,
+      "linux": {
+        "type": "Rstat",
+        "tag": 117,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 118,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3900,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 19.158838571980596,
+      "linux": {
+        "type": "Rstat",
+        "tag": 119,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 120,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 3958,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 19.457794772926718,
+      "linux": {
+        "type": "Rstat",
+        "tag": 121,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 122,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4016,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 19.785315351909958,
+      "linux": {
+        "type": "Rstat",
+        "tag": 123,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 124,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4075,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 20.090823682956398,
+      "linux": {
+        "type": "Rstat",
+        "tag": 125,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 126,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4133,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 20.413372522918507,
+      "linux": {
+        "type": "Rstat",
+        "tag": 127,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 128,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4191,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 20.737872930942103,
+      "linux": {
+        "type": "Rstat",
+        "tag": 129,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 130,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4250,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 21.06522525299806,
+      "linux": {
+        "type": "Rstat",
+        "tag": 131,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 132,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4308,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 21.354803944937885,
+      "linux": {
+        "type": "Rstat",
+        "tag": 133,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 134,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4364,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 21.67022511397954,
+      "linux": {
+        "type": "Rstat",
+        "tag": 135,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 136,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4422,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 21.987912871991284,
+      "linux": {
+        "type": "Rstat",
+        "tag": 137,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 138,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4480,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 22.291682181996293,
+      "linux": {
+        "type": "Rstat",
+        "tag": 139,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 140,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4539,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 22.630505040986463,
+      "linux": {
+        "type": "Rstat",
+        "tag": 141,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 142,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4596,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 22.975652117980644,
+      "linux": {
+        "type": "Rstat",
+        "tag": 143,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 144,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4654,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 23.287598077906296,
+      "linux": {
+        "type": "Rstat",
+        "tag": 145,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 146,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4712,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 23.59563617396634,
+      "linux": {
+        "type": "Rstat",
+        "tag": 147,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 148,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4771,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 23.922938806936145,
+      "linux": {
+        "type": "Rstat",
+        "tag": 149,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 150,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4829,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 24.248185328906402,
+      "linux": {
+        "type": "Rstat",
+        "tag": 151,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 152,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4888,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 24.54478943196591,
+      "linux": {
+        "type": "Rstat",
+        "tag": 153,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 154,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 4945,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 24.871190391946584,
+      "linux": {
+        "type": "Rstat",
+        "tag": 155,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 156,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5006,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 25.19382996589411,
+      "linux": {
+        "type": "Rstat",
+        "tag": 157,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 158,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5064,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 25.510097877006046,
+      "linux": {
+        "type": "Rstat",
+        "tag": 159,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 160,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5122,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 25.838608218939044,
+      "linux": {
+        "type": "Rstat",
+        "tag": 161,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 162,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5181,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 26.16057591093704,
+      "linux": {
+        "type": "Rstat",
+        "tag": 163,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 164,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5240,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 26.475486240000464,
+      "linux": {
+        "type": "Rstat",
+        "tag": 165,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 166,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5299,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 29.650641633896157,
+      "linux": {
+        "type": "Rstat",
+        "tag": 167,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 168,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5662,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 29.96202255098615,
+      "linux": {
+        "type": "Rstat",
+        "tag": 169,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 170,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 5721,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 35.091992917936295,
+      "linux": {
+        "type": "Rstat",
+        "tag": 171,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 172,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6429,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 35.50047382991761,
+      "linux": {
+        "type": "Rstat",
+        "tag": 173,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 174,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6488,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 35.90830006392207,
+      "linux": {
+        "type": "Rstat",
+        "tag": 175,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 176,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6562,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 36.31659682292957,
+      "linux": {
+        "type": "Rstat",
+        "tag": 177,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 178,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6622,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 36.71999075100757,
+      "linux": {
+        "type": "Rstat",
+        "tag": 179,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 180,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6680,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 37.06588552496396,
+      "linux": {
+        "type": "Rstat",
+        "tag": 181,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 182,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6746,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 37.5431768669514,
+      "linux": {
+        "type": "Rstat",
+        "tag": 183,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 184,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6820,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 37.94452762091532,
+      "linux": {
+        "type": "Rstat",
+        "tag": 185,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 186,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 6878,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 45.96535240998492,
+      "linux": {
+        "type": "Rstat",
+        "tag": 187,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 188,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8142,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 49.436144361970946,
+      "linux": {
+        "type": "Rstat",
+        "tag": 189,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 190,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8697,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 49.79375714494381,
+      "linux": {
+        "type": "Rstat",
+        "tag": 191,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 192,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8756,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 50.10374222998507,
+      "linux": {
+        "type": "Rstat",
+        "tag": 193,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 194,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8815,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 50.426146287005395,
+      "linux": {
+        "type": "Rstat",
+        "tag": 195,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 196,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8873,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 50.754670163965784,
+      "linux": {
+        "type": "Rstat",
+        "tag": 197,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 198,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8932,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 51.08239318092819,
+      "linux": {
+        "type": "Rstat",
+        "tag": 199,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 200,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 8992,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 51.427762700943276,
+      "linux": {
+        "type": "Rstat",
+        "tag": 201,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 202,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9052,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 51.77524210989941,
+      "linux": {
+        "type": "Rstat",
+        "tag": 203,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 204,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9113,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 52.1254084079992,
+      "linux": {
+        "type": "Rstat",
+        "tag": 205,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 206,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9173,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 52.46968735498376,
+      "linux": {
+        "type": "Rstat",
+        "tag": 207,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 208,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9233,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 52.8116222769022,
+      "linux": {
+        "type": "Rstat",
+        "tag": 209,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 210,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9293,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 53.14791186898947,
+      "linux": {
+        "type": "Rstat",
+        "tag": 211,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 212,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9354,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 57.49581069289707,
+      "linux": {
+        "type": "Rstat",
+        "tag": 213,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 214,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9886,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 57.90130974992644,
+      "linux": {
+        "type": "Rstat",
+        "tag": 215,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 216,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 9943,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 58.25998211989645,
+      "linux": {
+        "type": "Rstat",
+        "tag": 217,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 218,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 10009,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 58.58483852900099,
+      "linux": {
+        "type": "Rstat",
+        "tag": 219,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 220,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 10067,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 58.923172055976465,
+      "linux": {
+        "type": "Rstat",
+        "tag": 221,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 222,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 10128,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 59.27356050093658,
+      "linux": {
+        "type": "Rstat",
+        "tag": 223,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 224,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 10191,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 59.71240218996536,
+      "linux": {
+        "type": "Rstat",
+        "tag": 225,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 226,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 10259,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    },
+    {
+      "seconds": 60.05561319598928,
+      "linux": {
+        "type": "Rstat",
+        "tag": 227,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 21913,
+        "switches": 2204,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "plan9": {
+        "type": "Rstat",
+        "tag": 228,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 5,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23767,
+        "switches": 2205,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 0
+      },
+      "counters": {
+        "live_domains": 0,
+        "switches": 4409,
+        "linux_exits": 21913,
+        "plan9_exits": 23767,
+        "linux_pc": "0xffffffc08042bda8",
+        "plan9_pc": "0xffffffffc01a1c3c",
+        "linux_esr": "0x7e00000",
+        "plan9_esr": "0x7e00000",
+        "console": 0,
+        "input_dropped": 0,
+        "blocked_domains": 0,
+        "native_idle_waits": 10319,
+        "plan9_9p_requests": 143,
+        "plan9_9p_request_bytes": 3819,
+        "plan9_9p_reply_bytes": 5623
+      }
+    }
+  ],
+  "scope": "QEMU AArch64 resident EL2 control with zero runnable guests and original Plan 9 provider recovery; no physical-board or full-M1 claim.",
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "source_dirty": true,
+  "host": {
+    "uname": [
+      "Linux",
+      "X12",
+      "7.0.14-ustad-native-20261031",
+      "#ustad1 SMP PREEMPT_DYNAMIC Sat Oct 31 17:55:45 EDT 2026",
+      "x86_64"
+    ],
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]"
+  },
+  "checked_build_sources": {
+    "ocore/runtime/aarch64/unified_world.oc": "abcad1f3f982bae3c6c21202c36b695fd612dec0ddc7a9e87cd0a292cabda5cd",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "058883d760f845e3ec615a022b52a223d0aab95640ac9698b4d846fc49ffdac7",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "ffbf7ecb2394101e94b9f482df7f681852d8bac7dd9267141d4230459bf35081",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "bd7698a0f2ea71eac9cf117dc237403bf170e358450183716b4047c319ec1ea4",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "8aed063c9d1714752401a7d993d86dc934160da037c6b8b63ec7f361559de2b0",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/common/namespace_store.oc": "eaaedf300be6c15a83803d7a047119b9ddad978cda6edf5b37b0ab48fe342656",
+    "ocore/runtime/common/o10_codec.oc": "ea9259f69754d8e1ecfbf2371b4732813cfd0e27e928ac24e94a6d05c362322c",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "scripts/build_okernel_unified_world.py": "d365673ce59407a80cda7e07e5dc18170523c015ff97dd35f4cfa5f8e9d7d694",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+  },
+  "source_artifacts": {
+    "scripts/verify_o10_resident.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/sources/scripts/verify_o10_resident.py",
+      "bytes": 9340,
+      "sha256": "687f2296188aa1883901f7fa2f7118d66750e0edae0d2a7a9a085b1e4010b939"
+    },
+    "scripts/okernel_unified_world.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/sources/scripts/okernel_unified_world.py",
+      "bytes": 57822,
+      "sha256": "ce83364c0c1197940f6b0c44db547e1e1053458fff01b2a86f5b267e558d0d46"
+    },
+    "scripts/o10.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/sources/scripts/o10.py",
+      "bytes": 10933,
+      "sha256": "0fb04f75a4ecd40c1510db82b702ec3ea03db654f80a468f1a900bfe8d1bf673"
+    }
+  },
+  "fork": {
+    "schema": "ostadix.okernel-state-fork/v1",
+    "ok": true,
+    "source": "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+    "output": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state",
+    "scope": "verified saved generation only; source VM and unsaved memory untouched",
+    "selected_head": {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "previous": {
+        "path": "/home/ustad/.cache/okernel-exit-20261105-bfc8cd8f/state/disk-generations/14d222fba57dad53bbcbe8da2088caa810a74afde9afb5ab4e8c030b5fe11c3a.ext4",
+        "bytes": 1073741824,
+        "sha256": "14d222fba57dad53bbcbe8da2088caa810a74afde9afb5ab4e8c030b5fe11c3a"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/okernel-exit-20261105-bfc8cd8f/state/namespace-generations/cf6c4bc6670e7763a8fa6f70d4a154afe2e7bdf71d2661c1d0fc3bc9349f674e.raw",
+        "bytes": 16777216,
+        "sha256": "cf6c4bc6670e7763a8fa6f70d4a154afe2e7bdf71d2661c1d0fc3bc9349f674e"
+      },
+      "session": "/home/ustad/.cache/okernel-exit-20261105-bfc8cd8f/state/unified-session-moizg3m6",
+      "console_exit_consumed": [
+        "06e00de30126487187e9fc877b160e1d"
+      ],
+      "disk": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+        "bytes": 1073741824,
+        "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+      },
+      "namespace": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "fork_origin": {
+        "source": "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+        "head_sha256": "47bcdaf7ebedd62c562731a521906b478da88361081f425e1f2dfde50d17d32b"
+      }
+    },
+    "source_head_changed_during_copy": false,
+    "boot_inputs": {
+      "monitor": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/monitor/monitor.elf",
+        "bytes": 471312,
+        "sha256": "312f20864764258ab81ff71e7870a0794e81b0968f76e294fa201eb54d4457c1"
+      },
+      "guest_dtb": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/monitor/guest.dtb",
+        "bytes": 1821,
+        "sha256": "24bff51c93b7f97a81d27c0a641b77fa5209b55f483f874afd0156b88c4e2f32"
+      },
+      "profile": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/monitor/profile.oc",
+        "bytes": 226,
+        "sha256": "6197e670f2bc3f9d02e9e5b60381bfb12df100abcd5c985b3f714f74ccd8b275"
+      },
+      "Image": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/payload/Image",
+        "bytes": 6062088,
+        "sha256": "6fc693976f51551b74327009e6e8c4fb625142257256fd66f3b5492600ab6c76"
+      },
+      "initramfs": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/payload/initramfs.cpio",
+        "bytes": 8725504,
+        "sha256": "9763d598973a5cb12572e8f0c6ad6104a41976cb728049d57a41bdb8049b969d"
+      }
+    }
+  },
+  "guest_session": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p",
+  "qemu_argv": [
+    "/usr/bin/qemu-system-aarch64",
+    "-machine",
+    "virt,virtualization=on,gic-version=3,its=off,memory-backend=unified-ram",
+    "-object",
+    "memory-backend-file,id=unified-ram,size=3G,mem-path=/proc/self/fd/9,share=on",
+    "-accel",
+    "tcg,thread=single",
+    "-cpu",
+    "cortex-a57",
+    "-smp",
+    "1",
+    "-m",
+    "3G",
+    "-nodefaults",
+    "-nic",
+    "none",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-no-reboot",
+    "-no-shutdown",
+    "-qmp",
+    "unix:/tmp/okernel-qmp-1000-20e46a5fa6ea60ac-kpj9vmd0/control.sock,server=on,wait=off",
+    "-kernel",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/monitor.elf",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/inputs/linux.Image,addr=0x48000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/linux.dtb,addr=0x4fe00000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/inputs/linux.initramfs,addr=0x50000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/inputs/plan9.kernel,addr=0xb0100000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/plan9.dtb,addr=0xb0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/inputs/plan9-recovery.kernel,addr=0xd0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/inputs/plan9-recovery.dtb,addr=0xd1000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/disk.ext4,addr=0x70000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/namespace.raw,addr=0x6c000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-1/state/unified-session-zlh1e05p/inputs/plan9-bootstrap.bin,addr=0x6d010000,force-raw=on",
+    "-device",
+    "loader,addr=0x6d000000,data=15895406066644789432,data-len=8",
+    "-device",
+    "loader,addr=0x6d000008,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000010,data=1794540919,data-len=8",
+    "-device",
+    "loader,addr=0x6d020000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d040000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000090,data=6050944,data-len=8",
+    "-device",
+    "loader,addr=0x6d000098,data=503,data-len=8",
+    "-global",
+    "virtio-mmio.force-legacy=false",
+    "-netdev",
+    "user,id=unified-net",
+    "-device",
+    "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"
+  ],
+  "linux_fault": {
+    "type": "Rinject",
+    "tag": 3,
+    "dom": 4294967296
+  },
+  "zero_runnable_seconds": 60.3466510969447,
+  "provider": {
+    "path": "/services/plan9/gdc97d399a2f3a8b8/sbfeba14728d6963ce8d64d35195ff9f5/ready",
+    "sha256": "ff5cfd7a905b5edcd6188e527daad9457f7c0de54b5af0f3b27516356dea452b",
+    "service": {
+      "generation": "dc97d399a2f3a8b8",
+      "instance": "bfeba14728d6963ce8d64d35195ff9f5"
+    },
+    "stat": {
+      "type": "Rstat",
+      "tag": 231,
+      "dom": 8589934593,
+      "kind": 2,
+      "state": 3,
+      "inst": {
+        "bytes_hex": "c063b95a6d7b54f779f809554781cb29"
+      },
+      "exits": 34467,
+      "switches": 2205,
+      "esr": 132120576,
+      "ipa": 0,
+      "pc": 18446744072637520956,
+      "leases": 1
+    }
+  },
+  "qualification_note": "The live resident gate passed. Full M1 remains unqualified until the exact source/build has aligned MCP provenance, classified-path tests and every required regression without skips.",
+  "finished_unix": 1794541029.3978639
+}

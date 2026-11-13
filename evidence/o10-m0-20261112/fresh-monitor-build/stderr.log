@@ -1,0 +1,5 @@
+ocorec: wrote /home/ustad/.cache/o10-m0-acceptance-20261112/unified-build/kernel.o
+ocorec: kept /home/ustad/.cache/o10-m0-acceptance-20261112/unified-build/kernel.s
+lld is a generic driver.
+Invoke ld.lld (Unix), ld64.lld (macOS), lld-link (Windows), wasm-ld (WebAssembly) instead
+Unified profile build failed: Command '['/usr/lib/llvm-18/bin/lld', '-m', 'aarch64elf', '-nostdlib', '--build-id=none', '-z', 'max-page-size=0x1000', '-T', '/home/ustad/OSTADIX-o10-m0-20261112/ocore/kernel/aarch64/unified_world/linker.ld', '-o', '/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build/monitor.elf', '/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build/monitor.o', '/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build/kernel.o']' returned non-zero exit status 1.

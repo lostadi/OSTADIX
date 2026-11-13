@@ -1,0 +1,1 @@
+{"running": true, "bridge_pid": 905615, "mcp_pid": 905616, "binary": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ostadix-mcp", "root": "/home/ustad/OSTADIX-o10-m0-20261112", "backends": "/home/ustad/OSTADIX-o10-m0-20261112/backends", "socket": "/tmp/o10-mcp-20261112/da7577aebf596c7edcc37c75.sock", "started_at": 1794540001.2869985, "stopping": false}

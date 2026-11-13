@@ -812,7 +812,7 @@ class UnifiedDomain:
         # bound to exact current-generation requests and completed captures.
         if not self.native_store_ready:
             return
-        if self.provider_ready and not self.counters()["live_domains"] & 2:
+        if self.provider_ready and not (self.counters()["live_domains"] & 2):
             raise RuntimeError("the original Plan9 domain was withdrawn")
         volume = self.native_volume()
         service = self.service

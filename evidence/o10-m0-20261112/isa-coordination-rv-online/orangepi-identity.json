@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "timeout",
+    "15s",
+    "tailscale",
+    "ssh",
+    "orangepi@orangepirv",
+    "python3 -c 'import os,platform,json;print(json.dumps({\"user\":__import__(\"getpass\").getuser(),\"host\":platform.node(),\"machine\":platform.machine(),\"cwd\":os.getcwd()}))'"
+  ],
+  "started": 1794544196.546441,
+  "finished": 1794544197.610902,
+  "returncode": 0,
+  "stdout": "{\"user\": \"orangepi\", \"host\": \"orangepirv\", \"machine\": \"riscv64\", \"cwd\": \"/home/orangepi\"}\n",
+  "stderr": "",
+  "scope": "authenticated read-only identity probe; no host trust policy changes"
+}

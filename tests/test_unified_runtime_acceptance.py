@@ -52,6 +52,20 @@ class RuntimeOracleTests(unittest.TestCase):
         (self.runtime / "runtime.json").write_text(json.dumps(manifest))
         return manifest
 
+    def test_runtime_admission_preserves_exact_pairs_and_rejects_cross_pair_mix(self):
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.R9_MONITOR], module.R9_PROFILE)
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M0_MONITOR], module.O10_M0_PROFILE)
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M1_R7_MONITOR], module.O10_M1_R7_PROFILE)
+        for monitor, profile in module.ADMITTED_RUNTIME_PROFILES.items():
+            self.assertEqual(module.admitted_runtime_profile(monitor, profile), profile)
+            for wrong in [None, {}, True, "0" * 64] + [
+                    item for key, item in module.ADMITTED_RUNTIME_PROFILES.items() if key != monitor]:
+                with self.subTest(monitor=monitor, profile=wrong), self.assertRaises(ValueError):
+                    module.admitted_runtime_profile(monitor, wrong)
+        for monitor in [None, {}, True, "0" * 64]:
+            with self.subTest(monitor=monitor), self.assertRaises(ValueError):
+                module.admitted_runtime_profile(monitor, module.O10_M1_R7_PROFILE)
+
     def test_inventory_requires_all_exact_regular_captured_files(self):
         manifest = self.inventory()
         module.validate_inventory(self.runtime, manifest)
@@ -176,7 +190,7 @@ class RuntimeOracleTests(unittest.TestCase):
 
     def test_owned_process_requires_pane_parent_native_engine_and_captured_elf_paths(self):
         state, session, record, manifest, proc, process, library, _ = self.process_fixture()
-        with patch.object(module, "R9_MONITOR", record["inputs"]["monitor.elf"]["sha256"]):
+        with patch.dict(module.ADMITTED_RUNTIME_PROFILES, {record["inputs"]["monitor.elf"]["sha256"]: "fixture-profile"}):
             result = module.inspect_owned_qemu(self.runtime, manifest, state, session, record, 10, proc)
             self.assertEqual((result["pid"], result["start_ticks"]), (20, 12345))
             with self.assertRaisesRegex(ValueError, "positively bound"):
@@ -190,7 +204,7 @@ class RuntimeOracleTests(unittest.TestCase):
 
     def test_declared_interpreter_must_really_be_mapped_and_parent_must_match(self):
         state, session, record, manifest, proc, process, _, interpreter = self.process_fixture()
-        with patch.object(module, "R9_MONITOR", record["inputs"]["monitor.elf"]["sha256"]):
+        with patch.dict(module.ADMITTED_RUNTIME_PROFILES, {record["inputs"]["monitor.elf"]["sha256"]: "fixture-profile"}):
             original = (process / "maps").read_text()
             (process / "maps").write_text("".join(line for line in original.splitlines(True) if str(interpreter) not in line))
             with self.assertRaisesRegex(ValueError, "interpreter was not observed"):

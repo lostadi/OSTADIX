@@ -1,0 +1,5 @@
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: 'marked@18.0.13',
+npm WARN EBADENGINE   required: { node: '>= 20' },
+npm WARN EBADENGINE   current: { node: 'v18.19.1', npm: '9.2.0' }
+npm WARN EBADENGINE }

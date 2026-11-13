@@ -53,6 +53,9 @@ uint64_t uw_next_deadline(void) {return deadline;}
 void uw_unexpected_exit(uint64_t esr,uint64_t far,uint64_t pc) {
     out("UNIFIED_CORE_UNEXPECTED ");hex(esr);out(" ");hex(far);out(" ");hex(pc);out("\n");
 }
+void uw_internal_failure(uint64_t reason,uint64_t a,uint64_t b,uint64_t c) {
+    out("UNIFIED_CORE_INTERNAL ");hex(reason);out(" ");hex(a);out(" ");hex(b);out(" ");hex(c);out("\n");
+}
 uint64_t uw_init(void) {
     period=uw_counter_frequency()/100;
     uint64_t idle_deadline=uw_counter_read()+period;

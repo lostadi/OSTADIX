@@ -1,0 +1,30 @@
+{
+  "method": "canonical scripts/install_native_binaries.py --runtime-only into private durable bin directory",
+  "command": [
+    "python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/scripts/install_native_binaries.py",
+    "--repo-root",
+    "/home/ustad/OSTADIX-o10-m0-20261112",
+    "--bin-dir",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin",
+    "--runtime-only"
+  ],
+  "artifacts": {
+    "O": {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+      "sha256": "23b74ad28c055f02e803b8d9d73cb7aa372620eba62d51a73722e31739be97cc"
+    },
+    "o-cli": {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/o-cli",
+      "sha256": "be6717cac80e423df455f17f338a242e7b0ac2dc1e381d773e64f4ddca1129ae"
+    },
+    "olangc": {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/olangc",
+      "sha256": "888c038a2210dff2a6217ff802da82cf0f5cfe097e3aff20dddce7ef41adb177"
+    },
+    "ocorec": {
+      "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+      "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+    }
+  }
+}

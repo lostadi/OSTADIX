@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_okernel_repository_staging"
+  ],
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_okernel_repository_staging"
+  ],
+  "started": 1794547089.054562,
+  "timed_out": false,
+  "environment_overrides": {
+    "TMPDIR": "/dev/shm/o10-unit-r3d-ia1533eu"
+  },
+  "returncode": 0,
+  "finished": 1794547102.0483646
+}

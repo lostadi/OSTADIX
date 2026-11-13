@@ -1,0 +1,3331 @@
+{
+  "authorization": "Lee: delete whatever you need to make space",
+  "scope": "reproducible Cargo debug dependency object/metadata cache only",
+  "directory": "/home/ustad/ostadix-BM/target/debug/deps",
+  "before_free_bytes": 909484032,
+  "files": [
+    {
+      "name": "spake2-b979bc8541efde21.d",
+      "bytes": 2061
+    },
+    {
+      "name": "libnix-a062951b2a80db48.rmeta",
+      "bytes": 4182477
+    },
+    {
+      "name": "serde_spanned-95129e5cbbc31185.d",
+      "bytes": 1408
+    },
+    {
+      "name": "thiserror_impl-f1d774bc7f64b1b4.d",
+      "bytes": 3516
+    },
+    {
+      "name": "fnv-ab13bc89a5ae4a58.d",
+      "bytes": 540
+    },
+    {
+      "name": "libmemchr-6975088a32f44e89.rmeta",
+      "bytes": 1290478
+    },
+    {
+      "name": "o_live_host-0e528615a8c8b63d.d",
+      "bytes": 216
+    },
+    {
+      "name": "o_cli_selection_reuse_blackbox-8af005b85e985d6b.d",
+      "bytes": 430
+    },
+    {
+      "name": "tokio-0923dcb16eb6cbe1.d",
+      "bytes": 118984
+    },
+    {
+      "name": "clap_builder-357363d50cd5efb2.d",
+      "bytes": 23737
+    },
+    {
+      "name": "libendian_type-8a9b710cb51a3b4a.rlib",
+      "bytes": 102484
+    },
+    {
+      "name": "rustc_version-723d3e5f09fa73a4.d",
+      "bytes": 626
+    },
+    {
+      "name": "thiserror_impl-08f8e664c554bac6.d",
+      "bytes": 3516
+    },
+    {
+      "name": "libform_urlencoded-30ee8c9b68b67810.rmeta",
+      "bytes": 35347
+    },
+    {
+      "name": "socket2-b30e4ff61795c081.d",
+      "bytes": 2096
+    },
+    {
+      "name": "libnum_traits-8a544532cfe709f1.rmeta",
+      "bytes": 1783664
+    },
+    {
+      "name": "anstyle-b2bb954e20208027.d",
+      "bytes": 2461
+    },
+    {
+      "name": "libwait_timeout-6a60dcf5c4ddfdb3.rmeta",
+      "bytes": 22721
+    },
+    {
+      "name": "libnum_traits-8a544532cfe709f1.rlib",
+      "bytes": 1964138
+    },
+    {
+      "name": "libitoa-e1cf0ba11d02098b.rmeta",
+      "bytes": 60404
+    },
+    {
+      "name": "curve25519_dalek-2de40cf89519c7f0.d",
+      "bytes": 18576
+    },
+    {
+      "name": "libuntrusted-97810520237763c0.rmeta",
+      "bytes": 42404
+    },
+    {
+      "name": "libanstyle-b2bb954e20208027.rmeta",
+      "bytes": 206925
+    },
+    {
+      "name": "libignore-48a044e41c699e37.rmeta",
+      "bytes": 617357
+    },
+    {
+      "name": "unicode_width-acd6b5502a035f47.d",
+      "bytes": 1023
+    },
+    {
+      "name": "graph_realization_execution-f3cd4b6875237bfc.d",
+      "bytes": 347
+    },
+    {
+      "name": "executor_state_complete-4f5f4170c1be6992.d",
+      "bytes": 572
+    },
+    {
+      "name": "socket2-979d8c5b9c87c1fa.d",
+      "bytes": 2096
+    },
+    {
+      "name": "libspake2-b979bc8541efde21.rmeta",
+      "bytes": 94942
+    },
+    {
+      "name": "libserde_urlencoded-5a6807d3ffafd99e.rlib",
+      "bytes": 307198
+    },
+    {
+      "name": "libindexmap-45a4f80f38240096.rmeta",
+      "bytes": 1260267
+    },
+    {
+      "name": "librand_core-361d6ce2aa1b749b.rlib",
+      "bytes": 200514
+    },
+    {
+      "name": "libo_lang-779654f91bf8ecbf.rmeta",
+      "bytes": 41613
+    },
+    {
+      "name": "pin_project_lite-9a718c0716770040.d",
+      "bytes": 651
+    },
+    {
+      "name": "libzeroize-9d0437fd897f6b1a.rmeta",
+      "bytes": 424975
+    },
+    {
+      "name": "nix-a062951b2a80db48.d",
+      "bytes": 9103
+    },
+    {
+      "name": "libclap_builder-357363d50cd5efb2.rlib",
+      "bytes": 21208968
+    },
+    {
+      "name": "libgetrandom-07b9ab670933069b.rlib",
+      "bytes": 220002
+    },
+    {
+      "name": "runtime_adapter_closure-b1610c9f9c5172db.d",
+      "bytes": 572
+    },
+    {
+      "name": "libwebpki-e02d66a3cfd40a4f.rmeta",
+      "bytes": 582211
+    },
+    {
+      "name": "serde_derive-0d8ba497aa2966a5.d",
+      "bytes": 9047
+    },
+    {
+      "name": "libserde-645c54fdb7625d50.rmeta",
+      "bytes": 827068
+    },
+    {
+      "name": "libanstyle_query-ea7da4b400675f9e.rlib",
+      "bytes": 22414
+    },
+    {
+      "name": "libo_lang-31bfa98d25c883d4.rmeta",
+      "bytes": 41613
+    },
+    {
+      "name": "libbit_set-b55fdf52eb0388ac.rlib",
+      "bytes": 118738
+    },
+    {
+      "name": "libtower_layer-71414212be0da1f7.rmeta",
+      "bytes": 77263
+    },
+    {
+      "name": "libdigest-813131b107a47ced.rlib",
+      "bytes": 268414
+    },
+    {
+      "name": "num_bigint-7862af243c193061.d",
+      "bytes": 11800
+    },
+    {
+      "name": "libtoml_writer-4d7385f5792d3e0f.rmeta",
+      "bytes": 185512
+    },
+    {
+      "name": "crossbeam_epoch-c71afade54c3dc86.d",
+      "bytes": 5235
+    },
+    {
+      "name": "libnum_bigint-7862af243c193061.rlib",
+      "bytes": 4654162
+    },
+    {
+      "name": "tower_layer-71414212be0da1f7.d",
+      "bytes": 2176
+    },
+    {
+      "name": "libnix-fa0031b974ab5fad.rmeta",
+      "bytes": 4182358
+    },
+    {
+      "name": "libhome-d049c409cae0dc79.rmeta",
+      "bytes": 18125
+    },
+    {
+      "name": "futures_util-7dc2a847df904956.d",
+      "bytes": 52613
+    },
+    {
+      "name": "webpki-db63ac15cf38fff4.d",
+      "bytes": 9048
+    },
+    {
+      "name": "num_bigint-ce7a589d2f6b87bb.d",
+      "bytes": 11800
+    },
+    {
+      "name": "libquote-310eda54036e5868.rmeta",
+      "bytes": 270387
+    },
+    {
+      "name": "o_registry-61a164289fd5b793.d",
+      "bytes": 246
+    },
+    {
+      "name": "ctutils-86f12ea0c56e93ae.d",
+      "bytes": 5336
+    },
+    {
+      "name": "libparking_lot_core-08484b4459af98a0.rmeta",
+      "bytes": 168746
+    },
+    {
+      "name": "serde-decc8679d7936825.d",
+      "bytes": 2551
+    },
+    {
+      "name": "libcore_detect-7b90307a91b0070a.rlib",
+      "bytes": 391348
+    },
+    {
+      "name": "log-1c955401b27a4875.d",
+      "bytes": 1667
+    },
+    {
+      "name": "libregex_syntax-20454198bae9f6af.rlib",
+      "bytes": 14851390
+    },
+    {
+      "name": "crypto_common-b602413af328412e.d",
+      "bytes": 626
+    },
+    {
+      "name": "regex_automata-212e801a51231c05.d",
+      "bytes": 26857
+    },
+    {
+      "name": "libindexmap-45a4f80f38240096.rlib",
+      "bytes": 1278184
+    },
+    {
+      "name": "cc-12b4f6c48261fbc8.d",
+      "bytes": 5767
+    },
+    {
+      "name": "rand-e9b4c5b97a02d20a.d",
+      "bytes": 10885
+    },
+    {
+      "name": "libnum_bigint-ce7a589d2f6b87bb.rlib",
+      "bytes": 4653426
+    },
+    {
+      "name": "rustyline-842a2a32dcc766fd.d",
+      "bytes": 7973
+    },
+    {
+      "name": "serde_core-67bf657494323c5f.d",
+      "bytes": 8020
+    },
+    {
+      "name": "libtempfile-d1efb2038499bb49.rlib",
+      "bytes": 1511560
+    },
+    {
+      "name": "olangc-1c2b5fbd37679d25.d",
+      "bytes": 8844
+    },
+    {
+      "name": "olangc-58b7f626e82bfc8b.d",
+      "bytes": 8844
+    },
+    {
+      "name": "utf8parse-37affb4399d46c8f.d",
+      "bytes": 975
+    },
+    {
+      "name": "project_hgraph-7d20cd4fa9576867.d",
+      "bytes": 352
+    },
+    {
+      "name": "libwhich-905ca04b2511b6d5.rmeta",
+      "bytes": 183453
+    },
+    {
+      "name": "libunarray-3b420b7bbe0ea3ff.rmeta",
+      "bytes": 40311
+    },
+    {
+      "name": "libostadix_api-403f45108b8ccfe2.rmeta",
+      "bytes": 62566308
+    },
+    {
+      "name": "kernel_world_contract-59900bf1611b03b2.d",
+      "bytes": 313
+    },
+    {
+      "name": "libcrossbeam_deque-e549e7589f7eaae8.rmeta",
+      "bytes": 184049
+    },
+    {
+      "name": "libnibble_vec-538a6663f607b042.rmeta",
+      "bytes": 35971
+    },
+    {
+      "name": "libunicode_ident-4615f73e4944f8df.rmeta",
+      "bytes": 34553
+    },
+    {
+      "name": "libsmallvec-c330ba046c17fa18.rlib",
+      "bytes": 296834
+    },
+    {
+      "name": "libed25519_dalek-0753ae416526dc08.rmeta",
+      "bytes": 107630
+    },
+    {
+      "name": "hybrid_array-37000b80d3adfdc0.d",
+      "bytes": 3013
+    },
+    {
+      "name": "hgraph_schedule_proptest-d5946bf0332d65c6.d",
+      "bytes": 275
+    },
+    {
+      "name": "libparking_lot_core-08484b4459af98a0.rlib",
+      "bytes": 500616
+    },
+    {
+      "name": "libthiserror-b39264c85735b940.rmeta",
+      "bytes": 30550
+    },
+    {
+      "name": "libtoml_parser-aa038c7063a2cef5.rmeta",
+      "bytes": 306574
+    },
+    {
+      "name": "tokio_macros-84baa23da134ad7f.d",
+      "bytes": 1027
+    },
+    {
+      "name": "rusty_fork-353e14a07393d224.d",
+      "bytes": 2943
+    },
+    {
+      "name": "typenum-616bf56c01683ee9.d",
+      "bytes": 5637
+    },
+    {
+      "name": "semver-de5fcdb836bb7c55.d",
+      "bytes": 2819
+    },
+    {
+      "name": "libpin_project_lite-9a718c0716770040.rmeta",
+      "bytes": 94240
+    },
+    {
+      "name": "quick_error-90d6ed15659eb322.d",
+      "bytes": 612
+    },
+    {
+      "name": "sha2-e8a5d6f0d0a6781f.d",
+      "bytes": 3567
+    },
+    {
+      "name": "libcrypto_common-08b5a050c85151b7.rmeta",
+      "bytes": 360057
+    },
+    {
+      "name": "libaxum_core-14477a9359b7d400.rlib",
+      "bytes": 3535870
+    },
+    {
+      "name": "bit_vec-66f5461c41043e05.d",
+      "bytes": 957
+    },
+    {
+      "name": "libhttp-7245e47e9557fa6c.rmeta",
+      "bytes": 1414997
+    },
+    {
+      "name": "heck-c513532ecb82790f.d",
+      "bytes": 3523
+    },
+    {
+      "name": "libcurve25519_dalek-2de40cf89519c7f0.rlib",
+      "bytes": 3689052
+    },
+    {
+      "name": "libis_terminal_polyfill-179572571e70db11.rmeta",
+      "bytes": 9547
+    },
+    {
+      "name": "libsemver-de5fcdb836bb7c55.rlib",
+      "bytes": 386972
+    },
+    {
+      "name": "libgetrandom-4ea4299c4ce4d6fe.rlib",
+      "bytes": 317298
+    },
+    {
+      "name": "tempfile-c3cfce15683961bf.d",
+      "bytes": 4493
+    },
+    {
+      "name": "futures_core-6eef8ae4428d3e60.d",
+      "bytes": 3165
+    },
+    {
+      "name": "matchit-8800b327a6a70208.d",
+      "bytes": 2437
+    },
+    {
+      "name": "libsha2-e8a5d6f0d0a6781f.rmeta",
+      "bytes": 663719
+    },
+    {
+      "name": "libmatchit-8800b327a6a70208.rmeta",
+      "bytes": 199199
+    },
+    {
+      "name": "o_unlink-1c36b46d18c5349a.d",
+      "bytes": 198
+    },
+    {
+      "name": "libgetrandom-07b9ab670933069b.rmeta",
+      "bytes": 80192
+    },
+    {
+      "name": "toml_datetime-d628ba7f8bc1e592.d",
+      "bytes": 1973
+    },
+    {
+      "name": "libbitflags-32e14ae359be5a5c.rmeta",
+      "bytes": 220473
+    },
+    {
+      "name": "libcpufeatures-b046a17fe68bc09f.rmeta",
+      "bytes": 43800
+    },
+    {
+      "name": "libhkdf-e1e35c76972a5020.rlib",
+      "bytes": 56810
+    },
+    {
+      "name": "rand-a7e7ab207a2775b1.d",
+      "bytes": 10885
+    },
+    {
+      "name": "libspake2-1f2daf6dca5f2a39.rmeta",
+      "bytes": 94942
+    },
+    {
+      "name": "librustls_pki_types-8431c39084c11a04.rlib",
+      "bytes": 1424170
+    },
+    {
+      "name": "proptest-f6d6450f888b3035.d",
+      "bytes": 37935
+    },
+    {
+      "name": "untrusted-97810520237763c0.d",
+      "bytes": 1745
+    },
+    {
+      "name": "libserde_path_to_error-3a1cd732f3f580d5.rmeta",
+      "bytes": 387541
+    },
+    {
+      "name": "hosted_live_reference-0d368555f56d4a57.d",
+      "bytes": 345
+    },
+    {
+      "name": "libform_urlencoded-30ee8c9b68b67810.rlib",
+      "bytes": 234276
+    },
+    {
+      "name": "hyper-f4f8cb80175e1f81.d",
+      "bytes": 15733
+    },
+    {
+      "name": "libwait_timeout-2e7636b341f1ad40.rlib",
+      "bytes": 940572
+    },
+    {
+      "name": "project_world_runtime-785648017fdf515d.d",
+      "bytes": 313
+    },
+    {
+      "name": "ocorec-05d38727584c7174.d",
+      "bytes": 489
+    },
+    {
+      "name": "rustls_pemfile-d324462c49fc0044.d",
+      "bytes": 1038
+    },
+    {
+      "name": "librustls_pki_types-8431c39084c11a04.rmeta",
+      "bytes": 396127
+    },
+    {
+      "name": "libostadix_api-2c390713c2f3cd6d.rlib",
+      "bytes": 658508966
+    },
+    {
+      "name": "libhashbrown-9b83f35226680068.rmeta",
+      "bytes": 1202327
+    },
+    {
+      "name": "libserde_json-1d6c31f90be4cd11.rlib",
+      "bytes": 4987468
+    },
+    {
+      "name": "libed25519-7c057a503047e731.rlib",
+      "bytes": 266644
+    },
+    {
+      "name": "serde_json-1d6c31f90be4cd11.d",
+      "bytes": 6556
+    },
+    {
+      "name": "serde-645c54fdb7625d50.d",
+      "bytes": 2551
+    },
+    {
+      "name": "world_receipt-1fbdb5f29668b140.d",
+      "bytes": 273
+    },
+    {
+      "name": "libhybrid_array-37000b80d3adfdc0.rlib",
+      "bytes": 1216562
+    },
+    {
+      "name": "o_notebook-11e2db9354504350.d",
+      "bytes": 211
+    },
+    {
+      "name": "libring-54fb3bf1c942afdd.rmeta",
+      "bytes": 1930836
+    },
+    {
+      "name": "librustix-a1e395a94f1e8a37.rmeta",
+      "bytes": 3847104
+    },
+    {
+      "name": "libserde_spanned-95129e5cbbc31185.rmeta",
+      "bytes": 44303
+    },
+    {
+      "name": "parking_lot-6dea6cd047e4db7f.d",
+      "bytes": 5408
+    },
+    {
+      "name": "regex_syntax-20454198bae9f6af.d",
+      "bytes": 13777
+    },
+    {
+      "name": "ocorec-552cb90b27441330.d",
+      "bytes": 489
+    },
+    {
+      "name": "world_resource_keys-578d00a8f89eb91b.d",
+      "bytes": 250
+    },
+    {
+      "name": "libcfg_aliases-ca0d185139eb5e76.rlib",
+      "bytes": 20228
+    },
+    {
+      "name": "cmov-5439428be9711e34.d",
+      "bytes": 2765
+    },
+    {
+      "name": "unified_intent_acceptance-2932c1c9428d98c6.d",
+      "bytes": 355
+    },
+    {
+      "name": "libostadix_api-2c390713c2f3cd6d.rmeta",
+      "bytes": 62478724
+    },
+    {
+      "name": "libcore_detect-7b90307a91b0070a.rmeta",
+      "bytes": 353256
+    },
+    {
+      "name": "semantic_custody_demo-bbfe62f1ec5d46da.d",
+      "bytes": 523
+    },
+    {
+      "name": "radix_trie-3a36336cb88bfabc.d",
+      "bytes": 3709
+    },
+    {
+      "name": "rustyline-cd896faa2fdc1425.d",
+      "bytes": 7973
+    },
+    {
+      "name": "signal_hook_registry-67b8299cb1d064a3.d",
+      "bytes": 1541
+    },
+    {
+      "name": "libanstream-5e1aa2c83d3f418d.rmeta",
+      "bytes": 225005
+    },
+    {
+      "name": "find_msvc_tools-61c8a691b2163548.d",
+      "bytes": 1470
+    },
+    {
+      "name": "zmij-fe95c7ae1d0a6e3a.d",
+      "bytes": 1317
+    },
+    {
+      "name": "libtoml-4474148579631014.rlib",
+      "bytes": 7746020
+    },
+    {
+      "name": "olink_roundtrip_proptest-83fdb7c9efc79749.d",
+      "bytes": 428
+    },
+    {
+      "name": "libo_lang-9358ec69a39b21b2.rlib",
+      "bytes": 3711408
+    },
+    {
+      "name": "libanstyle_query-ea7da4b400675f9e.rmeta",
+      "bytes": 11469
+    },
+    {
+      "name": "unicode_segmentation-30ab8286fc096b6a.d",
+      "bytes": 2403
+    },
+    {
+      "name": "librand_core-cf9b8d4136a06c9d.rlib",
+      "bytes": 200514
+    },
+    {
+      "name": "libfs2-1a3826147a925d9e.rmeta",
+      "bytes": 30116
+    },
+    {
+      "name": "ignore-48a044e41c699e37.d",
+      "bytes": 3621
+    },
+    {
+      "name": "librustls-cfa44aaf51f4d656.rlib",
+      "bytes": 26929748
+    },
+    {
+      "name": "hosted_actor_migration-3d5b337dee00d430.d",
+      "bytes": 456
+    },
+    {
+      "name": "anstream-5e1aa2c83d3f418d.d",
+      "bytes": 4044
+    },
+    {
+      "name": "autonomous_hosted_parallel-cd9e1edbb5f5d0ea.d",
+      "bytes": 587
+    },
+    {
+      "name": "libtracing_core-d743b9980c68eb90.rmeta",
+      "bytes": 584280
+    },
+    {
+      "name": "libregex_automata-03d9d8f75b52616b.rlib",
+      "bytes": 18056488
+    },
+    {
+      "name": "o_link-6c230aaddfb06c00.d",
+      "bytes": 188
+    },
+    {
+      "name": "tower_service-407a1cd7ae16c1dd.d",
+      "bytes": 626
+    },
+    {
+      "name": "libstrsim-3e59b4898f0ef393.rlib",
+      "bytes": 1360736
+    },
+    {
+      "name": "native_cli_dispatch-36a3920d0d267467.d",
+      "bytes": 509
+    },
+    {
+      "name": "libregex-42ef9844f762f33f.rmeta",
+      "bytes": 672646
+    },
+    {
+      "name": "libunicode_width-acd6b5502a035f47.rlib",
+      "bytes": 947642
+    },
+    {
+      "name": "librusty_fork-aa37664b1d73e9a3.rmeta",
+      "bytes": 94023
+    },
+    {
+      "name": "socket2-e6491944ab52e056.d",
+      "bytes": 2096
+    },
+    {
+      "name": "libcurve25519_dalek-b8f53ba3d429a0ba.rlib",
+      "bytes": 3689162
+    },
+    {
+      "name": "liblinux_raw_sys-c86bc6f78be3031d.rlib",
+      "bytes": 1367488
+    },
+    {
+      "name": "libonce_cell-7f4756946a1dc156.rlib",
+      "bytes": 290242
+    },
+    {
+      "name": "num_bigint-027b95fb18df13b2.d",
+      "bytes": 11800
+    },
+    {
+      "name": "o_lang-779654f91bf8ecbf.d",
+      "bytes": 427
+    },
+    {
+      "name": "world_receipt-fb524582fc5f1ff4.d",
+      "bytes": 273
+    },
+    {
+      "name": "libryu-165e4d83438b694e.rlib",
+      "bytes": 301832
+    },
+    {
+      "name": "ostadix_api-2c390713c2f3cd6d.d",
+      "bytes": 81549
+    },
+    {
+      "name": "librustls-cfa44aaf51f4d656.rmeta",
+      "bytes": 3685170
+    },
+    {
+      "name": "libc-6ab78bee08c12175.d",
+      "bytes": 29651
+    },
+    {
+      "name": "ostadix_api-7d8a4ccdc425e3c2.d",
+      "bytes": 81549
+    },
+    {
+      "name": "libsame_file-d3c05fa08fc1121e.rmeta",
+      "bytes": 33356
+    },
+    {
+      "name": "digest-c4dcad3fc50c0fbf.d",
+      "bytes": 3392
+    },
+    {
+      "name": "libfind_msvc_tools-61c8a691b2163548.rmeta",
+      "bytes": 51319
+    },
+    {
+      "name": "libtypenum-616bf56c01683ee9.rmeta",
+      "bytes": 3594519
+    },
+    {
+      "name": "libchacha20-78f4aba693535fe2.rlib",
+      "bytes": 860200
+    },
+    {
+      "name": "ostadix_device-526cde3ac00b83a6.d",
+      "bytes": 266
+    },
+    {
+      "name": "libfutures_core-6eef8ae4428d3e60.rmeta",
+      "bytes": 61097
+    },
+    {
+      "name": "libserde_json-82f64c0f59cd5124.rlib",
+      "bytes": 5339486
+    },
+    {
+      "name": "libtracing-ce6de4a0e7219072.rmeta",
+      "bytes": 601922
+    },
+    {
+      "name": "libsmallvec-dfb0792f7f9653fa.rlib",
+      "bytes": 257674
+    },
+    {
+      "name": "libspake2-b979bc8541efde21.rlib",
+      "bytes": 761904
+    },
+    {
+      "name": "libproptest-f6d6450f888b3035.rlib",
+      "bytes": 24968380
+    },
+    {
+      "name": "libscopeguard-9c2379402a25548e.rmeta",
+      "bytes": 25788
+    },
+    {
+      "name": "librusty_fork-aa37664b1d73e9a3.rlib",
+      "bytes": 1356994
+    },
+    {
+      "name": "hosted_remote_cli-b2565e12b192878e.d",
+      "bytes": 686
+    },
+    {
+      "name": "rustix-a1e395a94f1e8a37.d",
+      "bytes": 24970
+    },
+    {
+      "name": "libserde-7432598c5728f6f7.rmeta",
+      "bytes": 827068
+    },
+    {
+      "name": "libaxum-1be421129f8df9f4.rmeta",
+      "bytes": 5279154
+    },
+    {
+      "name": "http_body-26dc734150ae4b6f.d",
+      "bytes": 1368
+    },
+    {
+      "name": "libbitflags-32e14ae359be5a5c.rlib",
+      "bytes": 457872
+    },
+    {
+      "name": "nibble_vec-538a6663f607b042.d",
+      "bytes": 605
+    },
+    {
+      "name": "libslab-c7a2757b7c4f48a2.rlib",
+      "bytes": 148532
+    },
+    {
+      "name": "libpin_project_lite-9a718c0716770040.rlib",
+      "bytes": 96494
+    },
+    {
+      "name": "libregex_automata-03d9d8f75b52616b.rmeta",
+      "bytes": 3306559
+    },
+    {
+      "name": "librustyline-cd896faa2fdc1425.rlib",
+      "bytes": 8763048
+    },
+    {
+      "name": "libserde_json-82f64c0f59cd5124.rmeta",
+      "bytes": 1603962
+    },
+    {
+      "name": "libclap-fdd442b167586a57.rmeta",
+      "bytes": 12569
+    },
+    {
+      "name": "ostadix_device-7fe9d104b3343a48.d",
+      "bytes": 266
+    },
+    {
+      "name": "libglobset-d4c421b0744a0dc5.rlib",
+      "bytes": 4127222
+    },
+    {
+      "name": "libed25519_dalek-8e3d95ca35550fb7.rmeta",
+      "bytes": 107630
+    },
+    {
+      "name": "libstrsim-3e59b4898f0ef393.rmeta",
+      "bytes": 69597
+    },
+    {
+      "name": "cli_diagnostics-e56ac0f5e1c01b04.d",
+      "bytes": 443
+    },
+    {
+      "name": "olangc-cf82b80d557862eb.d",
+      "bytes": 9494
+    },
+    {
+      "name": "libignore-48a044e41c699e37.rlib",
+      "bytes": 12256876
+    },
+    {
+      "name": "ocore_kernel_world_record-af31980dc83cb7e3.d",
+      "bytes": 321
+    },
+    {
+      "name": "tracing-ce6de4a0e7219072.d",
+      "bytes": 3291
+    },
+    {
+      "name": "o_cli_routes_blackbox-7f17f8fb7f83f915.d",
+      "bytes": 385
+    },
+    {
+      "name": "libcrossbeam_epoch-c71afade54c3dc86.rlib",
+      "bytes": 925478
+    },
+    {
+      "name": "semver-c5e72dabd887af15.d",
+      "bytes": 3188
+    },
+    {
+      "name": "fidelity_evaluation-e3877dd28f9fe216.d",
+      "bytes": 552
+    },
+    {
+      "name": "libcrossbeam_epoch-c71afade54c3dc86.rmeta",
+      "bytes": 329308
+    },
+    {
+      "name": "libproptest-e780da44876404a6.rmeta",
+      "bytes": 4002918
+    },
+    {
+      "name": "o_info-54a59df0b758f282.d",
+      "bytes": 226
+    },
+    {
+      "name": "librand_core-361d6ce2aa1b749b.rmeta",
+      "bytes": 113889
+    },
+    {
+      "name": "libequivalent-01e821a4d110282a.rmeta",
+      "bytes": 8184
+    },
+    {
+      "name": "libproptest-72333d7ab7598148.rlib",
+      "bytes": 24982166
+    },
+    {
+      "name": "wait_timeout-6a60dcf5c4ddfdb3.d",
+      "bytes": 1004
+    },
+    {
+      "name": "libtempfile-c3cfce15683961bf.rlib",
+      "bytes": 1510736
+    },
+    {
+      "name": "libed25519_dalek-8e3d95ca35550fb7.rlib",
+      "bytes": 670526
+    },
+    {
+      "name": "libfs2-1a3826147a925d9e.rlib",
+      "bytes": 138034
+    },
+    {
+      "name": "curve25519_dalek_derive-5223d105d346aead.d",
+      "bytes": 832
+    },
+    {
+      "name": "proc_macro2-16d4d30e9bce23d4.d",
+      "bytes": 4774
+    },
+    {
+      "name": "serde_derive-b0a40e3225061a45.d",
+      "bytes": 9047
+    },
+    {
+      "name": "libnibble_vec-32a26abc5d09ba59.rmeta",
+      "bytes": 35983
+    },
+    {
+      "name": "form_urlencoded-30ee8c9b68b67810.d",
+      "bytes": 640
+    },
+    {
+      "name": "o_lang-31bfa98d25c883d4.d",
+      "bytes": 427
+    },
+    {
+      "name": "libhyper_util-8413d195cd70bf94.rlib",
+      "bytes": 558838
+    },
+    {
+      "name": "libtempfile-c3cfce15683961bf.rmeta",
+      "bytes": 240726
+    },
+    {
+      "name": "serde_spanned-cdd81c75d85b7d9b.d",
+      "bytes": 1408
+    },
+    {
+      "name": "parking_lot_core-08484b4459af98a0.d",
+      "bytes": 3257
+    },
+    {
+      "name": "liblibc-6ab78bee08c12175.rlib",
+      "bytes": 5668302
+    },
+    {
+      "name": "libpercent_encoding-04b199d204ef816e.rmeta",
+      "bytes": 50847
+    },
+    {
+      "name": "libhmac-a32a63cbed1e624f.rlib",
+      "bytes": 45870
+    },
+    {
+      "name": "libserde-645c54fdb7625d50.rlib",
+      "bytes": 1179202
+    },
+    {
+      "name": "libhkdf-b0c2bb7c458228a7.rlib",
+      "bytes": 49658
+    },
+    {
+      "name": "toml-4474148579631014.d",
+      "bytes": 15577
+    },
+    {
+      "name": "libtokio-0923dcb16eb6cbe1.rlib",
+      "bytes": 33982520
+    },
+    {
+      "name": "curve25519_dalek-b8f53ba3d429a0ba.d",
+      "bytes": 18576
+    },
+    {
+      "name": "libblock_buffer-d643652aeff017e0.rmeta",
+      "bytes": 50477
+    },
+    {
+      "name": "nibble_vec-32a26abc5d09ba59.d",
+      "bytes": 605
+    },
+    {
+      "name": "libnix-a062951b2a80db48.rlib",
+      "bytes": 8111726
+    },
+    {
+      "name": "num_integer-5638bbb06cd25650.d",
+      "bytes": 1402
+    },
+    {
+      "name": "libhttp_body_util-89708133881aa3f0.rmeta",
+      "bytes": 396581
+    },
+    {
+      "name": "libhmac-9178d7ec9ba0b2b8.rlib",
+      "bytes": 96558
+    },
+    {
+      "name": "regex_automata-ac47b4728bd0ae54.d",
+      "bytes": 26857
+    },
+    {
+      "name": "libnum_bigint-027b95fb18df13b2.rmeta",
+      "bytes": 2025653
+    },
+    {
+      "name": "libserde_core-67bf657494323c5f.rlib",
+      "bytes": 5271272
+    },
+    {
+      "name": "libwalkdir-35f200a2cbc52160.rlib",
+      "bytes": 1168222
+    },
+    {
+      "name": "o_node-6ab17b38705fcae4.d",
+      "bytes": 226
+    },
+    {
+      "name": "same_file-d3c05fa08fc1121e.d",
+      "bytes": 971
+    },
+    {
+      "name": "olangc-711425d67ef214ba.d",
+      "bytes": 8844
+    },
+    {
+      "name": "libbytes-b2e2b6c22704bf2c.rlib",
+      "bytes": 1799632
+    },
+    {
+      "name": "serde_core-0a8bb670eaae828d.d",
+      "bytes": 8020
+    },
+    {
+      "name": "libcfg_aliases-ca0d185139eb5e76.rmeta",
+      "bytes": 17989
+    },
+    {
+      "name": "libendian_type-8a9b710cb51a3b4a.rmeta",
+      "bytes": 100247
+    },
+    {
+      "name": "axum_core-14477a9359b7d400.d",
+      "bytes": 7763
+    },
+    {
+      "name": "clap-fdd442b167586a57.d",
+      "bytes": 1365
+    },
+    {
+      "name": "librtoolbox-73acf33aef500fe8.rmeta",
+      "bytes": 29258
+    },
+    {
+      "name": "ogit-af3d003399a3df46.d",
+      "bytes": 181
+    },
+    {
+      "name": "colorchoice-1356c916161c3fd7.d",
+      "bytes": 612
+    },
+    {
+      "name": "world_protocol-eb19c71f5e813bd1.d",
+      "bytes": 337
+    },
+    {
+      "name": "anstyle_query-ea7da4b400675f9e.d",
+      "bytes": 1027
+    },
+    {
+      "name": "project_deployment_plan-5f58f54a45164c7a.d",
+      "bytes": 508
+    },
+    {
+      "name": "libcpufeatures-6b91b8401a45c157.rmeta",
+      "bytes": 39320
+    },
+    {
+      "name": "libcurve25519_dalek-b8f53ba3d429a0ba.rmeta",
+      "bytes": 1153689
+    },
+    {
+      "name": "libnibble_vec-32a26abc5d09ba59.rlib",
+      "bytes": 38218
+    },
+    {
+      "name": "libclap_lex-544c27be2235cb00.rmeta",
+      "bytes": 65705
+    },
+    {
+      "name": "libsocket2-979d8c5b9c87c1fa.rmeta",
+      "bytes": 312018
+    },
+    {
+      "name": "libring-91d5699b8fdab78e.rlib",
+      "bytes": 10962858
+    },
+    {
+      "name": "tempfile-600ce93f3c522081.d",
+      "bytes": 4493
+    },
+    {
+      "name": "libclap_builder-357363d50cd5efb2.rmeta",
+      "bytes": 2133166
+    },
+    {
+      "name": "libif_addrs-ed427c631b61673f.rmeta",
+      "bytes": 85300
+    },
+    {
+      "name": "libparking_lot-6dea6cd047e4db7f.rlib",
+      "bytes": 1509418
+    },
+    {
+      "name": "libserde-decc8679d7936825.rmeta",
+      "bytes": 827068
+    },
+    {
+      "name": "ostadix-c20d7345995e1bd2.d",
+      "bytes": 302
+    },
+    {
+      "name": "libsync_wrapper-07db6f3a1e2570ab.rlib",
+      "bytes": 20726
+    },
+    {
+      "name": "libgeneric_array-507b552e94ea78a7.rmeta",
+      "bytes": 809191
+    },
+    {
+      "name": "libctutils-86f12ea0c56e93ae.rmeta",
+      "bytes": 351193
+    },
+    {
+      "name": "httpdate-e42b11316a73308d.d",
+      "bytes": 960
+    },
+    {
+      "name": "libsyn-ff7f7d776896c10f.rlib",
+      "bytes": 9258234
+    },
+    {
+      "name": "hgraph_ontology-125f449f08cd4dc5.d",
+      "bytes": 230
+    },
+    {
+      "name": "o_notebook-157e7b6fe7017e13.d",
+      "bytes": 211
+    },
+    {
+      "name": "percent_encoding-04b199d204ef816e.d",
+      "bytes": 1068
+    },
+    {
+      "name": "project_mesh_cli-dc6c658b9d800cfc.d",
+      "bytes": 753
+    },
+    {
+      "name": "libsocket2-979d8c5b9c87c1fa.rlib",
+      "bytes": 1358488
+    },
+    {
+      "name": "librpassword-1c6e1736e50d2f6c.rmeta",
+      "bytes": 78383
+    },
+    {
+      "name": "execution_intent_cli-20ab83cb410b52e0.d",
+      "bytes": 446
+    },
+    {
+      "name": "toml_datetime-50f9e1114d606cef.d",
+      "bytes": 1973
+    },
+    {
+      "name": "libserde-decc8679d7936825.rlib",
+      "bytes": 1179202
+    },
+    {
+      "name": "libhttp_body-26dc734150ae4b6f.rlib",
+      "bytes": 101262
+    },
+    {
+      "name": "libo_lang-31bfa98d25c883d4.rlib",
+      "bytes": 3699120
+    },
+    {
+      "name": "ed25519_dalek-8e3d95ca35550fb7.d",
+      "bytes": 3048
+    },
+    {
+      "name": "libwalkdir-35f200a2cbc52160.rmeta",
+      "bytes": 102033
+    },
+    {
+      "name": "ed25519-7c057a503047e731.d",
+      "bytes": 1330
+    },
+    {
+      "name": "rusty_fork-aa37664b1d73e9a3.d",
+      "bytes": 2943
+    },
+    {
+      "name": "serde_path_to_error-3a1cd732f3f580d5.d",
+      "bytes": 2328
+    },
+    {
+      "name": "hosted_supervisor_transactions-f5963a38017b5829.d",
+      "bytes": 390
+    },
+    {
+      "name": "libanstyle_parse-a6cd37b14270efb6.rlib",
+      "bytes": 254234
+    },
+    {
+      "name": "libif_addrs-ded92898c83cdede.rlib",
+      "bytes": 1079562
+    },
+    {
+      "name": "libcpufeatures-6b91b8401a45c157.rlib",
+      "bytes": 41556
+    },
+    {
+      "name": "libequivalent-01e821a4d110282a.rlib",
+      "bytes": 10418
+    },
+    {
+      "name": "slab-c7a2757b7c4f48a2.d",
+      "bytes": 936
+    },
+    {
+      "name": "globset-eecbbd7fbbec8ea5.d",
+      "bytes": 1707
+    },
+    {
+      "name": "libtoml-3ef0fedca7979a8d.rlib",
+      "bytes": 7774386
+    },
+    {
+      "name": "bit_set-b55fdf52eb0388ac.d",
+      "bytes": 1691
+    },
+    {
+      "name": "libtypenum-616bf56c01683ee9.rlib",
+      "bytes": 3623926
+    },
+    {
+      "name": "smallvec-c330ba046c17fa18.d",
+      "bytes": 595
+    },
+    {
+      "name": "ring-91d5699b8fdab78e.d",
+      "bytes": 61023
+    },
+    {
+      "name": "libregex_automata-212e801a51231c05.rmeta",
+      "bytes": 3304968
+    },
+    {
+      "name": "librustc_version-723d3e5f09fa73a4.rmeta",
+      "bytes": 66294
+    },
+    {
+      "name": "o_cli_operation_blackbox-256f4104aff0cc29.d",
+      "bytes": 348
+    },
+    {
+      "name": "libsocket2-e6491944ab52e056.rmeta",
+      "bytes": 409478
+    },
+    {
+      "name": "world_identity_wire-3644bfb3387948a9.d",
+      "bytes": 362
+    },
+    {
+      "name": "futures_task-7ec0a59cb65d5608.d",
+      "bytes": 3049
+    },
+    {
+      "name": "fs2-1a3826147a925d9e.d",
+      "bytes": 905
+    },
+    {
+      "name": "runtime_exec_toctou-d62ace7c70e986be.d",
+      "bytes": 552
+    },
+    {
+      "name": "walkdir-35f200a2cbc52160.d",
+      "bytes": 1683
+    },
+    {
+      "name": "libhex-507f14d4361566c7.rmeta",
+      "bytes": 337172
+    },
+    {
+      "name": "http-7245e47e9557fa6c.d",
+      "bytes": 7622
+    },
+    {
+      "name": "libglobset-eecbbd7fbbec8ea5.rlib",
+      "bytes": 4145300
+    },
+    {
+      "name": "libwhich-fe478e99f23a9da1.rlib",
+      "bytes": 693132
+    },
+    {
+      "name": "anstyle_parse-a6cd37b14270efb6.d",
+      "bytes": 2290
+    },
+    {
+      "name": "librand-e9b4c5b97a02d20a.rmeta",
+      "bytes": 1038655
+    },
+    {
+      "name": "libfoldhash-b5820346252db416.rlib",
+      "bytes": 176128
+    },
+    {
+      "name": "libanyhow-33aa09c41829759b.rmeta",
+      "bytes": 440735
+    },
+    {
+      "name": "libcfg_if-8a23cabd694141b2.rlib",
+      "bytes": 8066
+    },
+    {
+      "name": "o_node-e28e089db025bbf4.d",
+      "bytes": 226
+    },
+    {
+      "name": "shlex-7b06ff0077903996.d",
+      "bytes": 931
+    },
+    {
+      "name": "libcmov-5439428be9711e34.rlib",
+      "bytes": 274190
+    },
+    {
+      "name": "o_cli_operation_planner_blackbox-bb0a34f6960ed6dc.d",
+      "bytes": 578
+    },
+    {
+      "name": "libautocfg-97199d8a0cfbdba5.rlib",
+      "bytes": 726278
+    },
+    {
+      "name": "libserde_core-0a8bb670eaae828d.rlib",
+      "bytes": 5271272
+    },
+    {
+      "name": "libsocket2-b30e4ff61795c081.rlib",
+      "bytes": 1361128
+    },
+    {
+      "name": "quote-310eda54036e5868.d",
+      "bytes": 2828
+    },
+    {
+      "name": "librand-a7e7ab207a2775b1.rlib",
+      "bytes": 1208874
+    },
+    {
+      "name": "oir_physical_execution-e9ff47e2dc42476a.d",
+      "bytes": 382
+    },
+    {
+      "name": "python_native_handles-46f47759062c0b4c.d",
+      "bytes": 325
+    },
+    {
+      "name": "libed25519-7c057a503047e731.rmeta",
+      "bytes": 37726
+    },
+    {
+      "name": "libversion_check-48d66f356588878b.rmeta",
+      "bytes": 75066
+    },
+    {
+      "name": "libanstream-5e1aa2c83d3f418d.rlib",
+      "bytes": 718650
+    },
+    {
+      "name": "which-fe478e99f23a9da1.d",
+      "bytes": 2383
+    },
+    {
+      "name": "libatomic_waker-e5e89b778c05eae9.rlib",
+      "bytes": 79304
+    },
+    {
+      "name": "libignore-8cef7ca6ca514ae1.rlib",
+      "bytes": 12255968
+    },
+    {
+      "name": "libhkdf-b0c2bb7c458228a7.rmeta",
+      "bytes": 41419
+    },
+    {
+      "name": "radix_trie-1107810291644a0a.d",
+      "bytes": 3709
+    },
+    {
+      "name": "libtoml_writer-4d7385f5792d3e0f.rlib",
+      "bytes": 252032
+    },
+    {
+      "name": "o_live_host-153f948aeac308c5.d",
+      "bytes": 216
+    },
+    {
+      "name": "libchacha20-78f4aba693535fe2.rmeta",
+      "bytes": 684463
+    },
+    {
+      "name": "serde_urlencoded-5a6807d3ffafd99e.d",
+      "bytes": 3121
+    },
+    {
+      "name": "liblog-1c955401b27a4875.rmeta",
+      "bytes": 189462
+    },
+    {
+      "name": "libsync_wrapper-07db6f3a1e2570ab.rmeta",
+      "bytes": 18481
+    },
+    {
+      "name": "libed25519_dalek-0753ae416526dc08.rlib",
+      "bytes": 670518
+    },
+    {
+      "name": "libostadix_api-7d8a4ccdc425e3c2.rmeta",
+      "bytes": 62484194
+    },
+    {
+      "name": "libregex_automata-ac47b4728bd0ae54.rmeta",
+      "bytes": 3304968
+    },
+    {
+      "name": "librustls-8b31a9e238ba29a2.rlib",
+      "bytes": 26836426
+    },
+    {
+      "name": "libgetrandom-39657ee9c28ff9cf.rmeta",
+      "bytes": 64515
+    },
+    {
+      "name": "libaho_corasick-4bb94713f69d7fa3.rlib",
+      "bytes": 10790898
+    },
+    {
+      "name": "if_addrs-ded92898c83cdede.d",
+      "bytes": 1778
+    },
+    {
+      "name": "hmac-9178d7ec9ba0b2b8.d",
+      "bytes": 2436
+    },
+    {
+      "name": "libbit_set-b55fdf52eb0388ac.rmeta",
+      "bytes": 111770
+    },
+    {
+      "name": "librustyline-cd896faa2fdc1425.rmeta",
+      "bytes": 1234955
+    },
+    {
+      "name": "wait_timeout-2e7636b341f1ad40.d",
+      "bytes": 1004
+    },
+    {
+      "name": "libsubtle-2d004f2a483ff4d1.rmeta",
+      "bytes": 117374
+    },
+    {
+      "name": "ocore_kernel_world_record-ce127cc712cbc416.d",
+      "bytes": 321
+    },
+    {
+      "name": "version_cli-776fa43763a5206e.d",
+      "bytes": 275
+    },
+    {
+      "name": "hkdf-e1e35c76972a5020.d",
+      "bytes": 1297
+    },
+    {
+      "name": "o_link-a4605af5769ea3c2.d",
+      "bytes": 188
+    },
+    {
+      "name": "libsemver-de5fcdb836bb7c55.rmeta",
+      "bytes": 130277
+    },
+    {
+      "name": "libglobset-eecbbd7fbbec8ea5.rmeta",
+      "bytes": 222991
+    },
+    {
+      "name": "libhttparse-fdd448910e772fde.rmeta",
+      "bytes": 163747
+    },
+    {
+      "name": "libostadix_api-403f45108b8ccfe2.rlib",
+      "bytes": 668654586
+    },
+    {
+      "name": "toml_parser-aa038c7063a2cef5.d",
+      "bytes": 6056
+    },
+    {
+      "name": "subtle-2d004f2a483ff4d1.d",
+      "bytes": 577
+    },
+    {
+      "name": "librustls-8b31a9e238ba29a2.rmeta",
+      "bytes": 3685170
+    },
+    {
+      "name": "regex_automata-03d9d8f75b52616b.d",
+      "bytes": 26857
+    },
+    {
+      "name": "libhashbrown-9b83f35226680068.rlib",
+      "bytes": 1315050
+    },
+    {
+      "name": "httparse-fdd448910e772fde.d",
+      "bytes": 3326
+    },
+    {
+      "name": "librusty_fork-d4944ab2938f3eaf.rlib",
+      "bytes": 1356608
+    },
+    {
+      "name": "toml_writer-4d7385f5792d3e0f.d",
+      "bytes": 2805
+    },
+    {
+      "name": "libsemver-fc4d600545e5b250.rlib",
+      "bytes": 782756
+    },
+    {
+      "name": "liblibc-cd1285af238633c0.rmeta",
+      "bytes": 4286680
+    },
+    {
+      "name": "version_check-48d66f356588878b.d",
+      "bytes": 1817
+    },
+    {
+      "name": "libostadix_api-7d8a4ccdc425e3c2.rlib",
+      "bytes": 658493756
+    },
+    {
+      "name": "ocore_kernel_world_record-d8d674f66f3bbe47.d",
+      "bytes": 321
+    },
+    {
+      "name": "getrandom-8d204066151e3160.d",
+      "bytes": 2996
+    },
+    {
+      "name": "o_cli-968ccde08c010b46.d",
+      "bytes": 619
+    },
+    {
+      "name": "world_identity_wire-81baf50cda4a3625.d",
+      "bytes": 362
+    },
+    {
+      "name": "ostadix_api-403f45108b8ccfe2.d",
+      "bytes": 81549
+    },
+    {
+      "name": "world_protocol-ae653c2c4e31e403.d",
+      "bytes": 337
+    },
+    {
+      "name": "crypto_common-08b5a050c85151b7.d",
+      "bytes": 1432
+    },
+    {
+      "name": "libblock_buffer-ff9058d599998a3e.rmeta",
+      "bytes": 85191
+    },
+    {
+      "name": "libquick_error-90d6ed15659eb322.rlib",
+      "bytes": 85484
+    },
+    {
+      "name": "libsignal_hook_registry-67b8299cb1d064a3.rlib",
+      "bytes": 788370
+    },
+    {
+      "name": "globset-d4c421b0744a0dc5.d",
+      "bytes": 1707
+    },
+    {
+      "name": "home-d049c409cae0dc79.d",
+      "bytes": 920
+    },
+    {
+      "name": "librustix-a1e395a94f1e8a37.rlib",
+      "bytes": 6913558
+    },
+    {
+      "name": "public_surface-69982a32b17069c8.d",
+      "bytes": 1035
+    },
+    {
+      "name": "libfutures_core-6eef8ae4428d3e60.rlib",
+      "bytes": 127962
+    },
+    {
+      "name": "libc-cd1285af238633c0.d",
+      "bytes": 29651
+    },
+    {
+      "name": "linux_raw_sys-c86bc6f78be3031d.d",
+      "bytes": 2731
+    },
+    {
+      "name": "liblock_api-8c2d92eaab852e67.rmeta",
+      "bytes": 379854
+    },
+    {
+      "name": "libproc_macro2-16d4d30e9bce23d4.rmeta",
+      "bytes": 342035
+    },
+    {
+      "name": "libgetrandom-8d204066151e3160.rlib",
+      "bytes": 231378
+    },
+    {
+      "name": "endian_type-8a9b710cb51a3b4a.d",
+      "bytes": 612
+    },
+    {
+      "name": "ring-54fb3bf1c942afdd.d",
+      "bytes": 61023
+    },
+    {
+      "name": "world_value-4d9d1991420a8806.d",
+      "bytes": 313
+    },
+    {
+      "name": "libthiserror-acb818322e0eb49c.rlib",
+      "bytes": 32784
+    },
+    {
+      "name": "serde-7432598c5728f6f7.d",
+      "bytes": 2551
+    },
+    {
+      "name": "signal_hook-4f59d68d729f70ee.d",
+      "bytes": 4529
+    },
+    {
+      "name": "rustls-cfa44aaf51f4d656.d",
+      "bytes": 34257
+    },
+    {
+      "name": "libsemver-fc4d600545e5b250.rmeta",
+      "bytes": 152445
+    },
+    {
+      "name": "libtoml_datetime-50f9e1114d606cef.rmeta",
+      "bytes": 148784
+    },
+    {
+      "name": "libgetrandom-8d204066151e3160.rmeta",
+      "bytes": 64515
+    },
+    {
+      "name": "libcrossbeam_utils-a6e8163c72cc7c4d.rmeta",
+      "bytes": 783708
+    },
+    {
+      "name": "libproptest-f6d6450f888b3035.rmeta",
+      "bytes": 4002918
+    },
+    {
+      "name": "o_cli-672bcf030c6f5bd5.d",
+      "bytes": 491
+    },
+    {
+      "name": "world_grounding-93e6637d2ef92050.d",
+      "bytes": 230
+    },
+    {
+      "name": "itoa-e1cf0ba11d02098b.d",
+      "bytes": 940
+    },
+    {
+      "name": "libzmij-fe95c7ae1d0a6e3a.rlib",
+      "bytes": 666266
+    },
+    {
+      "name": "librusty_fork-d4944ab2938f3eaf.rmeta",
+      "bytes": 94023
+    },
+    {
+      "name": "libaxum_core-14477a9359b7d400.rmeta",
+      "bytes": 2138879
+    },
+    {
+      "name": "bytes-b2e2b6c22704bf2c.d",
+      "bytes": 7055
+    },
+    {
+      "name": "libwinnow-6ab08bcc062b20de.rlib",
+      "bytes": 818632
+    },
+    {
+      "name": "cpufeatures-6b91b8401a45c157.d",
+      "bytes": 997
+    },
+    {
+      "name": "libunicode_ident-4615f73e4944f8df.rlib",
+      "bytes": 56606
+    },
+    {
+      "name": "libignore-f4fb472ccc918fbc.rmeta",
+      "bytes": 617357
+    },
+    {
+      "name": "num_traits-8a544532cfe709f1.d",
+      "bytes": 7743
+    },
+    {
+      "name": "rand_core-cf9b8d4136a06c9d.d",
+      "bytes": 2459
+    },
+    {
+      "name": "libignore-8cef7ca6ca514ae1.rmeta",
+      "bytes": 617357
+    },
+    {
+      "name": "scopeguard-9c2379402a25548e.d",
+      "bytes": 605
+    },
+    {
+      "name": "bitflags-32e14ae359be5a5c.d",
+      "bytes": 2889
+    },
+    {
+      "name": "libhyper-f4f8cb80175e1f81.rmeta",
+      "bytes": 1053130
+    },
+    {
+      "name": "libsyn-b7adbc0a14dda033.rmeta",
+      "bytes": 2224741
+    },
+    {
+      "name": "libtracing_core-d743b9980c68eb90.rlib",
+      "bytes": 2396350
+    },
+    {
+      "name": "O-55aabaaacc7ee858.d",
+      "bytes": 341
+    },
+    {
+      "name": "rustls-8b31a9e238ba29a2.d",
+      "bytes": 34257
+    },
+    {
+      "name": "libshlex-7b06ff0077903996.rlib",
+      "bytes": 134076
+    },
+    {
+      "name": "libo_lang-6eaea7de470a188a.rmeta",
+      "bytes": 41572
+    },
+    {
+      "name": "clap_derive-8b1841316288f61a.d",
+      "bytes": 5353
+    },
+    {
+      "name": "libzeroize-9d0437fd897f6b1a.rlib",
+      "bytes": 534540
+    },
+    {
+      "name": "parser_proptest-29801b38beff5444.d",
+      "bytes": 230
+    },
+    {
+      "name": "o_node-9e63e2e3f81023fe.d",
+      "bytes": 226
+    },
+    {
+      "name": "libnum_bigint-ce7a589d2f6b87bb.rmeta",
+      "bytes": 2025653
+    },
+    {
+      "name": "libmime-8aa0e4b703d73f4c.rmeta",
+      "bytes": 127423
+    },
+    {
+      "name": "libclap_lex-544c27be2235cb00.rlib",
+      "bytes": 476396
+    },
+    {
+      "name": "libtower-ee1725c5bcb7fbdd.rlib",
+      "bytes": 824018
+    },
+    {
+      "name": "hmac-a32a63cbed1e624f.d",
+      "bytes": 1293
+    },
+    {
+      "name": "libunicode_segmentation-30ab8286fc096b6a.rmeta",
+      "bytes": 1092204
+    },
+    {
+      "name": "libatomic_waker-e5e89b778c05eae9.rmeta",
+      "bytes": 14017
+    },
+    {
+      "name": "project_hgraph_exec-0d9a21bdf4e2b5c7.d",
+      "bytes": 441
+    },
+    {
+      "name": "librand-a7e7ab207a2775b1.rmeta",
+      "bytes": 1038655
+    },
+    {
+      "name": "libfutures_task-7ec0a59cb65d5608.rlib",
+      "bytes": 190358
+    },
+    {
+      "name": "libwait_timeout-6a60dcf5c4ddfdb3.rlib",
+      "bytes": 940572
+    },
+    {
+      "name": "hosted_remote_v2-ca32295eb32b5868.d",
+      "bytes": 352
+    },
+    {
+      "name": "ostadix_api-cfa18e15af21589d.d",
+      "bytes": 64259
+    },
+    {
+      "name": "libsha2-e8a5d6f0d0a6781f.rlib",
+      "bytes": 1801736
+    },
+    {
+      "name": "zeroize-9d0437fd897f6b1a.d",
+      "bytes": 2076
+    },
+    {
+      "name": "o_lang-6eaea7de470a188a.d",
+      "bytes": 427
+    },
+    {
+      "name": "libanstyle-b2bb954e20208027.rlib",
+      "bytes": 334138
+    },
+    {
+      "name": "libdigest-813131b107a47ced.rmeta",
+      "bytes": 257504
+    },
+    {
+      "name": "o_live_host-043ad5375a98db3f.d",
+      "bytes": 216
+    },
+    {
+      "name": "rtoolbox-73acf33aef500fe8.d",
+      "bytes": 2544
+    },
+    {
+      "name": "once_cell-7f4756946a1dc156.d",
+      "bytes": 1368
+    },
+    {
+      "name": "errno-3fe05d550bfe63a4.d",
+      "bytes": 935
+    },
+    {
+      "name": "hosted_live_cli-b08d93528ecf1cb8.d",
+      "bytes": 315
+    },
+    {
+      "name": "rustyline-5f0ee425b8f88bc2.d",
+      "bytes": 7973
+    },
+    {
+      "name": "libgetrandom-d782e2069dca575d.rlib",
+      "bytes": 317298
+    },
+    {
+      "name": "chacha20-78f4aba693535fe2.d",
+      "bytes": 3362
+    },
+    {
+      "name": "getrandom-39657ee9c28ff9cf.d",
+      "bytes": 2996
+    },
+    {
+      "name": "ocorec-db36f0f5190332ab.d",
+      "bytes": 489
+    },
+    {
+      "name": "clap_lex-544c27be2235cb00.d",
+      "bytes": 956
+    },
+    {
+      "name": "tower-ee1725c5bcb7fbdd.d",
+      "bytes": 15070
+    },
+    {
+      "name": "libnum_integer-5638bbb06cd25650.rlib",
+      "bytes": 633206
+    },
+    {
+      "name": "libconst_oid-5e9c79d04919f2df.rlib",
+      "bytes": 362778
+    },
+    {
+      "name": "libsmallvec-dfb0792f7f9653fa.rmeta",
+      "bytes": 216504
+    },
+    {
+      "name": "world_identity-239d428301b3835d.d",
+      "bytes": 225
+    },
+    {
+      "name": "proptest-72333d7ab7598148.d",
+      "bytes": 37935
+    },
+    {
+      "name": "libfnv-ab13bc89a5ae4a58.rmeta",
+      "bytes": 10933
+    },
+    {
+      "name": "libhttpdate-e42b11316a73308d.rlib",
+      "bytes": 484046
+    },
+    {
+      "name": "librand_xorshift-f5ed66d7aba485b4.rlib",
+      "bytes": 125912
+    },
+    {
+      "name": "executor_actors_effects-5faee4f590907c8b.d",
+      "bytes": 270
+    },
+    {
+      "name": "libthiserror-acb818322e0eb49c.rmeta",
+      "bytes": 30550
+    },
+    {
+      "name": "libserde_spanned-cdd81c75d85b7d9b.rmeta",
+      "bytes": 44303
+    },
+    {
+      "name": "libscopeguard-9c2379402a25548e.rlib",
+      "bytes": 28026
+    },
+    {
+      "name": "libradix_trie-1107810291644a0a.rlib",
+      "bytes": 677674
+    },
+    {
+      "name": "getrandom-07b9ab670933069b.d",
+      "bytes": 4932
+    },
+    {
+      "name": "syn-ff7f7d776896c10f.d",
+      "bytes": 17462
+    },
+    {
+      "name": "ostadix_api-76f30a5e6f88e9f4.d",
+      "bytes": 81549
+    },
+    {
+      "name": "librustyline-842a2a32dcc766fd.rlib",
+      "bytes": 8770426
+    },
+    {
+      "name": "rand_xorshift-f5ed66d7aba485b4.d",
+      "bytes": 626
+    },
+    {
+      "name": "globset-8b02eb884466784a.d",
+      "bytes": 1707
+    },
+    {
+      "name": "libslab-c7a2757b7c4f48a2.rmeta",
+      "bytes": 140992
+    },
+    {
+      "name": "libserde_path_to_error-3a1cd732f3f580d5.rlib",
+      "bytes": 605878
+    },
+    {
+      "name": "block_buffer-d643652aeff017e0.d",
+      "bytes": 1020
+    },
+    {
+      "name": "libserde_json-1d6c31f90be4cd11.rmeta",
+      "bytes": 1440786
+    },
+    {
+      "name": "libsmallvec-c330ba046c17fa18.rmeta",
+      "bytes": 255657
+    },
+    {
+      "name": "libgetrandom-d782e2069dca575d.rmeta",
+      "bytes": 89718
+    },
+    {
+      "name": "equivalent-01e821a4d110282a.d",
+      "bytes": 605
+    },
+    {
+      "name": "libregex-42ef9844f762f33f.rlib",
+      "bytes": 1564240
+    },
+    {
+      "name": "libheck-c513532ecb82790f.rmeta",
+      "bytes": 78800
+    },
+    {
+      "name": "libfs2-c6efb3d0632643c2.rlib",
+      "bytes": 138034
+    },
+    {
+      "name": "libnix-fa0031b974ab5fad.rlib",
+      "bytes": 8102992
+    },
+    {
+      "name": "ostadix_device_cli-7e95a4c4c5ea7b84.d",
+      "bytes": 388
+    },
+    {
+      "name": "libtoml-3ef0fedca7979a8d.rmeta",
+      "bytes": 1055976
+    },
+    {
+      "name": "libgeneric_array-507b552e94ea78a7.rlib",
+      "bytes": 822080
+    },
+    {
+      "name": "O-bf205cccd200660d.d",
+      "bytes": 341
+    },
+    {
+      "name": "libtower-ee1725c5bcb7fbdd.rmeta",
+      "bytes": 791903
+    },
+    {
+      "name": "core_detect-7b90307a91b0070a.d",
+      "bytes": 2172
+    },
+    {
+      "name": "libdigest-c4dcad3fc50c0fbf.rlib",
+      "bytes": 216604
+    },
+    {
+      "name": "libostadix_api-76f30a5e6f88e9f4.rmeta",
+      "bytes": 62478834
+    },
+    {
+      "name": "libbstr-bd796a699c88f8e1.rlib",
+      "bytes": 1269564
+    },
+    {
+      "name": "is_terminal_polyfill-179572571e70db11.d",
+      "bytes": 679
+    },
+    {
+      "name": "libregex_automata-ac47b4728bd0ae54.rlib",
+      "bytes": 18111584
+    },
+    {
+      "name": "libblock_buffer-ff9058d599998a3e.rlib",
+      "bytes": 91830
+    },
+    {
+      "name": "thiserror-acb818322e0eb49c.d",
+      "bytes": 2571
+    },
+    {
+      "name": "libhttp_body_util-89708133881aa3f0.rlib",
+      "bytes": 403394
+    },
+    {
+      "name": "libfastrand-d389aad8579139bd.rlib",
+      "bytes": 325412
+    },
+    {
+      "name": "rand_core-361d6ce2aa1b749b.d",
+      "bytes": 2459
+    },
+    {
+      "name": "libwebpki-db63ac15cf38fff4.rlib",
+      "bytes": 4551636
+    },
+    {
+      "name": "libuntrusted-97810520237763c0.rlib",
+      "bytes": 53282
+    },
+    {
+      "name": "cfg_aliases-ca0d185139eb5e76.d",
+      "bytes": 612
+    },
+    {
+      "name": "libtracing-ce6de4a0e7219072.rlib",
+      "bytes": 877584
+    },
+    {
+      "name": "project_integration-65fdf311ab2307d4.d",
+      "bytes": 250
+    },
+    {
+      "name": "rand_core-b5fb47911cba15b8.d",
+      "bytes": 2948
+    },
+    {
+      "name": "libgetrandom-4ea4299c4ce4d6fe.rmeta",
+      "bytes": 89718
+    },
+    {
+      "name": "mio-05ddae6218637ece.d",
+      "bytes": 13293
+    },
+    {
+      "name": "libquote-310eda54036e5868.rlib",
+      "bytes": 514754
+    },
+    {
+      "name": "webpki-e02d66a3cfd40a4f.d",
+      "bytes": 9048
+    },
+    {
+      "name": "libheck-c513532ecb82790f.rlib",
+      "bytes": 359784
+    },
+    {
+      "name": "cpufeatures-b046a17fe68bc09f.d",
+      "bytes": 1390
+    },
+    {
+      "name": "libcurve25519_dalek-2de40cf89519c7f0.rmeta",
+      "bytes": 1153689
+    },
+    {
+      "name": "semver-fc4d600545e5b250.d",
+      "bytes": 3188
+    },
+    {
+      "name": "once_cell-2cd7a9ea509151f0.d",
+      "bytes": 1368
+    },
+    {
+      "name": "libmio-05ddae6218637ece.rlib",
+      "bytes": 1780548
+    },
+    {
+      "name": "foldhash-b5820346252db416.d",
+      "bytes": 1710
+    },
+    {
+      "name": "libonce_cell-7f4756946a1dc156.rmeta",
+      "bytes": 193307
+    },
+    {
+      "name": "libtoml-4474148579631014.rmeta",
+      "bytes": 1055976
+    },
+    {
+      "name": "libautocfg-97199d8a0cfbdba5.rmeta",
+      "bytes": 81794
+    },
+    {
+      "name": "libcrypto_common-b602413af328412e.rmeta",
+      "bytes": 27795
+    },
+    {
+      "name": "lock_api-8c2d92eaab852e67.d",
+      "bytes": 1738
+    },
+    {
+      "name": "runtime_request_contract-1d7b9064f16c60de.d",
+      "bytes": 404
+    },
+    {
+      "name": "runtime_exec_capacity-0f5e61a7e5608f3e.d",
+      "bytes": 562
+    },
+    {
+      "name": "rustls_pki_types-8431c39084c11a04.d",
+      "bytes": 11346
+    },
+    {
+      "name": "libignore-f4fb472ccc918fbc.rlib",
+      "bytes": 12255882
+    },
+    {
+      "name": "libctutils-86f12ea0c56e93ae.rlib",
+      "bytes": 362932
+    },
+    {
+      "name": "crossbeam_deque-e549e7589f7eaae8.d",
+      "bytes": 1041
+    },
+    {
+      "name": "liblibc-cd1285af238633c0.rlib",
+      "bytes": 4384910
+    },
+    {
+      "name": "libserde_core-0a8bb670eaae828d.rmeta",
+      "bytes": 4754429
+    },
+    {
+      "name": "libregex_syntax-2662c68f65dc0ade.rmeta",
+      "bytes": 1462303
+    },
+    {
+      "name": "project_logical_hgraph-e3771d8bdef931d7.d",
+      "bytes": 503
+    },
+    {
+      "name": "libaxum-1be421129f8df9f4.rlib",
+      "bytes": 10044680
+    },
+    {
+      "name": "libwinnow-6ab08bcc062b20de.rmeta",
+      "bytes": 652942
+    },
+    {
+      "name": "O-4346eb13b460671a.d",
+      "bytes": 341
+    },
+    {
+      "name": "libmemchr-6975088a32f44e89.rlib",
+      "bytes": 2564732
+    },
+    {
+      "name": "libbitflags-32558f083228f1ee.rmeta",
+      "bytes": 222135
+    },
+    {
+      "name": "libbase64-c240eb2bf7084cbc.rlib",
+      "bytes": 1386688
+    },
+    {
+      "name": "autocfg-97199d8a0cfbdba5.d",
+      "bytes": 1699
+    },
+    {
+      "name": "libbit_vec-66f5461c41043e05.rmeta",
+      "bytes": 212277
+    },
+    {
+      "name": "libhyper_util-8413d195cd70bf94.rmeta",
+      "bytes": 382055
+    },
+    {
+      "name": "hyper_util-8413d195cd70bf94.d",
+      "bytes": 6928
+    },
+    {
+      "name": "libmatchit-8800b327a6a70208.rlib",
+      "bytes": 1057222
+    },
+    {
+      "name": "libostadix_api-76f30a5e6f88e9f4.rlib",
+      "bytes": 658816144
+    },
+    {
+      "name": "libcolorchoice-1356c916161c3fd7.rmeta",
+      "bytes": 12874
+    },
+    {
+      "name": "proptest-e780da44876404a6.d",
+      "bytes": 37935
+    },
+    {
+      "name": "libsignal_hook-4f59d68d729f70ee.rmeta",
+      "bytes": 239438
+    },
+    {
+      "name": "libtower_service-407a1cd7ae16c1dd.rlib",
+      "bytes": 25376
+    },
+    {
+      "name": "libblock_buffer-d643652aeff017e0.rlib",
+      "bytes": 57118
+    },
+    {
+      "name": "libunarray-3b420b7bbe0ea3ff.rlib",
+      "bytes": 42524
+    },
+    {
+      "name": "libonce_cell-2cd7a9ea509151f0.rmeta",
+      "bytes": 193307
+    },
+    {
+      "name": "libzmij-fe95c7ae1d0a6e3a.rmeta",
+      "bytes": 417807
+    },
+    {
+      "name": "rustls-f54e6e7df1fdb2e3.d",
+      "bytes": 34257
+    },
+    {
+      "name": "libtoml_datetime-d628ba7f8bc1e592.rlib",
+      "bytes": 671682
+    },
+    {
+      "name": "libsha2-ed39629827a2d14d.rmeta",
+      "bytes": 712748
+    },
+    {
+      "name": "o_lang-740bfd53eb69e387.d",
+      "bytes": 292
+    },
+    {
+      "name": "toml-3ef0fedca7979a8d.d",
+      "bytes": 15577
+    },
+    {
+      "name": "independent_runtime_engine-4cead18f05aabf68.d",
+      "bytes": 338
+    },
+    {
+      "name": "librand_xorshift-f5ed66d7aba485b4.rmeta",
+      "bytes": 22507
+    },
+    {
+      "name": "libhmac-a32a63cbed1e624f.rmeta",
+      "bytes": 43672
+    },
+    {
+      "name": "linux_runtime_rootfs-9604dd8e1fea3c4a.d",
+      "bytes": 592
+    },
+    {
+      "name": "unicode_ident-4615f73e4944f8df.d",
+      "bytes": 1031
+    },
+    {
+      "name": "libsignal_hook_registry-67b8299cb1d064a3.rmeta",
+      "bytes": 77732
+    },
+    {
+      "name": "O-6d98a306e53b3f22.d",
+      "bytes": 341
+    },
+    {
+      "name": "o_link-15210b8ff4d859ce.d",
+      "bytes": 188
+    },
+    {
+      "name": "libregex_automata-212e801a51231c05.rlib",
+      "bytes": 18124112
+    },
+    {
+      "name": "ogit-b8b279683a400b88.d",
+      "bytes": 181
+    },
+    {
+      "name": "ostadix_api-29004e692f18ea82.d",
+      "bytes": 64259
+    },
+    {
+      "name": "digest-813131b107a47ced.d",
+      "bytes": 4583
+    },
+    {
+      "name": "bstr-bd796a699c88f8e1.d",
+      "bytes": 4638
+    },
+    {
+      "name": "libitoa-e1cf0ba11d02098b.rlib",
+      "bytes": 203860
+    },
+    {
+      "name": "libfastrand-d389aad8579139bd.rmeta",
+      "bytes": 149205
+    },
+    {
+      "name": "libradix_trie-3a36336cb88bfabc.rlib",
+      "bytes": 677644
+    },
+    {
+      "name": "libfutures_util-7dc2a847df904956.rlib",
+      "bytes": 4381032
+    },
+    {
+      "name": "sha2-ed39629827a2d14d.d",
+      "bytes": 4810
+    },
+    {
+      "name": "libhex-507f14d4361566c7.rlib",
+      "bytes": 396952
+    },
+    {
+      "name": "libunicode_width-acd6b5502a035f47.rmeta",
+      "bytes": 856347
+    },
+    {
+      "name": "libproptest-72333d7ab7598148.rmeta",
+      "bytes": 4002918
+    },
+    {
+      "name": "libtokio-0923dcb16eb6cbe1.rmeta",
+      "bytes": 8668385
+    },
+    {
+      "name": "libbytes-b2e2b6c22704bf2c.rmeta",
+      "bytes": 870196
+    },
+    {
+      "name": "libfutures_task-7ec0a59cb65d5608.rmeta",
+      "bytes": 91118
+    },
+    {
+      "name": "o_registry-08e89e608bff04a4.d",
+      "bytes": 246
+    },
+    {
+      "name": "libif_addrs-ed427c631b61673f.rlib",
+      "bytes": 1080048
+    },
+    {
+      "name": "libonce_cell-2cd7a9ea509151f0.rlib",
+      "bytes": 290242
+    },
+    {
+      "name": "libring-54fb3bf1c942afdd.rlib",
+      "bytes": 10972084
+    },
+    {
+      "name": "libcrossbeam_deque-e549e7589f7eaae8.rlib",
+      "bytes": 186308
+    },
+    {
+      "name": "ocore_kernel_world_record-123584b6358b9de0.d",
+      "bytes": 321
+    },
+    {
+      "name": "libfutures_util-7dc2a847df904956.rmeta",
+      "bytes": 3899816
+    },
+    {
+      "name": "libutf8parse-37affb4399d46c8f.rmeta",
+      "bytes": 30029
+    },
+    {
+      "name": "olink_project-8c44703e99f8887c.d",
+      "bytes": 674
+    },
+    {
+      "name": "signature-7ae2e5c5a43753a6.d",
+      "bytes": 3293
+    },
+    {
+      "name": "libnum_bigint-7862af243c193061.rmeta",
+      "bytes": 2025653
+    },
+    {
+      "name": "libsignal_hook-4f59d68d729f70ee.rlib",
+      "bytes": 921868
+    },
+    {
+      "name": "octl-6b84d4f449e2f031.d",
+      "bytes": 216
+    },
+    {
+      "name": "aicore_resource_contract-024a73269a5897d1.d",
+      "bytes": 531
+    },
+    {
+      "name": "o_cli-b31334143ac97073.d",
+      "bytes": 491
+    },
+    {
+      "name": "librustls_pemfile-d324462c49fc0044.rmeta",
+      "bytes": 52594
+    },
+    {
+      "name": "libaho_corasick-4bb94713f69d7fa3.rmeta",
+      "bytes": 1856195
+    },
+    {
+      "name": "placement_v6-4a53e19ab3cf4d5a.d",
+      "bytes": 215
+    },
+    {
+      "name": "librustc_version-723d3e5f09fa73a4.rlib",
+      "bytes": 426412
+    },
+    {
+      "name": "libnum_bigint-027b95fb18df13b2.rlib",
+      "bytes": 4654764
+    },
+    {
+      "name": "executor_reentrancy-9f1c0c23d59d421a.d",
+      "bytes": 552
+    },
+    {
+      "name": "world_value-5349f5b3e454417a.d",
+      "bytes": 313
+    },
+    {
+      "name": "libryu-165e4d83438b694e.rmeta",
+      "bytes": 54957
+    },
+    {
+      "name": "librustls-f54e6e7df1fdb2e3.rlib",
+      "bytes": 26838522
+    },
+    {
+      "name": "libhttpdate-e42b11316a73308d.rmeta",
+      "bytes": 29541
+    },
+    {
+      "name": "bitflags-32558f083228f1ee.d",
+      "bytes": 2889
+    },
+    {
+      "name": "libsyn-b7adbc0a14dda033.rlib",
+      "bytes": 6409556
+    },
+    {
+      "name": "libcolorchoice-1356c916161c3fd7.rlib",
+      "bytes": 37556
+    },
+    {
+      "name": "libradix_trie-3a36336cb88bfabc.rmeta",
+      "bytes": 267787
+    },
+    {
+      "name": "tracing_core-d743b9980c68eb90.d",
+      "bytes": 4220
+    },
+    {
+      "name": "libanyhow-33aa09c41829759b.rlib",
+      "bytes": 1573996
+    },
+    {
+      "name": "libtempfile-600ce93f3c522081.rmeta",
+      "bytes": 240726
+    },
+    {
+      "name": "libbstr-bd796a699c88f8e1.rmeta",
+      "bytes": 747366
+    },
+    {
+      "name": "libhybrid_array-37000b80d3adfdc0.rmeta",
+      "bytes": 1209730
+    },
+    {
+      "name": "ryu-165e4d83438b694e.d",
+      "bytes": 4727
+    },
+    {
+      "name": "libglobset-8b02eb884466784a.rlib",
+      "bytes": 4134178
+    },
+    {
+      "name": "libhkdf-e1e35c76972a5020.rmeta",
+      "bytes": 48573
+    },
+    {
+      "name": "libwait_timeout-2e7636b341f1ad40.rmeta",
+      "bytes": 22721
+    },
+    {
+      "name": "libtoml_datetime-d628ba7f8bc1e592.rmeta",
+      "bytes": 148784
+    },
+    {
+      "name": "libcrypto_common-08b5a050c85151b7.rlib",
+      "bytes": 4270644
+    },
+    {
+      "name": "regex-42ef9844f762f33f.d",
+      "bytes": 4424
+    },
+    {
+      "name": "libfoldhash-b5820346252db416.rmeta",
+      "bytes": 86222
+    },
+    {
+      "name": "librustls_pemfile-d324462c49fc0044.rlib",
+      "bytes": 306854
+    },
+    {
+      "name": "libtempfile-d1efb2038499bb49.rmeta",
+      "bytes": 240726
+    },
+    {
+      "name": "aicore_embedding_contract-305292710f89be91.d",
+      "bytes": 850
+    },
+    {
+      "name": "libcfg_if-8a23cabd694141b2.rmeta",
+      "bytes": 5855
+    },
+    {
+      "name": "fastrand-d389aad8579139bd.d",
+      "bytes": 984
+    },
+    {
+      "name": "librtoolbox-73acf33aef500fe8.rlib",
+      "bytes": 437860
+    },
+    {
+      "name": "libcrossbeam_utils-a6e8163c72cc7c4d.rlib",
+      "bytes": 1330486
+    },
+    {
+      "name": "libpercent_encoding-04b199d204ef816e.rlib",
+      "bytes": 275966
+    },
+    {
+      "name": "libwhich-905ca04b2511b6d5.rlib",
+      "bytes": 693132
+    },
+    {
+      "name": "octl-f4a865c32c5b5f31.d",
+      "bytes": 216
+    },
+    {
+      "name": "crossbeam_utils-a6e8163c72cc7c4d.d",
+      "bytes": 5852
+    },
+    {
+      "name": "ocorec-0118ffaf1d03e702.d",
+      "bytes": 489
+    },
+    {
+      "name": "libclap-fdd442b167586a57.rlib",
+      "bytes": 14774
+    },
+    {
+      "name": "libsyn-37eb23f6120963df.rmeta",
+      "bytes": 2729401
+    },
+    {
+      "name": "aho_corasick-4bb94713f69d7fa3.d",
+      "bytes": 12319
+    },
+    {
+      "name": "librand-e9b4c5b97a02d20a.rlib",
+      "bytes": 1208874
+    },
+    {
+      "name": "unarray-3b420b7bbe0ea3ff.d",
+      "bytes": 1699
+    },
+    {
+      "name": "libsignature-7ae2e5c5a43753a6.rlib",
+      "bytes": 95396
+    },
+    {
+      "name": "ogit-87d20244fe45cab1.d",
+      "bytes": 181
+    },
+    {
+      "name": "information_bridge_v1-148e1283a039843c.d",
+      "bytes": 607
+    },
+    {
+      "name": "if_addrs-ed427c631b61673f.d",
+      "bytes": 1778
+    },
+    {
+      "name": "libbit_vec-66f5461c41043e05.rlib",
+      "bytes": 304248
+    },
+    {
+      "name": "o_unlink-39fd5b57b0015f8c.d",
+      "bytes": 198
+    },
+    {
+      "name": "registry_v1-bcbb5e44e3fdf4da.d",
+      "bytes": 293
+    },
+    {
+      "name": "libtoml_datetime-50f9e1114d606cef.rlib",
+      "bytes": 671682
+    },
+    {
+      "name": "hosted_remote_v2_recovery-6e8a116ac3944509.d",
+      "bytes": 397
+    },
+    {
+      "name": "libhttp-7245e47e9557fa6c.rlib",
+      "bytes": 3901008
+    },
+    {
+      "name": "librustyline-5f0ee425b8f88bc2.rlib",
+      "bytes": 8760072
+    },
+    {
+      "name": "rpassword-1c6e1736e50d2f6c.d",
+      "bytes": 2114
+    },
+    {
+      "name": "libhttp_body-26dc734150ae4b6f.rmeta",
+      "bytes": 49587
+    },
+    {
+      "name": "o_lang-9358ec69a39b21b2.d",
+      "bytes": 427
+    },
+    {
+      "name": "libregex_syntax-20454198bae9f6af.rmeta",
+      "bytes": 4617760
+    },
+    {
+      "name": "libtower_service-407a1cd7ae16c1dd.rmeta",
+      "bytes": 23125
+    },
+    {
+      "name": "libbase64-c240eb2bf7084cbc.rmeta",
+      "bytes": 691512
+    },
+    {
+      "name": "libsocket2-e6491944ab52e056.rlib",
+      "bytes": 1887316
+    },
+    {
+      "name": "getrandom-4ea4299c4ce4d6fe.d",
+      "bytes": 5734
+    },
+    {
+      "name": "ostadix_device-f5d4d021c7e8a635.d",
+      "bytes": 266
+    },
+    {
+      "name": "librpassword-1c6e1736e50d2f6c.rlib",
+      "bytes": 729426
+    },
+    {
+      "name": "sync_wrapper-07db6f3a1e2570ab.d",
+      "bytes": 619
+    },
+    {
+      "name": "libtoml_parser-aa038c7063a2cef5.rlib",
+      "bytes": 2242578
+    },
+    {
+      "name": "hex-507f14d4361566c7.d",
+      "bytes": 909
+    },
+    {
+      "name": "libsignature-7ae2e5c5a43753a6.rmeta",
+      "bytes": 41321
+    },
+    {
+      "name": "backend_morphism_enforcement-2b31ac003a06be92.d",
+      "bytes": 597
+    },
+    {
+      "name": "librand_core-b5fb47911cba15b8.rlib",
+      "bytes": 127390
+    },
+    {
+      "name": "execution_fabric_two_node-aa59f01c60042aec.d",
+      "bytes": 726
+    },
+    {
+      "name": "base64-c240eb2bf7084cbc.d",
+      "bytes": 7085
+    },
+    {
+      "name": "strsim-3e59b4898f0ef393.d",
+      "bytes": 581
+    },
+    {
+      "name": "serde_json-82f64c0f59cd5124.d",
+      "bytes": 6937
+    },
+    {
+      "name": "libwebpki-db63ac15cf38fff4.rmeta",
+      "bytes": 582211
+    },
+    {
+      "name": "libunicode_segmentation-30ab8286fc096b6a.rlib",
+      "bytes": 1560372
+    },
+    {
+      "name": "o_info-b75246c8ae9fb877.d",
+      "bytes": 226
+    },
+    {
+      "name": "libdigest-c4dcad3fc50c0fbf.rmeta",
+      "bytes": 205711
+    },
+    {
+      "name": "libwebpki-e02d66a3cfd40a4f.rlib",
+      "bytes": 4558358
+    },
+    {
+      "name": "libglobset-d4c421b0744a0dc5.rmeta",
+      "bytes": 222991
+    },
+    {
+      "name": "o_cli_optimize_progress_blackbox-45fca14dbda1af58.d",
+      "bytes": 440
+    },
+    {
+      "name": "atomic_waker-e5e89b778c05eae9.d",
+      "bytes": 619
+    },
+    {
+      "name": "ed25519_dalek-0753ae416526dc08.d",
+      "bytes": 3048
+    },
+    {
+      "name": "spake2-1f2daf6dca5f2a39.d",
+      "bytes": 2061
+    },
+    {
+      "name": "libsubtle-2d004f2a483ff4d1.rlib",
+      "bytes": 127806
+    },
+    {
+      "name": "libbitflags-32558f083228f1ee.rlib",
+      "bytes": 504308
+    },
+    {
+      "name": "libo_lang-9358ec69a39b21b2.rmeta",
+      "bytes": 41572
+    },
+    {
+      "name": "libfnv-ab13bc89a5ae4a58.rlib",
+      "bytes": 13132
+    },
+    {
+      "name": "libfind_msvc_tools-61c8a691b2163548.rlib",
+      "bytes": 312818
+    },
+    {
+      "name": "hkdf-b0c2bb7c458228a7.d",
+      "bytes": 1686
+    },
+    {
+      "name": "syn-37eb23f6120963df.d",
+      "bytes": 17086
+    },
+    {
+      "name": "libhmac-9178d7ec9ba0b2b8.rmeta",
+      "bytes": 94359
+    },
+    {
+      "name": "librand_core-b5fb47911cba15b8.rmeta",
+      "bytes": 118902
+    },
+    {
+      "name": "backend_morphism_v1-9626118de6826f2c.d",
+      "bytes": 552
+    },
+    {
+      "name": "ignore-8cef7ca6ca514ae1.d",
+      "bytes": 3621
+    },
+    {
+      "name": "libfs2-c6efb3d0632643c2.rmeta",
+      "bytes": 30116
+    },
+    {
+      "name": "libproc_macro2-16d4d30e9bce23d4.rlib",
+      "bytes": 1248072
+    },
+    {
+      "name": "libhome-d049c409cae0dc79.rlib",
+      "bytes": 99352
+    },
+    {
+      "name": "tempfile-d1efb2038499bb49.d",
+      "bytes": 4493
+    },
+    {
+      "name": "libanstyle_parse-a6cd37b14270efb6.rmeta",
+      "bytes": 165574
+    },
+    {
+      "name": "libhyper-f4f8cb80175e1f81.rlib",
+      "bytes": 4606500
+    },
+    {
+      "name": "anyhow-33aa09c41829759b.d",
+      "bytes": 4335
+    },
+    {
+      "name": "fs2-c6efb3d0632643c2.d",
+      "bytes": 905
+    },
+    {
+      "name": "smallvec-dfb0792f7f9653fa.d",
+      "bytes": 595
+    },
+    {
+      "name": "o_registry-c771cc0148d8dddc.d",
+      "bytes": 246
+    },
+    {
+      "name": "rusty_fork-d4944ab2938f3eaf.d",
+      "bytes": 2943
+    },
+    {
+      "name": "librusty_fork-353e14a07393d224.rlib",
+      "bytes": 1354738
+    },
+    {
+      "name": "libtower_layer-71414212be0da1f7.rlib",
+      "bytes": 85064
+    },
+    {
+      "name": "libo_lang-779654f91bf8ecbf.rlib",
+      "bytes": 3699160
+    },
+    {
+      "name": "libthiserror-b39264c85735b940.rlib",
+      "bytes": 32784
+    },
+    {
+      "name": "const_oid-5e9c79d04919f2df.d",
+      "bytes": 3690
+    },
+    {
+      "name": "libif_addrs-ded92898c83cdede.rmeta",
+      "bytes": 85300
+    },
+    {
+      "name": "memchr-6975088a32f44e89.d",
+      "bytes": 11223
+    },
+    {
+      "name": "librustyline-5f0ee425b8f88bc2.rmeta",
+      "bytes": 1234955
+    },
+    {
+      "name": "ocorec-8fa16873ed34540a.d",
+      "bytes": 489
+    },
+    {
+      "name": "librusty_fork-353e14a07393d224.rmeta",
+      "bytes": 94023
+    },
+    {
+      "name": "libversion_check-48d66f356588878b.rlib",
+      "bytes": 486778
+    },
+    {
+      "name": "liblibc-6ab78bee08c12175.rmeta",
+      "bytes": 5553573
+    },
+    {
+      "name": "o_info_cli-20b48110281e69bb.d",
+      "bytes": 280
+    },
+    {
+      "name": "octl-65d7e7043547bd8a.d",
+      "bytes": 216
+    },
+    {
+      "name": "libcc-12b4f6c48261fbc8.rmeta",
+      "bytes": 632442
+    },
+    {
+      "name": "world_native_scalar-d4aeb81282c43938.d",
+      "bytes": 250
+    },
+    {
+      "name": "liblog-1c955401b27a4875.rlib",
+      "bytes": 330018
+    },
+    {
+      "name": "project_world_runtime-cfdfa5ba86981747.d",
+      "bytes": 313
+    },
+    {
+      "name": "getrandom-d782e2069dca575d.d",
+      "bytes": 5734
+    },
+    {
+      "name": "liberrno-3fe05d550bfe63a4.rmeta",
+      "bytes": 16115
+    },
+    {
+      "name": "libmio-05ddae6218637ece.rmeta",
+      "bytes": 431880
+    },
+    {
+      "name": "o_unlink-89008ffff84b8be4.d",
+      "bytes": 198
+    },
+    {
+      "name": "embedded_runtime_bundle-79d4241bfbc80856.d",
+      "bytes": 434
+    },
+    {
+      "name": "cfg_if-8a23cabd694141b2.d",
+      "bytes": 577
+    },
+    {
+      "name": "libsyn-37eb23f6120963df.rlib",
+      "bytes": 9278250
+    },
+    {
+      "name": "libring-91d5699b8fdab78e.rmeta",
+      "bytes": 1930836
+    },
+    {
+      "name": "http_body_util-89708133881aa3f0.d",
+      "bytes": 8006
+    },
+    {
+      "name": "libcc-12b4f6c48261fbc8.rlib",
+      "bytes": 4387842
+    },
+    {
+      "name": "libspake2-1f2daf6dca5f2a39.rlib",
+      "bytes": 761896
+    },
+    {
+      "name": "libcmov-5439428be9711e34.rmeta",
+      "bytes": 271989
+    },
+    {
+      "name": "hashbrown-9b83f35226680068.d",
+      "bytes": 6581
+    },
+    {
+      "name": "block_buffer-ff9058d599998a3e.d",
+      "bytes": 1409
+    },
+    {
+      "name": "unified_plan_boundaries-ba3bfcbf45787d18.d",
+      "bytes": 469
+    },
+    {
+      "name": "which-905ca04b2511b6d5.d",
+      "bytes": 2383
+    },
+    {
+      "name": "libnibble_vec-538a6663f607b042.rlib",
+      "bytes": 38210
+    },
+    {
+      "name": "mime-8aa0e4b703d73f4c.d",
+      "bytes": 928
+    },
+    {
+      "name": "libparking_lot-6dea6cd047e4db7f.rmeta",
+      "bytes": 201995
+    },
+    {
+      "name": "libserde_spanned-95129e5cbbc31185.rlib",
+      "bytes": 70930
+    },
+    {
+      "name": "regex_syntax-2662c68f65dc0ade.d",
+      "bytes": 7953
+    },
+    {
+      "name": "winnow-6ab08bcc062b20de.d",
+      "bytes": 5774
+    },
+    {
+      "name": "libserde_urlencoded-5a6807d3ffafd99e.rmeta",
+      "bytes": 225131
+    },
+    {
+      "name": "libmime-8aa0e4b703d73f4c.rlib",
+      "bytes": 585302
+    },
+    {
+      "name": "librand_core-cf9b8d4136a06c9d.rmeta",
+      "bytes": 113889
+    },
+    {
+      "name": "libsyn-ff7f7d776896c10f.rmeta",
+      "bytes": 2714761
+    },
+    {
+      "name": "libsemver-c5e72dabd887af15.rlib",
+      "bytes": 782756
+    },
+    {
+      "name": "libproptest-e780da44876404a6.rlib",
+      "bytes": 24993274
+    },
+    {
+      "name": "libgetrandom-39657ee9c28ff9cf.rlib",
+      "bytes": 231378
+    },
+    {
+      "name": "libhttparse-fdd448910e772fde.rlib",
+      "bytes": 524682
+    },
+    {
+      "name": "nix-fa0031b974ab5fad.d",
+      "bytes": 9103
+    },
+    {
+      "name": "libsemver-c5e72dabd887af15.rmeta",
+      "bytes": 152445
+    },
+    {
+      "name": "libcrypto_common-b602413af328412e.rlib",
+      "bytes": 34498
+    },
+    {
+      "name": "ignore-f4fb472ccc918fbc.d",
+      "bytes": 3621
+    },
+    {
+      "name": "o_cli_intent_blackbox-535b58ce67dca5d8.d",
+      "bytes": 385
+    },
+    {
+      "name": "libsocket2-b30e4ff61795c081.rmeta",
+      "bytes": 312018
+    },
+    {
+      "name": "libradix_trie-1107810291644a0a.rmeta",
+      "bytes": 267806
+    },
+    {
+      "name": "libserde_spanned-cdd81c75d85b7d9b.rlib",
+      "bytes": 70930
+    },
+    {
+      "name": "libutf8parse-37affb4399d46c8f.rlib",
+      "bytes": 34918
+    },
+    {
+      "name": "libglobset-8b02eb884466784a.rmeta",
+      "bytes": 222991
+    },
+    {
+      "name": "libsha2-ed39629827a2d14d.rlib",
+      "bytes": 1900062
+    },
+    {
+      "name": "libnum_integer-5638bbb06cd25650.rmeta",
+      "bytes": 315439
+    },
+    {
+      "name": "axum-1be421129f8df9f4.d",
+      "bytes": 28930
+    },
+    {
+      "name": "thiserror-b39264c85735b940.d",
+      "bytes": 2571
+    },
+    {
+      "name": "liberrno-3fe05d550bfe63a4.rlib",
+      "bytes": 89754
+    },
+    {
+      "name": "syn-b7adbc0a14dda033.d",
+      "bytes": 15690
+    },
+    {
+      "name": "libtempfile-600ce93f3c522081.rlib",
+      "bytes": 1511454
+    },
+    {
+      "name": "libserde-7432598c5728f6f7.rlib",
+      "bytes": 1179202
+    },
+    {
+      "name": "librustls-f54e6e7df1fdb2e3.rmeta",
+      "bytes": 3685170
+    },
+    {
+      "name": "libquick_error-90d6ed15659eb322.rmeta",
+      "bytes": 83243
+    },
+    {
+      "name": "libo_lang-6eaea7de470a188a.rlib",
+      "bytes": 3699128
+    },
+    {
+      "name": "libcpufeatures-b046a17fe68bc09f.rlib",
+      "bytes": 46036
+    },
+    {
+      "name": "libsame_file-d3c05fa08fc1121e.rlib",
+      "bytes": 235198
+    },
+    {
+      "name": "generic_array-507b552e94ea78a7.d",
+      "bytes": 3024
+    },
+    {
+      "name": "libserde_core-67bf657494323c5f.rmeta",
+      "bytes": 4754429
+    },
+    {
+      "name": "liblock_api-8c2d92eaab852e67.rlib",
+      "bytes": 388364
+    },
+    {
+      "name": "libconst_oid-5e9c79d04919f2df.rmeta",
+      "bytes": 157118
+    },
+    {
+      "name": "libis_terminal_polyfill-179572571e70db11.rlib",
+      "bytes": 11830
+    },
+    {
+      "name": "libwhich-fe478e99f23a9da1.rmeta",
+      "bytes": 183453
+    },
+    {
+      "name": "indexmap-45a4f80f38240096.d",
+      "bytes": 7252
+    },
+    {
+      "name": "hgraph_observational_confluence-00f01488dfbfc7dc.d",
+      "bytes": 310
+    },
+    {
+      "name": "actor_migration-2ebb825db833e5ed.d",
+      "bytes": 295
+    },
+    {
+      "name": "libshlex-7b06ff0077903996.rmeta",
+      "bytes": 48621
+    },
+    {
+      "name": "libregex_syntax-2662c68f65dc0ade.rlib",
+      "bytes": 10888750
+    },
+    {
+      "name": "librustyline-842a2a32dcc766fd.rmeta",
+      "bytes": 1235002
+    },
+    {
+      "name": "o_info-80f9d16adf86f3a1.d",
+      "bytes": 226
+    },
+    {
+      "name": "liblinux_raw_sys-c86bc6f78be3031d.rmeta",
+      "bytes": 1340580
+    }
+  ],
+  "started": 1794539130.820178,
+  "after_free_bytes": 4666208256,
+  "finished": 1794539130.8508556
+}

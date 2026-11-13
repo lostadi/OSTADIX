@@ -1,0 +1,14 @@
+[
+  {
+    "repo": "canonical",
+    "returncode": 0,
+    "revision": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+    "stderr": "From https://github.com/lostadi/OSTADIX\n * [new branch]        master     -> o10-sync-canonical/master\n"
+  },
+  {
+    "repo": "bm",
+    "returncode": 0,
+    "revision": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+    "stderr": "From https://github.com/lostadi/ostadix-BM\n * [new branch]        master     -> o10-sync-bm/master\n"
+  }
+]
