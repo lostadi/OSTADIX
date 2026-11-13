@@ -1150,6 +1150,7 @@ fn function_dependencies(
                 }
                 Operation::Binary { lhs, rhs, .. }
                 | Operation::FloatBinary { lhs, rhs, .. }
+                | Operation::ConstrainedFloatBinary { lhs, rhs, .. }
                 | Operation::FCmp { lhs, rhs, .. }
                 | Operation::IntegerOverflow { lhs, rhs, .. }
                 | Operation::IntegerMinMax { lhs, rhs, .. }

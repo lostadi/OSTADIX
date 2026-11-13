@@ -108,7 +108,10 @@ fn emit_impl(
     for function in &module.functions {
         let types: BTreeMap<_, _> = function_values(function).map(|v| (v.id, v.ty)).collect();
         if !metadata_personalities.contains(&function.name)
-            && function.intrinsic.as_deref() != Some(NOALIAS_SCOPE_DECL)
+            && !function
+                .intrinsic
+                .as_deref()
+                .is_some_and(super::native_verify::is_metadata_builtin_intrinsic)
             && !vector::is_reduction_declaration(function)
             && (function.entry.is_some()
                 || !super::native_abi::is_fast_float_signature(module, &function.signature))
@@ -452,7 +455,10 @@ fn executable_value_types(module: &NativeModule) -> Vec<TypeId> {
     for function in &module.functions {
         // The verified metadata-only declaration has no executable parameter
         // leaves. It is retained in inventory without fabricating an ABI slot.
-        if function.intrinsic.as_deref() == Some(NOALIAS_SCOPE_DECL)
+        if function
+            .intrinsic
+            .as_deref()
+            .is_some_and(super::native_verify::is_metadata_builtin_intrinsic)
             || vector::is_reduction_declaration(function)
         {
             continue;
@@ -727,7 +733,10 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             )));
         }
         if !metadata_personalities.contains(&function.name)
-            && function.intrinsic.as_deref() != Some(NOALIAS_SCOPE_DECL)
+            && !function
+                .intrinsic
+                .as_deref()
+                .is_some_and(super::native_verify::is_metadata_builtin_intrinsic)
             && !vector::is_reduction_declaration(function)
         {
             super::native_abi::audit_signature(module, target, &function.signature)?;
@@ -2535,6 +2544,7 @@ impl<'a> Emitter<'a> {
             | Operation::InsertElement { .. }
             | Operation::VectorReduceAdd { .. } => unreachable!("fixed vector instruction handled"),
             Operation::FloatBinary { .. }
+            | Operation::ConstrainedFloatBinary { .. }
             | Operation::FloatNeg { .. }
             | Operation::FloatAbs { .. }
             | Operation::FCmp { .. } => {

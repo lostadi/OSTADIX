@@ -130,3 +130,7 @@ required_executables = ["clang", "grub-mkrescue", "grub-mkstandalone", "mcopy", 
 
 [suites.native-systems]
 required_executables = ["bash", "cargo", "clang", "make", "python3", "qemu-system-aarch64", "qemu-system-x86_64"]
+
+# Exact LLVM22 tools/parser are digest-checked by the dedicated provisioner.
+[suites.ocore-constrained-fp]
+required_executables = ["cargo", "cc", "make", "python3", "rustc"]

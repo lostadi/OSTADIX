@@ -125,6 +125,19 @@ pub fn operation_requirement(
         )
     };
     let requirement = match &instruction.operation {
+        Operation::ConstrainedFloatBinary { lhs, rhs, .. } => {
+            let numeric = operand_type(module, lhs, value_types)?;
+            if !matches!(numeric, Float { bits: 32 | 64 })
+                || numeric != operand_type(module, rhs, value_types)?
+                || numeric != result_type()?
+            {
+                return Err(fail(
+                    "constrained multiplication requires identical scalar32/64 types",
+                ));
+            }
+            target_profile(module, target)?;
+            None
+        }
         Operation::FloatBinary { kind, lhs, rhs, .. } => {
             let numeric = operand_type(module, lhs, value_types)?;
             if numeric != operand_type(module, rhs, value_types)? || numeric != result_type()? {
