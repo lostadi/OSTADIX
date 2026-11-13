@@ -1,7 +1,8 @@
 """Production thread-owned FS metadata and checked arch_prctl copies.
 
-This hosted carrier supplies only the same five architecture functions as the
-file boundary fixture. Hardware FS capture/restore is qualified separately by
+This hosted carrier supplies the same five file-boundary architecture functions
+plus a read-only four-stack geometry model required by the private observation
+query; that model does not qualify physical guarded stacks. Hardware FS capture/restore is qualified separately by
 the native_tls QEMU profile; these tests exercise real registry lifetimes.
 """
 import os
@@ -17,6 +18,7 @@ from tests import test_posix_file_syscalls as BASE
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = BASE.HARNESS.split("int main(void){", 1)[0] + r'''
+uintptr_t ocore_process_kernel_stack_top(size_t slot){return slot<4?0x7000+slot*0x1000:0;}
 #define TH(n) _O_runtime__thread__##n
 #define TLS(n) _O_runtime__linux_tls_syscalls__##n
 extern uint64_t TH(init)(void),TH(prepare_next)(void),TH(commit_next)(uint64_t);
@@ -134,7 +136,7 @@ class LinuxTlsTests(unittest.TestCase):
                 result = subprocess.run(command, cwd=output, capture_output=True, text=True, timeout=90)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             undefined = subprocess.check_output([nm, "-u", str(output / "component.o")], text=True)
-            self.assertEqual({line.split()[-1] for line in undefined.splitlines()}, BASE.ARCH_SYMBOLS)
+            self.assertEqual({line.split()[-1] for line in undefined.splitlines()}, BASE.ARCH_SYMBOLS | {"ocore_process_kernel_stack_top"})
             result = subprocess.run([clang, "-O2", "-no-pie", "-I", str(output / "headers"), str(output / "harness.c"), str(output / "component.o"), "-o", str(output / "test")], cwd=output, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             result = subprocess.run([str(output / "test")], cwd=output, capture_output=True, text=True, timeout=30)

@@ -232,6 +232,46 @@ REAL_WORLD_BENCHMARK_RELEASE_PATHS = REAL_WORLD_BENCHMARK_PATHS | frozenset(
         "tests/test_benchmark_concurrent_baseline.py",
     }
 )
+# Complete source surface of the serialized INSTALL observation and its existing
+# TLS consumer carrier. The original seven-object codec manifest is an external,
+# independently verified execution prerequisite, not a supplied source stub.
+NATIVE_INSTALL_OBSERVATION_RELEASE_PATHS = frozenset(
+    {
+        "docs/NATIVE_INSTALL_OBSERVATION.md",
+        "docs/NATIVE_INSTALL_OBSERVATION.html",
+        "scripts/okernel_native_codec.py",
+        "tests/test_install_observation.py",
+        "tests/fixtures/thread-6390-before-install-observation.oc.txt",
+        "tests/test_process_current_identity.py",
+        "tests/test_thread_frame_contents.py",
+        "tests/test_linux_tls.py",
+        "tests/test_posix_file_syscalls.py",
+        "tests/test_posix_namespace_files.py",
+        *(
+            f"tools/ocore-runtime/u9fs/{name}"
+            for name in (
+                "README.md", "NATIVE_PEER.md", "build_native.py", "build_component.py",
+                "test_build_native.py", "verify_component.c",
+                "carrier-x86_64.S", "carrier-aarch64.S",
+                "x86_64.codecs.recipe.json", "x86_64.memory.recipe.json",
+                "aarch64.codecs.recipe.json", "aarch64.memory.recipe.json",
+            )
+        ),
+        *(
+            f"ocore/runtime/x86_64/{name}.oc"
+            for name in (
+                "native_abi", "personality", "domain", "capability", "pages",
+                "memory_object", "mapping", "elf_loader", "address_space", "process", "thread",
+                "domain_namespace", "image_vfs_storage_m7", "image_vfs", "user_memory",
+                "posix_file_syscalls", "linux_tls_syscalls",
+            )
+        ),
+        *(
+            f"ocore/runtime/common/{name}.oc"
+            for name in ("namespace_store", "u9fs_codec", "posix_namespace_files")
+        ),
+    }
+)
 NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
     {
         "scripts/ocore_runtime_capture.py",
@@ -254,7 +294,7 @@ NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
             )
         ),
     }
-)
+) | NATIVE_INSTALL_OBSERVATION_RELEASE_PATHS
 # Required inputs for the mandatory O10 component CI lane. This guards the
 # monitor source set, original protocol, host helpers and every discovered
 # component test; it does not admit full guest execution or native M0 itself.
@@ -601,7 +641,7 @@ ALLOWED_HTML_PATHS = frozenset(
         "apps/browser-chat-pdf/preview.html",
         "apps/browser-chat-pdf/tests/fixtures/generic-chat.html",
     }
-) | PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS
+) | PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS | frozenset({"docs/NATIVE_INSTALL_OBSERVATION.html"})
 EXCLUDED_SUFFIXES = (
     ".a",
     ".d",

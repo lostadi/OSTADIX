@@ -1012,6 +1012,45 @@ jobs:
           path: target/ocore-thread-frame-contents/
           if-no-files-found: warn
           retention-days: 14
+      - name: Verify serialized x86 INSTALL observations without FP admission
+        env:
+          OCORE_INSTALL_OBSERVATION_REQUIRED: "1"
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/ocore-install-observation"
+          os.environ["OCOREC_BIN"] = str(root / "target/debug/ocorec")
+          os.environ["OCORE_INSTALL_OBSERVATION_OUTPUT"] = str(evidence)
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_install_observation")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          passed = result.wasSuccessful() and result.testsRun >= 5 and not result.skipped
+          evidence.mkdir(parents=True, exist_ok=True)
+          status = {
+              "schema": "ostadix.install-observation-ci-status/v1",
+              "source_revision": os.environ["GITHUB_SHA"],
+              "stage_observation": {"passed": passed, "tests_run": result.testsRun,
+                                    "skipped": len(result.skipped)},
+              "tls_consumer": {
+                  "status": "not-executed", "qualified": False,
+                  "test": "tests.test_linux_tls",
+                  "reason": "This job does not provision the independently verified seven-object original codec manifest or run the TLS consumer gate.",
+              },
+              "fp_admission": False, "cpu_context_qualified": False,
+              "cross_isa_runtime_parity": False,
+          }
+          (evidence / "ci-status.json").write_text(json.dumps(status, indent=2) + "\n")
+          if not passed:
+              raise SystemExit("INSTALL observation regressions must execute without failures or skips")
+          PY
+      - name: Retain bounded INSTALL observation and consumer-status evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-install-observation-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/ocore-install-observation/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify required O10 host and native components
         run: |
           python3 - <<'PY'

@@ -29,6 +29,8 @@ use runtime::process::thread_refs as process_thread_refs;
 use runtime::process::PROCESS_STATE_READY;
 use runtime::process::PROCESS_STATE_RUNNING;
 
+use runtime::process::current_process_matches;
+
 pub const MAX_THREADS: usize = 4;
 // Four-level x86-64 Linux TASK_SIZE_MAX excludes the highest canonical page.
 // This is a thread register value, not a memory grant; an unmapped lower user
@@ -439,10 +441,274 @@ unsafe fn stack_identity_holds(slot: usize) -> bool {
         && USER_STACK_TOPS[slot] == address_space_loaded_stack(address_space);
 }
 
+// Software observation only. This distinct header cannot satisfy FP ledger ABI.
+const INSTALL_OBSERVATION_MAGIC: u64 = 0x494e_5354_4f42_5301;
+// Capsule words: active, phase, observation serial, slot, generation, TCB,
+// thread id, PCB/domain/AS/CSpace, kernel stack, stack ordinal/top, entry/RSP,
+// arg0/arg1, role/priority, prior PCB refs, held-ref bit, original-check bit,
+// native-or-loaded kind, queue heads/lengths; words28..31 stay zero.
+static mut INSTALL_CAPSULE: [u64; 32] = [0; 32];
+static mut INSTALL_RUNNABLE_BEFORE: [u64; 4] = [0; 4];
+static mut INSTALL_BLOCKED_BEFORE: [u64; 4] = [0; 4];
+static mut INSTALL_NEXT_OBSERVATION_SERIAL: u64 = 1;
+static mut INSTALL_OBSERVATION_EXHAUSTED: u8 = 0;
+static mut INSTALL_CURRENT_OBSERVATION_SERIAL: u64 = 0;
+static mut INSTALL_LAST_CLOSED_OBSERVATION_SERIAL: u64 = 0;
+
+// These existing architecture values are an allowlist, not a proof that guard
+// pages or CPU execution are realized by a hosted test's geometry model.
+extern "sysv64" fn ocore_process_kernel_stack_top(slot: usize) -> usize;
+
+unsafe fn install_observation_stack_allowed(top: usize) -> bool {
+    let a: usize = ocore_process_kernel_stack_top(0);
+    let b: usize = ocore_process_kernel_stack_top(1);
+    let c: usize = ocore_process_kernel_stack_top(2);
+    let d: usize = ocore_process_kernel_stack_top(3);
+    if a < 176 || b < 176 || c < 176 || d < 176
+        || (a & 15) != 0 || (b & 15) != 0 || (c & 15) != 0 || (d & 15) != 0
+        || a == b || a == c || a == d || b == c || b == d || c == d {
+        return false;
+    }
+    return top == a || top == b || top == c || top == d;
+}
+
+// Kept inert in production. A retained COPIED native test source instruments
+// this private checkpoint to inspect the actual entrypoint's phase; it cannot
+// create the capsule or publish authority. No production callback is wired.
+unsafe fn install_observation_checkpoint(point: u64) -> void {
+}
+
+unsafe fn begin_install_observation(
+    kind: u64, slot: usize, thread_id: u64, process_handle: u64,
+    domain_handle: u64, address_space_handle: u64, cspace_handle: u64,
+    kernel_stack_top: usize, stack_ordinal: usize, user_stack_top: usize,
+    entry: usize, rsp: usize, arg0: u64, arg1: u64, role: u64, priority: u64
+) -> u64 {
+    if INSTALL_CURRENT_OBSERVATION_SERIAL != 0 || INSTALL_CAPSULE[0] != 0
+        || INSTALL_OBSERVATION_EXHAUSTED != 0
+        || INSTALL_NEXT_OBSERVATION_SERIAL == 0
+        || INSTALL_NEXT_OBSERVATION_SERIAL <= INSTALL_LAST_CLOSED_OBSERVATION_SERIAL
+        || slot >= MAX_THREADS {
+        return 0;
+    }
+    let serial: u64 = INSTALL_NEXT_OBSERVATION_SERIAL;
+    if serial == 0xffff_ffff_ffff_ffff {
+        INSTALL_OBSERVATION_EXHAUSTED = 1;
+    } else {
+        INSTALL_NEXT_OBSERVATION_SERIAL += 1;
+    }
+    INSTALL_CURRENT_OBSERVATION_SERIAL = serial;
+    INSTALL_CAPSULE[0] = 1;
+    INSTALL_CAPSULE[1] = 1;
+    INSTALL_CAPSULE[2] = serial;
+    INSTALL_CAPSULE[3] = slot as u64;
+    INSTALL_CAPSULE[4] = GENERATIONS[slot] as u64;
+    INSTALL_CAPSULE[5] = make_handle(slot);
+    INSTALL_CAPSULE[6] = thread_id;
+    INSTALL_CAPSULE[7] = process_handle;
+    INSTALL_CAPSULE[8] = domain_handle;
+    INSTALL_CAPSULE[9] = address_space_handle;
+    INSTALL_CAPSULE[10] = cspace_handle;
+    INSTALL_CAPSULE[11] = kernel_stack_top as u64;
+    INSTALL_CAPSULE[12] = stack_ordinal as u64;
+    INSTALL_CAPSULE[13] = user_stack_top as u64;
+    INSTALL_CAPSULE[14] = entry as u64;
+    INSTALL_CAPSULE[15] = rsp as u64;
+    INSTALL_CAPSULE[16] = arg0;
+    INSTALL_CAPSULE[17] = arg1;
+    INSTALL_CAPSULE[18] = role;
+    INSTALL_CAPSULE[19] = priority;
+    INSTALL_CAPSULE[20] = process_thread_refs(process_handle) as u64;
+    INSTALL_CAPSULE[21] = 0;
+    // Only the real install path reaches this point after its original checks.
+    // This is NOT successful FP ledger preflight/capacity/image authorization.
+    INSTALL_CAPSULE[22] = 1;
+    INSTALL_CAPSULE[23] = kind;
+    INSTALL_CAPSULE[24] = RUNNABLE_HEAD as u64;
+    INSTALL_CAPSULE[25] = RUNNABLE_LENGTH as u64;
+    INSTALL_CAPSULE[26] = BLOCKED_HEAD as u64;
+    INSTALL_CAPSULE[27] = BLOCKED_LENGTH as u64;
+    let mut i: usize = 0;
+    while i < MAX_THREADS {
+        INSTALL_RUNNABLE_BEFORE[i] = RUNNABLE_QUEUE[i];
+        INSTALL_BLOCKED_BEFORE[i] = BLOCKED_QUEUE[i];
+        i += 1;
+    }
+    return serial;
+}
+
+unsafe fn finish_install_observation(serial: u64) -> void {
+    if serial == 0 || serial != INSTALL_CURRENT_OBSERVATION_SERIAL {
+        return;
+    }
+    if serial > INSTALL_LAST_CLOSED_OBSERVATION_SERIAL {
+        INSTALL_LAST_CLOSED_OBSERVATION_SERIAL = serial;
+    }
+    let mut i: usize = 0;
+    while i < 32 { INSTALL_CAPSULE[i] = 0; i += 1; }
+    i = 0;
+    while i < MAX_THREADS {
+        INSTALL_RUNNABLE_BEFORE[i] = 0;
+        INSTALL_BLOCKED_BEFORE[i] = 0;
+        i += 1;
+    }
+    INSTALL_CURRENT_OBSERVATION_SERIAL = 0;
+}
+
+unsafe fn install_observation_queues_match(phase: u64) -> bool {
+    let mut extra: usize = 0;
+    if phase == 3 { extra = 1; }
+    if RUNNABLE_HEAD as u64 != INSTALL_CAPSULE[24]
+        || RUNNABLE_LENGTH as u64 != INSTALL_CAPSULE[25] + extra as u64
+        || BLOCKED_HEAD as u64 != INSTALL_CAPSULE[26]
+        || BLOCKED_LENGTH as u64 != INSTALL_CAPSULE[27] {
+        return false;
+    }
+    let tail: usize = (INSTALL_CAPSULE[24] as usize + INSTALL_CAPSULE[25] as usize) % MAX_THREADS;
+    let mut i: usize = 0;
+    while i < MAX_THREADS {
+        let mut expected: u64 = INSTALL_RUNNABLE_BEFORE[i];
+        if phase == 3 && i == tail { expected = INSTALL_CAPSULE[5]; }
+        if RUNNABLE_QUEUE[i] != expected || BLOCKED_QUEUE[i] != INSTALL_BLOCKED_BEFORE[i] {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+unsafe fn install_observation_fields_match(slot: usize) -> bool {
+    if THREAD_IDS[slot] != INSTALL_CAPSULE[6]
+        || PROCESS_HANDLES[slot] != INSTALL_CAPSULE[7]
+        || DOMAIN_HANDLES[slot] != INSTALL_CAPSULE[8]
+        || ADDRESS_SPACE_HANDLES[slot] != INSTALL_CAPSULE[9]
+        || CSPACE_HANDLES[slot] != INSTALL_CAPSULE[10]
+        || KERNEL_STACK_TOPS[slot] as u64 != INSTALL_CAPSULE[11]
+        || STACK_ORDINALS[slot] as u64 != INSTALL_CAPSULE[12]
+        || USER_STACK_TOPS[slot] as u64 != INSTALL_CAPSULE[13]
+        || ROLES[slot] as u64 != INSTALL_CAPSULE[18]
+        || PRIORITIES[slot] as u64 != INSTALL_CAPSULE[19]
+        || QUANTUM_LEFT[slot] as u64 != INSTALL_CAPSULE[19]
+        || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0
+        || LINUX_SINGLE_TASK[slot] != 0 || CLEAR_CHILD_TIDS[slot] != 0
+        || WAKE_DEADLINES[slot] != 0 || WAKE_REASONS[slot] != 0
+        || SLEEP_EPOCHS[slot] != 0 || WAKE_EPOCHS[slot] != 0
+        || WAKE_COUNTS[slot] != 0 || RUN_TICKS[slot] != 0 || SWITCH_COUNTS[slot] != 0 {
+        return false;
+    }
+    let mut word: usize = 0;
+    while word < FRAME_WORDS {
+        let mut expected: u64 = 0;
+        if word == FRAME_RDI { expected = INSTALL_CAPSULE[16]; }
+        if word == FRAME_RSI { expected = INSTALL_CAPSULE[17]; }
+        if word == FRAME_RIP { expected = INSTALL_CAPSULE[14]; }
+        if word == FRAME_CS { expected = 0x23; }
+        if word == FRAME_RFLAGS { expected = 0x202; }
+        if word == FRAME_RSP { expected = INSTALL_CAPSULE[15]; }
+        if word == FRAME_SS { expected = 0x1b; }
+        if FRAMES[frame_index(slot, word)] != expected { return false; }
+        word += 1;
+    }
+    return stack_identity_holds(slot)
+        && validate_frame_contents(slot, (&FRAMES[frame_index(slot, 0)]) as *const u64);
+}
+
+// Private software observation, NOT a production FP callback or CPU admission.
+// The owner serial is observation-only; no ledger ticket exists in this module.
+unsafe fn install_observation_snapshot(destination: *mut u64) -> bool {
+    if destination as usize == 0 { return false; }
+    let mut i: usize = 0;
+    while i < 40 { volatile_store(destination + i, 0); i += 1; }
+    let serial: u64 = INSTALL_CURRENT_OBSERVATION_SERIAL;
+    let phase: u64 = INSTALL_CAPSULE[1];
+    if INITIALIZED != 1 || serial == 0
+        || serial <= INSTALL_LAST_CLOSED_OBSERVATION_SERIAL || INSTALL_CAPSULE[0] != 1
+        || INSTALL_CAPSULE[2] != serial || INSTALL_NEXT_OBSERVATION_SERIAL == 0
+        || phase < 1 || phase > 4
+        || INSTALL_CAPSULE[22] != 1
+        || (INSTALL_OBSERVATION_EXHAUSTED == 0 && INSTALL_NEXT_OBSERVATION_SERIAL != serial + 1)
+        || (INSTALL_OBSERVATION_EXHAUSTED == 1 && (serial != 0xffff_ffff_ffff_ffff || INSTALL_NEXT_OBSERVATION_SERIAL != serial))
+        || INSTALL_OBSERVATION_EXHAUSTED > 1
+        || CURRENT_THREAD != 0 || PREPARED_THREAD != 0
+        || !current_process_matches(0) || INSTALL_CAPSULE[3] >= MAX_THREADS as u64 {
+        return false;
+    }
+    i = 28;
+    while i < 32 { if INSTALL_CAPSULE[i] != 0 { return false; } i += 1; }
+    let slot: usize = INSTALL_CAPSULE[3] as usize;
+    let process: u64 = INSTALL_CAPSULE[7];
+    let address: u64 = INSTALL_CAPSULE[9];
+    if GENERATIONS[slot] == 0 || GENERATIONS[slot] as u64 != INSTALL_CAPSULE[4]
+        || make_handle(slot) != INSTALL_CAPSULE[5]
+        || INSTALL_CAPSULE[6] == 0 || !process_is_live(process)
+        || process_state(process) != PROCESS_STATE_READY
+        || domain_for(process) != INSTALL_CAPSULE[8]
+        || address_space_for(process) != address || cspace_for(process) != INSTALL_CAPSULE[10]
+        || !domain_is_live(INSTALL_CAPSULE[8]) || !cspace_is_live(INSTALL_CAPSULE[10])
+        || !install_observation_stack_allowed(INSTALL_CAPSULE[11] as usize)
+        || (INSTALL_CAPSULE[18] != THREAD_ROLE_CPU && INSTALL_CAPSULE[18] != THREAD_ROLE_BLOCKING)
+        || INSTALL_CAPSULE[19] == 0 || INSTALL_CAPSULE[19] > 4
+        || !valid_entry(address, INSTALL_CAPSULE[14] as usize) {
+        return false;
+    }
+    if INSTALL_CAPSULE[23] == 1 {
+        let ordinal: usize = INSTALL_CAPSULE[12] as usize;
+        let top: usize = INSTALL_CAPSULE[13] as usize;
+        if ordinal >= 2 || address_space_is_loaded(address)
+            || top == 0 || top != native_stack_top_for(ordinal)
+            || INSTALL_CAPSULE[15] as usize != top - 8 || INSTALL_CAPSULE[17] != 0
+            || !stack_allows(address, ordinal, top) || !stack_allows(address, ordinal, top - 8) {
+            return false;
+        }
+    } else if INSTALL_CAPSULE[23] == 2 {
+        if INSTALL_CAPSULE[12] != LOADED_STACK_ORDINAL as u64
+            || !address_space_is_loaded(address)
+            || INSTALL_CAPSULE[14] as usize != address_space_loaded_entry(address)
+            || INSTALL_CAPSULE[13] as usize != address_space_loaded_stack(address)
+            || INSTALL_CAPSULE[15] != INSTALL_CAPSULE[13]
+            || !valid_stack_top(address, INSTALL_CAPSULE[15] as usize) {
+            return false;
+        }
+    } else { return false; }
+    if !install_observation_queues_match(phase) { return false; }
+    if phase == 1 {
+        if STATES[slot] != THREAD_EMPTY || PROCESS_REF_HELD[slot] != 0
+            || INSTALL_CAPSULE[21] != 0 || INSTALL_CAPSULE[20] >= 0xffff_ffff
+            || process_thread_refs(process) as u64 != INSTALL_CAPSULE[20]
+            || !queue_invariants_hold() { return false; }
+    } else {
+        if INSTALL_CAPSULE[21] != 1 || INSTALL_CAPSULE[20] >= 0xffff_ffff
+            || process_thread_refs(process) as u64 != INSTALL_CAPSULE[20] + 1
+            || PROCESS_REF_HELD[slot] != 1 || !install_observation_fields_match(slot) {
+            return false;
+        }
+        if phase == 3 {
+            if STATES[slot] != THREAD_READY || QUEUE_KINDS[slot] != QUEUE_KIND_RUNNABLE
+                || !queue_invariants_hold() { return false; }
+        } else if STATES[slot] != THREAD_EMPTY || QUEUE_KINDS[slot] != QUEUE_KIND_NONE
+            || !queue_invariants_with_install_exception(slot) { return false; }
+    }
+    volatile_store(destination, INSTALL_OBSERVATION_MAGIC);
+    volatile_store(destination + 1, phase);
+    volatile_store(destination + 2, serial);
+    volatile_store(destination + 3, 1);
+    volatile_store(destination + 4, CURRENT_THREAD);
+    volatile_store(destination + 5, PREPARED_THREAD);
+    volatile_store(destination + 8, make_handle(slot));
+    volatile_store(destination + 9, process);
+    volatile_store(destination + 10, address);
+    volatile_store(destination + 11, INSTALL_CAPSULE[10]);
+    volatile_store(destination + 12, INSTALL_CAPSULE[8]);
+    volatile_store(destination + 13, STATES[slot] as u64);
+    volatile_store(destination + 14, PROCESS_REF_HELD[slot] as u64);
+    volatile_store(destination + 15, INSTALL_CAPSULE[11]);
+    return true;
+}
+
 // This is deliberately exhaustive rather than probabilistic: there are only
 // four TCBs and two four-entry queues. It proves that every queued identity is
 // generation-valid, appears exactly once, and agrees with its state/kind.
-pub unsafe fn queue_invariants_hold() -> bool {
+unsafe fn queue_invariants_with_install_exception(exception: usize) -> bool {
     if INITIALIZED == 0
         || RUNNABLE_LENGTH > MAX_THREADS
         || BLOCKED_LENGTH > MAX_THREADS
@@ -491,6 +757,14 @@ pub unsafe fn queue_invariants_hold() -> bool {
             || LINUX_SINGLE_TASK[slot] > 1
             || (LINUX_SINGLE_TASK[slot] == 0 && CLEAR_CHILD_TIDS[slot] != 0) {
             return false;
+        }
+        if slot == exception {
+            if state != THREAD_EMPTY || PROCESS_REF_HELD[slot] != 1
+                || QUEUE_KINDS[slot] != QUEUE_KIND_NONE
+                || runnable_occurrences(make_handle(slot)) != 0
+                || blocked_occurrences(make_handle(slot)) != 0 { return false; }
+            slot += 1;
+            continue;
         }
         if state == THREAD_EMPTY || state == THREAD_RETIRED {
             if QUEUE_KINDS[slot] != QUEUE_KIND_NONE
@@ -607,6 +881,10 @@ pub unsafe fn queue_invariants_hold() -> bool {
     return true;
 }
 
+pub unsafe fn queue_invariants_hold() -> bool {
+    return queue_invariants_with_install_exception(MAX_THREADS);
+}
+
 pub unsafe fn init() -> u64 {
     if INITIALIZED != 0 {
         return 0;
@@ -696,7 +974,15 @@ pub unsafe fn install(
         }
         other += 1;
     }
+    let observation_serial: u64 = begin_install_observation(
+        1, slot, thread_id, process_handle, domain_handle, address_space_handle,
+        cspace_handle, kernel_stack_top, stack_ordinal, user_stack_top,
+        entry, user_stack_top - 8, arg0, 0, role, priority
+    );
+    if observation_serial != 0 { install_observation_checkpoint(1); }
     if retain_process_thread(process_handle) == 0 {
+        finish_install_observation(observation_serial);
+        install_observation_checkpoint(6);
         return 0;
     }
 
@@ -721,16 +1007,36 @@ pub unsafe fn install(
     FRAMES[frame_index(slot, FRAME_RFLAGS)] = 0x202;
     FRAMES[frame_index(slot, FRAME_RSP)] = (user_stack_top - 8) as u64;
     FRAMES[frame_index(slot, FRAME_SS)] = 0x1b;
+    if observation_serial != 0 {
+        INSTALL_CAPSULE[21] = 1;
+        INSTALL_CAPSULE[1] = 2;
+        install_observation_checkpoint(2);
+    }
     STATES[slot] = THREAD_READY;
     QUEUE_KINDS[slot] = QUEUE_KIND_RUNNABLE;
     let handle: u64 = make_handle(slot);
     if !runnable_enqueue_tail(handle) || !queue_invariants_hold() {
         runnable_remove(handle);
+        if observation_serial != 0 {
+            STATES[slot] = THREAD_EMPTY;
+            QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
+            INSTALL_CAPSULE[1] = 4;
+            install_observation_checkpoint(4);
+        }
         release_process_thread(process_handle);
+        if observation_serial != 0 { install_observation_checkpoint(5); }
         clear_slot(slot);
         STATES[slot] = THREAD_EMPTY;
+        finish_install_observation(observation_serial);
+        install_observation_checkpoint(6);
         return 0;
     }
+    if observation_serial != 0 {
+        INSTALL_CAPSULE[1] = 3;
+        install_observation_checkpoint(3);
+    }
+    finish_install_observation(observation_serial);
+    install_observation_checkpoint(6);
     return handle;
 }
 
@@ -801,7 +1107,15 @@ pub unsafe fn install_loaded(
         }
         other += 1;
     }
+    let observation_serial: u64 = begin_install_observation(
+        2, slot, thread_id, process_handle, domain_handle, address_space_handle,
+        cspace_handle, kernel_stack_top, LOADED_STACK_ORDINAL as usize, committed_stack_pointer,
+        entry, committed_stack_pointer, arg0, arg1, role, priority
+    );
+    if observation_serial != 0 { install_observation_checkpoint(1); }
     if retain_process_thread(process_handle) == 0 {
+        finish_install_observation(observation_serial);
+        install_observation_checkpoint(6);
         return 0;
     }
 
@@ -827,16 +1141,36 @@ pub unsafe fn install_loaded(
     FRAMES[frame_index(slot, FRAME_RFLAGS)] = 0x202;
     FRAMES[frame_index(slot, FRAME_RSP)] = committed_stack_pointer as u64;
     FRAMES[frame_index(slot, FRAME_SS)] = 0x1b;
+    if observation_serial != 0 {
+        INSTALL_CAPSULE[21] = 1;
+        INSTALL_CAPSULE[1] = 2;
+        install_observation_checkpoint(2);
+    }
     STATES[slot] = THREAD_READY;
     QUEUE_KINDS[slot] = QUEUE_KIND_RUNNABLE;
     let handle: u64 = make_handle(slot);
     if !runnable_enqueue_tail(handle) || !queue_invariants_hold() {
         runnable_remove(handle);
+        if observation_serial != 0 {
+            STATES[slot] = THREAD_EMPTY;
+            QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
+            INSTALL_CAPSULE[1] = 4;
+            install_observation_checkpoint(4);
+        }
         release_process_thread(process_handle);
+        if observation_serial != 0 { install_observation_checkpoint(5); }
         clear_slot(slot);
         STATES[slot] = THREAD_EMPTY;
+        finish_install_observation(observation_serial);
+        install_observation_checkpoint(6);
         return 0;
     }
+    if observation_serial != 0 {
+        INSTALL_CAPSULE[1] = 3;
+        install_observation_checkpoint(3);
+    }
+    finish_install_observation(observation_serial);
+    install_observation_checkpoint(6);
     return handle;
 }
 
