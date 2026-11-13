@@ -1199,6 +1199,7 @@ impl<'a> Coordinator<'a> {
                         &mut self.frame,
                         id,
                         &error,
+                        batch_member_error_is_absorbable(&error),
                     ) {
                         self.trace.batch_member_failed(failure);
                         let output_type = value.type_name().to_string();
@@ -1445,6 +1446,7 @@ impl<'a> Coordinator<'a> {
                     &mut self.frame,
                     id,
                     &err,
+                    batch_member_error_is_absorbable(&err),
                 ) {
                     self.trace.batch_member_failed(failure);
                     self.trace.finished(
@@ -1588,6 +1590,44 @@ impl<'a> Coordinator<'a> {
             }
         }
         Ok(last)
+    }
+}
+
+// ### batch member classification ###########################################
+// lives in the executor because the graph-evaluation contract may not see
+// process errors.
+
+/// Whether `error` is a member execution error that a `batch(...)` may
+/// settle as an error value.
+pub(crate) fn batch_member_error_is_absorbable(error: &anyhow::Error) -> bool {
+    // project cancellation is not checked here: project sits above eval and the
+    // executor, so its errors wrap a document run and never surface inside one
+    // batch member. the cooperative token check below covers a member that saw
+    // the request's cancellation.
+    let request_fatal = crate::process::is_infrastructure_error(error)
+        || crate::cancellation::is_request_cancellation(error)
+        || crate::process::is_request_deadline_kill(error)
+        || error.chain().any(|cause| {
+            cause.is::<crate::eval_core::StrictCacheMiss>()
+                // the deadline belongs to the whole request, not to one member.
+                || cause.is::<crate::cancellation::RequestDeadlineExpired>()
+        });
+    !request_fatal
+}
+
+#[cfg(test)]
+mod deadline_member_tests {
+    use super::batch_member_error_is_absorbable;
+    use crate::cancellation::RequestDeadlineExpired;
+
+    #[test]
+    fn deadline_expiry_is_never_absorbed_as_a_batch_member_error() {
+        let deadline =
+            anyhow::Error::new(RequestDeadlineExpired("during execution")).context("member 2");
+        assert!(!batch_member_error_is_absorbable(&deadline));
+        assert!(batch_member_error_is_absorbable(&anyhow::anyhow!(
+            "ordinary failure"
+        )));
     }
 }
 

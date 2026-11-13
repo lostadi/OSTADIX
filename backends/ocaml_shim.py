@@ -12,6 +12,7 @@ import shutil
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import o_shim_common
 from o_shim_common import command_loop, write_wire_message
 from o_shim_common import stdout_result
 
@@ -37,7 +38,7 @@ def handle_exec(cmd):
                 # Interpreted execution via the toplevel
                 result = subprocess.run(
                     ["ocaml", src],
-                    capture_output=True, text=True, timeout=60,
+                    capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
                 )
             elif shutil.which("ocamlfind") or shutil.which("ocamlopt"):
                 # Compiled execution
@@ -54,7 +55,7 @@ def handle_exec(cmd):
 
                 result = subprocess.run(
                     [binary],
-                    capture_output=True, text=True, timeout=60,
+                    capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
                 )
             else:
                 send_err("ocaml is not installed or not in PATH")

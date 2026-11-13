@@ -34,7 +34,7 @@ where
     write_frame_payload(writer, &payload)
 }
 
-fn write_frame_payload<W: Write>(writer: &mut W, payload: &[u8]) -> Result<()> {
+pub(crate) fn write_frame_payload<W: Write>(writer: &mut W, payload: &[u8]) -> Result<()> {
     let len: u32 = payload
         .len()
         .try_into()

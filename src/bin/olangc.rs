@@ -2339,6 +2339,7 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
         "pub mod realization_plan;\npub mod graph_realization_plan;\npub mod oir_physical_execution;\npub use realization_plan::*;\npub use graph_realization_plan::*;\npub use oir_physical_execution::*;\n")?;
     fs::write(src_dir.join("value.rs"), RUNTIME_VALUE_RS)?;
     fs::write(src_dir.join("cancellation.rs"), RUNTIME_CANCELLATION_RS)?;
+    fs::write(src_dir.join("progress.rs"), RUNTIME_PROGRESS_RS)?;
     fs::write(src_dir.join("capability.rs"), RUNTIME_CAPABILITY_RS)?;
     fs::write(src_dir.join("environment.rs"), RUNTIME_ENVIRONMENT_RS)?;
     fs::write(src_dir.join("parser.rs"), RUNTIME_PARSER_RS)?;
@@ -3299,6 +3300,7 @@ pub(crate) mod shims {{
 pub mod computation_core;
 pub mod computation;
 pub mod cancellation;
+pub mod progress;
 mod capability;
 pub mod environment;
 pub mod backend;
@@ -5182,6 +5184,12 @@ mod tests {
             fs::read_to_string(src_dir.join("cancellation.rs")).unwrap(),
             RUNTIME_CANCELLATION_RS,
             "generated runtimes must preserve the shared cancellation implementation"
+        );
+        assert!(lib_rs.contains("pub mod progress;"));
+        assert_eq!(
+            fs::read_to_string(src_dir.join("progress.rs")).unwrap(),
+            RUNTIME_PROGRESS_RS,
+            "generated runtimes must share the one stderr status writer"
         );
         assert!(lib_rs.contains("pub mod environment;"));
         assert!(lib_rs.contains("pub(crate) mod backend_catalog;"));

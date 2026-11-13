@@ -25,9 +25,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from o_shim_common import command_loop, write_wire_message
 from o_shim_common import stdout_result
+import o_shim_common
 
 SENTINEL = "__O_BASH_BLOCK_DONE__"
 _session = None
+# signal that killed the session shell mid-block; every later block fails
+# instead of silently starting a fresh shell (its state is gone).
+_killed_by = None
 
 # keep in step with BASH_WRITABLE_SPECIAL_NAMES in crates/ostadix-api/src/ir.rs
 WRITABLE_SPECIALS = {
@@ -218,7 +222,10 @@ def _float_text(value):
 
 
 def handle_exec(cmd):
-    global _session
+    global _session, _killed_by
+    if _killed_by is not None:
+        send_err(f"bash session was killed by signal {_killed_by} during an earlier block; its state is gone")
+        return
     code = cmd.get("code", "")
     bindings = cmd.get("bindings", {})
 
@@ -240,6 +247,10 @@ def handle_exec(cmd):
         if not alive:
             _session.close()
             _session = None
+            if returncode < 0:
+                _killed_by = -returncode
+                send_err(f"bash session was killed by signal {_killed_by} during this block; its state is gone")
+                return
         if returncode != 0 and not alive:
             # a failing block that ended the session, e.g. under a persisted
             # `set -e`, also dropped its variables, functions, and options.
@@ -258,4 +269,5 @@ def handle_exec(cmd):
         send_err(traceback.format_exc())
 
 
+o_shim_common.heartbeat_child_pid = lambda: _session.proc.pid if _session is not None else None
 command_loop(handle_exec)

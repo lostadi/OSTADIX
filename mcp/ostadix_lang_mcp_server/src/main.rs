@@ -1321,6 +1321,7 @@ async fn run_structured_cmd(
 ) -> Result<(i32, String, String), String> {
     let mut cmd = Command::new(program);
     cmd.args(args)
+        .env("O_QUIET", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
