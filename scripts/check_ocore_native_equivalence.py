@@ -15,6 +15,7 @@ import re
 import resource
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -38,7 +39,28 @@ def tool(value: str, label: str) -> str:
     resolved = shutil.which(value)
     if not resolved:
         raise RuntimeError(f"{label} missing: {value}")
-    return resolved
+    # Selection happens in the caller's cwd; execution happens in ROOT (or the
+    # evidence directory). Keep the executable and its recorded hash identical.
+    # Preserve symlink names: multicall tools may dispatch on their argv[0].
+    return str(Path(resolved).absolute())
+
+
+def produce(command: list[str], outputs: list[Path], *, timeout: float = 120) -> subprocess.CompletedProcess:
+    """Require this invocation to create every artifact attributed to it."""
+    for output in outputs:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        # A successful no-output compiler/linker must not reuse an earlier run.
+        # Unlink the path itself so a stale symlink cannot preserve its payload.
+        output.unlink(missing_ok=True)
+    result = run(command, timeout=timeout)
+    for output in outputs:
+        try:
+            metadata = output.lstat()
+        except FileNotFoundError as error:
+            raise RuntimeError(f"producer did not create a fresh artifact: {output}") from error
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size == 0:
+            raise RuntimeError(f"producer did not create a nonempty regular artifact: {output}")
+    return result
 
 
 def elf(path: Path, machine: int, kind: int) -> None:
@@ -76,16 +98,16 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
     for target in args.targets:
         native, hosted, machine, flags = TARGETS[target]
         obj = directory / (target + ".o")
-        run([compiler, str(corpus), "--target", native, "--emit", "obj", "--keep-asm", "--function-sections", "-o", str(obj)])
+        produce([compiler, str(corpus), "--target", native, "--emit", "obj", "--keep-asm", "--function-sections", "-o", str(obj)], [obj, obj.with_suffix(".s")])
         elf(obj, machine, 1)
         # Rebuilding in another directory must preserve every object byte.
         alternate = directory / "reproducible" / (target + ".o")
-        run([compiler, str(corpus), "--target", native, "--emit", "obj", "--function-sections", "-o", str(alternate)])
+        produce([compiler, str(corpus), "--target", native, "--emit", "obj", "--function-sections", "-o", str(alternate)], [alternate])
         if obj.read_bytes() != alternate.read_bytes():
             raise RuntimeError(f"{target} object is not byte reproducible")
         link = [clang, "--target=" + hosted, *flags, "-O2", "-ffreestanding", "-fno-builtin", "-fno-stack-protector", "-fno-pic", "-nostdlib", "-static", "-fuse-ld=lld", "-Wl,-e,_start", "-Wl,--build-id=none", str(harness), str(obj)]
         exe = directory / (target + ".elf")
-        run([*link, "-o", str(exe)])
+        produce([*link, "-o", str(exe)], [exe])
         elf(exe, machine, 2)
         executed = run([*emulators[target], str(exe)])
         if not re.fullmatch(rb"OCORE-NATIVE-EQUIVALENCE digest=[0-9a-f]{16} cases=12288\n", executed.stdout):
@@ -97,7 +119,7 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
         faults = []
         for case in range(1, 7):
             fault = directory / f"{target}-fault-{case}.elf"
-            run([*link, f"-DFAULT_CASE={case}", "-o", str(fault)])
+            produce([*link, f"-DFAULT_CASE={case}", "-o", str(fault)], [fault])
             trapped = subprocess.run([*emulators[target], str(fault)], cwd=directory, capture_output=True, timeout=30, preexec_fn=no_core_dumps)
             expected_signals = {signal.SIGILL, signal.SIGTRAP, signal.SIGFPE}
             if trapped.returncode not in {-int(s) for s in expected_signals} or trapped.stdout:
@@ -105,7 +127,7 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
             faults.append({"case": case, "signal": -trapped.returncode})
         for case in (1, 2):
             diverging = directory / f"{target}-never-{case}.elf"
-            run([*link, f"-DNEVER_CASE={case}", "-o", str(diverging)])
+            produce([*link, f"-DNEVER_CASE={case}", "-o", str(diverging)], [diverging])
             exited = subprocess.run([*emulators[target], str(diverging)], cwd=directory, capture_output=True, timeout=30, preexec_fn=no_core_dumps)
             if exited.returncode != 42 or exited.stdout:
                 raise RuntimeError(f"{target} never case {case} did not exit immediately: exit={exited.returncode}, stdout={exited.stdout!r}")
