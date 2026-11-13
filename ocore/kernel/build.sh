@@ -26,11 +26,12 @@ esac
 
 LINK_GC_FLAGS=()
 OCOREC_FUNCTION_SECTION_FLAGS=()
-if (( PROBE_MODE == 0 || PROBE_MODE == 15 || PROBE_MODE == 20 || PROBE_MODE == 22 \
+if (( PROBE_MODE == 0 || PROBE_MODE == 15 || PROBE_MODE == 17 || PROBE_MODE == 20 || PROBE_MODE == 22 \
     || PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 \
     || PROBE_MODE == 30 || PROBE_MODE == 32 || PROBE_MODE == 16 || PROBE_MODE == 23 \
     || PROBE_MODE == 27 || PROBE_MODE == 28 || PROBE_MODE == 29 || PROBE_MODE == 33 || PROBE_MODE == 34 || PROBE_MODE == 35 )); then
-  # These probes carry the largest kernels. Preserve the fixed bootstrap
+  # These probes carry the largest kernels, including Mode 17's full semantics
+  # corpus. Preserve the fixed bootstrap
   # reserve by letting linker reachability discard unreferenced functions and
   # statics. All source inputs and explicit source link sections remain intact.
   LINK_GC_FLAGS=(--gc-sections)
