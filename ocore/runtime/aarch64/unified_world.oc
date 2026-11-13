@@ -905,6 +905,13 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
                 if native_wire_revoke(handle)!=1 { uw_internal_failure(0x1109,0x113c,index,handle); }
             }
             close_irqs(index);
+            // I12 applies when withdrawal completes, before any later restore.
+            // The row is already unschedulable and its frontends are detached.
+            // Reset purges only this VMID and keeps every survivor bank intact.
+            if images_zero(d_ram_base(index), d_ram_bytes(index)) != 0
+                || uw_domain_reset(index, d_entry_pc(index), d_entry_x0(index), 0x3c5) != 1 {
+                uw_internal_failure(0x1109, 0x113f, index, handle);
+            }
             o10_header(response, 173, tag, 27); o10_write(response, 7, handle, 8);
             o10_write(response, 15, sessions, 4); o10_write(response, 19, sessions, 4);
             o10_write(response, 23, fids, 4); return 27;

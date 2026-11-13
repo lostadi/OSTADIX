@@ -88,7 +88,15 @@ static unsigned stat_session(uint64_t session){
 // Assembly is deliberately outside this harness's corpus. Reaching a sentinel
 // aborts instead of simulating successful device or architectural behavior.
 #define SENTINEL(name) uint64_t name(void){fprintf(stderr,"off-corpus assembly: "#name"\n");abort();}
-SENTINEL(uw_domain_reset)
+// Only architectural register reset is modeled; the full 512 MiB RAM clear
+// runs in production O-core before this model is entered.
+static uint64_t reset_calls;
+static unsigned char arch_bank[2][4096];
+uint64_t uw_domain_reset(uint64_t slot,uint64_t pc,uint64_t x0,uint64_t pstate){
+ assert(slot==1&&pc==0x40100000&&x0==0x40000000&&pstate==0x3c5);
+ for(size_t i=0;i<0x20000000;i+=8)assert(rd((void*)(0xb0000000+i),8)==0);
+ memset(arch_bank[slot],0,sizeof arch_bank[slot]);reset_calls++;return 1;
+}
 SENTINEL(uw_current_domain)
 SENTINEL(uw_domain_configured)
 SENTINEL(uw_domain_configure)
@@ -111,6 +119,9 @@ int main(void){
  uint64_t linux=NS(session_init)(1,1),plan9=NS(session_init)(4,1);assert(linux&&plan9);
  attach(linux);attach(plan9);assert(NS(session_fid_count)(1)==1&&NS(session_fid_count)(4)==1);
  assert(UW(o10_platform_test_init)()==1);
+ void *ram=mmap((void*)0xb0000000,0x20000000,PROT_READ|PROT_WRITE,
+ MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);assert(ram==(void*)0xb0000000);
+ memset(ram,0x3c,0x20000000);memset(arch_bank[0],0xa3,4096);memset(arch_bank[1],0xb7,4096);
  frame(164,39,0,1);st(request+23,1,8);call();assert(reply[4]==165);
  frame(178,31,1,0);st(request+23,((uint64_t)1<<32)|1,8);call();
  assert(reply[4]==179&&rd(reply+73,4)==1);
@@ -120,10 +131,15 @@ int main(void){
  assert(call()==1);assert(reply[4]==173&&rd(reply,4)==27);
  assert(rd(reply+15,4)==1&&rd(reply+19,4)==1&&rd(reply+23,4)==1);
  memcpy(outcome,reply,27);
+ assert(reset_calls==1);
+ for(size_t i=0;i<0x20000000;i+=8)assert(rd((unsigned char*)ram+i,8)==0);
+ for(unsigned i=0;i<4096;i++)assert(arch_bank[0][i]==0xa3&&arch_bank[1][i]==0);
+ ((unsigned char*)ram)[4096]=0x5e; // A replay must not repeat the applied clear.
  assert(NS(session_handle)(1)==linux&&NS(session_fid_count)(1)==1);
  assert(NS(session_handle)(4)==0&&NS(session_fid_count)(4)==0);
  assert(stat_session(plan9)==107);assert(stat_session(linux)==125);
  memcpy(request,retry,36);assert(call()==1);assert(!memcmp(reply,outcome,27));
+ assert(reset_calls==1&&((unsigned char*)ram)[4096]==0x5e);
  request[31]=1;call();assert(reply[4]==161&&rd(reply+7,4)==4);
  frame(178,31,1,0);st(request+23,((uint64_t)1<<32)|1,8);call();assert(reply[4]==179&&reply[16]==5);
  frame(184,39,1,3);st(request+23,((uint64_t)1<<32)|4,8);st(request+31,((uint64_t)1<<32),8);
@@ -255,13 +271,13 @@ int main(int argc,char**argv){
   frame(172,36,1,2);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);assert(call()==1&&reply[4]==173);
   frame(174,63,1,3);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);st(request+47,1,8);st(request+55,2,8);
   assert(call()==1&&reply[4]==161&&rd(reply+7,4)==8);
-  assert(rd(ram+0x1000,8)==0xaabbccdd&&reset_calls==0);
+  assert(rd(ram+0x1000,8)==0&&reset_calls==1);
  }else{
   assert(scenario==0);
   frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);assert(call()==1&&reply[4]==173);
   memset(ram,0x3c,0x20000000);frame(174,63,1,3);st(request+23,(1ull<<32)|1,8);
   st(request+47,1,8);st(request+55,2,8);assert(call()==3&&reply[4]==175&&rd(reply+7,8)==((2ull<<32)|1));
-  assert(reset_calls==1);images(ram);assert(stat_session(plan9)==107);
+  assert(reset_calls==2);images(ram);assert(stat_session(plan9)==107);
   assert(G(binding_generation)(1)==2&&G(binding_generation)(0)==1);
   assert(!G(set_transport_level)(1,1,0,50,0)&&G(set_transport_level)(1,2,0,50,0));
 

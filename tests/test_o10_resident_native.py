@@ -449,6 +449,8 @@ int main(int argc,char**argv){
    namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
    UW(resident_test_console_seed)();
    frame(164,39,0,1);st(request+23,1,8);mailbox();assert(reply[4]==165);
+   assert(mmap((void*)0xb0000000,0x20000000,PROT_READ|PROT_WRITE,
+     MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)0xb0000000);
    frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);mailbox();
    assert(reply[4]==173&&rd(reply+19,4)==1&&rd(reply+23,4)==1);
    assert(UW(resident_test_live)()==1&&UW(resident_test_console_clean)());
@@ -527,6 +529,8 @@ int main(int argc,char**argv){
   }else if(scenario==44){
    namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
    frame(164,39,0,1);st(request+23,1,8);mailbox();assert(reply[4]==165);
+   assert(mmap((void*)0xb0000000,0x20000000,PROT_READ|PROT_WRITE,
+     MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)0xb0000000);
    frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);mailbox();assert(reply[4]==173);
    // Native mechanism code asserting a withdrawn owner's route stays fatal.
    int code=setjmp(stop);
@@ -535,6 +539,13 @@ int main(int argc,char**argv){
    assert(rd((void*)0x6d0000e0,8)==2&&rd((void*)0x6d0000e8,8)==33);
   }else assert(!"unknown scenario");
  puts("resident native scenario PASS");return 0;
+}
+// Kept after main so derived provisioning harnesses use their own reset model.
+uint64_t uw_domain_reset(uint64_t slot,uint64_t pc,uint64_t x0,uint64_t pstate){
+ assert(slot==1&&pc==0x40100000&&x0==0x40000000&&pstate==0x3c5);
+ assert(G(binding_generation)(slot)==0);
+ for(size_t i=0;i<0x20000000;i+=8)assert(rd((void*)(0xb0000000+i),8)==0);
+ return 1;
 }
 """
 
@@ -577,7 +588,7 @@ class O10ResidentNativeTests(unittest.TestCase):
                          "uw_serial_putc","uw_serial_try_read","uw_timer_pending","uw_timer_deadline",
                          "uw_vgic_lr_count","uw_vgic_lr_read","uw_vgic_lr_write","uw_vgic_vmcr_read",
                          "uw_vgic_vmcr_write","uw_vgic_hcr_read","uw_vgic_hcr_write","uw_vgic_running_priority",
-                         "uw_halt","uw_idle_until","kw_memory_barrier","kw_counter_read","kw_counter_frequency",
+                         "uw_halt","uw_idle_until","uw_domain_reset","kw_memory_barrier","kw_counter_read","kw_counter_frequency",
                          "kw_serial_try_read","kw_serial_putc","kw_uart_irq_level","kw_irq_level"}
                 names={line.split()[-1] for line in imports.splitlines() if line.split()}
                 unmodeled=sorted(name for name in names if name.startswith(("uw_","kw_")) and name not in modeled)

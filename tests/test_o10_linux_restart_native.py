@@ -178,9 +178,10 @@ static void provisioned_bind_regression(void){
  assert(reply[4]==171);for(unsigned i=0;i<16;i++)assert(T(instance_byte)(0,i)==0x65);
  bound_survives(first,2,2);bind_frame(2,2);expect_error(12,2);bound_survives(first,2,2);
  frame(172,36,1);st(request+23,2ull<<32,8);call();assert(reply[4]==173&&!P(bound)());
- assert(!S(session_handle)(1)&&statfid(first)==107);survivors();
+ assert(!S(session_handle)(1)&&statfid(first)==107&&reset_calls==1);survivors();
+ for(size_t i=0;i<0x20000000;i++)assert(((unsigned char*)0x48000000)[i]==0);
  frame(174,63,1);st(request+23,2ull<<32,8);memset(request+31,0x76,16);st(request+47,3,8);st(request+55,4,8);
- call();assert(reply[4]==175&&rd(reply+7,8)==3ull<<32&&reset_calls==1&&T(state)(0)==3&&!P(bound)());
+ call();assert(reply[4]==175&&rd(reply+7,8)==3ull<<32&&reset_calls==2&&T(state)(0)==3&&!P(bound)());
  bind_frame(2,3);expect_error(5,3);bind_frame(3,2);expect_error(5,3);
  assert(!S(session_handle)(1)&&!P(bound)()&&T(state)(0)==3);
  bind_frame(3,3);call();assert(reply[4]==185&&T(state)(0)==2);
@@ -222,20 +223,23 @@ int main(int argc,char**argv){
  }
  frame(172,36,1);st(request+23,handle,8);assert(call()==2&&reply[4]==173);
  assert(rd(reply+19,4)==(scenario==1?0:1)&&rd(reply+23,4)==(scenario==1?0:1));
- state(handle,5);assert(S(session_handle)(1)==0&&statfid(linux_session)==107);survivors();
+ state(handle,5);assert(S(session_handle)(1)==0&&statfid(linux_session)==107&&reset_calls==1);survivors();
+ for(size_t i=0;i<0x20000000;i++)assert(guest[i]==0);
+ // Poison only after withdrawal to prove rejected restores preserve stopped state.
+ guest[0]=0xcc;
  assert(W(test_plan9_input)()==1&&W(test_linux_input)()==0&&kw_guest_address(0x40000000,1)==0);
  assert(P(can_provision)(namespace_generation)==0&&P(can_provision)(0)==0);
  assert(P(provision)(0x40000000,0x20000000,namespace_generation)==0&&P(generation)()==namespace_generation);
  frame(174,63,1);st(request+23,handle,8);st(request+47,99,8);st(request+55,4,8);
- call();assert(reply[4]==161&&rd(reply+7,4)==5&&reset_calls==0&&guest[0]==0xcc);
+ call();assert(reply[4]==161&&rd(reply+7,4)==5&&reset_calls==1&&guest[0]==0xcc);
  frame(174,63,1);st(request+23,handle,8);memset(request+31,0x77,16);st(request+47,3,8);st(request+55,4,8);
  if(scenario==2||scenario==5){
-  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==0&&guest[0]==0xcc);
+  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==1&&guest[0]==0xcc);
   assert(P(generation)()==namespace_generation&&B(generation)()==1&&N(generation)()==1);survivors();
   puts("Linux lifecycle generation capacity is nondestructive: PASS");return 0;
  }
  unsigned char retransmit[63],saved[15];memcpy(retransmit,request,63);
- assert(call()==3&&reply[4]==175&&rd(reply+7,8)==(2ull<<32)&&reset_calls==1);memcpy(saved,reply,15);
+ assert(call()==3&&reply[4]==175&&rd(reply+7,8)==(2ull<<32)&&reset_calls==2);memcpy(saved,reply,15);
  assert(P(generation)()==namespace_generation+1&&B(generation)()==2&&N(generation)()==2);
  for(size_t i=0;i<0x20000000;i++){
   unsigned char expected=0;
@@ -248,7 +252,7 @@ int main(int argc,char**argv){
  assert(G(binding_generation)(0)==2&&G(binding_generation)(1)==1);
  assert(!G(set_transport_level)(0,1,0,50,0)&&G(set_transport_level)(0,2,0,50,0));
 
- memcpy(request,retransmit,63);call();assert(!memcmp(reply,saved,15)&&reset_calls==1);
+ memcpy(request,retransmit,63);call();assert(!memcmp(reply,saved,15)&&reset_calls==2);
  state(2ull<<32,3);assert(kw_guest_address(0x40000000,1)==0);
  frame(178,31,0);st(request+23,handle,8);call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
  frame(184,39,1);st(request+23,(1ull<<32)|1,8);st(request+31,2ull<<32,8);
@@ -259,14 +263,15 @@ int main(int argc,char**argv){
  call();assert(reply[4]==185&&kw_guest_address(0x40000000,1)==0x48000000);state(2ull<<32,2);
  uint64_t fresh=S(session_handle)(1);assert(fresh&&fresh!=linux_session);attach(fresh);
  assert(statfid(fresh)==125&&statfid(linux_session)==107);survivors();assert(W(test_plan9_input)()==1);
- assert(reset_calls==1&&hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);
+ assert(reset_calls==2&&hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);
  if(scenario==4){
   // The existing full-u64 transport epoch may reach MAX once; a later restore
-  // must refuse before zeroing RAM, resetting state or wrapping the transport.
+  // must refuse before a second RAM clear/reset or wrapping the transport.
   guest[4096]=0x5a;
   frame(172,36,1);st(request+23,2ull<<32,8);call();assert(reply[4]==173);
+  assert(reset_calls==3&&guest[4096]==0);guest[4096]=0x5a;
   frame(174,63,1);st(request+23,2ull<<32,8);st(request+47,3,8);st(request+55,4,8);
-  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==1&&guest[4096]==0x5a);
+  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==3&&guest[4096]==0x5a);
   assert(P(generation)()==UINT64_MAX&&B(generation)()==2&&N(generation)()==2);survivors();
  }
  puts("O10 Linux withdraw/fault/restore/bind exact-once + survivor preservation: PASS");return 0;

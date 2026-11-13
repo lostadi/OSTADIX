@@ -171,7 +171,8 @@ int main(int argc,char**argv){
   destroy_(dom);revoked_zero();dom=create_native();assert(dom==((2ull<<32)|2));
   bind_((2ull<<32)|3,dom);mailbox();assert(reply[4]==185);start_(dom,0x17);
   read_witness(dom);begin(172,36);st(request+23,dom,8);mailbox();assert(reply[4]==173&&rd(reply+15,4)==1&&rd(reply+23,4)==2);
-  assert(T(state)(2)==5&&!G(binding_generation)(2));destroy_(dom);revoked_zero();
+  assert(T(state)(2)==5&&!G(binding_generation)(2)&&reset_count==1);revoked_zero();
+  survivors();destroy_(dom);revoked_zero();
  }else if(scenario==2){
   for(unsigned i=2;i<8;i++)assert(T(boot)(i,3,3,0xe2600000+(i-2)*0x200000,0x200000,5,6));
   create(3,5,6,0x200000,1);error(8);assert(!configure_count);
