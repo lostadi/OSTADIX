@@ -26,6 +26,33 @@ The baseline checks:
 - agreement among release metadata, the release-claim/package jobs, the
   contracts lane, and the required source-release surfaces.
 
+### Native runtime release contract
+
+The native bundle workflow retains the explicit source-bound reviews in
+`ci/workflow-reviews.toml` for its finite hosted ARM64 matrix and release-asset
+publisher. The baseline additionally recognizes their structural contract when the complete
+workflow text matches the SHA-256 in `NATIVE_RUNTIME_CONTRACT` in
+`scripts/local_ci_posture.py` and its structural checks also match:
+
+- Linux AArch64 uses `ubuntu-24.04-arm`, and macOS AArch64 uses `macos-15`;
+  arbitrary expressions, additional matrix entries and self-hosted runners do
+  not match.
+- The native job depends on `installer-contract`, and pull requests must come
+  from the same repository. The publisher depends on the native job, including
+  both matrix results, and runs only for `release` with action `published`.
+- The workflow defaults to `contents: read`. Only the publisher receives
+  `actions: read` and `contents: write`, for attaching already qualified release
+  assets; it does not create releases or overwrite existing asset names.
+
+The audit prints `baseline.workflows.native-runtime-contract` when this exact
+contract matches. Recognition supplies evidence and never suppresses a generic
+finding: the explicit review registry still must match each finding. This is
+not a filename-wide exemption or a claim of general workflow security. Changes to inherited environment, defaults or steps also
+invalidate the full-text binding and require renewed source review. Changing
+the digest alone cannot widen the explicit runner, event, dependency or
+permission constraints. Unknown or changed workflows retain the usual findings;
+optional full-profile analyzers remain independent checks.
+
 ## Full local audit
 
 The full profile first runs the baseline, then detects these optional tools on
