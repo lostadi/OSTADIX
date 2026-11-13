@@ -340,6 +340,79 @@ static unsigned renameu(uint64_t s,uint32_t fid,const char*name,uint32_t uid,con
  str(name);str("");str("");str("");str(ext);put(uid,4);put(UINT32_MAX,4);put(UINT32_MAX,4);
  st(request+packed,pos-inner,2);st(request+inner,pos-inner-2,2);return call(s);
 }
+
+extern uint64_t NS(qualification_fids)(uint64_t,uint64_t,uint64_t*,size_t);
+static void fid_mode(uint64_t s,unsigned grant,unsigned fid,unsigned expected){
+ uint64_t rows[2048];uint64_t count=NS(qualification_fids)(grant,s,rows,512);assert(count<=512);
+ unsigned found=0;for(size_t i=0;i<count;i++)if(rows[i*4]==fid){assert(rows[i*4+2]==expected);found++;}
+ assert(found==1);
+}
+static unsigned createu_mode(uint64_t s,uint32_t fid,const char *name,unsigned permission,unsigned mode,size_t cap){
+ begin(114);put(fid,4);str(name);put(permission,4);put(mode,1);str("");return callcap(s,cap);
+}
+static void contents(uint64_t s,unsigned fid,const char *expected){
+ size_t length=strlen(expected);assert(readfid(s,fid,0,8192)==117&&rd(response+7,4)==length&&!memcmp(response+11,expected,length));
+}
+static uint64_t append_corpus(uint64_t l,uint64_t p,uint64_t ro){
+ uint8_t *saved=malloc(16777216);assert(saved);
+ assert(walk(l,1,100,"work")==111&&walk(l,100,101,NULL)==111);
+ // A new append fid ignores even an overflowing supplied offset.
+ assert(createu_mode(l,101,"u-append",0644,0x82,8192)==115);fid_mode(l,1,101,0x82);
+ assert(writefid(l,101,UINT64_MAX,"A",1,11)==119);contents(l,101,"A");
+ assert(walk(l,100,102,"u-append")==111&&openfid(l,102,0x82)==113);
+ assert(walk(p,1,100,"work")==111&&walk(p,100,101,"u-append")==111&&openfid(p,101,2)==113);
+ // Two independent append fids observe intervening positional writes/EOF.
+ assert(writefid(p,101,0,"z",1,11)==119);
+ assert(writefid(l,101,0,"B",1,11)==119&&writefid(l,102,UINT64_MAX,"C",1,11)==119);
+ assert(writefid(p,101,1,"X",1,11)==119&&writefid(l,101,1,"D",1,11)==119);contents(l,102,"zXCD");
+ assert(walk(l,100,103,"u-append")==111&&openfid(l,103,0x81)==113);fid_mode(l,1,103,0x81);
+ assert(readfid(l,103,0,1)==107&&numeric_error(l)==13);
+ assert(writefid(l,103,0,"E",1,11)==119);
+ assert(walk(l,100,104,"u-append")==111&&openfid(l,104,0x80)==113);fid_mode(l,1,104,0x80);
+ contents(l,104,"zXCDE");assert(writefid(l,104,0,"bad",3,8192)==107&&numeric_error(l)==13);
+ // Reserving success bytes precedes truncation, fid changes and append data.
+ assert(walk(l,100,105,"u-append")==111);memcpy(saved,volume,16777216);
+ begin(112);put(105,4);put(0x92,1);assert(callcap(l,23)==0&&!memcmp(saved,volume,16777216));fid_mode(l,1,105,255);
+ assert(openfid(l,105,0x82)==113);contents(l,105,"zXCDE");assert(clunk(l,105)==121);
+ memcpy(saved,volume,16777216);
+ assert(writefid(l,101,UINT64_MAX,"F",1,10)==0&&!memcmp(saved,volume,16777216));
+ assert(writefid(l,101,UINT64_MAX,"F",1,11)==119);contents(l,102,"zXCDEF");
+ assert(walk(l,100,105,"u-append")==111&&openfid(l,105,0x92)==113);fid_mode(l,1,105,0x82);contents(l,105,"");
+ assert(writefid(l,105,123,"t",1,11)==119&&writefid(l,101,0,"u",1,11)==119);contents(l,102,"tu");
+ // Plain protocol still rejects append, and normal offsets remain positional.
+ assert(walk(p,100,102,"u-append")==111&&openfid(p,102,0x82)==107&&openfid(p,102,2)==113);
+ assert(writefid(p,102,0,"P",1,11)==119&&writefid(l,101,0,"X",1,11)==119);contents(l,102,"PuX");
+ // Reusing the same fid discards its append flag.
+ assert(clunk(l,105)==121&&walk(l,100,105,"u-append")==111&&openfid(l,105,2)==113);fid_mode(l,1,105,2);
+ assert(writefid(l,105,0,"R",1,11)==119);contents(l,102,"RuX");
+ for(unsigned bit=0x20;bit<=0x40;bit<<=1){
+  assert(walk(l,100,106,"u-append")==111&&openfid(l,106,2|bit)==107&&numeric_error(l)==71);
+  fid_mode(l,1,106,255);assert(clunk(l,106)==121);
+ }
+ // A failed create cannot bind a new append fid or allocate an object.
+ assert(walk(l,100,106,NULL)==111);memcpy(saved,volume,16777216);
+ assert(createu_mode(l,106,"u-capacity",0644,0x82,23)==0&&!memcmp(saved,volume,16777216));fid_mode(l,1,106,255);
+ assert(createu_mode(l,106,"u-capacity",0644,0x82,24)==115);fid_mode(l,1,106,0x82);
+ assert(writefid(l,106,UINT64_MAX,"c",1,11)==119);contents(l,106,"c");
+ assert(walk(l,100,107,NULL)==111&&createu_mode(l,107,"u-special",0644|0x40000000,0x82,8192)==107&&numeric_error(l)==95);
+ // .u read-only grant cannot gain write or create rights through append.
+ ro=dotu(ro,3);attachu(ro,1,999);
+ assert(walk(ro,1,100,"u-append")==111&&openfid(ro,100,0x81)==107&&numeric_error(ro)==13);
+ assert(openfid(ro,100,0x80)==113);contents(ro,100,"RuX");
+ assert(writefid(ro,100,0,"bad",3,8192)==107&&numeric_error(ro)==13);
+ assert(walk(ro,1,101,NULL)==111&&createu_mode(ro,101,"u-denied",0644,0x82,8192)==107&&numeric_error(ro)==13);
+ // Directory writes remain denied; persistent special modes stay unsupported.
+ assert(clunk(l,107)==121&&walk(l,1,107,"work")==111&&openfid(l,107,0x81)==107&&numeric_error(l)==13);
+ // Version/reset clears append fids without touching the original peer.
+ begin(100);put(8192,4);str("9P2000.u");assert(call(l)==101);
+ assert(writefid(l,101,0,"bad",3,8192)==107&&numeric_error(l)==116);attachu(l,1,0);
+ assert(walk(l,1,100,"work")==111&&walk(l,100,105,"u-append")==111&&openfid(l,105,2)==113);fid_mode(l,1,105,2);
+ assert(writefid(l,105,0,"N",1,11)==119);contents(p,101,"NuX");
+ assert(walk(l,100,108,"u-append")==111&&openfid(l,108,0x82)==113);
+ begin(100);put(8192,4);str("9P2000");assert(call(ro)==101);ro=NS(session_handle)(3);handshake(ro,1,"/");
+ free(saved);return ro;
+}
+
 int main(void){
  volume=mmap(0,16777216,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);assert(volume!=MAP_FAILED);
  assert(NS(init)((uintptr_t)volume,16777216,1)==1);
@@ -347,6 +420,7 @@ int main(void){
  assert(l&&p&&peer&&ro&&!(l&1)&&!(p&1)&&!(peer&1)&&!(ro&1));
  handshake(p,1,"/");handshake(peer,1,"/");handshake(ro,1,"/");
  uint64_t oldplain=l;l=dotu(l,1);attachu(l,1,0);
+ ro=append_corpus(l,p,ro);
  assert(statfid(oldplain,1)==107&&received==36); // old even stays plain, no authority
  assert(NS(session_handle)(4)==p&&NS(session_handle)(2)==peer&&NS(session_handle)(3)==ro);
  assert(statfid(p,1)==125&&received==74); // original root stat remains65 bytes
@@ -384,6 +458,7 @@ int main(void){
  assert(statfid(l,1)==107&&numeric_error(l)==116);assert(statfid(p,1)==125&&received==74);
  uint64_t staleu=l;assert(NS(revoke)(1)==1);
  assert(statfid(staleu,2)==107&&numeric_error(staleu)==116);
+ assert(writefid(staleu,108,0,"bad",3,8192)==107&&numeric_error(staleu)==116);
  // The matching even token was never issued. It remains a rejected name.
  assert(statfid(staleu&~1ull,2)==107&&received==36);
  l=NS(session_init)(1,2);assert(l&&!(l&1));l=dotu(l,1);attachu(l,1,99);
@@ -400,7 +475,7 @@ int main(void){
  assert(NS(session_handle)(1)==fresh&&statfid(fresh,1)==125);
  assert(NS(session_handle)(4)==p&&NS(session_handle)(2)==peer&&NS(session_handle)(3)==ro);
  assert(statfid(p,1)==125&&received==74);
- puts("mixed9P2000/u, numericESTALE, trusted dialect tokens and .u corpus: PASS");return 0;
+ puts("mixed9P2000/u, numericESTALE, per-fid serialized append and .u corpus: PASS");return 0;
 }
 
 """

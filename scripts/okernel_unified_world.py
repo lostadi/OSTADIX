@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -212,6 +213,12 @@ def decode_linux_restart_witness(raw: bytes, action: str, sequence: int) -> dict
         if numbers != sorted(set(numbers)):
             raise ValueError("native witness fids are not unique and sorted")
     return result
+
+
+def o10_observation(reply: dict) -> dict:
+    """Keep fixed binary O10 fields lossless in the host's JSON observations."""
+    return {name: {"bytes_hex": value.hex()} if isinstance(value, bytes) else value
+            for name, value in reply.items()}
 
 
 class UnifiedDomain:
@@ -861,11 +868,12 @@ class UnifiedDomain:
         service_before = dict(self.service) if self.service else None
         entry = {"time": time.time(), "ok": False, "service_before": service_before,
                  "unknown_coordinator_events": list(self.coordinator_events),
-                 "service_work": "completion may be unknown; no command replay"}
+                 "service_work": "completion may be unknown; no command replay",
+                 "phase": "observing_fault"}
         self.record.setdefault("linux_recoveries", []).append(entry)
         try:
             observed = self.linux_status()
-            entry["before"] = observed
+            entry["before"] = o10_observation(observed)
             if observed["state"] != o10.PROVISIONAL_STATE_FAULTED:
                 raise RuntimeError("Linux recovery requires a definite native fault")
             self.guest_coordinator_online = False
@@ -876,7 +884,9 @@ class UnifiedDomain:
             # Historical console remains in linux-console.log. Drop only the
             # current shell's completion parser, never replay its command.
             self.capture.clear()
+            entry["phase"] = "restoring_linux"
             self.linux_control(2)
+            entry["phase"] = "waiting_linux_ready"
             self.wait(b"OKERNEL PACKAGE DOMAIN READY", line=True)
             self.wait(b"pkg> ")
             self.mount_linux_namespace()
@@ -885,7 +895,21 @@ class UnifiedDomain:
             self.setup_linux_client()
             if (dict(self.service) if self.service else None) != service_before:
                 raise RuntimeError("Linux recovery changed the surviving Plan9 service identity")
-            entry.update(ok=True, after=self.linux_status(), service=service_before)
+            entry.update(ok=True, phase="complete",
+                         after=o10_observation(self.linux_status()), service=service_before)
+        except BaseException as error:
+            # Preserve the body failure before the final record flush/close.
+            # The pending exact mechanism frame remains unknown and unreplayed.
+            entry.update(error=type(error).__name__ + ": " + str(error),
+                         traceback=traceback.format_exc())
+            pending = getattr(self, "o10_pending", None)
+            if pending is not None:
+                frame = pending["frame"]
+                entry["pending_mechanism"] = {
+                    "epoch": pending["epoch"], "seq": pending["seq"],
+                    "frame_hex": frame.hex(), "frame_sha256": hashlib.sha256(frame).hexdigest(),
+                    "completion": "unknown"}
+            raise
         finally:
             self.control_active = False
             common.write_json(self.session / "result.json", self.record)

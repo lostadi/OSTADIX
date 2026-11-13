@@ -43,6 +43,8 @@ Commands:
   unified-build  Build an isolated Linux/Plan9 EL2 profile (arguments forwarded)
   o10-linux-restart Run the isolated M2 Linux restart gate (arguments forwarded)
   o10-m1-regressions Run the M1 guest regression driver (arguments forwarded)
+  o10-m2-regressions Run the M2 guest regression wrapper (arguments forwarded)
+  o10-m2-accept Bind completed M2 qualification evidence (arguments forwarded)
   o10-resident Run the isolated M1 resident-control gate (arguments forwarded)
   o10-hostile-mmio Run the additional hostile Linux MMIO gate (arguments forwarded)
   image        Rebuild and describe the baseline kernel ELF
@@ -180,6 +182,12 @@ case "$command_name" in
         ;;
     o10-m1-regressions)
         exec python3 "$ROOT/scripts/verify_o10_m1_regressions.py" "$@"
+        ;;
+    o10-m2-regressions)
+        exec python3 "$ROOT/scripts/verify_o10_m2_regressions.py" "$@"
+        ;;
+    o10-m2-accept)
+        exec python3 "$ROOT/scripts/verify_o10_m2.py" "$@"
         ;;
     o10-resident)
         exec python3 "$ROOT/scripts/verify_o10_resident.py" "$@"

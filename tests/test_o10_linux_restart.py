@@ -123,6 +123,44 @@ class LinuxRestartGateTests(unittest.TestCase):
         self.assertGreaterEqual(result["largest_append_gap_upper_bound_seconds"],4)
         with self.assertRaises(gate.GateError):counter.observe(b"0\n",start+5)
 
+    def test_counter_defers_native_snapshots_without_narrowing_observation_gap(self):
+        domain=SimpleNamespace(o10_exchange_active=False,linux_restart_witness_pending=None,
+                               native_volume=Mock(side_effect=AssertionError("nested native snapshot")))
+        counter=gate.Counter(domain,"/services/plan9/test/counter");start=counter.start
+        counter.observe(b"0\n",start+1)
+        initial=copy.deepcopy(counter.entries)
+        for active,pending in ((True,None),(False,17)):
+            domain.o10_exchange_active=active;domain.linux_restart_witness_pending=pending
+            with self.subTest(active=active,pending=pending),patch.object(gate.time,"monotonic",return_value=start+9):
+                counter.poll(force=True)
+                domain.native_volume.assert_not_called()
+                self.assertEqual(counter.previous_poll,start+1)
+                self.assertEqual(counter.entries,initial)
+                self.assertEqual(counter.data,b"0\n")
+                self.assertFalse(counter.active)
+        domain.o10_exchange_active=False;domain.linux_restart_witness_pending=None
+        volume=SimpleNamespace(get=Mock(return_value=b"0\n1\n2\n"))
+        domain.native_volume=Mock(return_value=volume)
+        with patch.object(gate.time,"monotonic",return_value=start+10):counter.poll(force=True)
+        domain.native_volume.assert_called_once();volume.get.assert_called_once_with(counter.path)
+        self.assertEqual(counter.previous_poll,start+10)
+        for row in counter.entries[1:]:
+            self.assertEqual(row["earliest_host_seconds"],1)
+            self.assertEqual(row["observed_host_seconds"],10)
+        self.assertEqual(counter.result()["largest_observed_gap_seconds"],9)
+        self.assertEqual(counter.result()["largest_append_gap_upper_bound_seconds"],10)
+
+    def test_deferred_counter_still_enforces_qualification_window_on_resume(self):
+        domain=SimpleNamespace(o10_exchange_active=True,linux_restart_witness_pending=None,native_volume=Mock())
+        counter=gate.Counter(domain,"/services/plan9/test/counter");before=counter.previous_poll
+        with patch.object(gate.time,"monotonic",return_value=counter.start+250):
+            counter.poll(force=True)
+            domain.native_volume.assert_not_called();self.assertEqual(counter.previous_poll,before)
+            domain.o10_exchange_active=False
+            with self.assertRaisesRegex(gate.GateError,"counter qualification window exceeded"):
+                counter.poll(force=True)
+        domain.native_volume.assert_not_called();self.assertEqual(counter.previous_poll,before)
+
     def test_command_unknown_outcome_is_not_retried_and_raw_output_retained(self):
         domain=SimpleNamespace(capture=bytearray(),command=Mock(),o10_exchange=Mock())
         def fail(*args,**kwargs):
@@ -260,9 +298,9 @@ class LinuxRestartGateTests(unittest.TestCase):
             target=root/"interrupted-file";prefix=bytes([1])*1048576;tail=b"unknown un-fsynced tail"
             cfg=dict(run=str(root/"run"),fixture={},file=str(target),
                      durable_prefix=dict(bytes=len(prefix),sha256=hashlib.sha256(prefix).hexdigest()))
-            encoded=base64.b64encode(json.dumps(cfg).encode()).decode()
+            config_path=root/"config.json";config_path.write_text(json.dumps(cfg))
             target.write_bytes(prefix+tail)
-            argv=[__import__("sys").executable,str(helper),"recovered-file",encoded]
+            argv=[__import__("sys").executable,str(helper),"recovered-file",str(config_path)]
             result=subprocess.run(argv,capture_output=True,text=True,timeout=5)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             observed=json.loads(base64.b64decode(result.stdout.split()[1]))
@@ -271,5 +309,223 @@ class LinuxRestartGateTests(unittest.TestCase):
             target.write_bytes(bytes(1048576)+tail)
             result=subprocess.run(argv,capture_output=True,text=True,timeout=5)
             self.assertNotEqual(result.returncode,0)
+
+    def test_large_configuration_roundtrips_through_bounded_console_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);helper=root/"helper.py";target=root/"interrupted-file"
+            prefix=bytes([1])*1048576;tail=b"unknown tail"
+            target.write_bytes(prefix+tail)
+            config=dict(run=str(root/"run"),fixture={"declared_metadata":"x"*32768},
+                        file=str(target),durable_prefix=dict(bytes=len(prefix),sha256=hashlib.sha256(prefix).hexdigest()))
+            commands=[];capture=bytearray()
+            def execute(command):
+                commands.append(command)
+                result=subprocess.run(["/bin/sh","-c",command],capture_output=True,timeout=5)
+                capture.extend(result.stdout)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            domain=SimpleNamespace(command=execute,capture=capture)
+            gate.upload_binary(domain,str(helper),gate.GUEST_HELPER.encode())
+            record=gate.upload_guest_config(domain,config,root/"initial-source.json")
+            self.assertEqual(Path(record["path"]).read_bytes(),Path(record["source"]["path"]).read_bytes())
+            self.assertEqual(record["sha256"],record["source"]["sha256"])
+            self.assertEqual(record["bytes"],record["source"]["bytes"])
+            result=gate.guest_json(domain,str(helper),record["path"],"recovered-file")
+            self.assertEqual(result["durable_prefix_sha256"],config["durable_prefix"]["sha256"])
+            self.assertEqual(result["unknown_tail_bytes"],len(tail))
+            config["durable_prefix"]["observation"]="after restart"
+            restored=gate.upload_guest_config(domain,config,root/"restored-source.json")
+            self.assertEqual(restored["path"],record["path"])
+            self.assertNotEqual(restored["sha256"],record["sha256"])
+            self.assertEqual(json.loads(Path(restored["path"]).read_text()),config)
+            self.assertLess(max(map(len,commands)),900)
+            self.assertTrue(any("recovered-file "+record["path"] in c for c in commands))
+
+    def test_real_worker_passes_config_path_to_writer_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);run=root/"run";run.mkdir();helper=root/"helper.py"
+            helper.write_text(gate.GUEST_HELPER)
+            config=dict(run=str(run),nonce="component-config-path",fixture=dict(keys_directory="/opt/fixture/keys",
+                        apks=[dict(path="/opt/fixture/pkg.apk")],large_metadata="z"*32768),
+                        file=str(root/"file"))
+            config_path=root/"config.json";config_path.write_text(json.dumps(config))
+            calls=[]
+            def popen(argv,**kwargs):
+                calls.append(argv)
+                for name in ("stdout","stderr"):kwargs[name].close()
+                return SimpleNamespace(pid=__import__("os").getpid(),poll=lambda:0)
+            namespace={"__name__":"__main__","__file__":str(helper)}
+            with patch.object(__import__("sys"),"argv",[str(helper),"worker",str(config_path)]),patch.object(subprocess,"Popen",side_effect=popen):
+                exec(compile(gate.GUEST_HELPER,str(helper),"exec"),namespace)
+            self.assertEqual(len(calls),2)
+            self.assertEqual(calls[0],[__import__("sys").executable,str(helper),"writer",str(config_path)])
+            self.assertEqual(calls[1],["apk","--no-network","--repositories-file","/dev/null","--keys-dir","/opt/fixture/keys","add","/opt/fixture/pkg.apk"])
+            self.assertLess(max(len(argument) for argument in calls[0]),900)
+            domain=SimpleNamespace(command=Mock())
+            gate.launch_worker(domain,str(helper),str(config_path),str(run))
+            domain.command.assert_called_once()
+            command=domain.command.call_args.args[0]
+            self.assertIn(" worker "+str(config_path),command)
+            self.assertLess(len(command),900)
+
+    def test_grouped_worker_parses_with_actual_runner_completion_suffix(self):
+        runner,_,_=gate.load_runtime()
+        launch=SimpleNamespace(command=Mock())
+        gate.launch_worker(launch,"/run/o10-worker.py","/run/o10-config.json","/run/o10-work")
+        command=launch.command.call_args.args[0]
+        def rendered(candidate):
+            capture=bytearray();sent=[]
+            def send(data):
+                sent.append(data)
+                token=__import__("re").search(rb"UNIFIED_COMMAND_[0-9a-f]+",data).group()
+                capture.extend(bytes([10])+token+b":0"+bytes([10]))
+            carrier=SimpleNamespace(send=send,capture=capture,timeout=1,process=SimpleNamespace(poll=lambda:None),
+                                    session=Path("/component-only-no-VM"))
+            runner.UnifiedDomain.command(carrier,candidate)
+            self.assertEqual(len(sent),1)
+            prefix=bytes([30,48,30,48,21])
+            self.assertTrue(sent[0].startswith(prefix))
+            return sent[0][len(prefix):]
+        shell=rendered(command)
+        self.assertIn(b"& }; _uw_rc=$?",shell)
+        result=subprocess.run(["/bin/sh","-n"],input=shell,capture_output=True,timeout=5)
+        self.assertEqual(result.returncode,0,result.stderr)
+        # The old form reproduces the actual '& ;' parser failure under the
+        # exact same runner framing; neither syntax check executes a worker.
+        legacy=command.removeprefix("{ ").removesuffix(" }")
+        old_shell=rendered(legacy)
+        self.assertIn(b"&; _uw_rc=$?",old_shell)
+        rejected=subprocess.run(["/bin/sh","-n"],input=old_shell,capture_output=True,timeout=5)
+        self.assertNotEqual(rejected.returncode,0)
+        self.assertIn(b"Syntax error",rejected.stderr)
+
+
+    def test_executable_alias_binds_regular_target_without_relaxing_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);binary=root/"e2fsck";alias=root/"fsck.ext4"
+            binary.write_bytes(b"unit tool-identity bytes");binary.chmod(0o755);alias.symlink_to(binary.name)
+            record=gate.tool_identity(alias)
+            self.assertEqual(record["invoked_path"],str(alias))
+            self.assertEqual(record["path"],str(binary.resolve()))
+            self.assertEqual(record["sha256"],hashlib.sha256(binary.read_bytes()).hexdigest())
+            self.assertEqual(record["bytes"],binary.stat().st_size)
+            with self.assertRaises(gate.GateError):gate.identity(alias)
+            replacement=root/"replacement";replacement.write_bytes(b"other tool bytes")
+            alias.unlink();alias.symlink_to(replacement.name)
+            self.assertNotEqual(gate.tool_identity(alias),record)
+
+    def counter_publication_transport(self, directory, *, unknown_request_copy=False):
+        root=Path(directory);(root/"run").mkdir();namespace=root/"namespace";namespace.mkdir()
+        protocol=importlib.import_module("ocore.guest.plan9.unified.protocol")
+        service=dict(generation="1"*16,instance="2"*32)
+        (namespace/"services/plan9"/("g"+service["generation"])/("s"+service["instance"])).mkdir(parents=True)
+        commands=[];capture=bytearray()
+        def local(path):
+            if path.startswith("/run/"):return root/"run"/path.removeprefix("/run/")
+            if path.startswith("/n/okernel/"):return namespace/path.removeprefix("/n/okernel/")
+            raise AssertionError("unexpected guest path")
+        def execute(command,timeout=None):
+            commands.append(command)
+            # This transport models the actual .u failure: append is rejected
+            # for namespace files, while ordinary writes remain supported.
+            if ">>" in command and "/n/okernel/" in command:
+                raise gate.GateError("namespace append rejected")
+            if unknown_request_copy and command.startswith("cat /run/o10-m2-counter-") and ".request > " in command:
+                raise TimeoutError("unknown namespace publication")
+            translated=command.replace("/n/okernel/",str(namespace)+"/").replace("/run/",str(root/"run")+"/")
+            result=subprocess.run(["/bin/sh","-c",translated],capture_output=True,timeout=5)
+            capture.extend(result.stdout+result.stderr)
+            if result.returncode:
+                raise gate.GateError("component shell failure: "+(result.stdout+result.stderr).decode(errors="replace"))
+        domain=SimpleNamespace(command=execute,capture=capture,o10_exchange=Mock(),service=service)
+        return domain,protocol,local,commands
+
+    def test_counter_publishes_once_on_transport_that_rejects_namespace_append(self):
+        with tempfile.TemporaryDirectory() as directory:
+            domain,protocol,local,commands=self.counter_publication_transport(directory)
+            with self.assertRaisesRegex(gate.GateError,"namespace append rejected"):
+                gate.upload_binary(domain,"/n/okernel/rejected",b"old chunk append")
+            record={};gate.trace(domain,Path(directory),record)
+            with patch.object(gate.secrets,"token_hex",return_value="3"*32):
+                invocation=gate.publish_counter(domain,protocol,"/services/plan9/g1/s2/counter",record=record)
+            self.assertEqual(invocation["phase"],"submitted")
+            self.assertEqual(local(invocation["paths"]["request"]).read_bytes(),invocation["request"])
+            self.assertEqual(local(invocation["paths"]["submit"]).read_bytes(),protocol.submit_marker(invocation["request"]))
+            self.assertEqual(invocation["submit_marker"],protocol.submit_marker(invocation["request"]))
+            self.assertFalse(local(invocation["paths"]["submit"]+".staged").exists())
+            traced=[row["command"] for row in record["guest_commands"]]
+            positions=[]
+            for phase,row in zip(("request","submit"),invocation["publication"]):
+                self.assertEqual(row["phase"],phase)
+                self.assertEqual(local(row["staging"]["path"]).read_bytes(),
+                                 invocation["request"] if phase=="request" else invocation["submit_marker"])
+                self.assertEqual(traced.count(row["command"]),1)
+                self.assertNotIn(">>",row["command"])
+                self.assertIn("wc -c < ",row["command"]);self.assertIn("sha256sum ",row["command"])
+                positions.append(traced.index(row["command"]))
+            self.assertEqual(traced.count(invocation["submit_command"]),1)
+            self.assertLess(positions[0],positions[1]);self.assertLess(positions[1],traced.index(invocation["submit_command"]))
+            self.assertFalse(any(">>" in c and "/n/okernel/" in c for c in traced))
+            self.assertTrue(all(row["completion"]=="observed" and row["returncode"]==0 for row in record["guest_commands"]))
+            self.assertLess(max(map(len,traced)),900)
+
+    def test_unknown_counter_publication_retains_bytes_phase_and_never_submits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            domain,protocol,local,commands=self.counter_publication_transport(directory,unknown_request_copy=True)
+            record={};gate.trace(domain,Path(directory),record)
+            with patch.object(gate.secrets,"token_hex",return_value="3"*32),self.assertRaisesRegex(TimeoutError,"unknown namespace publication"):
+                gate.publish_counter(domain,protocol,"/services/plan9/g1/s2/counter",record=record)
+            invocation=record["plan9_counter_request"]
+            self.assertEqual(protocol.decode_request(invocation["request"]).request_id,invocation["id"])
+            self.assertEqual(invocation["submit_marker"],protocol.submit_marker(invocation["request"]))
+            self.assertEqual(invocation["phase"],"request-publication-pending")
+            self.assertEqual(len(invocation["publication"]),1)
+            self.assertEqual(sum(c==invocation["publication"][0]["command"] for c in commands),1)
+            self.assertFalse(any(c.startswith("mv ") for c in commands))
+            self.assertNotIn("submit_command",invocation)
+            self.assertEqual(record["guest_commands"][-1]["completion"],"unknown")
+            self.assertIsNone(record["guest_commands"][-1]["returncode"])
+            self.assertFalse(local(invocation["paths"]["submit"]).exists())
+
+    def initial_state_result(self, linux_state, plan9_state):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);seed=root/"seed";seed.mkdir();build=root/"build";build.mkdir()
+            (seed/"head.json").write_text("{}")
+            (build/"monitor-profile.json").write_text("{}")
+            fixture_path=root/"fixture.json";fixture_path.write_text(json.dumps(fixture()))
+            fsck=root/"fsck.ext4";fsck.write_bytes(b"component tool identity")
+            domain=SimpleNamespace(
+                session=root/"session",record={"argv":["component-only-no-VM"]},service={},
+                ready=Mock(),o10_claim=Mock(),close=Mock(),
+                o10_call=Mock(side_effect=[dict(state=linux_state),dict(state=plan9_state)]))
+            domain.o10_linux=1<<32;domain.o10_plan9=(1<<32)|1
+            runner=SimpleNamespace(UnifiedDomain=Mock(return_value=domain),o10=object())
+            fork=SimpleNamespace(fork=Mock(return_value={"ok":True,"source_head_changed_during_copy":False}))
+            # Exercise the actual gate's readiness decision, then stop before any
+            # guest work; these fixtures cannot qualify VM execution or progress.
+            with patch.object(gate,"load_runtime",return_value=(runner,fork,None)), \
+                 patch.object(gate,"preflight",return_value={"source_sha256":{}}), \
+                 patch.object(gate.shutil,"which",return_value=str(fsck)), \
+                 patch.object(gate.subprocess,"check_output",return_value="a"*40+"\n"), \
+                 patch.object(gate,"trace"), \
+                 patch.object(gate,"upload_binary",side_effect=gate.GateError("component helper-upload boundary")) as upload:
+                result=gate.verify(seed=seed,build=build,fixture_path=fixture_path,output=root/"gate",mcp_release="a"*40)
+            domain.close.assert_called_once()
+            self.assertFalse(result["gate_passed"]);self.assertFalse(result["milestone_qualified"])
+            return result,upload.call_count
+
+    def test_running_or_blocked_original_domains_reach_guest_helper_boundary(self):
+        for linux_state,plan9_state in ((2,2),(2,3),(3,2),(3,3)):
+            with self.subTest(linux_state=linux_state,plan9_state=plan9_state):
+                result,uploads=self.initial_state_result(linux_state,plan9_state)
+                self.assertEqual(uploads,1)
+                self.assertIn("component helper-upload boundary",result["error"])
+
+    def test_nonlive_domain_never_starts_guest_helper(self):
+        for state in (0,1,4,5,True,"3",None):
+            for role in ("linux","plan9"):
+                with self.subTest(role=role,state=state):
+                    result,uploads=self.initial_state_result(state if role=="linux" else 3,state if role=="plan9" else 3)
+                    self.assertEqual(uploads,0)
+                    self.assertIn("two live original guests required",result["error"])
 
 if __name__=="__main__":unittest.main()

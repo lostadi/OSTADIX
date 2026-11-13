@@ -1,5 +1,8 @@
 """Host Governor Linux recovery never replays unknown service work."""
 import importlib.util
+import hashlib
+import io
+import json
 from pathlib import Path
 import tempfile
 import struct
@@ -66,6 +69,63 @@ class LinuxRunnerTests(unittest.TestCase):
             text=" ".join(call.args[0] for call in d.command.call_args_list)
             self.assertNotIn("apk",text.lower());self.assertNotIn("old Linux command",text)
             self.assertFalse(d.control_active)
+
+    def recovery_fixture(self, directory):
+        d=self.domain();d.session=Path(directory);d.clock=123456
+        d.control_active=False;d.service={"generation":"a"*16,"instance":"b"*32}
+        d.record={};d.coordinator_events=[];d.coordinator_capture=bytearray(b"old event")
+        d.coordinator_position=99;d.capture=bytearray(b"unknown old Linux command")
+        d.console_exit_request=None;d.guest_coordinator_online=True
+        d.wait=Mock();d.command=Mock();d.setup_linux_client=Mock()
+        d.closed=False;d.process=None;d.qmp=None;d.ram=None;d.selector=Mock();d.control=None
+        d.log=io.BytesIO();d.plan9_log=io.BytesIO();d.terminal_log=io.BytesIO();d.error_log=io.BytesIO()
+        d.lock=(d.session/"lock").open("a+b")
+        return d
+
+    def binary_status(self, generation, state, instance):
+        return o10.decode(o10.encode("Rstat",17,dom=generation<<32,kind=2,state=state,
+                          inst=instance,exits=123,switches=9,esr=0,ipa=0,pc=0x40000000,leases=0))
+
+    def test_recovery_serializes_real_binary_instance_observations_and_close(self):
+        with tempfile.TemporaryDirectory() as directory:
+            d=self.recovery_fixture(directory)
+            before=self.binary_status(1,4,b"\x00"*16)
+            after=self.binary_status(2,2,bytes(range(16)))
+            d.linux_status=Mock(side_effect=[before,after]);d.linux_control=Mock()
+            d.recover_linux();d.close()
+            recorded=json.loads((d.session/"result.json").read_text())["linux_recoveries"][0]
+            self.assertTrue(recorded["ok"]);self.assertEqual(recorded["phase"],"complete")
+            self.assertEqual(bytes.fromhex(recorded["before"]["inst"]["bytes_hex"]),before["inst"])
+            self.assertEqual(bytes.fromhex(recorded["after"]["inst"]["bytes_hex"]),after["inst"])
+            self.assertIsInstance(before["inst"],bytes);self.assertIsInstance(after["inst"],bytes)
+            d.linux_control.assert_called_once_with(2);self.assertTrue(d.closed)
+
+    def test_failed_restore_preserves_original_trace_and_pending_frame_without_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            d=self.recovery_fixture(directory)
+            d.linux_status=Mock(return_value=self.binary_status(1,4,b"\x00"*16))
+            frame=o10.encode("Trestore",34,epoch=1,seq=3,dom=1<<32,inst=bytes(range(16)),
+                             img_kernel=3,img_aux=4)
+            pending={"frame":frame,"epoch":1,"seq":3}
+            original=RuntimeError("native service did not reach a snapshot boundary")
+            def failed_restore(operation):
+                self.assertEqual(operation,2);d.o10_pending=pending;raise original
+            d.linux_control=Mock(side_effect=failed_restore)
+            with self.assertRaises(RuntimeError) as raised:d.recover_linux()
+            self.assertIs(raised.exception,original)
+            d.linux_control.assert_called_once_with(2);d.wait.assert_not_called()
+            d.setup_linux_client.assert_not_called();self.assertIs(d.o10_pending,pending)
+            self.assertIs(d.o10_pending["frame"],frame);self.assertFalse(d.control_active)
+            d.close()
+            recorded=json.loads((d.session/"result.json").read_text())["linux_recoveries"][0]
+            self.assertFalse(recorded["ok"]);self.assertEqual(recorded["phase"],"restoring_linux")
+            self.assertEqual(recorded["error"],"RuntimeError: "+str(original))
+            self.assertIn("failed_restore",recorded["traceback"]);self.assertIn(str(original),recorded["traceback"])
+            exact=recorded["pending_mechanism"]
+            self.assertEqual((exact["epoch"],exact["seq"],exact["completion"]),(1,3,"unknown"))
+            self.assertEqual(bytes.fromhex(exact["frame_hex"]),frame)
+            self.assertEqual(exact["frame_sha256"],hashlib.sha256(frame).hexdigest())
+            self.assertTrue(d.closed)
 
     def test_recovery_rejects_nonfaulted_domain_without_lifecycle_mutation(self):
         with tempfile.TemporaryDirectory() as directory:

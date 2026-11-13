@@ -56,6 +56,11 @@ class RuntimeOracleTests(unittest.TestCase):
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.R9_MONITOR], module.R9_PROFILE)
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M0_MONITOR], module.O10_M0_PROFILE)
         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M1_R7_MONITOR], module.O10_M1_R7_PROFILE)
+        self.assertEqual(module.O10_M2_MONITOR,
+                         "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869")
+        self.assertEqual(module.O10_M2_PROFILE,
+                         "0a7d145b0da3e1e8e11076d6e030154b18f1171d89cbff4eac9ab3a8a4eb7416")
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M2_MONITOR], module.O10_M2_PROFILE)
         for monitor, profile in module.ADMITTED_RUNTIME_PROFILES.items():
             self.assertEqual(module.admitted_runtime_profile(monitor, profile), profile)
             for wrong in [None, {}, True, "0" * 64] + [

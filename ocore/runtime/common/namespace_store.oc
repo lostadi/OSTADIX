@@ -24,7 +24,8 @@ const MAGIC: u64 = 0x3130_3050_3953_4e4f;
 const DIR: u64 = 0x8000_0000;
 // DMTMP is an archive hint, not ORCLOSE or another authority. Original Plan9
 // compilers create their object files with this bit. Keep other mode flags
-// unsupported; their append/exclusive/device semantics are not implemented.
+// unsupported; persistent append-only/exclusive/device semantics are not implemented.
+// A .u OAPPEND open flag is transient per-fid state, never an object permission.
 const MODE_REJECT: u64 = 0x7bff_fe00;
 const NOFID: u64 = 0xffff_ffff;
 
@@ -502,7 +503,7 @@ unsafe fn apply_open(index: usize, handle: u64, number: u64, creating: bool, nam
 unsafe fn prepare_read(grant: usize, handle: u64, number: u64, result: *mut usize) -> u64 {
     let index: usize = operation_fid(grant, handle, number);
     if index == FID_COUNT || F_MODE[index] == 255 { return 4; }
-    if F_MODE[index] == 1 { return 2; }
+    if (F_MODE[index] & 3) == 1 { return 2; }
     *result = F_OBJECT[index]; return 0;
 }
 unsafe fn regular_read_count(object: usize, offset: u64, requested: usize) -> usize {
@@ -511,14 +512,20 @@ unsafe fn regular_read_count(object: usize, offset: u64, requested: usize) -> us
     if requested as u64 > length - offset { return (length - offset) as usize; }
     return requested;
 }
-unsafe fn prepare_write(grant: usize, handle: u64, number: u64, offset: u64, count: usize, result: *mut usize) -> u64 {
+unsafe fn prepare_write(grant: usize, handle: u64, number: u64, offset: u64, count: usize, result: *mut usize, actual_offset: *mut u64) -> u64 {
     let index: usize = operation_fid(grant, handle, number);
     if index == FID_COUNT || F_MODE[index] == 255 { return 4; }
-    if !writable(grant) || (F_MODE[index] != 1 && F_MODE[index] != 2) { return 2; }
+    let access: u64 = F_MODE[index] & 3;
+    if !writable(grant) || (access != 1 && access != 2) { return 2; }
     let object: usize = F_OBJECT[index]; if directory(object) { return 2; }
+    // Every frontend serializes this preparation, response reservation and
+    // apply_write together. Select the current EOF for every append write,
+    // never at open time; the supplied wire offset confers no placement.
+    let mut position: u64 = offset;
+    if (F_MODE[index] & 128) != 0 { position = field(object, 40); }
     // The wire's zero-byte Twrite still validates version/clock headroom.
-    if offset > 0xffff_ffff_ffff_ffff - count as u64 || !next_version(object) { return 5; }
-    *result = object; return 0;
+    if position > 0xffff_ffff_ffff_ffff - count as u64 || !next_version(object) { return 5; }
+    *result = object; *actual_offset = position; return 0;
 }
 unsafe fn apply_write(object: usize, offset: u64, source: usize, count: usize) -> u64 {
     if count != 0 {
@@ -638,10 +645,10 @@ pub unsafe fn local_write(handle: u64, number: u64, offset: u64, memory: *const 
     let admitted: u64 = local_admission(handle, 23); if admitted != 0 { return admitted; }
     let grant: usize = current_grant(handle);
     if number > NOFID || count > MSIZE[grant] - 23 || !local_memory(memory as usize, count) { return 1; }
-    let mut object: usize = 0;
-    let prepared: u64 = prepare_write(grant, handle, number, offset, count, &mut object); if prepared != 0 { return prepared; }
+    let mut object: usize = 0; let mut position: u64 = 0;
+    let prepared: u64 = prepare_write(grant, handle, number, offset, count, &mut object, &mut position); if prepared != 0 { return prepared; }
     if !local_capacity(result, words, 1) { return 11; }
-    let applied: u64 = apply_write(object, offset, memory as usize, count); if applied != 0 { return applied; }
+    let applied: u64 = apply_write(object, position, memory as usize, count); if applied != 0 { return applied; }
     volatile_store(result, count as u64); return 0;
 }
 pub unsafe fn local_stat(handle: u64, number: u64, result: *mut u64, words: usize) -> u64 {
@@ -786,7 +793,9 @@ unsafe fn open(grant: usize, handle: u64, creating: bool) -> usize {
     let mode: u64 = take(1);
     let mut extension: usize = 0;
     if creating && DIALECT_U { string(); extension = STRING_LEN; }
-    if !exact() || (mode & 0xffff_ffff_ffff_ffec) != 0 { return error(1); }
+    let mut rejected: u64 = 0xffff_ffff_ffff_ffec;
+    if DIALECT_U { rejected = 0xffff_ffff_ffff_ff6c; }
+    if !exact() || (mode & rejected) != 0 { return error(1); }
     if creating && DIALECT_U && (extension != 0 || (permission & MODE_REJECT) != 0) { return error(9); }
     let mut index: usize = FID_COUNT;
     let prepared: u64 = prepare_open(grant, handle, number, creating, name, length, permission, mode, &mut index);
@@ -797,7 +806,9 @@ unsafe fn open(grant: usize, handle: u64, creating: bool) -> usize {
     let applied: u64 = apply_open(index, handle, number, creating, name, length, permission, mode);
     if applied != 0 { return error(applied); }
     let mut reply: u64 = 113; if creating { reply = 115; }
-    start(reply, 24); F_MODE[index] = mode & 3; qid(F_OBJECT[index]); emit((MSIZE[grant] - 24) as u64, 4); return OUT;
+    // Only negotiated .u can reach this point with OAPPEND. Keep it on this
+    // fid while discarding the one-shot OTRUNC flag; bind resets reused fids.
+    start(reply, 24); F_MODE[index] = mode & 131; qid(F_OBJECT[index]); emit((MSIZE[grant] - 24) as u64, 4); return OUT;
 }
 unsafe fn read(grant: usize, handle: u64) -> usize {
     let number: u64 = take(4); let offset: u64 = take(8); let requested: usize = take(4) as usize;
@@ -832,11 +843,11 @@ unsafe fn read(grant: usize, handle: u64) -> usize {
 unsafe fn write(grant: usize, handle: u64) -> usize {
     let number: u64 = take(4); let offset: u64 = take(8); let count: usize = take(4) as usize;
     if BAD != 0 || count != REQUEST_LEN - POSITION { return error(1); }
-    let mut object: usize = 0;
-    let prepared: u64 = prepare_write(grant, handle, number, offset, count, &mut object);
+    let mut object: usize = 0; let mut position: u64 = 0;
+    let prepared: u64 = prepare_write(grant, handle, number, offset, count, &mut object, &mut position);
     if prepared != 0 { return error(prepared); }
     if RESPONSE_CAP < 11 { return 0; }
-    let applied: u64 = apply_write(object, offset, REQUEST + POSITION, count); if applied != 0 { return error(applied); }
+    let applied: u64 = apply_write(object, position, REQUEST + POSITION, count); if applied != 0 { return error(applied); }
     start(119, 11); emit(count as u64, 4); return OUT;
 }
 unsafe fn remove_object(object: usize) -> u64 {

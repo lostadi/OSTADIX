@@ -46,6 +46,11 @@ def need(condition, message):
     if not condition:
         raise GateError(message)
 
+def live_domain(value):
+    # BLOCKED is a live WFI/wakeup state; work and counter evidence prove progress.
+    state = value.get("state")
+    return type(state) is int and state in (2, 3)
+
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -53,6 +58,14 @@ def identity(path):
     p = Path(path)
     need(p.is_file() and not p.is_symlink(), "regular evidence file required: " + str(p))
     return {"path": str(p.resolve()), "sha256": digest(p), "bytes": p.stat().st_size}
+
+def tool_identity(path):
+    """Bind an executable's invoked alias to its resolved regular binary."""
+    invoked = Path(path).absolute()
+    need(invoked.is_file(), "tool executable required: " + str(invoked))
+    record = identity(invoked.resolve(strict=True))
+    record["invoked_path"] = str(invoked)
+    return record
 
 def safe(value):
     if isinstance(value, bytes):
@@ -222,6 +235,12 @@ class Counter:
         self.data, self.entries, self.active = b"", [], False
 
     def poll(self, force=False):
+        # Auxiliary snapshots must not stop the CPU inside a native exchange.
+        # Keep the prior bracket intact so the next observation includes every
+        # deferred interval; the same qualification window applies on resume.
+        if (getattr(self.domain, "o10_exchange_active", False)
+                or getattr(self.domain, "linux_restart_witness_pending", None)):
+            return
         now = time.monotonic()
         need(now-self.start < 240, "counter qualification window exceeded")
         if self.active or (not force and now-self.previous_poll < .2):
@@ -269,7 +288,10 @@ def mount():
  r=[l.split() for l in pathlib.Path("/proc/mounts").read_text().splitlines() if l.split()[1]=="/"]
  assert len(r)==1 and r[0][0]=="/dev/vda" and r[0][2]=="ext4"
  return r[0]
-mode,encoded=sys.argv[1:3];cfg=json.loads(base64.b64decode(encoded));run=pathlib.Path(cfg["run"]);f=cfg["fixture"]
+mode,config_file=sys.argv[1:3];config_path=pathlib.Path(config_file)
+assert config_path.is_file() and not config_path.is_symlink()
+cfg=json.loads(config_path.read_text());assert isinstance(cfg,dict)
+run=pathlib.Path(cfg["run"]);f=cfg["fixture"]
 if mode=="prepare":
  assert not run.exists();run.mkdir(mode=0o700)
  v=subprocess.run(["apk","--version"],capture_output=True,check=True);assert v.stdout.decode()==f["apk_version_stdout"]
@@ -308,8 +330,8 @@ elif mode=="writer":
  (run/"writer-done").write_text("complete")
 elif mode=="worker":
  env=dict(os.environ,O10_RESTART_DIR=str(run),O10_RESTART_NONCE=cfg["nonce"],PYTHONDONTWRITEBYTECODE="1")
- writer=subprocess.Popen([sys.executable,__file__,"writer",encoded],stdout=(run/"writer.stdout").open("wb"),stderr=(run/"writer.stderr").open("wb"),env=env)
- argv=["apk","--no-network","--keys-dir",f["keys_directory"],"add"]+[r["path"] for r in f["apks"]]
+ writer=subprocess.Popen([sys.executable,__file__,"writer",str(config_path)],stdout=(run/"writer.stdout").open("wb"),stderr=(run/"writer.stderr").open("wb"),env=env)
+ argv=["apk","--no-network","--repositories-file","/dev/null","--keys-dir",f["keys_directory"],"add"]+[r["path"] for r in f["apks"]]
  apk=subprocess.Popen(argv,stdout=(run/"apk.stdout").open("wb"),stderr=(run/"apk.stderr").open("wb"),env=env)
  (run/"children.json").write_text(json.dumps(dict(writer=proc(writer.pid),apk=proc(apk.pid),apk_argv=argv)))
  while writer.poll() is None or apk.poll() is None:time.sleep(.2)
@@ -416,8 +438,32 @@ def upload_binary(domain, path, data):
         domain.command("printf %s " + shlex.quote(encoded[offset:offset+512]) + " >> " + shlex.quote(temporary))
     expected = hashlib.sha256(data).hexdigest()
     domain.command("base64 -d " + shlex.quote(temporary) + " > " + shlex.quote(path) +
-                   " && rm " + shlex.quote(temporary) + " && test \"$(sha256sum " + shlex.quote(path) +
+                   " && rm " + shlex.quote(temporary) + " && test \"$(wc -c < " + shlex.quote(path) +
+                   ")\" -eq " + str(len(data)) + " && test \"$(sha256sum " + shlex.quote(path) +
                    " | cut -d ' ' -f1)\" = " + expected)
+    return {"path": path, "bytes": len(data), "sha256": expected}
+
+def upload_guest_config(domain, config, evidence_path):
+    """Publish configuration bytes once; only its short path crosses the console."""
+    path = guest_path(config["run"] + ".json")
+    data = json.dumps(config, sort_keys=True, separators=(",", ":")).encode()
+    evidence_path = Path(evidence_path)
+    need(not evidence_path.exists() and not evidence_path.is_symlink(),
+         "new configuration evidence file required")
+    evidence_path.write_bytes(data)
+    record = upload_binary(domain, path, data)
+    record["source"] = identity(evidence_path)
+    return record
+
+def launch_worker(domain, helper, config_path, run):
+    """One fresh worker invocation, using the published configuration path."""
+    helper, config_path, run = map(guest_path, (helper, config_path, run))
+    # The runner appends a completion command after a semicolon; group the
+    # asynchronous list so that suffix never forms the invalid sequence "& ;".
+    domain.command("{ PYTHONDONTWRITEBYTECODE=1 python3 " + shlex.quote(helper) +
+                   " worker " + shlex.quote(config_path) +
+                   " > " + shlex.quote(run + "/worker.stdout") +
+                   " 2> " + shlex.quote(run + "/worker.stderr") + " & }")
 
 def plan9_counter_command(path):
     # Original rc compound-command redirection: the outer block owns one
@@ -427,7 +473,15 @@ def plan9_counter_command(path):
     need(path.startswith("/services/plan9/"), "counter must use the surviving Plan9 service subtree")
     return "{ for(i in " + " ".join(str(i) for i in range(280)) + ") { echo $i; sleep 1 } } >> /n" + path
 
-def publish_counter(domain, protocol, path):
+def namespace_copy_command(source, destination, data):
+    source, destination = map(guest_path, (source, destination))
+    expected = hashlib.sha256(data).hexdigest()
+    return ("cat " + shlex.quote(source) + " > " + shlex.quote(destination) +
+            " && test \"$(wc -c < " + shlex.quote(destination) + ")\" -eq " + str(len(data)) +
+            " && test \"$(sha256sum " + shlex.quote(destination) +
+            " | cut -d ' ' -f1)\" = " + expected)
+
+def publish_counter(domain, protocol, path, *, record):
     service = dict(domain.service)
     request_id = secrets.token_hex(16)
     request = protocol.encode_request(service["generation"], service["instance"], request_id,
@@ -435,12 +489,29 @@ def publish_counter(domain, protocol, path):
                                       cwd="/n/work", stdin=b"", timeout_ms=300000)
     paths = protocol.request_paths("/n/okernel/services/plan9", service["generation"],
                                    service["instance"], request_id)
+    marker = protocol.submit_marker(request)
+    invocation = dict(request=request, submit_marker=marker, paths=paths, service=service,
+                      id=request_id, phase="prepared", publication=[])
+    # Keep exact intended bytes and the last confirmed phase even if a command
+    # has an unknown outcome. No copy, submission, or service work is retried.
+    record["plan9_counter_request"] = invocation
     domain.command("mkdir " + shlex.quote(paths["request"].rsplit("/",1)[0]))
-    upload_binary(domain, paths["request"], request)
-    staged = paths["submit"] + ".staged"
-    upload_binary(domain, staged, protocol.submit_marker(request))
-    domain.command("mv " + shlex.quote(staged) + " " + shlex.quote(paths["submit"]))
-    return dict(request=request, paths=paths, service=service, id=request_id)
+    invocation["phase"] = "directory-created"
+    for phase, data, destination in (("request", request, paths["request"]),
+                                     ("submit", marker, paths["submit"] + ".staged")):
+        staging = upload_binary(domain, "/run/o10-m2-counter-" + request_id + "." + phase, data)
+        command = namespace_copy_command(staging["path"], destination, data)
+        invocation["publication"].append(dict(phase=phase, staging=staging, destination=destination,
+                                               bytes=len(data), sha256=hashlib.sha256(data).hexdigest(),
+                                               command=command))
+        invocation["phase"] = phase + "-publication-pending"
+        domain.command(command)
+        invocation["phase"] = phase + "-published"
+    invocation["submit_command"] = "mv " + shlex.quote(paths["submit"] + ".staged") + " " + shlex.quote(paths["submit"])
+    invocation["phase"] = "submission-pending"
+    domain.command(invocation["submit_command"])
+    invocation["phase"] = "submitted"
+    return invocation
 
 def trace(domain, output, record, protocol=None):
     original_command, original_exchange = domain.command, domain.o10_exchange
@@ -483,10 +554,12 @@ def trace(domain, output, record, protocol=None):
             row["finished"] = time.time()
     domain.command, domain.o10_exchange = command, exchange
 
-def guest_json(domain, helper, config, action):
-    encoded = base64.b64encode(json.dumps(config,sort_keys=True).encode()).decode()
+def guest_json(domain, helper, config_path, action):
+    helper, config_path = map(guest_path, (helper, config_path))
+    need(action in ("database", "prepare", "status", "cleanup-hook", "recovered-file", "quiesce"),
+         "unsupported fixed guest observation")
     before = len(domain.capture)
-    domain.command("PYTHONDONTWRITEBYTECODE=1 python3 "+shlex.quote(helper)+" "+action+" "+shlex.quote(encoded))
+    domain.command("PYTHONDONTWRITEBYTECODE=1 python3 "+shlex.quote(helper)+" "+action+" "+shlex.quote(config_path))
     rows = [l[12:] for l in bytes(domain.capture[before:]).replace(b"\r\n",b"\n").splitlines() if l.startswith(b"O10_M2_JSON ")]
     need(len(rows)==1, "one complete typed guest result required")
     return json.loads(base64.b64decode(rows[0],validate=True))
@@ -514,7 +587,7 @@ def verify(*, seed, build, fixture_path, output, mcp_release, qemu="qemu-system-
                 "scripts/okernel_unified_world.py","scripts/fork_okernel_state.py","scripts/verify_okernel_unified_provider.py",
                 "ocore/guest/plan9/unified/protocol.py","ocore/guest/plan9/unified/p9cmdsrv.c"}
         record.update(source_revision=revision,build=identity(Path(build)/"monitor-profile.json"),
-                      fixture=identity(fixture_path),fsck=identity(fsck),
+                      fixture=identity(fixture_path),fsck=tool_identity(fsck),
                       source_sha256={n:digest(ROOT/n) for n in sorted(names)},source_artifacts={},
                       seed_head_before=identity(Path(seed)/"head.json"))
         for name, expected in record["source_sha256"].items():
@@ -532,20 +605,26 @@ def verify(*, seed, build, fixture_path, output, mcp_release, qemu="qemu-system-
         domain.control_active=True
         old_linux=domain.o10_call("Tstat",dom=domain.o10_linux)
         old_plan9=domain.o10_call("Tstat",dom=domain.o10_plan9)
-        need(old_linux["state"]==old_plan9["state"]==2,"two running original guests required")
+        need(live_domain(old_linux) and live_domain(old_plan9),"two live original guests required")
         service=dict(domain.service);token=secrets.token_hex(12)
         helper="/run/o10-m2-"+token+".py"
         config=dict(run="/run/o10-m2-"+token,nonce=token,file="/work/o10-m2-"+token+"/file64MiB",fixture=fixture)
         hook=APK_COMMIT_HOOK_TEMPLATE.replace(b"@NONCE@",token.encode()).replace(b"@RUN@",config["run"].encode())
         config["commit_hook_base64"]=base64.b64encode(hook).decode()
-        upload_binary(domain,helper,GUEST_HELPER.encode())
-        record["guest_helper_sha256"]=hashlib.sha256(GUEST_HELPER.encode()).hexdigest()
-        record["apk_database_before"]=guest_json(domain,helper,config,"database")
+        helper_source=output/"guest-helper.py";helper_source.write_text(GUEST_HELPER)
+        helper_upload=upload_binary(domain,helper,GUEST_HELPER.encode())
+        helper_upload.update(source=identity(helper_source),phase="initial")
+        record["guest_helper_uploads"]=[helper_upload]
+        record["guest_helper_sha256"]=helper_upload["sha256"]
+        config_upload=upload_guest_config(domain,config,output/"guest-config-initial.json")
+        record["guest_configuration_uploads"]=[config_upload]
+        config_path=config_upload["path"]
+        record["apk_database_before"]=guest_json(domain,helper,config_path,"database")
         validate_database(record["apk_database_before"])
-        record["guest_prerequisites"]=guest_json(domain,helper,config,"prepare")
+        record["guest_prerequisites"]=guest_json(domain,helper,config_path,"prepare")
         need(record["guest_prerequisites"].get("fixture_verified") is True, "signed offline APK verification failed")
         path="/services/plan9/g"+service["generation"]+"/s"+service["instance"]+"/m2-counter-"+token
-        invocation=publish_counter(domain,runner.protocol,path)
+        invocation=publish_counter(domain,runner.protocol,path,record=record)
         record["plan9_counter_request"]=safe(invocation)
         counter=Counter(domain,path);original_pump=domain.pump
         def pump(duration=.1):
@@ -556,12 +635,10 @@ def verify(*, seed, build, fixture_path, output, mcp_release, qemu="qemu-system-
         domain.command(hold_linux_fid_command(held))
         before=validate_witness(domain.linux_restart_witness("capture"),"capture")
         record["witness_before"]=before
-        encoded=base64.b64encode(json.dumps(config,sort_keys=True).encode()).decode()
-        domain.command("PYTHONDONTWRITEBYTECODE=1 python3 "+shlex.quote(helper)+" worker "+shlex.quote(encoded)+
-                       " > "+shlex.quote(config["run"]+"/worker.stdout")+" 2> "+shlex.quote(config["run"]+"/worker.stderr")+" &")
+        launch_worker(domain,helper,config_path,config["run"])
         deadline=time.monotonic()+100
         while True:
-            status=guest_json(domain,helper,config,"status")
+            status=guest_json(domain,helper,config_path,"status")
             record["latest_workload_status"]=status
             need(status.get("failed") is not True, "declared workload exited before fault")
             if status.get("ready") is True:break
@@ -583,26 +660,33 @@ def verify(*, seed, build, fixture_path, output, mcp_release, qemu="qemu-system-
         domain.recover_linux()
         domain.control_active=True
         linux=domain.o10_call("Tstat",dom=domain.o10_linux);plan9=domain.o10_call("Tstat",dom=domain.o10_plan9)
-        need(linux["state"]==2 and linux["dom"]==old_linux["dom"]+(1<<32) and linux["inst"]!=old_linux["inst"],
-             "fresh running Linux generation required")
-        need(plan9["state"]==2 and plan9["dom"]==old_plan9["dom"] and plan9["inst"]==old_plan9["inst"]
+        need(live_domain(linux) and linux["dom"]==old_linux["dom"]+(1<<32) and linux["inst"]!=old_linux["inst"],
+             "fresh live Linux generation required")
+        need(live_domain(plan9) and plan9["dom"]==old_plan9["dom"] and plan9["inst"]==old_plan9["inst"]
              and domain.service==service,"surviving Plan9 identity changed")
         record["witness_restored"]=validate_witness(domain.linux_restart_witness("check"),"check",before)
         need(record["witness_restored"]["sequence"]>record["witness_faulted"]["sequence"],"witness not fresh after restore")
-        upload_binary(domain,helper,GUEST_HELPER.encode()) # New observation helper only; no worker/APK replay.
-        record["hook_cleanup"]=guest_json(domain,helper,config,"cleanup-hook")
-        record["apk_database_after"]=guest_json(domain,helper,config,"database");validate_database(record["apk_database_after"])
-        record["recovered_file"]=guest_json(domain,helper,config,"recovered-file")
-        record["quiesce"]=guest_json(domain,helper,config,"quiesce")
+        helper_upload=upload_binary(domain,helper,GUEST_HELPER.encode()) # Fresh observation helper; no worker/APK replay.
+        helper_upload.update(source=identity(helper_source),phase="restored")
+        record["guest_helper_uploads"].append(helper_upload)
+        config_upload=upload_guest_config(domain,config,output/"guest-config-restored.json")
+        record["guest_configuration_uploads"].append(config_upload)
+        need(config_upload["path"]==config_path,"restored configuration path changed")
+        record["hook_cleanup"]=guest_json(domain,helper,config_path,"cleanup-hook")
+        record["apk_database_after"]=guest_json(domain,helper,config_path,"database");validate_database(record["apk_database_after"])
+        record["recovered_file"]=guest_json(domain,helper,config_path,"recovered-file")
+        record["quiesce"]=guest_json(domain,helper,config_path,"quiesce")
         snapshot=output/"replayed-readonly.ext4"
         domain.stopped()
         try:domain.qmp.execute("pmemsave",dict(val=0x70000000,size=runner.DISK_BYTES,filename=str(snapshot)))
         finally:domain.qmp.execute("cont")
         need(snapshot.stat().st_size==runner.DISK_BYTES,"package disk snapshot incomplete")
         record["package_snapshot"]=identity(snapshot);record["superblock"]=clean_superblock(snapshot)
+        need(tool_identity(fsck)==record["fsck"],"filesystem checker changed before execution")
         argv=[fsck,"-n",str(snapshot)];checked=subprocess.run(argv,capture_output=True,timeout=90)
         for name,raw in (("fsck.stdout",checked.stdout),("fsck.stderr",checked.stderr)):(output/name).write_bytes(raw)
         record["fsck_result"]=dict(argv=argv,returncode=checked.returncode,stdout=identity(output/"fsck.stdout"),stderr=identity(output/"fsck.stderr"))
+        need(tool_identity(fsck)==record["fsck"],"filesystem checker changed during execution")
         need(checked.returncode==0 and digest(snapshot)==record["package_snapshot"]["sha256"],"fsck -n failed or modified copy")
         counter.poll(force=True)
         count=len(counter.entries);deadline=time.monotonic()+5
@@ -614,7 +698,7 @@ def verify(*, seed, build, fixture_path, output, mcp_release, qemu="qemu-system-
         record["plan9_counter"]=counter.result()
         final_linux=domain.o10_call("Tstat",dom=domain.o10_linux)
         final_plan9=domain.o10_call("Tstat",dom=domain.o10_plan9)
-        need(final_linux["state"]==final_plan9["state"]==2 and
+        need(live_domain(final_linux) and live_domain(final_plan9) and
              final_linux["dom"]==linux["dom"] and final_linux["inst"]==linux["inst"] and
              final_plan9["dom"]==plan9["dom"] and final_plan9["inst"]==plan9["inst"],
              "a restored/surviving domain stopped before gate completion")

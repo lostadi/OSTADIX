@@ -58,15 +58,25 @@ FSTATE(FR)
 FSTATE(FN)
 static uint64_t local_operations;
 #define FSAME(n) do { if(memcmp(&FR(n),&FN(n),sizeof FR(n))){fprintf(stderr,"OFD state differs: %s\n",#n);abort();} }while(0)
+static uint64_t mapped_token(uint64_t old);
 static void file_state(void){
-'''+''.join(' FSAME('+x+');\n' for x in COMMON_STATE)+'''}
+ assert(mapped_token(FR(SESSION))==FN(SESSION));
+'''+''.join(' FSAME('+x+');\n' for x in COMMON_STATE if x!='SESSION')+'''}
 static uint64_t codec_count(void){return _O_runtime__common__u9fs_codec__encodes()+_O_runtime__common__u9fs_codec__decodes();}
 '''
     pair = CORE.PAIR.replace('#define REF(n) _O_runtime__common__namespace_store_baseline__##n', '#define REF(n) _O_runtime__common__namespace_store_reference__##n')
     pair = pair.replace(' pair_states++;',' file_state();pair_states++;')
     pair = pair.replace('#define NS(name) PAIR_##name','')
     wrappers = r'''
-int64_t FPAIR_init(uint64_t gen){int64_t a=FR(init)(gen);uint64_t c=codec_count();int64_t b=FN(init_backend)(gen,1);assert(codec_count()==c);assert(a==b);local_operations++;pair_state();return a;}
+int64_t FPAIR_init(uint64_t gen){
+ uint64_t previous=FR(SESSION);int64_t a=FR(init)(gen);uint64_t c=codec_count();
+ int64_t b=FN(init_backend)(gen,1);assert(codec_count()==c);assert(a==b);
+ // Each trusted service init stores the opaque session returned by its own
+ // store claim. Bind those issued identities before comparing all store/OFD
+ // state; never infer a token encoding or copy candidate state over it.
+ if(FR(SESSION)!=previous){assert(a==0);associate_token(FR(SESSION),FN(SESSION));}
+ local_operations++;pair_state();return a;
+}
 '''
     for name,params,args in SIGNATURES:
         wrappers += f'extern int64_t FR({name})({params}),FN({name})({params});\n'
@@ -104,38 +114,39 @@ static uint64_t wire_code(size_t n){
 }
 static size_t raw_wire(size_t cap){put(request,position,4);return REF(handle)(raw_s,request,position,reply,cap);}
 #define RAW(expression,capacity) do {size_t wire_n=raw_wire(capacity);uint64_t before=codec_count(),saved_result[8];memcpy(saved_result,raw_result,sizeof saved_result);uint64_t actual=(expression);assert(codec_count()==before);if(actual)assert(!memcmp(saved_result,raw_result,sizeof saved_result));uint64_t expected=wire_code(wire_n);if(actual!=expected){fprintf(stderr,"typed/wire code differs kind%u cap%zu: %llu/%llu\n",request[4],(size_t)(capacity),(unsigned long long)actual,(unsigned long long)expected);abort();}pair_operations++;pair_state();}while(0)
-static void raw_version(size_t size,size_t cap,size_t words){begin(100);value(size,4);string("9P2000");RAW(NEW(local_version)(raw_s,size,raw_result,words),cap);}
-static void raw_attach(unsigned fid,size_t cap,size_t words){begin(104);value(fid,4);value(UINT32_MAX,4);string("");string("");RAW(NEW(local_attach)(raw_s,fid,raw_result,words),cap);}
-static void raw_clone(unsigned from,unsigned to,size_t cap,size_t words){begin(110);value(from,4);value(to,4);value(0,2);RAW(NEW(local_clone)(raw_s,from,to,raw_result,words),cap);}
-static void raw_walk(unsigned from,unsigned to,const char *name,size_t cap,size_t words){begin(110);value(from,4);value(to,4);value(1,2);string(name);RAW(NEW(local_walk_one)(raw_s,from,to,(const uint8_t*)name,strlen(name),raw_result,words),cap);}
-static void raw_create(unsigned fid,const char*name,unsigned mode,unsigned access,size_t cap,size_t words){begin(114);value(fid,4);string(name);value(mode,4);value(access,1);RAW(NEW(local_create)(raw_s,fid,(const uint8_t*)name,strlen(name),mode,access,raw_result,words),cap);}
-static void raw_open(unsigned fid,unsigned mode,size_t cap,size_t words){begin(112);value(fid,4);value(mode,1);RAW(NEW(local_open)(raw_s,fid,mode,raw_result,words),cap);}
+static void raw_version(size_t size,size_t cap,size_t words){begin(100);value(size,4);string("9P2000");RAW(NEW(local_version)(mapped_token(raw_s),size,raw_result,words),cap);}
+static void raw_attach(unsigned fid,size_t cap,size_t words){begin(104);value(fid,4);value(UINT32_MAX,4);string("");string("");RAW(NEW(local_attach)(mapped_token(raw_s),fid,raw_result,words),cap);}
+static void raw_clone(unsigned from,unsigned to,size_t cap,size_t words){begin(110);value(from,4);value(to,4);value(0,2);RAW(NEW(local_clone)(mapped_token(raw_s),from,to,raw_result,words),cap);}
+static void raw_walk(unsigned from,unsigned to,const char *name,size_t cap,size_t words){begin(110);value(from,4);value(to,4);value(1,2);string(name);RAW(NEW(local_walk_one)(mapped_token(raw_s),from,to,(const uint8_t*)name,strlen(name),raw_result,words),cap);}
+static void raw_create(unsigned fid,const char*name,unsigned mode,unsigned access,size_t cap,size_t words){begin(114);value(fid,4);string(name);value(mode,4);value(access,1);RAW(NEW(local_create)(mapped_token(raw_s),fid,(const uint8_t*)name,strlen(name),mode,access,raw_result,words),cap);}
+static void raw_open(unsigned fid,unsigned mode,size_t cap,size_t words){begin(112);value(fid,4);value(mode,1);RAW(NEW(local_open)(mapped_token(raw_s),fid,mode,raw_result,words),cap);}
 static void raw_read(unsigned fid,uint64_t offset,unsigned count_,size_t cap,size_t words){
  memset(raw_bytes,0xa5,sizeof raw_bytes);begin(116);value(fid,4);value(offset,8);value(count_,4);
- RAW(NEW(local_read)(raw_s,fid,offset,raw_bytes,count_,raw_result,words),cap);
+ RAW(NEW(local_read)(mapped_token(raw_s),fid,offset,raw_bytes,count_,raw_result,words),cap);
  if(reply[4]==117&&cap>=11){size_t n=get(reply+7,4);assert(raw_result[0]==n&&!memcmp(raw_bytes,reply+11,n));for(size_t i=n;i<sizeof raw_bytes;i++)assert(raw_bytes[i]==0xa5);}
 }
-static void raw_write(unsigned fid,uint64_t offset,size_t count_,size_t cap,size_t words){begin(118);value(fid,4);value(offset,8);value(count_,4);memcpy(request+position,payload,count_);position+=count_;RAW(NEW(local_write)(raw_s,fid,offset,payload,count_,raw_result,words),cap);}
+static void raw_write(unsigned fid,uint64_t offset,size_t count_,size_t cap,size_t words){begin(118);value(fid,4);value(offset,8);value(count_,4);memcpy(request+position,payload,count_);position+=count_;RAW(NEW(local_write)(mapped_token(raw_s),fid,offset,payload,count_,raw_result,words),cap);}
 static void raw_stat(unsigned fid,size_t cap,size_t words){
- begin(124);value(fid,4);RAW(NEW(local_stat)(raw_s,fid,raw_result,words),cap);
+ begin(124);value(fid,4);RAW(NEW(local_stat)(mapped_token(raw_s),fid,raw_result,words),cap);
  if(reply[4]==125&&cap>=9+get(reply+7,2)){
   assert(raw_result[0]==reply[17]&&raw_result[1]==get(reply+18,4)&&raw_result[2]==get(reply+22,8));
   assert(raw_result[4]==get(reply+30,4)&&raw_result[5]==get(reply+34,4)&&raw_result[6]==get(reply+38,4)&&raw_result[7]==get(reply+42,8));
  }
 }
-static void raw_clunk(unsigned fid,size_t cap,size_t words){begin(120);value(fid,4);RAW(NEW(local_clunk)(raw_s,fid,raw_result,words),cap);}
+static void raw_clunk(unsigned fid,size_t cap,size_t words){begin(120);value(fid,4);RAW(NEW(local_clunk)(mapped_token(raw_s),fid,raw_result,words),cap);}
 static void typed_boundaries(void){
  raw_s=PAIR_session_init(2,1);assert(raw_s);raw_attach(1,8192,8);assert(wire_code(get(reply,4))==1);
  raw_version(8192,18,0);raw_version(255,8192,8);raw_version(8192,8192,8);assert(raw_result[0]==8192);
  raw_attach(1,19,2);raw_attach(1,8192,8);raw_clone(1,2,8,0);raw_clone(1,2,8192,8);
- uint64_t before=codec_count();assert(NEW(local_stat)(raw_s,1,raw_result,8)==10&&NEW(local_open)(raw_s,1,0,raw_result,8)==10&&codec_count()==before);pair_state();
+ uint64_t before=codec_count();assert(NEW(local_stat)(mapped_token(raw_s),1,raw_result,8)==10&&NEW(local_open)(mapped_token(raw_s),1,0,raw_result,8)==10&&codec_count()==before);pair_state();
  raw_walk(2,2,"..",8192,8);raw_walk(2,3,"pkg",8192,8);assert(wire_code(get(reply,4))==3);
+ raw_create(2,"append-unsupported",0644,0x82,8192,8);assert(wire_code(get(reply,4))==1);
  raw_create(2,"typed",0644|0x04000000,2,23,3);raw_create(2,"typed",0644|0x04000000,2,8192,8);
  assert(raw_result[0]==4&&raw_result[3]==8168);raw_write(2,0,8169,10,0);raw_write(2,0,8169,8192,8);assert(raw_result[0]==8169);
  raw_read(2,0,UINT32_MAX,10,0);raw_read(2,0,UINT32_MAX,8192,8);assert(raw_result[0]==8169);
  raw_stat(2,8,7);raw_stat(2,8192,8);assert(raw_result[7]==8169);
  raw_clunk(2,6,0);raw_clunk(2,8192,8);
- raw_walk(1,2,"typed",8192,8);raw_open(2,0,23,3);raw_open(2,0,8192,8);raw_write(2,0,1,8192,8);assert(wire_code(get(reply,4))==2);raw_clunk(2,8192,8);
+ raw_walk(1,2,"typed",8192,8);raw_open(2,0x82,8192,8);assert(wire_code(get(reply,4))==1);raw_open(2,0,23,3);raw_open(2,0,8192,8);raw_write(2,0,1,8192,8);assert(wire_code(get(reply,4))==2);raw_clunk(2,8192,8);
  raw_walk(1,2,"typed",8192,8);raw_open(2,1,8192,8);raw_read(2,0,1,8192,8);assert(wire_code(get(reply,4))==2);raw_clunk(2,8192,8);
  raw_version(256,8192,8);raw_attach(1,8192,8);raw_walk(1,2,"typed",8192,8);raw_open(2,2,8192,8);
  raw_read(2,0,UINT32_MAX,8192,8);assert(raw_result[0]==245);raw_write(2,0,233,8192,8);raw_write(2,0,234,8192,8);assert(wire_code(get(reply,4))==1);

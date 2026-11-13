@@ -267,6 +267,8 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         "scripts/verify_o10_m0.py",
         "scripts/verify_o10_m1.py",
         "scripts/verify_o10_m1_regressions.py",
+        "scripts/verify_o10_m2.py",
+        "scripts/verify_o10_m2_regressions.py",
         "scripts/verify_o10_resident.py",
         "scripts/verify_o10_hostile_mmio.py",
         "scripts/verify_o10_regressions.py",
@@ -293,7 +295,7 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         "evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc",
         *(
             f"tests/test_o10_{name}.py"
-            for name in ("codec", "live", "m0", "m1", "m1_regressions", "native", "platform",
+            for name in ("codec", "live", "m0", "m1", "m1_regressions", "m2", "m2_regressions", "native", "platform",
                          "regressions", "runner", "resident", "resident_native", "hostile_mmio",
                          "linux_profile", "linux_reset_native", "linux_restart_native",
                          "linux_runner", "linux_restart", "linux_witness", "linux_witness_native")
