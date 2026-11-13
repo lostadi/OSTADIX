@@ -20,9 +20,14 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_os = "linux")]
 use sha2::{Digest, Sha256};
 
+#[cfg(target_os = "linux")]
+mod child_watch;
+
 use crate::ocore::native_ir::{NativeModule, Operand, Operation, Terminator, Type};
 use crate::ocore::Target;
 use crate::value::{ONumber, OValue};
+#[cfg(target_os = "linux")]
+pub(crate) use child_watch::ChildWatch;
 
 pub(crate) use crate::native_leaf_identity::digest;
 pub use crate::native_leaf_identity::BUILTIN;
@@ -507,13 +512,28 @@ impl PreparedLeaf {
             bail!("native scalar leaf execution requires Linux sealed ELF leases")
         }
     }
+    /// Run the sealed leaf under the process-wide knobs, with no request
+    /// cancellation; tests use it, the executor passes its own watch.
+    #[cfg(all(test, target_os = "linux"))]
     pub(crate) fn execute(&self, arguments: &[i64]) -> Result<OValue> {
+        self.execute_watched(arguments, &ChildWatch::from_knobs(None)?)
+    }
+
+    /// Run the sealed leaf under `watch`: the opt-in step limit and the
+    /// request's cancellation kill its process group, and a long run warns.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn execute_watched(
+        &self,
+        arguments: &[i64],
+        watch: &ChildWatch<'_>,
+    ) -> Result<OValue> {
         if arguments.len() != self.manifest.parameter_count {
             bail!("native leaf argument count mismatch");
         }
         #[cfg(target_os = "linux")]
         {
             self.verify()?;
+            use std::os::unix::process::CommandExt;
             let mut child = self
                 .image
                 .command()?
@@ -521,8 +541,14 @@ impl PreparedLeaf {
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
+                .process_group(0)
                 .spawn()
                 .context("launch admitted owned native scalar leaf")?;
+            let stdout = child
+                .stdout
+                .take()
+                .context("native leaf stdout unavailable")?;
+            let reader = child_watch::capture(stdout);
             let write = (|| -> Result<()> {
                 let mut input = child
                     .stdin
@@ -535,22 +561,23 @@ impl PreparedLeaf {
                 Ok(())
             })();
             if let Err(error) = write {
-                let _ = child.kill();
+                // SAFETY: killpg only signals the leaf's own unreaped group.
+                unsafe {
+                    libc::killpg(child.id() as libc::pid_t, libc::SIGKILL);
+                }
                 let _ = child.wait();
                 return Err(error).context("send native scalar frame");
             }
-            let result = child.wait_with_output()?;
-            if !result.status.success() {
-                bail!("owned native scalar leaf failed: {}", result.status);
+            let status = child_watch::wait(&mut child, "leaf", watch)?;
+            let stdout = child_watch::captured(reader, "leaf stdout")?;
+            if !status.success() {
+                bail!("owned native scalar leaf failed: {status}");
             }
-            if result.stdout.len() != 16 || result.stdout[..8] != MAGIC.to_le_bytes() {
+            if stdout.len() != 16 || stdout[..8] != MAGIC.to_le_bytes() {
                 bail!("owned native scalar leaf returned an invalid exact frame");
             }
-            let value = i64::from_le_bytes(
-                result.stdout[8..]
-                    .try_into()
-                    .expect("checked response length"),
-            );
+            let value =
+                i64::from_le_bytes(stdout[8..].try_into().expect("checked response length"));
             crate::lifecycle_trace::lifecycle_trace(
                 "native_leaf.executed",
                 format!(
@@ -560,10 +587,14 @@ impl PreparedLeaf {
             );
             Ok(OValue::big_int(value))
         }
-        #[cfg(not(target_os = "linux"))]
-        {
-            bail!("native scalar leaf execution requires Linux")
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub(crate) fn execute(&self, arguments: &[i64]) -> Result<OValue> {
+        if arguments.len() != self.manifest.parameter_count {
+            bail!("native leaf argument count mismatch");
         }
+        bail!("native scalar leaf execution requires Linux")
     }
 }
 
@@ -670,22 +701,33 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         }
         fn run(
             mut command: Command,
+            label: &str,
             library_path: &Option<std::ffi::OsString>,
             cwd: &std::path::Path,
+            build: &std::path::Path,
         ) -> Result<()> {
+            use std::os::unix::process::CommandExt;
             tool_environment(&mut command, library_path);
-            let output = command
+            let mut child = command
                 .current_dir(cwd)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::piped())
-                .output()
+                .process_group(0)
+                .spawn()
                 .context("launch pinned native assembly tool")?;
-            if !output.status.success() {
+            let stderr = child
+                .stderr
+                .take()
+                .context("native tool stderr unavailable")?;
+            let reader = child_watch::capture(stderr);
+            // admission has no request token; the opt-in limit still applies.
+            let status = child_watch::wait(&mut child, label, &ChildWatch::from_knobs(None)?)?;
+            let stderr = child_watch::captured(reader, "tool stderr")?;
+            if !status.success() {
                 bail!(
-                    "trusted native assembly/link failed ({}): {}",
-                    output.status,
-                    String::from_utf8_lossy(&output.stderr)
+                    "trusted native assembly/link failed ({status}): {}",
+                    scrub_build_path(&stderr, build)
                 );
             }
             Ok(())
@@ -706,7 +748,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         let object = directory.0.join("leaf.o");
         let executable = directory.0.join("leaf.elf");
         fs::write(&source, &assembly)?;
-        use std::os::unix::process::CommandExt;
+        use std::os::unix::process::CommandExt as _;
         let mut assembler_flags = vec![
             "--no-default-config".to_string(),
             "-fintegrated-as".into(),
@@ -726,7 +768,13 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             .arg(&source)
             .arg("-o")
             .arg(&object);
-        run(assemble, &tool_library_path, &tool_working_directory)?;
+        run(
+            assemble,
+            "clang",
+            &tool_library_path,
+            &tool_working_directory,
+            &directory.0,
+        )?;
         let mut link = linker_image.command()?;
         let linker_flags = vec![
             "-static".to_string(),
@@ -739,7 +787,13 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             .arg(&object)
             .arg("-o")
             .arg(&executable);
-        run(link, &tool_library_path, &tool_working_directory)?;
+        run(
+            link,
+            "ld",
+            &tool_library_path,
+            &tool_working_directory,
+            &directory.0,
+        )?;
         let bytes = fs::read(&executable)?;
         if !bytes.starts_with(b"\x7fELF") {
             bail!("native linker did not produce ELF");
@@ -780,6 +834,15 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         let _ = audited;
         bail!("native scalar leaf execution requires Linux sealed ELF leases")
     }
+}
+
+/// Tool stderr with the private build directory replaced by a fixed name:
+/// errors never carry temp paths, and the text stays the same across runs.
+#[cfg(target_os = "linux")]
+fn scrub_build_path(stderr: &[u8], build: &std::path::Path) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let build = build.to_string_lossy();
+    text.replace(&*build, "<native build directory>")
 }
 
 #[cfg(target_os = "linux")]
@@ -867,6 +930,14 @@ pub(crate) fn test_descriptor(arity: usize, trap: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn tool_stderr_never_carries_the_private_build_directory() {
+        let build = std::path::Path::new("/tmp/ostadix-native-i64-0123abcd");
+        let stderr = b"/tmp/ostadix-native-i64-0123abcd/leaf.s:3:1: error: bad\n";
+        let text = scrub_build_path(stderr, build);
+        assert_eq!(text, "<native build directory>/leaf.s:3:1: error: bad\n");
+    }
     #[test]
     fn native_leaf_audits_every_function_and_rejects_cycles_and_supplied_code() {
         let good = test_descriptor(1, false);
