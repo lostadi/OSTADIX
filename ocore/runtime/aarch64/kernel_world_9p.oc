@@ -408,3 +408,6 @@ pub unsafe fn next_session_epoch() -> u64 {
     if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return 0; }
     return SESSION_EPOCH + 1;
 }
+
+// Read-only native observer: a name, never authority supplied by a guest.
+pub unsafe fn qualification_session() -> u64 { if ACTIVE != 1 || BOUND != 1 || ERROR != 0 || SESSION == 0 || session_handle(LINUX_NAMESPACE_GRANT) != SESSION { return 0; } return SESSION; }

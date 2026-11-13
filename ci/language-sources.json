@@ -997,6 +997,21 @@
         "evidence/o10-m2-20261112/integration-check/profile.oc",
         "evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc"
       ]
+    },
+    {
+      "id": "o10-m2-linux-store-witness",
+      "category": "runtime-module",
+      "reason": "Qualification-only native-selected transport/store observations; no host-selected authority and no O10 catalog change.",
+      "coverage": [
+        {
+          "path": "tests/test_o10_linux_witness_native.py",
+          "kind": "runtime",
+          "conditions": "Native host model executes real store/frontend binding and raw Tstat capture/revocation; live gate remains separate."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/linux_restart_witness.oc"
+      ]
     }
   ],
   "expected_parse_failures": {

@@ -20,10 +20,15 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
+                 "address": 0x6d0b0000, "bytes": 0x50000,
+                 "header_bytes": 128, "record_bytes": 576, "max_fids": 512}
+
 SOURCES = (
     "ocore/runtime/aarch64/unified_world.oc",
     "ocore/runtime/aarch64/unified_gic.oc",
     "ocore/runtime/aarch64/linux_domain_images.oc",
+    "ocore/runtime/aarch64/linux_restart_witness.oc",
     "ocore/runtime/aarch64/kernel_world_monitor.oc",
     "ocore/runtime/aarch64/kernel_world_virtio.oc",
     "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
@@ -625,6 +630,9 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
     manifest["o10"] = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
                        "completion": 0x6d0a0200, "msize": 512}
     manifest["o10_qualification"] = bool(o10_qualification)
+    if o10_qualification:
+        manifest["o10_linux_restart_witness"] = "native-store-v1"
+        manifest["linux_restart_witness"] = dict(LINUX_WITNESS)
     manifest["linux_recovery"] = linux_recovery
     manifest["linux_initramfs_derivation"] = initrd_derivation
     manifest["loader_addresses"].update({"inputs/linux-recovery.Image": linux_recovery["kernel_backup_address"],

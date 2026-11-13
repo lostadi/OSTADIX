@@ -1,0 +1,29 @@
+{
+  "schema": "ostadix.o10-m2-linux-restart-harness-unit/v1",
+  "scope": "Component fixtures, ordinary host shell/private-file tests and gate orchestration only; no actual guest/store/APK restart/filesystem or M2 qualification",
+  "source_revision": "63c91c1150b9c5c640a5a88559786e6a03cee939",
+  "argv": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_o10_linux_restart"
+  ],
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "test_actual_wire_error_number_is_required_not_error_text (tests.test_o10_linux_restart.LinuxRestartGateTests.test_actual_wire_error_number_is_required_not_error_text) ... ok\ntest_all_linux_fids_must_receive_numeric_stale_errors (tests.test_o10_linux_restart.LinuxRestartGateTests.test_all_linux_fids_must_receive_numeric_stale_errors) ... ok\ntest_apk_database_must_open_and_need_no_proposed_repair (tests.test_o10_linux_restart.LinuxRestartGateTests.test_apk_database_must_open_and_need_no_proposed_repair) ... ok\ntest_changed_plan9_tuple_or_linux_binding_is_rejected (tests.test_o10_linux_restart.LinuxRestartGateTests.test_changed_plan9_tuple_or_linux_binding_is_rejected) ... ok\ntest_chunked_upload_roundtrips_bytes_below_console_line_limit (tests.test_o10_linux_restart.LinuxRestartGateTests.test_chunked_upload_roundtrips_bytes_below_console_line_limit) ... ok\ntest_chunked_upload_unknown_outcome_does_not_repeat_a_chunk (tests.test_o10_linux_restart.LinuxRestartGateTests.test_chunked_upload_unknown_outcome_does_not_repeat_a_chunk) ... ok\ntest_command_unknown_outcome_is_not_retried_and_raw_output_retained (tests.test_o10_linux_restart.LinuxRestartGateTests.test_command_unknown_outcome_is_not_retried_and_raw_output_retained) ... ok\ntest_counter_accepts_only_prefix_of_next_complete_append (tests.test_o10_linux_restart.LinuxRestartGateTests.test_counter_accepts_only_prefix_of_next_complete_append) ... ok\ntest_counter_records_conservative_observation_gap_without_rewrites (tests.test_o10_linux_restart.LinuxRestartGateTests.test_counter_records_conservative_observation_gap_without_rewrites) ... ok\ntest_durable_prefix_uses_nonzero_first_chunk (tests.test_o10_linux_restart.LinuxRestartGateTests.test_durable_prefix_uses_nonzero_first_chunk) ... ok\ntest_fixture_declares_archive_keys_target_commit_hook_and_exact_version (tests.test_o10_linux_restart.LinuxRestartGateTests.test_fixture_declares_archive_keys_target_commit_hook_and_exact_version) ... ok\ntest_fixture_rejects_traversal_duplicate_and_missing_hash (tests.test_o10_linux_restart.LinuxRestartGateTests.test_fixture_rejects_traversal_duplicate_and_missing_hash) ... ok\ntest_fsck_copy_requires_clean_ext4_after_replay (tests.test_o10_linux_restart.LinuxRestartGateTests.test_fsck_copy_requires_clean_ext4_after_replay) ... ok\ntest_generated_held_fid_command_resolves_actual_shell_pid (tests.test_o10_linux_restart.LinuxRestartGateTests.test_generated_held_fid_command_resolves_actual_shell_pid) ... ok\ntest_guest_helper_compiles_and_uses_no_work_replay_or_network_package_fetch (tests.test_o10_linux_restart.LinuxRestartGateTests.test_guest_helper_compiles_and_uses_no_work_replay_or_network_package_fetch) ... ok\ntest_missing_real_witness_fails_preboot_and_writes_unqualified_result (tests.test_o10_linux_restart.LinuxRestartGateTests.test_missing_real_witness_fails_preboot_and_writes_unqualified_result) ... ok\ntest_model_origin_missing_wire_or_unfresh_witness_is_rejected (tests.test_o10_linux_restart.LinuxRestartGateTests.test_model_origin_missing_wire_or_unfresh_witness_is_rejected) ... ok\ntest_mutation_unknown_outcome_retains_exact_frame_without_retry (tests.test_o10_linux_restart.LinuxRestartGateTests.test_mutation_unknown_outcome_retains_exact_frame_without_retry) ... ok\ntest_plan9_same_fid_and_tuple_cannot_silently_change_wire_qid (tests.test_o10_linux_restart.LinuxRestartGateTests.test_plan9_same_fid_and_tuple_cannot_silently_change_wire_qid) ... ok\ntest_production_profile_never_forks (tests.test_o10_linux_restart.LinuxRestartGateTests.test_production_profile_never_forks) ... ok\ntest_rc_counter_outer_block_owns_single_append_redirection (tests.test_o10_linux_restart.LinuxRestartGateTests.test_rc_counter_outer_block_owns_single_append_redirection) ... ok\ntest_real_observation_helper_checks_only_fsynced_prefix_and_records_unknown_tail (tests.test_o10_linux_restart.LinuxRestartGateTests.test_real_observation_helper_checks_only_fsynced_prefix_and_records_unknown_tail) ... ok\ntest_wire_rejects_trailing_bytes_and_wrong_fid (tests.test_o10_linux_restart.LinuxRestartGateTests.test_wire_rejects_trailing_bytes_and_wrong_fid) ... ok\n\n----------------------------------------------------------------------\nRan 23 tests in 0.162s\n\nOK\n",
+  "source_sha256": {
+    "scripts/verify_o10_linux_restart.py": "62d01e2831913dd1a573c86686f3280aa23680b63245d929850538ff06c81046",
+    "tests/test_o10_linux_restart.py": "352981a2b0ddd62d63aeccdad80b8dda085fdc88135492a2a8dd2babab701684"
+  },
+  "source_unchanged": true,
+  "actual_guest_gate_run": false,
+  "milestone_qualified": false,
+  "reviewed_utc": "2026-11-13T09:10:36.032743+00:00",
+  "superseded_component_receipts_preserved": [
+    "/home/ustad/.cache/o10-m2-linux-restart-harness-unit-20261113.json",
+    "/home/ustad/.cache/o10-m2-linux-restart-harness-unit-r2-20261113.json"
+  ],
+  "r2_failure_resolution": "Negative wire fixtures still changed obsolete singular fields after all-fid schema conversion; they now remove/corrupt actual exchanges[] entries. No success oracle was weakened.",
+  "scenarios": "All-fid real-wire schema; numeric116 and qid identity negatives; bounded exact upload; literal shell PID; strict counter append; fsynced nonzero prefix with arbitrary unknown tail; preboot rejection of unavailable qualification prerequisites."
+}

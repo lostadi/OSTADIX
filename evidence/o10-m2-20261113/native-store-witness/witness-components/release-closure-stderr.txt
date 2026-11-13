@@ -1,0 +1,9 @@
+test_all_declared_monitor_sources_are_required (tests.test_source_release.O10ComponentSourceClosureTests.test_all_declared_monitor_sources_are_required) ... ok
+test_all_frozen_runtime_sources_are_required (tests.test_source_release.O10ComponentSourceClosureTests.test_all_frozen_runtime_sources_are_required) ... ok
+test_every_discovered_component_test_is_required (tests.test_source_release.O10ComponentSourceClosureTests.test_every_discovered_component_test_is_required) ... ok
+test_required_release_paths_are_not_filtered_out_by_allowlist (tests.test_source_release.SourceReleaseTests.test_required_release_paths_are_not_filtered_out_by_allowlist) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.024s
+
+OK

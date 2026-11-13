@@ -27,6 +27,10 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
+                 "address": 0x6d0b0000, "bytes": 0x50000,
+                 "header_bytes": 128, "record_bytes": 576, "max_fids": 512}
+
 sys.path.insert(0, str(ROOT / "scripts"))
 from okernel_native_volume import Volume
 import o10
@@ -133,6 +137,11 @@ def validate_profile(profile: dict) -> None:
         required["coordinator_uart"] = COORDINATOR_UART
     if "o10" in profile:
         required["o10"] = O10_PROFILE
+    if "o10_linux_restart_witness" in profile or "linux_restart_witness" in profile:
+        if profile.get("o10_qualification") is not True:
+            raise ValueError("store witness requires a qualification build")
+        required["o10_linux_restart_witness"] = "native-store-v1"
+        required["linux_restart_witness"] = LINUX_WITNESS
     if "idle_scheduler" in profile:
         required["idle_scheduler"] = IDLE_SCHEDULER
     if any(profile.get(key) != value for key, value in required.items()):
@@ -160,6 +169,49 @@ def validate_linux_recovery_inputs(artifacts: dict[str, Path]) -> None:
         if (identity(artifacts[backup])["sha256"] != identity(artifacts[original])["sha256"]
                 or not 0 < artifacts[backup].stat().st_size <= maximum):
             raise ValueError("Linux recovery copy differs from admitted original input")
+
+
+def decode_linux_restart_witness(raw: bytes, action: str, sequence: int) -> dict:
+    """Decode the fixed native diagnostic contract; no authority inputs."""
+    if action not in ("capture", "check") or len(raw) < 128:
+        raise ValueError("invalid native witness action/header")
+    if raw[:8] != b"O10WIT1\0" or struct.unpack_from("<I", raw, 8)[0] != 1:
+        raise ValueError("unsupported native witness header")
+    status, = struct.unpack_from("<I", raw, 12)
+    detail, native_action, native_seq, ls, lg, ps, pg = struct.unpack_from("<7Q", raw, 16)
+    if native_action != (1 if action == "capture" else 2) or native_seq != sequence:
+        raise ValueError("stale native witness action/sequence")
+    if status:
+        raise RuntimeError(f"native Linux store witness error {status}, detail {detail}")
+    lc, pc, count = struct.unpack_from("<3I", raw, 72)
+    if detail or not ls or not ps or ls == ps or not lg or not pg or not lc or not pc:
+        raise ValueError("inactive native witness binding")
+    if count != lc + pc or count > 512 or len(raw) != 128 + count * 576 or any(raw[84:128]):
+        raise ValueError("invalid native witness bounds")
+    result = {"schema": "ostadix.o10-linux-store-witness/v1", "origin": "running-native-store",
+              "capture_scope": "all-transport-owned-fids", "action": action, "sequence": sequence,
+              "linux": {"grant": 1, "session": ls, "transport_generation": lg, "fids": [], "exchanges": []},
+              "plan9": {"grant": 4, "session": ps, "transport_generation": pg, "fids": [], "exchanges": []}}
+    for index in range(count):
+        row = raw[128 + index*576:128 + (index+1)*576]
+        role, fid, generation, mode, qlen, rlen = struct.unpack_from("<IIQQII", row)
+        if role != int(index >= lc) or not generation or qlen != 11 or not 7 <= rlen <= 512:
+            raise ValueError("invalid native witness record")
+        request, reply = row[32:43], row[48:48+rlen]
+        if (any(row[43:48]) or any(row[48+rlen:]) or
+                struct.unpack_from("<I", request)[0] != 11 or request[4] != 124 or
+                struct.unpack_from("<I", request, 7)[0] != fid or
+                struct.unpack_from("<I", reply)[0] != rlen or request[5:7] != reply[5:7] or
+                reply[4] not in (107, 125)):
+            raise ValueError("malformed raw native store exchange")
+        owner = result["linux" if role == 0 else "plan9"]
+        owner["fids"].append({"fid": fid, "object_generation": generation, "mode": mode})
+        owner["exchanges"].append({"fid": fid, "request_hex": request.hex(), "reply_hex": reply.hex()})
+    for role in ("linux", "plan9"):
+        numbers = [row["fid"] for row in result[role]["fids"]]
+        if numbers != sorted(set(numbers)):
+            raise ValueError("native witness fids are not unique and sorted")
+    return result
 
 
 class UnifiedDomain:
@@ -237,6 +289,8 @@ class UnifiedDomain:
             manifest = json.loads(manifest_file.read_text())
             validate_profile(manifest)
             self.idle_scheduler = manifest.get("idle_scheduler")
+            self.linux_restart_witness_profile = manifest.get("linux_restart_witness")
+            self.linux_restart_witness_pending = None
             common.write_json(self.session / "monitor-profile.json", manifest)
             artifacts = {}
             snapshots = self.session / "inputs"
@@ -590,9 +644,57 @@ class UnifiedDomain:
             self.o10_pending = None
         return reply
 
+    def linux_restart_witness(self, action: str) -> dict:
+        """One fixed qualification observer call; timeouts never resubmit."""
+        if action not in ("capture", "check"):
+            raise ValueError("witness action must be capture or check")
+        if getattr(self, "linux_restart_witness_profile", None) != LINUX_WITNESS:
+            raise RuntimeError("native Linux store witness is unsupported")
+        if getattr(self, "o10_exchange_active", False) or getattr(self, "linux_restart_witness_pending", None):
+            raise RuntimeError("another native mailbox observation is unresolved")
+        self.o10_exchange_active = True
+        self.control_sequence += 1
+        sequence = self.control_sequence
+        self.linux_restart_witness_pending = sequence
+        try:
+            self.stopped()
+            try:
+                self.write_native(LINUX_WITNESS["action_address"], struct.pack("<Q", 1 if action == "capture" else 2))
+                self.write_native(0x6d000070, struct.pack("<QQ", sequence, 11))
+            finally:
+                self.qmp.execute("cont")
+            deadline = time.monotonic() + 60
+            while time.monotonic() < deadline:
+                ack, status = struct.unpack("<QQ", os.pread(self.ram, 16, 0x6d000080 - 0x40000000))
+                if ack == sequence:
+                    self.stopped()
+                    try:
+                        if status != 1:
+                            raise RuntimeError("native witness mailbox rejected observation")
+                        offset = LINUX_WITNESS["address"] - 0x40000000
+                        header = os.pread(self.ram, 128, offset)
+                        if len(header) != 128:
+                            raise RuntimeError("native witness header is incomplete")
+                        count, = struct.unpack_from("<I", header, 80)
+                        if count > 512:
+                            raise ValueError("native witness capacity exceeded")
+                        raw = os.pread(self.ram, 128 + count*576, offset)
+                        self.linux_restart_witness_pending = None
+                        return decode_linux_restart_witness(raw, action, sequence)
+                    finally:
+                        self.qmp.execute("cont")
+                if self.process.poll() is not None:
+                    raise RuntimeError("native supervisor exited during witness")
+                self.pump(0.01)
+            raise TimeoutError("native witness observation unresolved; not resubmitted")
+        finally:
+            self.o10_exchange_active = False
+
     def write_native(self, address: int, data: bytes):
         # Called only under stopped(), to these private control/input regions.
         if not ((0x6d000070 <= address and address + len(data) <= 0x6d000080)
+                or (getattr(self, "linux_restart_witness_profile", None) == LINUX_WITNESS
+                    and 0x6d000118 <= address and address + len(data) <= 0x6d000120)
                 or (0x6d010000 <= address and address + len(data) <= 0x6d011008)
                 or (0x6d060000 <= address and address + len(data) <= 0x6d062008)
                 or (getattr(self, "o10_profile", None) == O10_PROFILE

@@ -296,12 +296,12 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
             for name in ("codec", "live", "m0", "m1", "m1_regressions", "native", "platform",
                          "regressions", "runner", "resident", "resident_native", "hostile_mmio",
                          "linux_profile", "linux_reset_native", "linux_restart_native",
-                         "linux_runner", "linux_restart")
+                         "linux_runner", "linux_restart", "linux_witness", "linux_witness_native")
         ),
         *(
             f"ocore/runtime/aarch64/{name}.oc"
             for name in (
-                "unified_world", "unified_gic", "kernel_world_monitor", "linux_domain_images",
+                "unified_world", "unified_gic", "kernel_world_monitor", "linux_domain_images", "linux_restart_witness",
                 "kernel_world_virtio", "kernel_world_virtio_selftest",
                 "kernel_world_net_host", "kernel_world_net", "kernel_world_9p",
                 "plan9_namespace_uart", "coordinator_uart",

@@ -11,6 +11,7 @@ use runtime::aarch64::kernel_world_9p::bind_current as linux_bind;
 use runtime::aarch64::kernel_world_9p::next_session_epoch as linux_next_session_epoch;
 use runtime::aarch64::linux_domain_images::register as linux_images_register;
 use runtime::aarch64::linux_domain_images::reload as linux_images_reload;
+use runtime::aarch64::linux_restart_witness::execute as linux_restart_observe;
 use runtime::common::namespace_store::session_init as namespace_session_init;
 use runtime::aarch64::kernel_world_monitor::kw_handle_exit_checked as linux_exit;
 use runtime::aarch64::kernel_world_monitor::checked_diagnostic as linux_diagnostic;
@@ -558,6 +559,9 @@ unsafe fn progress() -> void {
 // 0x6d0a0200..0x6d0a03ff, private to EL2/host and outside both stage-2 maps.
 // Internal diagnostic reason/args occupy 0x6d0000d0..0x6d0000ef, also EL2-only.
 // M2 legacy lifecycle ops1/2 return result9 (EUNSUPPORTED).
+// Qualification sideband op11 action at0x6d000118..11f, output
+// 0x6d0b0000..0x6d0fffff, EL2/host-only outside ALL guest stage-2 maps.
+// No guest receives this region; op11 never accepts caller authority names.
 // Linux immutable image lengths at0x6d000100..117 are boot-only metadata;
 // private backup windows d200..da00,da00..e200,e200..e201 are never guest mapped.
 unsafe fn o10_domain(handle: u64) -> u64 {
@@ -777,6 +781,10 @@ unsafe fn native_control() -> void {
     let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
     let mut result: u64 = 0;
     if operation == 10 { result = o10_mailbox(); }
+    if operation == 11 {
+        linux_restart_observe(volatile_load(0x6d00_0118 as *const u64), sequence, O10_QUALIFICATION);
+        result = 1;
+    }
     // M2 retires pre-O10 lifecycle rollback: mailbox result9 is the
     // documented EUNSUPPORTED error, with no lifecycle/session mutation.
     if operation == 1 || operation == 2 { result = 9; }

@@ -335,6 +335,32 @@ pub unsafe fn session_fid_count(grant: u64) -> u64 {
     }
     return count;
 }
+// Trusted qualification observer. No guest/host request supplies this session.
+// Four u64 words per fid: number, object generation, mode, object index.
+// A stale token/capacity failure publishes no successful partial snapshot.
+pub unsafe fn qualification_fids(grant: u64, session: u64, output: *mut u64, capacity: usize) -> u64 {
+    if session == 0 || session_handle(grant) != session || output as usize == 0 { return 0xffff_ffff_ffff_ffff; }
+    let count: u64 = session_fid_count(grant);
+    if count > capacity as u64 { return 0xffff_ffff_ffff_fffe; }
+    let mut used: usize = 0; let mut i: usize = 0;
+    while i < FID_COUNT {
+        if F_SESSION[i] == session {
+            let mut pos: usize = used;
+            while pos > 0 && volatile_load(output + (pos - 1) * 4) > F_NUMBER[i] {
+                let mut j: usize = 0;
+                while j < 4 { volatile_store(output + pos * 4 + j, volatile_load(output + (pos - 1) * 4 + j)); j += 1; }
+                pos -= 1;
+            }
+            volatile_store(output + pos * 4, F_NUMBER[i]);
+            volatile_store(output + pos * 4 + 1, F_GENERATION[i]);
+            volatile_store(output + pos * 4 + 2, F_MODE[i]);
+            volatile_store(output + pos * 4 + 3, F_OBJECT[i] as u64);
+            used += 1;
+        }
+        i += 1;
+    }
+    return used as u64;
+}
 pub unsafe fn revoke(grant: u64) -> u64 {
     if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 { return 0; }
     let slot: usize = grant as usize; clear_fids(SESSION[slot]); SESSION[slot] = 0; VERSIONED[slot] = 0; return 1;

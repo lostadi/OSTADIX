@@ -1,0 +1,103 @@
+{
+  "schema": "ostadix.o10-m2-aarch64-components/v1",
+  "source_revision": "63c91c1150b9c5c640a5a88559786e6a03cee939",
+  "working_tree_changes": true,
+  "milestone_qualified": false,
+  "scope": "Full current M2 module graph AArch64 object compilation using retained platform constants; no image boot or EL2 execution",
+  "compiler": {
+    "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+  },
+  "sources": {
+    "ocore/runtime/aarch64/unified_world.oc": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/common/namespace_store.oc": "b6e3abbd49b4bafb9f5a6fc8d1f8ec86cbde53a92393a33a17a82a6e5699fa38",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11"
+  },
+  "runs": [
+    {
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_world.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_gic.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_domain_images.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_restart_witness.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_monitor.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net_host.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_9p.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/plan9_namespace_uart.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/coordinator_uart.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/o10_codec.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/o10_executor.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_peer.oc",
+        "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-aarch64/qualification-0.oc",
+        "--emit",
+        "obj",
+        "--target",
+        "aarch64-unknown-none",
+        "-o",
+        "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-aarch64/qualification-0.o"
+      ],
+      "returncode": 0,
+      "timed_out": false,
+      "profile_sha256": "3a4f8b7bc9050aed1a7137e432bae1246a165f92a522fe25de9823716ffab9d4",
+      "log": {
+        "path": "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-aarch64/qualification-0.log",
+        "sha256": "b6689b6ca7d4776c727164416f76302f44e2cb64bcebe783aca978b3a494d401"
+      }
+    },
+    {
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_world.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_gic.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_domain_images.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_restart_witness.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_monitor.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net_host.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_9p.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/plan9_namespace_uart.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/coordinator_uart.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/o10_codec.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/o10_executor.oc",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_peer.oc",
+        "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-aarch64/qualification-1.oc",
+        "--emit",
+        "obj",
+        "--target",
+        "aarch64-unknown-none",
+        "-o",
+        "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-aarch64/qualification-1.o"
+      ],
+      "returncode": 0,
+      "timed_out": false,
+      "profile_sha256": "654a11c2b1210beb5a24c546547bf962af529643ae4609bbc20157731c123ec6",
+      "log": {
+        "path": "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-aarch64/qualification-1.log",
+        "sha256": "723bdb1d77358ec8c3c9af0e317f6ddb2861cd60a8a1272e8b5935d9f1378a9c"
+      }
+    }
+  ],
+  "source_unchanged": true,
+  "ok": true
+}

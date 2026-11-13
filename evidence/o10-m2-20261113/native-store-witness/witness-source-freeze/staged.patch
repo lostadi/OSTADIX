@@ -1,0 +1,328 @@
+diff --git a/ocore/runtime/aarch64/linux_restart_witness.oc b/ocore/runtime/aarch64/linux_restart_witness.oc
+new file mode 100644
+index 00000000..9ed5c0be
+--- /dev/null
++++ b/ocore/runtime/aarch64/linux_restart_witness.oc
+@@ -0,0 +1,108 @@
++module runtime::aarch64::linux_restart_witness;
++// Qualification-only native-selected observer. No request carries bearer names.
++// Output is outside both guest stage-2 mappings. This is not an O10 message.
++use runtime::common::namespace_store::qualification_fids;
++use runtime::common::namespace_store::session_handle;
++use runtime::common::namespace_store::handle;
++use runtime::common::o10_codec::read;
++use runtime::common::o10_codec::write;
++use runtime::aarch64::kernel_world_9p::qualification_session as linux_session;
++use runtime::aarch64::kernel_world_9p::generation as linux_generation;
++use runtime::aarch64::plan9_namespace_uart::qualification_session as plan9_session;
++use runtime::aarch64::plan9_namespace_uart::qualification_generation as plan9_generation;
++const BASE: usize = 0x6d0b_0000;
++const BYTES: usize = 0x50000;
++const LIMIT: usize = 512;
++const STRIDE: usize = 576;
++const MAX: u64 = 0xffff_ffff_ffff_ffff;
++static mut CAPTURED: u64 = 0;
++static mut LAST_SEQ: u64 = 0;
++static mut LS: u64 = 0;
++static mut LG: u64 = 0;
++static mut PS: u64 = 0;
++static mut PG: u64 = 0;
++static mut LC: usize = 0;
++static mut PC: usize = 0;
++// Four words per tuple: fid, object generation, mode, object index.
++static mut ORIGINAL: [u64; 2048] = [0; 2048];
++static mut CURRENT: [u64; 2048] = [0; 2048];
++unsafe fn output_ptr() -> *mut u8 { return BASE as *mut u8; }
++unsafe fn fail(code: u64, detail: u64) -> u64 {
++    write(output_ptr(), 12, code, 4); write(output_ptr(), 16, detail, 8);
++    // Never publish partial raw/token data on an error.
++    let mut i: usize = 40; while i < BYTES { volatile_store(output_ptr() + i, 0); i += 1; }
++    return code;
++}
++unsafe fn snapshot(ls: u64, ps: u64) -> u64 {
++    let lc: u64 = qualification_fids(1, ls, &mut CURRENT[0], LIMIT);
++    if lc == MAX { return 5; } if lc >= LIMIT as u64 { return 8; }
++    let pc: u64 = qualification_fids(4, ps, &mut CURRENT[lc as usize * 4], LIMIT - lc as usize);
++    if pc == MAX { return 5; } if pc > (LIMIT - lc as usize) as u64 { return 8; }
++    if lc == 0 || pc == 0 { return 12; }
++    if CAPTURED == 0 { LC = lc as usize; PC = pc as usize; }
++    else { if pc as usize != PC { return 5; } }
++    return 0;
++}
++unsafe fn exchange(index: usize, checking: bool) -> u64 {
++    let row: *mut u8 = output_ptr() + 128 + index * STRIDE;
++    let tuple: usize = index * 4;
++    let linux: bool = index < LC;
++    write(row, 0, (!linux) as u64, 4);
++    write(row, 4, ORIGINAL[tuple], 4); write(row, 8, ORIGINAL[tuple + 1], 8);
++    write(row, 16, ORIGINAL[tuple + 2], 8); write(row, 24, 11, 4);
++    let request: *mut u8 = row + 32;
++    write(request, 0, 11, 4); write(request, 4, 124, 1);
++    write(request, 5, index as u64 + 1, 2); write(request, 7, ORIGINAL[tuple], 4);
++    let mut session: u64 = PS; if linux { session = LS; }
++    let length: usize = handle(session, request as *const u8, 11, row + 48, 512);
++    if length < 7 || length > 512 || read((row + 48) as *const u8, 0, 4) != length as u64
++        || read((row + 48) as *const u8, 5, 2) != index as u64 + 1 { return 1; }
++    write(row, 28, length as u64, 4);
++    if checking && linux {
++        // Captured Linux transport must have negotiated .u; errno is numeric.
++        if read((row + 48) as *const u8, 4, 1) != 107 || length < 13
++            || read((row + 48) as *const u8, length - 4, 4) != 116 { return 12; }
++    } else {
++        if read((row + 48) as *const u8, 4, 1) != 125 { return 12; }
++    }
++    return 0;
++}
++pub unsafe fn execute(action: u64, sequence: u64, qualified: u64) -> u64 {
++    let mut i: usize = 0; while i < BYTES { volatile_store(output_ptr() + i, 0); i += 1; }
++    write(output_ptr(), 0, 0x0031_5449_5730_314f, 8); // O10WIT1 NUL
++    write(output_ptr(), 8, 1, 4); write(output_ptr(), 24, action, 8); write(output_ptr(), 32, sequence, 8);
++    if qualified != 1 { return fail(9, 0); }
++    if action != 1 && action != 2 { return fail(1, 24); }
++    if sequence == 0 || sequence <= LAST_SEQ { return fail(4, LAST_SEQ); }
++    LAST_SEQ = sequence;
++    if action == 1 {
++        if CAPTURED != 0 { return fail(7, LAST_SEQ); }
++        LS = linux_session(); LG = linux_generation(); PS = plan9_session(); PG = plan9_generation();
++        if LS == 0 || PS == 0 || LG == 0 || PG == 0 || (LS & 1) == 0 { return fail(12, 0); }
++        let error: u64 = snapshot(LS, PS); if error != 0 { return fail(error, LIMIT as u64); }
++        i = 0; while i < (LC + PC) * 4 { ORIGINAL[i] = CURRENT[i]; i += 1; }
++    } else {
++        if CAPTURED == 0 { return fail(12, 0); }
++        if session_handle(1) == LS { return fail(7, 1); }
++        if plan9_session() != PS || plan9_generation() != PG { return fail(5, 4); }
++        // Only Plan9 remains live under its original binding. Do not ask the
++        // new Linux session for the dead transport's original fid identities.
++        let count: u64 = qualification_fids(4, PS, &mut CURRENT[0], LIMIT);
++        if count == MAX { return fail(5, 4); }
++        if count != PC as u64 { return fail(5, count); }
++        i = 0; while i < PC * 4 {
++            if CURRENT[i] != ORIGINAL[LC * 4 + i] { return fail(5, i as u64); }
++            i += 1;
++        }
++    }
++    write(output_ptr(), 40, LS, 8); write(output_ptr(), 48, LG, 8);
++    write(output_ptr(), 56, PS, 8); write(output_ptr(), 64, PG, 8);
++    write(output_ptr(), 72, LC as u64, 4); write(output_ptr(), 76, PC as u64, 4);
++    write(output_ptr(), 80, (LC + PC) as u64, 4);
++    i = 0; while i < LC + PC {
++        let error: u64 = exchange(i, action == 2);
++        if error != 0 { return fail(error, i as u64); } i += 1;
++    }
++    CAPTURED = 1;
++    return 0;
++}
+diff --git a/tests/test_o10_linux_witness.py b/tests/test_o10_linux_witness.py
+new file mode 100644
+index 00000000..ce327723
+--- /dev/null
++++ b/tests/test_o10_linux_witness.py
+@@ -0,0 +1,82 @@
++"""Fixed qualification witness decoder/mailbox and admission guards."""
++from pathlib import Path
++import copy
++import runpy
++import struct
++import types
++import unittest
++from unittest import mock
++ROOT=Path(__file__).resolve().parents[1]
++R=runpy.run_path(str(ROOT/"scripts/okernel_unified_world.py"))
++def fixture(action="capture",sequence=7):
++    b=bytearray(128+2*576)
++    b[:8]=b"O10WIT1\0";struct.pack_into("<II7Q3I",b,8,1,0,0,1 if action=="capture" else 2,sequence,3,1,4,1,1,1,2)
++    for i in range(2):
++        at=128+i*576
++        struct.pack_into("<IIQQII",b,at,i,10+i,1,0,11,7)
++        struct.pack_into("<IBHI",b,at+32,11,124,i+1,10+i)
++        struct.pack_into("<IBH",b,at+48,7,125,i+1)
++    return bytes(b)
++class LinuxWitnessTests(unittest.TestCase):
++    def test_fixed_list_contract_and_raw_bytes(self):
++        value=R["decode_linux_restart_witness"](fixture(),"capture",7)
++        self.assertEqual(value["capture_scope"],"all-transport-owned-fids")
++        self.assertEqual(value["linux"]["fids"],[{"fid":10,"object_generation":1,"mode":0}])
++        self.assertEqual(bytes.fromhex(value["plan9"]["exchanges"][0]["request_hex"])[4],124)
++        self.assertEqual(value["plan9"]["transport_generation"],1)
++    def test_rejects_misbound_malformed_partial_and_nonzero_padding(self):
++        for offset,value in [(0,0),(8,2),(24,2),(32,6),(72,0),(80,513),(84,1),(128,1),(128+24,10),(128+28,0),(128+32+4,125),(128+560,1)]:
++            with self.subTest(offset=offset):
++                b=bytearray(fixture());b[offset]=value&255
++                if offset==80:struct.pack_into("<I",b,80,value)
++                with self.assertRaises(ValueError):R["decode_linux_restart_witness"](bytes(b),"capture",7)
++        for b in [fixture()[:-1],fixture()+b"\0"]:
++            with self.assertRaises(ValueError):R["decode_linux_restart_witness"](b,"capture",7)
++    def test_production_errors_never_decode_stale_authority(self):
++        b=bytearray(fixture());struct.pack_into("<I",b,12,9)
++        with self.assertRaisesRegex(RuntimeError,"error 9"):R["decode_linux_restart_witness"](bytes(b),"capture",7)
++    def domain(self):
++        d=R["UnifiedDomain"].__new__(R["UnifiedDomain"])
++        d.linux_restart_witness_profile=dict(R["LINUX_WITNESS"])
++        d.control_sequence=6;d.o10_exchange_active=False;d.linux_restart_witness_pending=None
++        d.process=types.SimpleNamespace(poll=lambda:None)
++        d.qmp=types.SimpleNamespace(execute=mock.Mock())
++        d.stopped=mock.Mock();d.write_native=mock.Mock();d.pump=mock.Mock()
++        d.ram=123
++        return d
++    def test_one_observation_uses_only_fixed_action_and_mailbox(self):
++        d=self.domain();data=fixture()
++        def pread(fd,n,offset):
++            self.assertEqual(fd,123)
++            if offset==0x6d000080-0x40000000:return struct.pack("<QQ",7,1)
++            self.assertEqual(offset,0x6d0b0000-0x40000000)
++            return data[:n]
++        with mock.patch.object(R["os"],"pread",side_effect=pread):
++            result=d.linux_restart_witness("capture")
++        self.assertEqual(result["sequence"],7)
++        self.assertEqual(d.write_native.call_args_list,[mock.call(0x6d000118,struct.pack("<Q",1)),mock.call(0x6d000070,struct.pack("<QQ",7,11))])
++        self.assertIsNone(d.linux_restart_witness_pending);self.assertFalse(d.o10_exchange_active)
++    def test_timeout_does_not_resubmit_and_retains_unknown_observation(self):
++        d=self.domain()
++        with mock.patch.object(R["os"],"pread",return_value=struct.pack("<QQ",0,0)),mock.patch.object(R["time"],"monotonic",side_effect=[0,.1,61]):
++            with self.assertRaises(TimeoutError):d.linux_restart_witness("check")
++        self.assertEqual(d.write_native.call_count,2);self.assertEqual(d.linux_restart_witness_pending,7);self.assertFalse(d.o10_exchange_active)
++        with self.assertRaisesRegex(RuntimeError,"unresolved"):d.linux_restart_witness("check")
++        self.assertEqual(d.write_native.call_count,2)
++    def test_unsupported_invalid_and_nested_fail_before_writes(self):
++        d=self.domain()
++        for action in ["token",{"grant":1},None]:
++            with self.assertRaises(ValueError):d.linux_restart_witness(action)
++        d.linux_restart_witness_profile=None
++        with self.assertRaisesRegex(RuntimeError,"unsupported"):d.linux_restart_witness("capture")
++        d.linux_restart_witness_profile=R["LINUX_WITNESS"];d.o10_exchange_active=True
++        with self.assertRaisesRegex(RuntimeError,"unresolved"):d.linux_restart_witness("capture")
++        d.write_native.assert_not_called()
++    def test_native_observer_pages_are_outside_all_guest_private_ram(self):
++        p=R["LINUX_WITNESS"];start,end=p["address"],p["address"]+p["bytes"]
++        self.assertEqual((start,end),(0x6d0b0000,0x6d100000))
++        self.assertLessEqual(128+512*576,p["bytes"])
++        for guest,limit in [(0x48000000,0x68000000),(0xb0000000,0xd0000000)]:
++            self.assertTrue(end<=guest or start>=limit)
++        self.assertEqual(p,runpy.run_path(str(ROOT/"scripts/build_okernel_unified_world.py"))["LINUX_WITNESS"])
++if __name__=="__main__":unittest.main()
+diff --git a/tests/test_o10_linux_witness_native.py b/tests/test_o10_linux_witness_native.py
+new file mode 100644
+index 00000000..bf52e0e8
+--- /dev/null
++++ b/tests/test_o10_linux_witness_native.py
+@@ -0,0 +1,120 @@
++"""Real native store/frontends under an explicit host RAM/register model.
++No guest boot, AArch64 assembly, or live milestone qualification.
++"""
++import os
++from pathlib import Path
++import platform
++import shutil
++import subprocess
++import tempfile
++import unittest
++ROOT = Path(__file__).resolve().parents[1]
++HARNESS = r'''
++#define _GNU_SOURCE
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/mman.h>
++#define S(n) _O_runtime__common__namespace_store__##n
++#define N(n) _O_runtime__aarch64__kernel_world_9p__##n
++#define U(n) _O_runtime__aarch64__plan9_namespace_uart__##n
++#define W(n) _O_runtime__aarch64__linux_restart_witness__##n
++extern uint64_t S(init)(uintptr_t,size_t,uint64_t),S(session_handle)(uint64_t),S(session_init)(uint64_t,uint64_t);
++extern uint64_t S(qualification_fids)(uint64_t,uint64_t,uint64_t*,size_t);
++extern uint64_t N(init)(uint64_t,uint64_t,uint64_t),N(mmio_write)(uint64_t,uint64_t),N(poll)(void),N(detach)(uint64_t),N(qualification_session)(void);
++extern uint64_t U(init)(uint64_t),U(mmio_write)(uint64_t,uint64_t),U(mmio_read)(uint64_t),U(qualification_session)(void);
++extern uint64_t W(execute)(uint64_t,uint64_t,uint64_t);
++static unsigned char *mem,*out=(void*)0x6d0b0000,q[512],reply[512];static unsigned pos,avail;
++static uint64_t rd(const void*p,unsigned n){const unsigned char*b=p;uint64_t v=0;for(unsigned i=0;i<n;i++)v|=(uint64_t)b[i]<<(i*8);return v;}
++static void st(void*p,uint64_t v,unsigned n){unsigned char*b=p;for(unsigned i=0;i<n;i++)b[i]=(unsigned char)(v>>(i*8));}
++static void put(uint64_t v,unsigned n){st(q+pos,v,n);pos+=n;}
++static void str(const char*s){unsigned n=strlen(s);put(n,2);memcpy(q+pos,s,n);pos+=n;}
++static void begin(unsigned kind){memset(q,0,sizeof q);pos=7;q[4]=kind;st(q+5,55,2);}
++static void map_at(uintptr_t base,size_t size){assert(mmap((void*)base,size,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE|MAP_FIXED_NOREPLACE,-1,0)==(void*)base);}
++uintptr_t kw_guest_address(uint64_t p,uint64_t n){if(!n||p<0x40000000||n>65536||p-0x40000000>65536-n)return 0;return (uintptr_t)mem+p-0x40000000;}
++void kw_memory_barrier(void){__sync_synchronize();}
++void kw_9p_irq_level(uint64_t n){assert(n<=1);}
++void p9_namespace_irq_level(uint64_t n){assert(n<=1);}
++static void nw(unsigned a,uint64_t v){assert(N(mmio_write)(a,v)==1);}
++static void exchange(unsigned role,unsigned expected){
++ st(q,pos,4);memset(reply,0,sizeof reply);
++ if(role==0){
++  memcpy(mem+0x3000,q,pos);memset(mem+0x6000,0,512);
++  st(mem,0x40003000,8);st(mem+8,pos,4);st(mem+12,1,2);st(mem+14,1,2);
++  st(mem+16,0x40006000,8);st(mem+24,512,4);st(mem+28,2,2);st(mem+30,0,2);
++  st(mem+0x1004+(avail%8)*2,0,2);st(mem+0x1002,++avail,2);
++  assert(N(poll)()==1);memcpy(reply,mem+0x6000,512);nw(100,1);
++ }else{
++  for(unsigned i=0;i<pos;i++)assert(U(mmio_write)(0,q[i])==1);
++  for(unsigned i=0;i<4;i++){assert(!(U(mmio_read)(0x18)&16));reply[i]=U(mmio_read)(0);}
++  unsigned n=rd(reply,4);assert(n>=7&&n<=512);
++  for(unsigned i=4;i<n;i++){assert(!(U(mmio_read)(0x18)&16));reply[i]=U(mmio_read)(0);}
++ }
++ assert(reply[4]==expected&&rd(reply+5,2)==55);
++}
++static void setup(unsigned dotu,unsigned attach){
++ void*v=mmap(0,16777216,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE,-1,0);assert(v!=MAP_FAILED);
++ assert(S(init)((uintptr_t)v,16777216,1)==1);
++ assert(N(init)(0x40000000,65536,1)==1);assert(U(init)(1)==1);assert(U(mmio_write)(0x30,0x301)==1);
++ nw(112,0);nw(112,1);nw(112,3);nw(36,0);nw(32,1);nw(36,1);nw(32,1);nw(112,11);
++ nw(48,0);nw(56,8);nw(128,0x40000000);nw(132,0);nw(144,0x40001000);nw(148,0);nw(160,0x40002000);nw(164,0);nw(68,1);nw(112,15);
++ for(unsigned role=0;role<2;role++){
++  begin(100);put(512,4);str(role==0&&dotu?"9P2000.u":"9P2000");exchange(role,101);
++  if(!attach)continue;
++  begin(104);put(role?30:9,4);put(UINT32_MAX,4);str("root");str("");if(!role&&dotu)put(UINT32_MAX,4);exchange(role,105);
++  begin(110);put(role?30:9,4);put(role?2:1,4);put(0,2);exchange(role,111);
++  if(role){begin(110);put(30,4);put(17,4);put(0,2);exchange(role,111);}
++ }
++}
++static void cleared(void){for(unsigned i=40;i<0x50000;i++)assert(out[i]==0);}
++int main(int argc,char**argv){
++ assert(argc==2);unsigned scenario=strtoul(argv[1],0,10);map_at(0x6d0b0000,0x50000);map_at(0x48000000,65536);mem=(void*)0x48000000;
++ if(scenario==0){memset(out,0xaa,0x50000);assert(W(execute)(1,1,0)==9);assert(rd(out+12,4)==9);cleared();}
++ else if(scenario==1){assert(W(execute)(3,1,1)==1);cleared();assert(W(execute)(1,0,1)==4);assert(W(execute)(2,1,1)==12);assert(W(execute)(1,1,1)==4);}
++ else if(scenario==2){
++  setup(1,1);uint64_t ls=N(qualification_session)(),ps=U(qualification_session)();assert(ls&&ps&&ls!=ps&&(ls&1));
++  assert(W(execute)(1,1,1)==0);assert(rd(out+40,8)==ls&&rd(out+56,8)==ps);assert(rd(out+72,4)==2&&rd(out+76,4)==3);
++  const unsigned fids[]={1,9,2,17,30};for(unsigned i=0;i<5;i++){unsigned char*r=out+128+i*576;assert(rd(r+4,4)==fids[i]&&r[52]==125);}
++  assert(W(execute)(1,2,1)==7);cleared();assert(W(execute)(2,3,1)==7);cleared();
++  assert(N(detach)(1)==1);assert(W(execute)(2,4,1)==0);
++  for(unsigned i=0;i<2;i++){unsigned char*r=out+128+i*576;unsigned n=rd(r+28,4);assert(r[52]==107&&rd(r+48+n-4,4)==116);}
++  for(unsigned i=2;i<5;i++)assert(out[128+i*576+52]==125);
++  assert(W(execute)(2,4,1)==4);cleared();
++  begin(120);put(17,4);exchange(1,121);assert(W(execute)(2,5,1)==5);cleared();
++ }else if(scenario==3){
++  setup(1,1);uint64_t tuples[2048];memset(tuples,0xaa,sizeof tuples);assert(S(qualification_fids)(1,N(qualification_session)(),tuples,1)==UINT64_MAX-1);assert(tuples[0]==0xaaaaaaaaaaaaaaaa);
++  assert(S(qualification_fids)(1,99,tuples,512)==UINT64_MAX);
++  assert(S(qualification_fids)(1,N(qualification_session)(),tuples,512)==2);assert(tuples[0]==1&&tuples[4]==9);
++ }else if(scenario==4){setup(0,1);assert(W(execute)(1,1,1)==12);cleared();}
++ else if(scenario==5){setup(1,1);assert(S(session_init)(1,100));assert(N(qualification_session)()==0);assert(W(execute)(1,1,1)==12);cleared();}
++ else if(scenario==6){setup(1,0);assert(W(execute)(1,1,1)==12);cleared();}
++ else assert(!"unknown scenario");
++ puts("native store witness scenario PASS");return 0;
++}
++'''
++class LinuxWitnessNativeTests(unittest.TestCase):
++    @unittest.skipUnless(platform.system()=="Linux" and platform.machine()=="x86_64", "native host model requires Linux x86_64")
++    def test_real_transport_selected_fids_and_numeric_stale_replies(self):
++        compiler=Path(os.environ.get("OCOREC_BIN",ROOT/"target/debug/ocorec"))
++        self.assertTrue(compiler.is_file(),"existing compiler required")
++        clang=shutil.which("clang");self.assertIsNotNone(clang)
++        sources=["ocore/runtime/aarch64/linux_restart_witness.oc","ocore/runtime/aarch64/kernel_world_9p.oc",
++                 "ocore/runtime/aarch64/plan9_namespace_uart.oc","ocore/runtime/common/namespace_store.oc",
++                 "ocore/runtime/common/o10_codec.oc"]
++        with tempfile.TemporaryDirectory(prefix="o10-store-witness-") as d:
++            p=Path(d);(p/"harness.c").write_text(HARNESS)
++            for target,kind,output in [("x86_64-unknown-none","obj",p/"native.o"),
++                                       ("aarch64-unknown-none","mir",p/"native.arm.mir")]:
++                command=[str(compiler),*(str(ROOT/x) for x in sources),"--emit",kind,"--target",target,"-o",str(output)]
++                result=subprocess.run(command,capture_output=True,text=True,timeout=120)
++                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
++            result=subprocess.run([clang,"-O2","-no-pie","-Wl,--gc-sections",str(p/"harness.c"),str(p/"native.o"),"-o",str(p/"selftest")],capture_output=True,text=True,timeout=120)
++            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
++            for scenario in range(7):
++                result=subprocess.run([str(p/"selftest"),str(scenario)],capture_output=True,text=True,timeout=20)
++                self.assertEqual(result.returncode,0,f"scenario={scenario}: "+result.stdout+result.stderr)
++                self.assertIn("PASS",result.stdout)
++if __name__=="__main__":
++    unittest.main()

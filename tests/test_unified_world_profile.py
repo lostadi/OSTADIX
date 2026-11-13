@@ -113,6 +113,26 @@ class UnifiedWorldProfileTests(unittest.TestCase):
                       (self.qualification_output / "profile.oc").read_text())
         RUNNER.validate_profile(self.qualification_profile)
 
+    def test_store_witness_is_fixed_and_qualification_only(self):
+        self.assertNotIn("o10_linux_restart_witness", self.profile)
+        self.assertNotIn("linux_restart_witness", self.profile)
+        self.assertEqual(self.qualification_profile["o10_linux_restart_witness"], "native-store-v1")
+        self.assertEqual(self.qualification_profile["linux_restart_witness"], RUNNER.LINUX_WITNESS)
+        for key, value in (("address", 0x48000000), ("bytes", 0x60000),
+                           ("action_address", 0x6d000100), ("max_fids", 513)):
+            bad = copy.deepcopy(self.qualification_profile)
+            bad["linux_restart_witness"][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                RUNNER.validate_profile(bad)
+        bad = copy.deepcopy(self.qualification_profile)
+        bad["o10_qualification"] = False
+        with self.assertRaises(ValueError):
+            RUNNER.validate_profile(bad)
+        bad = copy.deepcopy(self.qualification_profile)
+        bad.pop("o10_linux_restart_witness")
+        with self.assertRaises(ValueError):
+            RUNNER.validate_profile(bad)
+
     def test_builder_manifest_is_accepted_and_artifacts_are_bound(self):
         RUNNER.validate_profile(self.profile)
         self.assertEqual(json.loads((self.output / "monitor-profile.json").read_text()), self.profile)

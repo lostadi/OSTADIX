@@ -8,6 +8,7 @@ module runtime::aarch64::plan9_namespace_uart;
 // Component CR reset can clear framing errors; the optional production probe
 // deliberately halts on a framing/write failure before guest reset can run.
 use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::session_handle;
 use runtime::common::namespace_store::handle;
 use runtime::common::namespace_store::revoke as store_revoke;
 
@@ -248,3 +249,8 @@ pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
 
 pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && ERROR == 0) as u64; }
 pub unsafe fn diagnostic() -> u64 { return ERROR; }
+
+// Read-only native observer: a name, never authority supplied by a guest.
+pub unsafe fn qualification_session() -> u64 { if ACTIVE != 1 || ERROR != 0 || SESSION == 0 || session_handle(4) != SESSION { return 0; } return SESSION; }
+
+pub unsafe fn qualification_generation() -> u64 { return GENERATION; }
