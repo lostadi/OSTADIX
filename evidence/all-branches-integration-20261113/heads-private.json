@@ -1,0 +1,234 @@
+[
+  {
+    "branch": "architecture-boundaries-manifest",
+    "sha": "e7ada443f093cdc1eef98355eb565bbaa1b2e45d"
+  },
+  {
+    "branch": "author-check-merge-exception",
+    "sha": "ae3e6c2869721230674752d869d098f346144729"
+  },
+  {
+    "branch": "backup/compiler-expansion-20261025-5cb-vector-r1",
+    "sha": "68b14e811005e89df2ba10db2d4ac978be814a27"
+  },
+  {
+    "branch": "backup/compiler-expansion-20261025-source-D-r1",
+    "sha": "2b7491bdbf75711aa3d1597f525bda4a63b0e71e"
+  },
+  {
+    "branch": "bug-fixes",
+    "sha": "27fb77281c56f5a74d39b4a779fcbab37ea14d56"
+  },
+  {
+    "branch": "bug-fixes-rebased",
+    "sha": "c2cd192ca498b93f24b283143642d7e2f50fc2be"
+  },
+  {
+    "branch": "checkpoint/latest-build-source-20261104",
+    "sha": "b7df79c0aa4ede007b87922e4a53fc058642960f"
+  },
+  {
+    "branch": "checkpoint/runtime-expansion-20261103",
+    "sha": "adfbdbbc2a948d15d1679cd12e610351a3023973"
+  },
+  {
+    "branch": "ci-commit-author-check",
+    "sha": "1775008733cd45d79c5554b4ffb28bd2afcdb8dd"
+  },
+  {
+    "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+    "sha": "295cb28dc38776f7e04a94e77b52fc4e585efbb3"
+  },
+  {
+    "branch": "dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34",
+    "sha": "c9166da56f83296743e68ed9a81c9311ff432ef8"
+  },
+  {
+    "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+    "sha": "42d456326ea142143a68d403fea075a42eb2b905"
+  },
+  {
+    "branch": "dependabot/cargo/apps/mobile-console/libc-0.2.191",
+    "sha": "1bdb0d2595f24033f1c9264c40bfafa5f5efd402"
+  },
+  {
+    "branch": "dependabot/cargo/hmac-0.13.0",
+    "sha": "9c7f4cb883ca0ac044bb23090f5feb3612331436"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/futures-util-0.3.34",
+    "sha": "5289defc1704afdf6cdde5951f8fc9402ec56327"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.191",
+    "sha": "25fe0687f2068bc9062aec7e1bb28b0ed7c3cb11"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.8.0",
+    "sha": "9db59f0add51677d36e8dd79be7d03b684195182"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.3",
+    "sha": "cf1524f17d3240c779e05a4ccfc0fdc0e0950fc9"
+  },
+  {
+    "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+    "sha": "9534cea79764b16fcc5ab15ffd942da622405c0a"
+  },
+  {
+    "branch": "dependabot/cargo/sha2-0.11.0",
+    "sha": "21edc4f45ef8b00830c7b71f9e85f4133c3154ae"
+  },
+  {
+    "branch": "dependabot/docker/examples/guix-wasm/library/python-3.15-slim-bookworm",
+    "sha": "0d7cc308c0f4ff670daead4c9aa1bcc181b55172"
+  },
+  {
+    "branch": "dependabot/docker/src/bin/olangc/wasm_exit/gcc-16",
+    "sha": "66ace79a8b184944a3addaaf680bda2afccc4eb2"
+  },
+  {
+    "branch": "fix/vscode-run-automation-20261020",
+    "sha": "7423a63af309e0c680a957e812d896db10f823ec"
+  },
+  {
+    "branch": "improvement/mcp-onboarding-20261025",
+    "sha": "7c08ed923077f2bffdcf557f46f2445e8ca5c616"
+  },
+  {
+    "branch": "integration/native-copy-observation-20261113",
+    "sha": "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+  },
+  {
+    "branch": "integration/native-foundations-20261113",
+    "sha": "6390bf2d2d725d477cfa1c1f087fcec426b15315"
+  },
+  {
+    "branch": "integration/native-install-observation-20261113",
+    "sha": "114b83ac12814b3cea6c8ad18cbb822dea490173"
+  },
+  {
+    "branch": "integration/public-contract-20261111",
+    "sha": "a8742f638c265d68cde6977aa2783cfad74ccc2a"
+  },
+  {
+    "branch": "master",
+    "sha": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4"
+  },
+  {
+    "branch": "okernel-v3",
+    "sha": "e9e7a96f96cae01682e331bed6d47790f3c74ab2"
+  },
+  {
+    "branch": "portfolio/readme-2026-11-06",
+    "sha": "78b036ff3da0eb08a529910c7fe476d4e33155bb"
+  },
+  {
+    "branch": "recovery/orangepirv-runtime-expansion-20261103-8e4f1c",
+    "sha": "b314fd264b63afcdcfb1e82117e659923bfce3db"
+  },
+  {
+    "branch": "recovery-byte-swap-source-20261022-e4aa036d",
+    "sha": "e4aa036d61baff64302cf5b2aa561ab6456a4896"
+  },
+  {
+    "branch": "recovery-combined-catalog-20261022-5fc33651",
+    "sha": "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd"
+  },
+  {
+    "branch": "recovery-combined-source-20261022-8c18be95",
+    "sha": "6e063c60a28d62ca4da128178f8426d02f41879e"
+  },
+  {
+    "branch": "recovery-core-test-constructor-repair-20261021-747b3d0f",
+    "sha": "747b3d0f509ac46a12655c6ff028fc67deec47bf"
+  },
+  {
+    "branch": "recovery-frozen-native-union-20261021-c18f7c75",
+    "sha": "c18f7c7579cf40c6a4b9f6ffceaf591e112406ae"
+  },
+  {
+    "branch": "recovery-machine-source-20261021-4b0fbdad",
+    "sha": "4b0fbdade6031cacffd4a7e32ee03e5c9698c9b8"
+  },
+  {
+    "branch": "recovery-native-ctpop-20261020",
+    "sha": "528b04ff301d5c4285ac6f3c42bfb765d2ad92ce"
+  },
+  {
+    "branch": "recovery-native-fp-20261020",
+    "sha": "fd55f87124ed55d1be082aaf951283bc6b76546b"
+  },
+  {
+    "branch": "recovery-native-integral-rounding-20261021",
+    "sha": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c"
+  },
+  {
+    "branch": "recovery-native-next-source-20261021-12ef9d8a",
+    "sha": "12ef9d8ac5dc45af8233cee5918961d78126b6db"
+  },
+  {
+    "branch": "recovery-native-python-c-rust-20261018",
+    "sha": "ca5b3ac9e46bcc0dfe90f57484d9c136ccb8252d"
+  },
+  {
+    "branch": "recovery-native-runtime-v5-20261020",
+    "sha": "73f66b81737e6c8b55a5612bceae4c54ce6de39c"
+  },
+  {
+    "branch": "recovery-native-usub-saturation-20261021",
+    "sha": "8ac166a025c6be356b413e87bebe77697e6580ac"
+  },
+  {
+    "branch": "recovery-native-v6-20261020",
+    "sha": "dc4861001c7645b29161a150d5544ecfc71193b5"
+  },
+  {
+    "branch": "recovery-native-v6-r2-20261020",
+    "sha": "9b69c4c5362506790bf505d84ba869022b9c8bd7"
+  },
+  {
+    "branch": "recovery-native-v7-20261020",
+    "sha": "2f6de263fd130057ca2fce7ceffbea25d3bf0f3f"
+  },
+  {
+    "branch": "recovery-native-validation-20261020",
+    "sha": "0526fa0e8828334fb4d3f0f5ee3732db8b8acf25"
+  },
+  {
+    "branch": "recovery-native-variadic-20261020",
+    "sha": "e39da043a0396a1276fa41fc19f92e00446d27ee"
+  },
+  {
+    "branch": "recovery-ocore-native-20261017",
+    "sha": "69109d4ffc083e2eeec8792eee9db44e0364e6a4"
+  },
+  {
+    "branch": "recovery-opaque-source-20261021-1bb8921e",
+    "sha": "1bb8921e9c25272d92d6971d4d035ac23a97c389"
+  },
+  {
+    "branch": "recovery-runtime-acceptance-20261020",
+    "sha": "d0524d9f3a1f67707ba362fb593c36c68a84130e"
+  },
+  {
+    "branch": "recovery-runtime-producers-20261020",
+    "sha": "e4727e456bc2c192533090262f3f0096eb3908fc"
+  },
+  {
+    "branch": "recovery-source-provider-group-20261021",
+    "sha": "644b53ead711e418a967ff94c02ba1c7b39ecd26"
+  },
+  {
+    "branch": "recovery-source-provider-repair-20261021-55ed34b5",
+    "sha": "55ed34b5d2429b1a409eb661c5ac0d372e202cb1"
+  },
+  {
+    "branch": "work/ocore-evidence-review-20261017",
+    "sha": "44cd0329d401a114a434347c469152c42d1cc991"
+  },
+  {
+    "branch": "work/ocore-native-integration-20261016",
+    "sha": "0c8a1a1218a404765f78a883d2ce63d66e88e74d"
+  }
+]

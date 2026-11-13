@@ -1,0 +1,171 @@
+{
+  "schema": "ostadix-recovery-preservation-static-audit-v1",
+  "baseline": "6390bf2d2d725d477cfa1c1f087fcec426b15315",
+  "runtime_or_compiler_execution_performed": false,
+  "function_comparisons": [
+    {
+      "ref": "origin/recovery-native-integral-rounding-20261021",
+      "tip": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "path": "scripts/ocore_llvm_import.py",
+      "function": "float_integral",
+      "branch": {
+        "line": 1619,
+        "ast_sha256": "862659ae531746f2b6d56d6428d109c05b49aada6a92e58bd306c524110914be"
+      },
+      "baseline": {
+        "line": 2172,
+        "ast_sha256": "862659ae531746f2b6d56d6428d109c05b49aada6a92e58bd306c524110914be"
+      },
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-integral-rounding-20261021",
+      "tip": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "path": "scripts/ocore_llvm_import.py",
+      "function": "float_integral_identity",
+      "branch": {
+        "line": 891,
+        "ast_sha256": "c005ebbccac7a9fc4097ac807998e153fc8004469fb169186d250ba519dddc0b"
+      },
+      "baseline": {
+        "line": 1069,
+        "ast_sha256": "c005ebbccac7a9fc4097ac807998e153fc8004469fb169186d250ba519dddc0b"
+      },
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-integral-rounding-20261021",
+      "tip": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "path": "tests/ocore_llvm_source_inventory.py",
+      "function": "integral_rounding_graph",
+      "branch": {
+        "line": 409,
+        "ast_sha256": "b55f5e6bf10f58f559ae4b0cd0cdb488de05edd74c002645305cc684a8429754"
+      },
+      "baseline": {
+        "line": 1176,
+        "ast_sha256": "b55f5e6bf10f58f559ae4b0cd0cdb488de05edd74c002645305cc684a8429754"
+      },
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-usub-saturation-20261021",
+      "tip": "8ac166a025c6be356b413e87bebe77697e6580ac",
+      "path": "scripts/ocore_llvm_import.py",
+      "function": "integer_saturating_sub",
+      "branch": {
+        "line": 1591,
+        "ast_sha256": "b01b9aabf0d2a131084c3b03a1e77f35cf5c599d836dcbdae6417264e8efc341"
+      },
+      "baseline": {
+        "line": 2131,
+        "ast_sha256": "b01b9aabf0d2a131084c3b03a1e77f35cf5c599d836dcbdae6417264e8efc341"
+      },
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-usub-saturation-20261021",
+      "tip": "8ac166a025c6be356b413e87bebe77697e6580ac",
+      "path": "scripts/ocore_llvm_import.py",
+      "function": "integer_saturating_sub_identity",
+      "branch": {
+        "line": 892,
+        "ast_sha256": "6d7fdef70c8a415aa17f09ef74d6f12a8bf66f4f8cb5e7700717b08147b14732"
+      },
+      "baseline": {
+        "line": 1078,
+        "ast_sha256": "6d7fdef70c8a415aa17f09ef74d6f12a8bf66f4f8cb5e7700717b08147b14732"
+      },
+      "equal": true
+    }
+  ],
+  "exact_blob_comparisons": [
+    {
+      "ref": "origin/recovery-native-integral-rounding-20261021",
+      "path": "tests/test_ocore_llvm_integral_rounding.py",
+      "branch_sha256": "09bf5d5a429b40965208bf8d316d9d9591a6aba5426e67ea30c2b68a55a9a6e4",
+      "baseline_sha256": "09bf5d5a429b40965208bf8d316d9d9591a6aba5426e67ea30c2b68a55a9a6e4",
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-integral-rounding-20261021",
+      "path": "tests/test_ocore_llvm_population_count_attribute.py",
+      "branch_sha256": "9a24dbfcbf8d8f64da2032dc0c80efd48ba4f3e08f4220cf980008a306849ed3",
+      "baseline_sha256": "9a24dbfcbf8d8f64da2032dc0c80efd48ba4f3e08f4220cf980008a306849ed3",
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-usub-saturation-20261021",
+      "path": "tests/test_ocore_native_saturation.py",
+      "branch_sha256": "e98edfe23d7f21c24f116f9438202ce8773ed7e85262844f518ccb38c279d49c",
+      "baseline_sha256": "e98edfe23d7f21c24f116f9438202ce8773ed7e85262844f518ccb38c279d49c",
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-native-usub-saturation-20261021",
+      "path": "tests/test_ocore_llvm_population_count_attribute.py",
+      "branch_sha256": "9a24dbfcbf8d8f64da2032dc0c80efd48ba4f3e08f4220cf980008a306849ed3",
+      "baseline_sha256": "9a24dbfcbf8d8f64da2032dc0c80efd48ba4f3e08f4220cf980008a306849ed3",
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-runtime-acceptance-20261020",
+      "path": "tools/ocore-runtime/acceptance/README.md",
+      "branch_sha256": "a75d5957986d95fd4f810be71606c9828cac2ba4fd3813b99f000a0f696f4bf3",
+      "baseline_sha256": "a75d5957986d95fd4f810be71606c9828cac2ba4fd3813b99f000a0f696f4bf3",
+      "equal": true
+    },
+    {
+      "ref": "origin/recovery-runtime-acceptance-20261020",
+      "path": "tools/ocore-runtime/acceptance/chibicc.profile.json",
+      "branch_sha256": "b48046f5e009f091da8d584089500497de66c64a00b51792f2815aaa42920187",
+      "baseline_sha256": "b48046f5e009f091da8d584089500497de66c64a00b51792f2815aaa42920187",
+      "equal": true
+    }
+  ],
+  "shared_evidence": [
+    {
+      "path": "evidence/native_floating_wip_20261020.json",
+      "sha256": "f85321e36a3ee6c61d8e0572a3002d4f4aac1b4f351e62e1835eb83ebbd8d0a8",
+      "equal": true
+    },
+    {
+      "path": "evidence/native_runtime_v5_wip_20261020.json",
+      "sha256": "743c8f6a240c054cd23035896409b1109a8c606c9bf05ba083f6cc69763a25e8",
+      "equal": true
+    },
+    {
+      "path": "evidence/native_runtime_validation_checkpoint_20261020.json",
+      "sha256": "738538746b7af5f79b70aa4f631b95ad0fc00257cc8081b83ac5c1f10a1b406f",
+      "equal": true
+    }
+  ],
+  "scope": "Static source/blob preservation audit; not runtime qualification.",
+  "provider_repair_added_line_check": [
+    {
+      "path": "src/bin/olangc/native_runtime.rs",
+      "added_lines": 54,
+      "missing_normalized_lines": []
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/artifact.rs",
+      "added_lines": 9,
+      "missing_normalized_lines": []
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/provider_group.rs",
+      "added_lines": 2,
+      "missing_normalized_lines": []
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/whole_artifact.rs",
+      "added_lines": 17,
+      "missing_normalized_lines": []
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/whole_artifact_tests.rs",
+      "added_lines": 80,
+      "missing_normalized_lines": []
+    }
+  ]
+}

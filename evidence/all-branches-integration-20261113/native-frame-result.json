@@ -1,0 +1,2273 @@
+{
+  "schema": "ostadix.thread-frame-content/v1",
+  "scope": "Compare original/refactored frame validation with actual native registries.\n\nThe private content helper is not lifecycle authority. C exposes only test\nviews of real process/thread fields, supplies three privileged architecture\nhooks and delivers one authored ELF fixture through the loader's image API.\nIt does not implement registries or claim closed INSTALL/FP/CPU admission.\n",
+  "commands": [
+    {
+      "name": "fixture-ELF",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-nostdlib",
+        "-static",
+        "-no-pie",
+        "-Wl,-Ttext-segment=0x02000000",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/entry.S",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf"
+      ],
+      "status": 0,
+      "seconds": 0.05618720699567348,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture-ELF.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture-ELF.stderr",
+        "bytes": 95,
+        "sha256": "d757dc4283b8a5881dbec3f027839da0329827cd76361c0098786a476ee96646"
+      }
+    },
+    {
+      "name": "before-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-thread.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before.o"
+      ],
+      "status": 0,
+      "seconds": 0.34456892404705286,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-compile.stderr",
+        "bytes": 111,
+        "sha256": "a4aaedddca41f82259381549dfcc2e1a286be9671e339f1d2f0c5fcfa3cc37d0"
+      }
+    },
+    {
+      "name": "before-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before.o"
+      ],
+      "status": 0,
+      "seconds": 0.014661267050541937,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before.o"
+      ],
+      "status": 0,
+      "seconds": 0.016242637997493148,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "d2e70168b9f0ccd833a73891107747e8e39e6c5ec08b7c357f8149664eefa2b0"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.002954636001959443,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before"
+      ],
+      "status": 0,
+      "seconds": 0.17817433597519994,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/thread.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate.o"
+      ],
+      "status": 0,
+      "seconds": 0.3489472579676658,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-compile.stderr",
+        "bytes": 114,
+        "sha256": "c7170275b501aa2ffd6c951a21df61c0d31767f969a67a2cd5dadea5f4f81c76"
+      }
+    },
+    {
+      "name": "candidate-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate.o"
+      ],
+      "status": 0,
+      "seconds": 0.014753442956134677,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate.o"
+      ],
+      "status": 0,
+      "seconds": 0.01793164701666683,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "8111578453d27f706a4532d2278efb4234c283a2d552a0d83833101273c6df26"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.0029331790283322334,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate"
+      ],
+      "status": 0,
+      "seconds": 0.1852609490742907,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "before-public",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 0,
+      "seconds": 0.0019623389234766364,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-public.stdout",
+        "bytes": 75,
+        "sha256": "9e0656634b0d9c4eaa53bdd1194c0fea8434368b96196168a4347333c4adab8c"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-public.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-public",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 0,
+      "seconds": 0.001844728016294539,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-public.stdout",
+        "bytes": 75,
+        "sha256": "9e0656634b0d9c4eaa53bdd1194c0fea8434368b96196168a4347333c4adab8c"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-public.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "candidate-content",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "content"
+      ],
+      "status": 0,
+      "seconds": 0.0016359230503439903,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-content.stdout",
+        "bytes": 84,
+        "sha256": "a723b85f4389d9ae42cb8ce1b8ea37a9a2a29313f1662acd419c0de807c9c2e2"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-content.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.o"
+      ],
+      "status": 0,
+      "seconds": 0.39988800103310496,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-compile.stderr",
+        "bytes": 119,
+        "sha256": "60c111a8b0a75a5dcf5e790a6983e1e4ff3e5f0ab619437180cacab923e42a75"
+      }
+    },
+    {
+      "name": "missing-active-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.o"
+      ],
+      "status": 0,
+      "seconds": 0.01501168601680547,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.o"
+      ],
+      "status": 0,
+      "seconds": 0.0163134130416438,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "d5d5adcf95635bfa4f770d334af5827d1ad84c1f44276b02c6df85a2ca148437"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.003078353009186685,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active"
+      ],
+      "status": 0,
+      "seconds": 0.18635495309717953,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-active-rejected",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0018438019324094057,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-rejected.stderr",
+        "bytes": 46,
+        "sha256": "4d476b78555bd813957b88da349ec7ff71b5a47476330cda94d167f537e7d5da"
+      }
+    },
+    {
+      "name": "missing-CS-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.o"
+      ],
+      "status": 0,
+      "seconds": 0.3430870450101793,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-compile.stderr",
+        "bytes": 115,
+        "sha256": "3750099bf7dc58c13064f6ef9713247db6fe6ce4de062538c95d450566e5d9ff"
+      }
+    },
+    {
+      "name": "missing-CS-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.o"
+      ],
+      "status": 0,
+      "seconds": 0.015227887080982327,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.o"
+      ],
+      "status": 0,
+      "seconds": 0.016285783029161394,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "40913945e486aeaf5b28c9301771e4b0afca8c9a5d1f8a931ff2c52b733e8f34"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.0030694359447807074,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS"
+      ],
+      "status": 0,
+      "seconds": 0.19712605304084718,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-CS-rejected",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0016679809195920825,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-rejected.stderr",
+        "bytes": 46,
+        "sha256": "4e30d8504acc6313405eaab893f66f1d52de9290011b341f97d8ef578c9e3571"
+      }
+    },
+    {
+      "name": "missing-SS-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.o"
+      ],
+      "status": 0,
+      "seconds": 0.35820625396445394,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-compile.stderr",
+        "bytes": 115,
+        "sha256": "1314b31ca33d5604e075b60d16b8c34cc91fac88618ae31e725d991191a566d6"
+      }
+    },
+    {
+      "name": "missing-SS-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.o"
+      ],
+      "status": 0,
+      "seconds": 0.015008406015112996,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.o"
+      ],
+      "status": 0,
+      "seconds": 0.01675839489325881,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "40913945e486aeaf5b28c9301771e4b0afca8c9a5d1f8a931ff2c52b733e8f34"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.0030949240317568183,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS"
+      ],
+      "status": 0,
+      "seconds": 0.18521053600125015,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-SS-rejected",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0016792879905551672,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-rejected.stderr",
+        "bytes": 46,
+        "sha256": "d88d81184a7334b90f5f3753499d831e2ffbc529f59c20d379a08e61339ff03c"
+      }
+    },
+    {
+      "name": "missing-rflags-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.o"
+      ],
+      "status": 0,
+      "seconds": 0.341735206078738,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-compile.stderr",
+        "bytes": 119,
+        "sha256": "32bd18a5f16edc45ed8132e8be44791197d6132ed3812159059f225871c71f6a"
+      }
+    },
+    {
+      "name": "missing-rflags-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.o"
+      ],
+      "status": 0,
+      "seconds": 0.01518056308850646,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.o"
+      ],
+      "status": 0,
+      "seconds": 0.01718920690473169,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "a6980688af1f43e20c84c49889db3428b26d987f86a170c79507db6bf83033dc"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.003244859050028026,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags"
+      ],
+      "status": 0,
+      "seconds": 0.1937915290473029,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "missing-rflags-rejected",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0016886880621314049,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-rejected.stderr",
+        "bytes": 46,
+        "sha256": "24a8ed25980208fa236ff6bb4f25f46b4807106b8cc011839b47ef359194b8af"
+      }
+    },
+    {
+      "name": "native-stack-bypass-compile",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+        "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.oc",
+        "--target",
+        "x86_64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.o"
+      ],
+      "status": 0,
+      "seconds": 0.3555890249554068,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-compile.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-compile.stderr",
+        "bytes": 124,
+        "sha256": "f98d4ac27267cf6de464cbd52159a9c52e24a2b8f6fb0ff99f6f56bd26971d5e"
+      }
+    },
+    {
+      "name": "native-stack-bypass-undefined",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "-u",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.o"
+      ],
+      "status": 0,
+      "seconds": 0.016435259953141212,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-undefined.stdout",
+        "bytes": 278,
+        "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-undefined.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-symbols",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-nm",
+        "--defined-only",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.o"
+      ],
+      "status": 0,
+      "seconds": 0.01804298593197018,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-symbols.stdout",
+        "bytes": 35213,
+        "sha256": "fb3ef07069f2f8fd80b64bff60fe959957becfd94c38fa9d048bc6f5e121e315"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-symbols.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-visibility",
+      "argv": [
+        "/usr/bin/x86_64-linux-gnu-objcopy",
+        "--globalize-symbol=_O_runtime__process__PROCESS_IDS",
+        "--globalize-symbol=_O_runtime__process__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__process__PERSONALITY_IDS",
+        "--globalize-symbol=_O_runtime__process__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__process__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__USER_ENTRIES",
+        "--globalize-symbol=_O_runtime__process__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__process__EXIT_CODES",
+        "--globalize-symbol=_O_runtime__process__FAULT_VECTORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ERRORS",
+        "--globalize-symbol=_O_runtime__process__FAULT_RIPS",
+        "--globalize-symbol=_O_runtime__process__FAULT_ADDRESSES",
+        "--globalize-symbol=_O_runtime__process__THREAD_REFS",
+        "--globalize-symbol=_O_runtime__process__GENERATIONS",
+        "--globalize-symbol=_O_runtime__process__STATES",
+        "--globalize-symbol=_O_runtime__process__CURRENT_PROCESS",
+        "--globalize-symbol=_O_runtime__process__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__THREAD_IDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__DOMAIN_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__ADDRESS_SPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__CSPACE_HANDLES",
+        "--globalize-symbol=_O_runtime__thread__KERNEL_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__STACK_ORDINALS",
+        "--globalize-symbol=_O_runtime__thread__USER_STACK_TOPS",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_BASES",
+        "--globalize-symbol=_O_runtime__thread__USER_FS_SELECTORS",
+        "--globalize-symbol=_O_runtime__thread__LINUX_SINGLE_TASK",
+        "--globalize-symbol=_O_runtime__thread__CLEAR_CHILD_TIDS",
+        "--globalize-symbol=_O_runtime__thread__ROLES",
+        "--globalize-symbol=_O_runtime__thread__PRIORITIES",
+        "--globalize-symbol=_O_runtime__thread__QUANTUM_LEFT",
+        "--globalize-symbol=_O_runtime__thread__WAKE_DEADLINES",
+        "--globalize-symbol=_O_runtime__thread__WAKE_REASONS",
+        "--globalize-symbol=_O_runtime__thread__SLEEP_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_EPOCHS",
+        "--globalize-symbol=_O_runtime__thread__WAKE_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__RUN_TICKS",
+        "--globalize-symbol=_O_runtime__thread__SWITCH_COUNTS",
+        "--globalize-symbol=_O_runtime__thread__GENERATIONS",
+        "--globalize-symbol=_O_runtime__thread__STATES",
+        "--globalize-symbol=_O_runtime__thread__QUEUE_KINDS",
+        "--globalize-symbol=_O_runtime__thread__PROCESS_REF_HELD",
+        "--globalize-symbol=_O_runtime__thread__FRAMES",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_HEAD",
+        "--globalize-symbol=_O_runtime__thread__RUNNABLE_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_QUEUE",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_HEAD",
+        "--globalize-symbol=_O_runtime__thread__BLOCKED_LENGTH",
+        "--globalize-symbol=_O_runtime__thread__CURRENT_THREAD",
+        "--globalize-symbol=_O_runtime__thread__PREPARED_THREAD",
+        "--globalize-symbol=_O_runtime__thread__INITIALIZED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CAPSULE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_RUNNABLE_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_BLOCKED_BEFORE",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_NEXT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_OBSERVATION_EXHAUSTED",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_CURRENT_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__INSTALL_LAST_CLOSED_OBSERVATION_SERIAL",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_words",
+        "--globalize-symbol=_O_runtime__thread__validate_frame_contents",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visible.o"
+      ],
+      "status": 0,
+      "seconds": 0.003522685030475259,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visibility.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visibility.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-link",
+      "argv": [
+        "/usr/lib/llvm-21/bin/clang",
+        "-O2",
+        "-fno-pie",
+        "-no-pie",
+        "-DNEW_CONTENT=1",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visible.o",
+        "-o",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass"
+      ],
+      "status": 0,
+      "seconds": 0.18097271502483636,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-link.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-link.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "native-stack-bypass-rejected",
+      "argv": [
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+        "public"
+      ],
+      "status": 93,
+      "seconds": 0.0016538510099053383,
+      "stdout": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-rejected.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-rejected.stderr",
+        "bytes": 46,
+        "sha256": "bf073a977dc4be4925e2ea5b6e3767dbd016099a1ad6471090658a0ca88bc919"
+      }
+    }
+  ],
+  "sources_before": [
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+      "bytes": 4364,
+      "sha256": "2e6ce4ff8048471a39bb16ff03d4554ae9886080c475f03e21862925d1d70f45"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+      "bytes": 1199,
+      "sha256": "cc478ec4d354a3c578cad6e350eea37ced3fddefc3dbdb31d0763a4d568868cd"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+      "bytes": 5029,
+      "sha256": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+      "bytes": 48156,
+      "sha256": "b3b327e563b33fdfcc17b71ac2c5d768272a9869c86903297c7512f4efc36669"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+      "bytes": 12424,
+      "sha256": "f91f3667703bf67e5e3d366936cc88a30035f7ed6a0f00c81fe2ef2dedf4840a"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+      "bytes": 26617,
+      "sha256": "19392bab07606405f9c6d946bdb81431ebbdcd95f7517f2c822c02d8a47b7ece"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+      "bytes": 8814,
+      "sha256": "5e7ffd177882b9ff0f0d52df27b46c0ad659816a5b8380a12a0f44d40a9bd133"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+      "bytes": 31536,
+      "sha256": "e7dadfd963601d5aeea170820af5ea670b8ec3453d75af896b235a06bdda1a78"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+      "bytes": 85097,
+      "sha256": "2eb8515fbb79d78dec166ba8266e6f94399e71702180199324cea0ce89b0a088"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+      "bytes": 20043,
+      "sha256": "2ecfad8446b59f9815ce5667803865e93e955be275473548934d23db729fd946"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/thread.oc",
+      "bytes": 71247,
+      "sha256": "abb2975254aa1a470b95bd05bd74af5a8aa86c402593c1d368f22a5f4c76ae1e"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/tests/test_thread_frame_contents.py",
+      "bytes": 24429,
+      "sha256": "fff0994874d10ebbee0b330337054cbffc2a67f4e7a3a00688a575b3790a1245"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/tests/test_process_current_identity.py",
+      "bytes": 21797,
+      "sha256": "83c599b5456eaa4a1e1f082d47ca6a8537367531704144e09b0bf09b6e0e88f0"
+    }
+  ],
+  "tools": [
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+      "bytes": 3816640,
+      "sha256": "3cd51503dd2ccfdea6c87efd6eb141a7cc217cf8e5f1d7d5a2ac95d453eca650"
+    },
+    {
+      "path": "/usr/lib/llvm-21/bin/clang",
+      "bytes": 137584,
+      "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-objcopy",
+      "bytes": 165584,
+      "sha256": "05f4473d24f7330a9b13f43d007d619a2e792e33de453cd7533a2d97c30da770"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "bytes": 48712,
+      "sha256": "f04262bf48192a7cbb78a17ca49ae03f8930b0372bd0115576f957b2e2a57a01"
+    },
+    {
+      "path": "/usr/bin/python3.14",
+      "bytes": 7477160,
+      "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+    }
+  ],
+  "native_FP_admission": false,
+  "complete_INSTALL_authority": false,
+  "cross_ISA_runtime_parity": false,
+  "sources_after": [
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/native_abi.oc",
+      "bytes": 4364,
+      "sha256": "2e6ce4ff8048471a39bb16ff03d4554ae9886080c475f03e21862925d1d70f45"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/personality.oc",
+      "bytes": 1199,
+      "sha256": "cc478ec4d354a3c578cad6e350eea37ced3fddefc3dbdb31d0763a4d568868cd"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/domain.oc",
+      "bytes": 5029,
+      "sha256": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/capability.oc",
+      "bytes": 48156,
+      "sha256": "b3b327e563b33fdfcc17b71ac2c5d768272a9869c86903297c7512f4efc36669"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/pages.oc",
+      "bytes": 12424,
+      "sha256": "f91f3667703bf67e5e3d366936cc88a30035f7ed6a0f00c81fe2ef2dedf4840a"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/memory_object.oc",
+      "bytes": 26617,
+      "sha256": "19392bab07606405f9c6d946bdb81431ebbdcd95f7517f2c822c02d8a47b7ece"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/mapping.oc",
+      "bytes": 8814,
+      "sha256": "5e7ffd177882b9ff0f0d52df27b46c0ad659816a5b8380a12a0f44d40a9bd133"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/elf_loader.oc",
+      "bytes": 31536,
+      "sha256": "e7dadfd963601d5aeea170820af5ea670b8ec3453d75af896b235a06bdda1a78"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/address_space.oc",
+      "bytes": 85097,
+      "sha256": "2eb8515fbb79d78dec166ba8266e6f94399e71702180199324cea0ce89b0a088"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/process.oc",
+      "bytes": 20043,
+      "sha256": "2ecfad8446b59f9815ce5667803865e93e955be275473548934d23db729fd946"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/ocore/runtime/x86_64/thread.oc",
+      "bytes": 71247,
+      "sha256": "abb2975254aa1a470b95bd05bd74af5a8aa86c402593c1d368f22a5f4c76ae1e"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/tests/test_thread_frame_contents.py",
+      "bytes": 24429,
+      "sha256": "fff0994874d10ebbee0b330337054cbffc2a67f4e7a3a00688a575b3790a1245"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-integration/tests/test_process_current_identity.py",
+      "bytes": 21797,
+      "sha256": "83c599b5456eaa4a1e1f082d47ca6a8537367531704144e09b0bf09b6e0e88f0"
+    }
+  ],
+  "tools_after": [
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-target/release/ocorec",
+      "bytes": 3816640,
+      "sha256": "3cd51503dd2ccfdea6c87efd6eb141a7cc217cf8e5f1d7d5a2ac95d453eca650"
+    },
+    {
+      "path": "/usr/lib/llvm-21/bin/clang",
+      "bytes": 137584,
+      "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-objcopy",
+      "bytes": 165584,
+      "sha256": "05f4473d24f7330a9b13f43d007d619a2e792e33de453cd7533a2d97c30da770"
+    },
+    {
+      "path": "/usr/bin/x86_64-linux-gnu-nm",
+      "bytes": 48712,
+      "sha256": "f04262bf48192a7cbb78a17ca49ae03f8930b0372bd0115576f957b2e2a57a01"
+    },
+    {
+      "path": "/usr/bin/python3.14",
+      "bytes": 7477160,
+      "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+    }
+  ],
+  "inputs_unchanged": true,
+  "artifacts": [
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before",
+      "bytes": 805048,
+      "sha256": "1f0053c173fda531e4fdc1287c9000ed97b50a1ea300eccf3631107e03910b1a"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-compile.stderr",
+      "bytes": 111,
+      "sha256": "a4aaedddca41f82259381549dfcc2e1a286be9671e339f1d2f0c5fcfa3cc37d0"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-public.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-public.stdout",
+      "bytes": 75,
+      "sha256": "9e0656634b0d9c4eaa53bdd1194c0fea8434368b96196168a4347333c4adab8c"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "d2e70168b9f0ccd833a73891107747e8e39e6c5ec08b7c357f8149664eefa2b0"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-thread.oc",
+      "bytes": 71835,
+      "sha256": "7ed8a0ee616d59f4f42294289826e91f6cf6167c5689d9081a1e1d724913bf89"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before-visible.o",
+      "bytes": 853000,
+      "sha256": "9d766876a6fb58ce7cdc3f6342ebc5937126c8e30b7a7f85385a9e2d8c170bc5"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/before.o",
+      "bytes": 852920,
+      "sha256": "afdee134433f5021c7126fae12eb3e9d669c4a383d91e7e1dd4b1146b43d309b"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate",
+      "bytes": 805112,
+      "sha256": "599093754312adffdd877214a4b661cb4181cd6206f21e69cb9306192c3d0362"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-compile.stderr",
+      "bytes": 114,
+      "sha256": "c7170275b501aa2ffd6c951a21df61c0d31767f969a67a2cd5dadea5f4f81c76"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-content.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-content.stdout",
+      "bytes": 84,
+      "sha256": "a723b85f4389d9ae42cb8ce1b8ea37a9a2a29313f1662acd419c0de807c9c2e2"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-public.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-public.stdout",
+      "bytes": 75,
+      "sha256": "9e0656634b0d9c4eaa53bdd1194c0fea8434368b96196168a4347333c4adab8c"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "8111578453d27f706a4532d2278efb4234c283a2d552a0d83833101273c6df26"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate-visible.o",
+      "bytes": 850736,
+      "sha256": "28fd81dfe8defd24247ed0e0fbd5f96c972e9f80ed102a338e33f711777654b7"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/candidate.o",
+      "bytes": 850656,
+      "sha256": "7960362b238cbe8d6f743948eacad33327f90516bea970da9cf18f7a7c3516e6"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/entry.S",
+      "bytes": 84,
+      "sha256": "9723fb2e1ca67c22d8baf28a5826a84c2688b3851dd4ec858e3f00fb443ad43e"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture-ELF.stderr",
+      "bytes": 95,
+      "sha256": "d757dc4283b8a5881dbec3f027839da0329827cd76361c0098786a476ee96646"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture-ELF.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/fixture.elf",
+      "bytes": 4688,
+      "sha256": "0a980da41ab3ba7b3879eb7984f05357a10e57d1e88f45f17266aa191636cce7"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/harness.c",
+      "bytes": 17113,
+      "sha256": "0a610ec7cff66b069c8fa31afe877dd1fdb16c61dd4d1a25c2bcc9c95df8ba71"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS",
+      "bytes": 805112,
+      "sha256": "f68b731826dcb18d899db339105a6c42e2e63ad29f362945a6dbe5523f2698df"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-compile.stderr",
+      "bytes": 115,
+      "sha256": "3750099bf7dc58c13064f6ef9713247db6fe6ce4de062538c95d450566e5d9ff"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-rejected.stderr",
+      "bytes": 46,
+      "sha256": "4e30d8504acc6313405eaab893f66f1d52de9290011b341f97d8ef578c9e3571"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "40913945e486aeaf5b28c9301771e4b0afca8c9a5d1f8a931ff2c52b733e8f34"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS-visible.o",
+      "bytes": 850608,
+      "sha256": "c34dd2ff5eb955717020b13378b2071c7f4a9f76fa8a14282815e390472b6e32"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.o",
+      "bytes": 850528,
+      "sha256": "b53c8ffd96c0c7a4b0cf6630155c3ed090063bccfc756c59d95968345453e508"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-CS.oc",
+      "bytes": 71213,
+      "sha256": "2ba4b735c3c1c84788316af0a4424c8f5670b9b951f8bef6eb77e69dd51803e7"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS",
+      "bytes": 805112,
+      "sha256": "adccb6c710cb03e57d18f65761973e68532f53e89d8063aa43b42d58eeee3c83"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-compile.stderr",
+      "bytes": 115,
+      "sha256": "1314b31ca33d5604e075b60d16b8c34cc91fac88618ae31e725d991191a566d6"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-rejected.stderr",
+      "bytes": 46,
+      "sha256": "d88d81184a7334b90f5f3753499d831e2ffbc529f59c20d379a08e61339ff03c"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "40913945e486aeaf5b28c9301771e4b0afca8c9a5d1f8a931ff2c52b733e8f34"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS-visible.o",
+      "bytes": 850608,
+      "sha256": "d613aec15502c21333d81f45568c54a4d113c174352b21abb42d658360715216"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.o",
+      "bytes": 850528,
+      "sha256": "487faa4749d2a674377cb746708ab40eb346c4b65fd97e5c52fbe9e2bfe3b2c6"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-SS.oc",
+      "bytes": 71213,
+      "sha256": "baee0d019ef3cbd7a70d121fb1de354f193b6cbb82a3495ceeaa388a16682728"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active",
+      "bytes": 805112,
+      "sha256": "ec75251ba32d62eb791adc5497640e948c7a5f6fa2d33193fc22baf0edb07b7c"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-compile.stderr",
+      "bytes": 119,
+      "sha256": "60c111a8b0a75a5dcf5e790a6983e1e4ff3e5f0ab619437180cacab923e42a75"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-rejected.stderr",
+      "bytes": 46,
+      "sha256": "4d476b78555bd813957b88da349ec7ff71b5a47476330cda94d167f537e7d5da"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "d5d5adcf95635bfa4f770d334af5827d1ad84c1f44276b02c6df85a2ca148437"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active-visible.o",
+      "bytes": 850552,
+      "sha256": "71487ac3aa8d16f06d52a3b6dbbeaa9c23b3e0773c4f7616b2b651b2e28cd577"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.o",
+      "bytes": 850472,
+      "sha256": "96209160a48ec592ee551ae953f93086e9a0a125447ed53788c8a264997e40ab"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-active.oc",
+      "bytes": 71209,
+      "sha256": "27d1d46f2b6914267b6e9278b5a8661783927a9ce240357b298018b0dbb3993c"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags",
+      "bytes": 805112,
+      "sha256": "ad30725b4da24cdb2a4498089053e8dbb86c28c4797972b7014e82ab5230e410"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-compile.stderr",
+      "bytes": 119,
+      "sha256": "32bd18a5f16edc45ed8132e8be44791197d6132ed3812159059f225871c71f6a"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-rejected.stderr",
+      "bytes": 46,
+      "sha256": "24a8ed25980208fa236ff6bb4f25f46b4807106b8cc011839b47ef359194b8af"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "a6980688af1f43e20c84c49889db3428b26d987f86a170c79507db6bf83033dc"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags-visible.o",
+      "bytes": 850576,
+      "sha256": "83affd3f9ad131acb278eac287df3632da4d72115868c343241269428e49f5c8"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.o",
+      "bytes": 850496,
+      "sha256": "6dba32844097024fb0aa135810f659209a4e712dd702fe196ad8d8103f4526db"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/missing-rflags.oc",
+      "bytes": 71206,
+      "sha256": "850aa68264ccb2bc7a2262b4a1968e7139c439f19404441e98088ae7b47342f6"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass",
+      "bytes": 805112,
+      "sha256": "cd7677df009e51362b3a73ee683acc2a95d5856ea959adda02ce462e2e6705d8"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-compile.stderr",
+      "bytes": 124,
+      "sha256": "f98d4ac27267cf6de464cbd52159a9c52e24a2b8f6fb0ff99f6f56bd26971d5e"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-compile.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-link.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-link.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-rejected.stderr",
+      "bytes": 46,
+      "sha256": "bf073a977dc4be4925e2ea5b6e3767dbd016099a1ad6471090658a0ca88bc919"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-rejected.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-symbols.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-symbols.stdout",
+      "bytes": 35213,
+      "sha256": "fb3ef07069f2f8fd80b64bff60fe959957becfd94c38fa9d048bc6f5e121e315"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-undefined.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-undefined.stdout",
+      "bytes": 278,
+      "sha256": "a0915215de52c9c10a1a3b50da5a594346ed8616e48c0471ec5693ae89774012"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visibility.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visibility.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass-visible.o",
+      "bytes": 850592,
+      "sha256": "db8fb2f629f38d601eccac5cd5e3fc5cae9fe0934fd8a02fa3d15289a96f74e3"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.o",
+      "bytes": 850512,
+      "sha256": "c66295bf62fa51824accc41273d9242dbdb205e934a4f6b342a0895dfe93fc9a"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/native-stack-bypass.oc",
+      "bytes": 71194,
+      "sha256": "5e471f0e0d12d59672e99c081aaccb572b2581760e99064bb595519e1f970f7a"
+    },
+    {
+      "path": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/frame/provider.oc",
+      "bytes": 529,
+      "sha256": "90734243737c04a5be094f29beaaafe097cc856ca7b884653806d0d1b8a3db99"
+    }
+  ]
+}

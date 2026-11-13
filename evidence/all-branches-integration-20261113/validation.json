@@ -1,0 +1,504 @@
+{
+  "source": {
+    "head": "adef92238050064ab80fb8e5aab8ad5a6f8841ad",
+    "tree": "e3af3c42c06933dbee41e6f03012a75c49811cb5",
+    "latest_shared_master": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+    "native_copy_head": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+    "native_install_head": "114b83ac12814b3cea6c8ad18cbb822dea490173",
+    "root_native_closure_checkpoint": "9b06307f",
+    "mcp_closure_checkpoint": "451f69e8",
+    "install_runtime_checkpoint": "adef9223"
+  },
+  "source_closures": {
+    "root_native_and_API": "9b06307f",
+    "MCP": "451f69e8",
+    "INSTALL_runtime_and_archive_inputs": "adef9223",
+    "note": "Subsequent source changes outside each named compiled closure do not invalidate its completed checks; latest .oc runtime source was compiled and executed separately by the unchanged pinned ocorec."
+  },
+  "environment": {
+    "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.43",
+    "ISA": "x86_64",
+    "CPU": "Intel(R) Core(TM) i7-6800K CPU @ 3.40GHz",
+    "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+    "native_component_execution": "Linux x86_64 hosted fixtures with modeled architecture boundaries; not a physical kernel/driver qualification"
+  },
+  "results": {
+    "unit_results": [
+      {
+        "name": "latest-copy-python-guards",
+        "argv": [
+          "python3",
+          "-m",
+          "unittest",
+          "tests.test_reproduce_splice_contract"
+        ],
+        "rc": 0,
+        "seconds": 0.527,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/attempt-3-recovered/latest-copy-python-guards.log"
+      },
+      {
+        "name": "generated-runtime-tests",
+        "argv": [
+          "/snap/bin/cargo",
+          "test",
+          "--release",
+          "--locked",
+          "--features",
+          "notebook",
+          "--bin",
+          "olangc",
+          "generated_runtime_",
+          "--",
+          "--nocapture"
+        ],
+        "rc": 0,
+        "seconds": 588.336,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/attempt-3-recovered/generated-runtime-tests.log"
+      },
+      {
+        "name": "pairing-tests",
+        "argv": [
+          "/snap/bin/cargo",
+          "test",
+          "--release",
+          "--locked",
+          "-p",
+          "ostadix-api",
+          "hosted_remote::pairing::tests",
+          "--",
+          "--nocapture"
+        ],
+        "rc": 0,
+        "seconds": 1286.231,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/attempt-3-recovered/pairing-tests.log"
+      },
+      {
+        "name": "tls-retry-tests",
+        "argv": [
+          "/snap/bin/cargo",
+          "test",
+          "--release",
+          "--locked",
+          "-p",
+          "ostadix-api",
+          "hosted_remote::tls::tests::socket_timeout_retry",
+          "--",
+          "--nocapture"
+        ],
+        "rc": 0,
+        "seconds": 20.123,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/attempt-3-recovered/tls-retry-tests.log"
+      },
+      {
+        "name": "foreign-splice-tests",
+        "argv": [
+          "/snap/bin/cargo",
+          "test",
+          "--release",
+          "--locked",
+          "--features",
+          "notebook",
+          "--test",
+          "foreign_splice_contract",
+          "--",
+          "--test-threads=1"
+        ],
+        "rc": 0,
+        "seconds": 757.734,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/attempt-3-recovered/foreign-splice-tests.log"
+      },
+      {
+        "name": "android-runtime-check",
+        "argv": [
+          "/snap/bin/cargo",
+          "check",
+          "--release",
+          "--locked",
+          "--manifest-path",
+          "apps/android-terminal/runtime/Cargo.toml"
+        ],
+        "rc": 0,
+        "seconds": 47.187,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/attempt-3-recovered/android-runtime-check.log"
+      }
+    ],
+    "complete_binaries_before_MCP_fix": {
+      "source": {
+        "head": "2e954aa7b46eb4fb2dcee75364961086b2acd1a7",
+        "tree": "e05620a418962f2277d106443e6e6b4ced702f54"
+      },
+      "results": [
+        {
+          "name": "all-root-binaries",
+          "argv": [
+            "/snap/bin/cargo",
+            "build",
+            "--release",
+            "--locked",
+            "--package",
+            "o-lang",
+            "--features",
+            "notebook",
+            "--bins"
+          ],
+          "rc": 0,
+          "seconds": 884.508,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/complete-binaries/all-root-binaries.log"
+        },
+        {
+          "name": "workspace-tools",
+          "argv": [
+            "/snap/bin/cargo",
+            "build",
+            "--release",
+            "--locked",
+            "--package",
+            "ostadix",
+            "--bins"
+          ],
+          "rc": 0,
+          "seconds": 690.426,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/complete-binaries/workspace-tools.log"
+        },
+        {
+          "name": "mcp-server",
+          "argv": [
+            "/snap/bin/cargo",
+            "build",
+            "--release",
+            "--locked",
+            "--manifest-path",
+            "mcp/ostadix_lang_mcp_server/Cargo.toml"
+          ],
+          "rc": 101,
+          "seconds": 54.337,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/complete-binaries/mcp-server.log"
+        }
+      ],
+      "all_passed": false
+    },
+    "MCP_after_targeted_hex_fix": {
+      "source": {
+        "head": "451f69e8c054effd5d2e2524622cf514fdc517e4",
+        "tree": "55fe5884c7fb8ae86fa42c4c8047dd5993c36794"
+      },
+      "results": [
+        {
+          "name": "mcp-server",
+          "argv": [
+            "/snap/bin/cargo",
+            "build",
+            "--release",
+            "--locked",
+            "--manifest-path",
+            "mcp/ostadix_lang_mcp_server/Cargo.toml"
+          ],
+          "rc": 0,
+          "seconds": 194.201,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/mcp-hex-fix/mcp-server.log"
+        },
+        {
+          "name": "mcp-tests",
+          "argv": [
+            "/snap/bin/cargo",
+            "test",
+            "--release",
+            "--locked",
+            "--manifest-path",
+            "mcp/ostadix_lang_mcp_server/Cargo.toml"
+          ],
+          "rc": 0,
+          "seconds": 116.122,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/mcp-hex-fix/mcp-tests.log"
+        }
+      ],
+      "all_passed": true
+    },
+    "latest_INSTALL_merge": {
+      "source": {
+        "head": "adef92238050064ab80fb8e5aab8ad5a6f8841ad",
+        "tree": "e3af3c42c06933dbee41e6f03012a75c49811cb5"
+      },
+      "results": [
+        {
+          "name": "install-and-frame",
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "-v",
+            "tests.test_install_observation",
+            "tests.test_thread_frame_contents"
+          ],
+          "rc": 0,
+          "seconds": 12.098,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/install-and-frame.log"
+        },
+        {
+          "name": "source-release",
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "tests.test_source_release"
+          ],
+          "rc": 0,
+          "seconds": 199.412,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/source-release.log"
+        },
+        {
+          "name": "language-parse",
+          "argv": [
+            "python3",
+            "scripts/check_language_sources.py",
+            "check",
+            "--o-bin",
+            "/mnt/data-hdd2/ostadix-integration/target/release/O",
+            "--ocorec",
+            "/mnt/data-hdd2/ostadix-integration/target/release/ocorec",
+            "--jobs",
+            "2",
+            "--json-report",
+            "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/language-report.json"
+          ],
+          "rc": 0,
+          "seconds": 6.123,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/language-parse.log"
+        },
+        {
+          "name": "docs-render",
+          "argv": [
+            "python3",
+            "scripts/render_docs.py",
+            "check",
+            "--marked",
+            "/mnt/data-hdd2/ostadix-build/doc-tools-marked18/node_modules/.bin/marked"
+          ],
+          "rc": 0,
+          "seconds": 5.817,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/docs-render.log"
+        },
+        {
+          "name": "author-policy",
+          "argv": [
+            "python3",
+            "scripts/check_commit_authors.py",
+            "--base",
+            "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+            "--head",
+            "HEAD"
+          ],
+          "rc": 0,
+          "seconds": 2.693,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/latest-install-merge/author-policy.log"
+        }
+      ],
+      "tls_consumer": {
+        "status": "not-executed",
+        "qualified": false,
+        "reason": "The independently verified seven-object original codec manifest is not present; native INSTALL/frame tests are separately executed."
+      },
+      "all_passed": true
+    },
+    "original_setup_and_initial_WASI_execution": {
+      "source": {
+        "head": "6538315b7b127b95bb48cf9fd042afe0f29987c7",
+        "tree": "044c3ea9664892d35772ea98bb2a35825dd8864c"
+      },
+      "results": [
+        {
+          "name": "original-setup-component",
+          "argv": [
+            "python3",
+            "scripts/setup_components.py",
+            "--repo-root",
+            "/mnt/data-hdd2/ostadix-integration",
+            "--no-apps",
+            "--no-jni",
+            "--no-kernel",
+            "--no-local-bins"
+          ],
+          "rc": 0,
+          "seconds": 222.164,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/original-setup-component.log"
+        },
+        {
+          "name": "inline-wasi-compile",
+          "argv": [
+            "/mnt/data-hdd2/ostadix-integration/target/release/olangc",
+            "/mnt/data-hdd2/ostadix-integration/examples/wasm_hello.O",
+            "--target",
+            "wasm",
+            "-o",
+            "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline.wasm"
+          ],
+          "rc": 0,
+          "seconds": 239.036,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline-wasi-compile.log"
+        },
+        {
+          "name": "inline-wasi-execute",
+          "argv": [
+            "node",
+            "apps/olang-browser-wasi/test-direct-wasm.mjs",
+            "/mnt/data-hdd2/ostadix-integration/examples/wasm_hello.O",
+            "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline.wasm",
+            "OSTADIX OLANGC WASM EXECUTION PASS"
+          ],
+          "rc": 1,
+          "seconds": 0.228,
+          "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline-wasi-execute.log"
+        }
+      ],
+      "artifacts": {
+        "/mnt/data-hdd2/ostadix-integration/target/setup-components/hello.wasm": {
+          "bytes": 4206208,
+          "sha256": "d1b2d741a6447cce222868adb8c3632df8cdce605843df7a869d628ff06be413"
+        },
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline.wasm": {
+          "bytes": 4206143,
+          "sha256": "7c7453661a0bc0f13d9666833cef6702c54d1fb2b0754b54161e8c590e05345a"
+        }
+      }
+    },
+    "corrected_WASI_execution_and_strict_ABI_negatives": [
+      {
+        "name": "inline-wasi-execute-retry",
+        "argv": [
+          "node",
+          "apps/olang-browser-wasi/test-direct-wasm.mjs",
+          "/mnt/data-hdd2/ostadix-integration/examples/wasm_hello.O",
+          "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline.wasm",
+          "OSTADIX OLANGC WASM EXECUTION PASS"
+        ],
+        "rc": 0,
+        "seconds": 0.329,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline-wasi-execute-retry.log"
+      },
+      {
+        "name": "strict-wasi-host-contract",
+        "argv": [
+          "node",
+          "apps/olang-browser-wasi/test-host.mjs"
+        ],
+        "rc": 0,
+        "seconds": 0.182,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/strict-wasi-host-contract.log"
+      }
+    ],
+    "setup_tests": {
+      "rc": 0,
+      "stdout": "",
+      "stderr": "........................................................\n----------------------------------------------------------------------\nRan 56 tests in 6.848s\n\nOK\n",
+      "commit": "[integration/all-private-branches-20261113 2d4432d6] Validate setup artifact paths after build-directory relocation\n 1 file changed, 4 insertions(+), 3 deletions(-)\n"
+    },
+    "original_source_checks": [
+      {
+        "name": "author-policy",
+        "argv": [
+          "python3",
+          "scripts/check_commit_authors.py",
+          "--base",
+          "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+          "--head",
+          "HEAD"
+        ],
+        "rc": 0,
+        "seconds": 2.599,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/source-checks-recovered/author-policy.log"
+      },
+      {
+        "name": "native-install-tests",
+        "argv": [
+          "python3",
+          "-m",
+          "unittest",
+          "tests.test_native_install"
+        ],
+        "rc": 0,
+        "seconds": 0.175,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/source-checks-recovered/native-install-tests.log"
+      },
+      {
+        "name": "language-inventory",
+        "argv": [
+          "python3",
+          "scripts/check_language_sources.py",
+          "validate"
+        ],
+        "rc": 0,
+        "seconds": 0.218,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/source-checks-recovered/language-inventory.log"
+      },
+      {
+        "name": "docs-render",
+        "argv": [
+          "python3",
+          "scripts/render_docs.py",
+          "check"
+        ],
+        "rc": 1,
+        "seconds": 0.118,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/source-checks-recovered/docs-render.log"
+      },
+      {
+        "name": "language-parse",
+        "argv": [
+          "python3",
+          "scripts/check_language_sources.py",
+          "check",
+          "--o-bin",
+          "/mnt/data-hdd2/ostadix-integration/target/release/O",
+          "--ocorec",
+          "/mnt/data-hdd2/ostadix-integration/target/release/ocorec",
+          "--jobs",
+          "2",
+          "--json-report",
+          "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/source-checks-recovered/language-parse-report.json"
+        ],
+        "rc": 0,
+        "seconds": 6.468,
+        "log": "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/source-checks-recovered/language-parse.log"
+      }
+    ],
+    "pinned_doc_render_after_correction": {
+      "write": {
+        "rc": 0,
+        "stdout": "updated: Ocore_Source_Reevaluation_Evidence.html\nhtml-exports: 114 complete documents; 2494453 bytes; 1 updated\n",
+        "stderr": ""
+      },
+      "check": {
+        "rc": 0,
+        "stdout": "html-exports: 114 complete documents; 2494453 bytes; 0 drifted\n",
+        "stderr": ""
+      }
+    },
+    "stopped_redundant_MCP_stage": {
+      "reason": "Stopped only the redundant final MCP compilation after all earlier stages, including Android runtime compatibility, completed successfully. Equivalent MCP build and all137 tests already passed in the isolated integration-mcp-target at exact source451f69e8.",
+      "job": "job-3300867-1794562049382493360-1-11",
+      "utc": "2026-11-13T10:15:16.384446+00:00"
+    }
+  },
+  "test_counts": {
+    "generated_runtime": 8,
+    "pairing": 10,
+    "TLS_retry": 5,
+    "foreign_splice": 18,
+    "MCP": 137,
+    "latest_native_INSTALL_and_frame": 8,
+    "latest_source_release": 121,
+    "classified_language_sources_parsed": 261,
+    "latest_complete_HTML_pairs": 115,
+    "setup_tests": 56,
+    "native_install_tests": {
+      "run": 16,
+      "skipped": 1
+    }
+  },
+  "limitations": [
+    "Separate original-codec TLS consumer not executed because its independently verified seven-object manifest is absent.",
+    "Node-hosted browser WASI execution is not an actual browser or foreign-runtime qualification.",
+    "No FP activation, CPU authority, physical driver, all-ISA parity or full native-system completion claim."
+  ],
+  "prior_failures_and_interruptions": "Initial missing feature/dependency and digest API failures, MCP missing hex build, initial strict WASI manifest mismatch, prerequisite/doc drift and interrupted attempt logs remain distinct from corrected final passes."
+}
