@@ -1,0 +1,55 @@
+{
+  "schema": "ostadix-private-uncompiled-source-recovery-v1",
+  "source_base": "008ce734fd08d658d61b8644cc474fbfc96481d9",
+  "source_base_tree": "93d6f47ddeba4f08a8bc3e9c3e33caf2a8655ec7",
+  "recovery_parent": "4b0fbdade6031cacffd4a7e32ee03e5c9698c9b8",
+  "purpose": "Periodic user-authorized crash recovery of an isolated uncompiled byte-swap candidate; never a master merge or runtime support qualification",
+  "source_patch": {
+    "raw_bytes": 40281,
+    "raw_sha256": "a51b4ddb24469ab0821cd0aff1ce7e515939549af9cff367ce535067483cb699",
+    "gzip_bytes": 9479,
+    "gzip_sha256": "6c27a3c9b513af062fa7ea619c58d4437be6d614a3ba371a3e79f52b333f1b06",
+    "encoding": "base64(gzip(raw unified diff)), newline terminated"
+  },
+  "pure_source_methods_passed": 9,
+  "defined_i16_math_inputs": 65536,
+  "LLVM_parser_run": false,
+  "native_verifier_run": false,
+  "Rust_tests_run": 0,
+  "compiler_built": false,
+  "original_units_imported": 0,
+  "runtime_accepted": false,
+  "provider_closure_complete": false,
+  "all_ISA_qualified": false,
+  "independent_source_review": "pending",
+  "required_families": [
+    "Rust",
+    "CPython",
+    "Node/V8 JavaScript",
+    "upstream TypeScript",
+    "HTML rendering",
+    "LaTeX",
+    "OpenJDK",
+    "C",
+    "D",
+    "Lua",
+    "Common Lisp",
+    "Chez Scheme",
+    "Go",
+    "OCaml"
+  ],
+  "scope_is_open_ended": true,
+  "minimum_ISA_profiles": [
+    "x86-64",
+    "AArch64",
+    "RV64GC",
+    "i686",
+    "ARMv7"
+  ],
+  "every_implemented_ISA_required": true,
+  "contracts": {
+    "AGENTS.md": "f312645c976451e81bb2a02dffb661edfcafdafca213f19336b69f4ec457c4e8",
+    "expansion.requirements.json": "a3faa4dcd137bb149f28d909b40776849ce301748d9684a5f6f932610d3168c8",
+    "isa.requirements.json": "1c9a3677dc88ba390c5e83a7f07edb72522182d541a2922ca5fe55b399450bd9"
+  }
+}

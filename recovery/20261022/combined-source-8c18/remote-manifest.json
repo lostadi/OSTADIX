@@ -1,0 +1,48 @@
+{
+  "Go_capture_draft": "UNRUN; Root source review found premature structural_graph_complete and parsed-input omission gates; author found pre/post snapshot resource and external cancellation gaps. Distinct revision pending, no actual tool delegation admitted.",
+  "Lee_author_and_committer": true,
+  "all14_families_and_every_implemented_ISA_remain_open": true,
+  "byte_swap_actual": "36newaffected source/CAPI cases passed;42 earlier passes notrerun,34oldfailures andzero-caseR2retained. No rebuilt newcompiler/native verifier/native/runtime/provider/ISA claim.",
+  "decoded_ACK": {
+    "bytes": 238025,
+    "sha256": "f796253fcee7371d0d4294a4d607a7c3fd8b14aa945fb3d7210766dbcef4d435"
+  },
+  "files": {
+    "agent-ack.json.gz.b64": {
+      "bytes": 81965,
+      "sha256": "a1ec38f42c7d0e716665927489b9c6a520dc9ad4adabfd7d1d0d518e533b46f8"
+    },
+    "go-capture-unrun-draft-source.json.gz.b64": {
+      "bytes": 17997,
+      "sha256": "b36a1ffaaba35ea5670067f570bf25d98e61228a818cb0a098dd81ecc55dca7f"
+    },
+    "source-delta-from-0cf.patch.gz.b64": {
+      "bytes": 39541,
+      "sha256": "aac87b54151f30ed93b4413fdd5c8d983329989e98d68d2e17e3e62aa4418e9f"
+    },
+    "source-from-0cf.bundle.b64": {
+      "bytes": 35245,
+      "sha256": "20bf0772dbf56395007333ddb7c55600380b421e37a9c222b547d453d2af3d2b"
+    }
+  },
+  "no_master_update_or_install": true,
+  "original_bundle": {
+    "bytes": 26432,
+    "sha256": "8b2f124d157a5723e34e1a1e3ec2f1a28d62d1a28bfef08b20088281b2b4869c"
+  },
+  "original_patch": {
+    "bytes": 138350,
+    "sha256": "5ffb158c154ea04a426347fb75afe57be87826e795b0784f8975941e60e156c5"
+  },
+  "private": true,
+  "repository": "lostadi/ostadix-BM",
+  "repository_id": 1412862058,
+  "schema": "ostadix-private-recovery-uncompiled-source-v1",
+  "source_base_required": "0cf986cc0cdef48aeddb00f30962b5e1f0708838",
+  "source_commit": "8c18be956264a823e83295b0592e67896d1f933b",
+  "source_review": {
+    "path": "/run/screen/ostadix-build-space-1000-20261021-r1/combined-source-independent-root-review-r1/review.json",
+    "sha256": "6466c21d92ea9d3bcc64d771e1619a0d10d7bbf280d51b34e2689b8b2dd1d8f7"
+  },
+  "source_scope": "Incremental Git bundle and full textual delta from exact retained current compiled-source base0cf. This is source recovery, not a standalone runtime/binary archive."
+}

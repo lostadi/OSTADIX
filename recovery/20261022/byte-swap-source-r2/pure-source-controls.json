@@ -1,0 +1,94 @@
+{
+  "schema": "ocore-byte-swap-pure-source-controls-v1",
+  "passed": true,
+  "tests_run": 9,
+  "required_ids": [
+    "__main__.ByteSwapPureControls.test_call_signature_requires_exact_types_C_ABI_and_no_abi_attributes",
+    "__main__.ByteSwapPureControls.test_consumed_buffers_are_checked_before_compile_and_changed_bytes_refused",
+    "__main__.ByteSwapPureControls.test_embedded_inventory_source_and_static_python_syntax_match",
+    "__main__.ByteSwapPureControls.test_i16_complete_defined_domain_matches_independent_byte_oracle",
+    "__main__.ByteSwapPureControls.test_independent_inventory_matches_all_exact_typed_graphs",
+    "__main__.ByteSwapPureControls.test_one_shared_freeze_is_required_for_original_undef_and_poison",
+    "__main__.ByteSwapPureControls.test_other_width_basis_and_seeded_values_match_byte_oracle",
+    "__main__.ByteSwapPureControls.test_same_typed_mask_shift_direction_and_source_mutations_are_refused",
+    "__main__.ByteSwapPureControls.test_wrong_inventory_type_result_or_missing_original_operand_refused"
+  ],
+  "failures": 0,
+  "errors": 0,
+  "skips": 0,
+  "before": [
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/scripts/ocore_llvm_import.py",
+      "bytes": 222848,
+      "sha256": "93d166152d12400d966693cad800961f73ef426b6458ffd1b1449cb0db2e01fd"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/ocore_llvm_source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/src/bin/olangc/native_runtime/source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/crates/ostadix-api/src/ocore/native_verify.rs",
+      "bytes": 491946,
+      "sha256": "33e89f352404310a4be5dbcc497cade4cd6493bf701a965c401682ec430ab046"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/test_ocore_llvm_byte_swap_graph.py",
+      "bytes": 11567,
+      "sha256": "2a4beaba6c43e6ef67b29640a59c678e60f9f1971377b864293fd9b2a9e05703"
+    }
+  ],
+  "after": [
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/scripts/ocore_llvm_import.py",
+      "bytes": 222848,
+      "sha256": "93d166152d12400d966693cad800961f73ef426b6458ffd1b1449cb0db2e01fd"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/ocore_llvm_source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/src/bin/olangc/native_runtime/source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/crates/ostadix-api/src/ocore/native_verify.rs",
+      "bytes": 491946,
+      "sha256": "33e89f352404310a4be5dbcc497cade4cd6493bf701a965c401682ec430ab046"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/test_ocore_llvm_byte_swap_graph.py",
+      "bytes": 11567,
+      "sha256": "2a4beaba6c43e6ef67b29640a59c678e60f9f1971377b864293fd9b2a9e05703"
+    }
+  ],
+  "source_AST_buffers_compiled": true,
+  "defined_i16_inputs": 65536,
+  "actual_consumed_source_buffers": [
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/scripts/ocore_llvm_import.py",
+      "bytes": 222848,
+      "sha256": "93d166152d12400d966693cad800961f73ef426b6458ffd1b1449cb0db2e01fd"
+    },
+    {
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/ocore_llvm_source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    }
+  ],
+  "native_verifier_run": false,
+  "LLVM_parser_run": false,
+  "original_units_imported": 0,
+  "compiler_rebuilt": false,
+  "target_execution": false,
+  "runtime_accepted": false,
+  "all_isa_qualified": false
+}

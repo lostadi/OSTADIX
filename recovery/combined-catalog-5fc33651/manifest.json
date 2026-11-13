@@ -1,0 +1,35 @@
+{
+  "all_ISA_qualified": false,
+  "bundle": {
+    "bytes": 552947,
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261022/next-source-private-backup-preparation-r1/source-from-canonical-master.bundle",
+    "sha256": "b98e652aeb570fd884d6881c9f5ae29709a242c6fc31a6e9f28ad1e34367f6d8"
+  },
+  "bundle_heads": "5fc33651be5cd706f741ad25ba2514acc310cf4c refs/heads/work/combined-catalog-acceptance-20261022\n",
+  "bundle_verification": "The bundle contains this ref:\n5fc33651be5cd706f741ad25ba2514acc310cf4c refs/heads/work/combined-catalog-acceptance-20261022\nThe bundle requires this ref:\ne39da043a0396a1276fa41fc19f92e00446d27ee \nThe bundle uses this hash algorithm: sha1\n",
+  "canonical_master_prerequisite": "e4727e456bc2c192533090262f3f0096eb3908fc",
+  "compiler_build_qualified": false,
+  "created_epoch": 1792676903.594393,
+  "envelope_is_source_commit": false,
+  "master_changed": false,
+  "new_source_Rust_CLI_tests": "UNRUN",
+  "provider_closure_complete": false,
+  "recovery": [
+    "Clone private repository preserving canonical master history including e4727e456bc2c192533090262f3f0096eb3908fc",
+    "Decode source.bundle.b64 to source.bundle and compare bytes/SHA256 against this manifest",
+    "git bundle verify source.bundle",
+    "git fetch source.bundle refs/heads/work/combined-catalog-acceptance-20261022:refs/heads/work/recovered-combined-catalog-acceptance",
+    "Verify actual recovered source commit5fc33651 and tree4a418dd0; the remote recovery branch tip is only an envelope"
+  ],
+  "runtime_accepted": false,
+  "schema": "ostadix-private-recovery-envelope-source-v1",
+  "source_author_and_committer": "Lee Daghlar Ostadi <ostadi.lee@gmail.com>",
+  "source_checkpoint_receipt": {
+    "bytes": 4825,
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261022/next-dynamic-isa-source-checkpoint-r1/receipt.json",
+    "sha256": "c588780b70684138838280f7db2eba6151a9fddd4a3c4ac0b1065ac0f934d783"
+  },
+  "source_commit": "5fc33651be5cd706f741ad25ba2514acc310cf4c",
+  "source_only": true,
+  "source_tree": "4a418dd0b138d9d1dfdb18b333c798cfd13c895b"
+}
