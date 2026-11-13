@@ -358,6 +358,22 @@ the unoptimized emitter does not use them to change computation. Intrinsic
 declarations remain in the source inventory and cannot escape as native addresses.
 This contract is distinct from `.oc` integer division and shift semantics.
 
+NativeIR integer division (`udiv`, `sdiv`, `urem`, `srem`) has one rule at
+every width from 1 through 64, in the native code generator and the reference
+interpreter alike. Only a zero divisor traps, with the target's explicit trap
+instruction (`ud2`, `brk #1`, `unimp`). Signed minimum divided by `-1` does
+not trap: `sdiv` yields the minimum, the wrapped quotient, and `srem` yields
+`0`. At `i1` the minimum and `-1` are the same value, so `-1 sdiv -1` is `-1`
+and `-1 srem -1` is `0`. The generator emits the zero check and the
+minimum-by-`-1` compare as explicit branches before the divide instruction,
+so the hardware never divides by zero or overflows (x86 `idiv` faults on
+both). A check is left out only when a literal operand proves it can never
+fire: a non-zero divisor needs no zero check, and a divisor other than `-1`
+or a dividend other than the minimum needs no overflow compare. Compared with
+WebAssembly, division by zero traps in both and `rem_s` of minimum by `-1`
+is `0` in both. The only difference is `div_s` of minimum by `-1`, which
+traps in WebAssembly and yields the minimum here.
+
 The imported scalar `llvm.smin.iN`, `llvm.smax.iN`, `llvm.umin.iN` and
 `llvm.umax.iN` families use one typed `integer_min_max` NativeIR operation.
 For the current realization, `N` is the original integer width from 1 through
