@@ -77,6 +77,7 @@ extern uint64_t FR(init)(uintptr_t,uintptr_t),MAP(init)(void),L(init)(void),L(va
 /* DECLARATIONS */
 static uint64_t kernel_tables[1024] __attribute__((aligned(4096)));
 static uint64_t root_table[512] __attribute__((aligned(4096)));
+uintptr_t ocore_process_kernel_stack_top(size_t slot){return slot<4?0x7000+slot*0x1000:0;}
 uintptr_t ocore_current_cr3(void){return (uintptr_t)root_table;}
 uintptr_t ocore_management_cr3(void){return (uintptr_t)root_table;}
 uintptr_t ocore_kernel_p1_address(void){return (uintptr_t)kernel_tables;}
@@ -202,8 +203,51 @@ def identity(path):
 def field_metadata():
     source = (ROOT / "ocore/runtime/x86_64/thread.oc").read_text()
     fields = re.findall(r"(?m)^static mut (\w+): (\[[^\]]+\]|\w+) =", source)
-    if len(fields) != 36:
-        raise AssertionError("all 36 current thread fields must be snapshotted")
+    expected = {'THREAD_IDS': '[u64; 4]',
+     'PROCESS_HANDLES': '[u64; 4]',
+     'DOMAIN_HANDLES': '[u64; 4]',
+     'ADDRESS_SPACE_HANDLES': '[u64; 4]',
+     'CSPACE_HANDLES': '[u64; 4]',
+     'KERNEL_STACK_TOPS': '[usize; 4]',
+     'STACK_ORDINALS': '[u8; 4]',
+     'USER_STACK_TOPS': '[usize; 4]',
+     'USER_FS_BASES': '[u64; 4]',
+     'USER_FS_SELECTORS': '[u16; 4]',
+     'LINUX_SINGLE_TASK': '[u8; 4]',
+     'CLEAR_CHILD_TIDS': '[u64; 4]',
+     'ROLES': '[u8; 4]',
+     'PRIORITIES': '[u8; 4]',
+     'QUANTUM_LEFT': '[u8; 4]',
+     'WAKE_DEADLINES': '[u64; 4]',
+     'WAKE_REASONS': '[u8; 4]',
+     'SLEEP_EPOCHS': '[u32; 4]',
+     'WAKE_EPOCHS': '[u32; 4]',
+     'WAKE_COUNTS': '[u32; 4]',
+     'RUN_TICKS': '[u64; 4]',
+     'SWITCH_COUNTS': '[u64; 4]',
+     'GENERATIONS': '[u32; 4]',
+     'STATES': '[u8; 4]',
+     'QUEUE_KINDS': '[u8; 4]',
+     'PROCESS_REF_HELD': '[u8; 4]',
+     'FRAMES': '[u64; 88]',
+     'RUNNABLE_QUEUE': '[u64; 4]',
+     'RUNNABLE_HEAD': 'usize',
+     'RUNNABLE_LENGTH': 'usize',
+     'BLOCKED_QUEUE': '[u64; 4]',
+     'BLOCKED_HEAD': 'usize',
+     'BLOCKED_LENGTH': 'usize',
+     'CURRENT_THREAD': 'u64',
+     'PREPARED_THREAD': 'u64',
+     'INITIALIZED': 'u8',
+     'INSTALL_CAPSULE': '[u64; 32]',
+     'INSTALL_RUNNABLE_BEFORE': '[u64; 4]',
+     'INSTALL_BLOCKED_BEFORE': '[u64; 4]',
+     'INSTALL_NEXT_OBSERVATION_SERIAL': 'u64',
+     'INSTALL_OBSERVATION_EXHAUSTED': 'u8',
+     'INSTALL_CURRENT_OBSERVATION_SERIAL': 'u64',
+     'INSTALL_LAST_CLOSED_OBSERVATION_SERIAL': 'u64'}
+    if dict(fields) != expected or len(fields) != len(expected):
+        raise AssertionError("every exact current thread field/type must be snapshotted")
     types = {"u8": "uint8_t", "u16": "uint16_t", "u32": "uint32_t", "u64": "uint64_t", "usize": "uintptr_t"}
     result = []
     for name, spelling in fields:
@@ -263,7 +307,10 @@ class ThreadFrameContentTests(unittest.TestCase):
         old = cls.content.replace("unsafe fn validate_frame_contents(", "unsafe fn validate_frame_words(", 1).replace(
             "    if slot >= MAX_THREADS || frame as usize == 0 {\n",
             "    if slot >= MAX_THREADS\n        || frame as usize == 0\n        || !active_state(STATES[slot]) {\n", 1)
-        cls.original = cls.current[:start] + old + cls.current[end:]
+        # The new stage query also consumes private contents. Keep that helper
+        # while restoring the original ordinary validator body for this control.
+        # Whole-file6390 default behavior is tested separately by stage fixtures.
+        cls.original = cls.current[:start] + cls.content + "\n" + old + cls.current[end:]
         before = cls.output / "before-thread.oc"
         before.write_text(cls.original)
         cls.build("before", [*cls.sources[:-1], before], False)
@@ -292,7 +339,7 @@ class ThreadFrameContentTests(unittest.TestCase):
         cls.command(name + "-compile", [cls.compiler, cls.output / "provider.oc", *sources, "--target", "x86_64-unknown-none", "--emit", "obj", "-o", obj])
         undefined = cls.command(name + "-undefined", [cls.nm, "-u", obj]).stdout.decode()
         if {line.split()[-1] for line in undefined.splitlines()} != {
-            "ocore_current_cr3", "ocore_management_cr3", "ocore_kernel_p1_address",
+            "ocore_current_cr3", "ocore_management_cr3", "ocore_kernel_p1_address", "ocore_process_kernel_stack_top",
             "fixture_object_length", "fixture_read", "fixture_release",
         }:
             raise AssertionError("unexpected architecture or registry implementation")
