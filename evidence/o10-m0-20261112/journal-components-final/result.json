@@ -1,0 +1,79 @@
+{
+  "milestone": "M0",
+  "gate_id": "verify_o10_journal",
+  "started": 1794487547.6253407,
+  "source_revision": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+  "mcp_release": "unknown-observed-current",
+  "host": "X12",
+  "host_platform": "Linux-7.0.14-ustad-native-20261031-x86_64-with-glibc2.39",
+  "machine_options": null,
+  "session": "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/journal-components-final",
+  "command": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/scripts/verify_o10_journal.py",
+    "--session",
+    "evidence/o10-m0-20261112/journal-components-final",
+    "--mcp-release",
+    "unknown-observed-current",
+    "--component-only"
+  ],
+  "observations": {
+    "source": {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+      "stderr": ""
+    },
+    "diff": {
+      "argv": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "returncode": 0,
+      "stdout": "M  ci/language-sources.json\nA  docs/O10.md\nM  ocore/runtime/aarch64/unified_world.oc\nM  ocore/runtime/common/namespace_store.oc\nA  ocore/runtime/common/o10_codec.oc\nA  ocore/runtime/common/o10_executor.oc\nM  scripts/build_okernel_unified_world.py\nA  scripts/o10.py\nM  scripts/okernel_unified_world.py\nA  tests/test_o10_codec.py\nAM tests/test_o10_native.py\nA  tests/test_o10_platform.py\nA  tests/test_o10_runner.py\n?? evidence/o10-m0-20261112/\n?? scripts/verify_o10_journal.py",
+      "stderr": ""
+    },
+    "qemu": {
+      "argv": [
+        "qemu-system-aarch64",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)\nCopyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers",
+      "stderr": ""
+    }
+  },
+  "source_sha256": {
+    "scripts/o10.py": "0fb04f75a4ecd40c1510db82b702ec3ea03db654f80a468f1a900bfe8d1bf673",
+    "ocore/runtime/common/o10_codec.oc": "ea9259f69754d8e1ecfbf2371b4732813cfd0e27e928ac24e94a6d05c362322c",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "tests/test_o10_codec.py": "a18945fd31441306c2670c9f120fe04a8b7110a7f46741d676f83639a61ed9c1",
+    "tests/test_o10_native.py": "1d31b64c197291b07d9d3c5747889456ff7e778b28061421ab124c0c641b21a5",
+    "tests/test_o10_platform.py": "87f573e5d44c21668dc0709c2b363c355d5971ba83627898d40f10a5b8e8a3e3",
+    "scripts/verify_o10_journal.py": "9132d4583582b8bbe83ed514a0cb5f7fa56648918c618c85baea196a58e0f0a5"
+  },
+  "compiler": "/home/ustad/.local/bin/ocorec",
+  "compiler_sha256": "2957f684f7b74bf4c6dbbf6d1b01df62882d648adacd1ce1116f2c761f9cb0f1",
+  "component_ok": true,
+  "ok": false,
+  "qualified": false,
+  "scope": "Python/native structural wire corpus, exactly-once executor journal and x86_64 mailbox/fid component execution; excludes AArch64 EL2 execution, guest boot/replacement and full regression qualification",
+  "tests_run": 20,
+  "failures": 0,
+  "errors": 0,
+  "skips": [],
+  "release_aligned": false,
+  "regression": null,
+  "qualification_note": "This component verifier cannot attest the running MCP release or same-build EL2/guest regression evidence; supplied release/receipt metadata never grants M0 qualification.",
+  "unqualified_reasons": [
+    "external MCP identity and same-build EL2/guest qualification required",
+    "MCP release does not match source revision",
+    "full same-source regression receipt absent or unqualified"
+  ],
+  "finished": 1794487548.5088246
+}

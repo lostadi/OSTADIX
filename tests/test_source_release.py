@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import json
@@ -973,6 +974,34 @@ class SetupSourceClosureTests(unittest.TestCase):
                     self.validate(files)
 
 
+class O10ComponentSourceClosureTests(unittest.TestCase):
+    def test_all_frozen_runtime_sources_are_required(self) -> None:
+        tree = ast.parse((PROJECT_ROOT / "scripts/freeze_okernel_unified_runtime.py").read_text())
+        declarations = [node.value for node in tree.body if isinstance(node, ast.Assign)
+                        and any(isinstance(target, ast.Name) and target.id == "RUNTIME_FILES"
+                                for target in node.targets)]
+        self.assertEqual(len(declarations), 1)
+        sources = ast.literal_eval(declarations[0])
+        self.assertTrue(sources)
+        self.assertFalse(set(sources) - release.O10_COMPONENT_RELEASE_PATHS)
+
+    def test_all_declared_monitor_sources_are_required(self) -> None:
+        tree = ast.parse((PROJECT_ROOT / "scripts/build_okernel_unified_world.py").read_text())
+        declarations = [node.value for node in tree.body if isinstance(node, ast.Assign)
+                        and any(isinstance(target, ast.Name) and target.id == "SOURCES"
+                                for target in node.targets)]
+        self.assertEqual(len(declarations), 1)
+        sources = ast.literal_eval(declarations[0])
+        self.assertTrue(sources)
+        self.assertFalse(set(sources) - release.O10_COMPONENT_RELEASE_PATHS)
+
+    def test_every_discovered_component_test_is_required(self) -> None:
+        sources = {str(path.relative_to(PROJECT_ROOT))
+                   for path in (PROJECT_ROOT / "tests").glob("test_o10_*.py")}
+        self.assertTrue(sources)
+        self.assertFalse(sources - release.O10_COMPONENT_RELEASE_PATHS)
+
+
 class SourceReleaseTests(unittest.TestCase):
     def test_public_boundary_html_and_historical_audit_are_exact_optional_paths(self) -> None:
         self.assertEqual(release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS, {
@@ -1762,7 +1791,7 @@ class SourceReleaseTests(unittest.TestCase):
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             contents.setdefault(path, b"fixture human and LLM interface source\n")
         contents.update(fixture_setup_sources())
-        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS:
+        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS:
             contents[path] = (PROJECT_ROOT / path).read_bytes()
         if files:
             contents.update(files)
@@ -2512,6 +2541,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.OKERNEL_PACKAGE_BOOT_RELEASE_PATHS)
             included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
             included.update(release.NATIVE_FOUNDATION_RELEASE_PATHS)
+            included.update(release.O10_COMPONENT_RELEASE_PATHS)
             included.update(fixture_setup_sources())
             excluded = {
                 ".DS_Store",
@@ -4085,6 +4115,13 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("rm", *paths)
         self._git("commit", "-q", "-m", "remove native registry and source inventory closure")
         self._assert_missing_required_paths("missing-native-foundation.zip", paths)
+
+    def test_o10_component_source_closure_is_required(self) -> None:
+        paths = sorted(release.O10_COMPONENT_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", *paths)
+        self._git("commit", "-q", "-m", "remove mandatory O10 component source closure")
+        self._assert_missing_required_paths("missing-o10-components.zip", paths)
 
     def test_world_normative_bytes_are_sealed_before_packaging(self) -> None:
         for path, data in WORLD_NORMATIVE_BYTES.items():

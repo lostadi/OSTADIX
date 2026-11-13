@@ -1,0 +1,56 @@
+{
+  "argv": [
+    "python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/compact-private-disks.py",
+    "--output",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/sparse-r3",
+    "--watch-aggregate",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/result.json"
+  ],
+  "env": {
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "job": {
+    "action": "execute",
+    "cleanup": {
+      "child_reaped": false,
+      "logs_drained": false,
+      "process_group_signaled": false
+    },
+    "error": null,
+    "exit_code": null,
+    "initial_input_state": "not_supplied",
+    "input": {
+      "cwd": "/home/ustad/OSTADIX-o10-m0-20261112",
+      "kind": "ordinary",
+      "path": null,
+      "source_inline": true,
+      "temporary_source": false
+    },
+    "input_error": null,
+    "job_id": "job-905616-1794540001293931787-1-44",
+    "mode": "direct",
+    "pid": 946819,
+    "placement": {
+      "requested": "auto",
+      "route": "ordinary-local"
+    },
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "running",
+    "stderr": {
+      "bytes": 0,
+      "merged_into": null,
+      "path": "/tmp/ostadix-mcp-jobs-905616-1794540001293931787-1/job-905616-1794540001293931787-1-44/stderr.log"
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": true,
+    "stdout": {
+      "bytes": 0,
+      "path": "/tmp/ostadix-mcp-jobs-905616-1794540001293931787-1/job-905616-1794540001293931787-1-44/stdout.log"
+    }
+  }
+}

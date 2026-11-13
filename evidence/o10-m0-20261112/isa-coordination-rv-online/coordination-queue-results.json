@@ -1,0 +1,7 @@
+{
+  "returncode": 0,
+  "stdout": "{\"thread\": \"01a19fbe-fe6a-7a10-8b49-2b3875e19475\", \"role\": \"RV ownership/tool coordination\", \"returncode\": 0, \"stdout\": \"Queued message 01a1d335-0833-7ff0-912c-d152dd5ff60a for thread 01a19fbe-fe6a-7a10-8b49-2b3875e19475.\\n\", \"stderr\": \"\", \"started\": 1794544829.8515153, \"finished\": 1794544832.47544}\n{\"thread\": \"01a1659d-4fac-7e91-ab9a-1d8c41a9ab14\", \"role\": \"RV native codec/journal conformance\", \"returncode\": 0, \"stdout\": \"Queued message 01a1d335-1311-7ef3-a7dc-f01c6fdeae2b for thread 01a1659d-4fac-7e91-ab9a-1d8c41a9ab14.\\n\", \"stderr\": \"\", \"started\": 1794544832.4756367, \"finished\": 1794544835.178599}\n{\"thread\": \"01a142f8-ca9d-7640-8532-d638fa874ab2\", \"role\": \"RV independent conformance review\", \"returncode\": 0, \"stdout\": \"Queued message 01a1d335-1de6-7213-b33c-59be20477e10 for thread 01a142f8-ca9d-7640-8532-d638fa874ab2.\\n\", \"stderr\": \"\", \"started\": 1794544835.1795163, \"finished\": 1794544837.9082723}\n",
+  "stderr": "",
+  "scope": "authorized coordination prompts queued to three verified existing RV project threads; queue acceptance is not acknowledgment or execution qualification",
+  "messages_preview": "/home/ustad/.cache/o10-isa-coordination-20261113-runtime/coordination-messages-preview.json"
+}

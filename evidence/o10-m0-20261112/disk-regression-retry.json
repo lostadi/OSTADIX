@@ -1,0 +1,13 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_okernel_disk_growth",
+    "tests.test_okernel_repository_staging"
+  ],
+  "temporary_storage": "/dev/shm private directory",
+  "returncode": 0,
+  "reason": "root filesystem capacity caused Errno28 in first run"
+}

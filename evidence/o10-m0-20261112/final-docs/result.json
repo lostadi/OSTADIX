@@ -1,0 +1,24 @@
+[
+  {
+    "argv": [
+      "python3",
+      "scripts/render_docs.py",
+      "write",
+      "--marked",
+      "/home/ustad/.cache/o10-docs-renderer-20261112/node_modules/.bin/marked"
+    ],
+    "returncode": 0,
+    "timed_out": false
+  },
+  {
+    "argv": [
+      "python3",
+      "scripts/render_docs.py",
+      "check",
+      "--marked",
+      "/home/ustad/.cache/o10-docs-renderer-20261112/node_modules/.bin/marked"
+    ],
+    "returncode": 0,
+    "timed_out": false
+  }
+]

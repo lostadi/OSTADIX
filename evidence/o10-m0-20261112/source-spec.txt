@@ -1,0 +1,660 @@
+O10 Governor Protocol and Hybrid O-kernel Specification
+Nov 12, 2026 · @Lee Daghlar Ostadi
+1. Purpose, status and naming
+O10 is the protocol a Governor uses to control O-core: it creates and replaces kernel domains, and mints and revokes the leases they hold. This spec defines O10 and the hybrid O-kernel it governs, so agents can build both, milestone by milestone, through the Ostadix MCP.
+Status. Draft 0, for Lee's review. It is a proposal derived from a source read of OSTADIX-master on 2026-11-11. Nothing was executed for it, and nothing in it is claimed until its gate in §9 passes.
+Who reads what.
+Lee: §2 (baseline), §3 (target architecture) and §11 (open decisions).
+Implementing agents: §4 (invariants), §5 to §8 (design), §9 (milestones and gates) and §10 (operating rules).
+Scope. In scope: the AArch64 unified world (one EL2 monitor hosting whole kernels), its path to the hybrid end state, and the O10 protocol. Out of scope: the hosted OIR/HGraph pipeline, the x86-64 personality modes (except the lease core reused in §5), and multi-node replication of the Governor (§11).
+Normative words. MUST, MUST NOT, SHOULD and MAY carry their RFC 2119 meanings.
+Naming.
+O10, read "O-ten": a capital O, then the number 10. It is the step after 9P: 9P moves bytes inside an authority, and O10 moves authority.
+Wire version string: O10, in an 8-byte ASCII field padded with zero bytes. Later revisions are O10.1, O10.2, and so on.
+Messages follow 9P's convention: a T-message is a request, and its R-message is the reply, matched by tag (Tclaim and Rclaim).
+Code spelling is o10, since identifiers start with a letter: ocore/runtime/common/o10_codec.oc, scripts/o10.py, constants O10_*.
+Type codes are 160 to 199, disjoint from every code used by 9P2000, 9P2000.u and 9P2000.L.
+The Governor rings O-core's doorbell with HVC #10.
+2. Verified baseline
+Today the unified world runs unmodified Linux and 9front side by side under one O-core EL2 monitor, and it replaces Plan 9 cleanly. Linux cannot yet be replaced, authority is hardcoded, and the Governor runs on the host. Everything below was read in source, not executed.
+What exists
+Capability
+Where
+Evidence
+Two EL1 worlds (Linux, 9front) with separate stage-2 tables and VMIDs, full context banks, 10 ms EL2 timer preemption and mediated GICv3; every device access traps
+ocore/runtime/aarch64/unified_world.oc, ocore/kernel/aarch64/unified_world/monitor.S
+Source; scripts/verify_okernel_two_domains.py
+Shared native namespace store outside both guests' mappings; Linux reaches it through virtio-9P (grant 1), Plan 9 through 9P over an emulated PL011 (grant 4)
+ocore/runtime/common/namespace_store.oc, kernel_world_9p.oc, plan9_namespace_uart.oc
+Source
+O-core's own EL2 driver for the outer virtio-net device; guests see only virtio frontends, and frames are copied through monitor-owned buffers
+kernel_world_net_host.oc, kernel_world_net.oc, kernel_world_virtio.oc
+Source
+Plan 9 replacement: revoke its wire, zero its 512 MiB of RAM, reload kernel and DTB from immutable copies, reset vCPU, vGIC and VMID TLB entries, start a new session generation
+unified_world.oc:445–497; uw_domain_reset in monitor.S
+Source; scripts/verify_okernel_unified_recovery.py
+Unknown outcomes are never replayed; an explicit retry runs on a fresh Plan 9 instance while the Linux shell's PID and start time survive
+recycle_plan9 in scripts/okernel_unified_world.py
+scripts/verify_okernel_unified_recovery.py
+Fault containment: an unaccepted guest exit marks only that domain dead
+contain() in unified_world.oc
+Source
+x86-64 capability core: generation-tagged handles, object generations, nontransferable delegated-resource leases with cascading revocation
+ocore/runtime/x86_64/capability.oc, delegated_resource.oc, endpoint.oc
+Source
+Governor identity vocabulary: GovernorTerm, GovernorLogIndex, LeaseIdentity, defined as names and generations, never bearer authority
+ocore/world/identity.oc
+Source
+What it lacks
+Each gap has an ID that a milestone in §9 closes.
+G1. O-core has no life of its own. It runs only when a guest traps into it. With zero runnable guests, uw_handle_exit returns MAX and the monitor halts.
+G2. Linux is not replaceable. Withdraw (op 1) and inject (op 3) both require LIVE[0] == 1, restore (op 2) rebuilds only Plan 9, and no operation resets Linux. docs/OKERNEL_UNIFIED.md records that severe Linux failures can stop the whole supervisor.
+G3. The Governor runs outside the machine. native_control in scripts/okernel_unified_world.py (line 369) pauses the CPU through QEMU and writes the mailbox at 0x6d000070. A real board has no host.
+G4. Authority is hardcoded. namespace_store.oc has five fixed grant slots whose rights come from root_for and writable (lines 141–142). Linux and Plan 9 both hold root read-write over the whole store, with no attenuation, derivation or device leases.
+G5. Exactly two domains. The scheduler picks domain ^ 1, and per-domain state lives in two-element arrays.
+G6. Control and service traffic share one mailbox. Ops 1 and 2 are lifecycle control. Op 2's bootstrap text and op 3's coordinator payload are service traffic for Plan 9's console and Linux's p9 client.
+G7. The Plan 9 transport is slow. 9P over an emulated UART costs a trap per register access. docs/OKERNEL_UNIFIED.md reports 9.72 to 15.51 s to first output for p9 echo under TCG; how much of that is the transport is unmeasured.
+3. Target architecture
+The end state is hybrid: a component is absorbed into O-core when its source and interface allow it, and hosted inside a whole guest kernel when they don't. The governed namespace and its leases are the one interface that stays fixed while components move between the two.
+O10 architecture · three layers, two protocols
+Only the Governor holds the O10 channel to O-core, while guests reach shared objects through 9P on transports bound to their leases. Until M5, the host runner plays the Governor through the stopped-CPU mailbox.
+Three layers
+L0, O-core at EL2: mechanism. It owns stage-2 tables, VMIDs, the vGIC, the scheduler, the lease table, the O10 executor with its outcome journal, and mediated devices. It holds exactly one built-in policy: the Governor exists (§7).
+L1, the Governor, a native EL1 domain: policy. It decides which domains run, which leases they hold, and when they are replaced. It is the only party that speaks O10.
+L2, broker domains: work. These are whole guest kernels (Linux, 9front, later XNU) and native components lowered from original source. Each holds leases and exports services into the governed namespace.
+Two protocols
+O10 moves authority: domain lifecycle, minting, deriving, binding and revoking leases, quiesce requests, and fault events.
+9P moves bytes inside authority. Every guest reaches the namespace store through a transport bound to a namespace lease. As today, the transport supplies the authority; no attach name, path or fid confers it.
+Placement by source and interface
+The rule uses the axis already in §4.6 of okernel-multikernel/MULTIKERNEL_PERSONALITY_PROPOSAL.md.
+Component
+Source available
+Interface stable
+Placement now
+End state
+Linux device drivers
+Yes
+No: in-kernel APIs change every release
+Hosted in a whole Linux domain
+Lowered one driver at a time where the API closure is affordable; the rest stay hosted
+Plan 9 namespace and services
+Yes
+Yes: 9P
+Hosted in a whole 9front domain
+Namespace semantics native in O-core; 9front stays hostable for its userland
+Linux userland and packages
+Yes
+Yes: the syscall ABI
+Hosted in Linux
+Hosted, or a native Linux personality in the x86-64 M7–M8 lineage
+XNU with Apple-silicon drivers
+Kernel core only; GPU, Neural Engine and display drivers are closed
+No
+Not present
+Hosted whole, permanently
+Windows NT
+No
+No
+Not present
+Hosted whole (the proposal's M11 full-kernel mode)
+Migrating without breaking clients
+A service moves from hosted to lowered behind the same namespace path and lease kind. The Governor mints a lease for the new backend, runs the service's conformance corpus against both backends, then revokes the old lease and rebinds. Clients see at most one ESTALE on fids they held, and walk again.
+This is a strangler-fig migration: the old system keeps serving until each piece is replaced. It reconciles the current documents. The multikernel is the migration path and the permanent home for closed kernels; the unified native OS is where open components end up.
+Once Lee approves, M0 amends the end-state statements in docs/OKERNEL_UNIFIED_IMPLEMENTATION.md (lines 117 and 541) to point here.
+4. Normative invariants
+Every milestone MUST preserve all fifteen invariants. A gate that passes while breaking one has not passed.
+I1. Authority comes from the transport. No O10 or 9P field that names a domain, lease, object, path or fid confers authority. Authority is the lease bound to the transport a message arrived on, limited by that lease's rights.
+I2. One writer of mechanism state. Only O-core changes the domain table, lease table, stage-2 tables, IRQ routes and device state. The Governor requests changes through O10; guests never do.
+I3. Generations everywhere. Every reference to a domain, lease, session or namespace object carries a generation, and a mismatch fails with ESTALE. Generations never decrease, and no (slot, generation) pair is issued twice.
+I4. Mechanism operations apply exactly once. Each mutating O10 request carries (epoch, seq), and O-core journals its outcome. A retransmitted identical request gets the journaled reply; a different body under the same seq fails with ESEQ.
+I5. Service operations apply at most once. Guest-level work whose completion is unknown, such as a p9 command, stays unknown and is never replayed automatically. This keeps the current p9 protocol's semantics.
+I6. One revocation shape. A lease has one holder and a bounded set of dependents. Revoking it first invalidates the holder's handle, then ends every dependent, and frees the slot only after all dependents are released.
+I7. Leases are nontransferable by default. Domains cannot delegate leases. Only the Governor derives a lease, only by narrowing it, and derivation depth is at most 2 in draft 0.
+I8. Lifecycle is symmetric. Every domain kind, Linux included, can be withdrawn, restored and destroyed. No O10 operation is gated on a particular guest being alive.
+I9. O-core is resident. The monitor never halts because no guest is runnable. It halts only when its own internal invariant is violated, and then with a diagnostic.
+I10. One built-in policy. O-core's only compiled-in policy is to keep the Governor domain alive, respawning it from its immutable image. Every other decision belongs to the Governor.
+I11. Fail closed. Unsupported or off-corpus behavior returns an explicit error. Silent no-ops and dummy functions are forbidden; a sentinel MUST trap with a documented error code.
+I12. Replacement is clean. Withdraw and restore zero private RAM, reset architectural and interrupt state, and invalidate the domain's VMID TLB entries without touching any survivor's state.
+I13. No unconfined guest DMA. A guest programs DMA only for a passthrough device behind an IOMMU that has passed its confinement gate (§8). Mediated devices copy through monitor-owned buffers, as they do today.
+I14. Ledger entries are names. Entries in the Governor's log are names and generations, never bearer authority, as ocore/world/identity.oc already defines.
+I15. Claims stay inside their gates. Every claim names the gate that proves it and that gate's scope. QEMU is not physical hardware, and hosted is not lowered.
+5. Leases
+A lease is the only form of authority: one holder, one object, a rights mask, a generation and a bounded set of dependents. Namespace grants, device assignments and shared memory all become leases, replacing the five hardcoded grant slots.
+Record
+Field
+Meaning
+slot, generation
+Handle = (generation << 32) | slot, the encoding capability.oc already uses
+kind
+NAMESPACE, DEVICE, MEMORY or CONSOLE
+holder
+Domain handle; the lease is void once the holder's generation changes
+object
+Generation-tagged reference to a namespace object, device, memory region or console endpoint
+rights
+Bit mask, interpreted per kind
+class
+Device reset class (DEVICE only)
+mode
+MEDIATED, PASSTHROUGH or LOWERED (DEVICE only)
+parent, depth
+Parent slot (0 for a Governor root lease) and derivation depth, at most 2
+state
+LIVE, REVOKED or RETIRED
+dependents
+Counts of derived leases, bound sessions, fids and memory views
+minted_at
+The O10 log position (epoch, seq) that created it
+Kinds and rights
+Kinds reuse the constants in ocore/runtime/x86_64/delegated_resource.oc, so both architectures share one vocabulary.
+Kind
+Constant
+Object
+Allowed rights
+NAMESPACE
+DELEGATED_RESOURCE_FILESYSTEM (2)
+A namespace object; scope is its subtree
+READ, WRITE, CREATE, REMOVE, WSTAT
+DEVICE
+DELEGATED_RESOURCE_DEVICE (5)
+One device
+USE, MMIO, IRQ, DMA (DMA only in PASSTHROUGH mode)
+MEMORY
+DELEGATED_RESOURCE_MEMORY (1)
+A shared memory region
+READ, WRITE, MAP
+CONSOLE
+New constant, 6
+A console endpoint
+READ, WRITE
+Rights bits on the wire: READ 0x1, WRITE 0x2, CREATE 0x4, REMOVE 0x8, WSTAT 0x10, USE 0x20, MMIO 0x40, IRQ 0x80, DMA 0x100, MAP 0x200. A bit outside the kind's allowed set fails with EDENIED. DELEGATED_RESOURCE_TIMER (3) and DELEGATED_RESOURCE_NETWORK (4) keep their x86-64 meanings and are unused on AArch64.
+Derivation
+Only the Governor derives, with Tderive. A derived lease's rights MUST be a subset of its parent's, and its object MUST lie inside the parent's scope: the same root or a descendant for NAMESPACE, a subrange for MEMORY, the same device for DEVICE. Its depth is the parent's plus one, at most 2, and it is registered as a dependent of the parent. Its holder may differ from the parent's.
+Binding
+A NAMESPACE or CONSOLE lease is used through exactly one transport at a time. Tbind attaches it to a transport owned by the lease's holder and opens a session with a fresh generation, the job session_init does today. Fids opened in that session are the lease's dependents, and rebinding clears them, as session_init already does.
+Revocation
+Trevoke runs in this order, mirroring the revocation path in delegated_resource.oc:
+Check the handle's generation. A stale handle fails with ESTALE, which subsumes today's revoke_if_current.
+Advance the lease's generation and publish REVOKED, so any concurrent use fails.
+Revoke derived leases, close bound sessions and clear their fids, revoke memory views, and detach mediated device frontends.
+Retire the slot once every dependent count reaches zero. Only then may the slot be reissued, under a higher generation.
+Withdrawing or restoring a domain revokes every lease it holds (§7).
+Device reset classes
+Class
+Who can reset the device
+How it is reclaimed
+RESETTABLE
+O-core alone: every mediated device, and any passthrough device with a native reset (PCIe FLR, or a reset line O-core controls)
+Tquiesce resets it, and the lease can move at once
+COOPERATIVE
+Only the holder's driver
+Tquiesce asks the holder and waits up to its deadline; a timeout returns UNKNOWN, never QUIESCENT
+STICKY
+Nobody
+Tquiesce returns REFUSED. Reclaim requires withdrawing the holder, and the device stays TAINTED until its next holder completes a full initialization
+The Governor SHOULD NOT lease a STICKY device to a domain it expects to restart often.
+Behavior-preserving migration
+M4 first re-creates the four live grants as leases with exactly the roots and rights that root_for and writable compute today. Grants 1 and 4 get object 1, read-write; grant 2 gets object 2, read-write; grant 3 gets object 2, read-only. Every existing gate MUST pass on that build before any lease is narrowed, and narrowing follows the policy Lee sets (§11).
+The two architectures share semantics before they share code. M4 runs one lease conformance corpus against both the x86-64 delegated-resource implementation and the AArch64 lease table. Merging them into one module is optional until both pass.
+6. The O10 protocol
+O10 is a small binary request-reply protocol framed exactly like 9P. Every mutating request carries the Governor's epoch and a sequence number, and O-core journals each outcome, so a request applies exactly once.
+Framing
+Every message starts with size[4] type[1] tag[2], little-endian, where size counts itself. That is 9P2000's header, so existing 9P framing code can be reused. Every T-message except Tversion then carries epoch[8] seq[8]; read-only requests send seq 0.
+All fields are fixed-width little-endian integers, and no strings cross the EL2 boundary. The default msize is 512 bytes, negotiated down by Tversion.
+Handle
+Encoding
+dom[8]
+(domain generation << 32) | domain index
+lease[8]
+(lease generation << 32) | lease slot
+obj[8]
+(object generation << 32) | object index; namespace objects already carry a generation
+transport[8]
+(domain generation << 32) | transport index within that domain
+img[8]
+Handle to an immutable image registered at boot
+inst[16]
+128-bit instance ID chosen by the Governor
+Epochs and sequence numbers
+The epoch is GovernorTerm and the seq is GovernorLogIndex, both from ocore/world/identity.oc.
+Tclaim makes a Governor current. Its new epoch MUST exceed the current one, and its expected epoch MUST equal the current one (0 when no Governor holds it). That is the compare rule session_claim already uses.
+The seq is global across epochs. A new Governor continues at the last applied seq plus one, which Rclaim reports, the way a Raft log index continues across terms.
+O-core rejects a stale epoch with ENOTCURRENT, and a gap or a reused seq with a different body with ESEQ. An identical retransmission gets the journaled reply.
+The journal keeps the last 256 outcomes, each with full request and reply bytes. Every mutating message fits in 64 bytes, so the journal is 32 KiB. Toutcome answers for any seq in that window.
+Transport
+Native, from M5. Two monitor-owned pages are mapped only into the Governor domain's stage-2: a submission ring and a completion ring of msize slots. The Governor rings with HVC #10. Fast operations complete inside that trap; Trestore, cooperative Tquiesce and Twait complete later and raise a virtual interrupt on the Governor.
+Host shim, M0 to M4. The existing stopped-CPU mailbox carries O10 frames. The host writes a frame into a new host-private region, writes operation code 10 to the mailbox at 0x6d000070, and O-core acknowledges at 0x6d000080 after writing the reply. The agent picks the region's addresses; they MUST lie outside every guest's stage-2 mapping, and MUST be added to the memory-map comment in unified_world.oc and to write_native's allowed ranges.
+One Governor at a time. From M5, the host shim accepts only read-only messages (Tversion, Tstat, Tlstat, Toutcome, Twait), plus Tinject in qualification builds.
+Message catalog
+Codes are even for T-messages and odd for R-messages, as in 9P. Bodies follow the header and, for T-messages, the epoch and seq.
+Code
+Message
+T body
+R body
+Effect
+160 / 161
+Terror (illegal) / Rerror
+none
+code[4] detail[8]
+Any failure; as in 9P, there is no Terror
+162 / 163
+Tversion / Rversion
+msize[4] version[8]
+msize[4] version[8] epoch[8] last_seq[8]
+Negotiate; report the current epoch and log position
+164 / 165
+Tclaim / Rclaim
+new_epoch[8] expected[8]
+epoch[8] last_seq[8] journal_low[8]
+Become the current Governor
+166 / 167
+Toutcome / Routcome
+qseq[8]
+state[1] code[4] len[2] reply[len]
+Read a journaled outcome: NOT_APPLIED, APPLIED_OK, APPLIED_ERROR or OUT_OF_WINDOW
+168 / 169
+Tcreate / Rcreate
+kind[1] img_kernel[8] img_aux[8] mem_bytes[8] vcpus[2]
+dom[8]
+Provision a domain: stage-2, VMID, RAM, images copied in; not started
+170 / 171
+Tstart / Rstart
+dom[8] inst[16]
+dom[8]
+Start a provisioned domain
+172 / 173
+Twithdraw / Rwithdraw
+dom[8] mode[1] deadline_ms[4]
+dom[8] leases[4] sessions[4] fids[4]
+Stop scheduling it, revoke all its leases, route its interrupts off
+174 / 175
+Trestore / Rrestore
+dom[8] inst[16] img_kernel[8] img_aux[8]
+dom[8] with a new generation
+Zero RAM, reload images, reset vCPU, vGIC and TLB, run again; leases are not restored
+176 / 177
+Tdestroy / Rdestroy
+dom[8]
+dom[8]
+Zero RAM, free stage-2 and VMID; the slot is reused only under a higher generation
+178 / 179
+Tstat / Rstat
+dom[8]
+dom[8] kind[1] state[1] inst[16] exits[8] switches[8] esr[8] ipa[8] pc[8] leases[4]
+Observe a domain; replaces the status block at 0x6d000020
+180 / 181
+Tlease / Rlease
+kind[1] holder[8] object[8] rights[8] class[1] mode[1]
+lease[8]
+Mint a root lease
+182 / 183
+Tderive / Rderive
+parent[8] holder[8] object[8] rights[8]
+lease[8]
+Mint a narrowed lease (§5)
+184 / 185
+Tbind / Rbind
+lease[8] transport[8]
+session[8]
+Attach a lease to its holder's transport, opening a session
+186 / 187
+Trevoke / Rrevoke
+lease[8]
+derived[4] sessions[4] fids[4] views[4]
+Revoke, with the cascade in §5
+188 / 189
+Tquiesce / Rquiesce
+lease[8] deadline_ms[4]
+state[1]
+QUIESCENT, RESET, REFUSED or UNKNOWN, by reset class
+190 / 191
+Tlstat / Rlstat
+lease[8]
+The lease record from §5
+Observe a lease
+192 / 193
+Twait / Rwait
+cursor[8] mask[8] max[2]
+next[8] count[2] events[count × 48]
+Long-poll the event log
+194 / 195
+Tflush / Rflush
+oldtag[2]
+none
+Cancel a pending Twait or the waiting part of a Tquiesce; an applied mutation stands
+196 / 197
+Tinject / Rinject
+dom[8] fault[2]
+dom[8]
+Test-only fault injection: host shim only, EUNSUPPORTED outside qualification builds
+Each event is 48 bytes: cursor[8] type[2] flags[2] pad[4] dom[8] lease[8] arg0[8] arg1[8]. The types are DOMAIN_FAULT (arg0 = ESR, arg1 = IPA), DOMAIN_IDLE, DOMAIN_EXITED, LEASE_REVOKED, QUIESCE_DONE, GOVERNOR_RESPAWNED (arg0 = the old epoch) and EVENTS_LOST (arg0 = the lowest cursor still held).
+Errors
+Code
+Name
+Meaning
+detail[8]
+1
+EBADMSG
+Malformed message or wrong size
+Offending offset
+2
+EVERSION
+Version not supported
+Supported msize
+3
+ENOTCURRENT
+Stale epoch, or a claim whose expected epoch is wrong
+Current epoch
+4
+ESEQ
+Sequence gap, or a reused seq with a different body
+Last applied seq
+5
+ESTALE
+Generation mismatch on any handle
+Current generation
+6
+EDENIED
+Rights, scope, kind or transport ownership refused
+Missing rights bits
+7
+EBUSY
+Conflicts with an operation in progress
+Blocking seq
+8
+ECAPACITY
+A fixed table is full
+Table size
+9
+EUNSUPPORTED
+Fail-closed: not implemented, or not allowed in this build
+0
+10
+ETIMEOUT
+Deadline passed
+Elapsed ms
+11
+EOVERFLOW
+Event cursor older than the log
+Lowest cursor held
+12
+ESTATE
+Invalid lifecycle transition
+Current state
+Today's mailbox, mapped
+Op 1, withdraw Plan 9, becomes Twithdraw on the Plan 9 domain.
+Op 2, restore Plan 9, becomes Trestore followed by Tbind of grant 4's lease to Plan 9's UART-9P transport. Its bootstrap text stays on the existing path until M6 moves console input to the console service.
+Op 3, the Linux coordinator payload, is service traffic rather than O10. It stays until M6.
+The status block at 0x6d000020 becomes Tstat.
+That split closes G6: O10 carries only control, and service traffic leaves the mailbox.
+7. Domains and lifecycle
+Every domain, Linux included, follows one lifecycle, and O-core keeps running when none of them is runnable. The only domain O-core restarts on its own is the Governor.
+domain lifecycle · 6 states
+Restore works from FAULTED or WITHDRAWN and always issues a new generation. Entering either stopped state revokes every lease the domain holds.
+Domain table
+A fixed table of 8 entries replaces domain ^ 1 and the two-element arrays (closes G5).
+Field
+Meaning
+index, generation
+The domain handle; the generation advances on every restore and destroy
+kind
+GOVERNOR, GUEST_KERNEL or NATIVE_SERVICE
+state
+EMPTY, PROVISIONED, RUNNING, BLOCKED, FAULTED or WITHDRAWN
+instance
+128-bit ID from Tstart or Trestore
+stage-2 root, VMID
+Private translation; a VMID is reused only after its TLB entries are invalidated
+RAM range
+Private physical memory, zeroed on restore and destroy
+images
+Immutable kernel image plus one auxiliary image (DTB or initrd)
+context banks
+Saved CPU, timer and vGIC state, banked as today
+transports
+Up to 4: virtio queues, a UART-9P wire, rings
+IRQ routes
+Fixed per transport; no guest register selects a domain or interrupt, as today
+counters
+Exits, switches, and the last ESR, IPA and PC
+No code may assume a particular index for a kind. The Governor's index is published through Rstat.
+Transitions
+EMPTY becomes PROVISIONED on Tcreate, and PROVISIONED becomes RUNNING on Tstart.
+RUNNING and BLOCKED alternate as the guest waits (WFI) and wakes on its timer or a routed interrupt.
+RUNNING or BLOCKED becomes FAULTED when contain() rejects an exit. O-core emits DOMAIN_FAULT and revokes the domain's leases at once, as it already revokes Plan 9's wire.
+RUNNING, BLOCKED or FAULTED becomes WITHDRAWN on Twithdraw.
+FAULTED or WITHDRAWN becomes RUNNING on Trestore, under a new generation.
+Any state but EMPTY becomes EMPTY on Tdestroy.
+Any other transition fails with ESTATE.
+Scheduling
+O-core runs RUNNING domains round-robin on the existing 10 ms EL2 timer quantum. A Governor with a pending virtual interrupt runs next. BLOCKED domains wake as they do today.
+Resident O-core
+When no domain is runnable, O-core idles in its own EL2 context. It services the host shim or the Governor's rings, the EL2 timer and wake events, and never returns MAX for this reason (closes G1).
+Every existing MAX return in uw_handle_exit and the idle path gets classified. A guest-attributable cause contains that domain and continues; a cause internal to O-core halts with a diagnostic (I9).
+Example: today a vGIC poll failure for one domain both contains it and halts the monitor. After M1 it halts only if the cause is internal to O-core.
+The Governor's lifecycle
+O-core creates the Governor at boot from its immutable image, before any guest. It is the only domain with an O10 ring.
+If the Governor faults or exits, O-core zeroes and reloads it under a new generation and emits GOVERNOR_RESPAWNED. That is O-core's single built-in policy (I10).
+While no Governor holds a claim, guests keep running under their existing leases. Nothing is minted or revoked except by the fault cascade, and events accumulate. Liveness degrades; safety holds.
+The Governor keeps its durable state in the namespace store, under a lease only it holds.
+A respawned Governor sends Tversion, then Tclaim with the old epoch as expected, then Toutcome for any seq it had in flight, then Twait from its last saved cursor.
+Withdrawing and restoring Linux
+Linux gets the same treatment Plan 9 gets today (closes G2):
+Twithdraw stops scheduling Linux and revokes its namespace lease, which closes the virtio-9P session and clears its fids. It detaches the virtio-blk and virtio-net frontends and routes Linux's interrupts off.
+Trestore zeroes Linux's private RAM and reloads its kernel and initramfs from immutable copies. It resets vCPU, vGIC and VMID TLB entries, and resets every virtio transport under a new generation.
+The Governor rebinds leases with Tbind. The package disk keeps whatever the dead kernel wrote, and ext4's journal recovers it on the next mount.
+Until M6 moves the console out of Linux, the operator's Linux shell ends with Linux.
+8. Device modes
+Every device is held through a DEVICE lease in one of three modes, and a service can change mode behind the same lease interface. Mediated mode exists today; passthrough and lowered modes are new.
+Mode
+Who runs the driver
+What the guest sees
+Who does DMA
+Default reset class
+Status
+MEDIATED
+O-core natively (today, the outer virtio-net driver in kernel_world_net_host.oc), or another domain's backend
+A virtio frontend emulated by O-core
+O-core only, into monitor-owned buffers
+RESETTABLE
+Exists, QEMU only
+PASSTHROUGH
+The holder's own kernel driver, such as Linux's
+The real device: its MMIO mapped into the holder's stage-2, its interrupts routed there
+The guest, confined by the IOMMU
+RESETTABLE with PCIe FLR or an O-core reset line; otherwise COOPERATIVE or STICKY
+New, M7
+LOWERED
+A native O-core component built from the original driver source
+What the component exports, usually a virtio backend or a namespace service
+The component, through O-core's DMA interface
+COOPERATIVE, until the component proves it can re-initialize the device from any state
+New, M9
+Passthrough requirements
+O-core programs the SMMU, Arm's IOMMU, so the device's stream ID translates through the same IPA-to-PA map as its holder's stage-2.
+Before any guest gets the DMA right, a hostile-DMA gate MUST pass. The guest programs the device to write outside its own RAM, the SMMU faults, the domain is contained, and a checksum of O-core's memory is unchanged.
+The development target is QEMU's virt machine with an emulated SMMUv3 (-machine virt,iommu=smmuv3) and a PCIe device behind it. The agent MUST confirm that the installed QEMU emulates SMMU stage-2 translation before relying on it.
+Real boards need their own evidence. Any DMA master an SoC does not place behind an SMMU cannot be passed through (I13).
+Lowered drivers
+Genode's DDE Linux runs Linux drivers outside Linux by emulating the kernel APIs they call, and its porting work leans on dummy functions. O10's lowered mode keeps the approach but replaces dummies with evidence:
+Measure the driver's closure: every Linux kernel symbol it reaches, from its Kbuild graph.
+Implement each symbol natively, or install a sentinel that traps with a documented error (I11).
+Prove every sentinel unreachable on the driver's qualified corpus with coverage traces. A sentinel reached off the corpus fails closed.
+This applies the rule already in §6 of MULTIKERNEL_PERSONALITY_PROPOSAL.md: off-corpus behavior fails closed with the documented error.
+Choosing a mode
+Mediated when O-core already drives the device, or isolation matters more than throughput.
+Passthrough when only the hosted kernel's driver can run the device and the SoC's SMMU covers it.
+Lowered when the driver's closure is affordable and the device should survive a restart of the hosted kernel.
+9. Milestones and acceptance gates
+Eleven milestones take the system from today's experiment to the hybrid end state. M0 to M6 make every kernel disposable under a native Governor; M7 to M10 add passthrough and lowered devices, a faster Plan 9 transport, and the XNU path. Each milestone passes only when its gate and the full regression set pass on the same build.
+milestone roadmap · M0 to M10
+M2 and M5 together unlock M6, after which no kernel is special. M4's leases gate every device milestone, and M10 can start once M3 hosts a third domain.
+Regression set
+These run at every milestone: scripts/verify_okernel_two_domains.py, verify_okernel_unified_recovery.py, verify_okernel_unified_client.py, verify_okernel_unified_provider.py, verify_okernel_unified_runtime.py, verify_okernel_p9_default_compile.py, tests/test_okernel_*.py and scripts/check_language_sources.py. As the repo already states, a skip does not qualify.
+M0. O10 wire and host shim
+Closes G6.
+Build: scripts/o10.py, a reference codec for every message in §6, and ocore/runtime/common/o10_codec.oc, the native codec. The O-core executor handles Tversion, Tclaim, Toutcome, Tstat, Twithdraw, Trestore and Tbind on the host-shim transport, with the 256-entry journal. Until M4, the lease handle in Tbind names one of today's grants, as (generation << 32) | grant slot.
+Build: okernel_unified_world.py issues ops 1 and 2 as O10 messages through mailbox operation 10. The old op codes stay for one milestone as a rollback path, then fail with EUNSUPPORTED from M2.
+Build: with Lee's approval recorded, amend the end-state statements in docs/OKERNEL_UNIFIED_IMPLEMENTATION.md to reference this spec.
+Gate, tests/test_o10_codec.py and scripts/verify_o10_journal.py:
+Every message round-trips byte-for-byte between the Python and native codecs, run in the native test harness the way namespace_store.oc is tested today.
+Malformed sizes, unknown types and 9P type codes fail with EBADMSG.
+An identical retransmission returns the journaled reply byte-for-byte. A reused seq with a different body fails with ESEQ, as does a gap, and a stale epoch fails with ENOTCURRENT.
+The regression set passes with the runner speaking O10.
+M1. Resident O-core
+Closes G1.
+Build: an EL2 idle context that services the shim mailbox with zero runnable domains, and a classification of every MAX return (§7).
+Build: Twithdraw on Plan 9 no longer requires Linux to be alive, and Tinject exists in qualification builds.
+Gate, scripts/verify_o10_resident.py:
+Tinject faults Linux, then Twithdraw withdraws Plan 9. Tstat confirms neither is runnable, and the monitor keeps answering Tstat for 60 s.
+Trestore brings Plan 9 back, and its provider ready marker validates.
+Each reclassified MAX path has a test showing it contains and continues, or halts with a diagnostic, as classified.
+M2. Linux disposable
+Closes G2.
+Build: symmetric Twithdraw and Trestore for Linux (§7), with immutable copies of the Linux kernel and initramfs outside guest mappings. Virtio transports reset under new generations. Runner policy: restore Linux after a fault.
+Gate, scripts/verify_o10_linux_restart.py:
+Throughout the test, Plan 9 runs a loop appending a counter to a file in its own namespace subtree.
+Tinject faults Linux while it is writing a 64 MiB file to the package disk and partway through an apk add of a declared package.
+Trestore and Tbind bring Linux back. fsck.ext4 -n reports clean after journal replay, and the APK database opens and checks clean; the agent records the exact commands and output.
+Fids Linux held before the fault fail with ESTALE at the store. Plan 9's session generation and fids are unchanged, and the agent records the largest gap in its counter.
+M3. N domains
+Closes G5.
+Build: the 8-entry domain table, round-robin scheduling, per-transport interrupt routes, and Tcreate, Tstart and Tdestroy.
+Gate, scripts/verify_o10_three_domains.py:
+Three guests run at once, each with its own namespace grant from today's table: Linux, 9front, and either a second 9front or a minimal native test domain.
+Tinject faults each in turn; the other two keep running, and each is restored.
+Tdestroy then Tcreate reuses a slot under a higher generation, and every old handle fails with ESTALE.
+M4. Leases
+Closes G4.
+Build: the AArch64 lease table with Tlease, Tderive, Trevoke and Tlstat. The namespace store checks every fid operation against its lease's root and rights instead of root_for and writable.
+Build: boot leases that reproduce today's grants exactly (§5), plus one lease conformance corpus run against both the x86-64 delegated-resource code and the AArch64 lease table.
+Gate, scripts/verify_o10_leases.py:
+The behavior-preserving build passes the regression set.
+On a narrowed build, Linux holds read-write on one subtree only. A write outside it fails, and Plan 9 is unaffected.
+Trevoke on Linux's lease makes its fids fail, leaves Plan 9's session and fids unchanged, and its counts match the fids that were open.
+A derived lease dies with its parent, a stale handle fails with ESTALE, and a depth-3 derivation fails with EDENIED.
+The conformance corpus passes on both architectures.
+M5. Native Governor
+Closes G3.
+Build: the Governor as a native EL1 domain carrying the runner's policy: watching the provider, recycling Plan 9, restoring Linux. It gets its O10 rings, the HVC #10 doorbell, O-core's respawn rule, and a namespace lease for its durable state. The host shim becomes read-only, plus Tinject.
+Gate, scripts/verify_o10_governor_respawn.py:
+With the host only observing, a Plan 9 recycle triggered as in verify_okernel_unified_recovery.py completes under the native Governor.
+Tinject faults the Governor in the middle of a Plan 9 Trestore. Guests keep running: the Linux shell's PID and start time are unchanged, and Plan 9's counter advances.
+O-core respawns the Governor and emits GOVERNOR_RESPAWNED. Tclaim succeeds only with the right expected epoch, and a message under the old epoch fails with ENOTCURRENT.
+Toutcome on the in-flight seq returns APPLIED_OK or NOT_APPLIED, never anything ambiguous, and Plan 9 ends RUNNING.
+M6. Console and acknowledgements out of Linux
+Build: a native console service holding a CONSOLE lease, built on the existing EL2 console switcher.
+Build: recovery acknowledgements published in a namespace subtree that only the Governor's lease can write and that guests can only read. Linux's p9 client reads them there, and op 3 and the Linux-only coordinator UART are retired. Once leases make that subtree Governor-only, text in it is evidence, so the reason for the Linux-only UART is gone.
+Gate:
+Linux restarts by the M2 procedure while the operator stays attached to the native console, and the session survives.
+Linux's p9 client reads an acknowledgement the Governor wrote, and any guest write to that subtree fails.
+M7. First passthrough device
+Build: SMMU stream-table management in O-core, DEVICE leases in PASSTHROUGH mode, and enforced reset classes, developed on QEMU virt with the emulated SMMUv3 (§8).
+Gate:
+Linux drives a passed-through PCIe device with its own driver.
+The hostile-DMA test in §8 passes.
+When Linux is withdrawn, Tquiesce returns the state its reset class predicts. The device is then leased to a restored Linux and works again.
+M8. Fast Plan 9 transport
+Closes G7.
+Build: a shared-memory ring transport for 9P to 9front, which needs a small 9front driver. Tbind is unchanged, and the UART-9P wire stays as a fallback.
+Gate: p9 echo first-output latency is measured before and after on the same host and emulation mode, with the method recorded. The correctness gates pass on both transports, and nothing is claimed beyond the measured numbers.
+M9. Lowered-driver pilot
+Build: Linux's virtio-net driver lowered into a native component by the §8 procedure. Then a strangler swap: the backend behind Linux's guest-facing virtio-net moves from kernel_world_net_host.oc to the lowered component, under the same lease.
+Why this driver: QEMU provides the device, and O-core's hand-written driver is a reference to compare against.
+Gate:
+The closure report lists every Linux symbol reached, each implemented or a sentinel with coverage evidence.
+A network conformance corpus gives identical results on both backends.
+A deliberate off-corpus call hits a sentinel and fails closed with its documented error.
+M10. XNU hosting research
+This is research only, with no claims. Asahi's m1n1 hypervisor already boots XNU as a guest under its own EL2 code on Apple silicon. On newer macOS it also boots SPTM and TXM under the hypervisor, with SPTM in emulation mode.
+Deliverable: a feasibility note for Lee covering boot policy for custom boot objects, SPTM and TXM handling, how the closed drivers reach hardware, and licensing questions.
+10. Agent operating rules
+Agents build through the Ostadix MCP, never on their own machines, and every claim they make carries a gate result and its scope.
+Tools
+Discover before using: o_capabilities(query) and o_guide(topic), with topics including core, compiler and agents. Installed flags can lag the source catalog, so read a command's --help before using an unfamiliar flag.
+Compile O-core modules with ocorec through o_cli: ocorec MODULE.oc --emit ast|hir|mir|asm|obj --target aarch64-unknown-none -o OUTPUT.
+Build, boot and gate kernels with scripts/o-kernel.sh (the same as o kernel) through o_cli. Its help lists doctor, build, image, boot, console, smoke and gates.
+Run long QEMU and build tasks as background jobs (background=true), and follow them with o_job_status and o_job_read. A job starting is not a pass.
+Check the environment with o_doctor, o_env and o_runtimes before a gate, and keep the output.
+After the MCP is rebuilt, reconnect before trusting its tool schemas; a running client can keep the old ones.
+Where gates run
+The MCP host serves a pinned release. On 2026-11-12 it reported commit 1da570dcc61ef10285fc8c8b78a20ca087081daf. Before any gate, confirm the release matches the branch under test; if it doesn't, rebuild through setup or report the mismatch instead of claiming.
+Gates that need admitted builds and saved QEMU states run where those states live, which today is X12. Fork a saved state for every run, and never change a preserved state or VM.
+Repository conventions
+One milestone per branch and pull request, with the regression set run on each.
+Gates live in scripts/verify_o10_*.py and write a result JSON into a session directory; unit tests live in tests/test_o10_*.py.
+Register every new module in the language-source manifest, so scripts/check_language_sources.py check covers it.
+Add docs/O10.md for the protocol once M0 lands. Update docs/CLAIMS.md only with gate-backed claims.
+Follow docs/COMMIT_AUTHORS.md and docs/AI_ASSISTED_DEVELOPMENT.md for commit authorship.
+Keep evidence under evidence/o10-<milestone>-<date>/, following the existing evidence/okernel-boot-20261103 pattern.
+Hard rules
+Never set up or build Ostadix on the agent's own machine; use the MCP.
+No dummy functions, silent no-ops or automatic replays (I5, I11).
+Every claim names its gate and scope (I15), and a skipped test qualifies nothing.
+Stop and ask Lee before changing end-state statements, deleting a preserved experiment or saved state, granting any domain more authority than the behavior-preserving baseline, or writing physical media.
+Evidence record
+Every gate result records:
+the milestone and gate ID;
+the source revision and the MCP release;
+the host, QEMU version and machine options;
+the exact command lines and session directory;
+the result JSON and its pass or fail; and
+the claim's scope, in one sentence.
+11. Decisions and open questions
+Draft 0 makes eight decisions for Lee to confirm and leaves seven open. Agents MUST NOT settle an open question on their own.
+Decided in draft 0
+Decision
+Choice
+Reason
+End state
+Hybrid: absorb where source and interface allow, host otherwise
+XNU's value is closed drivers, so hosting whole kernels is permanent
+Protocol name
+O10, a capital O then 10; code spelling o10
+Lee's choice, and code identifiers cannot start with a digit
+Version string
+O10, revisions O10.1 onward
+Plain and unambiguous
+Where the Governor runs
+A native EL1 domain
+EL2 would grow the trusted base, and Linux would flatten the hierarchy
+Delegation by domains
+Not allowed; only the Governor derives
+Revocation stays a bounded cascade without a derivation tree
+Derivation depth
+At most 2
+Bounds the cascade
+Doorbell
+HVC #10
+Matches the name
+Type codes
+160 to 199
+Disjoint from every 9P dialect
+Open for Lee
+☐ Narrowing policy: which subtrees Linux and Plan 9 each hold once M4 lands.
+☐ Whether domains should ever delegate, through Governor-mediated introductions with a depth bound, or never.
+☐ Whether to replicate the Governor's O10 log across o-nodes as the capability ledger, Raft-style, using GovernorTerm and GovernorLogIndex.
+☐ Whether to expose O10 state to operators as a read-only 9P tree, Plan 9 style.
+☐ Which physical board follows QEMU, given that passthrough needs SMMU coverage for the board's DMA masters.
+☐ Whether a STICKY device may ever go to a domain that restarts often.
+☐ Whether to start M10 given the licensing questions around XNU.
+12. References
+In the repository
+docs/OKERNEL_UNIFIED_IMPLEMENTATION.md: the current end-state statements (lines 117 and 541) that M0 amends.
+docs/OKERNEL_UNIFIED.md and docs/OKERNEL_INTEGRATION.md: the operator profile, recovery behavior, measured timings and qualification limits.
+okernel-multikernel/MULTIKERNEL_PERSONALITY_PROPOSAL.md: §4.5 (full-kernel domain mode), §4.6 (summary matrix) and §6 (the fail-closed rule).
+ocore/runtime/aarch64/unified_world.oc and ocore/kernel/aarch64/unified_world/monitor.S: the EL2 monitor, scheduler, containment and the control mailbox.
+ocore/runtime/common/namespace_store.oc: grants, sessions, session_claim and revoke_if_current.
+ocore/runtime/x86_64/capability.oc, delegated_resource.oc, cap_transfer.oc, endpoint.oc and m5_supervisor.oc: the x86-64 capability core, leases and supervisor.
+ocore/world/identity.oc: GovernorTerm, GovernorLogIndex and LeaseIdentity.
+scripts/okernel_unified_world.py, scripts/verify_okernel_two_domains.py and scripts/verify_okernel_unified_recovery.py: the host runner and today's gates.
+Prior art
+Genode porting guide: porting device drivers: DDE Linux, which runs Linux drivers outside Linux.
+Pine fun: Networking (Genodians, 2021): a worked port of a Linux network driver under DDE.
+Running macOS under the m1n1 hypervisor (Asahi Linux): XNU, SPTM and TXM as guests on Apple silicon.
+Plan 9 Programmer's Manual, intro(5): the 9P2000 message format O10's framing copies.
+Redell, 1974: the caretaker (revocable forwarder) pattern that O10's leases follow.
+Baumann et al., "The Multikernel", SOSP 2009 (Barrelfish).
+Candea and Fox, "Crash-Only Software", HotOS 2003.
+Android's protected KVM (pKVM): a minimal EL2 hypervisor that keeps policy in the host kernel, the arrangement O10 avoids.
+Martin Fowler, "Strangler Fig Application": replacing a system piece by piece behind a stable interface.

@@ -1,0 +1,26 @@
+{
+  "host": "X12",
+  "machine": "x86_64",
+  "source_base": "a8742f638c265d68cde6977aa2783cfad74ccc2a",
+  "implementation_commit": "1fc414e7e21b577cbdb9c032a94f51182a0ff96c",
+  "compiler_path": "/home/ustad/.local/bin/ocorec",
+  "compiler_sha256": "2957f684f7b74bf4c6dbbf6d1b01df62882d648adacd1ce1116f2c761f9cb0f1",
+  "historical_tool_metadata": "2634a9b16d0fbf1d0fc92af9cf570789a6e61b9d",
+  "historical_ocorec_sha256": "878218a92e3a3ecdd3c5843a1685f163b8344528bcb7f05af6f0338ef57d2c2b",
+  "historical_hash_matches_current": false,
+  "mcp_source_release": "unknown-observed-current",
+  "filesystem_free_bytes": 917430272,
+  "gate_scope": "x86 component execution and AArch64 compilation; full M0 guest qualification pending source-aligned release",
+  "pulls": [
+    {
+      "repo": "https://github.com/lostadi/OSTADIX.git",
+      "result": "fetched master",
+      "revision": "a8742f638c265d68cde6977aa2783cfad74ccc2a"
+    },
+    {
+      "repo": "https://github.com/lostadi/ostadix-BM",
+      "result": "fetch failed: HTTPS username unavailable",
+      "ssh_retry": "failed before authentication: no trusted GitHub host key"
+    }
+  ]
+}

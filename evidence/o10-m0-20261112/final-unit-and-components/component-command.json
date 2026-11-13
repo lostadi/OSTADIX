@@ -1,0 +1,15 @@
+{
+  "command": [
+    "python3",
+    "scripts/verify_o10_journal.py",
+    "--session",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/final-unit-and-components/component",
+    "--mcp-release",
+    "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+    "--component-only"
+  ],
+  "returncode": 0,
+  "timed_out": false,
+  "summary": "{\"component_ok\": true, \"qualified\": false, \"result\": \"/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/final-unit-and-components/component/result.json\"}\n",
+  "skipped": false
+}

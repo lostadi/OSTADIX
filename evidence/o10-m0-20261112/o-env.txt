@@ -1,0 +1,7 @@
+O_LANG_ROOT=/home/ustad/ostadix-BM
+O_BACKENDS_DIR=/home/ustad/ostadix-BM/backends
+O_bin=/home/ustad/.local/bin/ostadix-evaluator
+olangc=/home/ustad/.local/bin/olangc
+python_shim=/home/ustad/ostadix-BM/backends/python_shim.py (ok)
+runtime-summary backend-count=30 builtin-backends=7 located-backends=21 missing-backends=2
+note=always pass absolute backends dir to O; never bare "backends" from unrelated cwd; never put $VAR inside .O sources

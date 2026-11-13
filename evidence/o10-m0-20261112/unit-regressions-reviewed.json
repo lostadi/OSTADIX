@@ -1,0 +1,68 @@
+{
+  "scope": "all test_okernel_*.py after final review, private RAM-backed disk fixtures",
+  "source_revision": "5fb4b3d7ebee36c510b7887a1cb4a08142cd3b51",
+  "source_unchanged": true,
+  "results": [
+    {
+      "group": "normal",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "tests.test_okernel_boot_entry",
+        "tests.test_okernel_completion_records",
+        "tests.test_okernel_console_launcher",
+        "tests.test_okernel_control_socket",
+        "tests.test_okernel_glibc_cc",
+        "tests.test_okernel_guest_exit",
+        "tests.test_okernel_guest_namespace",
+        "tests.test_okernel_guest_network_tools",
+        "tests.test_okernel_guest_status",
+        "tests.test_okernel_linux_baseline",
+        "tests.test_okernel_local_interface",
+        "tests.test_okernel_namespace_peer",
+        "tests.test_okernel_native_codec",
+        "tests.test_okernel_native_volume",
+        "tests.test_okernel_original_9p_bridge",
+        "tests.test_okernel_package_domain",
+        "tests.test_okernel_plan9_namespace_import",
+        "tests.test_okernel_repro",
+        "tests.test_okernel_state_fork",
+        "tests.test_okernel_two_domains_repro",
+        "tests.test_okernel_u9fs_peer",
+        "tests.test_okernel_x12_audit_transport",
+        "tests.test_okernel_x12_iso",
+        "tests.test_okernel_x12_iso_verifier",
+        "tests.test_okernel_x12_usb_hid"
+      ],
+      "rc": 0,
+      "temporary_parent": "/tmp",
+      "summary": "and_readonly_iso_without_shares (tests.test_okernel_x12_usb_hid.USBProofBoundaries.test_profile_has_only_usb_keyboard_and_readonly_iso_without_shares) ... ok\ntest_serial_is_unusable_for_guest_input_after_boot (tests.test_okernel_x12_usb_hid.USBProofBoundaries.test_serial_is_unusable_for_guest_input_after_boot) ... ok\ntest_success_requires_phase_bound_screenshot_token_and_error (tests.test_okernel_x12_usb_hid.USBProofBoundaries.test_success_requires_phase_bound_screenshot_token_and_error) ... ok\ntest_usb_driver_evidence_requires_hid_child_and_rejects_boot_fallback (tests.test_okernel_x12_usb_hid.USBProofBoundaries.test_usb_driver_evidence_requires_hid_child_and_rejects_boot_fallback) ... ok\n\n----------------------------------------------------------------------\nRan 278 tests in 58.520s\n\nOK\n",
+      "skipped": false
+    },
+    {
+      "group": "ram-disk",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "tests.test_okernel_disk_growth",
+        "tests.test_okernel_repository_staging"
+      ],
+      "rc": 0,
+      "temporary_parent": "/dev/shm",
+      "summary": "repository_staging.RepositoryStagingTests.test_payload_identity_failure_does_not_publish_or_mutate_base) ... ok\ntest_staging_preserves_installed_state_and_publishes_readonly_generation (tests.test_okernel_repository_staging.RepositoryStagingTests.test_staging_preserves_installed_state_and_publishes_readonly_generation) ... ok\ntest_staging_preserves_the_exact_shared_namespace_generation (tests.test_okernel_repository_staging.RepositoryStagingTests.test_staging_preserves_the_exact_shared_namespace_generation) ... ok\ntest_unexpected_database_mutation_prevents_publication (tests.test_okernel_repository_staging.RepositoryStagingTests.test_unexpected_database_mutation_prevents_publication) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 27.328s\n\nOK\n",
+      "skipped": false
+    }
+  ],
+  "ok": true,
+  "skips": [],
+  "fixtures": {
+    "OCOREC_BIN": "/home/ustad/.local/bin/ocorec",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz"
+  }
+}

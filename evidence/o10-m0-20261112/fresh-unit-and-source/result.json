@@ -1,0 +1,22 @@
+{
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "mcp_release": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "results": [
+    {
+      "command": [
+        "python3",
+        "scripts/verify_o10_journal.py",
+        "--session",
+        "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source/o10",
+        "--mcp-release",
+        "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+        "--component-only"
+      ],
+      "returncode": 0,
+      "skipped": false,
+      "summary": "{\"component_ok\": true, \"qualified\": false, \"result\": \"/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source/o10/result.json\"}\n"
+    }
+  ],
+  "complete": false,
+  "ok": false
+}

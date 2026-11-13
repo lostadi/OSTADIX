@@ -990,6 +990,58 @@ jobs:
           path: target/ocore-process-current-identity/
           if-no-files-found: warn
           retention-days: 14
+      - name: Verify private x86 thread frame content validation
+        env:
+          OCORE_THREAD_FRAME_REQUIRED: "1"
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          os.environ["OCOREC_BIN"] = str(root / "target/debug/ocorec")
+          os.environ["OCORE_THREAD_FRAME_TEST_OUTPUT"] = str(root / "target/ocore-thread-frame-contents")
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_thread_frame_contents")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun < 3 or result.skipped:
+              raise SystemExit("private thread frame regressions must execute without skips")
+          PY
+      - name: Retain bounded thread frame content evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-thread-frame-contents-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/ocore-thread-frame-contents/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Verify required O10 host and native components
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/o10-components"
+          environment = dict(os.environ, OCOREC_BIN=str(root / "target/debug/ocorec"))
+          result = subprocess.run([sys.executable, "scripts/verify_o10_journal.py",
+                                   "--session", str(evidence), "--component-only"],
+                                  env=environment)
+          if result.returncode:
+              raise SystemExit(result.returncode)
+          report = json.loads((evidence / "result.json").read_text())
+          if (report.get("component_ok") is not True
+              or report.get("source_unchanged") is not True
+              or report.get("tests_run", 0) < 67
+              or report.get("failures") != 0 or report.get("errors") != 0
+              or report.get("skips") != []):
+              raise SystemExit("O10 component checks must execute without failures or skips")
+          if report.get("qualified") is not False or report.get("ok") is not False:
+              raise SystemExit("component CI cannot qualify full M0 or guest execution")
+          PY
+      - name: Retain bounded O10 component evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: o10-components-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/o10-components/
+          if-no-files-found: warn
+          retention-days: 14
       # BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_CI
       - name: Validate central release-evidence manifest
         run: python3 scripts/release_evidence.py validate

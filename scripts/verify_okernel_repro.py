@@ -91,7 +91,9 @@ def source_snapshot(source: Path, output: Path) -> dict:
             raise RuntimeError("new source appeared during snapshot; retry after editing finishes")
         archive = output / "source.tar"
         capture(
-            git + ["archive", "--format=tar", "--mtime=@0", "--output", str(archive), tree],
+            # An explicit ISO timestamp avoids Git approxidate interpreting @0 as
+            # a relative date on older supported installations.
+            git + ["archive", "--format=tar", "--mtime=1970-01-01T00:00:01Z", "--output", str(archive), tree],
             cwd=source, env=env,
         )
     finally:

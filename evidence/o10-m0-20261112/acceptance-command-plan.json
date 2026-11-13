@@ -1,0 +1,126 @@
+{
+  "scope": "Read-only planning and Plan9 admission validation only; no fork/build/VM executed.",
+  "source_root": "/home/ustad/OSTADIX-o10-m0-20261112",
+  "scratch": "/dev/shm/ostadix-o10-m0-20261112",
+  "available_shm_bytes": 16484024320,
+  "inputs": [
+    {
+      "path": "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui/payload/linux-payload.json",
+      "bytes": 821,
+      "sha256": "59287c3334573e0a698dfb77915424ef1efd1cf2c2a0415a30e4f3ba16fcd710"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/result.json",
+      "bytes": 85564,
+      "sha256": "b128b0df09e80318576282c6c2799a4bdde00980ffaddee37c6ac83d326dbbbf"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/FROZEN.json",
+      "bytes": 3211,
+      "sha256": "66fc0080bde1f8a0a17bf2b819320359146e8609c528ba38e5def9dd8eca5f4e"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/KERNEL.U",
+      "bytes": 6051008,
+      "sha256": "a0bbd0d5428fdaca53b5565c0c32a9de9ba3c00a542b159338c24aca0f095c78"
+    },
+    {
+      "path": "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui/head.json",
+      "bytes": 1606,
+      "sha256": "47bcdaf7ebedd62c562731a521906b478da88361081f425e1f2dfde50d17d32b"
+    }
+  ],
+  "build_argv_template": [
+    "python3",
+    "scripts/build_okernel_unified_world.py",
+    "--payload",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui/payload",
+    "--plan9-kernel",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/KERNEL.U",
+    "--derivation-receipt",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/result.json",
+    "--output",
+    "/dev/shm/ostadix-o10-m0-20261112/unified-build",
+    "--ocorec",
+    "<aligned compiler path supplied by root>",
+    "--clang",
+    "/usr/lib/llvm-18/bin/clang",
+    "--lld",
+    "/usr/lib/llvm-18/bin/lld",
+    "--dtc",
+    "/home/ustad/ostadix-BM/target/bm-dev-env/bin/dtc",
+    "--plan9-recovery"
+  ],
+  "fork_argv_template": [
+    "python3",
+    "scripts/fork_okernel_state.py",
+    "--source",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui",
+    "--output",
+    "/dev/shm/ostadix-o10-m0-20261112/state-<gate>"
+  ],
+  "gates": [
+    {
+      "argv": [
+        "python3",
+        "scripts/verify_okernel_two_domains.py",
+        "--state",
+        "/dev/shm/ostadix-o10-m0-20261112/state-okernel_two_domains",
+        "--build",
+        "/dev/shm/ostadix-o10-m0-20261112/unified-build"
+      ],
+      "fresh_fork_required": true
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/verify_okernel_unified_provider.py",
+        "--state",
+        "/dev/shm/ostadix-o10-m0-20261112/state-okernel_unified_provider",
+        "--build",
+        "/dev/shm/ostadix-o10-m0-20261112/unified-build"
+      ],
+      "fresh_fork_required": true
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/verify_okernel_unified_client.py",
+        "--state",
+        "/dev/shm/ostadix-o10-m0-20261112/state-okernel_unified_client",
+        "--build",
+        "/dev/shm/ostadix-o10-m0-20261112/unified-build"
+      ],
+      "fresh_fork_required": true
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/verify_okernel_unified_recovery.py",
+        "--state",
+        "/dev/shm/ostadix-o10-m0-20261112/state-okernel_unified_recovery",
+        "--build",
+        "/dev/shm/ostadix-o10-m0-20261112/unified-build"
+      ],
+      "fresh_fork_required": true
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/verify_okernel_p9_default_compile.py",
+        "--state",
+        "/dev/shm/ostadix-o10-m0-20261112/state-okernel_p9_default_compile",
+        "--build",
+        "/dev/shm/ostadix-o10-m0-20261112/unified-build"
+      ],
+      "fresh_fork_required": true
+    }
+  ],
+  "blockers": [
+    "Aligned compiler and running MCP revision evidence supplied by root before gate qualification.",
+    "Fresh build hash/profile need explicit admission for foreground client/recovery/default-compile gates; current allowlist only R8/R9/R10.",
+    "Native runtime regression additionally requires a newly frozen O10 runtime via freeze_okernel_unified_runtime.py --help; existing frozen runtimes preserve old monitor/runner bytes.",
+    "RAM-backed storage must cover each retained 1GiB fork plus snapshots; do not start all gates concurrently.",
+    "Current saved guest tools must match checkout tool hashes, or stage updates only in a fresh private fork."
+  ]
+}

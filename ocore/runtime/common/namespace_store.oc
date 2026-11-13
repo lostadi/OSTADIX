@@ -315,6 +315,21 @@ pub unsafe fn provision_clock(unix_seconds: u64) -> u64 {
 unsafe fn clear_fids(handle: u64) -> void {
     let mut i: usize = 0; while i < FID_COUNT { if F_SESSION[i] == handle { F_SESSION[i] = 0; } i += 1; }
 }
+// Monitor observations only; grant IDs here are fixed trusted transport bindings.
+pub unsafe fn session_handle(grant: u64) -> u64 {
+    if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 { return 0; }
+    return SESSION[grant as usize];
+}
+pub unsafe fn session_fid_count(grant: u64) -> u64 {
+    let session: u64 = session_handle(grant);
+    if session == 0 { return 0; }
+    let mut count: u64 = 0; let mut index: usize = 0;
+    while index < FID_COUNT {
+        if F_SESSION[index] == session { count += 1; }
+        index += 1;
+    }
+    return count;
+}
 pub unsafe fn revoke(grant: u64) -> u64 {
     if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 { return 0; }
     let slot: usize = grant as usize; clear_fids(SESSION[slot]); SESSION[slot] = 0; VERSIONED[slot] = 0; return 1;

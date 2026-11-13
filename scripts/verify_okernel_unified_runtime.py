@@ -35,6 +35,10 @@ import time
 
 R9_MONITOR = "dfea381c44dc59910d418303c0419d58d66780b93f475017508841db8dd65c0b"
 R9_PROFILE = "d16d00728c1c52ba46c04485c9c0a564f4836ec9cd72a8e913622023eeabccba"
+# O10 candidate admitted for this runtime gate by the live control/provider receipt.
+O10_M0_MONITOR = "641a0ad14fb96979f7d4b141779f8bbad7b8b854ea1fde4fe1b25d984504aeaf"
+O10_M0_PROFILE = "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e"
+ADMITTED_RUNTIME_PROFILES = {R9_MONITOR: R9_PROFILE, O10_M0_MONITOR: O10_M0_PROFILE}
 RUNTIME_SCHEMA = "ostadix.okernel-unified-runtime/v1"
 SESSION_SCHEMA = "ostadix.unified-world-session/v1"
 TARGET = "=okernel-unified:console.0"
@@ -213,8 +217,8 @@ def inspect_owned_qemu(runtime, manifest, state, session, record, pane_pid, proc
         raise ValueError("QEMU argv is outside this frozen single-CPU session")
     expected_monitor = record.get("inputs", {}).get("monitor.elf", {})
     checked(kernel, expected_monitor)
-    if expected_monitor.get("sha256") != R9_MONITOR:
-        raise ValueError("owned process does not run the explicitly qualified R9 monitor")
+    if expected_monitor.get("sha256") not in ADMITTED_RUNTIME_PROFILES:
+        raise ValueError("owned process does not run an explicitly admitted monitor")
     checkout_roots = set()
     for name, source in manifest.get("sources", {}).items():
         original = Path(source["original"]["path"])
@@ -426,10 +430,11 @@ class Verification:
         self.fork = validate_private_fork(self.state, self.runner.common.DEFAULT_STATE)
         self.profile = document(self.runtime / "build/monitor-profile.json")
         self.runner.validate_profile(self.profile)
-        if (digest(self.runtime / "build/monitor-profile.json") != R9_PROFILE
-                or self.profile["artifacts"]["monitor.elf"]["sha256"] != R9_MONITOR
-                or self.manifest["admitted_manifest"]["sha256"] != R9_PROFILE):
-            raise ValueError("runtime is not the explicitly qualified R9 build")
+        admitted_profile = ADMITTED_RUNTIME_PROFILES.get(self.profile["artifacts"]["monitor.elf"]["sha256"])
+        if (admitted_profile is None
+                or digest(self.runtime / "build/monitor-profile.json") != admitted_profile
+                or self.manifest["admitted_manifest"]["sha256"] != admitted_profile):
+            raise ValueError("runtime monitor/profile pair is not explicitly admitted")
         self.before = document(self.state / "head.json")
         self.runner.common.validate_head(self.state, self.before)
         for key in ("disk", "namespace"):

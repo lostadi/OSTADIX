@@ -1,0 +1,187 @@
+{
+  "schema": "ostadix.unified-foreground-client/v1",
+  "ok": true,
+  "started": 1794544531.2001686,
+  "scope": "automated keystrokes through a real foreground PTY: original Linux p9 client and concurrent original9front commands/compiler beneath one native O-core monitor; not a human typing claim",
+  "inputs": {
+    "state": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client",
+    "build": "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3",
+    "before": {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+        "bytes": 1073741824,
+        "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+        "bytes": 1073741824,
+        "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+      },
+      "session": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l",
+      "guest_tools_update": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l/result.json",
+      "namespace": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "fork_origin": {
+        "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed",
+        "head_sha256": "32bea222f957592f938032f6d47a6fd92e24112ca3c1ea61b3adacc2dca8f0fe"
+      }
+    },
+    "monitor_revision": "O10-M0-live",
+    "profile_sha256": "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e",
+    "monitor": {
+      "path": "monitor.elf",
+      "bytes": 877448,
+      "sha256": "641a0ad14fb96979f7d4b141779f8bbad7b8b854ea1fde4fe1b25d984504aeaf"
+    }
+  },
+  "source_sha256": {
+    "scripts/verify_okernel_unified_client.py": "57cc473bb9757dc53502e64187fd85a23e1d13328eff5df7a7ae41163abcceb0",
+    "scripts/verify_okernel_unified_console.py": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220",
+    "scripts/okernel_unified_world.py": "ce83364c0c1197940f6b0c44db547e1e1053458fff01b2a86f5b267e558d0d46",
+    "scripts/okernel_package_domain.py": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f",
+    "scripts/okernel_native_volume.py": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef",
+    "ocore/guest/linux/package-domain/p9": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+    "ocore/guest/linux/package-domain/p9-controller": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+    "ocore/guest/linux/package-domain/p9-history": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+    "ocore/guest/linux/package-domain/p9-install": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+  },
+  "watchdog": false,
+  "raw_console": false,
+  "sessions": [
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/unified-session-37j7g0o7",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/unified-session-8hdvkmmp"
+  ],
+  "checks": [
+    "typed p9 NAME executes original echo; printf binary pipe through original cat preserves exact hash and bytes",
+    "actual shared cwd maps to original Plan9 pwd; original7c/7l compile and p9 executes an original-ABI binary",
+    "p9-install publishes the exact user-compiled original Plan9 bytes mode0555; p9 resolves and executes the new installed name",
+    "nonempty exact native status is preserved while the Linux CLI returns generic1",
+    "streamed output precedes real Ctrl+C; CLI130 is accepted only with bound native replacement/private UART ACK; Linux shell PID/start time survives",
+    "first: one Ctrl+] publishes paired quiescent volumes and restores full foreground termios",
+    "a second actual two-kernel boot recovers the saved file and executes the installed NAME with identical original compiled bytes through fresh p9 client identities",
+    "restart: one Ctrl+] publishes paired quiescent volumes and restores full foreground termios"
+  ],
+  "source_artifacts": {
+    "scripts/verify_okernel_unified_client.py": {
+      "path": "sources/scripts/verify_okernel_unified_client.py",
+      "bytes": 34086,
+      "sha256": "57cc473bb9757dc53502e64187fd85a23e1d13328eff5df7a7ae41163abcceb0"
+    },
+    "scripts/verify_okernel_unified_console.py": {
+      "path": "sources/scripts/verify_okernel_unified_console.py",
+      "bytes": 10606,
+      "sha256": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220"
+    },
+    "scripts/okernel_unified_world.py": {
+      "path": "sources/scripts/okernel_unified_world.py",
+      "bytes": 57822,
+      "sha256": "ce83364c0c1197940f6b0c44db547e1e1053458fff01b2a86f5b267e558d0d46"
+    },
+    "scripts/okernel_package_domain.py": {
+      "path": "sources/scripts/okernel_package_domain.py",
+      "bytes": 41952,
+      "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+    },
+    "scripts/okernel_native_volume.py": {
+      "path": "sources/scripts/okernel_native_volume.py",
+      "bytes": 11240,
+      "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+    },
+    "ocore/guest/linux/package-domain/p9": {
+      "path": "sources/ocore/guest/linux/package-domain/p9",
+      "bytes": 33362,
+      "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+    },
+    "ocore/guest/linux/package-domain/p9-controller": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-controller",
+      "bytes": 19477,
+      "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4"
+    },
+    "ocore/guest/linux/package-domain/p9-history": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-history",
+      "bytes": 30438,
+      "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4"
+    },
+    "ocore/guest/linux/package-domain/p9-install": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-install",
+      "bytes": 15229,
+      "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016"
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "path": "sources/ocore/guest/plan9/unified/protocol.py",
+      "bytes": 16391,
+      "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+    }
+  },
+  "stream_latency_seconds": 28.095818219007924,
+  "native_recovery": {
+    "previous": {
+      "generation": "0b5c53dd5181ad75",
+      "instance": "a7dbc39bff012b252f683de743c190a7"
+    },
+    "reset": "OC9RESET1 0b5c53dd5181ad75 a7dbc39bff012b252f683de743c190a7 76186f1772e45ee63137f023499d184a f5ef1a47e4f4cc0c7626655ca9ebfde1f6a5445b54355db3289e173669bd97a7 19654c79f1949584efa3e0f41a9d98a8a0148558aa17b2df8f235d914d358208\n",
+    "unknown": null,
+    "started": 1794545062.336373,
+    "namespace_before": {
+      "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/client/unified-session-37j7g0o7/namespace-before-recycle-1.raw",
+      "bytes": 16777216,
+      "sha256": "6b695d9ab3ae6db903deba8dc036d14983aa3a0390577cf3bdea358510643b14"
+    },
+    "ok": true,
+    "finished": 1794545076.4760382,
+    "current": {
+      "generation": "0b5c53dd5181ad75",
+      "instance": "0341242d12e3a004e450d6408fe10882"
+    },
+    "withdrawn": {
+      "live_domains": 1,
+      "switches": 75242,
+      "linux_exits": 264195,
+      "plan9_exits": 800740,
+      "linux_pc": "0xffffffc080259c7c",
+      "plan9_pc": "0xffffffffc01a1c3c",
+      "linux_esr": "0x93880045",
+      "plan9_esr": "0x7e00000",
+      "console": 0,
+      "input_dropped": 0,
+      "blocked_domains": 0,
+      "native_idle_waits": 2344,
+      "plan9_9p_requests": 2505,
+      "plan9_9p_request_bytes": 135559,
+      "plan9_9p_reply_bytes": 243847
+    },
+    "restored": {
+      "live_domains": 3,
+      "switches": 77363,
+      "linux_exits": 267542,
+      "plan9_exits": 810290,
+      "linux_pc": "0x7f87819a94",
+      "plan9_pc": "0xffffffffc012c838",
+      "linux_esr": "0x93870005",
+      "plan9_esr": "0x93880005",
+      "console": 0,
+      "input_dropped": 0,
+      "blocked_domains": 0,
+      "native_idle_waits": 2344,
+      "plan9_9p_requests": 2552,
+      "plan9_9p_request_bytes": 137104,
+      "plan9_9p_reply_bytes": 245349
+    }
+  },
+  "finished": 1794545257.681129,
+  "workspace": "/n/okernel/work/foreground-2ad8450175f6b740494e",
+  "installed_name": "original-installed-2ad8450175f6b740494e",
+  "installed_native_path": "/packages/plan9/bin/original-installed-2ad8450175f6b740494e",
+  "compiled_sha256": "44814c8f8ef0fd4e0bead13d76ab203571ea5ba81cd5c8b6bcf4f073e9b7abf3",
+  "binary_pipe_sha256": "fae808d6f2039b31300c9b9ba4d534f64b5ab13b1bb103adfa098c82854b5ba6"
+}

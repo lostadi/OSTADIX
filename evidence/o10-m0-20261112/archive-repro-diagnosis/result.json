@@ -1,0 +1,59 @@
+{
+  "snapshots": [
+    {
+      "head": "bee2584cfd0792e5c7148063c2d6f055ef47bcfa",
+      "tree": "535be429a6a4751e85ccfff8d6c91b9cb7499450",
+      "archive": "/home/ustad/.cache/o10-archive-diagnosis-20261113/capture-0/source.tar",
+      "archive_sha256": "392fe406a932b1106f81bc500e25bc6ff1ef36cba5eb981ad41dfa0dd9756605",
+      "manifest_sha256": "80aae06691735c831c86a1a83dc9384b6e47e691311ca78aa8cf04f3ce06c59d",
+      "cargo_lock_sha256": "69fab28c6ba57a6e6eb23d4f583eb30ff911e68358c2054d7d8908b21b189ee7"
+    },
+    {
+      "head": "bee2584cfd0792e5c7148063c2d6f055ef47bcfa",
+      "tree": "535be429a6a4751e85ccfff8d6c91b9cb7499450",
+      "archive": "/home/ustad/.cache/o10-archive-diagnosis-20261113/capture-1/source.tar",
+      "archive_sha256": "6a337de12686733d67d0c4ace35206879ac5aa1665caadb6d0d506145e0c34a5",
+      "manifest_sha256": "80aae06691735c831c86a1a83dc9384b6e47e691311ca78aa8cf04f3ce06c59d",
+      "cargo_lock_sha256": "69fab28c6ba57a6e6eb23d4f583eb30ff911e68358c2054d7d8908b21b189ee7"
+    },
+    {
+      "head": "bee2584cfd0792e5c7148063c2d6f055ef47bcfa",
+      "tree": "535be429a6a4751e85ccfff8d6c91b9cb7499450",
+      "archive": "/home/ustad/.cache/o10-archive-diagnosis-20261113/capture-2/source.tar",
+      "archive_sha256": "75000ef1c9139462554ca22c96728f8a3a3cfe6b91db4298d4da915a2cd2e521",
+      "manifest_sha256": "80aae06691735c831c86a1a83dc9384b6e47e691311ca78aa8cf04f3ce06c59d",
+      "cargo_lock_sha256": "69fab28c6ba57a6e6eb23d4f583eb30ff911e68358c2054d7d8908b21b189ee7"
+    }
+  ],
+  "pairs": [
+    {
+      "same_tree": true,
+      "same_archive": false,
+      "diff_offsets": [
+        146,
+        154,
+        1170,
+        1178,
+        2194,
+        2202
+      ],
+      "a_bytes": 10240,
+      "b_bytes": 10240
+    },
+    {
+      "same_tree": true,
+      "same_archive": false,
+      "diff_offsets": [
+        146,
+        154,
+        1170,
+        1178,
+        2194,
+        2202
+      ],
+      "a_bytes": 10240,
+      "b_bytes": 10240
+    }
+  ],
+  "git": "git version 2.43.0"
+}

@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/freeze_okernel_unified_runtime.py",
+        "--source",
+        "/home/ustad/OSTADIX-o10-m0-20261112",
+        "--build",
+        "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3",
+        "--qemu",
+        "/usr/bin/qemu-system-aarch64",
+        "--output",
+        "/home/ustad/.cache/o10-m0-acceptance-20261112/runtime-o10-r3"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "python3",
+        "scripts/verify_o10_live.py",
+        "--state",
+        "/home/ustad/.cache/o10-m0-acceptance-20261112/state-live-3",
+        "--build",
+        "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3",
+        "--output",
+        "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-live-3",
+        "--mcp-release",
+        "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c"
+      ],
+      "returncode": 0
+    }
+  ],
+  "scope": "R3 private fork, newly frozen runtime, then actual live preclaim/O10 generation regression",
+  "started": 1794543425.4522576,
+  "finished": 1794543491.551791
+}
