@@ -583,3 +583,84 @@ frames, complete original-compiler/provider closure and general native graph
 or instruction-debugger execution remain separate required gates. Linux
 carriers and QEMU qualify their recorded development profiles. The scalar native
 reference interpreter&#39;s variadic rejection is unchanged.</p>
+<h2>Executed review validation: October 17, 2026 UTC</h2>
+<p>The review reconstructed all 2,781 tracked files in published checkpoint
+<code>0c8a1a1218a404765f78a883d2ce63d66e88e74d</code>, verifying the complete Git tree
+<code>cae24aa2621c75d5275a21b9363b3b892e247b4e</code>, and then applied the evidence fixes
+in this change. A fresh <code>ocorec</code> was built with the pinned Rust 1.97.1 toolchain.
+The <a href="evidence/ocore/native-review-20261017.json">machine-readable validation record</a>
+binds the tested files, compiler binary, tool versions and resulting artifacts.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Observed result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>cargo build --locked --bin ocorec</code></td>
+<td>Passed; fresh <code>ocorec 0.4.0</code>.</td>
+</tr>
+<tr>
+<td><code>test_ocore_native_equivalence.py</code></td>
+<td>All 11 regression tests passed. These exercise producer freshness, receipt removal and executable selection, rather than native code generation.</td>
+</tr>
+<tr>
+<td><code>test_ocore_native_map.py</code></td>
+<td>All 10 tests passed without skips, including assembly and real ELF object maps for x86-64, AArch64 and RV64.</td>
+</tr>
+<tr>
+<td><code>check_ocore_native_equivalence.py</code></td>
+<td>All three targets passed with digest <code>b1009525e0d57799</code> and 12,288 arithmetic comparisons per target.</td>
+</tr>
+<tr>
+<td>Fault and nonreturning-expression checks</td>
+<td>Six synchronous fault cases and two exit-status-42 nonreturning-expression cases passed per target.</td>
+</tr>
+<tr>
+<td>Object reproducibility</td>
+<td>Both independently emitted object files were byte-identical for each target.</td>
+</tr>
+<tr>
+<td>Driver formatting and patch whitespace</td>
+<td>Passed with pinned Rustfmt and <code>git diff --check</code>.</td>
+</tr>
+<tr>
+<td>Tracked HTML exports</td>
+<td>All 97 documents matched Marked 18.0.13 after regenerating the stale O-core export.</td>
+</tr>
+</tbody></table>
+<p>The arithmetic count is 4,096 deterministic inputs times three directly
+checked C-reference comparisons: unsigned, signed and narrow integer mixes.
+The harness compares each result before incorporating it into the common
+64-bit digest. Additional ABI, memory, atomic and evaluation-order selftests
+are outside that count. Atomic checks in this corpus run in one thread;
+they do not establish ordering between concurrent threads.</p>
+<p>x86-64 ran directly on the Linux host. AArch64 and RV64 ran under QEMU user
+8.2.2. Clang/LLD 18.1.3 compiled the independent C harness, assembled O-core&#39;s
+generated assembly and linked static Linux test executables. This does not
+exercise the foreign importer&#39;s separate digest-pinned LLVM 22.1.6 path.</p>
+<p>The fixes remove several ways an evidence check could succeed without testing
+the intended operation:</p>
+<ul>
+<li>Each compiler or linker invocation must produce fresh, nonempty regular
+artifact files. Old objects, retained assembly and executables can no longer
+satisfy a successful invocation that produces no output. Seven regressions
+against the original checker failed as expected: six stale-artifact cases
+and one selected-compiler identity mismatch.</li>
+<li>Selected executable paths become absolute before any working-directory
+change, while preserving symlink command names needed by multicall tools.
+The compiler executed and the compiler hashed use the same selected path.</li>
+<li>Native artifact alias checks reject dangling or looping symlinks before
+writes, while retaining support for genuinely absent output directories.</li>
+<li>Map tests invoke the implemented <code>--keep-asm</code> option and Clang selected from
+<code>PATH</code>. They recognize Clang&#39;s <code>x86-64</code> backend name and require collision
+diagnostics, so an argument-parser error cannot stand in for alias rejection.</li>
+<li>Both Python suites now run in the existing O-core CI job after its compiler
+build. Their successful local runs are recorded separately from CI status.</li>
+</ul>
+<p>The nine-test original Lua inventory transcript supplied during this review
+refers to newer local work absent from the published checkpoint. Those tests
+were not independently rerun here. Their reported success does not establish
+complete original Lua lowering or execution, and this review does not include
+or replace those unpublished source changes.</p>
