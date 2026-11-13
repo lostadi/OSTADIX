@@ -233,7 +233,8 @@ class O10PlatformTests(unittest.TestCase):
             profile.write_text("module runtime::aarch64::kernel_world_profile;\n"
                 "pub const PERSISTENT: u64 = 1;\npub const BACKING_BASE: usize = 0x7000_0000;\n"
                 "pub const BACKING_BYTES: usize = 1_073_741_824;\n"
-                "pub const NETWORK: u64 = 1;\npub const NAMESPACE: u64 = 1;\n")
+                "pub const NETWORK: u64 = 1;\npub const NAMESPACE: u64 = 1;\n"
+                "pub const O10_QUALIFICATION: u64 = 0;\n")
             (output / "harness.c").write_text(harness)
             commands = [
                 [str(compiler), str(profile), str(unified), *(str(ROOT / name) for name in sources[1:]),

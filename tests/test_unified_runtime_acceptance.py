@@ -52,6 +52,20 @@ class RuntimeOracleTests(unittest.TestCase):
         (self.runtime / "runtime.json").write_text(json.dumps(manifest))
         return manifest
 
+    def test_runtime_admission_preserves_exact_pairs_and_rejects_cross_pair_mix(self):
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.R9_MONITOR], module.R9_PROFILE)
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M0_MONITOR], module.O10_M0_PROFILE)
+        self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M1_R7_MONITOR], module.O10_M1_R7_PROFILE)
+        for monitor, profile in module.ADMITTED_RUNTIME_PROFILES.items():
+            self.assertEqual(module.admitted_runtime_profile(monitor, profile), profile)
+            for wrong in [None, {}, True, "0" * 64] + [
+                    item for key, item in module.ADMITTED_RUNTIME_PROFILES.items() if key != monitor]:
+                with self.subTest(monitor=monitor, profile=wrong), self.assertRaises(ValueError):
+                    module.admitted_runtime_profile(monitor, wrong)
+        for monitor in [None, {}, True, "0" * 64]:
+            with self.subTest(monitor=monitor), self.assertRaises(ValueError):
+                module.admitted_runtime_profile(monitor, module.O10_M1_R7_PROFILE)
+
     def test_inventory_requires_all_exact_regular_captured_files(self):
         manifest = self.inventory()
         module.validate_inventory(self.runtime, manifest)

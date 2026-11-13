@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m1-20261112/scripts/fork_okernel_state.py",
+    "--source",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed",
+    "--output",
+    "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/provider"
+  ],
+  "started": 1794556430.8879972,
+  "returncode": 0,
+  "timed_out": false,
+  "finished": 1794556435.7131066
+}

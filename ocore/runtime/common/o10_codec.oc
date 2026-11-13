@@ -35,7 +35,7 @@ pub fn readonly(kind: u64) -> u64 {
 }
 pub unsafe fn validate(bytes: *const u8, length: usize, msize: usize) -> u64 {
     BAD_OFFSET = 0;
-    if length < 7 || length > msize || length > 512 || msize < 7 { return bad(0); }
+    if length < 7 || length > msize || length > 512 || msize < 7 || msize > 512 { return bad(0); }
     if read(bytes, 0, 4) != length as u64 { return bad(0); }
     let kind: u64 = read(bytes, 4, 1);
     let mut expected: usize = 0;

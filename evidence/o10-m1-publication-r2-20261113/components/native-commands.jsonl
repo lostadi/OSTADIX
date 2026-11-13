@@ -1,0 +1,3 @@
+{"argv": ["/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec", "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/common/o10_codec.oc", "/home/ustad/OSTADIX-o10-m1-publish-20261113/ocore/runtime/common/o10_executor.oc", "--target", "x86_64-unknown-none", "--emit", "obj", "-o", "/tmp/o10-native-0lj_d6xb/native.o"], "returncode": 0, "stdout": "", "stderr": "ocorec: wrote /tmp/o10-native-0lj_d6xb/native.o\n"}
+{"argv": ["/usr/bin/clang", "-O2", "-no-pie", "/tmp/o10-native-0lj_d6xb/harness.c", "/tmp/o10-native-0lj_d6xb/native.o", "-o", "/tmp/o10-native-0lj_d6xb/selftest"], "returncode": 0, "stdout": "", "stderr": ""}
+{"argv": ["/tmp/o10-native-0lj_d6xb/selftest"], "returncode": 0, "stdout": "O10 native corpus and journal PASS\n", "stderr": ""}

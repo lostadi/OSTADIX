@@ -1,0 +1,19 @@
+Fix PL011 startup writes and surviving-domain reports
+
+Discard saved register bits above a trapped store's decoded width before
+UART validation. Accept Linux 6.12.43's ICR clear-all value while applying
+only the implemented clear bits; retain reserved-address and unsupported
+DMA/mode rejection.
+
+Check Plan 9's live bit independently and derive the Linux survivor message
+from the observed post-withdrawal state.
+
+Validation: 45 component tests pass without skips, including 112 native
+host-register scenarios and 15 runner tests. The new startup probe uses
+the observed STRH/SRT9 syndrome with high X9 bits and checks the actual ICR
+latch and both sessions/fids. This is not guest boot qualification; failed
+R6 evidence is preserved for a new aligned R7 gate run.
+
+Assisted-By: Codex implementation agents
+Reviewed-By: Codex runtime review agent (source review)
+Tested-By: Codex host-model and Python harnesses through Ostadix MCP

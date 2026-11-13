@@ -120,8 +120,10 @@ def _event(event, offset):
     expected = {name for name, _ in EVENT_SCHEMA} - {"pad"}
     if not isinstance(event, dict) or set(event) != expected:
         _bad(offset, "event fields do not match schema")
-    return b"".join(_integer(0 if name == "pad" else event[name], fmt, offset)
-                    for name, fmt in EVENT_SCHEMA)
+    body = bytearray()
+    for name, fmt in EVENT_SCHEMA:
+        body += _integer(0 if name == "pad" else event[name], fmt, offset + len(body))
+    return bytes(body)
 
 
 def encode(message_type, tag=0, *, epoch=None, seq=None, msize=O10_MSIZE, **fields):

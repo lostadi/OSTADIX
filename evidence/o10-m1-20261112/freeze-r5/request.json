@@ -1,0 +1,6 @@
+{
+  "source": "python^( exec(\"import subprocess,json; p=subprocess.run(['python3', '/home/ustad/OSTADIX-o10-m1-20261112/scripts/freeze_okernel_unified_runtime.py', '--source', '/home/ustad/OSTADIX-o10-m1-20261112', '--build', '/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r5', '--qemu', '/usr/bin/qemu-system-aarch64', '--output', '/home/ustad/.cache/o10-m1-acceptance-20261112/frozen-runtime-r5'],capture_output=True,text=True); print(json.dumps(dict(argv=['python3', '/home/ustad/OSTADIX-o10-m1-20261112/scripts/freeze_okernel_unified_runtime.py', '--source', '/home/ustad/OSTADIX-o10-m1-20261112', '--build', '/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r5', '--qemu', '/usr/bin/qemu-system-aarch64', '--output', '/home/ustad/.cache/o10-m1-acceptance-20261112/frozen-runtime-r5'],returncode=p.returncode,stdout=p.stdout,stderr=p.stderr)))\") )_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "background": true,
+  "timeout_secs": 0
+}

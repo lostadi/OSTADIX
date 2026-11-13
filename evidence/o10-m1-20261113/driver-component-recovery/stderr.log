@@ -1,0 +1,18 @@
+test_all_six_gates_use_distinct_forks_of_one_selected_seed (test_o10_m1_regressions.O10M1RegressionGuards.test_all_six_gates_use_distinct_forks_of_one_selected_seed) ... ok
+test_both_prerequisites_use_the_final_binder_semantic_validator (test_o10_m1_regressions.O10M1RegressionGuards.test_both_prerequisites_use_the_final_binder_semantic_validator) ... ok
+test_failure_stops_feeding_and_drains_already_running_gate (test_o10_m1_regressions.O10M1RegressionGuards.test_failure_stops_feeding_and_drains_already_running_gate) ... ok
+test_missing_failure_or_cleanup_error_never_passes (test_o10_m1_regressions.O10M1RegressionGuards.test_missing_failure_or_cleanup_error_never_passes) ... ok
+test_nested_skips_disqualify_even_with_success_status (test_o10_m1_regressions.O10M1RegressionGuards.test_nested_skips_disqualify_even_with_success_status) ... ok
+test_parallel_scheduler_never_exceeds_two_workers (test_o10_m1_regressions.O10M1RegressionGuards.test_parallel_scheduler_never_exceeds_two_workers) ... ok
+test_primary_and_hostile_must_have_distinct_real_guest_sessions (test_o10_m1_regressions.O10M1RegressionGuards.test_primary_and_hostile_must_have_distinct_real_guest_sessions) ... ok
+test_rejected_component_cannot_be_promoted_by_driver_metadata (test_o10_m1_regressions.O10M1RegressionGuards.test_rejected_component_cannot_be_promoted_by_driver_metadata) ... ok
+test_resource_admission_can_serialize_two_worker_queue_without_losing_gates (test_o10_m1_regressions.O10M1RegressionGuards.test_resource_admission_can_serialize_two_worker_queue_without_losing_gates) ... ok
+test_resume_never_promotes_unknown_exit_or_incomplete_gate (test_o10_m1_regressions.O10M1RegressionGuards.test_resume_never_promotes_unknown_exit_or_incomplete_gate) ... ok
+test_resume_refuses_changed_component_prerequisite (test_o10_m1_regressions.O10M1RegressionGuards.test_resume_refuses_changed_component_prerequisite) ... ok
+test_resume_refuses_different_build_revision_or_gate_source (test_o10_m1_regressions.O10M1RegressionGuards.test_resume_refuses_different_build_revision_or_gate_source) ... ok
+test_resume_requires_unchanged_positive_child_receipt (test_o10_m1_regressions.O10M1RegressionGuards.test_resume_requires_unchanged_positive_child_receipt) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.008s
+
+OK
