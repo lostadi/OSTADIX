@@ -1,0 +1,33 @@
+127 holes free
+0x406d3000 0x4d0e5000 211886080
+211886080 bytes free
+
+Plan 9
+timer frequency 62500000 Hz
+cpu0: 1000MHz QEMU
+511M memory: 208M kernel data, 303M user, 1818M swap
+qemu.bootfs: Sat Oct 31 07:17:49 GMT 2026
+fingerprint: 8f6bb6ff61516810cb66480523c45fcbb46aad89
+
+bootargs is (tcp, tls, il, local!device)[!rc
+] % mount -n -c /dev/eia1 /n
+% echo ORIGINAL_PLAN9_UNIFIED_9f3edba291349f7a8d6bfe1d > /n/work/plan9-ready-9f3edba291349f7a8d6bfe1d
+% mkdir -p /n/services
+% rc /rc/bin/okernel-start /n/services/plan9 34a15e676bb381b2 8b6e73dcb198bab29efdce2a9f3165c3
+% 127 holes free
+0x406d3000 0x4d0e5000 211886080
+211886080 bytes free
+
+Plan 9
+timer frequency 62500000 Hz
+cpu0: 1000MHz QEMU
+511M memory: 208M kernel data, 303M user, 1818M swap
+qemu.bootfs: Sat Oct 31 07:17:49 GMT 2026
+fingerprint: 8f6bb6ff61516810cb66480523c45fcbb46aad89
+
+bootargs is (tcp, tls, il, local!device)!rc
+[] % mount -n -c /dev/eia1 /n
+% echo ORIGINAL_PLAN9_UNIFIED_9f3edba291349f7a8d6bfe1d > /n/work/plan9-ready-9f3edba291349f7a8d6bfe1d
+% mkdir -p /n/services
+% rc /rc/bin/okernel-start /n/services/plan9 34a15e676bb381b2 40872a8603ba48a28a9f038fe6953974
+% 

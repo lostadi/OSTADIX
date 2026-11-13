@@ -1,0 +1,16 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Action completed."
+    }
+  ],
+  "structuredContent": {
+    "content": " * @idmap: The idmap of the mount\n * @old_dir:  old dir inode\n * @old_dentry: old dentry\n * @new_dir: new dir inode\n * @new_dentry: new dentry\n * @flags: RENAME_* flags\n *\n */\n\nint\nv9fs_vfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,\n\t\tstruct dentry *old_dentry, struct inode *new_dir,\n\t\tstruct dentry *new_dentry, unsigned int flags)\n{\n\tint retval;\n\tstruct inode *old_inode;\n\tstruct inode *new_inode;\n\tstruct v9fs_session_info *v9ses;\n\tstruct p9_fid *oldfid = NULL, *dfid = NULL;\n\tstruct p9_fid *olddirfid = NULL;\n\tstruct p9_fid *newdirfid = NULL;\n\tstruct p9_wstat wstat;\n\n\tif (flags)\n\t\treturn -EINVAL;\n\n\tp9_debug(P9_DEBUG_VFS, \"\\n\");\n\told_inode = d_inode(old_dentry);\n\tnew_inode = d_inode(new_dentry);\n\tv9ses = v9fs_inode2v9ses(old_inode);\n\toldfid = v9fs_fid_lookup(old_dentry);\n\tif (IS_ERR(oldfid))\n\t\treturn PTR_ERR(oldfid);\n\n\tdfid = v9fs_parent_fid(old_dentry);\n\tolddirfid = clone_fid(dfid);\n\tp9_fid_put(dfid);\n\tdfid = NULL;\n\n\tif (IS_ERR(olddirfid)) {\n\t\tretval = PTR_ERR(olddirfid);\n\t\tgoto error;\n\t}\n\n\tdfid = v9fs_parent_fid(new_dentry);\n\tnewdirfid = clone_fid(dfid);\n\tp9_fid_put(dfid);\n\tdfid = NULL;\n\n\tif (IS_ERR(newdirfid)) {\n\t\tretval = PTR_ERR(newdirfid);\n\t\tgoto error;\n\t}\n\n\tdown_write(&v9ses->rename_sem);\n\tif (v9fs_proto_dotl(v9ses)) {\n\t\tretval = p9_client_renameat(olddirfid, old_dentry->d_name.name,\n\t\t\t\t\t    newdirfid, new_dentry->d_name.name);\n\t\tif (retval == -EOPNOTSUPP)\n\t\t\tretval = p9_client_rename(oldfid, newdirfid,\n\t\t\t\t\t\t  new_dentry->d_name.name);\n\t\tif (retval != -EOPNOTSUPP)\n\t\t\tgoto error_locked;\n\t}\n\tif (old_dentry->d_parent != new_dentry->d_parent) {\n\t\t/*\n\t\t * 9P .u can only handle file rename in the same directory\n\t\t */\n\n\t\tp9_debug(P9_DEBUG_ERROR, \"old dir and new dir are different\\n\");\n\t\tretval = -EXDEV;\n\t\tgoto error_locked;\n\t}\n\tv9fs_blank_wstat(&wstat);\n\twstat.muid = v9ses->uname;\n\twstat.name = new_dentry->d_name.name;\n\tretval = p9_client_wstat(oldfid, &wstat);\n\nerror_locked:\n\tif (!retval) {\n\t\tif (new_inode) {\n\t\t\tif (S_ISDIR(new_inode->i_mode))\n\t\t\t\tclear_nlink(new_inode);\n\t\t\telse\n\t\t\t\tv9fs_dec_count(new_inode);\n\t\t}\n\t\tif (S_ISDIR(old_inode->i_mode)) {\n\t\t\tif (!new_inode)\n\t\t\t\tinc_nlink(new_dir);\n\t\t\tv9fs_dec_count(old_dir);\n\t\t}\n\t\tv9fs_invalidate_inode_attr(old_inode);\n\t\tv9fs_invalidate_inode_attr(old_dir);\n\t\tv9fs_invalidate_inode_attr(new_dir);\n\n\t\t/* successful rename */\n\t\td_move(old_dentry, new_dentry);\n\t}\n\tup_write(&v9ses->rename_sem);\n\nerror:\n\tp9_fid_put(newdirfid);\n\tp9_fid_put(olddirfid);\n\tp9_fid_put(oldfid);\n\treturn retval;",
+    "encoding": "utf-8",
+    "sha": "3e68521f4e2f9842019cdea2755d8a657a8ebb21",
+    "display_url": "https://github.com/gregkh/linux/blob/v6.12.43/fs/9p/vfs_inode.c",
+    "display_title": "vfs_inode.c"
+  },
+  "isError": false
+}

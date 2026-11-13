@@ -1,0 +1,238 @@
+{
+  "schema": "ostadix.o10-m2-poststamp-artifact-validation/v1",
+  "ok": true,
+  "revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "source_root": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "alignment": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/alignment.json",
+    "bytes": 12310,
+    "sha256": "aab27706668a213541bb07459b524427dde477a2e1e01fc3cd32e5b5bca1d093"
+  },
+  "stamp_build": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/build.json",
+    "bytes": 1260209,
+    "sha256": "75cea1f624b4a995e820cf94ce1acf041452d5de853aa340bcf46c280e1da156"
+  },
+  "origin_build": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/build.json",
+    "bytes": 1302131,
+    "sha256": "66ccb2f10653a19b4735317bdfdd66c8dd183e1a5ec1c91d2d907a5f6654ccb8"
+  },
+  "binaries": {
+    "O": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/O",
+      "bytes": 6395424,
+      "sha256": "494fc7ff2873ce06007affc31f14c0a8dc7645b354c004e9f86881e635a05bb1",
+      "elf_machine": 62
+    },
+    "o-cli": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-cli",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-cli",
+      "bytes": 14526096,
+      "sha256": "e6caed3fe2d39e150ccd6e5343aa401be547cd3027135fbe15479b6e12b4c6c2",
+      "elf_machine": 62
+    },
+    "olangc": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/olangc",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/olangc",
+      "bytes": 18354752,
+      "sha256": "0a802f146f8fbb097e07500047a8bfa5eebfb552e8143688af08bd659bba675f",
+      "elf_machine": 62
+    },
+    "ocorec": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/ocorec",
+      "bytes": 3817336,
+      "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7",
+      "elf_machine": 62
+    },
+    "o-link": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-link",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-link",
+      "bytes": 10368152,
+      "sha256": "dc05cec64ba940a8e6568d0ef0ddbe726c8b1c76231316d90d1ad59ae129b47d",
+      "elf_machine": 62
+    },
+    "o-unlink": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-unlink",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-unlink",
+      "bytes": 984192,
+      "sha256": "5e13f32bc95620830b53c299347d60c48750baaae10427f81e46ec5143fac9ad",
+      "elf_machine": 62
+    },
+    "ogit": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ogit",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/ogit",
+      "bytes": 761976,
+      "sha256": "77fa86922d2d7c5588f4107f784dfdd8f587f0ad9cba1c8ddd96a8a1c639577d",
+      "elf_machine": 62
+    },
+    "o-live-host": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-live-host",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-live-host",
+      "bytes": 2710184,
+      "sha256": "fc90c8be8a369193d4954d8f611d49bba9b17b3cc1e2ffe4576ec3c54ac04edc",
+      "elf_machine": 62
+    },
+    "o-node": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-node",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-node",
+      "bytes": 12957856,
+      "sha256": "35c55e4d77a9d32bc35f9b6ab093746fd4d5feaf25d45c2b0966da6a7e664085",
+      "elf_machine": 62
+    },
+    "octl": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/octl",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/octl",
+      "bytes": 8570064,
+      "sha256": "238cca19b9bf395c005b8433e50222ee1023003d16f89eb90b4af63015d1c942",
+      "elf_machine": 62
+    },
+    "o-registry": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-registry",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-registry",
+      "bytes": 1622576,
+      "sha256": "b6ddf499c19a68a95c2ca08b60d8e5400f36901dc61490d65e6e74d9387ac250",
+      "elf_machine": 62
+    },
+    "o-info": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-info",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/o-info",
+      "bytes": 1420016,
+      "sha256": "6be15cf73be435269a0d3ab8aa7e2acf4028346c2de5c3a64fed839b85840cc4",
+      "elf_machine": 62
+    },
+    "ostadix-device": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ostadix-device",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/ostadix-device",
+      "bytes": 1034392,
+      "sha256": "dbb40ed4382dfb04512eae03ff51e130af1875f01c2f3c97a396e94683ddb42c",
+      "elf_machine": 62
+    },
+    "ocore-kernel-world-record": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocore-kernel-world-record",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/ocore-kernel-world-record",
+      "bytes": 1258816,
+      "sha256": "ac6385994be05d9395ea7172b416686b8ce41f648fd2f22d615b02303b231437",
+      "elf_machine": 62
+    },
+    "ostadix-mcp": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/bin/ostadix-mcp",
+      "bytes": 7683168,
+      "sha256": "694ae45ecd21bc376ae0047afee3e70975ddd835c942a37a984b3d3d2b069f3a",
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/mcp-target/release/ostadix-mcp",
+      "elf_machine": 62
+    }
+  },
+  "monitor": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor.elf",
+    "bytes": 1012056,
+    "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+  },
+  "profile": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+    "bytes": 28349,
+    "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+  },
+  "profile_ocorec": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "bytes": 3817336,
+    "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+  },
+  "native_sources_matched": 26,
+  "runtime": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "bytes": 243138,
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "runtime_inventory_files": 249,
+  "runtime_sources": {
+    "scripts/okernel_unified_world.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py",
+        "bytes": 73391,
+        "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel_unified_world.py",
+        "bytes": 73391,
+        "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+      }
+    },
+    "scripts/o10.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/o10.py",
+        "bytes": 10971,
+        "sha256": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/o10.py",
+        "bytes": 10971,
+        "sha256": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e"
+      }
+    },
+    "scripts/okernel_package_domain.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_package_domain.py",
+        "bytes": 41952,
+        "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel_package_domain.py",
+        "bytes": 41952,
+        "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+      }
+    },
+    "scripts/okernel_native_volume.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_native_volume.py",
+        "bytes": 11240,
+        "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel_native_volume.py",
+        "bytes": 11240,
+        "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+      }
+    },
+    "scripts/okernel-unified-console.sh": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel-unified-console.sh",
+        "bytes": 10442,
+        "sha256": "30d6687c92d20e22b90db7eec6fbdc62e6e4294ee31a2d50b325217f15c65bc9"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel-unified-console.sh",
+        "bytes": 10442,
+        "sha256": "30d6687c92d20e22b90db7eec6fbdc62e6e4294ee31a2d50b325217f15c65bc9"
+      }
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/plan9/unified/protocol.py",
+        "bytes": 16391,
+        "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/ocore/guest/plan9/unified/protocol.py",
+        "bytes": 16391,
+        "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+      }
+    }
+  },
+  "runtime_check": {
+    "argv": [
+      "python3",
+      "-B",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/okernel-unified",
+      "check"
+    ],
+    "exit_code": 0,
+    "stdout": "Frozen unified runtime: PASS\nBuild: d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c\nFiles: 249\n",
+    "stderr": ""
+  },
+  "observed_unix": 1794578421.772971,
+  "scope": "Fresh final-checkpoint MCP process/schema alignment plus read-only native artifact, exact private admission and frozen-runtime provenance validation. No VM or milestone gate executed."
+}

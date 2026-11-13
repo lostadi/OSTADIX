@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/probe-reset0.py"
+  ],
+  "exit_code": 0,
+  "stdout": "Actual EL2 context/preemption evidence: /home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1\nActual EL2 context/preemption evidence: /home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2\n{\"ok\": true, \"result\": \"/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/result.json\", \"cases\": 2}\n",
+  "stderr": "",
+  "finished_unix": 1794570909.128536
+}

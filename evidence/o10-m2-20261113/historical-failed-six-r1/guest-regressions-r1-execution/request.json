@@ -1,0 +1,36 @@
+{
+  "args": [
+    "o10-m2-regressions",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "--seed-state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "--runtime",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+    "--resident-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+    "--restart-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7/result.json",
+    "--restart-command",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/restart-command.json",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1",
+    "--mcp-release",
+    "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+    "--jobs",
+    "2",
+    "--gate-timeout",
+    "5400",
+    "--minimum-free-gib",
+    "3.5",
+    "--execute"
+  ],
+  "background": true,
+  "command": "kernel",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "env": {
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "timeout_secs": 0
+}

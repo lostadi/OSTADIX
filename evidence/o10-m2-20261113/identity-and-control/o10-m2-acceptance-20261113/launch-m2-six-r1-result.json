@@ -1,0 +1,14 @@
+{
+  "finished_unix": 1794576347.7951505,
+  "launcher": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r1.py",
+  "returncode": 0,
+  "schema": "ostadix.o10-m2-six-launch-observation/v1",
+  "stderr": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r1.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stdout": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r1.stdout",
+    "sha256": "f51139e486359662a23b55dd29eaf9f3aa29a0a5865a2d8470b86e435d51945e"
+  }
+}

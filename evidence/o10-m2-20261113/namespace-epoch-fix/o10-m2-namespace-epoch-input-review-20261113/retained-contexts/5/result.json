@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "argv": [
+    "/usr/bin/qemu-system-aarch64",
+    "-machine",
+    "virt,virtualization=on,gic-version=3,its=off",
+    "-cpu",
+    "cortex-a57",
+    "-smp",
+    "1",
+    "-m",
+    "3G",
+    "-accel",
+    "tcg,thread=single",
+    "-nodefaults",
+    "-nic",
+    "none",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-no-reboot",
+    "-kernel",
+    "/tmp/ostadix-unified-context-m790n9eo/test.elf"
+  ],
+  "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+}

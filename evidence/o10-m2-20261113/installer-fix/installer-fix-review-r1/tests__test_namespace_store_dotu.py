@@ -1,0 +1,535 @@
+"""Native .u conformance alongside unchanged original9P2000 sessions."""
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+ROOT=Path(__file__).resolve().parents[1]
+HARNESS = r"""
+
+#define _GNU_SOURCE
+#include <assert.h>
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#undef linux
+#define NS(name) _O_runtime__common__namespace_store__##name
+extern uint64_t NS(init)(uintptr_t,size_t,uint64_t),NS(healthy)(void);
+extern uint64_t NS(session_init)(uint64_t,uint64_t),NS(revoke)(uint64_t);
+extern uint64_t NS(provision_clock)(uint64_t);
+extern size_t NS(handle)(uint64_t,const uint8_t *,size_t,uint8_t *,size_t);
+static uint8_t request[8192],response[8192];
+static size_t pos,received;
+static uint64_t serial=1;
+static void *volume;
+static uint64_t rd(const uint8_t *p,unsigned n) {
+    uint64_t v=0;for(unsigned i=0;i<n;i++)v|=(uint64_t)p[i]<<(i*8);return v;
+}
+static void st(uint8_t *p,uint64_t v,unsigned n) {
+    for(unsigned i=0;i<n;i++)p[i]=(uint8_t)(v>>(i*8));
+}
+static void put(uint64_t v,unsigned n) { st(request+pos,v,n);pos+=n; }
+static void str(const char *s) { size_t n=strlen(s);put(n,2);memcpy(request+pos,s,n);pos+=n; }
+static void begin(unsigned type) { memset(request,0,sizeof request);pos=7;request[4]=type;st(request+5,0x1234,2); }
+static unsigned callcap(uint64_t session,size_t cap) {
+    st(request,pos,4);memset(response,0x55,sizeof response);
+    received=NS(handle)(session,request,pos,response,cap);
+    if(!received)return 0;
+    assert(received>=7 && received<=cap && rd(response,4)==received && rd(response+5,2)==0x1234);
+    if(response[4]==107)assert(rd(response+7,2)+9+((session&1)?4:0)==received);
+    return response[4];
+}
+static unsigned call(uint64_t session) { return callcap(session,sizeof response); }
+static void handshake(uint64_t session,uint32_t fid,const char *aname) {
+    begin(100);put(8192,4);str("9P2000");assert(call(session)==101 && rd(response+7,4)==8192);
+    begin(104);put(fid,4);put(UINT32_MAX,4);str("root");str(aname);assert(call(session)==105);
+}
+static uint64_t session(unsigned grant) { uint64_t s=NS(session_init)(grant,serial++);assert(s);handshake(s,1,"");return s; }
+static unsigned walk(uint64_t s,uint32_t from,uint32_t to,const char *name) {
+    begin(110);put(from,4);put(to,4);put(name?1:0,2);if(name)str(name);return call(s);
+}
+static unsigned openfid(uint64_t s,uint32_t fid,unsigned mode) {
+    begin(112);put(fid,4);put(mode,1);return call(s);
+}
+static unsigned create(uint64_t s,uint32_t fid,const char *name,unsigned mode,unsigned access) {
+    begin(114);put(fid,4);str(name);put(mode,4);put(access,1);return call(s);
+}
+static unsigned clunk(uint64_t s,uint32_t fid) { begin(120);put(fid,4);return callcap(s,7); }
+static unsigned removefid(uint64_t s,uint32_t fid) { begin(122);put(fid,4);return call(s); }
+static unsigned writefid(uint64_t s,uint32_t fid,uint64_t offset,const void *data,size_t length,size_t cap) {
+    begin(118);put(fid,4);put(offset,8);put(length,4);memcpy(request+pos,data,length);pos+=length;return callcap(s,cap);
+}
+static unsigned readfid(uint64_t s,uint32_t fid,uint64_t offset,uint32_t length) {
+    begin(116);put(fid,4);put(offset,8);put(length,4);return call(s);
+}
+static unsigned statfid(uint64_t s,uint32_t fid) { begin(124);put(fid,4);return call(s); }
+static uint64_t qidpath(void) { return rd(response+12,8); }
+static unsigned wstatfields(uint64_t s,uint32_t fid,const char *name,uint64_t length,uint32_t mode,size_t capacity) {
+    begin(126);put(fid,4);size_t packed=pos;put(0,2);size_t inner=pos;put(0,2);
+    put(UINT16_MAX,2);put(UINT32_MAX,4);put(255,1);put(UINT32_MAX,4);put(UINT64_MAX,8);
+    put(mode,4);put(UINT32_MAX,4);put(UINT32_MAX,4);put(length,8);str(name);str("");str("");str("root");
+    st(request+inner,pos-inner-2,2);st(request+packed,pos-inner,2);return callcap(s,capacity);
+}
+static unsigned wstat(uint64_t s,uint32_t fid,const char *name,uint64_t length) { return wstatfields(s,fid,name,length,UINT32_MAX,8192); }
+static unsigned wstatmode(uint64_t s,uint32_t fid,uint32_t mode) { return wstatfields(s,fid,"",UINT64_MAX,mode,8192); }
+static void initvolume(void) {
+    volume=mmap(NULL,16777216,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);assert(volume!=MAP_FAILED);
+    assert(NS(init)((uintptr_t)volume,16777216,0x123456789abcdef1)==1 && NS(healthy)()==1);
+    assert(NS(provision_clock)(1700000000)==1);
+}
+static void directory_records(void) {
+    uint64_t s=session(1);assert(openfid(s,1,0)==113);assert(readfid(s,1,0,8192)==117);
+    size_t length=(size_t)rd(response+7,4),at=11;unsigned names=0;
+    while(at<11+length) {
+        size_t size=(size_t)rd(response+at,2)+2;assert(size>=64 && at+size<=11+length);
+        size_t n=(size_t)rd(response+at+41,2);assert(size==64+n);
+        if(n==4 && !memcmp(response+at+43,"work",4))names|=1;
+        if(n==3 && !memcmp(response+at+43,"pkg",3))names|=2;
+        if(n==5 && !memcmp(response+at+43,"build",5))names|=4;
+        if(n==8 && !memcmp(response+at+43,"services",8))names|=8;
+        if(n==12 && !memcmp(response+at+43,"nativeREADME",12))names|=16;
+        at+=size;
+    }
+    assert(at==11+length && names==31);
+    assert(readfid(s,1,1,8192)==107);assert(clunk(s,1)==121);
+}
+static void sharing_and_persistence(void) {
+    uint64_t linux=session(1),peer=session(2),ro=session(3);
+    assert(walk(linux,1,2,"work")==111 && walk(linux,2,3,NULL)==111);
+    assert(create(linux,3,"from-linux",0644,2)==115);
+    uint64_t identity=qidpath();uint8_t data[8000];for(unsigned i=0;i<sizeof data;i++)data[i]=(uint8_t)(i^0xab);
+    for(unsigned i=0;i<9;i++)assert(writefid(linux,3,i*sizeof data,data,sizeof data,11)==119 && rd(response+7,4)==sizeof data);
+    assert(walk(peer,1,2,"from-linux")==111 && openfid(peer,2,0)==113 && qidpath()==identity);
+    for(unsigned i=0;i<9;i++)assert(readfid(peer,2,i*sizeof data,sizeof data)==117 && rd(response+7,4)==sizeof data && !memcmp(response+11,data,sizeof data));
+    assert(walk(ro,1,2,"from-linux")==111 && openfid(ro,2,1)==107);
+    assert(openfid(ro,2,0)==113 && readfid(ro,2,0,10)==117);
+    assert(writefid(ro,2,0,"bad",3,8192)==107);
+    assert(walk(ro,1,3,NULL)==111 && create(ro,3,"denied",0644,1)==107);
+    assert(wstat(ro,2,"renamed",UINT64_MAX)==107 && removefid(ro,2)==107);
+    // Attach names and users cannot select another grant or escape /work.
+    uint64_t scoped=NS(session_init)(2,serial++);assert(scoped);handshake(scoped,1,"/pkg");
+    assert(walk(scoped,1,2,"..")==111);assert(walk(scoped,2,3,"nativeREADME")==107);
+    assert(walk(scoped,1,3,NULL)==111 && create(scoped,3,"from-plan9",0644,2)==115);
+    assert(writefid(scoped,3,5,"native",6,11)==119);
+    assert(walk(linux,2,4,"from-plan9")==111 && openfid(linux,4,0)==113);
+    assert(readfid(linux,4,0,20)==117 && rd(response+7,4)==11);
+    for(unsigned i=0;i<5;i++)assert(response[11+i]==0);
+    assert(!memcmp(response+16,"native",6));
+    // Capacity preflight must leave file and directory metadata unchanged.
+    assert(writefid(linux,3,0,"corrupt",7,10)==0);
+    assert(readfid(linux,3,0,8)==117 && !memcmp(response+11,data,8));
+    assert(wstat(linux,3,"renamed",17)==127);
+    assert(walk(linux,2,5,"from-linux")==107 && walk(linux,2,5,"renamed")==111);
+    assert(openfid(linux,5,0)==113 && qidpath()==identity);
+    assert(readfid(linux,5,0,32)==117 && rd(response+7,4)==17 && !memcmp(response+11,data,17));
+    assert(statfid(linux,5)==125 && rd(response+7,2)+9==received && rd(response+9,2)+2==rd(response+7,2));
+    assert(walk(linux,2,6,NULL)==111 && create(linux,6,"temporary",0644,2)==115);
+    assert(removefid(linux,6)==123 && statfid(linux,6)==107);
+    assert(NS(revoke)(1)==1 && readfid(linux,3,0,1)==107);
+    uint64_t old=scoped;
+    assert(NS(init)((uintptr_t)volume,16777216,0x223456789abcdef1)==1);
+    assert(readfid(old,3,0,1)==107);
+    linux=session(1);assert(walk(linux,1,2,"work")==111 && walk(linux,2,3,"renamed")==111);
+    assert(openfid(linux,3,0)==113 && qidpath()==identity);
+    assert(readfid(linux,3,0,32)==117 && rd(response+7,4)==17 && !memcmp(response+11,data,17));
+    // Ordinary Linux redirection truncates an existing file on OWRITE|OTRUNC.
+    assert(walk(linux,2,4,"renamed")==111 && openfid(linux,4,0x11)==113);
+    assert(readfid(linux,3,0,32)==117 && rd(response+7,4)==0);
+    assert(writefid(linux,4,4,"z",1,11)==119);
+    assert(readfid(linux,3,0,32)==117 && rd(response+7,4)==5 && response[15]=='z');
+    for(unsigned i=0;i<4;i++)assert(response[11+i]==0);
+}
+static void fid_lifecycle(void) {
+    uint64_t s=session(1);assert(walk(s,1,2,"work")==111);
+    assert(walk(s,2,3,NULL)==111 && create(s,3,"old",0644,2)==115);uint64_t identity=qidpath();
+    assert(walk(s,2,4,"old")==111);assert(removefid(s,3)==123);
+    assert(walk(s,2,3,NULL)==111 && create(s,3,"new",0644,2)==115 && qidpath()!=identity);
+    assert(openfid(s,4,0)==107); // Same slot reused, old object generation rejected.
+    assert(clunk(s,4)==121); // Deleted objects must not leak known fid slots.
+    assert(walk(s,2,4,"new")==111 && clunk(s,4)==121); // Linux immediately recycles that fid integer.
+    assert(clunk(s,3)==121 && clunk(s,3)==0); // Seven-byte cap cannot fit Rerror.
+    uint64_t fresh=NS(session_init)(1,serial++);assert(fresh && fresh!=s);
+    assert(statfid(s,1)==107);assert(NS(session_init)(1,1)==0);
+    handshake(fresh,1,"");
+    // A partial Twalk must not bind its destination fid.
+    begin(110);put(1,4);put(2,4);put(2,2);str("work");str("missing");assert(call(fresh)==111 && rd(response+7,2)==1);
+    assert(statfid(fresh,2)==107);
+    // Successful remove accepts the minimal response buffer.
+    assert(walk(fresh,1,2,"work")==111 && walk(fresh,2,3,"new")==111);
+    begin(122);put(3,4);assert(callcap(fresh,7)==123);
+}
+static void malformed(void) {
+    uint64_t s=session(1);
+    for(unsigned n=0;n<7;n++)assert(NS(handle)(s,request,n,response,sizeof response)==0);
+    begin(104);put(20,4);put(UINT32_MAX,4);put(8190,2);assert(call(s)==107);
+    begin(118);put(1,4);put(0,8);put(2000,4);assert(call(s)==107);
+    begin(110);put(1,4);put(2,4);put(65535,2);assert(call(s)==107);
+    begin(108);put(55,2);assert(callcap(s,7)==109);
+    begin(104);put(1,4);put(UINT32_MAX,4);str("root");str("");assert(call(s)==107);
+    // Every request truncation is rejected without creating a file.
+    assert(walk(s,1,2,"work")==111);
+    begin(114);put(2,4);str("truncated");put(0644,4);put(1,1);size_t full=pos;
+    uint8_t saved[128];memcpy(saved,request,full);
+    for(size_t n=7;n<full;n++) {memcpy(request,saved,full);pos=n;assert(call(s)==107);}
+    assert(walk(s,2,3,"truncated")==107);
+    assert(walk(s,2,3,NULL)==111);
+    begin(114);put(3,4);str("small-reply");put(0644,4);put(1,1);assert(callcap(s,23)==0);
+    assert(walk(s,2,4,"small-reply")==107);
+}
+static void capacities(void) {
+    uint64_t s=session(1);assert(walk(s,1,2,"work")==111);
+    char name[32];unsigned created=0;
+    for(unsigned i=0;i<1100;i++) {
+        assert(walk(s,2,3,NULL)==111);snprintf(name,sizeof name,"n%04u",i);
+        unsigned result=create(s,3,name,0644,2);
+        if(result==107) {assert(rd(response+7,2)==23 && !memcmp(response+9,"No space left on device",23));assert(clunk(s,3)==121);break;}
+        assert(result==115 && clunk(s,3)==121);created++;
+    }
+    assert(created==1018 && NS(healthy)()==1);
+    assert(walk(s,2,3,"n0000")==111 && removefid(s,3)==123);
+    assert(walk(s,2,3,NULL)==111 && create(s,3,"after-free",0644,2)==115);
+    assert(NS(init)((uintptr_t)volume,16777216,0x323456789abcdef1)==1);
+}
+static void block_capacity(void) {
+    uint64_t s=session(1);assert(walk(s,1,2,"work")==111 && create(s,2,"large",0644,2)==115);
+    uint8_t data[8000];memset(data,0x6c,sizeof data);uint64_t offset=0;
+    for(;;) {
+        unsigned result=writefid(s,2,offset,data,sizeof data,8192);
+        if(result==107)break;
+        assert(result==119);offset+=sizeof data;assert(offset<16777216);
+    }
+    assert(offset>16000000 && NS(healthy)()==1);
+    assert(readfid(s,2,offset-8000,8000)==117 && rd(response+7,4)==8000 && !memcmp(response+11,data,8000));
+    assert(wstat(s,2,"",10)==127);
+    assert(writefid(s,2,10,data,8000,11)==119);
+    assert(NS(init)((uintptr_t)volume,16777216,0x423456789abcdef1)==1);
+}
+static uint64_t mtime(uint64_t session,uint32_t fid) {
+    assert(statfid(session,fid)==125);return rd(response+38,4);
+}
+static void clocks(void) {
+    uint64_t s=session(1);assert(walk(s,1,2,"work")==111);
+    assert(walk(s,2,3,NULL)==111 && create(s,3,"old-target",0644,2)==115);
+    for(unsigned i=0;i<20;i++)assert(writefid(s,3,0,"target",6,11)==119);
+    uint64_t target_time=mtime(s,3);assert(target_time>1700000000);
+    assert(walk(s,2,4,NULL)==111 && create(s,4,"new-source",0644,2)==115);
+    assert(mtime(s,4)>target_time);
+    assert(writefid(s,3,0,"rebuilt",7,11)==119);target_time=mtime(s,3);
+    assert(writefid(s,4,0,"changed",7,11)==119 && mtime(s,4)>target_time);
+    // Original make/mk compares different objects, not their QID versions.
+    assert(removefid(s,4)==123);
+    uint64_t before=rd((uint8_t *)volume+56,8);
+    assert(NS(init)((uintptr_t)volume,16777216,0x623456789abcdef1)==1);
+    assert(NS(provision_clock)(1600000000)==1 && rd((uint8_t *)volume+56,8)>=before);
+    s=session(1);assert(walk(s,1,2,"work")==111 && create(s,2,"after-restart",0644,2)==115);
+    assert(mtime(s,2)>before);
+    // An explicit user timestamp remains metadata, not the persisted clock.
+    begin(126);put(2,4);size_t packed=pos;put(0,2);size_t inner=pos;put(0,2);
+    put(UINT16_MAX,2);put(UINT32_MAX,4);put(255,1);put(UINT32_MAX,4);put(UINT64_MAX,8);
+    put(UINT32_MAX,4);put(UINT32_MAX,4);put(0,4);put(UINT64_MAX,8);str("");str("");str("");str("root");
+    st(request+inner,pos-inner-2,2);st(request+packed,pos-inner,2);assert(call(s)==127 && mtime(s,2)==0);
+    before=rd((uint8_t *)volume+56,8);
+    assert(NS(init)((uintptr_t)volume,16777216,0x723456789abcdef1)==1);
+    assert(rd((uint8_t *)volume+56,8)>=before);
+    // Previously valid v1 images with unused zero header words migrate safely.
+    memset((uint8_t *)volume+56,0,16);
+    assert(NS(init)((uintptr_t)volume,16777216,0x823456789abcdef1)==1);
+    assert(rd((uint8_t *)volume+56,8)>=target_time);
+}
+static void clock_exhaustion(void) {
+    assert(NS(provision_clock)(0)==0 && NS(provision_clock)(UINT32_MAX)==0);
+    assert(NS(provision_clock)(UINT32_MAX-3)==1);
+    uint64_t s=session(1);assert(walk(s,1,2,"work")==111 && create(s,2,"last",0644,2)==115);
+    assert(rd((uint8_t *)volume+56,8)==UINT32_MAX-1);
+    assert(writefid(s,2,0,"x",1,8192)==107 && NS(healthy)()==1);
+    assert(readfid(s,2,0,1)==117 && rd(response+7,4)==0);
+}
+static void temporary_mode(void) {
+    const uint32_t TMP=0x04000000,DIR=0x80000000;
+    uint64_t linux=session(1),peer=session(2),ro=session(3);
+    assert(walk(linux,1,2,"work")==111 && walk(linux,2,3,NULL)==111);
+    // The unchanged original compiler creates its .7 files with0664|DMTMP.
+    assert(create(linux,3,"object.7",0664|TMP,2)==115 && response[7]==4);
+    uint64_t identity=qidpath();uint8_t binary[6000],tail[]={0,0x11,0x13,0xff};
+    for(unsigned i=0;i<sizeof(binary);i++)binary[i]=(uint8_t)(i*17+3);
+    assert(writefid(linux,3,0,binary,sizeof(binary),11)==119 && writefid(linux,3,9000,tail,4,11)==119);
+    assert(clunk(linux,3)==121); // DMTMP never means remove-on-close.
+    assert(walk(linux,2,4,"object.7")==111 && response[9]==4);
+    assert(openfid(linux,4,2)==113 && response[7]==4 && qidpath()==identity);
+    assert(readfid(linux,4,0,8000)==117 && rd(response+7,4)==8000 && !memcmp(response+11,binary,6000));
+    for(unsigned i=6000;i<8000;i++)assert(response[11+i]==0);
+    assert(readfid(linux,4,8000,2000)==117 && rd(response+7,4)==1004);
+    for(unsigned i=0;i<1000;i++)assert(response[11+i]==0);
+    assert(!memcmp(response+1011,tail,4));
+    assert(statfid(linux,4)==125 && response[17]==4 && rd(response+30,4)==(0664|TMP));
+    assert(walk(ro,1,2,"object.7")==111 && openfid(ro,2,1)==107 && openfid(ro,2,0)==113);
+    assert(writefid(ro,2,0,"bad",3,8192)==107 && wstatmode(ro,2,0664)==107);
+    assert(walk(ro,1,3,NULL)==111 && create(ro,3,"denied-temp",0664|TMP,2)==107);
+    assert(walk(peer,1,2,"object.7")==111 && openfid(peer,2,0)==113 && response[7]==4);
+    assert(NS(revoke)(1)==1 && readfid(linux,4,0,1)==107);
+    assert(readfid(peer,2,0,4)==117 && !memcmp(response+11,binary,4));
+    assert(NS(init)((uintptr_t)volume,16777216,0x923456789abcdef1)==1 && readfid(peer,2,0,1)==107);
+    linux=session(1);assert(walk(linux,1,2,"work")==111 && walk(linux,2,4,"object.7")==111);
+    assert(openfid(linux,4,2)==113 && response[7]==4 && qidpath()==identity);
+    assert(statfid(linux,4)==125 && response[17]==4 && rd(response+30,4)==(0664|TMP));
+    uint64_t version=rd(response+18,4),clock=rd((uint8_t*)volume+56,8);
+    assert(wstatfields(linux,4,"",UINT64_MAX,0664,6)==0);
+    assert(statfid(linux,4)==125 && rd(response+18,4)==version && response[17]==4 && rd((uint8_t*)volume+56,8)==clock);
+    assert(wstatmode(linux,4,0664)==127 && statfid(linux,4)==125 && response[17]==0 && rd(response+30,4)==0664);
+    assert(wstatmode(linux,4,0664|TMP)==127 && statfid(linux,4)==125 && response[17]==4);
+    // Directory listings carry the same mode/qid flag as stat/open/walk.
+    assert(walk(linux,2,8,NULL)==111 && openfid(linux,8,0)==113 && readfid(linux,8,0,8192)==117);
+    size_t end=11+rd(response+7,4),at=11;unsigned found=0;
+    while(at<end){size_t size=rd(response+at,2)+2,n=rd(response+at+41,2);assert(at+size<=end);
+        if(n==8 && !memcmp(response+at+43,"object.7",8)){assert(response[at+8]==4 && rd(response+at+21,4)==(0664|TMP));found++;}at+=size;}
+    assert(found==1);
+    assert(walk(linux,2,6,NULL)==111 && create(linux,6,"temporary-dir",DIR|TMP|0755,0)==115 && response[7]==0x84);
+    assert(wstatmode(linux,6,TMP|0755)==107 && statfid(linux,6)==125 && response[17]==0x84);
+    assert(wstatmode(linux,6,DIR|0755)==127 && statfid(linux,6)==125 && response[17]==0x80);
+    for(unsigned bit=9;bit<31;bit++)if(bit!=26){
+        assert(walk(linux,2,20,NULL)==111);
+        assert(create(linux,20,"unsupported",0664|TMP|(1u<<bit),2)==107 && clunk(linux,20)==121);
+        assert(wstatmode(linux,4,0664|TMP|(1u<<bit))==107);
+    }
+    assert(walk(linux,2,20,NULL)==111 && create(linux,20,"orclose",0664|TMP,2|0x40)==107 && clunk(linux,20)==121);
+    assert(readfid(linux,4,9000,4)==117 && !memcmp(response+11,tail,4));
+    assert(NS(init)((uintptr_t)volume,16777216,0xa23456789abcdef1)==1);
+}
+static void corruption(unsigned scenario) {
+    uint8_t *v=volume;
+    if(scenario==6)v[4096+72]^=1; // Metadata checksum mismatch.
+    if(scenario==7)v[48]^=1; // Header checksum mismatch.
+    if(scenario==8) { // Validly checksummed chain alias is still rejected.
+        uint64_t s=session(1);assert(walk(s,1,2,"work")==111 && create(s,2,"alias",0644,2)==115);
+        assert(writefid(s,2,0,"x",1,11)==119);
+        uint8_t *n=v+4096+6*384;st(n+48,1,8);
+        uint64_t h=UINT64_C(0xcbf29ce484222325);for(unsigned i=0;i<376;i++)h=(h^n[i])*UINT64_C(0x100000001b3);st(n+376,h,8);
+    }
+    if(scenario==9) {memset(v,0,16777216);v[16777215]=1;} // Never format nonzero unknown storage.
+    if(scenario==10)v[56]^=1; // Counter seal rejects torn/corrupted clock metadata.
+    assert(NS(init)((uintptr_t)volume,16777216,0x523456789abcdef1)==0 && NS(healthy)()==0);
+}
+
+extern uint64_t NS(session_handle)(uint64_t),NS(session_claim)(uint64_t,uint64_t,uint64_t);
+extern void NS(test_exhaust)(void);
+static uint64_t dotu(uint64_t session,unsigned grant){
+ begin(100);put(8192,4);str("9P2000.u");assert(call(session)==101&&received==21&&rd(response+11,2)==8);
+ uint64_t next=NS(session_handle)(grant);assert(next!=session&&(next&1)==1);
+ return next;
+}
+static void attachu(uint64_t s,uint32_t fid,uint32_t uid){
+ begin(104);put(fid,4);put(UINT32_MAX,4);str("forged-root-label");str("/unrestricted");put(uid,4);
+ assert(call(s)==105);
+}
+static unsigned createu(uint64_t s,uint32_t fid,const char*name,unsigned mode,const char*extension){
+ begin(114);put(fid,4);str(name);put(mode,4);put(2,1);str(extension);return call(s);
+}
+static unsigned numeric_error(uint64_t s){
+ assert(response[4]==107&&(s&1));return (unsigned)rd(response+received-4,4);
+}
+static unsigned wstatu(uint64_t s,uint32_t fid,const char*name,uint32_t mode,uint32_t uid,const char*ext){
+ begin(126);put(fid,4);size_t packed=pos;put(0,2);size_t inner=pos;put(0,2);
+ put(UINT16_MAX,2);put(UINT32_MAX,4);put(UINT8_MAX,1);put(UINT32_MAX,4);put(UINT64_MAX,8);
+ put(mode,4);put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT64_MAX,8);
+ str(name);str("");str("");str("");str(ext);put(uid,4);put(UINT32_MAX,4);put(UINT32_MAX,4);
+ st(request+packed,pos-inner,2);st(request+inner,pos-inner-2,2);return call(s);
+}
+static unsigned renameu(uint64_t s,uint32_t fid,const char*name,uint32_t uid,const char*ext){
+ return wstatu(s,fid,name,UINT32_MAX,uid,ext);
+}
+
+extern uint64_t NS(qualification_fids)(uint64_t,uint64_t,uint64_t*,size_t);
+static void fid_mode(uint64_t s,unsigned grant,unsigned fid,unsigned expected){
+ uint64_t rows[2048];uint64_t count=NS(qualification_fids)(grant,s,rows,512);assert(count<=512);
+ unsigned found=0;for(size_t i=0;i<count;i++)if(rows[i*4]==fid){assert(rows[i*4+2]==expected);found++;}
+ assert(found==1);
+}
+static unsigned createu_mode(uint64_t s,uint32_t fid,const char *name,unsigned permission,unsigned mode,size_t cap){
+ begin(114);put(fid,4);str(name);put(permission,4);put(mode,1);str("");return callcap(s,cap);
+}
+static void contents(uint64_t s,unsigned fid,const char *expected){
+ size_t length=strlen(expected);assert(readfid(s,fid,0,8192)==117&&rd(response+7,4)==length&&!memcmp(response+11,expected,length));
+}
+static uint64_t append_corpus(uint64_t l,uint64_t p,uint64_t ro){
+ uint8_t *saved=malloc(16777216);assert(saved);
+ assert(walk(l,1,100,"work")==111&&walk(l,100,101,NULL)==111);
+ // A new append fid ignores even an overflowing supplied offset.
+ assert(createu_mode(l,101,"u-append",0644,0x82,8192)==115);fid_mode(l,1,101,0x82);
+ assert(writefid(l,101,UINT64_MAX,"A",1,11)==119);contents(l,101,"A");
+ assert(walk(l,100,102,"u-append")==111&&openfid(l,102,0x82)==113);
+ assert(walk(p,1,100,"work")==111&&walk(p,100,101,"u-append")==111&&openfid(p,101,2)==113);
+ // Two independent append fids observe intervening positional writes/EOF.
+ assert(writefid(p,101,0,"z",1,11)==119);
+ assert(writefid(l,101,0,"B",1,11)==119&&writefid(l,102,UINT64_MAX,"C",1,11)==119);
+ assert(writefid(p,101,1,"X",1,11)==119&&writefid(l,101,1,"D",1,11)==119);contents(l,102,"zXCD");
+ assert(walk(l,100,103,"u-append")==111&&openfid(l,103,0x81)==113);fid_mode(l,1,103,0x81);
+ assert(readfid(l,103,0,1)==107&&numeric_error(l)==13);
+ assert(writefid(l,103,0,"E",1,11)==119);
+ assert(walk(l,100,104,"u-append")==111&&openfid(l,104,0x80)==113);fid_mode(l,1,104,0x80);
+ contents(l,104,"zXCDE");assert(writefid(l,104,0,"bad",3,8192)==107&&numeric_error(l)==13);
+ // Reserving success bytes precedes truncation, fid changes and append data.
+ assert(walk(l,100,105,"u-append")==111);memcpy(saved,volume,16777216);
+ begin(112);put(105,4);put(0x92,1);assert(callcap(l,23)==0&&!memcmp(saved,volume,16777216));fid_mode(l,1,105,255);
+ assert(openfid(l,105,0x82)==113);contents(l,105,"zXCDE");assert(clunk(l,105)==121);
+ memcpy(saved,volume,16777216);
+ assert(writefid(l,101,UINT64_MAX,"F",1,10)==0&&!memcmp(saved,volume,16777216));
+ assert(writefid(l,101,UINT64_MAX,"F",1,11)==119);contents(l,102,"zXCDEF");
+ assert(walk(l,100,105,"u-append")==111&&openfid(l,105,0x92)==113);fid_mode(l,1,105,0x82);contents(l,105,"");
+ assert(writefid(l,105,123,"t",1,11)==119&&writefid(l,101,0,"u",1,11)==119);contents(l,102,"tu");
+ // Plain protocol still rejects append, and normal offsets remain positional.
+ assert(walk(p,100,102,"u-append")==111&&openfid(p,102,0x82)==107&&openfid(p,102,2)==113);
+ assert(writefid(p,102,0,"P",1,11)==119&&writefid(l,101,0,"X",1,11)==119);contents(l,102,"PuX");
+ // Reusing the same fid discards its append flag.
+ assert(clunk(l,105)==121&&walk(l,100,105,"u-append")==111&&openfid(l,105,2)==113);fid_mode(l,1,105,2);
+ assert(writefid(l,105,0,"R",1,11)==119);contents(l,102,"RuX");
+ for(unsigned bit=0x20;bit<=0x40;bit<<=1){
+  assert(walk(l,100,106,"u-append")==111&&openfid(l,106,2|bit)==107&&numeric_error(l)==71);
+  fid_mode(l,1,106,255);assert(clunk(l,106)==121);
+ }
+ // A failed create cannot bind a new append fid or allocate an object.
+ assert(walk(l,100,106,NULL)==111);memcpy(saved,volume,16777216);
+ assert(createu_mode(l,106,"u-capacity",0644,0x82,23)==0&&!memcmp(saved,volume,16777216));fid_mode(l,1,106,255);
+ assert(createu_mode(l,106,"u-capacity",0644,0x82,24)==115);fid_mode(l,1,106,0x82);
+ assert(writefid(l,106,UINT64_MAX,"c",1,11)==119);contents(l,106,"c");
+ assert(walk(l,100,107,NULL)==111&&createu_mode(l,107,"u-special",0644|0x40000000,0x82,8192)==107&&numeric_error(l)==95);
+ // .u read-only grant cannot gain write or create rights through append.
+ ro=dotu(ro,3);attachu(ro,1,999);
+ assert(walk(ro,1,100,"u-append")==111&&openfid(ro,100,0x81)==107&&numeric_error(ro)==13);
+ assert(openfid(ro,100,0x80)==113);contents(ro,100,"RuX");
+ assert(writefid(ro,100,0,"bad",3,8192)==107&&numeric_error(ro)==13);
+ assert(walk(ro,1,101,NULL)==111&&createu_mode(ro,101,"u-denied",0644,0x82,8192)==107&&numeric_error(ro)==13);
+ // Directory writes remain denied; persistent special modes stay unsupported.
+ assert(clunk(l,107)==121&&walk(l,1,107,"work")==111&&openfid(l,107,0x81)==107&&numeric_error(l)==13);
+ // Version/reset clears append fids without touching the original peer.
+ begin(100);put(8192,4);str("9P2000.u");assert(call(l)==101);
+ assert(writefid(l,101,0,"bad",3,8192)==107&&numeric_error(l)==116);attachu(l,1,0);
+ assert(walk(l,1,100,"work")==111&&walk(l,100,105,"u-append")==111&&openfid(l,105,2)==113);fid_mode(l,1,105,2);
+ assert(writefid(l,105,0,"N",1,11)==119);contents(p,101,"NuX");
+ assert(walk(l,100,108,"u-append")==111&&openfid(l,108,0x82)==113);
+ begin(100);put(8192,4);str("9P2000");assert(call(ro)==101);ro=NS(session_handle)(3);handshake(ro,1,"/");
+ free(saved);return ro;
+}
+
+int main(void){
+ volume=mmap(0,16777216,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);assert(volume!=MAP_FAILED);
+ assert(NS(init)((uintptr_t)volume,16777216,1)==1);
+ uint64_t l=NS(session_init)(1,1),p=NS(session_init)(4,1),peer=NS(session_init)(2,1),ro=NS(session_init)(3,1);
+ assert(l&&p&&peer&&ro&&!(l&1)&&!(p&1)&&!(peer&1)&&!(ro&1));
+ handshake(p,1,"/");handshake(peer,1,"/");handshake(ro,1,"/");
+ uint64_t oldplain=l;l=dotu(l,1);attachu(l,1,0);
+ ro=append_corpus(l,p,ro);
+ // Exact installer publication shape on the production .u store: stage
+ // bytes, chmod0555, reject a positive sibling without mutation, then publish.
+ assert(walk(l,1,200,"work")==111&&walk(l,200,201,NULL)==111);
+ assert(createu(l,201,"u-install-pending",0600,"")==115);
+ assert(writefid(l,201,0,"NEW\0\377",5,8192)==119);
+ assert(wstatu(l,201,"",0555,UINT32_MAX,"")==127);
+ assert(statfid(l,201)==125&&rd(response+30,4)==0555);
+ uint64_t staged_qid=rd(response+22,8);
+ assert(walk(l,200,202,NULL)==111&&createu(l,202,"u-install-existing",0555,"")==115);
+ assert(writefid(l,202,0,"OLD",3,8192)==119);
+ assert(statfid(l,202)==125);uint64_t existing_qid=rd(response+22,8);
+ assert(renameu(l,201,"u-install-existing",UINT32_MAX,"")==107&&numeric_error(l)==17);
+ assert(statfid(l,201)==125&&rd(response+22,8)==staged_qid&&rd(response+30,4)==0555);
+ assert(statfid(l,202)==125&&rd(response+22,8)==existing_qid&&rd(response+30,4)==0555);
+ assert(readfid(l,201,0,8)==117&&rd(response+7,4)==5&&!memcmp(response+11,"NEW\0\377",5));
+ assert(readfid(l,202,0,8)==117&&rd(response+7,4)==3&&!memcmp(response+11,"OLD",3));
+ assert(walk(l,200,203,"u-install-pending")==111);
+ assert(renameu(l,201,"u-install-fresh",UINT32_MAX,"")==127);
+ assert(walk(l,200,204,"u-install-pending")==107&&numeric_error(l)==2);
+ assert(walk(l,200,204,"u-install-fresh")==111&&openfid(l,204,0)==113);
+ assert(statfid(l,204)==125&&rd(response+22,8)==staged_qid&&rd(response+30,4)==0555);
+ assert(readfid(l,204,0,8)==117&&rd(response+7,4)==5&&!memcmp(response+11,"NEW\0\377",5));
+ assert(readfid(l,202,0,8)==117&&rd(response+7,4)==3&&!memcmp(response+11,"OLD",3));
+ assert(statfid(oldplain,1)==107&&received==36); // old even stays plain, no authority
+ assert(NS(session_handle)(4)==p&&NS(session_handle)(2)==peer&&NS(session_handle)(3)==ro);
+ assert(statfid(p,1)==125&&received==74); // original root stat remains65 bytes
+ assert(statfid(l,1)==125&&received==88&&rd(response+7,2)==79);
+ for(unsigned i=0;i<14;i++)assert(response[received-14+i]==0);
+ // Attach numeric uid is never a grant selector.
+ attachu(l,20,1234567);assert(statfid(l,20)==125);
+ // A forged dialect bit cannot revive/borrow a peer's token.
+ begin(104);put(99,4);put(UINT32_MAX,4);str("root");str("/");put(0,4);
+ assert(call(peer|1)==107&&numeric_error(peer|1)==116);assert(NS(session_handle)(2)==peer);
+ begin(114);put(1,4);str("denied");put(0644,4);put(1,1);
+ assert(call(ro)==107&&received==26); // original read-only grant unchanged
+ assert(walk(l,1,2,"work")==111&&createu(l,2,"u-file",0644,"")==115);
+ begin(118);put(2,4);put(0,8);put(4,4);put(0x64636261,4);assert(call(l)==119);
+ begin(116);put(2,4);put(0,8);put(4,4);assert(call(l)==117&&received==15&&!memcmp(response+11,"abcd",4));
+ assert(statfid(l,2)==125);assert(rd(response+received-14,2)==0);
+ assert(renameu(l,2,"u-renamed",UINT32_MAX,"")==127);
+ assert(renameu(l,2,"denied",555,"")==107&&numeric_error(l)==13);
+ assert(renameu(l,2,"denied",UINT32_MAX,"symlink")==107&&numeric_error(l)==95);
+ assert(walk(l,1,3,"work")==111&&createu(l,3,"bad-link",0x020001ff,"target")==107&&numeric_error(l)==95);
+ assert(walk(l,1,4,"work")==111&&openfid(l,4,0)==113);
+ begin(116);put(4,4);put(0,8);put(8192,4);assert(call(l)==117);
+ size_t at=11;unsigned entries=0;while(at<received){
+  size_t length=rd(response+at,2)+2;assert(length>=78&&length<=received-at);
+  for(unsigned i=0;i<14;i++)assert(response[at+length-14+i]==0);
+  at+=length;entries++;
+ }assert(at==received&&entries>=1);
+ // Missing .u fields fail as EPROTO; unsupported operations use numeric95.
+ begin(104);put(10,4);put(UINT32_MAX,4);str("root");str("");
+ assert(call(l)==107&&numeric_error(l)==71);
+ begin(202);assert(call(l)==107&&numeric_error(l)==95);
+ // Failed protected removal must reserve the full .u error before clunking.
+ begin(122);put(1,4);assert(callcap(l,29)==0);assert(statfid(l,1)==125);
+ begin(122);put(1,4);assert(callcap(l,30)==107&&numeric_error(l)==13);
+ assert(statfid(l,1)==107&&numeric_error(l)==116);assert(statfid(p,1)==125&&received==74);
+ uint64_t staleu=l;assert(NS(revoke)(1)==1);
+ assert(statfid(staleu,2)==107&&numeric_error(staleu)==116);
+ assert(writefid(staleu,108,0,"bad",3,8192)==107&&numeric_error(staleu)==116);
+ // The matching even token was never issued. It remains a rejected name.
+ assert(statfid(staleu&~1ull,2)==107&&received==36);
+ l=NS(session_init)(1,2);assert(l&&!(l&1));l=dotu(l,1);attachu(l,1,99);
+ uint64_t second_u=l;
+ begin(100);put(8192,4);str("9P2000");assert(call(l)==101&&received==19);
+ l=NS(session_handle)(1);assert(!(l&1)&&l!=second_u);handshake(l,1,"/");
+ assert(statfid(second_u,1)==107&&numeric_error(second_u)==116);
+ assert(NS(session_claim)(1,3,l|1)==0&&NS(session_handle)(1)==l&&statfid(l,1)==125);
+ uint64_t fresh=NS(session_claim)(1,3,l);assert(fresh&&fresh!=l&&!(fresh&1));handshake(fresh,1,"/");
+ assert(statfid(l,1)==107&&received==36);
+ // Serial exhaustion is checked before shifting or changing any owner/fid.
+ NS(test_exhaust)();assert(NS(session_init)(1,4)==0&&NS(session_handle)(1)==fresh&&statfid(fresh,1)==125);
+ begin(100);put(8192,4);str("9P2000.u");assert(call(fresh)==107&&received==32);
+ assert(NS(session_handle)(1)==fresh&&statfid(fresh,1)==125);
+ assert(NS(session_handle)(4)==p&&NS(session_handle)(2)==peer&&NS(session_handle)(3)==ro);
+ assert(statfid(p,1)==125&&received==74);
+ puts("mixed9P2000/u, numericESTALE, per-fid serialized append and .u corpus: PASS");return 0;
+}
+
+"""
+
+
+class NamespaceDotuTests(unittest.TestCase):
+    @unittest.skipUnless(platform.system()=="Linux" and platform.machine()=="x86_64",
+                         "native wire fixture requires Linux x86_64")
+    def test_mixed_dialects_estale_and_full_token_validation(self):
+        compiler=Path(os.environ.get("OCOREC_BIN",ROOT/"target/debug/ocorec"))
+        clang=shutil.which("clang");self.assertTrue(compiler.is_file());self.assertIsNotNone(clang)
+        with tempfile.TemporaryDirectory(prefix="namespace-dotu-") as directory:
+            out=Path(directory)
+            source=out/"namespace_store.oc"
+            source.write_text((ROOT/"ocore/runtime/common/namespace_store.oc").read_text()+
+                "\npub unsafe fn test_exhaust() -> void { SERIAL=0x7fff_ffff_ffff_ffff; }\n")
+            for target,emit,name in [("aarch64-unknown-none","mir","arm.mir"),("x86_64-unknown-none","obj","native.o")]:
+                p=subprocess.run([str(compiler),str(source),"--target",target,"--emit",emit,"-o",str(out/name)],
+                                 capture_output=True,text=True,timeout=60)
+                self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+            (out/"harness.c").write_text(HARNESS)
+            p=subprocess.run([clang,"-O2","-no-pie",str(out/"harness.c"),str(out/"native.o"),"-o",str(out/"selftest")],
+                             capture_output=True,text=True,timeout=60)
+            self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+            p=subprocess.run([str(out/"selftest")],capture_output=True,text=True,timeout=30)
+            self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+            self.assertIn("numericESTALE",p.stdout)
+
+
+if __name__=="__main__":
+    unittest.main()

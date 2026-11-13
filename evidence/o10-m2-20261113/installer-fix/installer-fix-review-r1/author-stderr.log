@@ -1,0 +1,26 @@
+test_real_native_twstat_never_replaces_a_sibling (tests.test_p9_install.NativePublicationContractTests.test_real_native_twstat_never_replaces_a_sibling) ... ok
+test_known_original7l_header_and_service_artifact (tests.test_p9_install.OriginalFormatTests.test_known_original7l_header_and_service_artifact) ... ok
+test_actual_linux_mount_rendering_accepts_only_admitted_native_dialects (tests.test_p9_install.P9InstallTests.test_actual_linux_mount_rendering_accepts_only_admitted_native_dialects) ... ok
+test_cleanup_does_not_delete_a_foreign_replacement (tests.test_p9_install.P9InstallTests.test_cleanup_does_not_delete_a_foreign_replacement) ... ok
+test_corrupt_closed_readback_prevents_publication (tests.test_p9_install.P9InstallTests.test_corrupt_closed_readback_prevents_publication) ... ok
+test_exact_binary_mode_and_immutable_input_receipt (tests.test_p9_install.P9InstallTests.test_exact_binary_mode_and_immutable_input_receipt) ... ok
+test_existing_target_file_directory_or_symlink_never_replaced (tests.test_p9_install.P9InstallTests.test_existing_target_file_directory_or_symlink_never_replaced) ... ok
+test_failed_copy_and_receipt_write_clean_only_owned_partials (tests.test_p9_install.P9InstallTests.test_failed_copy_and_receipt_write_clean_only_owned_partials) ... ok
+test_failed_publish_receipt_remains_truthful_and_retry_reuses_it (tests.test_p9_install.P9InstallTests.test_failed_publish_receipt_remains_truthful_and_retry_reuses_it) ... ok
+test_names_headers_and_help_have_no_install_side_effect (tests.test_p9_install.P9InstallTests.test_names_headers_and_help_have_no_install_side_effect) ... ok
+test_package_path_symlink_never_writes_its_destination (tests.test_p9_install.P9InstallTests.test_package_path_symlink_never_writes_its_destination) ... ok
+test_partial_write_syscalls_still_copy_every_binary_byte (tests.test_p9_install.P9InstallTests.test_partial_write_syscalls_still_copy_every_binary_byte) ... ok
+test_printed_command_preserves_name_without_shell_interpretation (tests.test_p9_install.P9InstallTests.test_printed_command_preserves_name_without_shell_interpretation) ... ok
+test_raced_target_uses_atomic_native_no_replace_semantics (tests.test_p9_install.P9InstallTests.test_raced_target_uses_atomic_native_no_replace_semantics) ... ok
+test_source_escape_symlink_and_nested_foreign_mount_rejected (tests.test_p9_install.P9InstallTests.test_source_escape_symlink_and_nested_foreign_mount_rejected) ... ok
+test_utf8_name_at_native_byte_limit (tests.test_p9_install.P9InstallTests.test_utf8_name_at_native_byte_limit) ... ok
+test_private_var_lib_path_never_changes_world_writable_workspace (tests.test_p9_install.PrivateReceiptPathTests.test_private_var_lib_path_never_changes_world_writable_workspace) ... ok
+test_shared_filesystem_cannot_hold_private_receipts (tests.test_p9_install.PrivateReceiptPathTests.test_shared_filesystem_cannot_hold_private_receipts) ... ok
+test_symlink_ancestry_never_writes_destination (tests.test_p9_install.PrivateReceiptPathTests.test_symlink_ancestry_never_writes_destination) ... ok
+test_writable_root_var_lib_and_nonprivate_internal_directories_fail (tests.test_p9_install.PrivateReceiptPathTests.test_writable_root_var_lib_and_nonprivate_internal_directories_fail) ... ok
+test_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.816s
+
+OK

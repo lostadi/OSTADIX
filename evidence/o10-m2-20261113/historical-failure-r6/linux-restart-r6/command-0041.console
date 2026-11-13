@@ -1,0 +1,6 @@
+mkdir /n/okernel/services/plan9/gde75d33ce971e8e2/s1456a2940002d296b356
+00fb5c658b71/rfa8d482ef4eaa6cd95e999da7d36b9ef; _uw_rc=$?; printf '\nUNIFIED_COM
+MAND_723eef4d4b894780ba490b573c06ce34:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_723eef4d4b894780ba490b573c06ce34:0
+okernel> [6n

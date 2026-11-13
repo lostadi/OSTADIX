@@ -1,0 +1,160 @@
+{
+  "analysis": "Rust quality including locked fuzz check passed. Required portable gates failed only Mode17 smoke-live-semantics bootstrap link: fixed kernel headroom assertion; 26 present,25 passed,1 failed. Exact two-file 37961 fix is reviewed separately and pending this source's new CI.",
+  "head": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131859883000,
+      "name": "Contract surfaces",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847617,
+      "name": "Rust hosted lifecycle and placement",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847655,
+      "name": "Rust MSRV 1.93.1",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847697,
+      "name": "Rust quality and source closure",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847706,
+      "name": "Hosted value/code boundary",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847755,
+      "name": "Rust semantic and reproducibility tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847828,
+      "name": "Native Ethernet and real Linux integration",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847831,
+      "name": "Offline kit recipient (Linux x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847859,
+      "name": "Docker minimal runtime profile",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847868,
+      "name": "Offline kit recipient (macOS aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "failure",
+      "failed_steps": [
+        "Run all required portable QEMU evidence gates"
+      ],
+      "id": 131860847877,
+      "name": "O-core QEMU proof",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847919,
+      "name": "Offline kit recipient (Linux aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847922,
+      "name": "Offline kit recipient (macOS x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847941,
+      "name": "Python reference runtime",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847959,
+      "name": "Release-claim guard",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860847994,
+      "name": "Ostadix MCP release surface",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131860848031,
+      "name": "C17 runtime and AOT compiler",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "failed_steps": [],
+      "id": 131861236852,
+      "name": "Offline kit recipient matrix",
+      "status": "completed"
+    },
+    {
+      "conclusion": "failure",
+      "failed_steps": [
+        "Require every independent evidence lane"
+      ],
+      "id": 131874352655,
+      "name": "Required CI",
+      "status": "completed"
+    },
+    {
+      "conclusion": "skipped",
+      "failed_steps": [],
+      "id": 131874386238,
+      "name": "Release source package",
+      "status": "completed"
+    }
+  ],
+  "log_excerpt": "2026-11-13T12:03:37.6947575Z \n2026-11-13T12:03:37.6948041Z \u001b[1m==> gate: ocore/kernel/smoke-live-semantics-qemu.sh\u001b[0m\n2026-11-13T12:03:37.8225311Z \u001b[1m\u001b[92m    Finished\u001b[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.08s\n2026-11-13T12:03:39.0852210Z ocorec: kept /home/runner/work/OSTADIX/OSTADIX/target/ocore-m5-semantics/kernel.s\n2026-11-13T12:03:39.1990575Z rust-lld: error: O-core bootstrap kernel exceeds its probe headroom limit\n2026-11-13T12:03:39.2004474Z \u001b[31m[fail]\u001b[0m ocore/kernel/smoke-live-semantics-qemu.sh\n2026-11-13T12:04:21.6351373Z \u001b[32m[ ok ]\u001b[0m ocore/kernel/smoke-kernel-world-execution-device-qemu.sh PASS\n2026-11-13T12:04:21.6364225Z required: 26\n2026-11-13T12:04:21.6364506Z present:  26\n2026-11-13T12:04:21.6364806Z passed:   25\n2026-11-13T12:04:21.6365192Z failed:   1\n2026-11-13T12:04:21.6365701Z \u001b[31m[fail]\u001b[0m one or more required smoke gates failed\n2026-11-13T12:04:21.6390216Z ##[error]Process completed with exit code 1.\n2026-11-13T12:04:21.6453474Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+  "log_full_bytes": 592964,
+  "log_scope": "Selected exact lines from GitHub archived job log; full raw log retained by GitHub Actions.",
+  "log_source": "https://github.com/lostadi/OSTADIX/actions/runs/43417768607/job/131860847877",
+  "observed_unix": 1794571860.356674,
+  "repository": "lostadi/OSTADIX",
+  "run_conclusion": "failure",
+  "run_id": 43417768607,
+  "run_status": "completed",
+  "schema": "ostadix.o10-m2-ci-observation/v1"
+}

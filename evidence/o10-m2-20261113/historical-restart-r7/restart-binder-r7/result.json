@@ -1,0 +1,19 @@
+{
+  "binder": {
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m2.py",
+    "sha256": "7410497aa4cdfcee4c52c7bcae22e4c16ffd0fe1f3610d8a57b9b893b5cb0490"
+  },
+  "finished_unix": 1794573699.5520008,
+  "ok": true,
+  "restart": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7/result.json",
+    "sha256": "468e6f30ef9ccb1e9b4fd9bee09ed81d401d0187588e20ecb8afc44e1e74be14"
+  },
+  "restart_command": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/restart-command.json",
+    "sha256": "a7e2eea4ca315972d33f59f009cc0a2f6758dccd9e74903be15363efcf6b3964"
+  },
+  "schema": "ostadix.o10-m2-primary-binder-readback/v1",
+  "scope": "Read-only actual-primary receipt validation; no service or VM launched.",
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757"
+}

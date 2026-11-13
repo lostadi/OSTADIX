@@ -1,0 +1,82 @@
+{
+  "schema": "ostadix.o10-m2-guest-regressions/v1",
+  "milestone": "M2",
+  "contract_id": "O10-Draft0-M2",
+  "ok": false,
+  "full_milestone_qualified": false,
+  "started": 1794576347.886871,
+  "skips": [],
+  "scope": "Six real same-build guest regressions delegated to the unchanged M1 scheduler after actual M2 restart and resident prerequisites; at most two VMs; ordinary checks separate",
+  "mcp_release": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "max_parallel_vms": 2,
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "source_sha256": {
+    "scripts/verify_o10_m2.py": "7410497aa4cdfcee4c52c7bcae22e4c16ffd0fe1f3610d8a57b9b893b5cb0490",
+    "scripts/verify_o10_m2_regressions.py": "2807fa681e71d42d805a9b2065231509f8b3165c4343bef9b0b0c26640192a1e",
+    "scripts/verify_o10_m1_regressions.py": "5dc72d57e391f439d9c5a1c661029d27e373f40a545bca6c238218244103e10e"
+  },
+  "build": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+  "monitor_sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb",
+  "profile_sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c",
+  "restart_result": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7/result.json",
+    "sha256": "468e6f30ef9ccb1e9b4fd9bee09ed81d401d0187588e20ecb8afc44e1e74be14"
+  },
+  "restart_command": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/restart-command.json",
+    "sha256": "a7e2eea4ca315972d33f59f009cc0a2f6758dccd9e74903be15363efcf6b3964"
+  },
+  "resident_result": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+    "sha256": "afcc1a4e2aaf49180a9f7ce65d808b4fcb73e6df7e393db4e72d11ae26280650"
+  },
+  "seed_head": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/head.json",
+    "sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+  },
+  "shared_driver_command": {
+    "argv": [
+      "/usr/bin/python3",
+      "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m1_regressions.py",
+      "--acceptance-scope",
+      "draft0",
+      "--build",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+      "--seed-state",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+      "--runtime",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+      "--resident-result",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+      "--output",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates",
+      "--mcp-release",
+      "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+      "--jobs",
+      "2",
+      "--gate-timeout",
+      "5400",
+      "--minimum-free-gib",
+      "3.5",
+      "--execute"
+    ],
+    "started": 1794576350.671575,
+    "returncode": 1,
+    "timed_out": false,
+    "finished": 1794576952.2412164,
+    "stdout": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/shared-driver-command/stdout.log",
+      "sha256": "986b88e99b7d3c156a1eb3462ad510a4311e0ea87a7ef07fe9e158b0c1d1d492"
+    },
+    "stderr": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/shared-driver-command/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "shared_result": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/result.json",
+    "sha256": "5edc3137dad2399d8532669f81fb351790792e6ac7e0279f9216b31866005613"
+  },
+  "error": "shared guest driver did not finish all six gates; unknown work is not retried",
+  "finished": 1794576952.2435791
+}

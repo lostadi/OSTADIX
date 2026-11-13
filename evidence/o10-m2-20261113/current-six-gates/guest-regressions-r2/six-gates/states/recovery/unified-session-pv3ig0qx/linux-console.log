@@ -1,0 +1,541 @@
+KW AArch64 EL2 monitor: online
+KW native virtio negative selftests: PASS
+KW native writable block selftests: PASS
+KW native governed network: online
+KW native shared namespace: online
+KW stage2 guest-only RAM: online
+KW Linux package domain: persistent mediated devices online
+KW unified Linux/Plan9 EL2: online
+Booting Linux on physical CPU 0x0000000000 [0x411fd070]
+Linux version 6.12.43-ostadix-kernelworld (ostadi@ostadix) (clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881), LLD 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)) #1 SMP 1970-01-01 00:00:00 +0000
+Machine model: ostadix,kernel-world-qemu-virt
+earlycon: pl11 at MMIO 0x0000000009000000 (options '')
+printk: legacy bootconsole [pl11] enabled
+psci: MIGRATE_INFO_TYPE returned unknown type (-2)
+Kernel command line: console=ttyAMA0 earlycon=pl011,0x09000000 rdinit=/init panic=-1 loglevel=6
+cacheinfo: Unable to detect cache hierarchy for CPU 0
+virtio_blk virtio0: [vda] 2097152 512-byte logical blocks (1.07 GB/1.00 GiB)
+OKERNEL NATIVE NAMESPACE MOUNTED
+OKERNEL ORIGINAL 9P BRIDGE READY
+Service: okernel
+Root: /n/okernel
+NAMESPACE=/run/okernel-9p
+OKERNEL PACKAGE DOMAIN READY
+OKernel: install commands by name with pkg install NAME; registered source recipes are preferred.
+Source providers: zlib; plan9port (original rc/mk/9p tools for the Linux ABI).
+Shared workspace: /n/okernel/work. Provider build/cache files remain in /work.
+Type exit or quit to save and leave OKernel. Ctrl+] also saves and exits.
+pkg> [6npkg-namespace mount; _uw_rc=$?; printf '\nUNIFIED_COMMAND_fcbba8a3629a41ab9
+b8f94664a71879f:%s\n' "$_uw_rc"
+OKERNEL NATIVE NAMESPACE MOUNTED
+
+UNIFIED_COMMAND_fcbba8a3629a41ab9b8f94664a71879f:0
+pkg> [6nawk '$1 == "okernel" && $2 == "/n/okernel" && $3 == "9p" && $4 ~ /(^|,)vers
+ion=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_006ef7ffd46d40cfb080e4d10a38c143:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_006ef7ffd46d40cfb080e4d10a38c143:0
+pkg> [6ndate -u -s @1794581548; _uw_rc=$?; printf '\nUNIFIED_COMMAND_a5f55774ca5e4e
+66927166b01e68f03b:%s\n' "$_uw_rc"
+Fri Nov 13 14:52:28 UTC 2026
+
+UNIFIED_COMMAND_a5f55774ca5e4e66927166b01e68f03b:0
+pkg> [6npkg-net online; _uw_rc=$?; printf '\nUNIFIED_COMMAND_69124c4b5e48430a8b78f2
+249a714977:%s\n' "$_uw_rc"
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+OKERNEL PACKAGE NETWORK ONLINE
+
+UNIFIED_COMMAND_69124c4b5e48430a8b78f2249a714977:0
+pkg> [6nif test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && 
+test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_a0125e5956594b4db0b5832eb
+0e8150c; fi; _uw_rc=$?; printf '\nUNIFIED_COMMAND_47dfe3a5abbb46d9b2c17e1ccb5508
+63:%s\n' "$_uw_rc"
+P9_CLIENT_PRESENT_a0125e5956594b4db0b5832eb0e8150c
+
+UNIFIED_COMMAND_47dfe3a5abbb46d9b2c17e1ccb550863:0
+pkg> [6nmkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /u
+sr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/oker
+nel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.p
+id; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /r
+un/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :; _uw_rc=$?; 
+printf '\nUNIFIED_COMMAND_607fa67707fd41a7a92f5cc9e6f46b2f:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_607fa67707fd41a7a92f5cc9e6f46b2f:0
+[1]+  Done                       setsid /bin/sh -c "echo \$\$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9" 0</dev/null 1>/run/okernel/p9/controller.log 2>&1i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_COMMAND_cb831cafe0284d1db09b6168e6feb59e:%s\n' "$_uw_rc"
+
+pkg> i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; d
+o if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/
+controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1
+)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_CO
+MMAND_cb831cafe0284d1db09b6168e6feb59e:%s\n' "$_uw_rc"
+random: crng init done
+
+UNIFIED_COMMAND_cb831cafe0284d1db09b6168e6feb59e:0
+pkg> [6ncd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and origin
+al Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _
+uw_rc=$?; printf '\nUNIFIED_COMMAND_f3887b7057154b4aa2d8725b543d9fde:%s\n' "$_uw
+_rc"
+
+Linux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.
+
+UNIFIED_COMMAND_f3887b7057154b4aa2d8725b543d9fde:0
+okernel> [6n( mkdir -p /n/okernel/work/client-crash-c4bb6ca069083aa02023 ) && print
+f '%s\n' P9_TYPED_OK_12a1841f08de342504a28009
+P9_TYPED_OK_12a1841f08de342504a28009
+okernel> cd /n/okernel/work/client-crash-c4bb6ca069083aa02023
+bbac7416d9e && test "$(sha256sum /usr/lookernel> ( test "$(sha256sum /usr/local/bin/p9 | cut -d ' ' -f1)" = 1d000bb7b1cf
+e958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e && test "$(sha256sum /usr/l
+ocal/libexec/p9-history | cut -d ' ' -f1)" = c696bb679de3c7bbc1679e453283dd325a1
+5b959dfa5fd34be6e32f5e853ddb4 && test "$(sha256sum /usr/local/libexec/p9-control
+ler | cut -d ' ' -f1)" = b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c
+00202afe4 && test "$(sha256sum /usr/lib/okernel/p9_protocol.py | cut -d ' ' -f1)
+" = 16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8 ) && printf
+ '%s\n' P9_TYPED_OK_195e3fcc7d7a157a0e552763
+P9_TYPED_OK_195e3fcc7d7a157a0e552763
+okernel> [6n( printf %s CmltcG9ydCBoYXNobGliLGpzb24sb3Msc2lnbmFsLHN5cyx0aW1lCmZyb20
+gcGF0aGxpYiBpbXBvcnQgUGF0aApzeXMucGF0aC5pbnNlcnQoMCwiL3Vzci9saWIvb2tlcm5lbCIpCml
+tcG9ydCBwOV9wcm90b2NvbCBhcyBwCnJvb3Q9UGF0aChzeXMuYXJndlsxXSk7YWN0aW9uPXN5cy5hcmd
+2WzJdO3Rva2VuPXN5cy5hcmd2WzNdCmNvbnRyb2w9UGF0aCgiL3J1bi9va2VybmVsL3A5Iik7bG9jYWw
+9UGF0aCgiL3J1bi9wOS1jcmFzaC0iK3Rva2VuKyIuanNvbiIpCmRlZiByZWFkKHBhdGgpOnJldHVybiB
+qc29uLmxvYWRzKHBhdGgucmVhZF90ZXh0KCkpCmRlZiBkaWdlc3QoZGF0YSk6cmV0dXJuIGhhc2hsaWI
+uc2hhMjU2KGRhdGEpLmhleGRpZ2VzdCgpCmRlZiB3cml0ZSh2YWx1ZSk6CiBkYXRhPWpzb24uZHVtcHM
+odmFsdWUsc29ydF9rZXlzPVRydWUpO2xvY2FsLndyaXRlX3RleHQoZGF0YSsiXG4iKTsocm9vdC8iZXZ
+pZGVuY2UtY3Jhc2guanNvbiIpLndyaXRlX3RleHQoZGF0YSsiXG4iKQpkZWYgc3RhcnQocGlkKTpyZXR
+1cm4gUGF0aCgiL3Byb2MvIitzdHIocGlkKSsiL3N0YXQiKS5yZWFkX3RleHQoKS5yc3Bs | base64 -
+d > /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_d27
+4c8b8c1a9e2d08a7a1783
+P9_TYPED_OK_d274c8b8c1a9e2d08a7a1783
+okernel> [6n( printf %s aXQoIikiLDEpWzFdLnNwbGl0KClbMTldCmRlZiByZXN1bHRzKCk6cmV0dXJ
+uIHNvcnRlZCh4Lm5hbWUgZm9yIHggaW4gKGNvbnRyb2wvInJlc3VsdHMiKS5nbG9iKCIqLmpzb24iKSk
+KZGVmIHByb2Nlc3NlcyhwaWQsdGlja3MpOgogYW5zd2VyPVtdO3F1ZXVlPVsocGlkLE5vbmUsdGlja3M
+pXQogd2hpbGUgcXVldWU6CiAgc2VsZWN0ZWQscGFyZW50LGV4cGVjdGVkPXF1ZXVlLnBvcCgwKQogIHR
+yeToKICAgZmllbGRzPVBhdGgoIi9wcm9jLyIrc3RyKHNlbGVjdGVkKSsiL3N0YXQiKS5yZWFkX3RleHQ
+oKS5yc3BsaXQoIikiLDEpWzFdLnNwbGl0KCkKICAgaWYgKGV4cGVjdGVkIGlzIG5vdCBOb25lIGFuZCB
+maWVsZHNbMTldIT1leHBlY3RlZCkgb3IgKHBhcmVudCBpcyBub3QgTm9uZSBhbmQgaW50KGZpZWxkc1s
+xXSkhPXBhcmVudCk6Y29udGludWUKICAgZW50cnk9eyJwaWQiOnNlbGVjdGVkLCJwYXJlbnQiOmludCh
+maWVsZHNbMV0pLCJzdGF0ZSI6ZmllbGRzWzBdLCJzdGFydF90aWNrcyI6ZmllbGRzWzE5XSwiYXJncyI
+6UGF0aCgiL3Byb2MvIitzdHIoc2VsZWN0ZWQpKyIvY21kbGluZSIpLnJlYWRfYnl0ZXMo | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_a5
+9d543afe808d457ebf6348
+P9_TYPED_OK_a59d543afe808d457ebf6348
+okernel> [6n( printf %s KS5yZXBsYWNlKGIiXDAiLGIiICIpLmRlY29kZSgidXRmLTgiLCJyZXBsYWN
+lIil9CiAgIGFuc3dlci5hcHBlbmQoZW50cnkpCiAgIGNoaWxkcmVuPVBhdGgoIi9wcm9jLyIrc3RyKHN
+lbGVjdGVkKSsiL3Rhc2svIitzdHIoc2VsZWN0ZWQpKyIvY2hpbGRyZW4iKS5yZWFkX3RleHQoKS5zcGx
+pdCgpCiAgIHF1ZXVlLmV4dGVuZCgoaW50KGNoaWxkKSxzZWxlY3RlZCxOb25lKSBmb3IgY2hpbGQgaW4
+gY2hpbGRyZW4pCiAgZXhjZXB0IChGaWxlTm90Rm91bmRFcnJvcixQcm9jZXNzTG9va3VwRXJyb3IpOmN
+vbnRpbnVlCiByZXR1cm4gYW5zd2VyCmRlZiBvYnNlcnZlKHZhbHVlLGxhYmVsKToKIHZhbHVlWyJvYnN
+lcnZhdGlvbiJdPWxhYmVsO3dyaXRlKHZhbHVlKQogIyBLZWVwIHRoZSBzZXJpYWwgZGlhZ25vc3RpYyB
+ib3VuZGVkLiBGdWxsIHdhcm11cCByZWNlaXB0cyByZW1haW4gaW4gdGhlCiAjIGV2aWRlbmNlIGZpbGU
+7IHJlcHJpbnRpbmcgdGhlbSBvbiBldmVyeSBtaWxlc3RvbmUgZGlzdG9ydHMgVUFSVCB0aW1pbmdzLgo
+gc3VtbWFyeT17a2V5OnZhbHVlW2tleV0gZm9yIGtleSBpbiAoIm9ic2VydmF0aW9uIiwi | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_31
+47b864604aec701fca9fdd
+P9_TYPED_OK_3147b864604aec701fca9fdd
+okernel> ( printf %s Y2xpZW50X3BpZCIsImNsaWVudF9zdGFydF90aWNrcyIsInBlbmRpbmdfc2V
+jb25kcyIsIm5hdGl2ZV9zdGFydGVkX3NlY29uZHMiLCJzdHJlYW1fc2Vjb25kcyIsIm93bmVkX3Byb2N
+lc3NlcyIpIGlmIGtleSBpbiB2YWx1ZX0KIHByaW50KCJQOV9DTElFTlRfT0JTRVJWQVRJT05fIit0b2t
+lbisiICIranNvbi5kdW1wcyhzdW1tYXJ5LHNvcnRfa2V5cz1UcnVlKSxmbHVzaD1UcnVlKQppZiBhY3R
+pb249PSJwcmVwYXJlIjoKIGFzc2VydCBub3QgKGNvbnRyb2wvInBlbmRpbmcuanNvbiIpLmV4aXN0cyg
+pCiB2YWx1ZT17InN0YXJ0ZWRfbW9ub3RvbmljIjp0aW1lLm1vbm90b25pYygpLCJjdXJyZW50IjpyZWF
+kKGNvbnRyb2wvImN1cnJlbnQuanNvbiIpLCJyZXN1bHRzIjpyZXN1bHRzKCksIndhcm11cHMiOltdfTt
+3cml0ZSh2YWx1ZSkKZWxpZiBhY3Rpb249PSJ3YXJtdXAtYmVnaW4iOgogdmFsdWU9cmVhZChsb2NhbCk
+7YXNzZXJ0IG5vdCAoY29udHJvbC8icGVuZGluZy5qc29uIikuZXhpc3RzKCkKIHZhbHVlLnVwZGF0ZSh
+3YXJtdXBfc3RhcnRlZD10aW1lLm1vbm90b25pYygpLHdhcm11cF9yZXN1bHRzPXJlc3Vs | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_be
+b5d855ae7855a0aab195f5
+P9_TYPED_OK_beb5d855ae7855a0aab195f5
+okernel> [6n( printf %s dHMoKSk7d3JpdGUodmFsdWUpCmVsaWYgYWN0aW9uPT0id2FybXVwLWVuZCI
+6CiBhc3NlcnQgaW50KHN5cy5hcmd2WzRdKT09MAogdmFsdWU9cmVhZChsb2NhbCk7aW5kZXg9aW50KHN
+5cy5hcmd2WzVdKTtmaWxlcz1beCBmb3IgeCBpbiAoY29udHJvbC8icmVzdWx0cyIpLmdsb2IoIiouanN
+vbiIpIGlmIHgubmFtZSBub3QgaW4gdmFsdWVbIndhcm11cF9yZXN1bHRzIl1dCiBhc3NlcnQgbGVuKGZ
+pbGVzKT09MQogcmVjZWlwdD1yZWFkKGZpbGVzWzBdKTtnLHMscj0ocmVjZWlwdFtrXSBmb3IgayBpbiA
+oImdlbmVyYXRpb24iLCJpbnN0YW5jZSIsInJlcXVlc3RfaWQiKSkKIGFzc2VydCAoZyxzKT09KHZhbHV
+lWyJjdXJyZW50Il1bImdlbmVyYXRpb24iXSx2YWx1ZVsiY3VycmVudCJdWyJpbnN0YW5jZSJdKQogZGl
+yZWN0b3J5PVBhdGgocmVjZWlwdFsic2VydmljZV9yb290Il0pLygiZyIrZykvKCJzIitzKS8oInIiK3I
+pCiBmaWxlcz17bmFtZTooZGlyZWN0b3J5L25hbWUpLnJlYWRfYnl0ZXMoKSBmb3IgbmFtZSBpbiBwLlJ
+FUVVFU1RfRklMRVN9CiByZXN1bHQ9cC52YWxpZGF0ZV9yZXN1bHQoZmlsZXNbInJlcXVl | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_51
+06a201a7e7b6c55ad46bf6
+P9_TYPED_OK_5106a201a7e7b6c55ad46bf6
+okernel> ( printf %s c3QiXSxmaWxlc1sicmVzdWx0Il0sZmlsZXNbInN0ZG91dCJdLGZpbGVzWyJ
+zdGRlcnIiXSxzdGFydGVkPWZpbGVzWyJzdGFydGVkIl0sZG9uZT1maWxlc1siZG9uZSJdLHN0YXR1cz1
+maWxlc1sic3RhdHVzIl0pCiBhc3NlcnQgcmVzdWx0Lm9rIGFuZCBmaWxlc1sic3Rkb3V0Il09PSgiUDl
+fV0FSTVVQXyIrdG9rZW4rIl8iK3N0cihpbmRleCkrIlxuIikuZW5jb2RlKCkKIHZhbHVlWyJ3YXJtdXB
+zIl0uYXBwZW5kKHsiaW5kZXgiOmluZGV4LCJzZWNvbmRzIjp0aW1lLm1vbm90b25pYygpLXZhbHVlWyJ
+3YXJtdXBfc3RhcnRlZCJdLCJyZWNlaXB0IjpyZWNlaXB0fSk7d3JpdGUodmFsdWUpCiBwcmludCgiUDl
+fV0FSTVVQX1RJTUlOR18iK3Rva2VuKyIgIitqc29uLmR1bXBzKHZhbHVlWyJ3YXJtdXBzIl1bLTFdLHN
+vcnRfa2V5cz1UcnVlKSxmbHVzaD1UcnVlKQplbGlmIGFjdGlvbj09ImxhdW5jaCI6CiB2YWx1ZT1yZWF
+kKGxvY2FsKTthc3NlcnQgbGVuKHZhbHVlWyJ3YXJtdXBzIl0pPT0xMCBhbmQgbm90IChjb250cm9sLyJ
+wZW5kaW5nLmpzb24iKS5leGlzdHMoKQogYXNzZXJ0IHJlYWQoY29udHJvbC8iY3VycmVu | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_cc
+59318a4bef2923a4deb92b
+P9_TYPED_OK_cc59318a4bef2923a4deb92b
+okernel> [6n( printf %s dC5qc29uIik9PXZhbHVlWyJjdXJyZW50Il0KIHZhbHVlLnVwZGF0ZShzdGF
+ydGVkX21vbm90b25pYz10aW1lLm1vbm90b25pYygpLHJlc3VsdHM9cmVzdWx0cygpKTt3cml0ZSh2YWx
+1ZSkKZWxpZiBhY3Rpb249PSJhd2FpdCI6CiB2YWx1ZT1yZWFkKGxvY2FsKTtwaWQ9aW50KChyb290LyJ
+jbGllbnQucGlkIikucmVhZF90ZXh0KCkpO3RpY2tzPShyb290LyJjbGllbnQuc3RhcnQiKS5yZWFkX3R
+leHQoKS5zdHJpcCgpCiBhc3NlcnQgcGlkPjEgYW5kIHN0YXJ0KHBpZCk9PXRpY2tzCiB2YWx1ZS51cGR
+hdGUoY2xpZW50X3BpZD1waWQsY2xpZW50X3N0YXJ0X3RpY2tzPXRpY2tzKQogZGVmIGVsYXBzZWQoKTp
+yZXR1cm4gZmxvYXQoUGF0aCgiL3Byb2MvdXB0aW1lIikucmVhZF90ZXh0KCkuc3BsaXQoKVswXSktaW5
+0KHRpY2tzKS9vcy5zeXNjb25mKCJTQ19DTEtfVENLIikKIGRlYWRsaW5lPXRpbWUubW9ub3RvbmljKCk
+rMTUwCiB3aGlsZSBUcnVlOgogIGFzc2VydCBzdGFydChwaWQpPT10aWNrcywiY2xpZW50IGV4aXRlZC9
+yZXVzZWQgYmVmb3JlIHN0cmVhbSB3aXRuZXNzIgogIGlmIChjb250cm9sLyJwZW5kaW5n | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_a7
+23ee2ef0474e938b012bc0
+P9_TYPED_OK_a723ee2ef0474e938b012bc0
+okernel> ( printf %s Lmpzb24iKS5leGlzdHMoKToKICAgcGVuZGluZz1yZWFkKGNvbnRyb2wvInB
+lbmRpbmcuanNvbiIpCiAgIGlmICJwZW5kaW5nX3NlY29uZHMiIG5vdCBpbiB2YWx1ZToKICAgIHZhbHV
+lLnVwZGF0ZShwZW5kaW5nX3NlY29uZHM9ZWxhcHNlZCgpLG93bmVkX3Byb2Nlc3Nlcz1wcm9jZXNzZXM
+ocGlkLHRpY2tzKSk7b2JzZXJ2ZSh2YWx1ZSwicGVuZGluZy1vYnNlcnZlZCIpCiAgIGcscyxyPShwZW5
+kaW5nW2tdIGZvciBrIGluICgiZ2VuZXJhdGlvbiIsImluc3RhbmNlIiwicmVxdWVzdF9pZCIpKQogICB
+hc3NlcnQgKGcscyk9PSh2YWx1ZVsiY3VycmVudCJdWyJnZW5lcmF0aW9uIl0sdmFsdWVbImN1cnJlbnQ
+iXVsiaW5zdGFuY2UiXSkKICAgd2lyZT1ieXRlcy5mcm9taGV4KHBlbmRpbmdbInJlcXVlc3RfaGV4Il0
+pO3JlcXVlc3Q9cC5kZWNvZGVfcmVxdWVzdCh3aXJlKQogICBhc3NlcnQgcmVxdWVzdC5yZXF1ZXN0X2l
+kPT1yIGFuZCBkaWdlc3Qod2lyZSk9PXBlbmRpbmdbInJlcXVlc3Rfc2hhMjU2Il0KICAgZGlyZWN0b3J
+5PVBhdGgocGVuZGluZ1sic2VydmljZV9yb290Il0pLygiZyIrZykvKCJzIitzKS8oInIi | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_28
+289877e758c56f55dca35c
+P9_TYPED_OK_28289877e758c56f55dca35c
+okernel> ( printf %s K3IpCiAgIGlmIChkaXJlY3RvcnkvInN0YXJ0ZWQiKS5leGlzdHMoKToKICA
+gIHAudmFsaWRhdGVfc3VibWl0KHdpcmUsKGRpcmVjdG9yeS8ic3RhcnRlZCIpLnJlYWRfYnl0ZXMoKSk
+KICAgIGlmICJuYXRpdmVfc3RhcnRlZF9zZWNvbmRzIiBub3QgaW4gdmFsdWU6CiAgICAgdmFsdWVbIm5
+hdGl2ZV9zdGFydGVkX3NlY29uZHMiXT1lbGFwc2VkKCk7b2JzZXJ2ZSh2YWx1ZSwibmF0aXZlLXN0YXJ
+0ZWQtb2JzZXJ2ZWQiKQogICBpZiAocm9vdC8iY2xpZW50LnN0ZG91dCIpLmV4aXN0cygpIGFuZCAoIkF
+CQU5ET05fU1RSRUFNXyIrdG9rZW4rIlxuIikuZW5jb2RlKCkgaW4gKHJvb3QvImNsaWVudC5zdGRvdXQ
+iKS5yZWFkX2J5dGVzKCk6CiAgICBhc3NlcnQgcGVuZGluZ1sicGhhc2UiXT09InN1Ym1pdHRlZCIgYW5
+kIG5vdCAoZGlyZWN0b3J5LyJkb25lIikuZXhpc3RzKCkKICAgIHZhbHVlLnVwZGF0ZShwZW5kaW5nPXB
+lbmRpbmcsc3RyZWFtX3NlY29uZHM9ZWxhcHNlZCgpKTtvYnNlcnZlKHZhbHVlLCJhY3R1YWwtc3RyZWF
+tLW9ic2VydmVkIik7YnJlYWsKICBpZiBlbGFwc2VkKCk+MzAgYW5kICJzbG93X3N0YXJ0 | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_0a
+b5d49fcf9502c475ff3e2b
+P9_TYPED_OK_0ab5d49fcf9502c475ff3e2b
+okernel> [6n( printf %s IiBub3QgaW4gdmFsdWU6CiAgIHZhbHVlLnVwZGF0ZShzbG93X3N0YXJ0PVR
+ydWUsb3duZWRfcHJvY2Vzc2VzPXByb2Nlc3NlcyhwaWQsdGlja3MpKTtvYnNlcnZlKHZhbHVlLCJzdGF
+ydHVwLW92ZXIzMHMiKQogIGlmIHRpbWUubW9ub3RvbmljKCk+PWRlYWRsaW5lOgogICB2YWx1ZVsib3d
+uZWRfcHJvY2Vzc2VzIl09cHJvY2Vzc2VzKHBpZCx0aWNrcyk7b2JzZXJ2ZSh2YWx1ZSwic3RhcnR1cC1
+0aW1lb3V0Iik7cmFpc2UgQXNzZXJ0aW9uRXJyb3IoIm5vIHN1Ym1pdHRlZCBvcmlnaW5hbCBzdHJlYW0
+gd2l0aGluMTUwcyIpCiAgdGltZS5zbGVlcCguMSkKZWxpZiBhY3Rpb249PSJraWxsIjoKIHZhbHVlPXJ
+lYWQobG9jYWwpO3BpZD12YWx1ZVsiY2xpZW50X3BpZCJdO2Rlc2NyaXB0b3I9b3MucGlkZmRfb3Blbih
+waWQpCiB0cnk6CiAgYXNzZXJ0IHN0YXJ0KHBpZCk9PXZhbHVlWyJjbGllbnRfc3RhcnRfdGlja3MiXQo
+gIGFyZ3Y9UGF0aCgiL3Byb2MvIitzdHIocGlkKSsiL2NtZGxpbmUiKS5yZWFkX2J5dGVzKCkuc3BsaXQ
+oYiJcMCIpCiAgYXNzZXJ0IGIiL3Vzci9sb2NhbC9iaW4vcDkiIGluIGFyZ3ZbOjNdLGFy | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_f5
+d81ec54bb6fe51c6e9f324
+P9_TYPED_OK_f5d81ec54bb6fe51c6e9f324
+okernel> ( printf %s Z3YKICBhc3NlcnQgcmVhZChjb250cm9sLyJwZW5kaW5nLmpzb24iKT09dmF
+sdWVbInBlbmRpbmciXQogIHNpZ25hbC5waWRmZF9zZW5kX3NpZ25hbChkZXNjcmlwdG9yLHNpZ25hbC5
+TSUdLSUxMLE5vbmUsMCkKIGZpbmFsbHk6b3MuY2xvc2UoZGVzY3JpcHRvcikKIGRlYWRsaW5lPXRpbWU
+ubW9ub3RvbmljKCkrMTAKIHdoaWxlIFRydWU6CiAgdHJ5OnN0YXRlPVBhdGgoIi9wcm9jLyIrc3RyKHB
+pZCkrIi9zdGF0IikucmVhZF90ZXh0KCkucnNwbGl0KCIpIiwxKVsxXS5zcGxpdCgpWzBdCiAgZXhjZXB
+0IEZpbGVOb3RGb3VuZEVycm9yOmJyZWFrCiAgaWYgc3RhdGU9PSJaIjpicmVhawogIGFzc2VydCB0aW1
+lLm1vbm90b25pYygpPGRlYWRsaW5lO3RpbWUuc2xlZXAoLjA1KQogcGVuZGluZz1yZWFkKGNvbnRyb2w
+vInBlbmRpbmcuanNvbiIpO2Fzc2VydCBwZW5kaW5nPT12YWx1ZVsicGVuZGluZyJdIGFuZCBwZW5kaW5
+nWyJwaGFzZSJdPT0ic3VibWl0dGVkIgogYXNzZXJ0IHJlYWQoY29udHJvbC8iY3VycmVudC5qc29uIik
+9PXZhbHVlWyJjdXJyZW50Il0KIHZhbHVlLnVwZGF0ZShndWVzdF9jbGllbnRfa2lsbGVk | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_7b
+1d7801ca6bb152ab39c381
+P9_TYPED_OK_7b1d7801ca6bb152ab39c381
+okernel> ( printf %s PVRydWUscmV0YWluZWRfcGhhc2VfYmVmb3JlX3N1Y2Nlc3Nvcj1wZW5kaW5
+nWyJwaGFzZSJdKTt3cml0ZSh2YWx1ZSkKZWxpZiBhY3Rpb249PSJzdWNjZXNzb3IiOgogYXNzZXJ0IGl
+udChzeXMuYXJndls0XSk9PTEyNQogdmFsdWU9cmVhZChsb2NhbCk7b2xkPXZhbHVlWyJjdXJyZW50Il0
+7cGVuZGluZz12YWx1ZVsicGVuZGluZyJdO2cscyxyPShwZW5kaW5nW2tdIGZvciBrIGluICgiZ2VuZXJ
+hdGlvbiIsImluc3RhbmNlIiwicmVxdWVzdF9pZCIpKQogYXNzZXJ0IChyb290LyJzdWNjZXNzb3Iuc3R
+kb3V0IikucmVhZF9ieXRlcygpPT1iIiIKIGFzc2VydCBiInByaW9yIHJlcXVlc3QgcmVjb3ZlcmVkOyB
+0aGlzIGludm9jYXRpb24gd2FzIG5vdCBzdWJtaXR0ZWQiIGluIChyb290LyJzdWNjZXNzb3Iuc3RkZXJ
+yIikucmVhZF9ieXRlcygpCiBhc3NlcnQgbm90IChjb250cm9sLyJwZW5kaW5nLmpzb24iKS5leGlzdHM
+oKSBhbmQgcmVzdWx0cygpPT12YWx1ZVsicmVzdWx0cyJdCiBhY2s9cmVhZChjb250cm9sLyJyZWNvdmV
+yZWQiLygiZyIrZysiLXMiK3MrIi1yIityKyIuanNvbiIpKTtjdXJyZW50PXJlYWQoY29u | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_31
+f2fea1106ea125bafaf54f
+P9_TYPED_OK_31f2fea1106ea125bafaf54f
+okernel> ( printf %s dHJvbC8iY3VycmVudC5qc29uIikKIGV4cGVjdGVkPXsic2NoZW1hIjoib3N
+0YWRpeC5wOS5yZWNvdmVyZWQvdjEiLCJnZW5lcmF0aW9uIjpnLCJvbGRfaW5zdGFuY2UiOnMsInJlcXV
+lc3RfaWQiOnIsInJlcXVlc3Rfc2hhMjU2IjpwZW5kaW5nWyJyZXF1ZXN0X3NoYTI1NiJdLCJvdXRjb21
+lIjoidW5rbm93biIsInJlc3VsdF9zaGEyNTYiOk5vbmUsInJlc2V0X3NoYTI1NiI6Tm9uZSwiZG9uZV9
+zaGEyNTYiOk5vbmV9CiBhc3NlcnQgYWxsKGsgaW4gYWNrIGFuZCBhY2tba109PXYgZm9yIGssdiBpbiB
+leHBlY3RlZC5pdGVtcygpKSxhY2sKIGFzc2VydCBjdXJyZW50WyJnZW5lcmF0aW9uIl09PWcgYW5kIGN
+1cnJlbnRbImluc3RhbmNlIl09PWFja1sibmV3X2luc3RhbmNlIl0hPXMgYW5kIGN1cnJlbnRbInN0YXR
+lIl09PSJyZWFkeSIKIHJlYWR5PXAucmVhZHlfbWFya2VyKGcsY3VycmVudFsiaW5zdGFuY2UiXSk7YXN
+zZXJ0IGFja1sicmVhZHlfc2hhMjU2Il09PWRpZ2VzdChyZWFkeSkKIGluc3RhbmNlPVBhdGgoY3VycmV
+udFsic2VydmljZV9yb290Il0pLygiZyIrZykvKCJzIitjdXJyZW50WyJpbnN0YW5jZSJd | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_dc
+61c47f29ab6b2add243198
+P9_TYPED_OK_dc61c47f29ab6b2add243198
+okernel> [6n( printf %s KQogYXNzZXJ0IChpbnN0YW5jZS8icmVhZHkiKS5yZWFkX2J5dGVzKCk9PXJ
+lYWR5IGFuZCBub3QgYW55KHguaXNfZGlyKCkgZm9yIHggaW4gaW5zdGFuY2UuZ2xvYigicioiKSkKIHZ
+hbHVlLnVwZGF0ZShwcml2YXRlX2Fjaz1hY2sscmVwbGFjZW1lbnQ9Y3VycmVudCxzdWNjZXNzb3JfZXh
+pdD0xMjUsc3VjY2Vzc29yX25vdF9zdWJtaXR0ZWQ9VHJ1ZSk7d3JpdGUodmFsdWUpCmVsaWYgYWN0aW9
+uPT0icmV0cnkiOgogYXNzZXJ0IGludChzeXMuYXJndls0XSk9PTAKIHZhbHVlPXJlYWQobG9jYWwpO2Z
+pbGVzPVt4IGZvciB4IGluIChjb250cm9sLyJyZXN1bHRzIikuZ2xvYigiKi5qc29uIikgaWYgeC5uYW1
+lIG5vdCBpbiB2YWx1ZVsicmVzdWx0cyJdXQogYXNzZXJ0IGxlbihmaWxlcyk9PTEKIHJlY2VpcHQ9cmV
+hZChmaWxlc1swXSk7ZyxzLHI9KHJlY2VpcHRba10gZm9yIGsgaW4gKCJnZW5lcmF0aW9uIiwiaW5zdGF
+uY2UiLCJyZXF1ZXN0X2lkIikpCiBhc3NlcnQgKGcscyk9PSh2YWx1ZVsicmVwbGFjZW1lbnQiXVsiZ2V
+uZXJhdGlvbiJdLHZhbHVlWyJyZXBsYWNlbWVudCJdWyJpbnN0YW5jZSJdKQogZGlyZWN0 | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_dc
+e60953ec30c41921a2b139
+P9_TYPED_OK_dce60953ec30c41921a2b139
+okernel> ( printf %s b3J5PVBhdGgocmVjZWlwdFsic2VydmljZV9yb290Il0pLygiZyIrZykvKCJ
+zIitzKS8oInIiK3IpCiBmaWxlcz17bmFtZTooZGlyZWN0b3J5L25hbWUpLnJlYWRfYnl0ZXMoKSBmb3I
+gbmFtZSBpbiBwLlJFUVVFU1RfRklMRVN9CiByZXN1bHQ9cC52YWxpZGF0ZV9yZXN1bHQoZmlsZXNbInJ
+lcXVlc3QiXSxmaWxlc1sicmVzdWx0Il0sZmlsZXNbInN0ZG91dCJdLGZpbGVzWyJzdGRlcnIiXSxzdGF
+ydGVkPWZpbGVzWyJzdGFydGVkIl0sZG9uZT1maWxlc1siZG9uZSJdLHN0YXR1cz1maWxlc1sic3RhdHV
+zIl0pCiBhc3NlcnQgcmVzdWx0Lm9rIGFuZCByZXN1bHQuc3RhdHVzPT1iIiIgYW5kIGZpbGVzWyJzdGR
+vdXQiXT09KCJFWFBMSUNJVF9BRlRFUl9DTElFTlRfQ1JBU0hfIit0b2tlbisiXG4iKS5lbmNvZGUoKQo
+gYXNzZXJ0IHJlY2VpcHRbInJlc3VsdF9zaGEyNTYiXT09ZGlnZXN0KGZpbGVzWyJyZXN1bHQiXSkgYW5
+kIG5vdCByZWNlaXB0WyJyZWNvdmVyZWQiXQogdmFsdWUudXBkYXRlKHJldHJ5X3JlY2VpcHQ9cmVjZWl
+wdCxyZXRyeV9zdGRvdXRfc2hhMjU2PWRpZ2VzdChmaWxlc1sic3Rkb3V0Il0pKTt3cml0 | base64 -
+d >> /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_78
+027ccbeeb455633c967f27
+P9_TYPED_OK_78027ccbeeb455633c967f27
+okernel> ( printf %s ZSh2YWx1ZSkKZWxzZTpyYWlzZSBBc3NlcnRpb25FcnJvcihhY3Rpb24pCnB
+yaW50KCJcblA5X0NSQVNIXyIrYWN0aW9uKyJfIit0b2tlbixmbHVzaD1UcnVlKQo= | base64 -d >>
+ /tmp/client-crash-c4bb6ca069083aa02023.py ) && printf '%s\n' P9_TYPED_OK_9d326b
+ff8b820093b334c1af
+P9_TYPED_OK_9d326bff8b820093b334c1af
+okernel> ( echo $$ > linux-shell.pid; awk '{print $22}' /proc/$$/stat > linux-sh
+ell.start; python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 prepare c4bb6ca069083aa02023 ) && printf '%s\n' P
+9_TYPED_OK_cccf70179d9b355fcdeaa00b
+
+P9_CRASH_prepare_c4bb6ca069083aa02023
+P9_TYPED_OK_cccf70179d9b355fcdeaa00b
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_acc0edfaebb2733e8d807083
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_acc0edfaebb2733e8d807083
+okernel> p9 echo P9_WARMUP_c4bb6ca069083aa02023_0; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 0
+P9_WARMUP_c4bb6ca069083aa02023_0
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==1' ) && printf '%s\n' P9_TYPED_OK_08d35ed7a053bfb8be34c564
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 0, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "b6abc2ea0d400522ff379df25e1dd519", "request_sha256": "4c3799f1fa5ef65cb6a94bf046032769bf458335f9343471c265282c15947b60", "result_sha256": "d7e874e9c9b196c888158695d25af3fd6f7fcfbfe91a2f111819a3e37a004d6a", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "001500d1702df0034cd3c11ce21d9033e13ce845f64529395a9a41a9c7feca64"}, "seconds": 25.57899438399999}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==1' ) && printf '%s\n' P9_TYPED_OK_08d35ed7a053bfb8be34c564
+P9_TYPED_OK_08d35ed7a053bfb8be34c564
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_61fd625048d31d0a90b2e588
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_61fd625048d31d0a90b2e588
+okernel> [6np9 echo P9_WARMUP_c4bb6ca069083aa02023_1; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 1
+P9_WARMUP_c4bb6ca069083aa02023_1
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==2' ) && printf '%s\n' P9_TYPED_OK_3c29e71cb6086782f955e928
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 1, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "d9fd6a9220a44d5ffb563ca29d173193", "request_sha256": "cadd57e69874d9ca1c4fa4c43aa0c73a020e9b4a19f9d9b4b0d3e4a68169ad38", "result_sha256": "97dfb649e8a2a0c07bb8449e7b38e67b9f8576a8e156ebf3d15c968d7b0c3390", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "026c7c7db563ed9bd609fe7df70579795479969174f27c19e6aec68540f0fdec"}, "seconds": 19.538555392000006}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==2' ) && printf '%s\n' P9_TYPED_OK_3c29e71cb6086782f955e928
+P9_TYPED_OK_3c29e71cb6086782f955e928
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_77717e74e4545034eaba31c3
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_77717e74e4545034eaba31c3
+okernel> p9 echo P9_WARMUP_c4bb6ca069083aa02023_2; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 2
+P9_WARMUP_c4bb6ca069083aa02023_2
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==3' ) && printf '%s\n' P9_TYPED_OK_471c191aaa430397bbab3355
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 2, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "1f71a2822d9b96a66d99cf99fa19e526", "request_sha256": "3ae6c1d00731f70542703f5980939eababb8718cb03ef4fc0a08834829ba401e", "result_sha256": "4c2f318096ec901bd0e727714060caff599e417a1ab61f8f44d2f7c5b3d0be6b", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "48d7dc0750957a34361a210588c817549baa8df14c51c67875125e533f00ad87"}, "seconds": 26.362764784000007}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==3' ) && printf '%s\n' P9_TYPED_OK_471c191aaa430397bbab3355
+P9_TYPED_OK_471c191aaa430397bbab3355
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_114d81fd5db49fc759469ebc
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_114d81fd5db49fc759469ebc
+okernel> p9 echo P9_WARMUP_c4bb6ca069083aa02023_3; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 3
+P9_WARMUP_c4bb6ca069083aa02023_3
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==4' ) && printf '%s\n' P9_TYPED_OK_122bbc2b691926df6b250c25
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 3, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "460cd7cdba0cfedffec421f70c48bfa1", "request_sha256": "7f1f775d832dab2144f1abdf4c96a683f25a49d8e47d7a93e9aed0b08e59ffc0", "result_sha256": "efe1af29d9b86a33b1383d76173d753a044eb604693b84067c5dee1f9fa5e41f", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "af40229d137924a6c45256227ed3f02666efaec60af7a839f6aa3b85e32a5e84"}, "seconds": 24.887018416000018}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==4' ) && printf '%s\n' P9_TYPED_OK_122bbc2b691926df6b250c25
+P9_TYPED_OK_122bbc2b691926df6b250c25
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_66e3c4f79380a28d2d869459
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_66e3c4f79380a28d2d869459
+okernel> p9 echo P9_WARMUP_c4bb6ca069083aa02023_4; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 4
+P9_WARMUP_c4bb6ca069083aa02023_4
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==5' ) && printf '%s\n' P9_TYPED_OK_918bf98fe8ce099644e2d172
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 4, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "03dd3ef98406978fc226398ada9266ab", "request_sha256": "60a5f8c9ccbd2745df68c03058cf5b7cdb82a06d46e5fc9838936cf8f4a628a1", "result_sha256": "5931064b300664b34a2c4c83eac4523dbe208718b9d937d47834dea184b4c7c8", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "6e76313f9bcc465fb5d93602a77465c0f8b9481d3c45d5dd8eeeabd76a833614"}, "seconds": 26.598103232}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==5' ) && printf '%s\n' P9_TYPED_OK_918bf98fe8ce099644e2d172
+P9_TYPED_OK_918bf98fe8ce099644e2d172
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_0bf8750c2524095344fd3dbc
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_0bf8750c2524095344fd3dbc
+okernel> [6np9 echo P9_WARMUP_c4bb6ca069083aa02023_5; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 5
+P9_WARMUP_c4bb6ca069083aa02023_5
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==6' ) && printf '%s\n' P9_TYPED_OK_4a721b587c101684115b3a99
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 5, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "38f711f75179b7b02529b3e0fda14066", "request_sha256": "bac26f5def47a5dc6e44ca5b2e0e440c305e7ab400b5d434c07e931003098e98", "result_sha256": "8935044b7fa2f54116c4245371caa4146cbd7ed6346ba87ea64b6ece4625b872", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "58891694e6557c0e0d329d346603a33fe4d6e3aee3d1f52aca02e2d94fa897da"}, "seconds": 24.809598335999993}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==6' ) && printf '%s\n' P9_TYPED_OK_4a721b587c101684115b3a99
+P9_TYPED_OK_4a721b587c101684115b3a99
+okernel> [6n( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_03bc2e48d43d994989c0ab50
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_03bc2e48d43d994989c0ab50
+okernel> p9 echo P9_WARMUP_c4bb6ca069083aa02023_6; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 6
+P9_WARMUP_c4bb6ca069083aa02023_6
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==7' ) && printf '%s\n' P9_TYPED_OK_bd62d61b3f8a52f9131b16cd
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 6, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "2694360600572e13ffbdfe70c1a15922", "request_sha256": "38f57e2b176f6278d438391fd29003e5aad70a79987e6f2287fc43a3e6fe36ad", "result_sha256": "d0061e0f50ca700e61b24236a456094611682868d69aa7da4520b95a48101254", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "bcc411b8fe0198208e021349ce05582ec980c68f05793d589bdf2a012e041f3a"}, "seconds": 28.263259791999985}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==7' ) && printf '%s\n' P9_TYPED_OK_bd62d61b3f8a52f9131b16cd
+P9_TYPED_OK_bd62d61b3f8a52f9131b16cd
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_3651bb44aa130088c7207c53
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_3651bb44aa130088c7207c53
+okernel> [6np9 echo P9_WARMUP_c4bb6ca069083aa02023_7; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 7
+P9_WARMUP_c4bb6ca069083aa02023_7
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==8' ) && printf '%s\n' P9_TYPED_OK_7ccc7a006f5b34d1f6722734
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 7, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "9eec7cb2931589de9332bbace33ac835", "request_sha256": "d5134c5f3c282167f2d19a066e4ad350a02822015e101a9ecd8c5dabdb20b397", "result_sha256": "b7d45cdc83c5a0efee92157a6b706f022744c7c4e8287f452907def20690a26b", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "46feb21df01fd49e4c9fc362c2d77851908c3b98f3423f7ddcb124d789504f8d"}, "seconds": 23.98121784}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==8' ) && printf '%s\n' P9_TYPED_OK_7ccc7a006f5b34d1f6722734
+P9_TYPED_OK_7ccc7a006f5b34d1f6722734
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_95b2b8fdef1b43ddd601eeb7
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_95b2b8fdef1b43ddd601eeb7
+okernel> [6np9 echo P9_WARMUP_c4bb6ca069083aa02023_8; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 8
+P9_WARMUP_c4bb6ca069083aa02023_8
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==9' ) && printf '%s\n' P9_TYPED_OK_95dcffaf2a2306cdfb9e0197
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 8, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "64103bdf37906d37bc8d85e5b6a38e7c", "request_sha256": "01573cd9fe5fd0d818bc2af916d4cd37ae9e791f4b60e9e0eb77d71bc9ee476e", "result_sha256": "10d1d7ff34d59a70cf6ea5c23052a37a36b9573d242df4aadb3eff70a4e8bc05", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "7f59640cda3a4031098efc1f08f18d74a5b003922eb8e318b60add1f636c8e32"}, "seconds": 23.723016063999978}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==9' ) && printf '%s\n' P9_TYPED_OK_95dcffaf2a2306cdfb9e0197
+P9_TYPED_OK_95dcffaf2a2306cdfb9e0197
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 warmup-begin c4bb6ca069083aa02023 ) && printf '%s
+\n' P9_TYPED_OK_fe625b43c256dfc723059f41
+
+P9_CRASH_warmup-begin_c4bb6ca069083aa02023
+P9_TYPED_OK_fe625b43c256dfc723059f41
+okernel> p9 echo P9_WARMUP_c4bb6ca069083aa02023_9; p9_crash_rc=$?; python3 /tmp/
+client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083a
+a02023 warmup-end c4bb6ca069083aa02023 "$p9_crash_rc" 9
+P9_WARMUP_c4bb6ca069083aa02023_9
+( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'warmups'"'"'])==10' ) && printf '%s\n' P9_TYPED_OK_88d7c87d01bc2eb7afe6a05b
+P9_WARMUP_TIMING_c4bb6ca069083aa02023 {"index": 9, "receipt": {"flags": 0, "generation": "20d4b8d26372460e", "instance": "ebc96020d4c53a8f4ee880c3dd2c3ab8", "recovered": false, "request_id": "8b35bf7ee103e6f8bce893d29f469018", "request_sha256": "1b5f6b45b59e29bd08f7337f025b6de8296f7dd28f90c389528f2c339c7c24d8", "result_sha256": "4b364e3532803b458d503585f4525aba429a7436e32c68d7c1ad313ef6497b0d", "schema": "ostadix.p9.client-result/v1", "service_root": "/n/okernel/services/plan9", "status_hex": "", "stderr_bytes": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_bytes": 33, "stdout_sha256": "722c5dd38c39144fec1afa950421386b2f0c459133b6fa4ead6d57da419f6600"}, "seconds": 23.26911641600003}
+
+P9_CRASH_warmup-end_c4bb6ca069083aa02023
+okernel> ( python3 -c 'import json;from pathlib import Path;p=json.loads(Path('"
+'"'/run/p9-crash-c4bb6ca069083aa02023.json'"'"').read_text());assert len(p['"'"'
+warmups'"'"'])==10' ) && printf '%s\n' P9_TYPED_OK_88d7c87d01bc2eb7afe6a05b
+P9_TYPED_OK_88d7c87d01bc2eb7afe6a05b
+( pythonokernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 launch c4bb6ca069083aa02023 ) && printf '%s\n' P9
+_TYPED_OK_6d732cb027c4aa74463e7658
+
+P9_CRASH_launch_c4bb6ca069083aa02023
+P9_TYPED_OK_6d732cb027c4aa74463e7658
+okernel> p9 --timeout-ms 180000 rc -I -c 'echo ABANDON_STREAM_c4bb6ca069083aa020
+23; sleep 120' > client.stdout 2> client.stderr & p9_crash_pid=$!; echo $p9_cras
+h_pid > client.pid; awk '{print $22}' /proc/$p9_crash_pid/stat > client.start
+okernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 await c4bb6ca069083aa02023 ) && printf '%s\n' P9_
+TYPED_OK_744cad3db99fb807b1d56383
+P9_CLIENT_OBSERVATION_c4bb6ca069083aa02023 {"client_pid": 331, "client_start_ticks": "37506", "observation": "pending-observed", "owned_processes": [{"args": "python3 /usr/local/bin/p9 --timeout-ms 180000 rc -I -c echo ABANDON_STREAM_c4bb6ca069083aa02023; sleep 120 ", "parent": 95, "pid": 331, "start_ticks": "37506", "state": "R"}], "pending_seconds": 21.75}
+P9_CLIENT_OBSERVATION_c4bb6ca069083aa02023 {"client_pid": 331, "client_start_ticks": "37506", "native_started_seconds": 24.25, "observation": "native-started-observed", "owned_processes": [{"args": "python3 /usr/local/bin/p9 --timeout-ms 180000 rc -I -c echo ABANDON_STREAM_c4bb6ca069083aa02023; sleep 120 ", "parent": 95, "pid": 331, "start_ticks": "37506", "state": "R"}], "pending_seconds": 21.75}
+P9_CLIENT_OBSERVATION_c4bb6ca069083aa02023 {"client_pid": 331, "client_start_ticks": "37506", "native_started_seconds": 24.25, "observation": "actual-stream-observed", "owned_processes": [{"args": "python3 /usr/local/bin/p9 --timeout-ms 180000 rc -I -c echo ABANDON_STREAM_c4bb6ca069083aa02023; sleep 120 ", "parent": 95, "pid": 331, "start_ticks": "37506", "state": "R"}], "pending_seconds": 21.75, "stream_seconds": 25.25999999999999}
+
+P9_CRASH_await_c4bb6ca069083aa02023
+P9_TYPED_OK_744cad3db99fb807b1d56383
+( python3 /tmp/client-crash-c4bbokernel> ( python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/cli
+ent-crash-c4bb6ca069083aa02023 kill c4bb6ca069083aa02023 ) && printf '%s\n' P9_T
+YPED_OK_cdfc2827bf3930dc90fda52b
+
+P9_CRASH_kill_c4bb6ca069083aa02023
+P9_TYPED_OK_cdfc2827bf3930dc90fda52b
+[1]+  Killed                     p9 --timeout-ms 180000 rc -I -c "echo ABANDON_STREAM_c4bb6ca069083aa02023; sleep 120" 1>client.stdout 2>client.stderrp9 echo MUST_NOT_SUBMIT_c4bb6ca069083aa02023 > successor.stdout 2> successor.stderr; p9_crash_rc=$?; python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083aa02023 successor c4bb6ca069083aa02023 "$p9_crash_rc"
+
+okernel> p9 echo MUST_NOT_SUBMIT_c4bb6ca069083aa02023 > successor.stdout 2> succ
+essor.stderr; p9_crash_rc=$?; python3 /tmp/client-crash-c4bb6ca069083aa02023.py 
+/n/okernel/work/client-crash-c4bb6ca069083aa02023 successor c4bb6ca069083aa02023
+ "$p9_crash_rc"
+
+P9_CRASH_successor_c4bb6ca069083aa02023
+p9 echo EXPLICIT_AFTER_CLIENT_CRASH_c4bb6ca069083aa02023; p9_crash_rc=$?; python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-crash-c4bb6ca069083aa02023 retry c4bb6ca069083aa02023 "$pokernel> p9 echo EXPLICIT_AFTER_CLIENT_CRASH_c4bb6ca069083aa02023; p9_crash_rc=$
+?; python3 /tmp/client-crash-c4bb6ca069083aa02023.py /n/okernel/work/client-cras
+h-c4bb6ca069083aa02023 retry c4bb6ca069083aa02023 "$p9_crash_rc"
+EXPLICIT_AFTER_CLIENT_CRASH_c4bb6ca069083aa02023
+
+P9_CRASH_retry_c4bb6ca069083aa02023
+( test "$(cat linux-shell.pid)" = $$ && test "$(awk '{print $22}' /proc/$$/stat)" = "$(cat linuxokernel> ( test "$(cat linux-shell.pid)" = $$ && test "$(awk '{print $22}' /proc
+/$$/stat)" = "$(cat linux-shell.start)" ) && printf '%s\n' P9_TYPED_OK_75131360b
+1583823db087dcf
+P9_TYPED_OK_75131360b1583823db087dcf
+okernel> [6n^C
+
+okernel> true; _uw_rc=$?; printf '\nUNIFIED_COMMAND_53adea8d37bd44b88c779b1dbc8f
+a803:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_53adea8d37bd44b88c779b1dbc8fa803:0
+okernel> [6n
+[O-core console: original Plan 9; Ctrl-^ then 0 selects Linux]
+
+[O-core console: Linux; Ctrl-^ then 1 selects original Plan 9]
+sync; _uw_rc=$?; printf '\nUNIFIED_COMMAND_6f1ad35068364155bf5ddfb7d4aa
+fb88:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_6f1ad35068364155bf5ddfb7d4aafb88:0
+okernel> [6n

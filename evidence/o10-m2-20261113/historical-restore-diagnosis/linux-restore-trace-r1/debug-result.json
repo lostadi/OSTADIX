@@ -1,0 +1,174 @@
+{
+  "schema": "ostadix.o10-m2-linux-restore-cpu-debug/v1",
+  "scope": "One explicitly requested fresh private diagnostic fork of the M2 workload with QEMU CPU/TB address-filtered observation. CPU tracing changes emulation performance. No timeout adjustment, production instrumentation, old unknown request replay, milestone gate or hardware claim.",
+  "milestone_qualified": false,
+  "debug_only": true,
+  "source_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "mcp_release": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "source_before": {
+    "scripts/okernel_unified_world.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py",
+      "bytes": 73391,
+      "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+    },
+    "scripts/verify_o10_linux_restart.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_linux_restart.py",
+      "bytes": 43252,
+      "sha256": "e55ab54ca9edacf2906fa7262f50de3c9b402222d4d2a8f00cb8c5782fa55865"
+    }
+  },
+  "profile": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor-profile.json",
+    "bytes": 28357,
+    "sha256": "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d"
+  },
+  "monitor": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf",
+    "bytes": 1012056,
+    "sha256": "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869"
+  },
+  "wrapper": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/qemu-trace",
+    "bytes": 446,
+    "sha256": "01698845946bbd83f5336ed96cca363ecbd088fee8c141db3a79a6844b366ff4"
+  },
+  "sites": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-sites.json",
+    "bytes": 3307,
+    "sha256": "54d4b18bc35701260280ed1b6ae36a38b77e946665feee1296d94cee93952dd1"
+  },
+  "trace_activations": [
+    {
+      "frame_hex": "3f000000ae1900010000000000000003000000000000000000000001000000084fd47fa078fd4a9e663c0306828c0103000000000000000400000000000000",
+      "frame_sha256": "08203dc989c798461c8ff323de218eb84282cff53d3406b1ff12b881f3803e3c",
+      "epoch": 1,
+      "seq": 3,
+      "new_private_session": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x",
+      "qemu_pid": 1801090,
+      "actual_qemu_argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-dfilter",
+        "0x4009333c..0x400934bc,0x400933a4..0x40093524,0x40093518..0x40093698,0x400935d8..0x40093758,0x4009e0e0..0x4009ec7f,0x400c0ae0..0x400c16bb,0x400d16d0..0x400d198f,0x400c4f10..0x400c5c87,0x400ec480..0x400ec73f,0x400ec740..0x400ec86f,0x400e4a60..0x400e4edf,0x400f7030..0x400f72ef,0x400f6450..0x400f6a5b",
+        "-D",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/restore-cpu.log",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off,memory-backend=unified-ram",
+        "-object",
+        "memory-backend-file,id=unified-ram,size=3G,mem-path=/proc/self/fd/9,share=on",
+        "-accel",
+        "tcg,thread=single",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-no-shutdown",
+        "-qmp",
+        "unix:/tmp/okernel-qmp-1000-efbe3cd15aca9c08-673tm6i4/control.sock,server=on,wait=off",
+        "-kernel",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/monitor.elf",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/linux.Image,addr=0x48000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/linux.dtb,addr=0x4fe00000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/linux.initramfs,addr=0x50000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/plan9.kernel,addr=0xb0100000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/plan9.dtb,addr=0xb0000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/linux-recovery.Image,addr=0xd2000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/linux-recovery.dtb,addr=0xe2000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/linux-recovery.initramfs,addr=0xda000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/plan9-recovery.kernel,addr=0xd0000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/inputs/plan9-recovery.dtb,addr=0xd1000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/disk.ext4,addr=0x70000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/namespace.raw,addr=0x6c000000,force-raw=on",
+        "-device",
+        "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/plan9-bootstrap.bin,addr=0x6d010000,force-raw=on",
+        "-device",
+        "loader,addr=0x6d000000,data=8929848501642148550,data-len=8",
+        "-device",
+        "loader,addr=0x6d000008,data=0,data-len=8",
+        "-device",
+        "loader,addr=0x6d000010,data=1794571455,data-len=8",
+        "-device",
+        "loader,addr=0x6d020000,data=0,data-len=8",
+        "-device",
+        "loader,addr=0x6d040000,data=0,data-len=8",
+        "-device",
+        "loader,addr=0x6d000090,data=6050944,data-len=8",
+        "-device",
+        "loader,addr=0x6d000098,data=503,data-len=8",
+        "-device",
+        "loader,addr=0x6d000100,data=6062088,data-len=8",
+        "-device",
+        "loader,addr=0x6d000108,data=2051,data-len=8",
+        "-device",
+        "loader,addr=0x6d000110,data=8726528,data-len=8",
+        "-global",
+        "virtio-mmio.force-legacy=false",
+        "-netdev",
+        "user,id=unified-net",
+        "-device",
+        "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"
+      ],
+      "before_enable_unix": 1794571546.1050808,
+      "hmp_help_log": "Log items (comma separated):\r\nnone            remove all logs\r\nout_asm         show generated host assembly code for each compiled TB\r\nin_asm          show target assembly code for each compiled TB\r\nop              show micro ops for each compiled TB\r\nop_opt          show micro ops after optimization\r\nop_ind          show micro ops before indirect lowering\r\nint             show interrupts/exceptions in short format\r\nexec            show trace before each executed TB (lots of logs)\r\ncpu             show CPU registers before entering a TB (lots of logs)\r\nfpu             include FPU registers in the 'cpu' logging\r\nmmu             log MMU-related activities\r\npcall           x86 only: show protected mode far calls/returns/exceptions\r\ncpu_reset       show CPU state before CPU resets\r\nunimp           log unimplemented functionality\r\nguest_errors    log when the guest OS does something invalid (eg accessing a\r\nnon-existent register)\r\npage            dump pages at beginning of user mode emulation\r\nnochain         do not chain compiled TBs so that \"exec\" and \"cpu\" show\r\ncomplete traces\r\nplugin          output from TCG plugins\r\nstrace          log every user-mode syscall, its input, and its result\r\ntid             open a separate log file per thread; filename must contain '%d'\r\nvpu             include VPU registers in the 'cpu' logging\r\ntrace:PATTERN   enable trace events\r\n\r\nUse \"log trace:help\" to get a list of trace events.\r\n\r\n",
+      "log_command": {
+        "command-line": "log cpu,nochain"
+      },
+      "log_response": "",
+      "completion": "unknown",
+      "error": "TimeoutError: native O10 acknowledgement missing; outcome unresolved",
+      "traceback": "Traceback (most recent call last):\n  File \"/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-driver.py\", line 37, in traced\n    reply=original(self,frame,bootstrap=bootstrap);entry[\"completion\"]=\"observed\";entry[\"reply\"]=runner.o10_observation(reply);return reply\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py\", line 610, in _o10_exchange_once\n    raise TimeoutError(\"native O10 acknowledgement missing; outcome unresolved\")\nTimeoutError: native O10 acknowledgement missing; outcome unresolved\n",
+      "finished_unix": 1794571606.1242993,
+      "disable_response": ""
+    }
+  ],
+  "started_unix": 1794571449.5227802,
+  "wrapped_verifier_returned": true,
+  "source_after": {
+    "scripts/okernel_unified_world.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py",
+      "bytes": 73391,
+      "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+    },
+    "scripts/verify_o10_linux_restart.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_linux_restart.py",
+      "bytes": 43252,
+      "sha256": "e55ab54ca9edacf2906fa7262f50de3c9b402222d4d2a8f00cb8c5782fa55865"
+    }
+  },
+  "source_unchanged": true,
+  "cpu_trace": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/restore-cpu.log",
+    "bytes": 269625,
+    "sha256": "f66628e78201f9e2f21ecd5ab426129c6ab2c2c9b30399f33e49914e5994b192"
+  },
+  "wrapped_verifier_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/result.json",
+    "bytes": 117015,
+    "sha256": "1d57829c9e3c867873f35159762824a36ee0b1eccd7143e4cb9fc11ed45e79a7"
+  },
+  "finished_unix": 1794571606.379078,
+  "measurement_complete": true
+}

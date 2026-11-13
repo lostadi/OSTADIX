@@ -1,0 +1,99 @@
+{
+  "schema": "ostadix.o10-m2-managed-restart-command/v1",
+  "argv": [
+    "o",
+    "kernel",
+    "o10-linux-restart",
+    "--seed-state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "--apk-fixture",
+    "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8",
+    "--timeout",
+    "180",
+    "--qemu",
+    "/usr/bin/qemu-system-aarch64",
+    "--mcp-release",
+    "72e90d76420ff5c331232b5e3fe7c20e30761e41"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "returncode": 0,
+  "timed_out": false,
+  "managed_job": "job-1960399-1794578286458176260-1-9",
+  "actual_managed_pid": 1970650,
+  "expanded_verifier_process_observed": false,
+  "scope": "Exact submitted canonical o_cli argv plus actual managed start/completion and gate receipt. Expanded Python verifier /proc argv was not sampled while alive; no reconstructed process observation.",
+  "tool_request": {
+    "tool": "o_cli",
+    "request": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/request.json",
+      "bytes": 770,
+      "sha256": "932a1bc1434866d2fd3faad168d772da4f9a062cb0a47bfac717cb603d0e123c"
+    }
+  },
+  "actual_start_status": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/start-structured.json",
+    "bytes": 775,
+    "sha256": "fc35db1206817d12f45af10a95d4b1ba6ffe273f99160292bbf5a26be68d9481"
+  },
+  "actual_final_status": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/final-status.json",
+    "bytes": 1077,
+    "sha256": "9aca69b816513a7d2c8549d29a6f369f7167db51290ae7d69993b560b2734b77"
+  },
+  "actual_success_readback": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/completion-readback.json",
+    "bytes": 1421,
+    "sha256": "3a8fd573e0d7b93c62acd84aa4febdb0c8808f9d6cc71d2449c0be3dbb744637"
+  },
+  "result": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8/result.json",
+    "bytes": 190265,
+    "sha256": "518d4860120d243d0eef49d181b13c9979ecb5f9fb892a2e07acdf7640f0aabb"
+  },
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "source_count": 33,
+  "source_unchanged": true,
+  "source_snapshot": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/source-snapshot.json",
+    "bytes": 13516,
+    "sha256": "fbfa424f13a90544c752d35b371cf525975b2c514b248ad56321b0081f908a96"
+  },
+  "stdout": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/managed-stdout.log",
+    "bytes": 140,
+    "sha256": "93d9aefc82b9d3e8095790c02438a98ee5c8d02cbfc7e587368c8502331c4465"
+  },
+  "stderr": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/managed-stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "typed_toolchain_receipts": {
+    "origin_build": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/build.json",
+      "bytes": 1302131,
+      "sha256": "66ccb2f10653a19b4735317bdfdd66c8dd183e1a5ec1c91d2d907a5f6654ccb8"
+    },
+    "stamp_build": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/build.json",
+      "bytes": 1260209,
+      "sha256": "75cea1f624b4a995e820cf94ce1acf041452d5de853aa340bcf46c280e1da156"
+    },
+    "alignment": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/alignment.json",
+      "bytes": 12310,
+      "sha256": "aab27706668a213541bb07459b524427dde477a2e1e01fc3cd32e5b5bca1d093"
+    },
+    "artifact_validation": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/artifact-validation.json",
+      "bytes": 11097,
+      "sha256": "9493e1525514412abcff8f46edc66edb3304b9cfc3b28ab63d6fec79cbae0993"
+    }
+  },
+  "timeout_status_source": "Actual managed state completed, exit0, error null, signal null; raw status retained."
+}

@@ -1,0 +1,23 @@
+127 holes free
+0x406d3000 0x4d0e5000 211886080
+211886080 bytes free
+
+Plan 9
+timer frequency 62500000 Hz
+cpu0: 1000MHz QEMU
+511M memory: 208M kernel data, 303M user, 1818M swap
+qemu.bootfs: Sat Oct 31 07:17:49 GMT 2026
+fingerprint: 8f6bb6ff61516810cb66480523c45fcbb46aad89
+
+bootargs is (tcp, tls, il, local!device)!rc
+[] % mount -n -c /dev/eia1 /n
+% echo ORIGINAL_PLAN9_UNIFIED_bdf7c250804b9966461ee579 > /n/work/plan9-ready-bdf7c250804b9966461ee579
+% cat /n/work/dual-linux-06937f40f6c6582affeb0e63d4d4e311
+LINUX_DUAL_06937f40f6c6582affeb0e63d4d4e311
+% echo PLAN9_DUAL_06937f40f6c6582affeb0e63d4d4e311 > /n/work/dual-plan9-06937f40f6c6582affeb0e63d4d4e311
+% mkdir -p /n/services
+% rc /rc/bin/okernel-start /n/services/plan9 34e6b3bee647bb5d 53aaa1068e7d233d21f6c01d62b7de1d
+% echo PLAN9_SAVE_READY_8d0a1aef2de448038a7190d408418f92
+
+% PLAN9_SAVE_READY_8d0a1aef2de448038a7190d408418f92
+% 

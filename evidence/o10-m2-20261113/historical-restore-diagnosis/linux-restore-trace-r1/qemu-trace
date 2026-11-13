@@ -1,0 +1,11 @@
+#!/usr/bin/python3 -B
+import os,sys
+from pathlib import Path
+import json
+BASE=Path("/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1")
+real="/usr/bin/qemu-system-aarch64"
+args=sys.argv[1:]
+if "--version" in args or "-help" in args or "--help" in args:
+ os.execv(real,[real,*args])
+sites=json.loads((BASE/"trace-sites.json").read_text())
+os.execv(real,[real,"-dfilter",sites["dfilter"],"-D",str(BASE/"restore-cpu.log"),*args])

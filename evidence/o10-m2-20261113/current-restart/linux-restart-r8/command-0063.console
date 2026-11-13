@@ -1,0 +1,9 @@
+mkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /u
+sr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/oker
+nel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.p
+id; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /r
+un/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :; _uw_rc=$?; 
+printf '\nUNIFIED_COMMAND_c15072e3cd7d454b8c7246ae8b3954b9:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_c15072e3cd7d454b8c7246ae8b3954b9:0
+pkg> [6n

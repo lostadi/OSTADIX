@@ -1,0 +1,74 @@
+{
+  "argv": [
+    "python3",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r2.py",
+    "--root",
+    "/home/ustad/OSTADIX-o10-m2-20261112",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r2",
+    "--provenance",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-preflight-o_env-r2.json",
+    "--expected-revision",
+    "76cd75c1add8795055c8a769bee57862948f2912",
+    "--compiler",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "--evaluator",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "--timeout",
+    "1200",
+    "--language-jobs",
+    "2",
+    "--expected-language-sources",
+    "267",
+    "--plan9-prefix",
+    "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "--u9fs-archive",
+    "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "--u9fs-manifest",
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "--u9fs-arm-manifest",
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json"
+  ],
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r2.py",
+    "sha256": "86574f82ddacff68571dd17528c87cb88aeb4dd1da102a4f87d12dac7b90ba81"
+  },
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "explicit_fixture_environment": {
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OCORE_U9FS_ARM_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz"
+  },
+  "prepared_at": 1794566127.700813,
+  "prerequisites": [
+    "Final shared native and helper source freeze; retain exact source hashes.",
+    "Stage all four new M2 helper/test paths explicitly, preserving HEAD76cd75c1.",
+    "Capture fresh aligned o_env at --provenance path before dispatch.",
+    "Use MCP background execution and retain original managed status/stdout/stderr.",
+    "Output directory must remain new; never overwrite a failed run.",
+    "Pinned original compiler/evaluator, both admitted codec fixture closures and original Plan9port/u9fs fixtures must verify.",
+    "Private /dev/shm staging is used only for test_okernel_repository_staging.",
+    "Dispatch through private fresh HEAD76cd MCP using existing ostadix_mcp_client and bridge-env; preserve fresh o_env/doctor/runtimes and actual managed job.",
+    "Explicit PYTHONDONTWRITEBYTECODE=1 prevents writes into frozen runtime closures during import checks."
+  ],
+  "prior_failed_run": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r1/result.json",
+    "reason": "canonical standalone Python import root absent; full discovery failed with three import errors",
+    "sha256": "8df9d6a085a6dbbf9a02172b6881d6728fdab3bde844d47b1aa9e8fb854bc570"
+  },
+  "schema": "ostadix.o10-m2-ordinary-controller-preparation/v1",
+  "scope": "prepared cache controller and static syntax only; no test/build/VM execution",
+  "source": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/ordinary-unit-orchestration-20261113-r2.py",
+    "sha256": "83a83088892fdc2e782de383de72e7073bbf8ca410b207dd03fbb7bb7b3a2b21"
+  },
+  "syntax": "ast.parse passed"
+}

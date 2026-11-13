@@ -1,0 +1,8 @@
+if test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && 
+test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_093f575df2f741e799b5d223f
+1a2cc8b; fi; _uw_rc=$?; printf '\nUNIFIED_COMMAND_0321409138ca4b39a2fc50dcd3981d
+0d:%s\n' "$_uw_rc"
+P9_CLIENT_PRESENT_093f575df2f741e799b5d223f1a2cc8b
+
+UNIFIED_COMMAND_0321409138ca4b39a2fc50dcd3981d0d:0
+pkg> [6n

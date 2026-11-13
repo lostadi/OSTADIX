@@ -1,0 +1,11 @@
+base64 -d /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.
+o10-base64 > /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request && rm 
+/run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64 && test 
+"$(wc -c < /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request)" -eq 13
+05 && test "$(sha256sum /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.req
+uest | cut -d ' ' -f1)" = ed35137912a442cbc6997de433f3d9417596d277d97434f04b3eb0
+d3b3e53292; _uw_rc=$?; printf '\nUNIFIED_COMMAND_68f8876ce5594ecd8f46c748eb099f7
+0:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_68f8876ce5594ecd8f46c748eb099f70:0
+okernel> [6n

@@ -1,0 +1,10 @@
+base64 -d /run/o10-m2-cad55362ec49b45f291d1110.json.o10-base64 > /run/o
+10-m2-cad55362ec49b45f291d1110.json && rm /run/o10-m2-cad55362ec49b45f291d1110.j
+son.o10-base64 && test "$(wc -c < /run/o10-m2-cad55362ec49b45f291d1110.json)" -e
+q 2521 && test "$(sha256sum /run/o10-m2-cad55362ec49b45f291d1110.json | cut -d '
+ ' -f1)" = 1e459ff4d0667cbbcd22ace11be1c2f5f18cdccfe79bf13e3b5e18cc4ffd08c4; _uw
+_rc=$?; printf '\nUNIFIED_COMMAND_2f99d2934bbf4a3ca7ea86eff94ce215:%s\n' "$_uw_r
+c"
+
+UNIFIED_COMMAND_2f99d2934bbf4a3ca7ea86eff94ce215:0
+okernel> [6n

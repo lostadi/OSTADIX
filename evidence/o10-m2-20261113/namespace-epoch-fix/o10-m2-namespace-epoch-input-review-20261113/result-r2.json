@@ -1,0 +1,559 @@
+{
+  "actual_el2_context_evidence": [
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/tmp/ostadix-unified-context-g0zy4643/test.elf"
+      ],
+      "console": {
+        "bytes": 86,
+        "path": "/tmp/ostadix-unified-context-g0zy4643/console.log",
+        "sha256": "08ba8a5fd06843891b814a4cb16381270c1c3e76fc1549012392074ec47edf42"
+      },
+      "result": {
+        "bytes": 554,
+        "path": "/tmp/ostadix-unified-context-g0zy4643/result.json",
+        "sha256": "d144458cc0aeeb40ecb7b0d07e29d364f0e4504cce2b78cb76c6661ebe00abc0"
+      },
+      "retained": {
+        "console": {
+          "retained": {
+            "bytes": 86,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/0/console.log",
+            "sha256": "08ba8a5fd06843891b814a4cb16381270c1c3e76fc1549012392074ec47edf42"
+          },
+          "source": {
+            "bytes": 86,
+            "path": "/tmp/ostadix-unified-context-g0zy4643/console.log",
+            "sha256": "08ba8a5fd06843891b814a4cb16381270c1c3e76fc1549012392074ec47edf42"
+          }
+        },
+        "result": {
+          "retained": {
+            "bytes": 554,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/0/result.json",
+            "sha256": "d144458cc0aeeb40ecb7b0d07e29d364f0e4504cce2b78cb76c6661ebe00abc0"
+          },
+          "source": {
+            "bytes": 554,
+            "path": "/tmp/ostadix-unified-context-g0zy4643/result.json",
+            "sha256": "d144458cc0aeeb40ecb7b0d07e29d364f0e4504cce2b78cb76c6661ebe00abc0"
+          }
+        }
+      },
+      "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/tmp/ostadix-unified-context-8av7cd5z/test.elf"
+      ],
+      "console": {
+        "bytes": 206,
+        "path": "/tmp/ostadix-unified-context-8av7cd5z/console.log",
+        "sha256": "98c805f20dba3ed013b5360ac8210d30f7f4f02221eaa1f077187d3159b3c034"
+      },
+      "result": {
+        "bytes": 554,
+        "path": "/tmp/ostadix-unified-context-8av7cd5z/result.json",
+        "sha256": "86d71b82a596664479e0340d6bf1337021131085994dcd7ca397253d212b9f2b"
+      },
+      "retained": {
+        "console": {
+          "retained": {
+            "bytes": 206,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/1/console.log",
+            "sha256": "98c805f20dba3ed013b5360ac8210d30f7f4f02221eaa1f077187d3159b3c034"
+          },
+          "source": {
+            "bytes": 206,
+            "path": "/tmp/ostadix-unified-context-8av7cd5z/console.log",
+            "sha256": "98c805f20dba3ed013b5360ac8210d30f7f4f02221eaa1f077187d3159b3c034"
+          }
+        },
+        "result": {
+          "retained": {
+            "bytes": 554,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/1/result.json",
+            "sha256": "86d71b82a596664479e0340d6bf1337021131085994dcd7ca397253d212b9f2b"
+          },
+          "source": {
+            "bytes": 554,
+            "path": "/tmp/ostadix-unified-context-8av7cd5z/result.json",
+            "sha256": "86d71b82a596664479e0340d6bf1337021131085994dcd7ca397253d212b9f2b"
+          }
+        }
+      },
+      "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/tmp/ostadix-unified-context-6pr_wklz/test.elf"
+      ],
+      "console": {
+        "bytes": 86,
+        "path": "/tmp/ostadix-unified-context-6pr_wklz/console.log",
+        "sha256": "08ba8a5fd06843891b814a4cb16381270c1c3e76fc1549012392074ec47edf42"
+      },
+      "result": {
+        "bytes": 554,
+        "path": "/tmp/ostadix-unified-context-6pr_wklz/result.json",
+        "sha256": "79db45fbc99721eb2da7b6b364f1b66194d3f45809df261e34abe6672c8c3692"
+      },
+      "retained": {
+        "console": {
+          "retained": {
+            "bytes": 86,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/2/console.log",
+            "sha256": "08ba8a5fd06843891b814a4cb16381270c1c3e76fc1549012392074ec47edf42"
+          },
+          "source": {
+            "bytes": 86,
+            "path": "/tmp/ostadix-unified-context-6pr_wklz/console.log",
+            "sha256": "08ba8a5fd06843891b814a4cb16381270c1c3e76fc1549012392074ec47edf42"
+          }
+        },
+        "result": {
+          "retained": {
+            "bytes": 554,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/2/result.json",
+            "sha256": "79db45fbc99721eb2da7b6b364f1b66194d3f45809df261e34abe6672c8c3692"
+          },
+          "source": {
+            "bytes": 554,
+            "path": "/tmp/ostadix-unified-context-6pr_wklz/result.json",
+            "sha256": "79db45fbc99721eb2da7b6b364f1b66194d3f45809df261e34abe6672c8c3692"
+          }
+        }
+      },
+      "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/tmp/ostadix-unified-context-pxzu_7mm/test.elf"
+      ],
+      "console": {
+        "bytes": 166,
+        "path": "/tmp/ostadix-unified-context-pxzu_7mm/console.log",
+        "sha256": "cf52d0733a9290a042b16ebae2e9034270582e8189bd93d7f559a95cf7a106e4"
+      },
+      "result": {
+        "bytes": 554,
+        "path": "/tmp/ostadix-unified-context-pxzu_7mm/result.json",
+        "sha256": "2916aba106d3ca79a0085f3a0d3b93608f3bdb3e3aa4c58f1429173974798e7f"
+      },
+      "retained": {
+        "console": {
+          "retained": {
+            "bytes": 166,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/3/console.log",
+            "sha256": "cf52d0733a9290a042b16ebae2e9034270582e8189bd93d7f559a95cf7a106e4"
+          },
+          "source": {
+            "bytes": 166,
+            "path": "/tmp/ostadix-unified-context-pxzu_7mm/console.log",
+            "sha256": "cf52d0733a9290a042b16ebae2e9034270582e8189bd93d7f559a95cf7a106e4"
+          }
+        },
+        "result": {
+          "retained": {
+            "bytes": 554,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/3/result.json",
+            "sha256": "2916aba106d3ca79a0085f3a0d3b93608f3bdb3e3aa4c58f1429173974798e7f"
+          },
+          "source": {
+            "bytes": 554,
+            "path": "/tmp/ostadix-unified-context-pxzu_7mm/result.json",
+            "sha256": "2916aba106d3ca79a0085f3a0d3b93608f3bdb3e3aa4c58f1429173974798e7f"
+          }
+        }
+      },
+      "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/tmp/ostadix-unified-context-sacfsldw/test.elf"
+      ],
+      "console": {
+        "bytes": 166,
+        "path": "/tmp/ostadix-unified-context-sacfsldw/console.log",
+        "sha256": "cf52d0733a9290a042b16ebae2e9034270582e8189bd93d7f559a95cf7a106e4"
+      },
+      "result": {
+        "bytes": 554,
+        "path": "/tmp/ostadix-unified-context-sacfsldw/result.json",
+        "sha256": "6770673eb8008cbb830b50821d4823dfe3371c3c47de119b8f9de2bcd548ea6d"
+      },
+      "retained": {
+        "console": {
+          "retained": {
+            "bytes": 166,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/4/console.log",
+            "sha256": "cf52d0733a9290a042b16ebae2e9034270582e8189bd93d7f559a95cf7a106e4"
+          },
+          "source": {
+            "bytes": 166,
+            "path": "/tmp/ostadix-unified-context-sacfsldw/console.log",
+            "sha256": "cf52d0733a9290a042b16ebae2e9034270582e8189bd93d7f559a95cf7a106e4"
+          }
+        },
+        "result": {
+          "retained": {
+            "bytes": 554,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/4/result.json",
+            "sha256": "6770673eb8008cbb830b50821d4823dfe3371c3c47de119b8f9de2bcd548ea6d"
+          },
+          "source": {
+            "bytes": 554,
+            "path": "/tmp/ostadix-unified-context-sacfsldw/result.json",
+            "sha256": "6770673eb8008cbb830b50821d4823dfe3371c3c47de119b8f9de2bcd548ea6d"
+          }
+        }
+      },
+      "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+    },
+    {
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/tmp/ostadix-unified-context-m790n9eo/test.elf"
+      ],
+      "console": {
+        "bytes": 206,
+        "path": "/tmp/ostadix-unified-context-m790n9eo/console.log",
+        "sha256": "98c805f20dba3ed013b5360ac8210d30f7f4f02221eaa1f077187d3159b3c034"
+      },
+      "result": {
+        "bytes": 554,
+        "path": "/tmp/ostadix-unified-context-m790n9eo/result.json",
+        "sha256": "7d9a7acc7ef847216c5ebf8a886deb82cbfad085ab1f2b47314493de4f680538"
+      },
+      "retained": {
+        "console": {
+          "retained": {
+            "bytes": 206,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/5/console.log",
+            "sha256": "98c805f20dba3ed013b5360ac8210d30f7f4f02221eaa1f077187d3159b3c034"
+          },
+          "source": {
+            "bytes": 206,
+            "path": "/tmp/ostadix-unified-context-m790n9eo/console.log",
+            "sha256": "98c805f20dba3ed013b5360ac8210d30f7f4f02221eaa1f077187d3159b3c034"
+          }
+        },
+        "result": {
+          "retained": {
+            "bytes": 554,
+            "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/retained-contexts/5/result.json",
+            "sha256": "7d9a7acc7ef847216c5ebf8a886deb82cbfad085ab1f2b47314493de4f680538"
+          },
+          "source": {
+            "bytes": 554,
+            "path": "/tmp/ostadix-unified-context-m790n9eo/result.json",
+            "sha256": "7d9a7acc7ef847216c5ebf8a886deb82cbfad085ab1f2b47314493de4f680538"
+          }
+        }
+      },
+      "scope": "synthetic actualEL2 context/preemption stress, not foreignOS qualification"
+    }
+  ],
+  "after_sha256": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "tests/test_o10_linux_restart_native.py": "161c18d9b595d11f82d1f66af069c71bcdbf951bd3291b67713934abab227795",
+    "tests/test_unified_world_context.py": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+  },
+  "apply_scope": [
+    "ocore/runtime/aarch64/kernel_world_9p.oc",
+    "ocore/runtime/aarch64/unified_world.oc",
+    "tests/test_o10_linux_restart_native.py",
+    "tests/test_unified_world_context.py"
+  ],
+  "before_sha256": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+    "ocore/runtime/aarch64/unified_world.oc": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+    "tests/test_o10_linux_restart_native.py": "6630863102495354f2044ca99b310e33d9a82905523e1db417e6ac12a24a76f2",
+    "tests/test_unified_world_context.py": "90b5364e7be335ecdc6898179a783eb8af9834ff74f079210c1cd38850301968"
+  },
+  "blocking_findings": [],
+  "checks": [
+    "exact two removed namespace UINT32 limits plus namespace-only MAXu64 preincrement guard; no other production-byte change",
+    "strict nonzero and next>current preserve stale/equal/decreased/wrapped epoch rejection",
+    "new actual lifecycle scenarios retain RAM/fid/survivor/exact-once assertions and cover observed boot epoch, UINT32_MAX to2^32, MAX-1 toMAX, nondestructiveMAX refusal",
+    "permanent Linux-slot and last-current-Linux actualEL2 reset tests preserve all4096context bytes, targetVMID invalidation, survivor bank and x19..x29 AAPCS canaries",
+    "current12-method closure passed before one boundary-case addition; current lifecycle module rerun passed all7scenarios; metadata explicitly records older broker mismatch"
+  ],
+  "compiler_code_changed": false,
+  "diff_check": {
+    "returncode": 0,
+    "stderr": {
+      "bytes": 0,
+      "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/diff-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout": {
+      "bytes": 0,
+      "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/diff-check.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "domain_lease_block_net_generation_limit": 32,
+  "focused": [
+    {
+      "actual_tests": 12,
+      "logs": {
+        "focused.stderr.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused.stderr.log",
+          "sha256": "b5a1a86ab7148c309d0a3734922783d8ab00d62533b1aaa1e6380ee65d19b26e"
+        },
+        "focused.stdout.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused.stdout.log",
+          "sha256": "b9d3d398c1a372b5d04458839a8a83bc166ac10b8be64eadeaaf86d8b63172ea"
+        }
+      },
+      "receipt": {
+        "bytes": 3195,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused.json",
+        "sha256": "f75c5f23a82e64e070ee43a76b3cece54a5dab45d4bde0b62d91511bc2096cd4"
+      },
+      "scope": "Actual component and syntheticEL2 checks of authorized native/test delta through older619394 broker; preparation only, no milestone qualification",
+      "skips": 0,
+      "source_sha256": {
+        "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+        "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+        "tests/test_o10_linux_restart_native.py": "8d6470022329c80771a9b6aa2af3ad1e4ab5c1d3fa55fb6d727d20c87229bcce",
+        "tests/test_unified_world_context.py": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+      }
+    },
+    {
+      "actual_tests": 1,
+      "logs": {
+        "focused-r2.stderr.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused-r2.stderr.log",
+          "sha256": "51876fa225bd4e65e953f5ed35fbf565bf327534afcedbff15d5c8615c3117d9"
+        },
+        "focused-r2.stdout.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused-r2.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "receipt": {
+        "bytes": 3045,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused-r2.json",
+        "sha256": "580e494a6b8b4e50128d43a822cfa06b3fe34aff82c05cb644ab6d17629afd09"
+      },
+      "scope": "Actual component and syntheticEL2 checks of authorized native/test delta through older619394 broker; preparation only, no milestone qualification",
+      "skips": 0,
+      "source_sha256": {
+        "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+        "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+        "tests/test_o10_linux_restart_native.py": "161c18d9b595d11f82d1f66af069c71bcdbf951bd3291b67713934abab227795",
+        "tests/test_unified_world_context.py": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+      }
+    }
+  ],
+  "fresh_current_head_mcp_stamp_required": true,
+  "milestone_qualified": false,
+  "namespace_transport_epoch_width": 64,
+  "native_ocore_source_changed": true,
+  "native_paths": [
+    "ocore/runtime/aarch64/kernel_world_9p.oc",
+    "ocore/runtime/aarch64/unified_world.oc"
+  ],
+  "observed_unix": 1794572334.2032886,
+  "ok": true,
+  "origin_build": {
+    "bytes": 1302131,
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/build.json",
+    "sha256": "66ccb2f10653a19b4735317bdfdd66c8dd183e1a5ec1c91d2d907a5f6654ccb8"
+  },
+  "patch": {
+    "bytes": 17429,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/native-test.patch",
+    "sha256": "776ae4e74eea3c3baf9afa9b5204d8bb493c860beee43092506e61acc33c37af"
+  },
+  "prior_review": {
+    "bytes": 15928,
+    "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/result.json",
+    "sha256": "342eb11c28eda1b7a0aaa2bcd632e917064f154c78b844897fbf8395c6446846"
+  },
+  "retained_contexts_unix": 1794572406.2111387,
+  "reviewer": "m2_gate",
+  "root_mcp_dependency_resolution_inputs_changed": false,
+  "schema": "ostadix.o10-m2-reviewed-namespace-epoch-input-overlay/v1",
+  "scope": "Independent exact native/test input-overlay review and retained actual component/syntheticEL2 evidence readback. Older619 broker/currenta689 mismatch remains explicit; full final-head M2 gates require a fresh aligned stamp.",
+  "selected_tools": {
+    "compiler": {
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/ocorec",
+      "bytes": 3817336,
+      "elf_machine": 62,
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+      "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+    },
+    "evaluator": {
+      "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/O",
+      "bytes": 6395424,
+      "elf_machine": 62,
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+      "sha256": "494fc7ff2873ce06007affc31f14c0a8dc7645b354c004e9f86881e635a05bb1"
+    }
+  },
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "source_root": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "source_unchanged": true,
+  "test_paths": [
+    "tests/test_o10_linux_restart_native.py",
+    "tests/test_unified_world_context.py"
+  ],
+  "tool_input_audit": {
+    "bytes": 6564,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/tool-input-audit.json",
+    "sha256": "6ddee20f0e4767cdf605d9303567f5d3b7f09e61375b0ee911a65aa1a20d947c"
+  },
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "unchanged_inputs": {
+    "Cargo.lock": "31f81ac32e461d1a8bd433f31fa65b3759a1fff73b196ad7a24ce751e345dca8",
+    "Cargo.toml": "1eeb28b44de3f4eaea63fc90f2abcbb21216a653ce53b4ed0b7b5f93a423fe95",
+    "mcp/ostadix_lang_mcp_server/Cargo.lock": "d8411ca4c9b9c5afac3c23af21cc5620ee9e307bdecca4abb96e948a68af8b9b",
+    "mcp/ostadix_lang_mcp_server/Cargo.toml": "b6d1ad91c22729e35243efb93646ad843b75204b7e5b7c8a1adc4799921224ea",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/common/namespace_store.oc": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3"
+  },
+  "watched_build_identity_changed": true,
+  "wire_handle_generation_width_changed": false
+}

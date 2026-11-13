@@ -1,0 +1,113 @@
+{
+  "author": {
+    "avatar_url": "https://avatars.githubusercontent.com/u/34668360?v=4",
+    "events_url": "https://api.github.com/users/lostadi/events{/privacy}",
+    "followers_url": "https://api.github.com/users/lostadi/followers",
+    "following_url": "https://api.github.com/users/lostadi/following{/other_user}",
+    "gists_url": "https://api.github.com/users/lostadi/gists{/gist_id}",
+    "gravatar_id": "",
+    "html_url": "https://github.com/lostadi",
+    "id": 34668360,
+    "login": "lostadi",
+    "node_id": "MDQ6VXNlcjM0NjY4MzYw",
+    "organizations_url": "https://api.github.com/users/lostadi/orgs",
+    "received_events_url": "https://api.github.com/users/lostadi/received_events",
+    "repos_url": "https://api.github.com/users/lostadi/repos",
+    "site_admin": false,
+    "starred_url": "https://api.github.com/users/lostadi/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/lostadi/subscriptions",
+    "type": "User",
+    "url": "https://api.github.com/users/lostadi",
+    "user_view_type": "public"
+  },
+  "comments_url": "https://api.github.com/repos/lostadi/OSTADIX/commits/37961f95efed2c3cff8421263818b6073e92372b/comments",
+  "commit": {
+    "author": {
+      "date": "2026-11-13T10:50:28Z",
+      "email": "34668360+lostadi@users.noreply.github.com",
+      "name": "Lee Daghlar Ostadi"
+    },
+    "comment_count": 0,
+    "committer": {
+      "date": "2026-11-13T10:50:28Z",
+      "email": "34668360+lostadi@users.noreply.github.com",
+      "name": "Lee Daghlar Ostadi"
+    },
+    "message": "Keep Mode 17 semantics within the fixed bootstrap reserve\n\nThe integrated thread-install observations make the unsectioned Mode 17 kernel end at0x389000, exceeding its existing0x380000 limit. Apply the established per-function/per-data section and linker-reachability policy to this mode; retain every original source input and the unchanged linker, bootstrap mapping and reserve. The resulting kernel ends at0x2fc000.\n\nValidation: actual complete M5 semantics QEMU gate passes with both the previous and freshly rebuilt current-source compiler; all seven semantic markers, post-test IRQ ordering and one-second survival remain required. Two build-recipe tests pass for both linker invocation variants. Independent review verifies all65 ordered source inputs and2,456 object symbol facts; removing Mode17 from the policy makes both negative controls fail. Full changed-source CI remains required.\n\nAssisted-by: Codex agents for reproduction, implementation, execution checks and independent review.",
+    "tree": {
+      "sha": "29e5b55b51d1f89f4a7cd9702b5f0390edacec65",
+      "url": "https://api.github.com/repos/lostadi/OSTADIX/git/trees/29e5b55b51d1f89f4a7cd9702b5f0390edacec65"
+    },
+    "url": "https://api.github.com/repos/lostadi/OSTADIX/git/commits/37961f95efed2c3cff8421263818b6073e92372b",
+    "verification": {
+      "payload": null,
+      "reason": "unsigned",
+      "signature": null,
+      "verified": false,
+      "verified_at": null
+    }
+  },
+  "committer": {
+    "avatar_url": "https://avatars.githubusercontent.com/u/34668360?v=4",
+    "events_url": "https://api.github.com/users/lostadi/events{/privacy}",
+    "followers_url": "https://api.github.com/users/lostadi/followers",
+    "following_url": "https://api.github.com/users/lostadi/following{/other_user}",
+    "gists_url": "https://api.github.com/users/lostadi/gists{/gist_id}",
+    "gravatar_id": "",
+    "html_url": "https://github.com/lostadi",
+    "id": 34668360,
+    "login": "lostadi",
+    "node_id": "MDQ6VXNlcjM0NjY4MzYw",
+    "organizations_url": "https://api.github.com/users/lostadi/orgs",
+    "received_events_url": "https://api.github.com/users/lostadi/received_events",
+    "repos_url": "https://api.github.com/users/lostadi/repos",
+    "site_admin": false,
+    "starred_url": "https://api.github.com/users/lostadi/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/lostadi/subscriptions",
+    "type": "User",
+    "url": "https://api.github.com/users/lostadi",
+    "user_view_type": "public"
+  },
+  "files": [
+    {
+      "additions": 3,
+      "blob_url": "https://github.com/lostadi/OSTADIX/blob/37961f95efed2c3cff8421263818b6073e92372b/ocore%2Fkernel%2Fbuild.sh",
+      "changes": 5,
+      "contents_url": "https://api.github.com/repos/lostadi/OSTADIX/contents/ocore%2Fkernel%2Fbuild.sh?ref=37961f95efed2c3cff8421263818b6073e92372b",
+      "deletions": 2,
+      "filename": "ocore/kernel/build.sh",
+      "patch": "@@ -26,11 +26,12 @@ esac\n \n LINK_GC_FLAGS=()\n OCOREC_FUNCTION_SECTION_FLAGS=()\n-if (( PROBE_MODE == 0 || PROBE_MODE == 15 || PROBE_MODE == 20 || PROBE_MODE == 22 \\\n+if (( PROBE_MODE == 0 || PROBE_MODE == 15 || PROBE_MODE == 17 || PROBE_MODE == 20 || PROBE_MODE == 22 \\\n     || PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 \\\n     || PROBE_MODE == 30 || PROBE_MODE == 32 || PROBE_MODE == 16 || PROBE_MODE == 23 \\\n     || PROBE_MODE == 27 || PROBE_MODE == 28 || PROBE_MODE == 29 || PROBE_MODE == 33 || PROBE_MODE == 34 || PROBE_MODE == 35 )); then\n-  # These probes carry the largest kernels. Preserve the fixed bootstrap\n+  # These probes carry the largest kernels, including Mode 17's full semantics\n+  # corpus. Preserve the fixed bootstrap\n   # reserve by letting linker reachability discard unreferenced functions and\n   # statics. All source inputs and explicit source link sections remain intact.\n   LINK_GC_FLAGS=(--gc-sections)",
+      "raw_url": "https://github.com/lostadi/OSTADIX/raw/37961f95efed2c3cff8421263818b6073e92372b/ocore%2Fkernel%2Fbuild.sh",
+      "sha": "2b3891530eecec368056e3569b24bff5f2ee3aec",
+      "status": "modified"
+    },
+    {
+      "additions": 27,
+      "blob_url": "https://github.com/lostadi/OSTADIX/blob/37961f95efed2c3cff8421263818b6073e92372b/tests%2Ftest_ocore_kernel_build_profiles.py",
+      "changes": 33,
+      "contents_url": "https://api.github.com/repos/lostadi/OSTADIX/contents/tests%2Ftest_ocore_kernel_build_profiles.py?ref=37961f95efed2c3cff8421263818b6073e92372b",
+      "deletions": 6,
+      "filename": "tests/test_ocore_kernel_build_profiles.py",
+      "patch": "@@ -34,7 +34,7 @@\n \n \n class KernelBuildProfileTests(unittest.TestCase):\n-    def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:\n+    def _assert_sections_preserve_sources_and_fixed_linker(self, mode: int) -> None:\n         compiler_inputs = []\n         for linker_name in (\"rust-lld\", \"ld.lld\"):\n             with self.subTest(linker=linker_name), tempfile.TemporaryDirectory(\n@@ -52,7 +52,7 @@ def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:\n                 calls_path = directory / \"calls.jsonl\"\n                 environment = os.environ.copy()\n                 environment.update(\n-                    OCORE_PROBE_MODE=\"35\",\n+                    OCORE_PROBE_MODE=str(mode),\n                     OCORE_BOOT_INFO_ENABLED=\"0\",\n                     OCORE_BUILD_DIR=str(build),\n                     OCOREC_BIN=str(tools / \"ocorec\"),\n@@ -84,7 +84,7 @@ def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:\n                 self.assertEqual(compiler[compiler.index(\"--emit\") + 1], \"obj\")\n                 self.assertEqual(compiler[compiler.index(\"-o\") + 1], str(build / \"kernel.o\"))\n                 self.assertEqual(len(sources), len(set(sources)))\n-                for required in (\n+                required_sources = (\n                     \"ocore/world/identity.oc\",\n                     \"ocore/world/protocol.oc\",\n                     \"ocore/world/value.oc\",\n@@ -95,10 +95,25 @@ def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:\n                     \"ocore/world/native_scalar.oc\",\n                     \"ocore/kernel/world_native_scalar_semantics.oc\",\n                     \"ocore/kernel/main.oc\",\n-                ):\n+                ) if mode == 35 else (\n+                    \"ocore/kernel/m5_selftest.oc\",\n+                    \"ocore/kernel/m5_semantics.oc\",\n+                    \"ocore/kernel/m1.oc\",\n+                    \"ocore/kernel/m2.oc\",\n+                    \"ocore/kernel/m3.oc\",\n+                    \"ocore/kernel/m3_live.oc\",\n+                    \"ocore/kernel/m4.oc\",\n+                    \"ocore/runtime/x86_64/thread.oc\",\n+                    \"ocore/kernel/main.oc\",\n+                )\n+                for required in required_sources:\n                     self.assertIn(required, sources)\n-                self.assertNotIn(\"ocore/kernel/world_native_scalar_semantics_stub.oc\", sources)\n-                self.assertIn(\"-DOCORE_PROBE_MODE=35\", assembler)\n+                if mode == 35:\n+                    self.assertNotIn(\"ocore/kernel/world_native_scalar_semantics_stub.oc\", sources)\n+                else:\n+                    self.assertNotIn(\"ocore/kernel/m5_selftest_stub.oc\", sources)\n+                    self.assertNotIn(\"ocore/kernel/m5_semantics_stub.oc\", sources)\n+                self.assertIn(f\"-DOCORE_PROBE_MODE={mode}\", assembler)\n                 self.assertIn(str(ROOT / \"ocore/kernel/boot.S\"), assembler)\n                 self.assertEqual(linker.count(\"--gc-sections\"), 1)\n                 self.assertEqual(linker[linker.index(\"-T\") + 1], str(ROOT / \"ocore/kernel/linker.ld\"))\n@@ -108,6 +123,12 @@ def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:\n                 self.assertFalse(any(arg.startswith(\"--defsym\") for arg in linker))\n         self.assertEqual(compiler_inputs[0], compiler_inputs[1])\n \n+    def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:\n+        self._assert_sections_preserve_sources_and_fixed_linker(35)\n+\n+    def test_mode17_sections_preserve_semantics_sources_and_fixed_linker(self) -> None:\n+        self._assert_sections_preserve_sources_and_fixed_linker(17)\n+\n \n if __name__ == \"__main__\":\n     unittest.main()",
+      "raw_url": "https://github.com/lostadi/OSTADIX/raw/37961f95efed2c3cff8421263818b6073e92372b/tests%2Ftest_ocore_kernel_build_profiles.py",
+      "sha": "e1879353579831ca6f26cf6a082fc71154188cc7",
+      "status": "modified"
+    }
+  ],
+  "html_url": "https://github.com/lostadi/OSTADIX/commit/37961f95efed2c3cff8421263818b6073e92372b",
+  "node_id": "C_kwDOT8D10toAKDM3OTYxZjk1ZWZlZDJjM2NmZjg0MjEyNjM4MThiNjA3M2U5MjM3MmI",
+  "parents": [
+    {
+      "html_url": "https://github.com/lostadi/OSTADIX/commit/c8b483847dd08ed9b621b0e2658378f49d5559f2",
+      "sha": "c8b483847dd08ed9b621b0e2658378f49d5559f2",
+      "url": "https://api.github.com/repos/lostadi/OSTADIX/commits/c8b483847dd08ed9b621b0e2658378f49d5559f2"
+    }
+  ],
+  "sha": "37961f95efed2c3cff8421263818b6073e92372b",
+  "stats": {
+    "additions": 30,
+    "deletions": 8,
+    "total": 38
+  },
+  "url": "https://api.github.com/repos/lostadi/OSTADIX/commits/37961f95efed2c3cff8421263818b6073e92372b"
+}

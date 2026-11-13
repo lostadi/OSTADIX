@@ -1,0 +1,41 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nsys.path.insert(0,root+\"/scripts\")\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m2-20261112",
+    "[\"tests.test_unified_client_acceptance\", \"tests.test_unified_runtime_acceptance\", \"tests.test_unified_world_plan9_userland_admission\", \"tests.test_unified_userland_admission_readonly_integration\", \"tests.test_freeze_okernel_unified_runtime\", \"tests.test_unified_world_context\", \"tests.test_unified_world_profile\", \"tests.test_namespace_store\", \"tests.test_p9_install\", \"tests.test_namespace_store_dotu\", \"tests.test_namespace_local_backend\", \"tests.test_native_local_namespace_files\", \"tests.test_ocore_kernel_build_profiles\"]",
+    ""
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nsys.path.insert(0,root+\"/scripts\")\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m2-20261112",
+    "[\"tests.test_unified_client_acceptance\", \"tests.test_unified_runtime_acceptance\", \"tests.test_unified_world_plan9_userland_admission\", \"tests.test_unified_userland_admission_readonly_integration\", \"tests.test_freeze_okernel_unified_runtime\", \"tests.test_unified_world_context\", \"tests.test_unified_world_profile\", \"tests.test_namespace_store\", \"tests.test_p9_install\", \"tests.test_namespace_store_dotu\", \"tests.test_namespace_local_backend\", \"tests.test_native_local_namespace_files\", \"tests.test_ocore_kernel_build_profiles\"]",
+    ""
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "started": 1794578527.3180718,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OCORE_U9FS_ARM_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "TMPDIR": null,
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "finished": 1794578527.4825785,
+  "log": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/targeted-inventory.log",
+    "sha256": "5ff1952d3335ab1c24846c531bc9f6bc0c141fa4b35f5a5990293c30efef1c6f"
+  }
+}

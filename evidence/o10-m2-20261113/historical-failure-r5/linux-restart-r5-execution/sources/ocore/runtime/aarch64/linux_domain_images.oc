@@ -1,0 +1,62 @@
+module runtime::aarch64::linux_domain_images;
+
+// Boot-only immutable Linux image descriptors. This is not the O10 image
+// handle encoding; the executor will bind registered handles separately.
+// Source windows are monitor-private and must never enter guest stage2.
+extern "ocore" fn kw_guest_address(gpa: u64, length: u64) -> usize;
+extern "ocore" fn kw_memory_barrier() -> void;
+
+const KERNEL_SOURCE: usize = 0xd200_0000;
+const INITRD_SOURCE: usize = 0xda00_0000;
+const DTB_SOURCE: usize = 0xe200_0000;
+const PRIVATE_BASE: usize = 0x4800_0000;
+const PRIVATE_END: usize = 0x6800_0000;
+const DTB_DEST: usize = 0x4fe0_0000;
+const INITRD_DEST: usize = 0x5000_0000;
+const KERNEL_MAX: usize = 0x07e0_0000; // destination ends before Linux DTB
+const INITRD_MAX: usize = 0x0800_0000;
+const DTB_MAX: usize = 0x0001_0000;
+
+static mut REGISTERED: u64 = 0;
+static mut KERNEL_BYTES: usize = 0;
+static mut INITRD_BYTES: usize = 0;
+static mut DTB_BYTES: usize = 0;
+
+// Explicit error codes match O10: 0 success,6 invalid scope,8 capacity,
+//12 invalid state. An invalid registration leaves the boot registry empty.
+pub unsafe fn register(kernel: usize, kernel_bytes: usize, dtb: usize, dtb_bytes: usize,
+                       initrd: usize, initrd_bytes: usize) -> u64 {
+    if REGISTERED != 0 { return 12; }
+    if kernel != KERNEL_SOURCE || dtb != DTB_SOURCE || initrd != INITRD_SOURCE { return 6; }
+    if kernel_bytes == 0 || dtb_bytes == 0 || initrd_bytes == 0
+        || kernel_bytes > KERNEL_MAX || dtb_bytes > DTB_MAX || initrd_bytes > INITRD_MAX { return 8; }
+    KERNEL_BYTES = kernel_bytes; DTB_BYTES = dtb_bytes; INITRD_BYTES = initrd_bytes;
+    kw_memory_barrier(); REGISTERED = 1;
+    return 0;
+}
+
+unsafe fn copy(destination: usize, source: usize, count: usize) -> void {
+    let mut offset: usize = 0;
+    while count - offset >= 8 {
+        volatile_store((destination + offset) as *mut u64, volatile_load((source + offset) as *const u64));
+        offset += 8;
+    }
+    while offset < count {
+        volatile_store((destination + offset) as *mut u8, volatile_load((source + offset) as *const u8));
+        offset += 1;
+    }
+}
+
+// Caller must stop scheduling Linux first. Its RAM accessor must already be
+// revoked, independently of device completion, before any private RAM changes.
+// No Plan9 RAM/store/backing/outer NIC buffers are touched.
+pub unsafe fn reload() -> u64 {
+    if REGISTERED != 1 || kw_guest_address(0x4000_0000, 1) != 0 { return 12; }
+    let mut address: usize = PRIVATE_BASE;
+    while address < PRIVATE_END { volatile_store(address as *mut u64, 0); address += 8; }
+    copy(PRIVATE_BASE, KERNEL_SOURCE, KERNEL_BYTES);
+    copy(DTB_DEST, DTB_SOURCE, DTB_BYTES);
+    copy(INITRD_DEST, INITRD_SOURCE, INITRD_BYTES);
+    kw_memory_barrier();
+    return 0;
+}

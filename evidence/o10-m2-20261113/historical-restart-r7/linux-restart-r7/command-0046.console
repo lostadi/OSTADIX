@@ -1,0 +1,8 @@
+printf %s IDI3NSAyNzYgMjc3IDI3OCAyNzkpIHsgZWNobyAkaTsgc2xlZXAgMSB9IH0gP
+j4gL24vc2VydmljZXMvcGxhbjkvZ2IzYTY0OWVjZWI0ZDVmNzQvczhmZDc5NzE2ZDUxYjA5Y2UxYzNkN
+DI1M2YzZDAzNjg5L20yLWNvdW50ZXItNjU2NTYzZTgzZDgwMzFhNDg3NzU2MGQw >> /run/o10-m2-c
+ounter-c89838f013aba6654b8643146d837fce.request.o10-base64; _uw_rc=$?; printf '\
+nUNIFIED_COMMAND_c643bdc88c4a4dc6926b8e64961bf9c0:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_c643bdc88c4a4dc6926b8e64961bf9c0:0
+okernel> [6n

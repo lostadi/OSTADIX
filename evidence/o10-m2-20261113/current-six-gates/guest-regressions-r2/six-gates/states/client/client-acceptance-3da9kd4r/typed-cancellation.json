@@ -1,0 +1,61 @@
+{
+  "argv": [
+    "/arm64/bin/rc",
+    "-I",
+    "-c",
+    "echo STREAM_READY_7a2149ae3285e6a6e93c; sleep 120"
+  ],
+  "current": {
+    "generation": "273bc16def1ddbd9",
+    "instance": "bb7fbb2afc2c5ced057c8f050b0793c5",
+    "linux_mount": "/n/okernel",
+    "plan9_mount": "/n",
+    "program_dir": "/arm64/bin",
+    "recovery_mode": "controller-v1",
+    "schema": "ostadix.p9.client-session/v1",
+    "service_root": "/n/okernel/services/plan9",
+    "state": "ready"
+  },
+  "cwd": "/n/work/foreground-7a2149ae3285e6a6e93c",
+  "linux_exit": 130,
+  "private_ack": {
+    "done_sha256": "4a11f24a73e41c11e84ffa175f147335358e338d5f32aba72ad0ad6117c4257c",
+    "generation": "273bc16def1ddbd9",
+    "new_instance": "bb7fbb2afc2c5ced057c8f050b0793c5",
+    "old_instance": "cb98e149ee94a0f2ea79224e72559347",
+    "outcome": "interrupted",
+    "ready_sha256": "4d391b7a1293820cfce1871639b90e3f548bbc0cfa182ee409b685e5da250556",
+    "request_id": "7636d4e9788be4d2a2f3cef8600a9340",
+    "request_sha256": "fe72374eba7394fb2adfc2b58fd3829bcdda8ce0068d8244ed0fa8ee9825b1fc",
+    "reset_sha256": "7ed7be966ccdca487e89efb9ba04f9bbe656b01e0a31eda3d1367115b86f60d0",
+    "result_sha256": "6c8e29deb78b9902477bcf36981e18a3ecd0bbf4895641c9f47133870e96801b",
+    "schema": "ostadix.p9.recovered/v1"
+  },
+  "receipt": {
+    "flags": 16,
+    "generation": "273bc16def1ddbd9",
+    "instance": "cb98e149ee94a0f2ea79224e72559347",
+    "recovered": true,
+    "request_id": "7636d4e9788be4d2a2f3cef8600a9340",
+    "request_sha256": "fe72374eba7394fb2adfc2b58fd3829bcdda8ce0068d8244ed0fa8ee9825b1fc",
+    "result_sha256": "6c8e29deb78b9902477bcf36981e18a3ecd0bbf4895641c9f47133870e96801b",
+    "schema": "ostadix.p9.client-result/v1",
+    "service_root": "/n/okernel/services/plan9",
+    "status_hex": "736572766963653a20636f6d6d616e642063616e63656c6c6564",
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 34,
+    "stdout_sha256": "74f30fa6cbe8c7bae5b4d3f8961c671f006680bf2afa4a47a2f5b9cbb7ae09e6"
+  },
+  "status_hex": "736572766963653a20636f6d6d616e642063616e63656c6c6564",
+  "wire_sha256": {
+    "done": "4a11f24a73e41c11e84ffa175f147335358e338d5f32aba72ad0ad6117c4257c",
+    "request": "fe72374eba7394fb2adfc2b58fd3829bcdda8ce0068d8244ed0fa8ee9825b1fc",
+    "result": "6c8e29deb78b9902477bcf36981e18a3ecd0bbf4895641c9f47133870e96801b",
+    "started": "7c556eaa62c66c808cdbc5c2e5c7ff84a161e85540d27d7d068e5eefa423acf2",
+    "status": "26f249178ae616590bcb1783ad800be7c97680c575c1e90721d7ad18b73d7053",
+    "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout": "74f30fa6cbe8c7bae5b4d3f8961c671f006680bf2afa4a47a2f5b9cbb7ae09e6",
+    "submit": "7c556eaa62c66c808cdbc5c2e5c7ff84a161e85540d27d7d068e5eefa423acf2"
+  }
+}

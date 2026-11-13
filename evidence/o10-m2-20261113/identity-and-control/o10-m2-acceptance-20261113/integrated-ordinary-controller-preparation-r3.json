@@ -1,0 +1,45 @@
+{
+  "approved_fuzz_overlay": {
+    "after_sha256": "9fcf62f91afb4db613a3d2dd976be907caf1fcfd7e017fd5d06c3430b5ff557f",
+    "audit_sha256": "356dc95a6aeba569e4cb5cc532f8d196159a5cf490dcf6e52ecb30c731e9c3a2",
+    "before_sha256": "8eef2e10bce3b414295d51ad15206149434391f12dc574f3723738f29110c469",
+    "commit": "c320fdeea72ae21ec8c92995e52f36809e5f7cf8",
+    "path": "fuzz/Cargo.lock",
+    "scope": "Exact reviewed one-file overlay only; dependency graphs unchanged, watched build identity changed. Compiler origin remains7c12 and fresh MCP must match final head."
+  },
+  "contracts": [
+    "all discovered O10 and kernel test IDs/counts; no fixed historical test count",
+    "original seven targeted suites plus four complete native namespace suites",
+    "explicit original Plan9port/u9fs fixtures and both O1 codec closures; zero skips",
+    "PYTHONDONTWRITEBYTECODE=1; private RAM staging only for repository staging fixture",
+    "complete actual language inventory; observed exits and full logs",
+    "source/controller/tools/provenance/fixture identities before and after"
+  ],
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r3.py",
+    "sha256": "8d69f04890b8ad43ce098d28cf7a46ba12980bf782939d1ea12b8a7b4f8cc311"
+  },
+  "dispatch_status": "not materialized; awaiting new locked toolchain, candidate admission and final MCP stamp",
+  "historical_controllers_unchanged": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r2.py",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r1.py"
+  ],
+  "observed_inventory_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/integrated-language-inventory-r1.json",
+    "sha256": "757c2efad838bb3b67e9b550d1b4a07eb464d65cae3af1c98f92b66a3d2d8727"
+  },
+  "prepared_at": 1794567431.2896054,
+  "required_runtime_inputs": [
+    "final source root and expected revision",
+    "fresh aligned MCP running-process inode identity and private bridge",
+    "explicit locked compiler/evaluator regular paths and expected SHA256 values",
+    "locked toolchain JSON provenance path and expected SHA256 containing both binary identities",
+    "actual expected language inventory count (current integrated read-only inventory:267)",
+    "new output, execution and fresh provenance paths",
+    "authoritative build.json and fresh alignment.json with exact named descriptors, success/source snapshot and actual locked Cargo log identities",
+    "explicit expected toolchain build revision separate from final test/MCP revision; full tracked snapshot may differ only at four reviewed Python admission paths"
+  ],
+  "schema": "ostadix.o10-m2-integrated-ordinary-controller-preparation/v1",
+  "scope": "cache controller parameterization and static AST syntax; no gate/test/compiler execution",
+  "typed_provenance_guard": "Exact build/alignment schemas, source roots/revisions, full tracked snapshot plus Git changes restricted to four admissions, Rust/Cargo capture, two real locked Cargo commands/log hashes, selected named binary copies/built paths/SHA/size/ELF, fresh named MCP inode."
+}

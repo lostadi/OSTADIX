@@ -1,0 +1,370 @@
+{
+  "schema": "ostadix.o10-m2-linux-slot-reset-probe/v1",
+  "ok": true,
+  "source_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "scope": "Synthetic QEMU actual EL2 slot0 reset through the freshly compiled ca56 AArch64 OC caller, production assembly, explicit x19-x29 callee-save canaries, target bank/TLB reuse and surviving slot1 checks. Whole Linux restart and its four-call provision chain remain separate.",
+  "sources_before": {
+    "tests/test_unified_world_context.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_unified_world_context.py",
+      "bytes": 16271,
+      "sha256": "90b5364e7be335ecdc6898179a783eb8af9834ff74f079210c1cd38850301968"
+    },
+    "ocore/kernel/aarch64/unified_world/monitor.S": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/monitor.S",
+      "bytes": 76781,
+      "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06"
+    },
+    "ocore/kernel/aarch64/unified_world/linker.ld": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/linker.ld",
+      "bytes": 473,
+      "sha256": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0"
+    }
+  },
+  "tools": {
+    "ocorec": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+      "bytes": 3817336,
+      "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+    },
+    "clang": {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "bytes": 140592,
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "ld.lld": {
+      "path": "/usr/lib/llvm-18/bin/ld.lld",
+      "bytes": 5195712,
+      "sha256": "7ad9a0e8fe6d0e79b71172d731e33872c0274e49fceb7b516d774876d5a58ade"
+    },
+    "qemu": {
+      "path": "/usr/bin/qemu-system-aarch64",
+      "bytes": 31517544,
+      "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c"
+    }
+  },
+  "started_unix": 1794570907.707511,
+  "source_unchanged": true,
+  "cases": [
+    {
+      "output": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1",
+      "artifacts": {
+        "core.o": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/core.o",
+          "bytes": 39072,
+          "sha256": "9c84cde047443498422c29a82faabb22b665d670283f07a72dd256a0ec63d993"
+        },
+        "guest.S": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/guest.S",
+          "bytes": 1970,
+          "sha256": "d1b77c33e062584e45142a7c7406799495587214f67a798f0cd169d9d539e678"
+        },
+        "console.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/console.log",
+          "bytes": 206,
+          "sha256": "1355b37c3f355fe40e8121bcabc66ffeb8399324d539008c031a13044c4040cf"
+        },
+        "fixture.o": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/fixture.o",
+          "bytes": 38696,
+          "sha256": "b3cadf6cb4eb088b01a7a8f876a6f89274672b27646ab30916050d2eec8f5331"
+        },
+        "result.json": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/result.json",
+          "bytes": 595,
+          "sha256": "ca79a910e688f4ea1ea15feed89524bc894c0768004df8b0a5d1db2ec6cb4f13"
+        },
+        "stderr.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/stderr.log",
+          "bytes": 73,
+          "sha256": "de368de516f74abf61b95b36066175a4bb634822ab87c7f746b66c746b5171e8"
+        },
+        "fixture.c": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/fixture.c",
+          "bytes": 11254,
+          "sha256": "86b6f7baeb11bec66ef73022c2b17bd963ab56dfc9b45207fbe4f0505de13b4a"
+        },
+        "guest.o": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/guest.o",
+          "bytes": 3024,
+          "sha256": "b3349a846287e8eef96e8226eef5b73a020c85ad62d1df0a3341e9a807c92b96"
+        },
+        "test.elf": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/test.elf",
+          "bytes": 104048,
+          "sha256": "3480fe838721449291ed6984ebac48dff68d28a6fdec7310c532e0eaa332cbe6"
+        }
+      }
+    },
+    {
+      "output": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2",
+      "artifacts": {
+        "core.o": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/core.o",
+          "bytes": 39072,
+          "sha256": "9c84cde047443498422c29a82faabb22b665d670283f07a72dd256a0ec63d993"
+        },
+        "guest.S": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/guest.S",
+          "bytes": 1970,
+          "sha256": "d1b77c33e062584e45142a7c7406799495587214f67a798f0cd169d9d539e678"
+        },
+        "console.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/console.log",
+          "bytes": 206,
+          "sha256": "1355b37c3f355fe40e8121bcabc66ffeb8399324d539008c031a13044c4040cf"
+        },
+        "fixture.o": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/fixture.o",
+          "bytes": 38648,
+          "sha256": "414d8aa8353f517bc33376d3708cc739b244cce36ccaffc6cc34ef713d97da8c"
+        },
+        "result.json": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/result.json",
+          "bytes": 595,
+          "sha256": "c67bb6179e618cbf8415c1030f17b5381a5585c6a643553844b52555e03b3518"
+        },
+        "stderr.log": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/stderr.log",
+          "bytes": 73,
+          "sha256": "de368de516f74abf61b95b36066175a4bb634822ab87c7f746b66c746b5171e8"
+        },
+        "fixture.c": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/fixture.c",
+          "bytes": 11254,
+          "sha256": "86b6f7baeb11bec66ef73022c2b17bd963ab56dfc9b45207fbe4f0505de13b4a"
+        },
+        "guest.o": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/guest.o",
+          "bytes": 3024,
+          "sha256": "b3349a846287e8eef96e8226eef5b73a020c85ad62d1df0a3341e9a807c92b96"
+        },
+        "test.elf": {
+          "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/test.elf",
+          "bytes": 104048,
+          "sha256": "f3c0870783c483c4802511a528f3dfebf35995ce8751b47f9d8257fc36ad5fc7"
+        }
+      }
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/reset_probe.oc",
+        "--emit",
+        "obj",
+        "--target",
+        "aarch64-unknown-none",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/reset-probe.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "ocorec: wrote /home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/reset-probe.o\n"
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "--target=aarch64-none-elf",
+        "-march=armv8-a",
+        "-c",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/monitor.S",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/core.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "--target=aarch64-none-elf",
+        "-march=armv8-a",
+        "-c",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/guest.S",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/guest.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "--target=aarch64-none-elf",
+        "-O2",
+        "-ffreestanding",
+        "-mstrict-align",
+        "-fno-stack-protector",
+        "-DRESET_STRESS",
+        "-c",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/fixture.c",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/fixture.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/ld.lld",
+        "-m",
+        "aarch64elf",
+        "-nostdlib",
+        "--build-id=none",
+        "-T",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/linker.ld",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/test.elf",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/core.o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/guest.o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/fixture.o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/reset-probe.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "--target=aarch64-none-elf",
+        "-march=armv8-a",
+        "-c",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/monitor.S",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/core.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "--target=aarch64-none-elf",
+        "-march=armv8-a",
+        "-c",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/guest.S",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/guest.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/clang",
+        "--target=aarch64-none-elf",
+        "-O2",
+        "-ffreestanding",
+        "-mstrict-align",
+        "-fno-stack-protector",
+        "-DRESET_STRESS",
+        "-DSELF_RESET",
+        "-c",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/fixture.c",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/fixture.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/lib/llvm-18/bin/ld.lld",
+        "-m",
+        "aarch64elf",
+        "-nostdlib",
+        "--build-id=none",
+        "-T",
+        "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/linker.ld",
+        "-o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/test.elf",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/core.o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/guest.o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/fixture.o",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/reset-probe.o"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "processes": [
+    {
+      "pid": 1796816,
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-1/test.elf"
+      ],
+      "exit_code": 0
+    },
+    {
+      "pid": 1796852,
+      "argv": [
+        "/usr/bin/qemu-system-aarch64",
+        "-machine",
+        "virt,virtualization=on,gic-version=3,its=off",
+        "-cpu",
+        "cortex-a57",
+        "-smp",
+        "1",
+        "-m",
+        "3G",
+        "-accel",
+        "tcg,thread=single",
+        "-nodefaults",
+        "-nic",
+        "none",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-kernel",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/case-2/test.elf"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "probe_source": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/reset_probe.oc",
+    "bytes": 289,
+    "sha256": "a3859f5f642e1a8f3bfd3fe09ed5aa56a4fe8a70c7f7edf33706b772dc789465"
+  },
+  "probe_fixture": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-slot-reset-probe-r1/probe-fixture.c",
+    "bytes": 11254,
+    "sha256": "86b6f7baeb11bec66ef73022c2b17bd963ab56dfc9b45207fbe4f0505de13b4a"
+  },
+  "finished_unix": 1794570909.1172943
+}

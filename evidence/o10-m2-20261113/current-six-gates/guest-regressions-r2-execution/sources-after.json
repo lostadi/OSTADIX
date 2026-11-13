@@ -1,0 +1,222 @@
+{
+  "ocore/guest/linux/package-domain/init": {
+    "bytes": 737,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/linux/package-domain/init",
+    "sha256": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f"
+  },
+  "ocore/guest/linux/package-domain/p9-install": {
+    "bytes": 15426,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/linux/package-domain/p9-install",
+    "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704"
+  },
+  "ocore/kernel/aarch64/kernel_world/guest.dts": {
+    "bytes": 1802,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/kernel_world/guest.dts",
+    "sha256": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad"
+  },
+  "ocore/kernel/aarch64/plan9_probe/guest.dts": {
+    "bytes": 530,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/plan9_probe/guest.dts",
+    "sha256": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b"
+  },
+  "ocore/kernel/aarch64/unified_world/linker.ld": {
+    "bytes": 473,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/linker.ld",
+    "sha256": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0"
+  },
+  "ocore/kernel/aarch64/unified_world/monitor.S": {
+    "bytes": 76781,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/monitor.S",
+    "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06"
+  },
+  "ocore/runtime/aarch64/coordinator_uart.oc": {
+    "bytes": 6049,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/coordinator_uart.oc",
+    "sha256": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a"
+  },
+  "ocore/runtime/aarch64/kernel_world_9p.oc": {
+    "bytes": 16456,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_9p.oc",
+    "sha256": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0"
+  },
+  "ocore/runtime/aarch64/kernel_world_monitor.oc": {
+    "bytes": 33803,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_monitor.oc",
+    "sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2"
+  },
+  "ocore/runtime/aarch64/kernel_world_net.oc": {
+    "bytes": 15647,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net.oc",
+    "sha256": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29"
+  },
+  "ocore/runtime/aarch64/kernel_world_net_host.oc": {
+    "bytes": 10758,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net_host.oc",
+    "sha256": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44"
+  },
+  "ocore/runtime/aarch64/kernel_world_virtio.oc": {
+    "bytes": 26137,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio.oc",
+    "sha256": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b"
+  },
+  "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": {
+    "bytes": 11492,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+    "sha256": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5"
+  },
+  "ocore/runtime/aarch64/linux_domain_images.oc": {
+    "bytes": 2788,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_domain_images.oc",
+    "sha256": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632"
+  },
+  "ocore/runtime/aarch64/linux_restart_witness.oc": {
+    "bytes": 5560,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_restart_witness.oc",
+    "sha256": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971"
+  },
+  "ocore/runtime/aarch64/plan9_namespace_uart.oc": {
+    "bytes": 9552,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/plan9_namespace_uart.oc",
+    "sha256": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110"
+  },
+  "ocore/runtime/aarch64/unified_gic.oc": {
+    "bytes": 22622,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_gic.oc",
+    "sha256": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7"
+  },
+  "ocore/runtime/aarch64/unified_world.oc": {
+    "bytes": 44685,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_world.oc",
+    "sha256": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd"
+  },
+  "ocore/runtime/common/namespace_peer.oc": {
+    "bytes": 6760,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_peer.oc",
+    "sha256": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11"
+  },
+  "ocore/runtime/common/namespace_store.oc": {
+    "bytes": 54661,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/namespace_store.oc",
+    "sha256": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476"
+  },
+  "ocore/runtime/common/o10_codec.oc": {
+    "bytes": 3846,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/o10_codec.oc",
+    "sha256": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82"
+  },
+  "ocore/runtime/common/o10_executor.oc": {
+    "bytes": 5586,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/common/o10_executor.oc",
+    "sha256": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9"
+  },
+  "scripts/build_okernel_plan9_original.py": {
+    "bytes": 17199,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/build_okernel_plan9_original.py",
+    "sha256": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b"
+  },
+  "scripts/build_okernel_plan9_userland.py": {
+    "bytes": 34032,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/build_okernel_plan9_userland.py",
+    "sha256": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7"
+  },
+  "scripts/build_okernel_unified_world.py": {
+    "bytes": 40681,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/build_okernel_unified_world.py",
+    "sha256": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3"
+  },
+  "scripts/fork_okernel_state.py": {
+    "bytes": 9162,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+    "sha256": "67d78c9e49292e1ec46c21719e5482e52bd8a597616a2e8aec1dd1c8a1cfdba0"
+  },
+  "scripts/o-kernel.sh": {
+    "bytes": 13763,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/o-kernel.sh",
+    "sha256": "3ff027fd8836150e71201bba6631203add6406b07f51109dbc558eedbb0daefc"
+  },
+  "scripts/o10.py": {
+    "bytes": 10971,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/o10.py",
+    "sha256": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e"
+  },
+  "scripts/okernel_unified_world.py": {
+    "bytes": 73391,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py",
+    "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+  },
+  "scripts/plan9_userland_admission.py": {
+    "bytes": 17555,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/plan9_userland_admission.py",
+    "sha256": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+  },
+  "scripts/probe_okernel_plan9.py": {
+    "bytes": 27804,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/probe_okernel_plan9.py",
+    "sha256": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54"
+  },
+  "scripts/verify_o10_hostile_mmio.py": {
+    "bytes": 4200,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_hostile_mmio.py",
+    "sha256": "99c306934801e82b524112edd2fa3dff1aa46f7d0b55ac39b724a5dbe36fcd2f"
+  },
+  "scripts/verify_o10_m1.py": {
+    "bytes": 41146,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m1.py",
+    "sha256": "d844e48777c76ddf31af696dc24124833eee8b444ce59f328453f28cc4bd41c7"
+  },
+  "scripts/verify_o10_m1_regressions.py": {
+    "bytes": 22520,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m1_regressions.py",
+    "sha256": "5dc72d57e391f439d9c5a1c661029d27e373f40a545bca6c238218244103e10e"
+  },
+  "scripts/verify_o10_m2.py": {
+    "bytes": 49405,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m2.py",
+    "sha256": "7410497aa4cdfcee4c52c7bcae22e4c16ffd0fe1f3610d8a57b9b893b5cb0490"
+  },
+  "scripts/verify_o10_m2_regressions.py": {
+    "bytes": 7011,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m2_regressions.py",
+    "sha256": "2807fa681e71d42d805a9b2065231509f8b3165c4343bef9b0b0c26640192a1e"
+  },
+  "scripts/verify_o10_resident.py": {
+    "bytes": 10093,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_resident.py",
+    "sha256": "988b9bcf3ff37f13e58df3259bc734240974f71117db083b1407881dd9e169a6"
+  },
+  "scripts/verify_okernel_p9_default_compile.py": {
+    "bytes": 15327,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_p9_default_compile.py",
+    "sha256": "7365adb4b52c096461316b33376cfe43f91e915ad895169c3be5293aca1d29ca"
+  },
+  "scripts/verify_okernel_two_domains.py": {
+    "bytes": 5882,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_two_domains.py",
+    "sha256": "fae379949c2777979480eec33b8ad4f5f39858c362c763faf8106ee9d67970ff"
+  },
+  "scripts/verify_okernel_unified_client.py": {
+    "bytes": 34890,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_client.py",
+    "sha256": "47fe6eb3d385acd660624b1b718388ca24f5f2285bd2dd1d5146a66e72a2c8d7"
+  },
+  "scripts/verify_okernel_unified_console.py": {
+    "bytes": 10606,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_console.py",
+    "sha256": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220"
+  },
+  "scripts/verify_okernel_unified_provider.py": {
+    "bytes": 13619,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_provider.py",
+    "sha256": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986"
+  },
+  "scripts/verify_okernel_unified_recovery.py": {
+    "bytes": 17337,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_recovery.py",
+    "sha256": "90530321f667b6c1642dfccc607d4dde3c41f345624842cde1a29654a326d8e9"
+  },
+  "scripts/verify_okernel_unified_runtime.py": {
+    "bytes": 44662,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_runtime.py",
+    "sha256": "6b1cee4291d7ffe6307390c4d3e240c3d2ccc2c0163162340063a25fe0d7da2b"
+  }
+}

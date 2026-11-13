@@ -1,0 +1,31 @@
+{
+  "gate_passed": true,
+  "result_sha256": "468e6f30ef9ccb1e9b4fd9bee09ed81d401d0187588e20ecb8afc44e1e74be14",
+  "observed_exit": 0,
+  "cleanup": {
+    "child_reaped": true,
+    "detached_new_sessions_included": false,
+    "logs_drained": true,
+    "process_group_signaled": false,
+    "scope": "job_session_including_nested_process_groups",
+    "session_id": 1818008,
+    "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+    "session_processes_signaled": 0,
+    "session_scan_complete": false
+  },
+  "source_count": 33,
+  "source_unchanged": true,
+  "counter_samples": 124,
+  "largest_observed_gap_seconds": 18.513933212962,
+  "largest_append_gap_upper_bound_seconds": 19.600615854840726,
+  "apk_check": {
+    "argv": [
+      "apk",
+      "--no-network",
+      "--simulate",
+      "fix"
+    ],
+    "returncode": 0
+  },
+  "apk_stdout": "OK: 358.3 MiB in 75 packages\n"
+}

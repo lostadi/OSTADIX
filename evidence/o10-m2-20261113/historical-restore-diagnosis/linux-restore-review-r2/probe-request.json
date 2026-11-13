@@ -1,0 +1,4 @@
+{
+  "source": "python^(\nfrom pathlib import Path\nimport subprocess,json,time\nroot=Path('/home/ustad/OSTADIX-o10-m2-20261112');out=Path('/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2')\nargv=['python3','-B',str(out/'probe-reset0.py')]\np=subprocess.run(argv,cwd=root,capture_output=True,text=True,timeout=120)\n(out/'probe-command.json').write_text(json.dumps({'argv':argv,'exit_code':p.returncode,'stdout':p.stdout,'stderr':p.stderr,'finished_unix':time.time()},indent=2)+'\\n')\nprint(p.stdout,p.stderr)\nif p.returncode:raise RuntimeError('Synthetic slot0 probe failed; inspect exact retained original error')\n)_python",
+  "background": true
+}

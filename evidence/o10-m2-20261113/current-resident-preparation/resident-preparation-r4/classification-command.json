@@ -1,0 +1,11 @@
+[
+  "/usr/bin/python3",
+  "-B",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-preparation-r4/bind-classification.py",
+  "--component-result",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/result.json",
+  "--unit-result",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/result.json",
+  "--output",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/classification-current-r4"
+]

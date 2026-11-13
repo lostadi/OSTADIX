@@ -1,0 +1,63 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_unified_client_acceptance",
+    "tests.test_unified_runtime_acceptance",
+    "tests.test_unified_world_plan9_userland_admission",
+    "tests.test_unified_userland_admission_readonly_integration",
+    "tests.test_freeze_okernel_unified_runtime",
+    "tests.test_unified_world_context",
+    "tests.test_unified_world_profile",
+    "tests.test_namespace_store",
+    "tests.test_p9_install",
+    "tests.test_namespace_store_dotu",
+    "tests.test_namespace_local_backend",
+    "tests.test_native_local_namespace_files",
+    "tests.test_ocore_kernel_build_profiles"
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_unified_client_acceptance",
+    "tests.test_unified_runtime_acceptance",
+    "tests.test_unified_world_plan9_userland_admission",
+    "tests.test_unified_userland_admission_readonly_integration",
+    "tests.test_freeze_okernel_unified_runtime",
+    "tests.test_unified_world_context",
+    "tests.test_unified_world_profile",
+    "tests.test_namespace_store",
+    "tests.test_p9_install",
+    "tests.test_namespace_store_dotu",
+    "tests.test_namespace_local_backend",
+    "tests.test_native_local_namespace_files",
+    "tests.test_ocore_kernel_build_profiles"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "started": 1794578730.2390153,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OCORE_U9FS_ARM_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "TMPDIR": null,
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "finished": 1794578776.956887,
+  "log": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/targeted.log",
+    "sha256": "474fa907af48eaa955d80bbe05739c6141791e7413a2327256f575ced2de349e"
+  }
+}

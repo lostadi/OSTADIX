@@ -1,0 +1,73 @@
+{
+  "schema": "ostadix.o10-m2-resident-controller/v1",
+  "ok": true,
+  "gate_passed": false,
+  "full_milestone_qualified": false,
+  "scope": "One canonical MCP resident gate submitted; completion and receipt validation remain required",
+  "started_unix": 1794573564.5072358,
+  "request": {
+    "command": "kernel",
+    "args": [
+      "o10-resident",
+      "--state",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+      "--build",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+      "--session",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3",
+      "--qemu",
+      "/usr/bin/qemu-system-aarch64",
+      "--mcp-release",
+      "a5a33bed59adb1ae21c6223f28f69e5e2deed757"
+    ],
+    "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+    "background": true,
+    "timeout_secs": 0,
+    "env": {
+      "O_BACKEND_STEP_TIMEOUT_MS": "3600000",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    }
+  },
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "mcp_release": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "build_sources": 26,
+  "runtime_inventory": 249,
+  "seed_head": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/head.json",
+    "bytes": 1423,
+    "sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+  },
+  "source_unchanged": true,
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "runtime": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "bytes": 243138,
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "typed_toolchain_receipts": {
+    "origin_build": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/build.json",
+      "bytes": 1302131,
+      "sha256": "66ccb2f10653a19b4735317bdfdd66c8dd183e1a5ec1c91d2d907a5f6654ccb8"
+    },
+    "stamp_build": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r3-20261113/build.json",
+      "bytes": 1259557,
+      "sha256": "6f829df526260bc70ef7f11fee9a0675690512724a2c91f2481593384d4f141f"
+    },
+    "alignment": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r3-20261113/alignment.json",
+      "bytes": 12310,
+      "sha256": "8992b894a647b786fd2f82c4ef0ed4eb7bd81e7c66a8af0ff7912b578342c813"
+    },
+    "artifact_validation": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r3-20261113/artifact-validation.json",
+      "bytes": 11098,
+      "sha256": "36a2ea0bb1db61587eeeb0bcdbe827f16055b5631f72414709ad79dff41949a0"
+    }
+  },
+  "submitted": true,
+  "job_id": "job-1814410-1794572939003916118-1-10",
+  "state": "running",
+  "finished_unix": 1794573566.4183464
+}

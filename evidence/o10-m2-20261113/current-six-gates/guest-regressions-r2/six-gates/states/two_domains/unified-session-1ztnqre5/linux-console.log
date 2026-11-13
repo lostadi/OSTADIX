@@ -1,0 +1,102 @@
+KW AArch64 EL2 monitor: online
+KW native virtio negative selftests: PASS
+KW native writable block selftests: PASS
+KW native governed network: online
+KW native shared namespace: online
+KW stage2 guest-only RAM: online
+KW Linux package domain: persistent mediated devices online
+KW unified Linux/Plan9 EL2: online
+Booting Linux on physical CPU 0x0000000000 [0x411fd070]
+Linux version 6.12.43-ostadix-kernelworld (ostadi@ostadix) (clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881), LLD 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)) #1 SMP 1970-01-01 00:00:00 +0000
+Machine model: ostadix,kernel-world-qemu-virt
+earlycon: pl11 at MMIO 0x0000000009000000 (options '')
+printk: legacy bootconsole [pl11] enabled
+psci: MIGRATE_INFO_TYPE returned unknown type (-2)
+Kernel command line: console=ttyAMA0 earlycon=pl011,0x09000000 rdinit=/init panic=-1 loglevel=6
+cacheinfo: Unable to detect cache hierarchy for CPU 0
+virtio_blk virtio0: [vda] 2097152 512-byte logical blocks (1.07 GB/1.00 GiB)
+OKERNEL NATIVE NAMESPACE MOUNTED
+OKERNEL ORIGINAL 9P BRIDGE READY
+Service: okernel
+Root: /n/okernel
+NAMESPACE=/run/okernel-9p
+OKERNEL PACKAGE DOMAIN READY
+OKernel: install commands by name with pkg install NAME; registered source recipes are preferred.
+Source providers: zlib; plan9port (original rc/mk/9p tools for the Linux ABI).
+Shared workspace: /n/okernel/work. Provider build/cache files remain in /work.
+Type exit or quit to save and leave OKernel. Ctrl+] also saves and exits.
+pkg> [6npkg-namespace mount; _uw_rc=$?; printf '\nUNIFIED_COMMAND_a828c75a55bb4a288
+9cb1eeb3769227e:%s\n' "$_uw_rc"
+OKERNEL NATIVE NAMESPACE MOUNTED
+
+UNIFIED_COMMAND_a828c75a55bb4a2889cb1eeb3769227e:0
+pkg> [6nawk '$1 == "okernel" && $2 == "/n/okernel" && $3 == "9p" && $4 ~ /(^|,)vers
+ion=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_0e10efe767b34e11b64607ddfb81b114:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_0e10efe767b34e11b64607ddfb81b114:0
+pkg> [6ndate -u -s @1794581390; _uw_rc=$?; printf '\nUNIFIED_COMMAND_8cc961fbeb6247
+518bd2183e0537a75d:%s\n' "$_uw_rc"
+Fri Nov 13 14:49:50 UTC 2026
+
+UNIFIED_COMMAND_8cc961fbeb6247518bd2183e0537a75d:0
+pkg> [6npkg-net online; _uw_rc=$?; printf '\nUNIFIED_COMMAND_40f1e79aeb774736811649
+eb06143cac:%s\n' "$_uw_rc"
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+OKERNEL PACKAGE NETWORK ONLINE
+
+UNIFIED_COMMAND_40f1e79aeb774736811649eb06143cac:0
+pkg> [6nif test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && 
+test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_02f0b61dbf384294bf9b61035
+a7788b4; fi; _uw_rc=$?; printf '\nUNIFIED_COMMAND_29c5be2569be41468db0ab4b881488
+2a:%s\n' "$_uw_rc"
+P9_CLIENT_PRESENT_02f0b61dbf384294bf9b61035a7788b4
+
+UNIFIED_COMMAND_29c5be2569be41468db0ab4b8814882a:0
+pkg> [6nmkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /u
+sr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/oker
+nel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.p
+id; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /r
+un/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :; _uw_rc=$?; 
+printf '\nUNIFIED_COMMAND_f5c212e2e28d4483ad71567bde9f0d08:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_f5c212e2e28d4483ad71567bde9f0d08:0
+[1]+  Done                       setsid /bin/sh -c "echo \$\$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9" 0</dev/null 1>/run/okernel/p9/controller.log 2>&1i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_COMMAND_cc91ee17673a4926aba39f9b385a9f26:%s\n' "$_uw_rc"
+
+pkg> i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; d
+o if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/
+controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1
+)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_CO
+MMAND_cc91ee17673a4926aba39f9b385a9f26:%s\n' "$_uw_rc"
+random: crng init done
+
+UNIFIED_COMMAND_cc91ee17673a4926aba39f9b385a9f26:0
+pkg> [6ncd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and origin
+al Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _
+uw_rc=$?; printf '\nUNIFIED_COMMAND_48c3e429e5d344f2b7261b630f179b81:%s\n' "$_uw
+_rc"
+
+Linux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.
+
+UNIFIED_COMMAND_48c3e429e5d344f2b7261b630f179b81:0
+okernel> [6ni=0; until grep -qx PLAN9_DUAL_a6c9271c3ad6cfbd2267b0c58ad01830 /n/oker
+nel/work/dual-plan9-a6c9271c3ad6cfbd2267b0c58ad01830; do i=$((i+1)); test "$i" -
+lt 100 || exit 1; sleep 0.1; done; grep -qx LINUX_DUAL_a6c9271c3ad6cfbd2267b0c58
+ad01830 /n/okernel/work/dual-linux-a6c9271c3ad6cfbd2267b0c58ad01830 && /work/dua
+l-program; _uw_rc=$?; printf '\nUNIFIED_COMMAND_713870ae9feb4478bb410d8432d7d49b
+:%s\n' "$_uw_rc"
+UNIFIED_TWO_DOMAIN_GCC_PASS
+
+UNIFIED_COMMAND_713870ae9feb4478bb410d8432d7d49b:0
+okernel> [6n
+[O-core console: original Plan 9; Ctrl-^ then 0 selects Linux]
+
+[O-core console: Linux; Ctrl-^ then 1 selects original Plan 9]
+sync; _uw_rc=$?; printf '\nUNIFIED_COMMAND_914ef16772c44a8780c1f125710f
+55cc:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_914ef16772c44a8780c1f125710f55cc:0
+okernel> [6n

@@ -1,0 +1,50 @@
+{
+  "schema": "ostadix.o10-m2-independent-client-product-readback/v1",
+  "ok": true,
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "observed_unix": 1794582106.578102,
+  "gate_result": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/client/client-acceptance-3da9kd4r/result.json",
+    "bytes": 9797,
+    "sha256": "5271c0bebd4eba8c73128e6362638a8d646432627e066d5f439cdbb2d52714fc"
+  },
+  "first_terminal": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/client/client-acceptance-3da9kd4r/first/terminal.log",
+    "bytes": 21487,
+    "sha256": "7af6d843e3112ce00976197a1a6d7dd1e29f564fe086a9a1e195a6cd1dbda2c5"
+  },
+  "second_terminal": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/client/client-acceptance-3da9kd4r/restart/terminal.log",
+    "bytes": 12873,
+    "sha256": "912fc6cee937a75000da26ac299e5faf477826786e6b87ae5a39d48c978c15ac"
+  },
+  "source_artifacts_checked": 10,
+  "installer_source": {
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/linux/package-domain/p9-install",
+    "bytes": 15426,
+    "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704"
+  },
+  "build_profile": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+    "bytes": 28349,
+    "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+  },
+  "namespace_version": "9P2000.u",
+  "seed_head_sha256": "70c65d8119b98ad073f46e8e3776241a0df9b82304a3d7332b3c6f3dbee3183c",
+  "installed_name": "original-installed-7a2149ae3285e6a6e93c",
+  "installed_native_path": "/packages/plan9/bin/original-installed-7a2149ae3285e6a6e93c",
+  "compiled_sha256": "42240b2dab0889a455d84a854930273325126fe750f5ca96f92df9705af41cf4",
+  "publication_success_marker": "P9_TYPED_OK_fdc830c95b5452b76fdf22c5",
+  "checks": [
+    "typed p9 NAME executes original echo; printf binary pipe through original cat preserves exact hash and bytes",
+    "actual shared cwd maps to original Plan9 pwd; original7c/7l compile and p9 executes an original-ABI binary",
+    "p9-install publishes the exact user-compiled original Plan9 bytes mode0555; p9 resolves and executes the new installed name",
+    "nonempty exact native status is preserved while the Linux CLI returns generic1",
+    "streamed output precedes real Ctrl+C; CLI130 is accepted only with bound native replacement/private UART ACK; Linux shell PID/start time survives",
+    "first: one Ctrl+] publishes paired quiescent volumes and restores full foreground termios",
+    "a second actual two-kernel boot recovers the saved file and executes the installed NAME with identical original compiled bytes through fresh p9 client identities",
+    "restart: one Ctrl+] publishes paired quiescent volumes and restores full foreground termios"
+  ],
+  "scope": "Independent stable completed-client receipt/source/raw-PTY readback: corrected .u p9-install plus cmp/mode0555 command emitted its fresh success marker; installed execution and second-boot persistence are checked by the hash-bound client verifier. No guest command, VM, disk reparse or code execution by this reviewer. The enclosing six-gate job remains separate and may still be running.",
+  "blocking_findings": []
+}

@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""Install an operator-selected original Plan9 ARM64 executable by name.
+
+Usage: p9-install SOURCE NAME
+Build SOURCE with the original Plan9 compiler/linker first. This installer
+checks the executable container, copies exact bytes, and records the supplied
+binary as its build input; it does not infer or attest C-source provenance.
+Receipts use protected Linux-local /var/lib/okernel/p9-installed; the user
+workspace's permissions are neither changed nor used as a trust boundary.
+The mounted native namespace is already granted. Executable mode and receipt
+text do not grant authority. Persistence requires the ordinary paired save.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import PurePosixPath
+import secrets
+import shlex
+import stat
+import struct
+import sys
+
+NATIVE_ROOT = "/n/okernel"
+PRIVATE_ROOT = "/var/lib/okernel/p9-installed"
+MAX_BINARY = 16 * 1024 * 1024
+R_MAGIC = 0x8C47
+LOCAL_FILESYSTEMS = {"ext2", "ext3", "ext4", "tmpfs", "ramfs", "rootfs", "overlay", "btrfs", "xfs", "zfs"}
+
+
+class InstallError(RuntimeError):
+    pass
+
+
+def valid_name(name):
+    if not isinstance(name, str):
+        raise InstallError("NAME must be a single UTF8 filename")
+    try:
+        encoded = name.encode("utf-8")
+    except UnicodeError as error:
+        raise InstallError("NAME must be valid UTF8") from error
+    if not 0 < len(encoded) <= 255 or b"/" in encoded or b"\0" in encoded or encoded in (b".", b".."):
+        raise InstallError("NAME must be a filename of 1..255 UTF8 bytes, with no slash/NUL or dot components")
+    return name
+
+
+def executable_header(data):
+    """Original7l HEADTYPE2: eight big-endian words plus the expanded entry.
+
+    See pinned9front3502661 sys/include/a.out.h and cmd/7l/asm.c:154–168.
+    This is a container check, not instruction verification or a source-build
+    attestation. ELF, .7 object files, kernel addresses and dynamic modules
+    are outside this deliberately narrow user-executable installation path.
+    """
+    if len(data) < 40 or len(data) > MAX_BINARY:
+        raise InstallError("SOURCE is not a bounded original ARM64 Plan9 executable")
+    magic, text, initialized, bss, symbols, low_entry, sp_table, line_table = struct.unpack_from(">8I", data)
+    entry, = struct.unpack_from(">Q", data, 32)
+    if magic != R_MAGIC or text == 0 or text % 4 or 40 + text + initialized + symbols + sp_table + line_table != len(data):
+        raise InstallError("SOURCE has an invalid original ARM64 Plan9 a.out header/section lengths")
+    # 9front ARM64 maps user text at UTZERO0x10000, including the header.
+    # Original7l writes PADDR(entry) in the compatibility32-bit field.
+    if entry % 4 or not 0x10000 + 40 <= entry < 0x10000 + 40 + text or low_entry != entry & 0x0FFFFFFF:
+        raise InstallError("SOURCE has an invalid original Plan9 user entry")
+    return {"format": "plan9-arm64-aout", "magic": magic, "header_bytes": 40, "text_bytes": text,
+            "data_bytes": initialized, "bss_bytes": bss, "symbol_bytes": symbols,
+            "sp_table_bytes": sp_table, "line_table_bytes": line_table, "entry": entry}
+
+
+def mount_identity(fd):
+    mount_id = None
+    with open("/proc/self/fdinfo/" + str(fd), encoding="ascii") as stream:
+        for line in stream:
+            if line.startswith("mnt_id:"):
+                mount_id = line.split()[1]
+    with open("/proc/self/mountinfo", encoding="utf-8") as stream:
+        for line in stream:
+            left, right = line.rstrip().split(" - ", 1)
+            fields, options = left.split(), right.split()
+            if fields[0] == mount_id:
+                return {"id": mount_id, "path": fields[4], "filesystem": options[0],
+                        "source": options[1], "options": set(options[2].split(","))}
+    raise InstallError("cannot identify an opened filesystem mount")
+
+
+def open_directory(parent, name):
+    return os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
+
+
+def require_native_mount(mount):
+    # Linux6.12 renders plain9P2000 as noextend and .u as version=9p2000.u.
+    # Both admitted dialects use the native store's reject-existing Twstat
+    # publication contract. The default .L dialect has a different client
+    # path and remains outside this installer contract.
+    options = mount["options"]
+    versions = {option for option in options if option.startswith("version=")}
+    transports = {option for option in options if option.startswith("trans=")}
+    plain = "noextend" in options and not versions
+    dotu = "noextend" not in options and versions == {"version=9p2000.u"}
+    if (mount["path"] != NATIVE_ROOT or mount["filesystem"] != "9p" or mount["source"] != "okernel"
+            or transports != {"trans=virtio"} or not (plain or dotu)):
+        raise InstallError("the fixed native /n/okernel 9P2000 or9P2000.u virtio mount is required")
+    return mount["id"]
+
+
+def open_native():
+    fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        for part in ("n", "okernel"):
+            fresh = open_directory(fd, part)
+            os.close(fd)
+            fd = fresh
+        return fd, require_native_mount(mount_identity(fd))
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def same_mount(fd, mount_id):
+    if mount_identity(fd)["id"] != mount_id:
+        raise InstallError("path crosses outside the granted native mount")
+
+
+def source_parts(source):
+    if not isinstance(source, str) or "\0" in source:
+        raise InstallError("SOURCE must be an ordinary native file")
+    absolute = source if source.startswith("/") else os.getcwd() + "/" + source
+    path = PurePosixPath(absolute)
+    if ".." in path.parts or absolute.startswith("//") or not str(path).startswith(NATIVE_ROOT + "/"):
+        raise InstallError("SOURCE must be below /n/okernel without parent traversal")
+    parts = path.relative_to(NATIVE_ROOT).parts
+    if not parts:
+        raise InstallError("SOURCE must name a file")
+    return parts
+
+
+def snapshot_file(fd):
+    before = os.fstat(fd)
+    if not stat.S_ISREG(before.st_mode) or not 0 < before.st_size <= MAX_BINARY:
+        raise InstallError("SOURCE/staged binary must be a bounded regular file")
+    chunks, remaining = [], before.st_size
+    while remaining:
+        data = os.read(fd, min(65536, remaining))
+        if not data:
+            raise InstallError("file was truncated while reading")
+        chunks.append(data)
+        remaining -= len(data)
+    after = os.fstat(fd)
+    if os.read(fd, 1) or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+        raise InstallError("file changed while reading")
+    return b"".join(chunks), before
+
+
+def read_source(root, mount_id, source):
+    parts = source_parts(source)
+    folder = os.dup(root)
+    try:
+        for part in parts[:-1]:
+            fresh = open_directory(folder, part)
+            os.close(folder)
+            folder = fresh
+            same_mount(folder, mount_id)
+        fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=folder)
+        try:
+            same_mount(fd, mount_id)
+            data, info = snapshot_file(fd)
+        finally:
+            os.close(fd)
+        return data, info, NATIVE_ROOT + "/" + "/".join(parts)
+    finally:
+        os.close(folder)
+
+
+def native_bin(root, mount_id):
+    folder = os.dup(root)
+    try:
+        for name in ("packages", "plan9", "bin"):
+            try:
+                os.mkdir(name, 0o755, dir_fd=folder)
+            except FileExistsError:
+                pass
+            fresh = open_directory(folder, name)
+            os.close(folder)
+            folder = fresh
+            same_mount(folder, mount_id)
+        return folder
+    except BaseException:
+        os.close(folder)
+        raise
+
+
+def private_receipts():
+    folder = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        info = os.fstat(folder)
+        if info.st_uid != os.geteuid() or info.st_mode & 0o022 or mount_identity(folder)["filesystem"] not in LOCAL_FILESYSTEMS:
+            raise InstallError("receipt root requires protected Linux-private storage")
+        for index, name in enumerate(("var", "lib", "okernel", "p9-installed")):
+            if index >= 2:
+                try:
+                    os.mkdir(name, 0o700, dir_fd=folder)
+                except FileExistsError:
+                    pass
+            fresh = open_directory(folder, name)
+            os.close(folder)
+            folder = fresh
+            info, mount = os.fstat(folder), mount_identity(folder)
+            if (mount["filesystem"] not in LOCAL_FILESYSTEMS or info.st_uid != os.geteuid()
+                    or info.st_mode & (0o077 if index >= 2 else 0o022)):
+                raise InstallError("receipt directory requires protected Linux-private storage")
+        return folder
+    except BaseException:
+        os.close(folder)
+        raise
+
+
+def write_all(fd, data):
+    view = memoryview(data)
+    while view:
+        count = os.write(fd, view)
+        if count <= 0:
+            raise InstallError("short binary/receipt write")
+        view = view[count:]
+
+
+def absent(directory, name):
+    try:
+        os.stat(name, dir_fd=directory, follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    raise InstallError("NAME already exists; choose a new name (nothing was replaced)")
+
+
+def cleanup_owned(directory, name, identity):
+    if name is None or identity is None:
+        return
+    try:
+        current = os.stat(name, dir_fd=directory, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) == identity:
+            os.unlink(name, dir_fd=directory)
+    except FileNotFoundError:
+        pass
+
+
+def save_receipt(directory, document):
+    raw = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii") + b"\n"
+    name = hashlib.sha256(raw).hexdigest() + ".json"
+    pending = ".input-" + secrets.token_hex(12)
+    fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o400, dir_fd=directory)
+    info = os.fstat(fd)
+    try:
+        try:
+            write_all(fd, raw)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        try:
+            os.link(pending, name, src_dir_fd=directory, dst_dir_fd=directory, follow_symlinks=False)
+        except FileExistsError:
+            old = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
+            try:
+                data, original = snapshot_file(old)
+                if data != raw or not stat.S_ISREG(original.st_mode):
+                    raise InstallError("immutable input receipt conflicts with existing bytes")
+            finally:
+                os.close(old)
+        os.fsync(directory)
+        return PRIVATE_ROOT + "/" + name
+    finally:
+        cleanup_owned(directory, pending, (info.st_dev, info.st_ino))
+
+
+def publish_native(directory, pending, name):
+    # Precisely scoped to checked9P2000 and9P2000.u native mounts. Linux
+    #6.12 fs/9p/vfs_inode.c:867–959 sends same-directory Twstat directly; it
+    # does not remove a positive destination. namespace_store::wstat rejects
+    # an existing sibling BEFORE mutation. renameat2(NOREPLACE) is unsupported
+    # by that client, so never substitute a host-filesystem rename fallback.
+    absent(directory, name)
+    os.rename(pending, name, src_dir_fd=directory, dst_dir_fd=directory)
+
+
+def install(source, name):
+    valid_name(name)
+    root = directory = private = lock = None
+    pending = owned = None
+    try:
+        root, mount_id = open_native()
+        data, source_info, source_path = read_source(root, mount_id, source)
+        header = executable_header(data)
+        sha = hashlib.sha256(data).hexdigest()
+        private = private_receipts()
+        lock = os.open("install.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, 0o600, dir_fd=private)
+        lock_info = os.fstat(lock)
+        if not stat.S_ISREG(lock_info.st_mode) or lock_info.st_uid != os.geteuid() or lock_info.st_mode & 0o077:
+            raise InstallError("invalid private installer lock")
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise InstallError("another p9-install is in progress") from None
+        directory = native_bin(root, mount_id)
+        absent(directory, name)
+        pending = ".p9-install-" + secrets.token_hex(12)
+        fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=directory)
+        info = os.fstat(fd)
+        owned = info.st_dev, info.st_ino
+        try:
+            write_all(fd, data)
+            os.fchmod(fd, 0o555)
+        finally:
+            os.close(fd)
+        # Close/reopen through the pinned directory before publication.
+        check = os.open(pending, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
+        try:
+            same_mount(check, mount_id)
+            copied, copied_info = snapshot_file(check)
+        finally:
+            os.close(check)
+        if ((copied_info.st_dev, copied_info.st_ino) != owned or copied != data
+                or hashlib.sha256(copied).hexdigest() != sha or executable_header(copied) != header
+                or stat.S_IMODE(copied_info.st_mode) != 0o555):
+            raise InstallError("closed staged executable failed byte/mode/header verification")
+        destination = NATIVE_ROOT + "/packages/plan9/bin/" + name
+        receipt = save_receipt(private, {"schema": "ostadix.plan9-install-input/v1", "state": "verified-install-input",
+                    "name": name, "destination": destination, "mode": 0o555,
+                    "input": {"path": source_path, "bytes": len(data), "sha256": sha, "header": header,
+                              "device": source_info.st_dev, "inode": source_info.st_ino,
+                              "mtime_ns": source_info.st_mtime_ns},
+                    "scope": "operator-selected executable; source compilation provenance remains in its original build receipt",
+                    "metadata_grants_authority": False})
+        publish_native(directory, pending, name)
+        pending = None
+        return {"name": name, "path": destination, "sha256": sha, "bytes": len(data), "receipt": receipt}
+    finally:
+        try:
+            if directory is not None:
+                cleanup_owned(directory, pending, owned)
+        finally:
+            for fd in (lock, private, directory, root):
+                if fd is not None:
+                    os.close(fd)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source", metavar="SOURCE")
+    parser.add_argument("name", metavar="NAME")
+    args = parser.parse_args()
+    try:
+        result = install(args.source, args.name)
+        print("Installed " + repr(result["name"]) + ".")
+        print("Run: p9 -- " + shlex.quote(result["name"]))
+        return 0
+    except (OSError, ValueError, InstallError) as error:
+        print("p9-install: " + str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,126 @@
+{
+  "schema": "ostadix.o10-m2-r4-source-tool-input-overlay/v1",
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "compiler_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "compiler": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/ocorec",
+    "bytes": 3817336,
+    "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7",
+    "elf_machine": 62
+  },
+  "evaluator": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "built_path": "/dev/shm/o10-m2-postmerge-toolchain-r1-20261113/root-target/release/O",
+    "bytes": 6395424,
+    "sha256": "494fc7ff2873ce06007affc31f14c0a8dc7645b354c004e9f86881e635a05bb1",
+    "elf_machine": 62
+  },
+  "origin_build": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/build.json",
+    "bytes": 1302131,
+    "sha256": "66ccb2f10653a19b4735317bdfdd66c8dd183e1a5ec1c91d2d907a5f6654ccb8"
+  },
+  "source_diff_from_toolchain_origin": {
+    "fuzz/Cargo.lock": {
+      "before": "8eef2e10bce3b414295d51ad15206149434391f12dc574f3723738f29110c469",
+      "after": "9fcf62f91afb4db613a3d2dd976be907caf1fcfd7e017fd5d06c3430b5ff557f"
+    },
+    "ocore/kernel/build.sh": {
+      "before": "d7f109d15925a3a1b09672a4a101218948beae783adfb94a787898737ac2992a",
+      "after": "94df579b2e8a18ee33da2c322e7105b8fcbcbadc25d0e8bf3f5cd6a8cd39029b"
+    },
+    "ocore/runtime/aarch64/kernel_world_9p.oc": {
+      "before": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+      "after": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0"
+    },
+    "ocore/runtime/aarch64/unified_world.oc": {
+      "before": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+      "after": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd"
+    },
+    "scripts/verify_okernel_unified_client.py": {
+      "before": "9a4008a4e4f96b56e7a6ea339c517b0d6472c200247324494f48c3a64acec623",
+      "after": "1031806217cd832146ad4af359b5d047687fcdfd7977b8ed2141bed1a077f815"
+    },
+    "scripts/verify_okernel_unified_runtime.py": {
+      "before": "bd9ae7e19fca1720d838ed0fc4773a9a6a0b47dced12af0c53d9e8cd8a669df2",
+      "after": "066289d57f9c0e0175b1a45cb3f6eee49da5a0440f0cbb7554b82436485642cc"
+    },
+    "tests/test_o10_linux_restart_native.py": {
+      "before": "6630863102495354f2044ca99b310e33d9a82905523e1db417e6ac12a24a76f2",
+      "after": "161c18d9b595d11f82d1f66af069c71bcdbf951bd3291b67713934abab227795"
+    },
+    "tests/test_ocore_kernel_build_profiles.py": {
+      "before": "a49302b02897d0656ed6308f10fef344bbb3d9f88357d386a3710ca2296a5d8a",
+      "after": "9e3ac67139c7e150297a2d421196d7b59a9e90c5a0789f31fcb3cec955377792"
+    },
+    "tests/test_unified_client_acceptance.py": {
+      "before": "276b26146fee4080311b3817a1e2ebfcb6e50f25672d3a3f0648cfed21fed842",
+      "after": "e65c0e5ccf70eb93bd4edee3623a66bad97eacab75218d08b2ce02ce7f10e042"
+    },
+    "tests/test_unified_runtime_acceptance.py": {
+      "before": "52c0a4e6e3b52eb3b511c90afa296b22e4af334bc1f80150f2463565fa79aa2e",
+      "after": "8cf117940186760a9809324fe2e5f0182943491441d3c6113a27430a148424fd"
+    },
+    "tests/test_unified_world_context.py": {
+      "before": "90b5364e7be335ecdc6898179a783eb8af9834ff74f079210c1cd38850301968",
+      "after": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+    }
+  },
+  "rust_cargo_diff_from_toolchain_origin": {
+    "fuzz/Cargo.lock": {
+      "before": "8eef2e10bce3b414295d51ad15206149434391f12dc574f3723738f29110c469",
+      "after": "9fcf62f91afb4db613a3d2dd976be907caf1fcfd7e017fd5d06c3430b5ff557f"
+    }
+  },
+  "source_overlay_count": 11,
+  "native_test_delta_from_current_commit": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": {
+      "before": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+      "after": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/source/ocore/runtime/aarch64/kernel_world_9p.oc",
+        "bytes": 16456,
+        "sha256": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0"
+      }
+    },
+    "ocore/runtime/aarch64/unified_world.oc": {
+      "before": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+      "after": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/source/ocore/runtime/aarch64/unified_world.oc",
+        "bytes": 44685,
+        "sha256": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd"
+      }
+    },
+    "tests/test_o10_linux_restart_native.py": {
+      "before": "6630863102495354f2044ca99b310e33d9a82905523e1db417e6ac12a24a76f2",
+      "after": "161c18d9b595d11f82d1f66af069c71bcdbf951bd3291b67713934abab227795",
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/source/tests/test_o10_linux_restart_native.py",
+        "bytes": 15283,
+        "sha256": "161c18d9b595d11f82d1f66af069c71bcdbf951bd3291b67713934abab227795"
+      }
+    },
+    "tests/test_unified_world_context.py": {
+      "before": "90b5364e7be335ecdc6898179a783eb8af9834ff74f079210c1cd38850301968",
+      "after": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e",
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/source/tests/test_unified_world_context.py",
+        "bytes": 19293,
+        "sha256": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+      }
+    }
+  },
+  "patch": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/native-test.patch",
+    "bytes": 17429,
+    "sha256": "776ae4e74eea3c3baf9afa9b5204d8bb493c860beee43092506e61acc33c37af"
+  },
+  "root_dependency_manifests_unchanged": true,
+  "mcp_dependency_manifests_unchanged": true,
+  "all_tracked_files_watched_by_build_identity": true,
+  "identity_metadata_changed": true,
+  "scope": "Read-only typed source overlay audit. Historical14-tool origin remains7c12; newer source/fuzz/admission/native/test overlays are named separately. Dependency workspace lock identity does not claim unchanged build metadata. No milestone qualification.",
+  "observed_unix": 1794572198.3907278
+}

@@ -1,0 +1,24 @@
+{
+  "command": "kernel",
+  "args": [
+    "o10-linux-restart",
+    "--seed-state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r3",
+    "--apk-fixture",
+    "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5",
+    "--mcp-release",
+    "76cd75c1add8795055c8a769bee57862948f2912",
+    "--timeout",
+    "180"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "background": true,
+  "timeout_secs": 0,
+  "env": {
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000"
+  }
+}

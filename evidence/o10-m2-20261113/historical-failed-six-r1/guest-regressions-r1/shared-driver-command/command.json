@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m1_regressions.py",
+    "--acceptance-scope",
+    "draft0",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "--seed-state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "--runtime",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+    "--resident-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates",
+    "--mcp-release",
+    "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+    "--jobs",
+    "2",
+    "--gate-timeout",
+    "5400",
+    "--minimum-free-gib",
+    "3.5",
+    "--execute"
+  ],
+  "started": 1794576350.671575,
+  "returncode": 1,
+  "timed_out": false,
+  "finished": 1794576952.2412164
+}

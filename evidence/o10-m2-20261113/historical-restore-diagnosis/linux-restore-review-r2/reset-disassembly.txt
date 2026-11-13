@@ -1,0 +1,76 @@
+
+/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000000400800f4 <uw_domain_init>:
+400800f4: f100081f     	cmp	x0, #0x2
+400800f8: 54000342     	b.hs	0x40080160 <uw_domain_init+0x6c>
+400800fc: d2a80005     	mov	x5, #0x40000000         // =1073741824
+40080100: eb05003f     	cmp	x1, x5
+40080104: 540002e3     	b.lo	0x40080160 <uw_domain_init+0x6c>
+40080108: d2ac0005     	mov	x5, #0x60000000         // =1610612736
+4008010c: eb05003f     	cmp	x1, x5
+40080110: 54000282     	b.hs	0x40080160 <uw_domain_init+0x6c>
+40080114: f240043f     	tst	x1, #0x3
+40080118: 54000241     	b.ne	0x40080160 <uw_domain_init+0x6c>
+4008011c: f10f147f     	cmp	x3, #0x3c5
+40080120: 54000201     	b.ne	0x40080160 <uw_domain_init+0x6c>
+40080124: d503201f     	nop
+40080128: 1073f6c4     	adr	x4, 0x40168000 <uw_contexts>
+4008012c: 8b003084     	add	x4, x4, x0, lsl #12
+40080130: f9000082     	str	x2, [x4]
+40080134: f9007c81     	str	x1, [x4, #0xf8]
+40080138: f9008083     	str	x3, [x4, #0x100]
+4008013c: d2810001     	mov	x1, #0x800              // =2048
+40080140: f2a61a01     	movk	x1, #0x30d0, lsl #16
+40080144: f9008c81     	str	x1, [x4, #0x118]
+40080148: d2a00601     	mov	x1, #0x300000           // =3145728
+4008014c: f9009481     	str	x1, [x4, #0x128]
+40080150: d2800021     	mov	x1, #0x1                // =1
+40080154: f9010081     	str	x1, [x4, #0x200]
+40080158: d2800020     	mov	x0, #0x1                // =1
+4008015c: d65f03c0     	ret
+40080160: d2800000     	mov	x0, #0x0                // =0
+40080164: d65f03c0     	ret
+
+0000000040080168 <uw_domain_reset>:
+40080168: f100081f     	cmp	x0, #0x2
+4008016c: 54000482     	b.hs	0x400801fc <uw_domain_reset+0x94>
+40080170: d2a80005     	mov	x5, #0x40000000         // =1073741824
+40080174: eb05003f     	cmp	x1, x5
+40080178: 54000423     	b.lo	0x400801fc <uw_domain_reset+0x94>
+4008017c: d2ac0005     	mov	x5, #0x60000000         // =1610612736
+40080180: eb05003f     	cmp	x1, x5
+40080184: 540003c2     	b.hs	0x400801fc <uw_domain_reset+0x94>
+40080188: f240043f     	tst	x1, #0x3
+4008018c: 54000381     	b.ne	0x400801fc <uw_domain_reset+0x94>
+40080190: f10f147f     	cmp	x3, #0x3c5
+40080194: 54000341     	b.ne	0x400801fc <uw_domain_reset+0x94>
+40080198: d503201f     	nop
+4008019c: 1073f324     	adr	x4, 0x40168000 <uw_contexts>
+400801a0: 8b003084     	add	x4, x4, x0, lsl #12
+400801a4: d2820005     	mov	x5, #0x1000             // =4096
+400801a8: a8817c9f     	stp	xzr, xzr, [x4], #0x10
+400801ac: f10040a5     	subs	x5, x5, #0x10
+400801b0: 54ffffc1     	b.ne	0x400801a8 <uw_domain_reset+0x40>
+400801b4: d53c2106     	mrs	x6, VTTBR_EL2
+400801b8: d0000744     	adrp	x4, 0x4016a000 <uw_root0>
+400801bc: 91000084     	add	x4, x4, #0x0
+400801c0: b4000060     	cbz	x0, 0x400801cc <uw_domain_reset+0x64>
+400801c4: f0000744     	adrp	x4, 0x4016b000 <uw_root1>
+400801c8: 91000084     	add	x4, x4, #0x0
+400801cc: 91000405     	add	x5, x0, #0x1
+400801d0: aa05c084     	orr	x4, x4, x5, lsl #48
+400801d4: d5033f9f     	dsb	sy
+400801d8: d51c2104     	msr	VTTBR_EL2, x4
+400801dc: d5033fdf     	isb
+400801e0: d50c83df     	tlbi	vmalls12e1is
+400801e4: d5033f9f     	dsb	sy
+400801e8: d508751f     	ic	iallu
+400801ec: d5033f9f     	dsb	sy
+400801f0: d51c2106     	msr	VTTBR_EL2, x6
+400801f4: d5033fdf     	isb
+400801f8: 17ffffbf     	b	0x400800f4 <uw_domain_init>
+400801fc: d2800000     	mov	x0, #0x0                // =0
+40080200: d65f03c0     	ret

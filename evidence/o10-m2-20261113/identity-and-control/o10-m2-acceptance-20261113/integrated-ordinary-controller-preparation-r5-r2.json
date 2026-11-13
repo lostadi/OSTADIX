@@ -1,0 +1,14 @@
+{
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r5-r2.py",
+    "sha256": "8fb3a9febff0c77bd9ab188f3d8edada65fb6d308aca008c5e2fc1ca522a2d5a"
+  },
+  "correction": "New namespace proof compares retained path/hash/byte descriptors through sized_identity; shared legacy identity and historical receipts unchanged.",
+  "prepared_unix": 1794572695.5026512,
+  "prior_failed_control_candidate": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r5.py",
+    "sha256": "96f11848f9a6b1489cfa50cf854cb481164866988cd8d9896c6f8e82cb7ca067"
+  },
+  "schema": "ostadix.o10-m2-ordinary-controller-r5-preparation/v1",
+  "scope": "Cache-only exact approved four-path namespace overlay. Final source checkpoint, runtime/admission and fresh stamp remain prerequisites to actual ordinary execution."
+}

@@ -1,0 +1,296 @@
+module runtime::aarch64::kernel_world_net_host;
+
+// EL2-owned driver for exactly one modern outer virtio-MMIO Ethernet device.
+// Only fixed monitor-owned DMA buffers are exposed to the outer device. The
+// guest-facing frontend copies frames through this API; guest addresses are
+// never submitted as physical descriptor addresses.
+extern "ocore" fn kw_memory_barrier() -> void;
+
+const MMIO_BASE: usize = 0x0a00_0000;
+const MMIO_STRIDE: usize = 0x200;
+const SLOT_COUNT: usize = 32;
+const DMA_BASE: usize = 0x6e00_0000;
+const DMA_LIMIT: usize = 0x6e20_0000;
+const RX_DESC: usize = 0x6e00_0000;
+const RX_AVAIL: usize = 0x6e00_1000;
+const RX_USED: usize = 0x6e00_2000;
+const TX_DESC: usize = 0x6e00_4000;
+const TX_AVAIL: usize = 0x6e00_5000;
+const TX_USED: usize = 0x6e00_6000;
+const RX_BUFFERS: usize = 0x6e01_0000;
+const TX_BUFFERS: usize = 0x6e02_0000;
+const BUFFER_BYTES: usize = 2048;
+const QUEUE_SIZE: usize = 16;
+const HEADER_BYTES: usize = 12;
+const MIN_FRAME: usize = 14;
+const MAX_FRAME: usize = 1514;
+
+static mut DEVICE: usize = 0;
+static mut DEVICE_SLOT: usize = 0;
+static mut READY: u64 = 0;
+static mut FAILED: u64 = 0;
+static mut RX_LAST_USED: u64 = 0;
+static mut RX_NEXT_AVAIL: u64 = 0;
+static mut TX_LAST_USED: u64 = 0;
+static mut TX_NEXT_AVAIL: u64 = 0;
+static mut TX_BUSY: [u8; 16] = [0; 16];
+static mut RX_POSTED: [u8; 16] = [0; 16];
+static mut SENT: u64 = 0;
+static mut RECEIVED: u64 = 0;
+static mut STAGE: u64 = 0;
+static mut DETAIL: u64 = 0;
+
+unsafe fn get16(address: usize) -> u64 {
+    return volatile_load(address as *const u16) as u64;
+}
+unsafe fn get32(address: usize) -> u64 {
+    return volatile_load(address as *const u32) as u64;
+}
+unsafe fn put16(address: usize, value: u64) -> void {
+    volatile_store(address as *mut u16, value as u16);
+}
+unsafe fn put32(address: usize, value: u64) -> void {
+    volatile_store(address as *mut u32, value as u32);
+}
+unsafe fn put64(address: usize, value: u64) -> void {
+    volatile_store(address as *mut u64, value);
+}
+unsafe fn read_register(offset: usize) -> u64 { return get32(DEVICE + offset); }
+unsafe fn write_register(offset: usize, value: u64) -> void {
+    put32(DEVICE + offset, value);
+    kw_memory_barrier();
+}
+
+unsafe fn mask_physical_irq() -> void {
+    let irq: usize = 48 + DEVICE_SLOT;
+    let register: usize = (irq / 32) * 4;
+    let bit: u32 = (1 as u32) << (irq % 32);
+    volatile_store((register + 0x0800_0180) as *mut u32, bit);
+    volatile_store((register + 0x0800_0280) as *mut u32, bit);
+    kw_memory_barrier();
+}
+
+unsafe fn fail() -> void {
+    FAILED = 1;
+    READY = 0;
+    if DEVICE != 0 {
+        write_register(0x70, read_register(0x70) | 128);
+        mask_physical_irq();
+    }
+}
+
+unsafe fn descriptor(base: usize, id: usize, buffer: usize, length: usize, flags: u64) -> bool {
+    if id >= QUEUE_SIZE || buffer < DMA_BASE || buffer > DMA_LIMIT
+        || length == 0 || length > DMA_LIMIT - buffer {
+        return false;
+    }
+    let entry: usize = base + id * 16;
+    put64(entry, buffer as u64);
+    put32(entry + 8, length as u64);
+    put16(entry + 12, flags);
+    put16(entry + 14, 0);
+    return true;
+}
+
+unsafe fn configure_queue(index: u64, desc: usize, avail: usize, used: usize) -> bool {
+    write_register(0x30, index);
+    if read_register(0x34) < QUEUE_SIZE as u64 || read_register(0x44) != 0 {
+        return false;
+    }
+    write_register(0x38, QUEUE_SIZE as u64);
+    write_register(0x80, desc as u64 & 0xffff_ffff);
+    write_register(0x84, desc as u64 >> 32);
+    write_register(0x90, avail as u64 & 0xffff_ffff);
+    write_register(0x94, avail as u64 >> 32);
+    write_register(0xa0, used as u64 & 0xffff_ffff);
+    write_register(0xa4, used as u64 >> 32);
+    write_register(0x44, 1);
+    return read_register(0x44) == 1;
+}
+
+pub unsafe fn init() -> u64 {
+    if READY != 0 || DEVICE != 0 || FAILED != 0 { return 0; }
+    STAGE = 1;
+    let mut slot: usize = 0;
+    while slot < SLOT_COUNT {
+        let candidate: usize = MMIO_BASE + slot * MMIO_STRIDE;
+        if get32(candidate) == 0x7472_6976 && get32(candidate + 8) == 1 {
+            // Ambiguous extra NICs or physical IRQs that collide with the two
+            // guest virtual devices are not admitted by this one-NIC grant.
+            if DEVICE != 0 || slot < 2 || get32(candidate + 4) != 2 { return 0; }
+            DEVICE = candidate;
+            DEVICE_SLOT = slot;
+        }
+        slot += 1;
+    }
+    if DEVICE == 0 { return 0; }
+    STAGE = 2;
+    mask_physical_irq();
+    write_register(0x70, 0);
+    if read_register(0x70) != 0 { fail(); return 0; }
+    write_register(0x70, 1);
+    write_register(0x70, 3);
+    STAGE = 3;
+    write_register(0x14, 0);
+    if (read_register(0x10) & 32) == 0 { fail(); return 0; }
+    write_register(0x14, 1);
+    if (read_register(0x10) & 1) == 0 { fail(); return 0; }
+    // MAC + VERSION_1 only: no checksum/GSO/mergeable/indirect/event offloads.
+    write_register(0x24, 0); write_register(0x20, 32);
+    write_register(0x24, 1); write_register(0x20, 1);
+    write_register(0x70, 11);
+    if (read_register(0x70) & 8) == 0
+        || read_register(0x100) != 0x1200_5452
+        || (read_register(0x104) & 0xffff) != 0x5634 {
+        fail(); return 0;
+    }
+    let mut offset: usize = 0;
+    while offset < 0x28000 {
+        put64(DMA_BASE + offset, 0);
+        offset += 8;
+    }
+    let mut id: usize = 0;
+    while id < QUEUE_SIZE {
+        if !descriptor(RX_DESC, id, RX_BUFFERS + id * BUFFER_BYTES, BUFFER_BYTES, 2) {
+            fail(); return 0;
+        }
+        RX_POSTED[id] = 1;
+        TX_BUSY[id] = 0;
+        put16(RX_AVAIL + 4 + id * 2, id as u64);
+        id += 1;
+    }
+    // NO_INTERRUPT requests device-side polling. The GIC IRQ is masked too.
+    put16(RX_AVAIL, 1);
+    put16(TX_AVAIL, 1);
+    RX_NEXT_AVAIL = QUEUE_SIZE as u64;
+    put16(RX_AVAIL + 2, RX_NEXT_AVAIL);
+    kw_memory_barrier();
+    STAGE = 4;
+    if !configure_queue(0, RX_DESC, RX_AVAIL, RX_USED)
+        || !configure_queue(1, TX_DESC, TX_AVAIL, TX_USED) {
+        fail(); return 0;
+    }
+    write_register(0x70, 15);
+    STAGE = 5;
+    if read_register(0x70) != 15 { fail(); return 0; }
+    READY = 1;
+    write_register(0x50, 0);
+    return 1;
+}
+
+pub unsafe fn poll() -> void {
+    if READY != 1 || FAILED != 0 { return; }
+    STAGE = 6;
+    if read_register(0x70) != 15 {
+        STAGE = 601; DETAIL = read_register(0x70); fail(); return;
+    }
+    kw_memory_barrier();
+    let used: u64 = get16(TX_USED + 2);
+    let mut distance: u64 = (used + 65536 - TX_LAST_USED) & 0xffff;
+    if distance > QUEUE_SIZE as u64 {
+        STAGE = 602; DETAIL = (used << 32) | TX_LAST_USED; fail(); return;
+    }
+    while distance != 0 {
+        let entry: usize = TX_USED + 4 + ((TX_LAST_USED % QUEUE_SIZE as u64) as usize) * 8;
+        let id: u64 = get32(entry);
+        let length: u64 = get32(entry + 4);
+        if id >= QUEUE_SIZE as u64 {
+            STAGE = 603; DETAIL = id; fail(); return;
+        }
+        if length > BUFFER_BYTES as u64 {
+            STAGE = 604; DETAIL = length; fail(); return;
+        }
+        if TX_BUSY[id as usize] != 1 {
+            STAGE = 605; DETAIL = (id << 32) | TX_BUSY[id as usize] as u64; fail(); return;
+        }
+        TX_BUSY[id as usize] = 0;
+        TX_LAST_USED = (TX_LAST_USED + 1) & 0xffff;
+        distance -= 1;
+    }
+    let interrupt: u64 = read_register(0x60) & 3;
+    if interrupt != 0 { write_register(0x64, interrupt); }
+    mask_physical_irq();
+}
+
+pub unsafe fn send(data: *const u8, length: usize) -> u64 {
+    if READY != 1 || FAILED != 0 || data as usize == 0
+        || length < MIN_FRAME || length > MAX_FRAME { return 0; }
+    poll();
+    if READY != 1 { return 0; }
+    let mut id: usize = 0;
+    while id < QUEUE_SIZE && TX_BUSY[id] != 0 { id += 1; }
+    if id == QUEUE_SIZE { return 0; }
+    let buffer: usize = TX_BUFFERS + id * BUFFER_BYTES;
+    let mut offset: usize = 0;
+    while offset < HEADER_BYTES {
+        volatile_store((buffer + offset) as *mut u8, 0);
+        offset += 1;
+    }
+    offset = 0;
+    while offset < length {
+        volatile_store((buffer + HEADER_BYTES + offset) as *mut u8, volatile_load(data + offset));
+        offset += 1;
+    }
+    if !descriptor(TX_DESC, id, buffer, HEADER_BYTES + length, 0) { fail(); return 0; }
+    TX_BUSY[id] = 1;
+    put16(TX_AVAIL + 4 + ((TX_NEXT_AVAIL % QUEUE_SIZE as u64) as usize) * 2, id as u64);
+    kw_memory_barrier();
+    TX_NEXT_AVAIL = (TX_NEXT_AVAIL + 1) & 0xffff;
+    put16(TX_AVAIL + 2, TX_NEXT_AVAIL);
+    kw_memory_barrier();
+    write_register(0x50, 1);
+    SENT += 1;
+    return 1;
+}
+
+pub unsafe fn receive(data: *mut u8, maximum: usize) -> usize {
+    if READY != 1 || FAILED != 0 || data as usize == 0 || maximum < MAX_FRAME { return 0; }
+    STAGE = 7;
+    kw_memory_barrier();
+    let used: u64 = get16(RX_USED + 2);
+    let distance: u64 = (used + 65536 - RX_LAST_USED) & 0xffff;
+    if distance > QUEUE_SIZE as u64 {
+        STAGE = 701; DETAIL = (used << 32) | RX_LAST_USED; fail(); return 0;
+    }
+    if distance == 0 { return 0; }
+    let entry: usize = RX_USED + 4 + ((RX_LAST_USED % QUEUE_SIZE as u64) as usize) * 8;
+    let id: u64 = get32(entry);
+    let total: u64 = get32(entry + 4);
+    if id >= QUEUE_SIZE as u64 { STAGE = 702; DETAIL = id; fail(); return 0; }
+    if total < (HEADER_BYTES + MIN_FRAME) as u64 || total > (HEADER_BYTES + MAX_FRAME) as u64 {
+        STAGE = 703; DETAIL = total; fail(); return 0;
+    }
+    if RX_POSTED[id as usize] != 1 { STAGE = 704; DETAIL = id; fail(); return 0; }
+    RX_POSTED[id as usize] = 0;
+    let buffer: usize = RX_BUFFERS + id as usize * BUFFER_BYTES;
+    if volatile_load(buffer as *const u8) != 0
+        || volatile_load((buffer + 1) as *const u8) != 0 {
+        STAGE = 705; DETAIL = get16(buffer); fail(); return 0;
+    }
+    let length: usize = total as usize - HEADER_BYTES;
+    let mut offset: usize = 0;
+    while offset < length {
+        volatile_store(data + offset, volatile_load((buffer + HEADER_BYTES + offset) as *const u8));
+        offset += 1;
+    }
+    RX_LAST_USED = (RX_LAST_USED + 1) & 0xffff;
+    if !descriptor(RX_DESC, id as usize, buffer, BUFFER_BYTES, 2) { fail(); return 0; }
+    RX_POSTED[id as usize] = 1;
+    put16(RX_AVAIL + 4 + ((RX_NEXT_AVAIL % QUEUE_SIZE as u64) as usize) * 2, id);
+    kw_memory_barrier();
+    RX_NEXT_AVAIL = (RX_NEXT_AVAIL + 1) & 0xffff;
+    put16(RX_AVAIL + 2, RX_NEXT_AVAIL);
+    kw_memory_barrier();
+    write_register(0x50, 0);
+    RECEIVED += 1;
+    return length;
+}
+
+pub unsafe fn healthy() -> u64 {
+    if READY == 1 && FAILED == 0 { return 1; }
+    return 0;
+}
+pub unsafe fn sent() -> u64 { return SENT; }
+pub unsafe fn received() -> u64 { return RECEIVED; }
+pub unsafe fn diagnostic() -> u64 { return STAGE; }
+pub unsafe fn detail() -> u64 { return DETAIL; }

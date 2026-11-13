@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/usr/bin/qemu-system-aarch64",
+    "-dfilter",
+    "help"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "qemu-system-aarch64: -dfilter help: Bad range specifier\n"
+}

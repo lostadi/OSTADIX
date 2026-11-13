@@ -1,0 +1,367 @@
+KW AArch64 EL2 monitor: online
+KW native virtio negative selftests: PASS
+KW native writable block selftests: PASS
+KW native governed network: online
+KW native shared namespace: online
+KW stage2 guest-only RAM: online
+KW Linux package domain: persistent mediated devices online
+KW unified Linux/Plan9 EL2: online
+Booting Linux on physical CPU 0x0000000000 [0x411fd070]
+Linux version 6.12.43-ostadix-kernelworld (ostadi@ostadix) (clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881), LLD 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)) #1 SMP 1970-01-01 00:00:00 +0000
+Machine model: ostadix,kernel-world-qemu-virt
+earlycon: pl11 at MMIO 0x0000000009000000 (options '')
+printk: legacy bootconsole [pl11] enabled
+psci: MIGRATE_INFO_TYPE returned unknown type (-2)
+Kernel command line: console=ttyAMA0 earlycon=pl011,0x09000000 rdinit=/init panic=-1 loglevel=6
+cacheinfo: Unable to detect cache hierarchy for CPU 0
+virtio_blk virtio0: [vda] 2097152 512-byte logical blocks (1.07 GB/1.00 GiB)
+OKERNEL NATIVE NAMESPACE MOUNTED
+OKERNEL ORIGINAL 9P BRIDGE READY
+Service: okernel
+Root: /n/okernel
+NAMESPACE=/run/okernel-9p
+OKERNEL PACKAGE DOMAIN READY
+OKernel: install commands by name with pkg install NAME; registered source recipes are preferred.
+Source providers: zlib; plan9port (original rc/mk/9p tools for the Linux ABI).
+Shared workspace: /n/okernel/work. Provider build/cache files remain in /work.
+Type exit or quit to save and leave OKernel. Ctrl+] also saves and exits.
+pkg> [6npkg-namespace mount; _uw_rc=$?; printf '\nUNIFIED_COMMAND_ab1063c891b741c2a
+e0a7ccee01d59be:%s\n' "$_uw_rc"
+OKERNEL NATIVE NAMESPACE MOUNTED
+
+UNIFIED_COMMAND_ab1063c891b741c2ae0a7ccee01d59be:0
+pkg> [6nawk '$1 == "okernel" && $2 == "/n/okernel" && $3 == "9p" && $4 ~ /(^|,)vers
+ion=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_ac7ef18260d040c6bc22fb365b055dba:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_ac7ef18260d040c6bc22fb365b055dba:0
+pkg> [6ndate -u -s @1794582049; _uw_rc=$?; printf '\nUNIFIED_COMMAND_b843e86a69e342
+f78e5d0d6f1be2018f:%s\n' "$_uw_rc"
+Fri Nov 13 15:00:49 UTC 2026
+
+UNIFIED_COMMAND_b843e86a69e342f78e5d0d6f1be2018f:0
+pkg> [6npkg-net online; _uw_rc=$?; printf '\nUNIFIED_COMMAND_784138d24ead4e198d1d17
+027790a7fa:%s\n' "$_uw_rc"
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+OKERNEL PACKAGE NETWORK ONLINE
+
+UNIFIED_COMMAND_784138d24ead4e198d1d17027790a7fa:0
+pkg> [6nif test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && 
+test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_016f8dc847c34b018537a38b1
+58bfe64; fi; _uw_rc=$?; printf '\nUNIFIED_COMMAND_f0e2dfe353964ab0a331df144ae0a8
+e9:%s\n' "$_uw_rc"
+P9_CLIENT_PRESENT_016f8dc847c34b018537a38b158bfe64
+
+UNIFIED_COMMAND_f0e2dfe353964ab0a331df144ae0a8e9:0
+pkg> [6nmkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /u
+sr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/oker
+nel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.p
+id; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /r
+un/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :; _uw_rc=$?; 
+printf '\nUNIFIED_COMMAND_62ec8d1fe37c49fc8c00561c5cee8641:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_62ec8d1fe37c49fc8c00561c5cee8641:0
+pkg> [6ni=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; d
+o if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/
+controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1
+)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_CO
+MMAND_d07212ce1ab4441fa4a3517b8c752ec8:%s\n' "$_uw_rc"
+random: crng init done
+
+UNIFIED_COMMAND_d07212ce1ab4441fa4a3517b8c752ec8:0
+[1]+  Done                       setsid /bin/sh -c "echo \$\$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9" 0</dev/null 1>/run/okernel/p9/controller.log 2>&1
+cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _uw_rc=$?; printf '\nUNIFIED_COMMAND_6c77b051c6144f77aa44f77f552fcd5b:%s\n' "$_uw_rc"
+pkg> cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and origin
+al Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _
+uw_rc=$?; printf '\nUNIFIED_COMMAND_6c77b051c6144f77aa44f77f552fcd5b:%s\n' "$_uw
+_rc"
+
+Linux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.
+
+UNIFIED_COMMAND_6c77b051c6144f77aa44f77f552fcd5b:0
+okernel> [6n( printf '%s\n' ATTACHED_489e3fb52ee615d2962fa719 ) && printf '\n%s\n' 
+RUNTIME_TYPED_bbc22fd5f899bf3923352ba1
+ATTACHED_489e3fb52ee615d2962fa719
+
+RUNTIME_TYPED_bbc22fd5f899bf3923352ba1
+okernel> [6n( printf '%s\n' ATTACHED_44722124a9c52deaf22a703f ) && printf '\n%s\n' 
+RUNTIME_TYPED_419fcbd284efebce04f41dc2
+ATTACHED_44722124a9c52deaf22a703f
+
+RUNTIME_TYPED_419fcbd284efebce04f41dc2
+okernel> [6n( mkdir -m 700 /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 && cd /
+n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 ) && printf '\n%s\n' RUNTIME_TYP
+ED_ab8b5af04032679f859eb72f
+
+RUNTIME_TYPED_ab8b5af04032679f859eb72f
+okernel> [6n( printf %s CmltcG9ydCBoYXNobGliLGpzb24sb3MscmUsc2h1dGlsLHN0YXQsc3VicHJ
+vY2VzcyxzeXMKZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnN5cy5wYXRoLmluc2VydCgwLCIvdXNyL2x
+pYi9va2VybmVsIikKaW1wb3J0IHA5X3Byb3RvY29sIGFzIHAKcm9vdD1QYXRoKHN5cy5hcmd2WzFdKTt
+hY3Rpb249c3lzLmFyZ3ZbMl07cGhhc2U9c3lzLmFyZ3ZbM107ZXhwZWN0ZWQ9c3lzLmFyZ3ZbNF0KY29
+udHJvbD1QYXRoKCIvcnVuL29rZXJuZWwvcDkiKQpkZWYgcmVhZChwYXRoKTpyZXR1cm4ganNvbi5sb2F
+kcyhwYXRoLnJlYWRfdGV4dCgpKQpkZWYgc2hhKGRhdGEpOnJldHVybiBoYXNobGliLnNoYTI1NihkYXR
+hKS5oZXhkaWdlc3QoKQpkZWYgd3JpdGUocGF0aCx2YWx1ZSk6cGF0aC53cml0ZV90ZXh0KGpzb24uZHV
+tcHModmFsdWUsc29ydF9rZXlzPVRydWUpKyJcbiIpCmRlZiBjdXJyZW50KCk6CiB2YWx1ZT1yZWFkKGN
+vbnRyb2wvImN1cnJlbnQuanNvbiIpCiBhc3NlcnQgdmFsdWVbInNlcnZpY2Vfcm9vdCJdPT0iL24vb2t
+lcm5lbC9zZXJ2aWNlcy9wbGFuOSIgYW5kIHZhbHVlWyJzdGF0ZSJdPT0icmVhZHkiCiBw | base64 -
+d > /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf 
+'\n%s\n' RUNTIME_TYPED_2650e22f31443b570cf54d16
+
+RUNTIME_TYPED_2650e22f31443b570cf54d16
+okernel> [6n( printf %s LnJlYWR5X21hcmtlcih2YWx1ZVsiZ2VuZXJhdGlvbiJdLHZhbHVlWyJpbnN
+0YW5jZSJdKQogcmV0dXJuIHZhbHVlCmRlZiByZXF1ZXN0cyh2YWx1ZSk6CiBkaXJlY3Rvcnk9UGF0aCh
+2YWx1ZVsic2VydmljZV9yb290Il0pLygiZyIrdmFsdWVbImdlbmVyYXRpb24iXSkvKCJzIit2YWx1ZVs
+iaW5zdGFuY2UiXSkKIHJldHVybiB7eC5uYW1lIGZvciB4IGluIGRpcmVjdG9yeS5nbG9iKCJyKiIpIGl
+mIHJlLmZ1bGxtYXRjaCgiclswLTlhLWZdezMyfSIseC5uYW1lKSBhbmQgKHgvInN1Ym1pdCIpLmV4aXN
+0cygpfQpkZWYgY2xpZW50cygpOgogbmFtZXM9KCIvdXNyL2xvY2FsL2Jpbi9wOSIsIi91c3IvbG9jYWw
+vbGliZXhlYy9wOS1oaXN0b3J5IiwiL3Vzci9sb2NhbC9saWJleGVjL3A5LWNvbnRyb2xsZXIiLCIvdXN
+yL2xvY2FsL2Jpbi9wOS1pbnN0YWxsIiwiL3Vzci9saWIvb2tlcm5lbC9wOV9wcm90b2NvbC5weSIpCiB
+2YWx1ZXM9e25hbWU6eyJieXRlcyI6UGF0aChuYW1lKS5zdGF0KCkuc3Rfc2l6ZSwic2hhMjU2IjpzaGE
+oUGF0aChuYW1lKS5yZWFkX2J5dGVzKCkpfSBmb3IgbmFtZSBpbiBuYW1lc30KIGFzc2Vy | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_6f69d1c546833d5e37215da1
+
+RUNTIME_TYPED_6f69d1c546833d5e37215da1
+okernel> [6n( printf %s dCB2YWx1ZXNbIi91c3IvbG9jYWwvYmluL3A5Il1bInNoYTI1NiJdPT1leHB
+lY3RlZAogcmV0dXJuIHZhbHVlcwppZiBhY3Rpb249PSJpZGVudGl0eSI6CiB3cml0ZShyb290LygiZ3V
+lc3QtIitwaGFzZSsiLmpzb24iKSx7ImNsaWVudHMiOmNsaWVudHMoKSwiY3VycmVudCI6Y3VycmVudCg
+pfSkKZWxpZiBhY3Rpb249PSJ0cmVlLWJlZm9yZSI6CiByZXN1bHQ9c3VicHJvY2Vzcy5ydW4oWyJhcGs
+iLCJpbmZvIiwiLWUiLCJ0cmVlIl0sY2FwdHVyZV9vdXRwdXQ9VHJ1ZSkKIHdyaXRlKHJvb3QvInRyZWU
+tYmVmb3JlLmpzb24iLHsiYWxyZWFkeV9pbnN0YWxsZWQiOnJlc3VsdC5yZXR1cm5jb2RlPT0wLCJzdGR
+vdXRfaGV4IjpyZXN1bHQuc3Rkb3V0LmhleCgpLCJzdGRlcnJfaGV4IjpyZXN1bHQuc3RkZXJyLmhleCg
+pfSkKZWxpZiBhY3Rpb249PSJ0cmVlIjoKIGJpbmFyeT1QYXRoKHNodXRpbC53aGljaCgidHJlZSIpKTt
+2YWx1ZT17ImJpbmFyeV9zaGEyNTYiOnNoYShiaW5hcnkucmVhZF9ieXRlcygpKSwiYmluYXJ5IjpzdHI
+oYmluYXJ5KSwidmVyc2lvbl9oZXgiOihyb290LygibGludXgtdHJlZS12ZXJzaW9uLSIr | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_33d4f166ef0cc8e49ca8a782
+
+RUNTIME_TYPED_33d4f166ef0cc8e49ca8a782
+okernel> [6n( printf %s cGhhc2UrIi50eHQiKSkucmVhZF9ieXRlcygpLmhleCgpLCJwYWNrYWdlX2h
+leCI6KHJvb3QvKCJsaW51eC10cmVlLXBhY2thZ2UtIitwaGFzZSsiLnR4dCIpKS5yZWFkX2J5dGVzKCk
+uaGV4KCl9CiBhc3NlcnQgdmFsdWVbInZlcnNpb25faGV4Il0gYW5kIHZhbHVlWyJwYWNrYWdlX2hleCJ
+dCiBpZiBwaGFzZT09ImZpcnN0Ijp2YWx1ZVsiYWxyZWFkeV9pbnN0YWxsZWQiXT1yZWFkKHJvb3QvInR
+yZWUtYmVmb3JlLmpzb24iKVsiYWxyZWFkeV9pbnN0YWxsZWQiXQogZWxzZToKICBwcmV2aW91cz1yZWF
+kKHJvb3QvInRyZWUtZmlyc3QuanNvbiIpO2Fzc2VydCBhbGwocHJldmlvdXNba109PXYgZm9yIGssdiB
+pbiB2YWx1ZS5pdGVtcygpKQogd3JpdGUocm9vdC8oInRyZWUtIitwaGFzZSsiLmpzb24iKSx2YWx1ZSk
+KZWxpZiBhY3Rpb249PSJsaW51eCI6CiBiaW5hcnk9UGF0aChzeXMuYXJndls1XSk7bWFya2VyPXN5cy5
+hcmd2WzZdO2RhdGE9YmluYXJ5LnJlYWRfYnl0ZXMoKQogYXNzZXJ0IGRhdGFbOjZdPT1iJ1x4N2ZFTEZ
+ceDAyXHgwMScgYW5kIGludC5mcm9tX2J5dGVzKGRhdGFbMTg6MjBdLCJsaXR0bGUiKT09 | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_fa5a5cd586a96748e890f52a
+
+RUNTIME_TYPED_fa5a5cd586a96748e890f52a
+okernel> [6n( printf %s MTgzCiBhc3NlcnQgKHJvb3QvKCJsaW51eC1zb3VyY2UtIitwaGFzZSsiLm9
+1dCIpKS5yZWFkX2J5dGVzKCk9PShtYXJrZXIrIlxuIikuZW5jb2RlKCkKIHZhbHVlPXsic291cmNlX3N
+oYTI1NiI6c2hhKChyb290LyJsaW51eC5jIikucmVhZF9ieXRlcygpKSwiYmluYXJ5X3NoYTI1NiI6c2h
+hKGRhdGEpLCJiaW5hcnkiOnN0cihiaW5hcnkpLCJvdXRwdXRfaGV4Ijoocm9vdC8oImxpbnV4LXNvdXJ
+jZS0iK3BoYXNlKyIub3V0IikpLnJlYWRfYnl0ZXMoKS5oZXgoKX0KIGlmIHBoYXNlPT0iZmlyc3QiOnZ
+hbHVlWyJjb21waWxlcl92ZXJzaW9uIl09c3VicHJvY2Vzcy5ydW4oWyJjYyIsIi0tdmVyc2lvbiJdLGN
+oZWNrPVRydWUsY2FwdHVyZV9vdXRwdXQ9VHJ1ZSx0ZXh0PVRydWUpLnN0ZG91dAogZWxzZToKICBwcmV
+2aW91cz1yZWFkKHJvb3QvImxpbnV4LWZpcnN0Lmpzb24iKTthc3NlcnQgYWxsKHByZXZpb3VzW2tdPT1
+2IGZvciBrLHYgaW4gdmFsdWUuaXRlbXMoKSkKIHdyaXRlKHJvb3QvKCJsaW51eC0iK3BoYXNlKyIuanN
+vbiIpLHZhbHVlKQplbGlmIGFjdGlvbj09ImJvdW5kYXJ5IjoKIGNsaWVudHMoKTthc3Nl | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_4ecfc3785d9bc9c3cc0777e7
+
+RUNTIME_TYPED_4ecfc3785d9bc9c3cc0777e7
+okernel> [6n( printf %s cnQgbm90IChjb250cm9sLyJwZW5kaW5nLmpzb24iKS5leGlzdHMoKQogYXJ
+jaGl2ZT1QYXRoKCIvdmFyL2xpYi9va2VybmVsL3A5LWhpc3RvcnkiKQogZm9yIHBhdGggaW4gKGFyY2h
+pdmUsKmFyY2hpdmUucGFyZW50cyk6CiAgaW5mbz1wYXRoLmxzdGF0KCk7YXNzZXJ0IHN0YXQuU19JU0R
+JUihpbmZvLnN0X21vZGUpIGFuZCBpbmZvLnN0X3VpZD09b3MuZ2V0ZXVpZCgpIGFuZCBub3QgaW5mby5
+zdF9tb2RlJjBvMDIyCiBmb3Iga2luZCxtYW5pZmVzdCBpbiAoKCJrZXllcnJvciIseyJzY2hlbWEiOiJ
+vc3RhZGl4LnA5Lmhpc3RvcnktYXJjaGl2ZS92MSJ9KSwoInR5cGVlcnJvciIseyJzY2hlbWEiOiJvc3R
+hZGl4LnA5Lmhpc3RvcnktYXJjaGl2ZS92MSIsInNvdXJjZV9yZWxhdGl2ZSI6Tm9uZSwia2luZCI6ImN
+vbXBsZXRlZC1qb2IifSkpOgogIGJlZm9yZT1jdXJyZW50KCk7b2xkcmVzdWx0cz17eC5uYW1lIGZvciB
+4IGluIChjb250cm9sLyJyZXN1bHRzIikuZ2xvYigiKi5qc29uIil9O29sZHJlcXVlc3RzPXJlcXVlc3R
+zKGJlZm9yZSkKICAjIEEgZnJlc2ggY29udGVudC1hZGRyZXNzZWQtbG9va2luZyBwcml2 | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_feaf5f3924a5091b63144ddf
+
+RUNTIME_TYPED_feaf5f3924a5091b63144ddf
+okernel> [6n( printf %s YXRlIGRpcmVjdG9yeSBpcyBvd25lZCBvbmx5IGJ5IHRoaXMKICAjIHRlc3Q
+7IHJlY29yZCBpdHMgZXhhY3QgYnl0ZXMgYmVmb3JlIHJlbW92aW5nIE9OTFkgaXRzIG93biB0d28gbmV
+3IGVudHJpZXMuCiAgbmFtZT1zaGEoKHJvb3QubmFtZStraW5kK29zLnVyYW5kb20oMTYpLmhleCgpKS5
+lbmNvZGUoKSk7Zm9sZGVyPWFyY2hpdmUvbmFtZQogIG9zLm1rZGlyKGZvbGRlciwwbzcwMCk7aW5vPWZ
+vbGRlci5zdGF0KCkuc3RfaW5vO3dpcmU9anNvbi5kdW1wcyhtYW5pZmVzdCxzb3J0X2tleXM9VHJ1ZSk
+uZW5jb2RlKCkrYiJcbiIKICBwYXRoPWZvbGRlci8ibWFuaWZlc3QuanNvbiIKICB0cnk6CiAgIGZkPW9
+zLm9wZW4ocGF0aCxvcy5PX1dST05MWXxvcy5PX0NSRUFUfG9zLk9fRVhDTHxvcy5PX05PRk9MTE9XLDB
+vNjAwKQogICB3aXRoIG9zLmZkb3BlbihmZCwid2IiKSBhcyBzdHJlYW06c3RyZWFtLndyaXRlKHdpcmU
+pCiAgIChyb290LyhraW5kKyItbWFuaWZlc3QuanNvbiIpKS53cml0ZV9ieXRlcyh3aXJlKQogICByZXN
+1bHQ9c3VicHJvY2Vzcy5ydW4oWyIvdXNyL2xvY2FsL2Jpbi9wOSIsIi0tIiwiZWNobyIs | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_e67d191d240934171fbc4e51
+
+RUNTIME_TYPED_e67d191d240934171fbc4e51
+okernel> [6n( printf %s Ik1VU1RfTk9UX1NVQk1JVF8iK3Jvb3QubmFtZV0saW5wdXQ9YiJzdXBwbGl
+lZFwwaW5wdXRceGZmIixjYXB0dXJlX291dHB1dD1UcnVlLHRpbWVvdXQ9MTIwKQogICAocm9vdC8oa2l
+uZCsiLnN0ZG91dCIpKS53cml0ZV9ieXRlcyhyZXN1bHQuc3Rkb3V0KTsocm9vdC8oa2luZCsiLnN0ZGV
+yciIpKS53cml0ZV9ieXRlcyhyZXN1bHQuc3RkZXJyKQogICBhc3NlcnQgcmVzdWx0LnJldHVybmNvZGU
+9PTEyNSBhbmQgcmVzdWx0LnN0ZG91dD09YiIiIGFuZCBiImhpc3RvcnkiIGluIHJlc3VsdC5zdGRlcnI
+ubG93ZXIoKSBhbmQgYiJUcmFjZWJhY2siIG5vdCBpbiByZXN1bHQuc3RkZXJyCiAgIGFzc2VydCBub3Q
+gKGNvbnRyb2wvInBlbmRpbmcuanNvbiIpLmV4aXN0cygpIGFuZCBjdXJyZW50KCk9PWJlZm9yZQogICB
+hc3NlcnQgbm90ICh7eC5uYW1lIGZvciB4IGluIChjb250cm9sLyJyZXN1bHRzIikuZ2xvYigiKi5qc29
+uIil9LW9sZHJlc3VsdHMpIGFuZCBub3QgKHJlcXVlc3RzKGJlZm9yZSktb2xkcmVxdWVzdHMpCiAgIHd
+yaXRlKHJvb3QvKGtpbmQrIi1wcm9vZi5qc29uIikseyJleGl0X3N0YXR1cyI6MTI1LCJu | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_3279c56113e6b8c89644bca5
+
+RUNTIME_TYPED_3279c56113e6b8c89644bca5
+okernel> [6n( printf %s b19uZXdfcmVxdWVzdCI6VHJ1ZSwibm9fbmV3X3Jlc3VsdCI6VHJ1ZSwiY3V
+ycmVudCI6YmVmb3JlLCJtYW5pZmVzdF9zaGEyNTYiOnNoYSh3aXJlKSwiY2xpZW50X3NoYTI1NiI6ZXh
+wZWN0ZWR9KQogIGZpbmFsbHk6CiAgIGFzc2VydCBmb2xkZXIuc3RhdCgpLnN0X2lubz09aW5vIGFuZCB
+ub3QgZm9sZGVyLmlzX3N5bWxpbmsoKQogICBpZiBwYXRoLmV4aXN0cygpIG9yIHBhdGguaXNfc3ltbGl
+uaygpOgogICAgYXNzZXJ0IHBhdGgucmVhZF9ieXRlcygpPT13aXJlIGFuZCBub3QgcGF0aC5pc19zeW1
+saW5rKCkgYW5kIHt4Lm5hbWUgZm9yIHggaW4gZm9sZGVyLml0ZXJkaXIoKX09PXsibWFuaWZlc3QuanN
+vbiJ9CiAgICBwYXRoLnVubGluaygpCiAgIGFzc2VydCBub3QgbGlzdChmb2xkZXIuaXRlcmRpcigpKTt
+mb2xkZXIucm1kaXIoKQplbGlmIGFjdGlvbj09ImJlZ2luIjoKIGNsaWVudHMoKTthc3NlcnQgbm90ICh
+jb250cm9sLyJwZW5kaW5nLmpzb24iKS5leGlzdHMoKQogd3JpdGUocm9vdC8oImJlZm9yZS0iK3BoYXN
+lKyIuanNvbiIpLHsiY3VycmVudCI6Y3VycmVudCgpLCJyZXN1bHRzIjpzb3J0ZWQoeC5u | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_17fe597c1759ac7c93ef749f
+
+RUNTIME_TYPED_17fe597c1759ac7c93ef749f
+okernel> [6n( printf %s YW1lIGZvciB4IGluIChjb250cm9sLyJyZXN1bHRzIikuZ2xvYigiKi5qc29
+uIikpfSkKZWxpZiBhY3Rpb249PSJjb2xsZWN0IjoKIGNvZGU9aW50KHN5cy5hcmd2WzVdKTttYXJrZXI
+9c3lzLmFyZ3ZbNl07YXJndj1qc29uLmxvYWRzKHN5cy5hcmd2WzddKTtiZWZvcmU9cmVhZChyb290Lyg
+iYmVmb3JlLSIrcGhhc2UrIi5qc29uIikpCiBhc3NlcnQgY29kZT09MCBhbmQgY3VycmVudCgpPT1iZWZ
+vcmVbImN1cnJlbnQiXSBhbmQgbm90IChjb250cm9sLyJwZW5kaW5nLmpzb24iKS5leGlzdHMoKQogZnJ
+lc2g9W3ggZm9yIHggaW4gKGNvbnRyb2wvInJlc3VsdHMiKS5nbG9iKCIqLmpzb24iKSBpZiB4Lm5hbWU
+gbm90IGluIGJlZm9yZVsicmVzdWx0cyJdXTthc3NlcnQgbGVuKGZyZXNoKT09MQogcmVjZWlwdD1yZWF
+kKGZyZXNoWzBdKTtnLHMscj0ocmVjZWlwdFtrXSBmb3IgayBpbiAoImdlbmVyYXRpb24iLCJpbnN0YW5
+jZSIsInJlcXVlc3RfaWQiKSk7YXNzZXJ0IChnLHMpPT0oYmVmb3JlWyJjdXJyZW50Il1bImdlbmVyYXR
+pb24iXSxiZWZvcmVbImN1cnJlbnQiXVsiaW5zdGFuY2UiXSkKIGRpcmVjdG9yeT1QYXRo | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_417b52b9a6bba946930d5587
+
+RUNTIME_TYPED_417b52b9a6bba946930d5587
+okernel> [6n( printf %s KHJlY2VpcHRbInNlcnZpY2Vfcm9vdCJdKS8oImciK2cpLygicyIrcykvKCJ
+yIityKQogd2lyZT17bmFtZTooZGlyZWN0b3J5L25hbWUpLnJlYWRfYnl0ZXMoKSBmb3IgbmFtZSBpbiB
+wLlJFUVVFU1RfRklMRVN9CiByZXF1ZXN0PXAuZGVjb2RlX3JlcXVlc3Qod2lyZVsicmVxdWVzdCJdKTt
+hc3NlcnQgbGlzdChyZXF1ZXN0LmFyZ3YpPT1hcmd2IGFuZCByZXF1ZXN0LmN3ZD09Ii9uL3dvcmsvIit
+yb290Lm5hbWUKIHJlc3VsdD1wLnZhbGlkYXRlX3Jlc3VsdCh3aXJlWyJyZXF1ZXN0Il0sd2lyZVsicmV
+zdWx0Il0sd2lyZVsic3Rkb3V0Il0sd2lyZVsic3RkZXJyIl0sc3RhcnRlZD13aXJlWyJzdGFydGVkIl0
+sZG9uZT13aXJlWyJkb25lIl0sc3RhdHVzPXdpcmVbInN0YXR1cyJdKQogYXNzZXJ0IHJlc3VsdC5vayB
+hbmQgcmVzdWx0LmZsYWdzPT0wIGFuZCByZXN1bHQuc3RhdHVzPT1iIiIgYW5kIHJlY2VpcHRbInJlY29
+2ZXJlZCJdIGlzIEZhbHNlCiBhc3NlcnQgcmVjZWlwdFsicmVxdWVzdF9zaGEyNTYiXT09c2hhKHdpcmV
+bInJlcXVlc3QiXSkgYW5kIHJlY2VpcHRbInJlc3VsdF9zaGEyNTYiXT09c2hhKHdpcmVb | base64 -
+d >> /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf
+ '\n%s\n' RUNTIME_TYPED_d8f403e8b986feff92ddc1bb
+
+RUNTIME_TYPED_d8f403e8b986feff92ddc1bb
+okernel> [6n( printf %s InJlc3VsdCJdKQogYXNzZXJ0IChyb290LyhwaGFzZSsiLm91dCIpKS5yZWF
+kX2J5dGVzKCk9PXdpcmVbInN0ZG91dCJdIGFuZCBtYXJrZXIuZW5jb2RlKCkgaW4gd2lyZVsic3Rkb3V
+0Il0uc3BsaXRsaW5lcygpCiB3cml0ZShyb290LygicHJvb2YtIitwaGFzZSsiLmpzb24iKSx7InJlY2V
+pcHQiOnJlY2VpcHQsImFyZ3YiOmxpc3QocmVxdWVzdC5hcmd2KSwiY3dkIjpyZXF1ZXN0LmN3ZCwic3R
+kb3V0X2hleCI6d2lyZVsic3Rkb3V0Il0uaGV4KCksImNsaWVudF9zaGEyNTYiOmV4cGVjdGVkLCJ3aXJ
+lX3NoYTI1NiI6e25hbWU6c2hhKGRhdGEpIGZvciBuYW1lLGRhdGEgaW4gd2lyZS5pdGVtcygpfX0pCmV
+sc2U6cmFpc2UgQXNzZXJ0aW9uRXJyb3IoYWN0aW9uKQpwcmludCgiXG5SVU5USU1FX0hFTFBFUl8iK2F
+jdGlvbisiXyIrcGhhc2UrIl8iK3Jvb3QubmFtZSxmbHVzaD1UcnVlKQo= | base64 -d >> /n/oker
+nel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.py ) && printf '\n%s\n' RU
+NTIME_TYPED_0b9c22c611c218ef716ec711
+
+RUNTIME_TYPED_0b9c22c611c218ef716ec711
+okernel> [6n( python3 /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.
+py /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 boundary first 1d000bb7b1cfe
+958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e ) && printf '\n%s\n' RUNTIME
+_TYPED_5b3705d6fcf4c74679b8e49e
+
+RUNTIME_HELPER_boundary_first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_5b3705d6fcf4c74679b8e49e
+okernel> [6n( printf '%s\n' FROZEN_SHARED_6e1dc414d88c9c0fee2a7806 > /n/okernel/wor
+k/runtime-6e1dc414d88c9c0fee2a7806/linux-shared.txt ) && printf '\n%s\n' RUNTIME
+_TYPED_2f1ee9e182f6e9ec47b2f1d7
+
+RUNTIME_TYPED_2f1ee9e182f6e9ec47b2f1d7
+okernel> [6n( python3 /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.
+py /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 tree-before first 1d000bb7b1
+cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e ) && printf '\n%s\n' RUNT
+IME_TYPED_467354c24c974f67c8a68e5f
+
+RUNTIME_HELPER_tree-before_first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_467354c24c974f67c8a68e5f
+okernel> [6n( pkg install tree > /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/l
+inux-tree-install.log 2>&1 ) && printf '\n%s\n' RUNTIME_TYPED_388893d962a2e32200
+e5636c
+
+RUNTIME_TYPED_388893d962a2e32200e5636c
+okernel> [6n( apk info -e tree && tree --version > /n/okernel/work/runtime-6e1dc414
+d88c9c0fee2a7806/linux-tree-version-first.txt && apk info -v tree > /n/okernel/w
+ork/runtime-6e1dc414d88c9c0fee2a7806/linux-tree-package-first.txt ) && printf '\
+n%s\n' RUNTIME_TYPED_2a112bf12ebce81a7043e303
+tree
+
+RUNTIME_TYPED_2a112bf12ebce81a7043e303
+okernel> [6n( python3 /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.
+py /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 tree first 1d000bb7b1cfe958c
+3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e ) && printf '\n%s\n' RUNTIME_TYP
+ED_34f1a85326b90809472a5077
+
+RUNTIME_HELPER_tree_first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_34f1a85326b90809472a5077
+okernel> [6n( printf %s I2luY2x1ZGUgPHN0ZGlvLmg+CmludCBtYWluKHZvaWQpe3B1dHMoIkZST1p
+FTl9MSU5VWF9TT1VSQ0VfNmUxZGM0MTRkODhjOWMwZmVlMmE3ODA2Iik7cmV0dXJuIDA7fQo= | base
+64 -d > /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/linux.c && cc /n/okerne
+l/work/runtime-6e1dc414d88c9c0fee2a7806/linux.c -o /work/frozen-linux-6e1dc414d8
+8c9c0fee2a7806 ) && printf '\n%s\n' RUNTIME_TYPED_89314a91733ae763b68c6b1f
+
+RUNTIME_TYPED_89314a91733ae763b68c6b1f
+okernel> [6n( /work/frozen-linux-6e1dc414d88c9c0fee2a7806 > /n/okernel/work/runtime
+-6e1dc414d88c9c0fee2a7806/linux-source-first.out && python3 /n/okernel/work/runt
+ime-6e1dc414d88c9c0fee2a7806/guest-check.py /n/okernel/work/runtime-6e1dc414d88c
+9c0fee2a7806 linux first 1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbb
+ac7416d9e /work/frozen-linux-6e1dc414d88c9c0fee2a7806 FROZEN_LINUX_SOURCE_6e1dc4
+14d88c9c0fee2a7806 ) && printf '\n%s\n' RUNTIME_TYPED_27d7b9b07dbbacdaa68042cf
+
+RUNTIME_HELPER_linux_first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_27d7b9b07dbbacdaa68042cf
+okernel> [6n( python3 /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.
+py /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 identity first 1d000bb7b1cfe
+958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e ) && printf '\n%s\n' RUNTIME
+_TYPED_8d4bd44d0c7937f6986fd272
+
+RUNTIME_HELPER_identity_first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_8d4bd44d0c7937f6986fd272
+okernel> [6n( python3 /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806/guest-check.
+py /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 begin echo-first 1d000bb7b1c
+fe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e ) && printf '\n%s\n' RUNTI
+ME_TYPED_634c59e9be07b5d42918b436
+
+RUNTIME_HELPER_begin_echo-first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_634c59e9be07b5d42918b436
+okernel> [6n( cd /n/okernel/work/runtime-6e1dc414d88c9c0fee2a7806 && /usr/local/bin
+/p9 -- echo FROZEN_P9_FIRST_9f886fa9f8e8d623dd950e68 > /n/okernel/work/runtime-6
+e1dc414d88c9c0fee2a7806/echo-first.out 2> /n/okernel/work/runtime-6e1dc414d88c9c
+0fee2a7806/echo-first.err; runtime_rc=$?; python3 /n/okernel/work/runtime-6e1dc4
+14d88c9c0fee2a7806/guest-check.py /n/okernel/work/runtime-6e1dc414d88c9c0fee2a78
+06 collect echo-first 1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7
+416d9e "$runtime_rc" FROZEN_P9_FIRST_9f886fa9f8e8d623dd950e68 '["/arm64/bin/echo
+", "FROZEN_P9_FIRST_9f886fa9f8e8d623dd950e68"]' ) && printf '\n%s\n' RUNTIME_TYP
+ED_4cab8c57c1193e5bf3c340ef
+
+RUNTIME_HELPER_collect_echo-first_runtime-6e1dc414d88c9c0fee2a7806
+
+RUNTIME_TYPED_4cab8c57c1193e5bf3c340ef
+okernel> [6n^C
+true; _uw_rc=$?; printf '\nUNIFIED_COMMAND_913e821e821d4ee4
+okernel> true; _uw_rc=$?; printf '\nUNIFIED_COMMAND_913e821e821d4ee494262c9696ad
+3cb8:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_913e821e821d4ee494262c9696ad3cb8:0
+okernel> [6n
+[O-core console: original Plan 9; Ctrl-^ then 0 selects Linux]
+
+[O-core console: Linux; Ctrl-^ then 1 selects original Plan 9]
+sync; _uw_rc=$?; printf '\nUNIFIED_COMMAND_80e411ee6e40414a97d5022609e9
+739c:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_80e411ee6e40414a97d5022609e9739c:0
+okernel> 

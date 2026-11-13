@@ -1,0 +1,382 @@
+{
+  "schema": "ostadix.o10-m2-cleanup-additive-readback/v1",
+  "ok": true,
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "started_unix": 1794581548.846389,
+  "scope": "Additive readback of three separately reviewed current72e cleanup actions, plus current source/private-tool identities. This is filesystem/evidence work, not a kernel qualification. No source edit, build, VM, service command or selected-cache deletion by this collector.",
+  "successful_pair_audit_managed": {
+    "job_id": "job-1960399-1794578286458176260-1-19",
+    "state": "completed",
+    "exit_code": 0,
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 1984024,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "status": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/metadata-pair-audit-status.json",
+      "bytes": 2057,
+      "sha256": "7c403f2ddbeb20e140ecfbe301026c7da65c983ecab0c39f22ba8cfd1dd73bb0"
+    },
+    "stdout": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/metadata-pair-audit-stdout.log",
+      "bytes": 2234,
+      "sha256": "fde259f43799cb202114824675ad8061e24864c3e9ef630e871c285779932a83"
+    },
+    "stderr": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/metadata-pair-audit-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "source_clean": true,
+  "source_sha256": {
+    "ocore/guest/linux/package-domain/init": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+    "ocore/guest/linux/package-domain/p9-install": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/runtime/common/namespace_store.oc": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+    "scripts/o10.py": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e",
+    "scripts/okernel-unified-console.sh": "30d6687c92d20e22b90db7eec6fbdc62e6e4294ee31a2d50b325217f15c65bc9",
+    "scripts/okernel_native_volume.py": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef",
+    "scripts/okernel_package_domain.py": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f",
+    "scripts/okernel_unified_world.py": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "tests/test_namespace_store_dotu.py": "7736262e609fcd1355a2301eeedb39502d45fabfbd793704c4fab3f272e2ecf5",
+    "tests/test_p9_install.py": "fbeb01cbe2b596def0153483e3e562ae1446b3749bd0dc601c8711dfba123f1f"
+  },
+  "compiled_sources": 26,
+  "tools": {
+    "O": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+      "bytes": 6395424,
+      "sha256": "494fc7ff2873ce06007affc31f14c0a8dc7645b354c004e9f86881e635a05bb1"
+    },
+    "o-cli": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-cli",
+      "bytes": 14526096,
+      "sha256": "e6caed3fe2d39e150ccd6e5343aa401be547cd3027135fbe15479b6e12b4c6c2"
+    },
+    "olangc": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/olangc",
+      "bytes": 18354752,
+      "sha256": "0a802f146f8fbb097e07500047a8bfa5eebfb552e8143688af08bd659bba675f"
+    },
+    "ocorec": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+      "bytes": 3817336,
+      "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+    },
+    "o-link": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-link",
+      "bytes": 10368152,
+      "sha256": "dc05cec64ba940a8e6568d0ef0ddbe726c8b1c76231316d90d1ad59ae129b47d"
+    },
+    "o-unlink": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-unlink",
+      "bytes": 984192,
+      "sha256": "5e13f32bc95620830b53c299347d60c48750baaae10427f81e46ec5143fac9ad"
+    },
+    "ogit": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ogit",
+      "bytes": 761976,
+      "sha256": "77fa86922d2d7c5588f4107f784dfdd8f587f0ad9cba1c8ddd96a8a1c639577d"
+    },
+    "o-live-host": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-live-host",
+      "bytes": 2710184,
+      "sha256": "fc90c8be8a369193d4954d8f611d49bba9b17b3cc1e2ffe4576ec3c54ac04edc"
+    },
+    "o-node": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-node",
+      "bytes": 12957856,
+      "sha256": "35c55e4d77a9d32bc35f9b6ab093746fd4d5feaf25d45c2b0966da6a7e664085"
+    },
+    "octl": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/octl",
+      "bytes": 8570064,
+      "sha256": "238cca19b9bf395c005b8433e50222ee1023003d16f89eb90b4af63015d1c942"
+    },
+    "o-registry": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-registry",
+      "bytes": 1622576,
+      "sha256": "b6ddf499c19a68a95c2ca08b60d8e5400f36901dc61490d65e6e74d9387ac250"
+    },
+    "o-info": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/o-info",
+      "bytes": 1420016,
+      "sha256": "6be15cf73be435269a0d3ab8aa7e2acf4028346c2de5c3a64fed839b85840cc4"
+    },
+    "ostadix-device": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ostadix-device",
+      "bytes": 1034392,
+      "sha256": "dbb40ed4382dfb04512eae03ff51e130af1875f01c2f3c97a396e94683ddb42c"
+    },
+    "ocore-kernel-world-record": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocore-kernel-world-record",
+      "bytes": 1258816,
+      "sha256": "ac6385994be05d9395ea7172b416686b8ce41f648fd2f22d615b02303b231437"
+    },
+    "ostadix-mcp": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/bin/ostadix-mcp",
+      "bytes": 7683168,
+      "sha256": "694ae45ecd21bc376ae0047afee3e70975ddd835c942a37a984b3d3d2b069f3a"
+    }
+  },
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "mcp_env": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/current-env.json",
+    "bytes": 6610,
+    "sha256": "b4ba9c550f7d29e29ed4c51df429ac0d533cafb2fb2a1e455a2116cec7d22072"
+  },
+  "actions": [
+    {
+      "action": "capacity-retirement-r2",
+      "receipt": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/capacity-retirement-r2/retirement.json",
+        "bytes": 228865,
+        "sha256": "4365ab50369545d9fdce60bc8db6123cdd689dd63b0583ca70ce06aafd94a8fc"
+      },
+      "worker": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/capacity-retirement-r2/retire.py",
+        "bytes": 10857,
+        "sha256": "d211ced64daa77d069ee27e6475caa45f3b3d0189ccf5cc939a2a214c1084e40"
+      },
+      "path_count": 98,
+      "unique_inode_count": 98,
+      "selected_allocated_bytes": 21144756224,
+      "observed_available_delta_bytes": 21099421696,
+      "available_at_action_end_bytes": 30597345280,
+      "protected_at_action_time": true,
+      "original_scope": "Exactly30 failed batch clones,8 old successful working clones and60 superseded payload copies. Original/current seeds, all raw logs/source/manifests/ELFs/tools, old R7 readonly package snapshot, current build/runtime and fresh R8/resident R4 remain intact. No directory deletion.",
+      "lead_execution": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/capacity-retirement-r2/lead-execution.json",
+        "bytes": 392,
+        "sha256": "dfc657d5526a68663643b1a6397913a8077aac23135b53f277ecbd51866a5a99"
+      }
+    },
+    {
+      "action": "old-generated-cache-audit-r3",
+      "receipt": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/old-generated-cache-audit-r3/retirement.json",
+        "bytes": 949200,
+        "sha256": "7ec2aa40f7d8e1346979611d8978890e7ca1e0ff7e71db1537c8808c3c64ce79"
+      },
+      "worker": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/old-generated-cache-audit-r3/retire.py",
+        "bytes": 10419,
+        "sha256": "1d963e2942b8a3d2056db609c3b75907f97153cd69d9cdd2c5079b59306a5ec9"
+      },
+      "path_count": 1618,
+      "unique_inode_count": 1618,
+      "selected_allocated_bytes": 4412350464,
+      "observed_available_delta_bytes": 4408725504,
+      "available_at_action_end_bytes": 34807529472,
+      "protected_at_action_time": true,
+      "original_scope": "Exact generated Cargo AR/Rust metadata, proven libtest executables, gzip crate downloads and SHA512-addressed npm content only. All production/installed tools, .so files, sources/fingerprints, extracted registries, npm indexes/node_modules, saved states/evidence/current O10 artifacts and three directory aliases remain preserved. Proc denied fields are recorded; no privileged/full visibility claim.",
+      "lead_execution": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/old-generated-cache-audit-r3/lead-execution.json",
+        "bytes": 423,
+        "sha256": "08036cd3df09e730ccc9a50f3633cb0fd1a81e0bb5266f33335d32f875e96099"
+      }
+    },
+    {
+      "action": "hardlinked-metadata-cache-audit-r1",
+      "receipt": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/hardlinked-metadata-cache-audit-r1/retirement.json",
+        "bytes": 184748,
+        "sha256": "fee4cd08c9e694118bf804189b44c4882c53b6072b66509b43a1d9e170c680b8"
+      },
+      "worker": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/hardlinked-metadata-cache-audit-r1/retire.py",
+        "bytes": 10315,
+        "sha256": "f1e883e3e9d24d19f1b3551169f8e3e55be818888b8e3524cf6479efc5b805f9"
+      },
+      "path_count": 16,
+      "unique_inode_count": 8,
+      "selected_allocated_bytes": 266084352,
+      "observed_available_delta_bytes": 264761344,
+      "available_at_action_end_bytes": 35064295424,
+      "protected_at_action_time": true,
+      "original_scope": "Exact16 names exhaust8 old generated Rust metadata inodes. Each own unlink is observed through an open descriptor as2-to1 then1-to0, with the resulting ctime pinned for the second operation. Previous cleanup proofs retain their original at-time truth. All nonselected target files, source/tools/ELFs and all O10 evidence/states remain preserved; visible proc scope and denied fields retained.",
+      "own_link_transitions": "eight independently recorded2-to1-to0 chains, each second unlink bound to the first unlink's observed FD ctime",
+      "lead_execution": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/hardlinked-metadata-cache-audit-r1/lead-execution.json",
+        "bytes": 411,
+        "sha256": "7e0578a7b7489dcc77276ad789b57861d5b9ded4e9e4fd2965fb14ffd415374b"
+      }
+    }
+  ],
+  "total_retired_paths": 1732,
+  "total_unique_inodes": 1724,
+  "total_selected_allocated_bytes": 25823191040,
+  "sum_observed_available_deltas_bytes": 25772908544,
+  "available_delta_scope": "Sum of each action's recorded filesystem available-space observation; concurrent evidence writes affect this value, so it is not exclusive byte attribution.",
+  "current_free_bytes": 19150733312,
+  "current_free_scope": "Observation while the fresh six-gate job20 is running; gate-private fork allocations may already be reducing it.",
+  "historical_failed_or_partial_audits": [
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/closed-success-and-duplicate-audit-r1/report.json",
+      "bytes": 4993,
+      "sha256": "a309f7d632db9b8fb7bd9f4e8b69df72b90242d3f896ea7c9b743942f8f7414a"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/closed-success-and-duplicate-audit-r2/report.json",
+      "bytes": 70455,
+      "sha256": "82a5ff542b81037719407ae19cc5c4bf2e0bd4bb1c4c6b68a12b15abd14e4933"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/old-x86-static-cache-audit-r1/manifest.json",
+      "bytes": 352,
+      "sha256": "bee56d81ae965766d04b29b242b0be5ecc3fdda37ce84a00bcc8788c54daadf9"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/old-generated-cache-audit-r3/final-status.json",
+      "bytes": 1122,
+      "sha256": "01a6e089045154794703222591b11164d45e79f343ac356353e4829e915f129e"
+    },
+    {
+      "job_id": "job-1960399-1794578286458176260-1-11",
+      "state": "failed",
+      "exit_code": 1,
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": true,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 1971434,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 1,
+        "session_scan_complete": true
+      },
+      "status": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/inventory98-wrapper-status.json",
+        "bytes": 2141,
+        "sha256": "dc3578a87f7cd172e574ac2272a779afb814c87f62ce3cbd00670b5942286065"
+      },
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/inventory98-wrapper-stdout.log",
+        "bytes": 3062,
+        "sha256": "c5d981fc8416a089cdf0df6f58793560387872a6f37a59989427165daee5b791"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/inventory98-wrapper-stderr.log",
+        "bytes": 1846,
+        "sha256": "76cdc5755ec7bb8dd8d4742fc2aa5878544a1c596d121cd74d429f54fce819da"
+      }
+    },
+    {
+      "job_id": "job-1960399-1794578286458176260-1-14",
+      "state": "failed",
+      "exit_code": 1,
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": true,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 1973641,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 1,
+        "session_scan_complete": true
+      },
+      "status": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/static-cache-rejection-status.json",
+        "bytes": 2141,
+        "sha256": "481020e56e9260fa33b953b8eb20d51aa6d015d0a29d7c7afdf6faf723ac4442"
+      },
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/static-cache-rejection-stdout.log",
+        "bytes": 2358,
+        "sha256": "e1db49fd1e2a000384b0bd8d4be22e00cded686239ede06bded98c7b2fda30b3"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/static-cache-rejection-stderr.log",
+        "bytes": 1165,
+        "sha256": "1ee98d167fbc0662cfeb53dba97a10f42314ae38d6a633cd5022d20b0a461edb"
+      }
+    },
+    {
+      "job_id": "job-1960399-1794578286458176260-1-18",
+      "state": "failed",
+      "exit_code": 1,
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": true,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 1978320,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 1,
+        "session_scan_complete": true
+      },
+      "status": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/generated-cache-wrapper-status.json",
+        "bytes": 2141,
+        "sha256": "38b733c53ecd6bad29a4bbc5bd9dfb71545107f8bdddf83487f56c7729938d9b"
+      },
+      "stdout": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/generated-cache-wrapper-stdout.log",
+        "bytes": 3062,
+        "sha256": "fc789315a1f8ac626c817941e02a32002ce215a376d51a44727fe209f188d07c"
+      },
+      "stderr": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/cleanup-aggregate-r3/generated-cache-wrapper-stderr.log",
+        "bytes": 1846,
+        "sha256": "72b32587e54d772d531db5d0bcadcecb435e89df21b781ff6b8f65862e2c8476"
+      }
+    }
+  ],
+  "failure_scope": "Read-only inventory wrappers11/18 completed their manifest checks but failed OValue projection of runpy namespaces. Static audit14 rejected a hardlinked file. Original outcomes/logs are preserved; independent actual retirement results remain separate.",
+  "current_seed_head": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/head.json",
+    "bytes": 1480,
+    "sha256": "70c65d8119b98ad073f46e8e3776241a0df9b82304a3d7332b3c6f3dbee3183c"
+  },
+  "build_profile": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+    "bytes": 28349,
+    "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+  },
+  "monitor": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor.elf",
+    "bytes": 1012056,
+    "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+  },
+  "runtime": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "bytes": 243138,
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "finished_unix": 1794581550.24935
+}

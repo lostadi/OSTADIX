@@ -1,0 +1,6 @@
+{
+  "matches": [],
+  "observed_unix": 1794579442.3782227,
+  "schema": "ostadix.o10-m2-independent-actual-primary-process-observation/v1",
+  "scope": "Read-only actual process argv/cwd identity observation; no command resubmission or completion assertion."
+}

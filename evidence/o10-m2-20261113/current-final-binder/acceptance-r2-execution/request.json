@@ -1,0 +1,34 @@
+{
+  "args": [
+    "o10-m2-accept",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "--restart-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8/result.json",
+    "--restart-command",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/restart-command.json",
+    "--resident-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r4/result.json",
+    "--guest-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/result.json",
+    "--component-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/result.json",
+    "--unit-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/result.json",
+    "--provenance",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/current-env.json",
+    "--compiler",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "--expected-revision",
+    "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2.json"
+  ],
+  "background": true,
+  "command": "kernel",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "env": {
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "timeout_secs": 0
+}
