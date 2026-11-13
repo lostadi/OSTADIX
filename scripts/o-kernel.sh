@@ -42,6 +42,7 @@ Commands:
   build        Build the baseline kernel image
   unified-build  Build an isolated Linux/Plan9 EL2 profile (arguments forwarded)
   o10-linux-restart Run the isolated M2 Linux restart gate (arguments forwarded)
+  o10-three-domains Run the isolated M3 three-domain gate (--execute required)
   o10-m1-regressions Run the M1 guest regression driver (arguments forwarded)
   o10-m2-regressions Run the M2 guest regression wrapper (arguments forwarded)
   o10-m2-accept Bind completed M2 qualification evidence (arguments forwarded)
@@ -179,6 +180,9 @@ case "$command_name" in
         ;;
     o10-linux-restart)
         exec python3 "$ROOT/scripts/verify_o10_linux_restart.py" "$@"
+        ;;
+    o10-three-domains)
+        exec python3 "$ROOT/scripts/verify_o10_three_domains.py" "$@"
         ;;
     o10-m1-regressions)
         exec python3 "$ROOT/scripts/verify_o10_m1_regressions.py" "$@"

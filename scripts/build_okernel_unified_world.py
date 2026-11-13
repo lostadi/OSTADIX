@@ -65,6 +65,29 @@ IDLE_SCHEDULER = {"schema": "ostadix.unified-idle-scheduler/v1",
                   "policy": "park WFI until waking virtual interrupt; WFE remains a hint"}
 
 
+
+def captured_source_paths(admission_kind: str, *, native_fixture: bool = False) -> tuple[str, ...]:
+    """Canonical source capture closure shared by build and acceptance gates."""
+    if admission_kind not in ("qualified-original-userland", "original-kernel"):
+        raise ValueError("unsupported Plan9 source admission kind")
+    paths = list(SOURCES) + [
+        "ocore/kernel/aarch64/unified_world/monitor.S",
+        "ocore/kernel/aarch64/unified_world/linker.ld",
+        "ocore/kernel/aarch64/kernel_world/guest.dts",
+        "ocore/kernel/aarch64/plan9_probe/guest.dts",
+        "scripts/build_okernel_unified_world.py", "scripts/probe_okernel_plan9.py",
+        "ocore/guest/linux/package-domain/init"]
+    if admission_kind == "qualified-original-userland":
+        paths += ["scripts/build_okernel_plan9_userland.py", "scripts/build_okernel_plan9_original.py",
+                  "scripts/plan9_userland_admission.py"]
+    if native_fixture:
+        paths += [*native_fixture_builder.SOURCES, "scripts/build_o10_native_fixture.py",
+                  "scripts/o10_native_fixture.py"]
+    if len(paths) != len(set(paths)):
+        raise ValueError("duplicate source capture input")
+    return tuple(paths)
+
+
 def qualified_userland_policy(receipt_sha: str) -> dict:
     """Select an explicitly qualified provider; self-consistent files do not admit one."""
     if receipt_sha == USERLAND_RECEIPT_SHA:
@@ -549,18 +572,7 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
     for name in ("linux", "plan9"):
         commands.append([str(tools["dtc"]), "-I", "dts", "-O", "dtb", "-o",
                          str(output / (name + ".dtb")), str(output / (name + ".dts"))])
-    tracked = list(SOURCES) + ["ocore/kernel/aarch64/unified_world/monitor.S",
-                              "ocore/kernel/aarch64/unified_world/linker.ld",
-                              "ocore/kernel/aarch64/kernel_world/guest.dts",
-                              "ocore/kernel/aarch64/plan9_probe/guest.dts",
-                              "scripts/build_okernel_unified_world.py", "scripts/probe_okernel_plan9.py",
-                              "ocore/guest/linux/package-domain/init"]
-    if admitted["admission_kind"] == "qualified-original-userland":
-        tracked += ["scripts/build_okernel_plan9_userland.py", "scripts/build_okernel_plan9_original.py",
-                    "scripts/plan9_userland_admission.py"]
-    if o10_native_fixture:
-        tracked += [*native_fixture_builder.SOURCES, "scripts/build_o10_native_fixture.py",
-                    "scripts/o10_native_fixture.py"]
+    tracked = captured_source_paths(admitted["admission_kind"], native_fixture=o10_native_fixture)
     before = {name: fingerprint(ROOT / name) for name in tracked}
     if before["ocore/guest/linux/package-domain/init"] != initrd_derivation["original_init_sha256"]:
         raise ValueError("original Linux init template changed during derivation")
