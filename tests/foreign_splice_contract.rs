@@ -920,10 +920,7 @@ fn expected_stage_timeout(source: &str) -> String {
     for row in rows {
         let pid = row["pid"].as_u64().unwrap() as u32;
         let started = row["starttime"].as_u64().unwrap();
-        loop {
-            let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
-                break;
-            };
+        while let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) {
             let fields = stat
                 .get(stat.rfind(')').unwrap() + 2..)
                 .unwrap()
