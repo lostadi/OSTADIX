@@ -264,7 +264,12 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         "scripts/verify_o10_journal.py",
         "scripts/verify_o10_live.py",
         "scripts/verify_o10_m0.py",
+        "scripts/verify_o10_m1.py",
+        "scripts/verify_o10_m1_regressions.py",
+        "scripts/verify_o10_resident.py",
+        "scripts/verify_o10_hostile_mmio.py",
         "scripts/verify_o10_regressions.py",
+        "scripts/o-kernel.sh",
         "scripts/build_okernel_unified_world.py",
         "scripts/okernel_unified_world.py",
         "scripts/okernel-unified-console.sh",
@@ -280,7 +285,8 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         "ci/language-sources.json",
         *(
             f"tests/test_o10_{name}.py"
-            for name in ("codec", "live", "m0", "native", "platform", "regressions", "runner")
+            for name in ("codec", "live", "m0", "m1", "m1_regressions", "native", "platform",
+                         "regressions", "runner", "resident", "resident_native", "hostile_mmio")
         ),
         *(
             f"ocore/runtime/aarch64/{name}.oc"
