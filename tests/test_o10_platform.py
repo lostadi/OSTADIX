@@ -78,6 +78,7 @@ SENTINEL(uw_domain_reset)
 SENTINEL(uw_current_domain)
 SENTINEL(uw_counter_read)
 void uw_memory_barrier(void){__sync_synchronize();}
+void kw_memory_barrier(void){__sync_synchronize();}
 SENTINEL(uw_serial_putc)
 SENTINEL(uw_halt)
 SENTINEL(uw_vgic_lr_read)
@@ -173,6 +174,7 @@ uint64_t uw_domain_reset(uint64_t domain,uint64_t pc,uint64_t x0,uint64_t pstate
 }
 uint64_t uw_counter_read(void){return ++ticks;}
 void uw_memory_barrier(void){__sync_synchronize();}
+void kw_memory_barrier(void){__sync_synchronize();}
 uint64_t uw_vgic_lr_count(void){return 4;}
 uint64_t uw_vgic_lr_read(uint64_t domain,uint64_t index){assert(domain<2&&index<4);return lrs[domain][index];}
 void uw_vgic_lr_write(uint64_t domain,uint64_t index,uint64_t value){assert(domain<2&&index<4);lrs[domain][index]=value;}

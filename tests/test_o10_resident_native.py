@@ -47,6 +47,8 @@ extern uint64_t _O_runtime__aarch64__kernel_world_monitor__resident_test_uart_va
 extern uint64_t _O_runtime__aarch64__kernel_world_net__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_9p__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_9p__fault_kind(void);
+extern uint64_t _O_runtime__aarch64__kernel_world_9p__provision(uint64_t,uint64_t,uint64_t);
+extern uint64_t _O_runtime__aarch64__kernel_world_9p__bind_current(uint64_t,uint64_t,uint64_t);
 extern void _O_runtime__aarch64__kernel_world_virtio__resident_test_hold(void);
 extern uint64_t _O_runtime__aarch64__kernel_world_virtio__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_virtio__mmio_write(uint64_t,uint64_t);
@@ -79,6 +81,16 @@ static void namespace_sessions(void){
  attach_session(linux_session);attach_session(plan9_session);
  assert(NS(session_fid_count)(1)==1&&NS(session_fid_count)(4)==1);
 }
+// M2 containment detaches initialized cold-boot frontends. Initialize only
+// containment scenarios; deliberate missing-backend diagnostic cases stay raw.
+static void linux_frontends(void){
+ assert(_O_runtime__aarch64__kernel_world_virtio__init(0x40000000,65536,1)==1);
+ if(SERVICES){
+  assert(_O_runtime__aarch64__kernel_world_net__init(0x40000000,65536,1)==1);
+  assert(_O_runtime__aarch64__kernel_world_9p__provision(0x40000000,65536,1)==1);
+  assert(_O_runtime__aarch64__kernel_world_9p__bind_current(1,linux_session,1)==1);
+ }
+}
 static void frame(unsigned kind,size_t len,uint64_t epoch,uint64_t seq){
  memset(request,0,512);st(request,len,4);st(request+4,kind,1);st(request+5,88,2);
  st(request+7,epoch,8);st(request+15,seq,8);
@@ -98,7 +110,8 @@ void uw_irq_eoi(uint64_t irq){assert(irq==physical_irq);eoi_count++;}
 void uw_memory_barrier(void){__sync_synchronize();}
 void kw_memory_barrier(void){__sync_synchronize();}
 void uw_serial_putc(uint64_t byte){assert(serial_count<sizeof serial-1);serial[serial_count++]=(unsigned char)byte;}
-uint64_t uw_serial_try_read(void){return UINT64_MAX;}
+// Real assembly uses bit8 as present; zero models an empty UART.
+uint64_t uw_serial_try_read(void){return 0;}
 
 uint64_t uw_timer_pending(uint64_t domain,uint64_t kind){assert(domain<2&&kind<2);return 0;}
 uint64_t uw_timer_deadline(uint64_t domain,uint64_t kind){assert(domain<2&&kind<2);return UINT64_MAX;}
@@ -123,6 +136,7 @@ uint64_t uw_idle_until(uint64_t deadline){
 static void diagnostic(uint64_t reason,uint64_t arg0){
  assert(halt_count==1);assert(rd((void*)0x6d0000d0,8)==reason);
  assert(rd((void*)0x6d0000d8,8)==arg0);assert(rd((void*)0x6d000008,8)==0);
+ if(strncmp((char*)serial,"KW unified internal invariant: ",31))fprintf(stderr,"serial before diagnostic: %s\n",serial);
  assert(!strncmp((char*)serial,"KW unified internal invariant: ",31));
 }
 int main(int argc,char**argv){
@@ -142,7 +156,7 @@ int main(int argc,char**argv){
   physical_irq=33;int code=setjmp(stop);if(!code)uw_handle_exit((uintptr_t)registers,1,0,0,0);
   assert(code==2);diagnostic(0x1102,33);
  }else if(scenario==3||scenario==4){
-  namespace_sessions();assert(UW(resident_test_init)(3)==1);current=0;
+  namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);current=0;
   int code=setjmp(stop);if(!code){
    uint64_t next=uw_handle_exit((uintptr_t)registers,scenario==3?2:0,
                                 scenario==3?0x1234:0,scenario==3?0x45:0,scenario==3?0xabc0:0);
@@ -154,7 +168,7 @@ int main(int argc,char**argv){
      assert(reply[4]==179&&rd(reply+49,8)==0x1234&&rd(reply+57,8)==0xabc045);
      assert(rd(reply+65,8)==registers[31]);
     }
-  }else assert(!"guest containment halted or entered idle with survivor");
+  }else{fprintf(stderr,"containment diagnostic=%" PRIx64 " detail=%" PRIx64 "\n",rd((void*)0x6d0000d0,8),rd((void*)0x6d0000d8,8));assert(!"guest containment halted or entered idle with survivor");}
   assert(strstr((char*)serial,"KW unified domain failure: ")!=NULL);
  }else if(scenario==5){
   assert(UW(resident_test_init)(2)==1);current=1;lrs[1][0]=((uint64_t)1<<62)|1023;
@@ -183,13 +197,13 @@ int main(int argc,char**argv){
    diagnostic(0x1102,33);
    assert(strstr((char*)serial,"KW unified domain failure: ")==NULL);
   }else if(scenario>=10&&scenario<=16){
-   namespace_sessions();assert(UW(resident_test_init)(3)==1);current=0;
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);current=0;
    uint64_t esr=((uint64_t)0x24<<26)|(1ull<<24)|(1ull<<25)|(2ull<<22)|64;
    uint64_t ipa=0xdead0000;
    if(scenario==11)ipa=0x09000ffc; // Unhandled UART write.
    if(scenario==12){ipa=0x0a000000;esr|=1ull<<22;} // Unsupported 8-byte width.
-   if(scenario==13){assert(_O_runtime__aarch64__kernel_world_virtio__init(0x40000000,65536,1)==1);ipa=0x0a0000fc;} // Invalid block register write.
-   if(scenario==14){assert(_O_runtime__aarch64__kernel_world_net__init(0x40000000,65536,1)==1);ipa=0x0a000300;} // Inactive network frontend write.
+   if(scenario==13){ipa=0x0a0000fc;} // Invalid block register write.
+   if(scenario==14){if(!SERVICES)assert(_O_runtime__aarch64__kernel_world_net__init(0x40000000,65536,1)==1);ipa=0x0a000300;} // Inactive network frontend write.
    if(scenario==15){esr=((uint64_t)0x16<<26)|10;registers[0]=0x84000000;}
    if(scenario==16){esr=(uint64_t)0x16<<26;registers[0]=0x12345678;}
    int code=setjmp(stop);if(!code){
@@ -243,7 +257,7 @@ int main(int argc,char**argv){
    assert(strstr((char*)serial,"KW unified domain failure: ")==NULL);
    if(scenario!=22){assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);}
   }else if(scenario>=25&&scenario<=31){
-   namespace_sessions();assert(UW(resident_test_init)(3)==1);current=0;
+   namespace_sessions();if(scenario!=28)linux_frontends();assert(UW(resident_test_init)(3)==1);current=0;
    uint64_t esr=((uint64_t)0x24<<26)|(1ull<<24)|(1ull<<25)|(2ull<<22)|64;
    uint64_t ipa=0x09000008;registers[0]=1;
    if(scenario==26)esr&=~64ull;
