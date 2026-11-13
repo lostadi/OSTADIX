@@ -333,12 +333,15 @@ static unsigned createu(uint64_t s,uint32_t fid,const char*name,unsigned mode,co
 static unsigned numeric_error(uint64_t s){
  assert(response[4]==107&&(s&1));return (unsigned)rd(response+received-4,4);
 }
-static unsigned renameu(uint64_t s,uint32_t fid,const char*name,uint32_t uid,const char*ext){
+static unsigned wstatu(uint64_t s,uint32_t fid,const char*name,uint32_t mode,uint32_t uid,const char*ext){
  begin(126);put(fid,4);size_t packed=pos;put(0,2);size_t inner=pos;put(0,2);
  put(UINT16_MAX,2);put(UINT32_MAX,4);put(UINT8_MAX,1);put(UINT32_MAX,4);put(UINT64_MAX,8);
- put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT64_MAX,8);
+ put(mode,4);put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT64_MAX,8);
  str(name);str("");str("");str("");str(ext);put(uid,4);put(UINT32_MAX,4);put(UINT32_MAX,4);
  st(request+packed,pos-inner,2);st(request+inner,pos-inner-2,2);return call(s);
+}
+static unsigned renameu(uint64_t s,uint32_t fid,const char*name,uint32_t uid,const char*ext){
+ return wstatu(s,fid,name,UINT32_MAX,uid,ext);
 }
 
 extern uint64_t NS(qualification_fids)(uint64_t,uint64_t,uint64_t*,size_t);
@@ -421,6 +424,29 @@ int main(void){
  handshake(p,1,"/");handshake(peer,1,"/");handshake(ro,1,"/");
  uint64_t oldplain=l;l=dotu(l,1);attachu(l,1,0);
  ro=append_corpus(l,p,ro);
+ // Exact installer publication shape on the production .u store: stage
+ // bytes, chmod0555, reject a positive sibling without mutation, then publish.
+ assert(walk(l,1,200,"work")==111&&walk(l,200,201,NULL)==111);
+ assert(createu(l,201,"u-install-pending",0600,"")==115);
+ assert(writefid(l,201,0,"NEW\0\377",5,8192)==119);
+ assert(wstatu(l,201,"",0555,UINT32_MAX,"")==127);
+ assert(statfid(l,201)==125&&rd(response+30,4)==0555);
+ uint64_t staged_qid=rd(response+22,8);
+ assert(walk(l,200,202,NULL)==111&&createu(l,202,"u-install-existing",0555,"")==115);
+ assert(writefid(l,202,0,"OLD",3,8192)==119);
+ assert(statfid(l,202)==125);uint64_t existing_qid=rd(response+22,8);
+ assert(renameu(l,201,"u-install-existing",UINT32_MAX,"")==107&&numeric_error(l)==17);
+ assert(statfid(l,201)==125&&rd(response+22,8)==staged_qid&&rd(response+30,4)==0555);
+ assert(statfid(l,202)==125&&rd(response+22,8)==existing_qid&&rd(response+30,4)==0555);
+ assert(readfid(l,201,0,8)==117&&rd(response+7,4)==5&&!memcmp(response+11,"NEW\0\377",5));
+ assert(readfid(l,202,0,8)==117&&rd(response+7,4)==3&&!memcmp(response+11,"OLD",3));
+ assert(walk(l,200,203,"u-install-pending")==111);
+ assert(renameu(l,201,"u-install-fresh",UINT32_MAX,"")==127);
+ assert(walk(l,200,204,"u-install-pending")==107&&numeric_error(l)==2);
+ assert(walk(l,200,204,"u-install-fresh")==111&&openfid(l,204,0)==113);
+ assert(statfid(l,204)==125&&rd(response+22,8)==staged_qid&&rd(response+30,4)==0555);
+ assert(readfid(l,204,0,8)==117&&rd(response+7,4)==5&&!memcmp(response+11,"NEW\0\377",5));
+ assert(readfid(l,202,0,8)==117&&rd(response+7,4)==3&&!memcmp(response+11,"OLD",3));
  assert(statfid(oldplain,1)==107&&received==36); // old even stays plain, no authority
  assert(NS(session_handle)(4)==p&&NS(session_handle)(2)==peer&&NS(session_handle)(3)==ro);
  assert(statfid(p,1)==125&&received==74); // original root stat remains65 bytes
