@@ -238,15 +238,13 @@ const GENERATED_RUNTIME_UNUSED_FEATURE_EDGES: &[(&str, &str)] = &[
     ("winnow", "memchr"),
 ];
 
-// LLVM/native data hashing keeps digest 0.10. Ed25519 3 additionally brings
-// digest 0.11.3, whose workspace HKDF/MAC union enables these optional edges.
-// The generated Ed25519 default profile selects only block-api/default, as
-// independently checked by Cargo's selected feature graph. A new version
-// requires a fresh audit; do not drop these edges for arbitrary digest builds.
-const GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES: &[(&str, &str, &str)] = &[
-    ("digest", "0.11.3", "const-oid"),
-    ("digest", "0.11.3", "ctutils"),
-];
+// SHA2 0.11 and Ed25519 3 share digest 0.11.3. SHA2's default oid feature
+// requires const-oid, so retain that edge in generated runtimes. The workspace
+// HKDF/HMAC union additionally enables the MAC-only ctutils edge, which the
+// generated runtime does not use. A new digest version requires a fresh audit;
+// do not drop this edge for arbitrary digest builds.
+const GENERATED_RUNTIME_UNUSED_VERSIONED_FEATURE_EDGES: &[(&str, &str, &str)] =
+    &[("digest", "0.11.3", "ctutils")];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI
@@ -3974,7 +3972,7 @@ base64     = "0.23"
 toml       = "1.1"
 which      = "8"
 semver     = {{ version = "1", features = ["serde"] }}
-sha2       = "0.10"
+sha2       = "0.11"
 hex        = "0.4"
 ed25519-dalek = "3"
 num-bigint = {{ version = "0.5", features = ["serde"] }}
@@ -5579,6 +5577,7 @@ dependencies = ["const-oid", "ctutils"]
             packages[0]["dependencies"].as_array().unwrap(),
             &[
                 toml::Value::String("block-buffer 0.12.1".into()),
+                toml::Value::String("const-oid".into()),
                 toml::Value::String("crypto-common 0.2.2".into())
             ]
         );
@@ -5954,7 +5953,7 @@ dependencies = ["const-oid", "ctutils"]
                 .filter(|package| package["name"].as_str() == Some("sha2"))
                 .count(),
             2,
-            "the workspace fixture must exercise separate SHA-256 digest APIs"
+            "the workspace fixture must include current SHA2 and SPAKE2's older transitive SHA2"
         );
         for include_project in [false, true] {
             let manifest =
@@ -6043,6 +6042,25 @@ dependencies = ["const-oid", "ctutils"]
         let original =
             toml::from_str::<toml::Value>(std::str::from_utf8(WORKSPACE_CARGO_LOCK).unwrap())
                 .unwrap();
+        let generated =
+            toml::from_str::<toml::Value>(&generate_cargo_toml("dependency-negative", false))
+                .unwrap();
+        let (_, requirement) = generated_dependency_requirement(&generated, "sha2").unwrap();
+        let incompatible_version = original["package"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|package| {
+                package["name"].as_str() == Some("sha2")
+                    && !requirement.matches(
+                        &semver::Version::parse(package["version"].as_str().unwrap()).unwrap(),
+                    )
+            })
+            .expect("workspace must retain an incompatible transitive SHA2 for this negative")
+            ["version"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         let mut missing = original.clone();
         for package in missing["package"].as_array_mut().unwrap() {
             if matches!(package["name"].as_str(), Some("o-lang" | "ostadix-api")) {
@@ -6050,7 +6068,7 @@ dependencies = ["const-oid", "ctutils"]
                 dependencies.retain(|dependency| {
                     dependency.as_str().unwrap().split_whitespace().next() != Some("sha2")
                 });
-                dependencies.push(toml::Value::String("sha2 0.11.0".into()));
+                dependencies.push(toml::Value::String(format!("sha2 {incompatible_version}")));
             }
         }
         let error =
@@ -6066,11 +6084,26 @@ dependencies = ["const-oid", "ctutils"]
             .iter()
             .find(|package| {
                 package["name"].as_str() == Some("sha2")
-                    && package["version"].as_str().unwrap().starts_with("0.10.")
+                    && requirement.matches(
+                        &semver::Version::parse(package["version"].as_str().unwrap()).unwrap(),
+                    )
             })
             .unwrap()
             .clone();
-        duplicate["version"] = toml::Value::String("0.10.8".into());
+        let mut duplicate_version =
+            semver::Version::parse(duplicate["version"].as_str().unwrap()).unwrap();
+        loop {
+            duplicate_version.patch += 1;
+            if packages.iter().all(|package| {
+                package["name"].as_str() != Some("sha2")
+                    || package["version"].as_str() != Some(duplicate_version.to_string().as_str())
+            }) {
+                break;
+            }
+        }
+        assert!(requirement.matches(&duplicate_version));
+        let duplicate_coordinate = format!("sha2 {duplicate_version}");
+        duplicate["version"] = toml::Value::String(duplicate_version.to_string());
         packages.push(duplicate);
         packages
             .iter_mut()
@@ -6078,7 +6111,7 @@ dependencies = ["const-oid", "ctutils"]
             .unwrap()["dependencies"]
             .as_array_mut()
             .unwrap()
-            .push(toml::Value::String("sha2 0.10.8".into()));
+            .push(toml::Value::String(duplicate_coordinate));
         let error =
             generate_cargo_lock_from(&toml::to_string(&ambiguous).unwrap(), false).unwrap_err();
         assert!(error
