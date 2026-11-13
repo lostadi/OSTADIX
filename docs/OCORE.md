@@ -178,8 +178,10 @@ not 64 lowercase hex digits is an error. The adapter reads the tools' exact
 ELF bytes and runs sealed
 copies to assemble and statically link the owned assembly. It preserves their
 original invocation paths as `argv[0]`. Both tools use one captured working
-directory and an otherwise cleared environment containing `LC_ALL=C` and the
-same optional `LD_LIBRARY_PATH` snapshot. The manifest binds the working
+directory and an otherwise cleared environment containing `LC_ALL=C`. The
+caller's `LD_LIBRARY_PATH` never reaches them. When a pinned toolchain needs a
+library path, `O_NATIVE_TOOL_LIBRARY_PATH` supplies it, and every entry must be
+absolute. The manifest binds the working
 directory and an unambiguous environment digest without exposing its raw
 values. These selected tools, their loaded libraries, the owned emitter and
 adapter, and the Linux kernel are explicit trusted components; pinning tool
