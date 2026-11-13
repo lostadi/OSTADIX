@@ -316,3 +316,145 @@ fn manifest_and_lease_metadata_tampering_cannot_launch_a_prepared_kernel() {
     Arc::get_mut(&mut leaf).unwrap().image.bytes = original_bytes;
     assert_eq!(argument(&leaf.execute(&[41]).unwrap()).unwrap(), 42);
 }
+
+// ############################################################################
+// division parity: owned native code against the reference interpreter
+// ############################################################################
+
+/// One divisor or dividend: a runtime parameter or a literal folded into the
+/// module, so the emitter sees a known constant.
+#[derive(Clone, Copy, Debug)]
+enum Side {
+    Runtime(i64),
+    Constant(i64),
+}
+
+impl Side {
+    fn value(self) -> i64 {
+        match self {
+            Side::Runtime(value) | Side::Constant(value) => value,
+        }
+    }
+}
+
+/// A two-parameter leaf computing `kind` at `width` (1 or 64). an i1 leaf
+/// truncates its i64 inputs, divides at i1 and sign-extends the answer, so
+/// the guards under test run at i1 while the leaf keeps the i64 interface.
+fn division_leaf(kind: &str, width: u16, lhs: Side, rhs: Side) -> Json {
+    let ty = if width == 1 { 2 } else { 1 };
+    let mut instructions = Vec::new();
+    let mut next = 2;
+    let mut operand = |side: Side, param: usize, instructions: &mut Vec<Json>| match side {
+        Side::Constant(value) => {
+            let bits = if width == 1 {
+                (value & 1) as u64
+            } else {
+                value as u64
+            };
+            json!({"kind":"int","ty":ty,"bits":bits.to_string()})
+        }
+        Side::Runtime(_) if width == 1 => {
+            let id = next;
+            next += 1;
+            instructions.push(json!({"result":{"id":id,"ty":2},"operation":{"op":"cast","kind":"trunc","value":{"kind":"value","id":param}}}));
+            json!({"kind":"value","id":id})
+        }
+        Side::Runtime(_) => json!({"kind":"value","id":param}),
+    };
+    let lhs = operand(lhs, 0, &mut instructions);
+    let rhs = operand(rhs, 1, &mut instructions);
+    let quotient = next;
+    instructions.push(json!({"result":{"id":quotient,"ty":ty},"operation":{"op":"binary","kind":kind,"lhs":lhs,"rhs":rhs,"flags":[]}}));
+    let mut result = json!({"kind":"value","id":quotient});
+    if width == 1 {
+        instructions.push(json!({"result":{"id":quotient + 1,"ty":1},"operation":{"op":"cast","kind":"s_ext","value":result}}));
+        result = json!({"kind":"value","id":quotient + 1});
+    }
+    let mut leaf = descriptor(2);
+    let function = &mut leaf["module"]["functions"][0];
+    function["blocks"][0]["instructions"] = Json::Array(instructions);
+    function["blocks"][0]["terminator"] = json!({"op":"return","value":result});
+    leaf
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn division_matches_the_interpreter_at_i1_and_i64_through_owned_native_code() {
+    use crate::ocore::native_interpret::evaluate;
+    use num_bigint::BigUint;
+    use Side::{Constant, Runtime};
+    let mut cases = Vec::new();
+    for (width, minimum) in [(1_u16, -1_i64), (64, i64::MIN)] {
+        for kind in ["s_div", "s_rem", "u_div", "u_rem"] {
+            for (lhs, rhs) in [
+                // division by zero traps whether the zero is known or not.
+                (Runtime(7), Constant(0)),
+                (Runtime(7), Runtime(0)),
+                (Constant(minimum), Runtime(0)),
+                // MIN / -1: sdiv gives MIN, srem gives 0; nothing traps.
+                (Runtime(minimum), Constant(-1)),
+                (Runtime(minimum), Runtime(-1)),
+                (Constant(minimum), Constant(-1)),
+                (Constant(minimum), Runtime(-1)),
+                // a known non-zero, non -1 divisor needs no guard.
+                (Runtime(minimum), Constant(7)),
+                (Runtime(-7), Runtime(2)),
+                (Runtime(-1), Runtime(-1)),
+            ] {
+                cases.push((kind, width, lhs, rhs));
+            }
+        }
+    }
+    for (kind, width, lhs, rhs) in cases {
+        let leaf = division_leaf(kind, width, lhs, rhs);
+        verified(&leaf);
+        let module = NativeModule::from_json(&serde_json::to_vec(&leaf["module"]).unwrap())
+            .unwrap_or_else(|error| panic!("{}", error.message));
+        let arguments = [lhs.value(), rhs.value()];
+        let expected = evaluate(
+            &module,
+            "native_add",
+            &arguments.map(|value| BigUint::from(value as u64)),
+        );
+        let native = prepare(&leaf.to_string())
+            .unwrap_or_else(|error| panic!("{kind} i{width} {lhs:?} {rhs:?}: {error:#}"))
+            .execute(&arguments);
+        let case = format!("{kind} i{width} {lhs:?} {rhs:?}");
+        match expected {
+            Ok(Some(bits)) => {
+                let value =
+                    argument(&native.unwrap_or_else(|error| panic!("{case}: {error:#}"))).unwrap();
+                assert_eq!(BigUint::from(value as u64), bits, "{case}");
+            }
+            Ok(None) => panic!("{case}: no result"),
+            Err(error) => {
+                assert!(
+                    error.message.contains("by zero trapped"),
+                    "{case}: {}",
+                    error.message
+                );
+                assert_eq!(
+                    rhs.value() & if width == 1 { 1 } else { -1 },
+                    0,
+                    "{case} trapped"
+                );
+                let failure = format!("{:#}", native.expect_err(&case));
+                assert!(failure.contains("failed"), "{case}: {failure}");
+            }
+        }
+    }
+    // the documented answers, independent of either implementation.
+    let at = |kind, width, lhs, rhs| {
+        argument(
+            &prepare(&division_leaf(kind, width, lhs, rhs).to_string())
+                .unwrap()
+                .execute(&[lhs.value(), rhs.value()])
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    assert_eq!(at("s_div", 1, Runtime(-1), Runtime(-1)), -1);
+    assert_eq!(at("s_rem", 1, Runtime(-1), Runtime(-1)), 0);
+    assert_eq!(at("s_div", 64, Runtime(i64::MIN), Runtime(-1)), i64::MIN);
+    assert_eq!(at("s_rem", 64, Runtime(i64::MIN), Constant(-1)), 0);
+}
