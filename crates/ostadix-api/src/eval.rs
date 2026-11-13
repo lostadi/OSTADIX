@@ -6321,6 +6321,34 @@ mod tests {
     }
 
     #[test]
+    fn plain_bash_blocks_share_a_helper_but_never_a_shell() {
+        // b splices a, so the blocks run one after the other; both shells
+        // report their parent, the helper.
+        let Some(result) = run_bash_document(
+            "let a = bash^(o_left=1; echo \"${PPID}\")_bash\n\
+             bash^(echo \"${o_left:-unset} ${PPID} $a ${O_BACKEND_SESSION_ID:-none}\")_bash\n",
+        ) else {
+            return;
+        };
+        let value = result.unwrap();
+        let text = value.splice_repr();
+        let words: Vec<&str> = text.split_whitespace().collect();
+        assert_eq!(words.len(), 4, "{text}");
+        assert_eq!(
+            words[0], "unset",
+            "a plain block saw the last block's shell: {text}"
+        );
+        assert_eq!(
+            words[1], words[2],
+            "plain blocks did not reuse the helper: {text}"
+        );
+        assert_eq!(
+            words[3], "none",
+            "the helper's identity reached a block: {text}"
+        );
+    }
+
+    #[test]
     fn bash_errors_name_the_block_not_the_session_temp_path() {
         let Some(result) = run_bash_document("bash^(no_such_command_o_test)_bash\n") else {
             return;
