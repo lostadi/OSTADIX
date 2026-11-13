@@ -1029,6 +1029,130 @@ class SourceReleaseTests(unittest.TestCase):
             [],
         )
 
+    def test_public_source_policy_omits_git_tracked_capture_bytes(self) -> None:
+        marker = b"private capture fixture, not implementation\x00"
+        captures = {
+            "apps/iphone16-pro/evidence/crash/tracked-capture.json",
+            "evidence/o10-m0-20261112/isa-coordination-rv-online/tracked-capture.json",
+            "evidence/o10-m0-20261112/isa-coordination.json",
+            "tools/nano-local-loader/evidence/initialization-system-environment.json",
+            "evidence/compiler_expansion_oversight_20261020.json",
+        }
+        retained = {
+            "apps/iphone16-pro/recon.O": "python^(1)_python\n",
+            "apps/iphone16-pro/evidence-review/source.O": "python^(2)_python\n",
+            "evidence/public-source-fixture/synthetic-network.json": (
+                '{"guest":"10.0.2.15","mac":"52:54:00:12:34:56"}\n'
+            ),
+            "tools/nano-local-loader/evidence/synthetic-probe.json": (
+                '{"fixture":true,"operation":"source test"}\n'
+            ),
+        }
+        commit = self._commit({**dict.fromkeys(captures, marker), **retained})
+        # Force-add/commit above makes this a tracked-data policy regression;
+        # ignored/untracked files alone cannot establish the exclusion.
+        self.assertEqual(set(self._git("ls-files", "--error-unmatch", *sorted(captures)).splitlines()), captures)
+        result = self._build("public-capture-policy.zip")
+        manifest = release.verify_archive(result.output)
+        self.assertEqual(set(manifest), {"commit", "file_count", "files", "prefix", "schema"})
+        self.assertEqual(manifest["commit"], commit)
+        packaged = {item["path"] for item in manifest["files"]}
+        self.assertFalse(captures & packaged)
+        self.assertTrue(set(retained) <= packaged)
+        self.assertTrue(release.NATIVE_FOUNDATION_RELEASE_PATHS <= packaged)
+        self.assertTrue(release.O10_COMPONENT_RELEASE_PATHS <= packaged)
+        with zipfile.ZipFile(result.output) as archive:
+            for name in archive.namelist():
+                self.assertNotIn(marker, archive.read(name), name)
+            for path, text in retained.items():
+                self.assertEqual(archive.read(f"{manifest['prefix']}/{path}"), text.encode())
+        # Packaging does not delete or rewrite the original captures/history.
+        for path in captures:
+            self.assertEqual((self.repo / path).read_bytes(), marker)
+            self.assertEqual(self._git("show", f"{commit}:{path}"), marker.decode().strip())
+
+    def test_public_capture_policy_keeps_exact_boundaries_and_required_sources(self) -> None:
+        blocked = {
+            "apps/iphone16-pro/evidence",
+            "apps/iphone16-pro/evidence/crash/capture.ips",
+            "evidence/o10-m0-20261112/isa-coordination-rv-online",
+            "evidence/o10-m0-20261112/isa-coordination-rv-online/nested/capture.json",
+            "evidence/o10-m0-20261112/isa-coordination.json",
+            "tools/nano-local-loader/evidence/initialization-system-environment.json",
+            "evidence/compiler_expansion_oversight_20261020.json",
+        }
+        allowed = {
+            "apps/iphone16-pro/recon.O",
+            "apps/iphone16-pro/evidence-review/source.O",
+            "evidence/o10-m0-20261112/isa-coordination-rv-online-tools/review.py",
+            "evidence/o10-m0-20261112/isa-coordination.json.schema",
+            "tools/nano-local-loader/evidence/initialization-native-path.json",
+            "evidence/compiler_expansion_oversight_20261020.notes.md",
+        }
+        for path in blocked:
+            with self.subTest(blocked=path):
+                self.assertFalse(release.is_allowed_release_path(path))
+        for path in allowed | release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS:
+            with self.subTest(retained=path):
+                self.assertTrue(release.is_allowed_release_path(path))
+
+    def test_archive_verifier_refuses_self_consistent_private_capture(self) -> None:
+        result = self._build("before-capture-injection.zip", ref=self._commit())
+        manifest = release.verify_archive(result.output)
+        with zipfile.ZipFile(result.output) as archive:
+            original = [release.SourceEntry(item["path"], item["mode"], archive.read(f"{manifest['prefix']}/{item['path']}"))
+                        for item in manifest["files"]]
+        for index, path in enumerate((
+            "apps/iphone16-pro/evidence/crash/forged.json",
+            "evidence/o10-m0-20261112/isa-coordination-rv-online/forged.json",
+            "evidence/o10-m0-20261112/isa-coordination.json",
+            "tools/nano-local-loader/evidence/initialization-system-environment.json",
+            "evidence/compiler_expansion_oversight_20261020.json",
+        )):
+            with self.subTest(path=path):
+                entries = sorted([*original, release.SourceEntry(path, "100644", b"fixture capture\n")], key=lambda e: e.path.encode())
+                changed = release._manifest_bytes(manifest["commit"], manifest["prefix"], entries)
+                forged = self.root / f"forged-capture-{index}.zip"
+                release._write_archive(forged, manifest["prefix"], entries, changed, release._checksums_bytes(entries, changed))
+                with self.assertRaisesRegex(release.ReleaseError, "non-allowlisted path"):
+                    release.verify_archive(forged)
+
+    def test_archive_manifest_cannot_choose_an_alternative_public_policy(self) -> None:
+        result = self._build("before-policy-injection.zip", ref=self._commit())
+        manifest = release.verify_archive(result.output)
+        with zipfile.ZipFile(result.output) as archive:
+            entries = [release.SourceEntry(item["path"], item["mode"], archive.read(f"{manifest['prefix']}/{item['path']}"))
+                       for item in manifest["files"]]
+        manifest["selection_policy"] = {"exclude": [], "capture": "fixture private capture"}
+        changed = release._canonical_json(manifest)
+        forged = self.root / "alternative-policy.zip"
+        release._write_archive(forged, manifest["prefix"], entries, changed, release._checksums_bytes(entries, changed))
+        with self.assertRaisesRegex(release.ReleaseError, "manifest.*root shape"):
+            release.verify_archive(forged)
+
+    def test_allowlist_or_required_path_cannot_override_public_capture_policy(self) -> None:
+        path = "apps/iphone16-pro/evidence/capture.json"
+        with mock.patch.object(release, "ALLOWED_EXACT_PATHS", release.ALLOWED_EXACT_PATHS | {path}):
+            self.assertFalse(release.is_allowed_release_path(path))
+        self._commit({path: b"fixture capture\n"})
+        output = self.root / "required-private-capture.zip"
+        with mock.patch.object(release, "REQUIRED_RELEASE_PATHS", release.REQUIRED_RELEASE_PATHS | {path}):
+            with self.assertRaisesRegex(release.ReleaseError, "missing required path.*apps/iphone16-pro/evidence/capture.json"):
+                self._build(output.name)
+        self.assertFalse(output.exists())
+
+    def test_public_capture_paths_reject_separator_and_traversal_aliases(self) -> None:
+        for path in (
+            "apps/iphone16-pro/evidence/../recon.O",
+            "apps/iphone16-pro//evidence/capture.json",
+            "apps/iphone16-pro/./evidence/capture.json",
+            "apps/iphone16-pro/evidence\\capture.json",
+            "apps/iphone16-pro\\evidence/capture.json",
+        ):
+            with self.subTest(path=path):
+                with self.assertRaises(release.ReleaseError):
+                    release.is_allowed_release_path(path)
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)

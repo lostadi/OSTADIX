@@ -2,9 +2,10 @@
 """Build and verify deterministic Ostadix-lang source-release ZIP files.
 
 Release contents are read from Git objects at a resolved commit, never from
-the working tree.  The explicit allowlist below defines the public source
-surface; generated output and local development debris remain excluded even
-when they were accidentally committed.
+the working tree.  The explicit allowlist below defines a selected public-code
+and declared-fixture surface, not every tracked data file or all Git history.
+Generated output, local debris and the declared private capture paths remain
+excluded even when committed. This is a path policy, not a general secret scan.
 """
 
 from __future__ import annotations
@@ -635,6 +636,23 @@ EXCLUDED_EXACT_PATHS = frozenset(
         "c_cpp/olangc",
         "codebase_tape.md",
         "test.html",
+    }
+)
+
+# Reviewed data captures are not portable implementation or fixture inputs.
+# Apply this policy before all allowlist exceptions, in both the Git selector
+# and archive verifier. Keep the boundaries exact: neighboring source, tests,
+# synthetic VM evidence and licensed resources remain eligible. No caller or
+# manifest field can choose a broader publication policy.
+PUBLIC_SOURCE_CAPTURE_PREFIXES = (
+    "apps/iphone16-pro/evidence/",
+    "evidence/o10-m0-20261112/isa-coordination-rv-online/",
+)
+PUBLIC_SOURCE_CAPTURE_PATHS = frozenset(
+    {
+        "evidence/o10-m0-20261112/isa-coordination.json",
+        "tools/nano-local-loader/evidence/initialization-system-environment.json",
+        "evidence/compiler_expansion_oversight_20261020.json",
     }
 )
 
@@ -1587,7 +1605,7 @@ def assert_clean_worktree(repo: Path, *, allow_dirty: bool) -> None:
 
 
 def _validate_release_path(path: str) -> PurePosixPath:
-    if not path or "\x00" in path or "\n" in path or "\r" in path:
+    if not path or "\\" in path or "\x00" in path or "\n" in path or "\r" in path:
         raise ReleaseError(f"unsafe release path: {path!r}")
     pure = PurePosixPath(path)
     if pure.is_absolute() or any(part in {"", ".", ".."} for part in pure.parts):
@@ -1607,6 +1625,11 @@ CLI_MODULE_PATHS = {
 
 def is_allowed_release_path(path: str) -> bool:
     pure = _validate_release_path(path)
+    if path in PUBLIC_SOURCE_CAPTURE_PATHS or any(
+        path == prefix.removesuffix("/") or path.startswith(prefix)
+        for prefix in PUBLIC_SOURCE_CAPTURE_PREFIXES
+    ):
+        return False
     parts = pure.parts
     top = parts[0]
     if top == "src" and not (
@@ -4564,6 +4587,7 @@ def _canonical_json(value: object) -> bytes:
 
 
 def _manifest_bytes(commit: str, prefix: str, entries: Sequence[SourceEntry]) -> bytes:
+    """Inventory selected public code/fixtures, without claiming all tracked data."""
     manifest = {
         "commit": commit,
         "file_count": len(entries),
@@ -4757,6 +4781,8 @@ def verify_archive(path: Path | str) -> dict[str, object]:
                 raise ReleaseError("SOURCE-MANIFEST.json is not canonical JSON") from error
             if not isinstance(manifest, dict) or _canonical_json(manifest) != manifest_bytes:
                 raise ReleaseError("SOURCE-MANIFEST.json is not canonical JSON")
+            if set(manifest) != {"commit", "file_count", "files", "prefix", "schema"}:
+                raise ReleaseError("source-release manifest has an invalid root shape")
             if manifest.get("schema") != SCHEMA:
                 raise ReleaseError("unsupported source-release manifest schema")
             if manifest.get("prefix") != prefix:
@@ -4909,7 +4935,7 @@ def build_release(
 
 def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build or verify a deterministic allowlist-driven source release"
+        description="Build or verify a deterministic selected public-code source release"
     )
     parser.add_argument("--repo", default=".", help="repository path (default: current directory)")
     parser.add_argument("--ref", default="HEAD", help="committed Git ref to archive")
