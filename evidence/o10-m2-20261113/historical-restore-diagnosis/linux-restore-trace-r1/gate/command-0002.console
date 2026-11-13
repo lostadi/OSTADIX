@@ -1,0 +1,6 @@
+awk '$1 == "okernel" && $2 == "/n/okernel" && $3 == "9p" && $4 ~ /(^|,)vers
+ion=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_85b2e88be3dc470d9dedbd640373a300:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_85b2e88be3dc470d9dedbd640373a300:0
+pkg> [6n

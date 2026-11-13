@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "scripts/check_language_sources.py",
+    "check",
+    "--root",
+    "/home/ustad/OSTADIX-o10-m2-20261112",
+    "--o-bin",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "--ocorec",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "--jobs",
+    "2",
+    "--json-report",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/language-report-r2.json"
+  ],
+  "exit_code": 0,
+  "stdout": "language-sources: 267 classified (86 .O, 181 .oc); 267 parsed as expected; 0 failed; 0 programs executed\n",
+  "stderr": "",
+  "started_unix": 1794572544.580808,
+  "finished_unix": 1794572550.0005717,
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "broker_built_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "scope": "Actual pre-checkpoint267-source inventory check using explicit audited tools; preparation only, no milestone qualification"
+}

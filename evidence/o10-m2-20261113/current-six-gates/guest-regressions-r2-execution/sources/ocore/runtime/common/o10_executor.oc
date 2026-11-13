@@ -1,0 +1,113 @@
+module runtime::common::o10_executor;
+
+use runtime::common::o10_codec::read;
+use runtime::common::o10_codec::write;
+use runtime::common::o10_codec::copy;
+use runtime::common::o10_codec::equal;
+use runtime::common::o10_codec::validate;
+use runtime::common::o10_codec::bad_offset;
+use runtime::common::o10_codec::header;
+use runtime::common::o10_codec::error;
+use runtime::common::o10_codec::readonly;
+
+// Synchronous M0, single writer, monitor lifetime journal. Each mutation is
+// prepared once, platform-dispatched once, then committed before mailbox ACK.
+// Full bytes (including tag) define retry identity. No asynchronous work here.
+static mut EPOCH: u64 = 0;
+static mut LAST: u64 = 0;
+static mut MSIZE: usize = 512;
+static mut SEQUENCES: [u64; 256] = [0; 256];
+static mut REQUEST_LENGTHS: [usize; 256] = [0; 256];
+static mut REPLY_LENGTHS: [usize; 256] = [0; 256];
+static mut REQUESTS: [u8; 16384] = [0; 16384];
+static mut REPLIES: [u8; 16384] = [0; 16384];
+static mut PREPARED: [u8; 64] = [0; 64];
+static mut PREPARED_LEN: usize = 0;
+static mut PREPARED_SEQ: u64 = 0;
+
+pub unsafe fn epoch() -> u64 { return EPOCH; }
+pub unsafe fn last_seq() -> u64 { return LAST; }
+pub unsafe fn pending() -> u64 { return (PREPARED_LEN != 0) as u64; }
+pub unsafe fn journal_low() -> u64 { if LAST < 256 { return 1; } return LAST - 255; }
+
+pub unsafe fn commit(reply: *const u8, length: usize) -> u64 {
+    if PREPARED_LEN == 0 || length > 64 || validate(reply, length, 512) != 1 { return 0; }
+    let kind: u64 = read(reply, 4, 1);
+    if kind != 161 && kind != read((&PREPARED[0]), 4, 1) + 1 { return 0; }
+    if read(reply, 5, 2) != read((&PREPARED[0]), 5, 2) { return 0; }
+    let slot: usize = (PREPARED_SEQ % 256) as usize;
+    copy((&mut REQUESTS[slot * 64]), (&PREPARED[0]), PREPARED_LEN);
+    copy((&mut REPLIES[slot * 64]), reply, length);
+    REQUEST_LENGTHS[slot] = PREPARED_LEN; REPLY_LENGTHS[slot] = length;
+    SEQUENCES[slot] = PREPARED_SEQ; LAST = PREPARED_SEQ;
+    PREPARED_LEN = 0; PREPARED_SEQ = 0; return 1;
+}
+
+pub unsafe fn prepare(request: *const u8, length: usize, output: *mut u8, capacity: usize) -> usize {
+    let mut tag: u64 = 0;
+    if length >= 7 { tag = read(request, 5, 2); }
+    // The transport provisions 512-byte reply slots before any mutation.
+    if capacity < 512 { return error(output, capacity, tag, 1, 0); }
+    if validate(request, length, MSIZE) != 1 { return error(output, capacity, tag, 1, bad_offset()); }
+    let kind: u64 = read(request, 4, 1);
+    if kind % 2 != 0 { return error(output, capacity, tag, 1, 4); }
+    if PREPARED_LEN != 0 { return error(output, capacity, tag, 7, PREPARED_SEQ); }
+    if kind == 162 {
+        let requested: u64 = read(request, 7, 4);
+        if read(request, 11, 8) != 0x0030_314f || requested < 78 {
+            return error(output, capacity, tag, 2, 512);
+        }
+        MSIZE = 512; if requested < 512 { MSIZE = requested as usize; }
+        header(output, 163, tag, 35); write(output, 7, MSIZE as u64, 4);
+        write(output, 11, 0x0030_314f, 8); write(output, 19, EPOCH, 8); write(output, 27, LAST, 8); return 35;
+    }
+    let incoming_epoch: u64 = read(request, 7, 8);
+    let seq: u64 = read(request, 15, 8);
+    let mutation: bool = readonly(kind) == 0;
+    if mutation && seq != 0 && seq <= LAST {
+        let slot: usize = (seq % 256) as usize;
+        if SEQUENCES[slot] == seq && REQUEST_LENGTHS[slot] == length
+            && equal(request, (&REQUESTS[slot * 64]), length) == 1 {
+            let saved: usize = REPLY_LENGTHS[slot];
+            copy(output, (&REPLIES[slot * 64]), saved); return saved;
+        }
+        return error(output, capacity, tag, 4, LAST);
+    }
+    if mutation && kind != 164 && EPOCH == 0 { return error(output, capacity, tag, 3, EPOCH); }
+    if incoming_epoch != EPOCH { return error(output, capacity, tag, 3, EPOCH); }
+    if !mutation && seq != 0 { return error(output, capacity, tag, 4, LAST); }
+    if mutation {
+        if LAST == 0xffff_ffff_ffff_ffff || seq != LAST + 1 || length > 64 {
+            return error(output, capacity, tag, 4, LAST);
+        }
+        copy((&mut PREPARED[0]), request, length); PREPARED_LEN = length; PREPARED_SEQ = seq;
+    }
+    if kind == 164 {
+        let new_epoch: u64 = read(request, 23, 8); let expected: u64 = read(request, 31, 8);
+        let mut size: usize = 0;
+        if expected != EPOCH || new_epoch <= EPOCH { size = error(output, capacity, tag, 3, EPOCH); }
+        else {
+            EPOCH = new_epoch; size = header(output, 165, tag, 31);
+            write(output, 7, EPOCH, 8); write(output, 15, seq, 8);
+            let mut low: u64 = 1; if seq >= 256 { low = seq - 255; }
+            write(output, 23, low, 8);
+        }
+        if commit(output as *const u8, size) != 1 { return error(output, capacity, tag, 12, 0); }
+        return size;
+    }
+    if kind == 166 {
+        let query: u64 = read(request, 23, 8); let slot: usize = (query % 256) as usize;
+        let mut state: u64 = 0; let mut code: u64 = 0; let mut saved: usize = 0;
+        if query != 0 && query <= LAST {
+            if SEQUENCES[slot] == query {
+                saved = REPLY_LENGTHS[slot]; state = 1;
+                if read((&REPLIES[slot * 64]), 4, 1) == 161 { state = 2; code = read((&REPLIES[slot * 64]), 7, 4); }
+            } else { state = 3; }
+        }
+        header(output, 167, tag, 14 + saved); write(output, 7, state, 1);
+        write(output, 8, code, 4); write(output, 12, saved as u64, 2);
+        if saved != 0 { copy(output + 14, (&REPLIES[slot * 64]), saved); }
+        return 14 + saved;
+    }
+    return 0;
+}

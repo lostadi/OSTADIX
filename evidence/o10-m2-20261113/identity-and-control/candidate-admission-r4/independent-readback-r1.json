@@ -1,0 +1,50 @@
+{
+  "actual_host_tests": 44,
+  "admission_exact_four_path_constant_only_delta": true,
+  "admission_log": {
+    "bytes": 8706,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/candidate-admission-r4/stderr.log",
+    "sha256": "61f09eee7014224e5bfd98e1930ebc47019f665a0d027ae18b42ac4e5e56e45d"
+  },
+  "admission_receipt": {
+    "bytes": 1342,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/candidate-admission-r4/result.json",
+    "sha256": "6842f614014944a9e3e8838471decfe1a9a326f123fffaaba56d2914e83e9dde"
+  },
+  "build_artifacts": 55,
+  "checked_source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "compiler": {
+    "bytes": 3817336,
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+  },
+  "current_captured_native_sources": 26,
+  "handoff": {
+    "bytes": 6751,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/candidate-admission-r4/freeze-handoff.json",
+    "sha256": "40d08ed78d0535822fb2c4a49936ed0641bdf55a94a4f635c1ee4194fd5df611"
+  },
+  "legacy_and_cross_pair_controls_retained": true,
+  "monitor_sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb",
+  "observed_unix": 1794573015.714929,
+  "ok": true,
+  "profile_sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c",
+  "reviewer": "m2_gate",
+  "runtime": {
+    "bytes": 243138,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "runtime_inventory_files": 249,
+  "runtime_original_frozen_sources": 6,
+  "schema": "ostadix.o10-m2-final-admission-runtime-independent-readback/v1",
+  "scope": "Independent read-only exact final source/admission/build/runtime inventory and retained44-host-check readback; intermediate preparation receipts keep a689/619/7c identity scope. No live M2 qualification.",
+  "skips": 0,
+  "source_freeze": {
+    "bytes": 10521,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/source-freeze.json",
+    "sha256": "c91debcbd5f5965bfc7409bcb28d543537de6a183a8eb8b9ced1a9f27cd640eb"
+  },
+  "source_unchanged": true,
+  "unlisted_files": []
+}

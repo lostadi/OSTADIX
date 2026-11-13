@@ -1,0 +1,27 @@
+2026-11-13T13:00:39.7041778Z 
+2026-11-13T13:00:39.7042283Z [1m==> gate: ocore/kernel/smoke-live-semantics-qemu.sh[0m
+2026-11-13T13:00:39.8601171Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+2026-11-13T13:00:41.4573075Z ocorec: wrote /home/runner/work/OSTADIX/OSTADIX/target/ocore-m5-semantics/kernel.o
+2026-11-13T13:00:41.4573931Z ocorec: kept /home/runner/work/OSTADIX/OSTADIX/target/ocore-m5-semantics/kernel.s
+2026-11-13T13:00:42.8037727Z O-core kernel: serial online
+2026-11-13T13:00:42.8038208Z page protections: W^X online
+2026-11-13T13:00:42.8038625Z page allocator: online
+2026-11-13T13:00:42.8038963Z address space: online
+2026-11-13T13:00:42.8039313Z M5 two immutable package roots: PASS
+2026-11-13T13:00:42.8039786Z M5 overgrant/incomplete activation denial: PASS
+2026-11-13T13:00:42.8040256Z M5 failed health nonpublication: PASS
+2026-11-13T13:00:42.8040939Z M5 complete-set rollback + stale refs: PASS
+2026-11-13T13:00:42.8041411Z M5 crash/restart with unaffected state: PASS
+2026-11-13T13:00:42.8041848Z M5 strict serial parser corpus: PASS
+2026-11-13T13:00:42.8042253Z M5 supervisor semantics: PASS
+2026-11-13T13:00:42.8056950Z T
+2026-11-13T13:00:42.8057390Z M5 semantics post-test tick: online
+2026-11-13T13:00:42.8057854Z M5 native semantics smoke: PASS
+2026-11-13T13:00:42.8645600Z release evidence transcript: PASS (m5-supervisor-semantics, 5 exact markers)
+2026-11-13T13:00:42.8727373Z [32m[ ok ][0m ocore/kernel/smoke-live-semantics-qemu.sh PASS
+2026-11-13T13:00:42.8742726Z 
+2026-11-13T13:01:34.0033847Z required: 26
+2026-11-13T13:01:34.0034233Z present:  26
+2026-11-13T13:01:34.0034498Z passed:   26
+2026-11-13T13:01:34.0034766Z failed:   0
+2026-11-13T13:01:34.0035160Z [32m[ ok ][0m all 26 required OKernel gates passed

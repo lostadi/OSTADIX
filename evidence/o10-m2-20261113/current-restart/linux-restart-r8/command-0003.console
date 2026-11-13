@@ -1,0 +1,6 @@
+date -u -s @1794579169; _uw_rc=$?; printf '\nUNIFIED_COMMAND_c1e25eadf8634b
+1c8d721eee2d266a26:%s\n' "$_uw_rc"
+Fri Nov 13 14:12:49 UTC 2026
+
+UNIFIED_COMMAND_c1e25eadf8634b1c8d721eee2d266a26:0
+pkg> [6n

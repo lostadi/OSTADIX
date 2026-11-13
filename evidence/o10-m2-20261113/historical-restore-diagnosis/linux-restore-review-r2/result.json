@@ -1,0 +1,216 @@
+{
+  "schema": "ostadix.o10-m2-linux-restore-observation/v1",
+  "source_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "scope": "Read-only retained R6 observation/source/disassembly review. No replay, VM or patch; Trestore outcome remains UNKNOWN. Exact failing compound substep has not yet been observed.",
+  "source": {
+    "ocore/runtime/aarch64/unified_world.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_world.oc",
+        "bytes": 44693,
+        "sha256": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/unified_world.oc",
+        "bytes": 44693,
+        "sha256": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a"
+      }
+    },
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_monitor.oc",
+        "bytes": 33803,
+        "sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/kernel_world_monitor.oc",
+        "bytes": 33803,
+        "sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2"
+      }
+    },
+    "ocore/runtime/aarch64/linux_domain_images.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/linux_domain_images.oc",
+        "bytes": 2788,
+        "sha256": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/linux_domain_images.oc",
+        "bytes": 2788,
+        "sha256": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632"
+      }
+    },
+    "ocore/runtime/aarch64/unified_gic.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/unified_gic.oc",
+        "bytes": 22622,
+        "sha256": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/unified_gic.oc",
+        "bytes": 22622,
+        "sha256": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7"
+      }
+    },
+    "ocore/runtime/aarch64/coordinator_uart.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/coordinator_uart.oc",
+        "bytes": 6049,
+        "sha256": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/coordinator_uart.oc",
+        "bytes": 6049,
+        "sha256": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a"
+      }
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_virtio.oc",
+        "bytes": 26137,
+        "sha256": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/kernel_world_virtio.oc",
+        "bytes": 26137,
+        "sha256": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b"
+      }
+    },
+    "ocore/runtime/aarch64/kernel_world_net.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_net.oc",
+        "bytes": 15647,
+        "sha256": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/kernel_world_net.oc",
+        "bytes": 15647,
+        "sha256": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29"
+      }
+    },
+    "ocore/runtime/aarch64/kernel_world_9p.oc": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/runtime/aarch64/kernel_world_9p.oc",
+        "bytes": 16366,
+        "sha256": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/runtime/aarch64/kernel_world_9p.oc",
+        "bytes": 16366,
+        "sha256": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d"
+      }
+    },
+    "ocore/kernel/aarch64/unified_world/monitor.S": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/kernel/aarch64/unified_world/monitor.S",
+        "bytes": 76781,
+        "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/ocore/kernel/aarch64/unified_world/monitor.S",
+        "bytes": 76781,
+        "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06"
+      }
+    },
+    "tests/test_unified_world_context.py": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_unified_world_context.py",
+        "bytes": 16271,
+        "sha256": "90b5364e7be335ecdc6898179a783eb8af9834ff74f079210c1cd38850301968"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/tests/test_unified_world_context.py",
+        "bytes": 16271,
+        "sha256": "90b5364e7be335ecdc6898179a783eb8af9834ff74f079210c1cd38850301968"
+      }
+    },
+    "scripts/okernel_unified_world.py": {
+      "current": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py",
+        "bytes": 73391,
+        "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+      },
+      "copy": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/sources/scripts/okernel_unified_world.py",
+        "bytes": 73391,
+        "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+      }
+    }
+  },
+  "gate_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/result.json",
+    "bytes": 114188,
+    "sha256": "280e008fa2b6ae0f0114221bf928343187e648e126e47e34632bfbf982b01256"
+  },
+  "runner_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/state/unified-session-8fy62q9w/result.json",
+    "bytes": 27869,
+    "sha256": "57bd7b69806cde8bed5a5af29fa774d64691ef93d853593a460b0b9143c48448"
+  },
+  "console": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/state/unified-session-8fy62q9w/console.log",
+    "bytes": 47381,
+    "sha256": "57aac8f838e38765d68b930eefeb7e340a1d87d72046b45d5bb736c7f9b2ced5"
+  },
+  "native_observation": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/state/unified-session-8fy62q9w/native-observation.json",
+    "bytes": 410,
+    "sha256": "b17a94c6fb472e8236d66d6cc3e082e0210bf48a5d2e033d3be53258d7294b26"
+  },
+  "observed_internal_diagnostic": {
+    "reason": 4361,
+    "arg0": 4373,
+    "arg1": 0,
+    "arg2": "ffffffc08042bda8",
+    "text": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/r6-diagnostic.txt",
+      "bytes": 100,
+      "sha256": "6f24376b40381abe31eecfa80fefe301ce5a1ecebb1f175398c72fc0df223f70"
+    },
+    "source_location": "ocore/runtime/aarch64/unified_world.oc:650-653",
+    "meaning": "Linux RAM reload returned successfully, then one of domain reset, virtual GIC reset, frontend provision or coordinator init returned a value other than1; invariant handler halts before journal commit/reply publication"
+  },
+  "restore_attempt": {
+    "request_hex": "3f000000ae1700010000000000000003000000000000000000000001000000974b74159c30b03ad139597b5b140dcd03000000000000000400000000000000",
+    "started": 1794569866.7100604,
+    "completion": "unknown",
+    "finished": 1794569926.7133446
+  },
+  "elapsed_seconds": 60.003284215927124,
+  "pending_mechanism": {
+    "epoch": 1,
+    "seq": 3,
+    "frame_hex": "3f000000ae1700010000000000000003000000000000000000000001000000974b74159c30b03ad139597b5b140dcd03000000000000000400000000000000",
+    "frame_sha256": "1606b2b173a10ffc633a1e62d37bddd4169fc2ac2062c4e7830de5ef601ac029",
+    "completion": "unknown"
+  },
+  "original_error": "TimeoutError: native O10 acknowledgement missing; outcome unresolved",
+  "original_traceback": "Traceback (most recent call last):\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py\", line 888, in recover_linux\n    self.linux_control(2)\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py\", line 836, in linux_control\n    reply = self.o10_call(\"Trestore\", dom=self.o10_linux, inst=secrets.token_bytes(16),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py\", line 641, in o10_call\n    reply = self.o10_exchange(frame, bootstrap=bootstrap)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_linux_restart.py\", line 538, in exchange\n    reply = original_exchange(frame, bootstrap=bootstrap)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py\", line 559, in o10_exchange\n    return self._o10_exchange_once(frame, bootstrap=bootstrap)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py\", line 610, in _o10_exchange_once\n    raise TimeoutError(\"native O10 acknowledgement missing; outcome unresolved\")\nTimeoutError: native O10 acknowledgement missing; outcome unresolved\n",
+  "assembly_review": {
+    "argv": [
+      "/usr/bin/llvm-objdump-18",
+      "-d",
+      "--disassemble-symbols=uw_domain_reset,uw_domain_init",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf"
+    ],
+    "exit_code": 0,
+    "disassembly": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-review-r2/reset-disassembly.txt",
+      "bytes": 3472,
+      "sha256": "e0b2084a4f7a263f4c4acae48797a5492553cd625ed449b23d710fcbf34378cf"
+    },
+    "monitor": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf",
+      "bytes": 1012056,
+      "sha256": "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869"
+    },
+    "compiled_arguments": [
+      0,
+      "0x40000000",
+      "0x47e00000",
+      "0x3c5"
+    ],
+    "admission_review": "Actual compiled caller and reset/initializer admit the supplied tuple; no domain0 source admission defect found. This source/disassembly observation is not actual EL2 domain0 execution proof. Existing context tests reset only target1."
+  },
+  "next_evidence": "A synthetic actual EL2 Linux-slot reset test with survivor checks and, if needed, distinct native return diagnostics for the remaining compound substeps; no blind timeout change.",
+  "reviewed_unix": 1794570553.407279
+}

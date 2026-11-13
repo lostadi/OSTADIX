@@ -1,0 +1,42 @@
+{
+  "action": "execute",
+  "cleanup": {
+    "child_reaped": false,
+    "logs_drained": false,
+    "process_group_signaled": false
+  },
+  "error": null,
+  "exit_code": null,
+  "initial_input_state": "not_supplied",
+  "input": {
+    "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+    "kind": "ordinary",
+    "path": null,
+    "source_inline": true,
+    "temporary_source": false
+  },
+  "input_error": null,
+  "job_id": "job-1960399-1794578286458176260-1-4",
+  "mode": "direct",
+  "pid": 1962235,
+  "placement": {
+    "requested": "auto",
+    "route": "ordinary-local"
+  },
+  "pty": false,
+  "restart_persistence": false,
+  "session_scoped": true,
+  "signal": null,
+  "state": "running",
+  "stderr": {
+    "bytes": 0,
+    "merged_into": null,
+    "path": "/tmp/ostadix-mcp-jobs-1960399-1794578286458176260-1/job-1960399-1794578286458176260-1-4/stderr.log"
+  },
+  "stdin_eof_mode": "pipe_close",
+  "stdin_open": true,
+  "stdout": {
+    "bytes": 0,
+    "path": "/tmp/ostadix-mcp-jobs-1960399-1794578286458176260-1/job-1960399-1794578286458176260-1-4/stdout.log"
+  }
+}

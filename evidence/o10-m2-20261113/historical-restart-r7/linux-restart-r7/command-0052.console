@@ -1,0 +1,12 @@
+cat /run/o10-m2-counter-c89838f013aba6654b8643146d837fce.submit > /n/ok
+ernel/services/plan9/gb3a649eceb4d5f74/s8fd79716d51b09ce1c3d4253f3d03689/rc89838
+f013aba6654b8643146d837fce/submit.staged && test "$(wc -c < /n/okernel/services/
+plan9/gb3a649eceb4d5f74/s8fd79716d51b09ce1c3d4253f3d03689/rc89838f013aba6654b864
+3146d837fce/submit.staged)" -eq 157 && test "$(sha256sum /n/okernel/services/pla
+n9/gb3a649eceb4d5f74/s8fd79716d51b09ce1c3d4253f3d03689/rc89838f013aba6654b864314
+6d837fce/submit.staged | cut -d ' ' -f1)" = 210e9c4f2c3c991d012553cecef9412e35be
+e9ce99e0675088db98f46fb82c47; _uw_rc=$?; printf '\nUNIFIED_COMMAND_7fd734bd2fa84
+761859769c5819b8517:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_7fd734bd2fa84761859769c5819b8517:0
+okernel> [6n

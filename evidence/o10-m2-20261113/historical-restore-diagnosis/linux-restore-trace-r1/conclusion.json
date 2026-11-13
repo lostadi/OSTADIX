@@ -1,0 +1,123 @@
+{
+  "schema": "ostadix.o10-m2-linux-restore-trace-conclusion/v1",
+  "finding": "The namespace frontend generation admission rejects the existing random64-bit boot namespace epoch plus1 because M2 introduced a32-bit ceiling.",
+  "scope": "One fresh private QEMU/TCG diagnostic on e913/profile2a7/final619394; source/disassembly plus actual CPU-return evidence. Diagnostic harness completion is not a milestone gate pass; wrapped native restore remains UNKNOWN.",
+  "source_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "job_id": "job-1782736-1794569572676866183-1-13",
+  "actual_job_exit": 0,
+  "debug_measurement_completed": true,
+  "wrapped_gate_passed": false,
+  "wrapped_gate_error": "TimeoutError: native O10 acknowledgement missing; outcome unresolved",
+  "debug": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/debug-result.json",
+    "bytes": 11045,
+    "sha256": "7a29b48b781570e2bb1073a4f80dbfedc6bd8dd674132ae850dbd7ea9097a79a"
+  },
+  "wrapped_gate": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/result.json",
+    "bytes": 117015,
+    "sha256": "1d57829c9e3c867873f35159762824a36ee0b1eccd7143e4cb9fc11ed45e79a7"
+  },
+  "managed_status": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/managed-status.json",
+    "bytes": 2057,
+    "sha256": "2c15405d263c69466609e47eb533db009eedbcf6bbaa604844c1714695e8878b"
+  },
+  "managed_logs": {
+    "stdout": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/managed-stdout.log",
+      "bytes": 2260,
+      "sha256": "d743cf0729ec7eee5d2cd10f8343f5f525d1bce16d9935a1c568d19d414992fc"
+    },
+    "stderr": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/managed-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "cpu_trace": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/restore-cpu.log",
+    "bytes": 269625,
+    "sha256": "f66628e78201f9e2f21ecd5ab426129c6ab2c2c9b30399f33e49914e5994b192"
+  },
+  "return_observations": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/return-observations.json",
+    "bytes": 7454,
+    "sha256": "2836651f048f0c2962765459ee2929f286411b53563657cf8b92406127764fe8"
+  },
+  "nested_observations": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/provision-guard-observations.json",
+    "bytes": 7065,
+    "sha256": "c9511bbd28fdf402f1b398f4bce227d1b318a888c1049a1bb28f3de4ebff6c05"
+  },
+  "caller_returns": [
+    {
+      "target": "uw_domain_reset",
+      "return_pc": "0x40093440",
+      "x0": 1
+    },
+    {
+      "target": "_O_runtime__aarch64__unified_gic__reset",
+      "return_pc": "0x400934a8",
+      "x0": 1
+    },
+    {
+      "target": "_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision",
+      "return_pc": "0x4009361c",
+      "x0": 0
+    }
+  ],
+  "nested_guard_returns": {
+    "0x400c0b88": {
+      "pc": "0x400c0b88",
+      "x0": "0000000000000001",
+      "x1": "0000000000000002",
+      "x2": "7bed31e65e6f3ac7",
+      "x9": "0000000000000001",
+      "x10": "000000000000000b",
+      "x30": "00000000400c0b88"
+    },
+    "0x400c0ccc": {
+      "pc": "0x400c0ccc",
+      "x0": "0000000000000001",
+      "x1": "0000000000000002",
+      "x2": "7bed31e65e6f3ac7",
+      "x9": "0000000000000001",
+      "x10": "0000000000000001",
+      "x30": "00000000400c0ccc"
+    },
+    "0x400c0e10": {
+      "pc": "0x400c0e10",
+      "x0": "0000000000000000",
+      "x1": "0000000000000002",
+      "x2": "7bed31e65e6f3ac7",
+      "x9": "0000000000000000",
+      "x10": "00000000ffffffff",
+      "x30": "00000000400c0e10"
+    }
+  },
+  "boot_namespace_epoch": "0x7bed31e65e6f3ac6",
+  "attempted_namespace_generation": "0x7bed31e65e6f3ac7",
+  "rejecting_limit": "0xffffffff",
+  "source_locations": [
+    "ocore/runtime/aarch64/kernel_world_monitor.oc:223 initializes namespace frontend generation to boot namespace epoch",
+    "ocore/runtime/aarch64/kernel_world_9p.oc:402 can_provision rejects next>0xffffffff",
+    "ocore/runtime/aarch64/kernel_world_9p.oc:387 provision repeats the cap",
+    "ocore/runtime/aarch64/unified_world.oc:646 namespace exhaustion check incorrectly assumes32-bit frontier"
+  ],
+  "new_request": {
+    "frame_hex": "3f000000ae1900010000000000000003000000000000000000000001000000084fd47fa078fd4a9e663c0306828c0103000000000000000400000000000000",
+    "frame_sha256": "08203dc989c798461c8ff323de218eb84282cff53d3406b1ff12b881f3803e3c",
+    "epoch": 1,
+    "seq": 3,
+    "completion": "unknown",
+    "error": "TimeoutError: native O10 acknowledgement missing; outcome unresolved",
+    "before_enable_unix": 1794571546.1050808,
+    "finished_unix": 1794571606.1242993
+  },
+  "old_R6_unknown_frame_sha256": "1606b2b173a10ffc633a1e62d37bddd4169fc2ac2062c4e7830de5ef601ac029",
+  "old_frame_replayed": false,
+  "recommended_fix": "Preserve the pre-existing64-bit namespace transport generation vocabulary; remove only the two namespace32-bit admission caps and fail closed at MAXu64 before increment. Retain all domain/lease/block/net32-bit limits. Add high-epoch, non-increase and full64-bit exhaustion lifecycle tests.",
+  "production_source_changed": false,
+  "readback_unix": 1794571718.8265243
+}

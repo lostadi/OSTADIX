@@ -1,0 +1,19 @@
+{
+  "added_targeted_module": "tests.test_ocore_kernel_build_profiles",
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r4.py",
+    "sha256": "2358bec8931639842d56be8b3a2741597ea6a4dffdcd19e5898a28669a8cc93a"
+  },
+  "dispatch_status": "Unmaterialized; future final source/tool/profile/alignment inputs and any native fix require separate review.",
+  "mode17_review": {
+    "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/result.json",
+    "sha256": "cd14a30606e42c54ad9de8e9bcd76d6f4428648fe8473d6390789e4bc61b3f96"
+  },
+  "prepared_at": 1794571435.232804,
+  "preserved_executed_r3": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r3.py",
+    "sha256": "8d69f04890b8ad43ce098d28cf7a46ba12980bf782939d1ea12b8a7b4f8cc311"
+  },
+  "schema": "ostadix.o10-m2-ordinary-controller-r4-preparation/v1",
+  "scope": "Cache-only exact reviewed Mode17 overlay parameterization. No native Linux-fix allowance, source edits or gates."
+}

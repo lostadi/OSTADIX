@@ -1,0 +1,7 @@
+PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-059c345f5d70647e0fb6e24a.
+py status /run/o10-m2-059c345f5d70647e0fb6e24a.json; _uw_rc=$?; printf '\nUNIFIE
+D_COMMAND_d95b8a4b396c4f179f07f1dfcceda909:%s\n' "$_uw_rc"
+O10_M2_JSON eyJsb2dzIjogeyJhcGsuc3RkZXJyX2Jhc2U2NCI6ICIiLCAiYXBrLnN0ZG91dF9iYXNlNjQiOiAiIiwgIndvcmtlci5zdGRlcnJfYmFzZTY0IjogIiIsICJ3b3JrZXIuc3Rkb3V0X2Jhc2U2NCI6ICIiLCAid3JpdGVyLnN0ZGVycl9iYXNlNjQiOiAiIiwgIndyaXRlci5zdGRvdXRfYmFzZTY0IjogIiJ9LCAicmVhZHkiOiBmYWxzZX0=
+
+UNIFIED_COMMAND_d95b8a4b396c4f179f07f1dfcceda909:0
+okernel> [6n

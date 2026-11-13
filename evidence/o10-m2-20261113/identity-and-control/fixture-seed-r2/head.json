@@ -1,0 +1,25 @@
+{
+  "schema": "ostadix.package-domain-disk-head/v2",
+  "disk": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db.ext4",
+    "bytes": 1073741824,
+    "sha256": "6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db"
+  },
+  "previous": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+    "bytes": 1073741824,
+    "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+  },
+  "session": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/guest-tools-updates/update-nxz_n93r",
+  "guest_tools_update": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/guest-tools-updates/update-nxz_n93r/result.json",
+  "namespace": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "bytes": 16777216,
+    "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+  },
+  "previous_namespace": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "bytes": 16777216,
+    "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+  }
+}

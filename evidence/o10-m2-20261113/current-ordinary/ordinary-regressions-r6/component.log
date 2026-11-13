@@ -1,0 +1,9 @@
+usage: verify_o10_m2.py [-h] --build BUILD --restart-result RESTART_RESULT
+                        --restart-command RESTART_COMMAND --resident-result
+                        RESIDENT_RESULT --guest-result GUEST_RESULT
+                        --component-result COMPONENT_RESULT --unit-result
+                        UNIT_RESULT --provenance PROVENANCE --compiler
+                        COMPILER --output OUTPUT --expected-revision
+                        EXPECTED_REVISION
+verify_o10_m2.py: error: output must be a new immutable receipt
+{"component_ok": true, "qualified": false, "result": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/result.json"}

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-driver.py"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"diagnostic_run_complete\": true, \"debug_only\": true, \"result\": \"/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/debug-result.json\", \"error\": null, \"activations\": 1}\n",
+  "stderr": "",
+  "finished_unix": 1794571606.391659,
+  "scope": "One explicit fresh private CPU diagnostic, no milestone qualification"
+}

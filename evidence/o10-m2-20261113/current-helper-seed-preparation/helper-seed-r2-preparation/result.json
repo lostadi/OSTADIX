@@ -1,0 +1,194 @@
+{
+  "apk_and_keys_unchanged": [
+    {
+      "guest_path": "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/apks/pkgconf-2.5.1-r0.apk",
+      "readback": {
+        "bytes": 56279,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/helper-seed-r2-preparation/apk-key-readback/0",
+        "sha256": "6b716719ac9457bd35c8ea5373da1dc33ae86863bbb0f411aed0cb5e71b9cf2d"
+      }
+    },
+    {
+      "guest_path": "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/keys/alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub",
+      "readback": {
+        "bytes": 800,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/helper-seed-r2-preparation/apk-key-readback/1",
+        "sha256": "d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d"
+      }
+    }
+  ],
+  "apk_fixture": {
+    "bytes": 2101,
+    "path": "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+    "sha256": "f7bfe30e875a104f93aca11a325f7c295f9fe6306758f8ce513a7dc63cd714cb"
+  },
+  "deployment": {
+    "disk_after": {
+      "bytes": 1073741824,
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db.ext4",
+      "sha256": "6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db"
+    },
+    "disk_before": {
+      "bytes": 1073741824,
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+      "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+    },
+    "ok": true,
+    "receipt": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/guest-tools-updates/update-nxz_n93r/result.json",
+    "schema": "ostadix.package-domain-guest-tools-update/v1",
+    "scope": "fixed local guest helper deployment only; installed APK state and user workspace preserved",
+    "tools": [
+      {
+        "bytes": 15426,
+        "gid": 0,
+        "guest_path": "/usr/local/bin/p9-install",
+        "mode": "0755",
+        "previous": {
+          "bytes": 15229,
+          "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016"
+        },
+        "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704",
+        "source": {
+          "bytes": 15426,
+          "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/linux/package-domain/p9-install",
+          "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704"
+        },
+        "uid": 0
+      }
+    ],
+    "workspace_and_apk_state_preserved": true
+  },
+  "finished": 1794577813.4591832,
+  "fork": {
+    "boot_inputs": {
+      "Image": {
+        "bytes": 6062088,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/payload/Image",
+        "sha256": "6fc693976f51551b74327009e6e8c4fb625142257256fd66f3b5492600ab6c76"
+      },
+      "guest_dtb": {
+        "bytes": 1821,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/monitor/guest.dtb",
+        "sha256": "24bff51c93b7f97a81d27c0a641b77fa5209b55f483f874afd0156b88c4e2f32"
+      },
+      "initramfs": {
+        "bytes": 8725504,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/payload/initramfs.cpio",
+        "sha256": "9763d598973a5cb12572e8f0c6ad6104a41976cb728049d57a41bdb8049b969d"
+      },
+      "monitor": {
+        "bytes": 471312,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/monitor/monitor.elf",
+        "sha256": "312f20864764258ab81ff71e7870a0794e81b0968f76e294fa201eb54d4457c1"
+      },
+      "profile": {
+        "bytes": 226,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/monitor/profile.oc",
+        "sha256": "6197e670f2bc3f9d02e9e5b60381bfb12df100abcd5c985b3f714f74ccd8b275"
+      }
+    },
+    "ok": true,
+    "output": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2",
+    "schema": "ostadix.okernel-state-fork/v1",
+    "scope": "verified saved generation only; source VM and unsaved memory untouched",
+    "selected_head": {
+      "disk": {
+        "bytes": 1073741824,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+        "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+      },
+      "fork_origin": {
+        "head_sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8",
+        "source": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed"
+      },
+      "namespace": {
+        "bytes": 16777216,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "o10_apk_fixture_preparation": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation/result.json",
+      "previous": {
+        "bytes": 1073741824,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+        "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+      },
+      "previous_namespace": {
+        "bytes": 16777216,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "session": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation"
+    },
+    "source": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "source_head_changed_during_copy": false
+  },
+  "head_identity": {
+    "bytes": 1480,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/head.json",
+    "sha256": "70c65d8119b98ad073f46e8e3776241a0df9b82304a3d7332b3c6f3dbee3183c"
+  },
+  "helper_before": {
+    "bytes": 15426,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/linux/package-domain/p9-install",
+    "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704"
+  },
+  "helper_readback": {
+    "identity": {
+      "bytes": 15426,
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/helper-seed-r2-preparation/p9-install.readback",
+      "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704"
+    },
+    "stat": "Inode: 39020   Type: regular    Mode:  0755   Flags: 0x80000\nGeneration: 0    Version: 0x00000000:00000000\nUser:     0   Group:     0   Project:     0   Size: 15426\nFile ACL: 0\nLinks: 1   Blockcount: 32\nFragment:  Address: 0    Number: 0    Size: 0\n ctime: 0x00000000:00000000 -- Wed Dec 31 19:00:00 1969\n atime: 0x6af7158e:00000000 -- Fri Nov 13 08:50:06 2026\n mtime: 0x00000000:00000000 -- Wed Dec 31 19:00:00 1969\ncrtime: 0x6af7158e:00000000 -- Fri Nov 13 08:50:06 2026\nSize of extra inode fields: 32\nInode checksum: 0x3f40677f\nEXTENTS:\n(0-3):163435-163438\n"
+  },
+  "ok": true,
+  "original_seed_disk_before": {
+    "bytes": 1073741824,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+    "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+  },
+  "original_seed_head_before": {
+    "bytes": 1423,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/head.json",
+    "sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+  },
+  "original_seed_unchanged": true,
+  "schema": "ostadix.o10-m2-helper-seed-derivation/v1",
+  "scope": "One declared p9-install helper replaced in a new stopped private fork; no guest execution or qualification.",
+  "selected_disk": {
+    "bytes": 1073741824,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db.ext4",
+    "sha256": "6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db"
+  },
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "started": 1794577796.3161075,
+  "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2",
+  "unchanged_kernel_source_closure": {
+    "ocore/guest/linux/package-domain/init": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/runtime/common/namespace_store.oc": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54"
+  }
+}

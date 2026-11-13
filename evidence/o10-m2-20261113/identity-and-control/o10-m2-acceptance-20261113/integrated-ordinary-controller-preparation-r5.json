@@ -1,0 +1,23 @@
+{
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r5.py",
+    "sha256": "96f11848f9a6b1489cfa50cf854cb481164866988cd8d9896c6f8e82cb7ca067"
+  },
+  "namespace_epoch_review": {
+    "path": "/home/ustad/.cache/o10-m2-namespace-epoch-input-review-20261113/result-r2.json",
+    "sha256": "4dabc1d3f26f8d360233a036a5c423762687795481fec6c503b1270d32b3dee0"
+  },
+  "paths_added": [
+    "ocore/runtime/aarch64/kernel_world_9p.oc",
+    "ocore/runtime/aarch64/unified_world.oc",
+    "tests/test_o10_linux_restart_native.py",
+    "tests/test_unified_world_context.py"
+  ],
+  "prepared_unix": 1794572540.5394676,
+  "preserved_r4": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r4.py",
+    "sha256": "2358bec8931639842d56be8b3a2741597ea6a4dffdcd19e5898a28669a8cc93a"
+  },
+  "schema": "ostadix.o10-m2-ordinary-controller-r5-preparation/v1",
+  "scope": "Cache-only exact four-path reviewed namespace-u64 native/test overlay. Existing Mode17/fuzz/admission policies preserved. Final source checkpoint, exact candidate/admission/runtime and fresh stamp must precede ordinary R5."
+}

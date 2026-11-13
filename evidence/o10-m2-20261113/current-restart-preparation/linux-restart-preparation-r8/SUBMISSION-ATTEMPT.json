@@ -1,0 +1,31 @@
+{
+  "unix": 1794579163.7464802,
+  "request": {
+    "command": "kernel",
+    "args": [
+      "o10-linux-restart",
+      "--seed-state",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2",
+      "--build",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+      "--apk-fixture",
+      "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+      "--output",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8",
+      "--timeout",
+      "180",
+      "--qemu",
+      "/usr/bin/qemu-system-aarch64",
+      "--mcp-release",
+      "72e90d76420ff5c331232b5e3fe7c20e30761e41"
+    ],
+    "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+    "background": true,
+    "timeout_secs": 0,
+    "env": {
+      "O_BACKEND_STEP_TIMEOUT_MS": "3600000",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    }
+  },
+  "rule": "One attempt; unknown completion is never retried"
+}

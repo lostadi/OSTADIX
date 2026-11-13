@@ -1,0 +1,138 @@
+{
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 131849178779,
+      "name": "Contract surfaces",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078129,
+      "name": "Rust semantic and reproducibility tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078215,
+      "name": "Rust hosted lifecycle and placement",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078226,
+      "name": "Rust MSRV 1.93.1",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078250,
+      "name": "Rust quality and source closure",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078251,
+      "name": "Docker minimal runtime profile",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078266,
+      "name": "Offline kit recipient (macOS aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078274,
+      "name": "Offline kit recipient (macOS x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078292,
+      "name": "Native Ethernet and real Linux integration",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078375,
+      "name": "O-core QEMU proof",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078382,
+      "name": "Hosted value/code boundary",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078394,
+      "name": "Python reference runtime",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078408,
+      "name": "Ostadix MCP release surface",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078412,
+      "name": "Offline kit recipient (Linux x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078456,
+      "name": "Release-claim guard",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078512,
+      "name": "C17 runtime and AOT compiler",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850078513,
+      "name": "Offline kit recipient (Linux aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131850402729,
+      "name": "Offline kit recipient matrix",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131865514572,
+      "name": "Required CI",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131865556633,
+      "name": "Release source package",
+      "status": "completed"
+    }
+  ],
+  "portable_summary": [
+    "2026-11-13T11:43:54.6289774Z required: 26",
+    "2026-11-13T11:43:54.6290213Z present:  26",
+    "2026-11-13T11:43:54.6290670Z passed:   26",
+    "2026-11-13T11:43:54.6291066Z failed:   0"
+  ],
+  "run": {
+    "conclusion": "success",
+    "event": "workflow_dispatch",
+    "head_sha": "c320fdeea72ae21ec8c92995e52f36809e5f7cf8",
+    "html_url": "https://github.com/lostadi/OSTADIX/actions/runs/43414593342",
+    "id": 43414593342,
+    "status": "completed"
+  }
+}

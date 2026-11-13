@@ -1,0 +1,105 @@
+ * @idmap: The idmap of the mount
+ * @old_dir:  old dir inode
+ * @old_dentry: old dentry
+ * @new_dir: new dir inode
+ * @new_dentry: new dentry
+ * @flags: RENAME_* flags
+ *
+ */
+
+int
+v9fs_vfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+		struct dentry *old_dentry, struct inode *new_dir,
+		struct dentry *new_dentry, unsigned int flags)
+{
+	int retval;
+	struct inode *old_inode;
+	struct inode *new_inode;
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *oldfid = NULL, *dfid = NULL;
+	struct p9_fid *olddirfid = NULL;
+	struct p9_fid *newdirfid = NULL;
+	struct p9_wstat wstat;
+
+	if (flags)
+		return -EINVAL;
+
+	p9_debug(P9_DEBUG_VFS, "\n");
+	old_inode = d_inode(old_dentry);
+	new_inode = d_inode(new_dentry);
+	v9ses = v9fs_inode2v9ses(old_inode);
+	oldfid = v9fs_fid_lookup(old_dentry);
+	if (IS_ERR(oldfid))
+		return PTR_ERR(oldfid);
+
+	dfid = v9fs_parent_fid(old_dentry);
+	olddirfid = clone_fid(dfid);
+	p9_fid_put(dfid);
+	dfid = NULL;
+
+	if (IS_ERR(olddirfid)) {
+		retval = PTR_ERR(olddirfid);
+		goto error;
+	}
+
+	dfid = v9fs_parent_fid(new_dentry);
+	newdirfid = clone_fid(dfid);
+	p9_fid_put(dfid);
+	dfid = NULL;
+
+	if (IS_ERR(newdirfid)) {
+		retval = PTR_ERR(newdirfid);
+		goto error;
+	}
+
+	down_write(&v9ses->rename_sem);
+	if (v9fs_proto_dotl(v9ses)) {
+		retval = p9_client_renameat(olddirfid, old_dentry->d_name.name,
+					    newdirfid, new_dentry->d_name.name);
+		if (retval == -EOPNOTSUPP)
+			retval = p9_client_rename(oldfid, newdirfid,
+						  new_dentry->d_name.name);
+		if (retval != -EOPNOTSUPP)
+			goto error_locked;
+	}
+	if (old_dentry->d_parent != new_dentry->d_parent) {
+		/*
+		 * 9P .u can only handle file rename in the same directory
+		 */
+
+		p9_debug(P9_DEBUG_ERROR, "old dir and new dir are different\n");
+		retval = -EXDEV;
+		goto error_locked;
+	}
+	v9fs_blank_wstat(&wstat);
+	wstat.muid = v9ses->uname;
+	wstat.name = new_dentry->d_name.name;
+	retval = p9_client_wstat(oldfid, &wstat);
+
+error_locked:
+	if (!retval) {
+		if (new_inode) {
+			if (S_ISDIR(new_inode->i_mode))
+				clear_nlink(new_inode);
+			else
+				v9fs_dec_count(new_inode);
+		}
+		if (S_ISDIR(old_inode->i_mode)) {
+			if (!new_inode)
+				inc_nlink(new_dir);
+			v9fs_dec_count(old_dir);
+		}
+		v9fs_invalidate_inode_attr(old_inode);
+		v9fs_invalidate_inode_attr(old_dir);
+		v9fs_invalidate_inode_attr(new_dir);
+
+		/* successful rename */
+		d_move(old_dentry, new_dentry);
+	}
+	up_write(&v9ses->rename_sem);
+
+error:
+	p9_fid_put(newdirfid);
+	p9_fid_put(olddirfid);
+	p9_fid_put(oldfid);
+	return retval;

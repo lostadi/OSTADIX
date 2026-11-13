@@ -1,0 +1,103 @@
+{
+  "schema": "ostadix.o10-publication-commands/v1",
+  "ok": true,
+  "source_qualification_unchanged": true,
+  "added_historical_source_captures": 190,
+  "commands": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-B",
+        "scripts/render_docs.py",
+        "write",
+        "--marked",
+        "/home/ustad/.cache/o10-docs-renderer-20261112/node_modules/.bin/marked",
+        "--jobs",
+        "4"
+      ],
+      "cwd": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+      "started": 1794583594.1422796,
+      "finished": 1794583598.5777347,
+      "returncode": 0,
+      "stdout": "updated: docs/CLAIMS.html\nhtml-exports: 115 complete documents; 2502138 bytes; 1 updated\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-B",
+        "scripts/render_docs.py",
+        "check",
+        "--marked",
+        "/home/ustad/.cache/o10-docs-renderer-20261112/node_modules/.bin/marked",
+        "--jobs",
+        "4"
+      ],
+      "cwd": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+      "started": 1794583598.5777419,
+      "finished": 1794583603.9359317,
+      "returncode": 0,
+      "stdout": "html-exports: 115 complete documents; 2502138 bytes; 0 drifted\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "add",
+        "--",
+        "ci/language-sources.json",
+        "docs/O10.md",
+        "docs/CLAIMS.md",
+        "docs/CLAIMS.html",
+        "evidence/o10-m2-20261113"
+      ],
+      "cwd": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+      "started": 1794583603.9359388,
+      "finished": 1794583604.6062164,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-B",
+        "scripts/check_language_sources.py",
+        "check",
+        "--o-bin",
+        "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+        "--ocorec",
+        "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+        "--jobs",
+        "4",
+        "--json-report",
+        "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m2-20261113/publication-language-check.json"
+      ],
+      "cwd": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+      "started": 1794583604.6063683,
+      "finished": 1794583615.7160177,
+      "returncode": 0,
+      "stdout": "language-sources: 457 classified (86 .O, 371 .oc); 457 parsed as expected; 0 failed; 0 programs executed\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--cached",
+        "--check",
+        "--",
+        "ci/language-sources.json",
+        "docs/O10.md",
+        "docs/CLAIMS.md",
+        "docs/CLAIMS.html"
+      ],
+      "cwd": "/home/ustad/OSTADIX-o10-m1-publish-20261113",
+      "started": 1794583615.716024,
+      "finished": 1794583615.724395,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

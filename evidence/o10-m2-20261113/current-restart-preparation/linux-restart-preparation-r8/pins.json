@@ -1,0 +1,124 @@
+{
+  "root": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "bridge": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113",
+  "mcp_sha256": "694ae45ecd21bc376ae0047afee3e70975ddd835c942a37a984b3d3d2b069f3a",
+  "build": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+  "runtime": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+  "seed": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2",
+  "session": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8",
+  "files": {
+    "monitor": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor.elf",
+      "bytes": 1012056,
+      "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+    },
+    "profile": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+      "bytes": 28349,
+      "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+    },
+    "runtime": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+      "bytes": 243138,
+      "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+    },
+    "seed_head": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/head.json",
+      "bytes": 1480,
+      "sha256": "70c65d8119b98ad073f46e8e3776241a0df9b82304a3d7332b3c6f3dbee3183c"
+    },
+    "seed_disk": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/disk-generations/6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db.ext4",
+      "bytes": 1073741824,
+      "sha256": "6ebe6a01cc0c209ecea57e4ae4d019a643a900045cffe8996b9c11cd149480db"
+    },
+    "seed_namespace": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    "qemu": {
+      "path": "/usr/bin/qemu-system-aarch64",
+      "bytes": 31517544,
+      "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c"
+    },
+    "stamp_build": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/build.json",
+      "bytes": 1260209,
+      "sha256": "75cea1f624b4a995e820cf94ce1acf041452d5de853aa340bcf46c280e1da156"
+    },
+    "alignment": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/alignment.json",
+      "bytes": 12310,
+      "sha256": "aab27706668a213541bb07459b524427dde477a2e1e01fc3cd32e5b5bca1d093"
+    },
+    "artifact_validation": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-mcp-r4-20261113/artifact-validation.json",
+      "bytes": 11097,
+      "sha256": "9493e1525514412abcff8f46edc66edb3304b9cfc3b28ab63d6fec79cbae0993"
+    },
+    "origin_build": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/build.json",
+      "bytes": 1302131,
+      "sha256": "66ccb2f10653a19b4735317bdfdd66c8dd183e1a5ec1c91d2d907a5f6654ccb8"
+    },
+    "apk_fixture": {
+      "path": "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+      "bytes": 2101,
+      "sha256": "f7bfe30e875a104f93aca11a325f7c295f9fe6306758f8ce513a7dc63cd714cb"
+    }
+  },
+  "sources": {
+    "ocore/guest/linux/package-domain/init": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/runtime/common/namespace_store.oc": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+    "scripts/fork_okernel_state.py": "67d78c9e49292e1ec46c21719e5482e52bd8a597616a2e8aec1dd1c8a1cfdba0",
+    "scripts/o-kernel.sh": "3ff027fd8836150e71201bba6631203add6406b07f51109dbc558eedbb0daefc",
+    "scripts/o10.py": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e",
+    "scripts/okernel_unified_world.py": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304",
+    "scripts/ostadix_mcp_client.py": "c4df7f39f728cf19b3b8b11613beb1f4d6266564b29f319dea1dbf07c47467e4",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "scripts/verify_o10_m1.py": "d844e48777c76ddf31af696dc24124833eee8b444ce59f328453f28cc4bd41c7",
+    "scripts/verify_o10_m2.py": "7410497aa4cdfcee4c52c7bcae22e4c16ffd0fe1f3610d8a57b9b893b5cb0490",
+    "scripts/verify_o10_m2_regressions.py": "2807fa681e71d42d805a9b2065231509f8b3165c4343bef9b0b0c26640192a1e",
+    "scripts/verify_o10_resident.py": "988b9bcf3ff37f13e58df3259bc734240974f71117db083b1407881dd9e169a6",
+    "tests/test_o10_resident_native.py": "a3d23c12963f5a19e0200fcbdf60c8d2e3e705cda0d125509d6a931bc2779907",
+    "tests/test_unified_world_context.py": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e",
+    "scripts/verify_okernel_unified_runtime.py": "6b1cee4291d7ffe6307390c4d3e240c3d2ccc2c0163162340063a25fe0d7da2b",
+    "scripts/verify_okernel_two_domains_repro.py": "6099e28bc66e3e9983a7b18ad56ecc8355ea5cc2766904ae63a6dbfab3c4018a",
+    "scripts/freeze_okernel_unified_runtime.py": "9627a257c42c692aadd443d38ca222e7ca2592b0a05ba0dccb2658f253028a75",
+    "ocore/guest/linux/package-domain/p9-install": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704",
+    "tests/test_namespace_store_dotu.py": "7736262e609fcd1355a2301eeedb39502d45fabfbd793704c4fab3f272e2ecf5",
+    "tests/test_p9_install.py": "fbeb01cbe2b596def0153483e3e562ae1446b3749bd0dc601c8711dfba123f1f",
+    "scripts/verify_o10_linux_restart.py": "e55ab54ca9edacf2906fa7262f50de3c9b402222d4d2a8f00cb8c5782fa55865",
+    "tests/test_o10_linux_restart.py": "e6452b54071a06f131fc575e2d28a76fe79b4ef3c6c997fb4edf77190987ea3a",
+    "scripts/verify_okernel_unified_provider.py": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+    "ocore/guest/plan9/unified/p9cmdsrv.c": "e3e85652ce83159882f14b84a72a9cbaf55085d14f228a9c50b2433f5eb143f3"
+  },
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "draft0_scope": "Fresh72e Draft0 primary component gate against fixture-seed-r2; full aligned M2 qualification requires the current complete regression set."
+}

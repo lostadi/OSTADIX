@@ -1,0 +1,26 @@
+{
+  "schema": "ostadix.o10-m2-native-overlay-controller-independent-review/v1",
+  "reviewer": "m2_fixture",
+  "ok": true,
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r5-r2.py",
+    "bytes": 55792,
+    "sha256": "8fb3a9febff0c77bd9ab188f3d8edada65fb6d308aca008c5e2fc1ca522a2d5a"
+  },
+  "actual_synthetic_controls": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/integrated-toolchain-guard-controls-r5-r2/result.json",
+    "bytes": 8158,
+    "sha256": "fe1df6a3d06f9b3b8ed406a3e43a754eaaf54e8e98a1da5c872dd3ce44b3cabf"
+  },
+  "checks": [
+    "Only the exact four native/test paths and sealed before/after byte maps are newly allowed",
+    "Typed review pin preserves32-bit wire/domain/lease/block/net limits and the independent64-bit namespace transport epoch",
+    "Retained patch, previous independent review, tool-input audit and selected named origin tools are bound by exact sized file descriptors",
+    "Focused12+1 actual test receipts require successful exits, unchanged source hashes, exact preparation revision and zero skips",
+    "Six retained actual EL2 result/console pairs are hash/size bound; all pass markers and exactly two Linux ABI markers are required",
+    "Existing full tracked snapshot, named binary, locked Cargo, Mode17 and fuzz guards remain unchanged",
+    "Actual55 retained synthetic controls are all successful and source-unchanged; prior96f failed attempt remains retained"
+  ],
+  "blocking_findings": [],
+  "scope": "Independent static delta review and actual synthetic-control receipt readback. Reviewer made no project source edit, build, ordinary dispatch or guest claim."
+}

@@ -1,0 +1,271 @@
+KW AArch64 EL2 monitor: online
+KW native virtio negative selftests: PASS
+KW native writable block selftests: PASS
+KW native governed network: online
+KW native shared namespace: online
+KW stage2 guest-only RAM: online
+KW Linux package domain: persistent mediated devices online
+KW unified Linux/Plan9 EL2: online
+Booting Linux on physical CPU 0x0000000000 [0x411fd070]
+Linux version 6.12.43-ostadix-kernelworld (ostadi@ostadix) (clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881), LLD 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)) #1 SMP 1970-01-01 00:00:00 +0000
+Machine model: ostadix,kernel-world-qemu-virt
+earlycon: pl11 at MMIO 0x0000000009000000 (options '')
+printk: legacy bootconsole [pl11] enabled
+psci: MIGRATE_INFO_TYPE returned unknown type (-2)
+Kernel command line: console=ttyAMA0 earlycon=pl011,0x09000000 rdinit=/init panic=-1 loglevel=6
+cacheinfo: Unable to detect cache hierarchy for CPU 0
+virtio_blk virtio0: [vda] 2097152 512-byte logical blocks (1.07 GB/1.00 GiB)
+OKERNEL NATIVE NAMESPACE MOUNTED
+OKERNEL ORIGINAL 9P BRIDGE READY
+Service: okernel
+Root: /n/okernel
+NAMESPACE=/run/okernel-9p
+OKERNEL PACKAGE DOMAIN READY
+OKernel: install commands by name with pkg install NAME; registered source recipes are preferred.
+Source providers: zlib; plan9port (original rc/mk/9p tools for the Linux ABI).
+Shared workspace: /n/okernel/work. Provider build/cache files remain in /work.
+Type exit or quit to save and leave OKernel. Ctrl+] also saves and exits.
+pkg> [6npkg-namespace mount; _uw_rc=$?; printf '\nUNIFIED_COMMAND_7b8e05c0f03f4962b
+4c98700f20fb978:%s\n' "$_uw_rc"
+OKERNEL NATIVE NAMESPACE MOUNTED
+
+UNIFIED_COMMAND_7b8e05c0f03f4962b4c98700f20fb978:0
+pkg> [6nawk '$1 == "okernel" && $2 == "/n/okernel" && $3 == "9p" && $4 ~ /(^|,)vers
+ion=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_f4ee8400110e475a9d1d3c4d96d01367:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_f4ee8400110e475a9d1d3c4d96d01367:0
+pkg> [6ndate -u -s @1794576468; _uw_rc=$?; printf '\nUNIFIED_COMMAND_7439cde483e948
+a789da59fda0e93089:%s\n' "$_uw_rc"
+Fri Nov 13 13:27:48 UTC 2026
+
+UNIFIED_COMMAND_7439cde483e948a789da59fda0e93089:0
+pkg> [6npkg-net online; _uw_rc=$?; printf '\nUNIFIED_COMMAND_de2e38ca53824f9298c433
+bf79bfd672:%s\n' "$_uw_rc"
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+OKERNEL PACKAGE NETWORK ONLINE
+
+UNIFIED_COMMAND_de2e38ca53824f9298c433bf79bfd672:0
+pkg> [6nif test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && 
+test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_021c86697bf9470a8db61b0e1
+30cdcda; fi; _uw_rc=$?; printf '\nUNIFIED_COMMAND_a940f2c2721f4b74885145597e7152
+0b:%s\n' "$_uw_rc"
+P9_CLIENT_PRESENT_021c86697bf9470a8db61b0e130cdcda
+
+UNIFIED_COMMAND_a940f2c2721f4b74885145597e71520b:0
+pkg> [6nmkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /u
+sr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/oker
+nel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.p
+id; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /r
+un/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :; _uw_rc=$?; 
+printf '\nUNIFIED_COMMAND_f9d003b9c3974648aa6a2f71dff7674a:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_f9d003b9c3974648aa6a2f71dff7674a:0
+pkg> [6ni=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; d
+o if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/
+controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1
+)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_CO
+MMAND_991771326a834218adbf5937d64cabff:%s\n' "$_uw_rc"
+random: crng init done
+
+UNIFIED_COMMAND_991771326a834218adbf5937d64cabff:0
+[1]+  Done                       setsid /bin/sh -c "echo \$\$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9" 0</dev/null 1>/run/okernel/p9/controller.log 2>&1
+pkg> [6ncd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and origin
+al Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _
+uw_rc=$?; printf '\nUNIFIED_COMMAND_00203b7e48554bbb81de55fb441584b7:%s\n' "$_uw
+_rc"
+
+Linux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.
+
+UNIFIED_COMMAND_00203b7e48554bbb81de55fb441584b7:0
+okernel> [6n( test "$(sha256sum /usr/local/bin/p9 | cut -d ' ' -f1)" = 1d000bb7b1cf
+e958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e && test "$(sha256sum /usr/l
+ocal/libexec/p9-controller | cut -d ' ' -f1)" = b546f05a9766e3734fae8d3167af20ac
+d2ab3b6933028572da7357c00202afe4 && test "$(sha256sum /usr/local/libexec/p9-hist
+ory | cut -d ' ' -f1)" = c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f
+5e853ddb4 && test "$(sha256sum /usr/local/bin/p9-install | cut -d ' ' -f1)" = eb
+cce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016 && test "$(sha256
+sum /usr/lib/okernel/p9_protocol.py | cut -d ' ' -f1)" = 16fb9c64976abf59a3539aa
+993b238e9b943e76d63a0fcf7748809dc4bde73d8 ) && printf '%s\n' P9_TYPED_OK_b25c814
+28d870bd96747c01f
+P9_TYPED_OK_b25c81428d870bd96747c01f
+okernel> ( mkdir -p /n/okernel/work/foreground-faf9d78587ba0a5f7adb; cd /n/okern
+el/work/foreground-faf9d78587ba0a5f7adb ) && printf '%s\n' P9_TYPED_OK_9cf1a6cf0
+40e024252e91acc
+P9_TYPED_OK_9cf1a6cf040e024252e91acc
+okernel> cd /n/okernel/work/foreground-faf9d78587ba0a5f7adb
+okernel> ( printf %s CmltcG9ydCBoYXNobGliLGpzb24sc3lzCmZyb20gcGF0aGxpYiBpbXBvcnQ
+gUGF0aApzeXMucGF0aC5pbnNlcnQoMCwiL3Vzci9saWIvb2tlcm5lbCIpCmltcG9ydCBwOV9wcm90b2N
+vbCBhcyBwCnJvb3Q9UGF0aChzeXMuYXJndlsxXSk7IGFjdGlvbj1zeXMuYXJndlsyXTsgbmFtZT1zeXM
+uYXJndlszXQpjb250cm9sPVBhdGgoIi9ydW4vb2tlcm5lbC9wOSIpOyBsb2NhbD1QYXRoKCIvcnVuL3A
+5LWZvcmVncm91bmQtYWNjZXB0YW5jZSIpCmxvY2FsLm1rZGlyKG1vZGU9MG83MDAsZXhpc3Rfb2s9VHJ
+1ZSkKZGVmIHJlYWQocGF0aCk6cmV0dXJuIGpzb24ubG9hZHMocGF0aC5yZWFkX3RleHQoKSkKZGVmIHd
+yaXRlKHBhdGgsdmFsdWUpOnBhdGgud3JpdGVfdGV4dChqc29uLmR1bXBzKHZhbHVlLHNvcnRfa2V5cz1
+UcnVlKSsiXG4iKQpkZWYgZGlnZXN0KGRhdGEpOnJldHVybiBoYXNobGliLnNoYTI1NihkYXRhKS5oZXh
+kaWdlc3QoKQppZiBhY3Rpb249PSJiZWdpbiI6CiB3cml0ZShsb2NhbC8obmFtZSsiLmpzb24iKSx7ImN
+1cnJlbnQiOnJlYWQoY29udHJvbC8iY3VycmVudC5qc29uIiksInJlc3VsdHMiOnNvcnRl | base64 -
+d > /tmp/p9-foreground-faf9d78587ba0a5f7adb.py ) && printf '%s\n' P9_TYPED_OK_5d
+65b111fe193f5f32038cea
+P9_TYPED_OK_5d65b111fe193f5f32038cea
+okernel> [6n( printf %s ZCh4Lm5hbWUgZm9yIHggaW4gKGNvbnRyb2wvInJlc3VsdHMiKS5nbG9iKCI
+qLmpzb24iKSl9KQplbGlmIGFjdGlvbj09ImNvbGxlY3QiOgogY29kZSxleHBlY3RlZD1pbnQoc3lzLmF
+yZ3ZbNF0pLGludChzeXMuYXJndls1XSk7IGFzc2VydCBjb2RlPT1leHBlY3RlZCwoY29kZSxleHBlY3R
+lZCkKIGJlZm9yZT1yZWFkKGxvY2FsLyhuYW1lKyIuanNvbiIpKTsgbm93PXJlYWQoY29udHJvbC8iY3V
+ycmVudC5qc29uIikKIGZpbGVzPVt4IGZvciB4IGluIChjb250cm9sLyJyZXN1bHRzIikuZ2xvYigiKi5
+qc29uIikgaWYgeC5uYW1lIG5vdCBpbiBiZWZvcmVbInJlc3VsdHMiXV0KIGFzc2VydCBsZW4oZmlsZXM
+pPT0xLFt4Lm5hbWUgZm9yIHggaW4gZmlsZXNdCiByZWNlaXB0PXJlYWQoZmlsZXNbMF0pOyBnLHMscj0
+ocmVjZWlwdFtrXSBmb3IgayBpbiAoImdlbmVyYXRpb24iLCJpbnN0YW5jZSIsInJlcXVlc3RfaWQiKSk
+KIGFzc2VydCAoZyxzKT09KGJlZm9yZVsiY3VycmVudCJdWyJnZW5lcmF0aW9uIl0sYmVmb3JlWyJjdXJ
+yZW50Il1bImluc3RhbmNlIl0pCiBkaXJlY3Rvcnk9UGF0aChyZWNlaXB0WyJzZXJ2aWNl | base64 -
+d >> /tmp/p9-foreground-faf9d78587ba0a5f7adb.py ) && printf '%s\n' P9_TYPED_OK_4
+aa6f3c44a79636e599357ca
+P9_TYPED_OK_4aa6f3c44a79636e599357ca
+okernel> [6n( printf %s X3Jvb3QiXSkvKCJnIitnKS8oInMiK3MpLygiciIrcikKIHdpcmU9e2s6KGR
+pcmVjdG9yeS9rKS5yZWFkX2J5dGVzKCkgZm9yIGsgaW4gcC5SRVFVRVNUX0ZJTEVTfQogcmVzdWx0PXA
+udmFsaWRhdGVfcmVzdWx0KHdpcmVbInJlcXVlc3QiXSx3aXJlWyJyZXN1bHQiXSx3aXJlWyJzdGRvdXQ
+iXSx3aXJlWyJzdGRlcnIiXSxzdGFydGVkPXdpcmVbInN0YXJ0ZWQiXSxkb25lPXdpcmVbImRvbmUiXSx
+zdGF0dXM9d2lyZVsic3RhdHVzIl0pCiBhc3NlcnQgcmVjZWlwdFsic3RhdHVzX2hleCJdPT1yZXN1bHQ
+uc3RhdHVzLmhleCgpCiBhc3NlcnQgcmVjZWlwdFsicmVxdWVzdF9zaGEyNTYiXT09ZGlnZXN0KHdpcmV
+bInJlcXVlc3QiXSkKIGFzc2VydCByZWNlaXB0WyJyZXN1bHRfc2hhMjU2Il09PWRpZ2VzdCh3aXJlWyJ
+yZXN1bHQiXSkKIHJlcXVlc3Q9cC5kZWNvZGVfcmVxdWVzdCh3aXJlWyJyZXF1ZXN0Il0pCiByZWNvcmQ
+9eyJsaW51eF9leGl0Ijpjb2RlLCJyZWNlaXB0IjpyZWNlaXB0LCJjdXJyZW50Ijpub3csImFyZ3YiOmx
+pc3QocmVxdWVzdC5hcmd2KSwiY3dkIjpyZXF1ZXN0LmN3ZCwic3RhdHVzX2hleCI6cmVz | base64 -
+d >> /tmp/p9-foreground-faf9d78587ba0a5f7adb.py ) && printf '%s\n' P9_TYPED_OK_f
+7136f938b9c21910478e803
+P9_TYPED_OK_f7136f938b9c21910478e803
+okernel> ( printf %s dWx0LnN0YXR1cy5oZXgoKSwid2lyZV9zaGEyNTYiOntrOmRpZ2VzdCh2KSB
+mb3Igayx2IGluIHdpcmUuaXRlbXMoKX19CiBpZiBuYW1lPT0ic3RhdHVzIjoKICByYXc9KHJvb3QvInN
+0YXR1cy5yYXciKS5yZWFkX2J5dGVzKCk7IGFzc2VydCByYXc9PXJlc3VsdC5zdGF0dXMgYW5kIHJhdyB
+hbmQgcmF3LmVuZHN3aXRoKCgiOiAiK3N5cy5hcmd2WzZdKS5lbmNvZGUoKSkscmF3CiAgYXNzZXJ0IG5
+vdCByZXN1bHQub2sgYW5kIHJlc3VsdC5mbGFncz09MCBhbmQgbm90IHJlY2VpcHRbInJlY292ZXJlZCJ
+dCiBlbGlmIG5hbWU9PSJjYW5jZWwiOgogIGFzc2VydCByZXN1bHQuZmxhZ3MmcC5GTEFHX0NBTkNFTEx
+FRCBhbmQgcmVjZWlwdFsicmVjb3ZlcmVkIl0gaXMgVHJ1ZQogIGFzc2VydCAocm9vdC8iY2FuY2VsLnN
+0YXR1cyIpLnJlYWRfYnl0ZXMoKT09cmVzdWx0LnN0YXR1cwogIGFjaz1yZWFkKGNvbnRyb2wvInJlY29
+2ZXJlZCIvKCJnIitnKyItcyIrcysiLXIiK3IrIi5qc29uIikpCiAgZXhwZWN0ZWRfYWNrPXsic2NoZW1
+hIjoib3N0YWRpeC5wOS5yZWNvdmVyZWQvdjEiLCJnZW5lcmF0aW9uIjpnLCJvbGRfaW5z | base64 -
+d >> /tmp/p9-foreground-faf9d78587ba0a5f7adb.py ) && printf '%s\n' P9_TYPED_OK_d
+7b35c44caccea02c9cee4a6
+P9_TYPED_OK_d7b35c44caccea02c9cee4a6
+okernel> ( printf %s dGFuY2UiOnMsInJlcXVlc3RfaWQiOnIsInJlcXVlc3Rfc2hhMjU2IjpkaWd
+lc3Qod2lyZVsicmVxdWVzdCJdKSwicmVzdWx0X3NoYTI1NiI6ZGlnZXN0KHdpcmVbInJlc3VsdCJdKSw
+iZG9uZV9zaGEyNTYiOmRpZ2VzdCh3aXJlWyJkb25lIl0pLCJvdXRjb21lIjoiaW50ZXJydXB0ZWQifQo
+gIGFzc2VydCBhbGwoYWNrLmdldChrKT09diBmb3Igayx2IGluIGV4cGVjdGVkX2Fjay5pdGVtcygpKSx
+hY2sKICByZXNldD0oZGlyZWN0b3J5LnBhcmVudC8icmVzZXQtcmVxdWlyZWQiKS5yZWFkX2J5dGVzKCk
+7cC52YWxpZGF0ZV9yZXNldCh3aXJlWyJyZXF1ZXN0Il0sd2lyZVsicmVzdWx0Il0scmVzZXQpCiAgYXN
+zZXJ0IGFja1sicmVzZXRfc2hhMjU2Il09PWRpZ2VzdChyZXNldCkKICBhc3NlcnQgYWNrWyJuZXdfaW5
+zdGFuY2UiXT09bm93WyJpbnN0YW5jZSJdIT1zIGFuZCBub3dbImdlbmVyYXRpb24iXT09ZyBhbmQgbm9
+3WyJzdGF0ZSJdPT0icmVhZHkiCiAgcmVhZHk9cC5yZWFkeV9tYXJrZXIoZyxub3dbImluc3RhbmNlIl0
+pO2Fzc2VydCBhY2tbInJlYWR5X3NoYTI1NiJdPT1kaWdlc3QocmVhZHkpCiAgYXNzZXJ0 | base64 -
+d >> /tmp/p9-foreground-faf9d78587ba0a5f7adb.py ) && printf '%s\n' P9_TYPED_OK_5
+4a2a767b97de8ec2bc6915f
+P9_TYPED_OK_54a2a767b97de8ec2bc6915f
+okernel> ( printf %s IChkaXJlY3RvcnkucGFyZW50LnBhcmVudC8oInMiK25vd1siaW5zdGFuY2U
+iXSkvInJlYWR5IikucmVhZF9ieXRlcygpPT1yZWFkeQogIGFzc2VydCBub3QgKGNvbnRyb2wvInBlbmR
+pbmcuanNvbiIpLmV4aXN0cygpCiAgcmVjb3JkWyJwcml2YXRlX2FjayJdPWFjawogZWxzZToKICBhc3N
+lcnQgcmVzdWx0Lm9rIGFuZCByZXN1bHQuZmxhZ3M9PTAgYW5kIHJlc3VsdC5zdGF0dXM9PWIiIiBhbmQ
+gbm90IHJlY2VpcHRbInJlY292ZXJlZCJdCiB3cml0ZShyb290LygiZXZpZGVuY2UtIituYW1lKyIuanN
+vbiIpLHJlY29yZCkKZWxzZTpyYWlzZSBBc3NlcnRpb25FcnJvcihhY3Rpb24pCnByaW50KCJcbiIrKCJ
+QOV9CRUdJTl8iIGlmIGFjdGlvbj09ImJlZ2luIiBlbHNlICJQOV9BU1NFUlRfIikrbmFtZSsiXyIrcm9
+vdC5uYW1lLGZsdXNoPVRydWUpCg== | base64 -d >> /tmp/p9-foreground-faf9d78587ba0a5f
+7adb.py ) && printf '%s\n' P9_TYPED_OK_97b9bdbd8014e8289617007d
+P9_TYPED_OK_97b9bdbd8014e8289617007d
+okernel> ( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/fo
+reground-faf9d78587ba0a5f7adb begin name ) && printf '%s\n' P9_TYPED_OK_c9c74f63
+a3c71ce946f2eafd
+
+P9_BEGIN_name_foreground-faf9d78587ba0a5f7adb
+P9_TYPED_OK_c9c74f63a3c71ce946f2eafd
+okernel> [6np9 echo ORIGINAL_BY_NAME_faf9d78587ba0a5f7adb; p9_accept_rc=$?; python3
+ /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/foreground-faf9d7858
+7ba0a5f7adb collect name "$p9_accept_rc" 0
+ORIGINAL_BY_NAME_faf9d78587ba0a5f7adb
+
+P9_ASSERT_name_foreground-faf9d78587ba0a5f7adb
+( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/foreground-faf9d78587ba0a5f7adb begin binary ) && printf '%s\n' P9_TYPED_OK_51aba60217e825a8dc6f927f
+okernel> ( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/fo
+reground-faf9d78587ba0a5f7adb begin binary ) && printf '%s\n' P9_TYPED_OK_51aba6
+0217e825a8dc6f927f
+
+P9_BEGIN_binary_foreground-faf9d78587ba0a5f7adb
+P9_TYPED_OK_51aba60217e825a8dc6f927f
+okernel> printf '\000\377\015\012\003\021\023\177ABC' > binary.in; printf '\000\
+377\015\012\003\021\023\177ABC' | p9 cat > binary.out; p9_accept_rc=$?; python3 
+/tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/foreground-faf9d78587
+ba0a5f7adb collect binary "$p9_accept_rc" 0
+
+P9_ASSERT_binary_foreground-faf9d78587ba0a5f7adb
+okernel> [6n( cmp binary.in binary.out && test "$(sha256sum binary.out | cut -d ' '
+ -f1)" = fae808d6f2039b31300c9b9ba4d534f64b5ab13b1bb103adfa098c82854b5ba6 ) && p
+rintf '%s\n' P9_TYPED_OK_a49610d32191f8971f0a64dc
+P9_TYPED_OK_a49610d32191f8971f0a64dc
+okernel> ( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/fo
+reground-faf9d78587ba0a5f7adb begin cwd ) && printf '%s\n' P9_TYPED_OK_9e117869b
+819eb3bbd736f36
+
+P9_BEGIN_cwd_foreground-faf9d78587ba0a5f7adb
+P9_TYPED_OK_9e117869b819eb3bbd736f36
+okernel> p9 pwd > plan9.pwd; p9_accept_rc=$?; python3 /tmp/p9-foreground-faf9d78
+587ba0a5f7adb.py /n/okernel/work/foreground-faf9d78587ba0a5f7adb collect cwd "$p
+9_accept_rc" 0
+
+P9_ASSERT_cwd_foreground-faf9d78587ba0a5f7adb
+( test "$(cat plan9.pwd)" = /n/work/foreground-faf9d78587ba0a5f7adb ) && printf '%s\n' P9_TYPED_OK_19bd58adb1fa19ff7644efb5
+okernel> ( test "$(cat plan9.pwd)" = /n/work/foreground-faf9d78587ba0a5f7adb ) &
+& printf '%s\n' P9_TYPED_OK_19bd58adb1fa19ff7644efb5
+P9_TYPED_OK_19bd58adb1fa19ff7644efb5
+okernel> ( printf %s I2luY2x1ZGUgPHUuaD4KI2luY2x1ZGUgPGxpYmMuaD4Kdm9pZCBtYWluKGl
+udCBhcmdjLGNoYXIqKmFyZ3Ype2lmKGFyZ2M+MSAmJiBzdHJjbXAoYXJndlsxXSwiZmFpbCIpPT0wKWV
+4aXRzKCJOQVRJVkVfU1RBVFVTX2ZhZjlkNzg1ODdiYTBhNWY3YWRiIik7cHJpbnQoIk9SSUdJTkFMX0N
+PTVBJTEVEX2ZhZjlkNzg1ODdiYTBhNWY3YWRiXG4iKTtleGl0cyhuaWwpO30K | base64 -d > /n/o
+kernel/work/foreground-faf9d78587ba0a5f7adb/original-compiled-faf9d78587ba0a5f7a
+db.c ) && printf '%s\n' P9_TYPED_OK_93a74d43a4185ef762ea7f83
+P9_TYPED_OK_93a74d43a4185ef762ea7f83
+okernel> ( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/fo
+reground-faf9d78587ba0a5f7adb begin compile ) && printf '%s\n' P9_TYPED_OK_db194
+67d6c8858ea0179d49a
+
+P9_BEGIN_compile_foreground-faf9d78587ba0a5f7adb
+P9_TYPED_OK_db19467d6c8858ea0179d49a
+okernel> [6np9 7c -o original-compiled-faf9d78587ba0a5f7adb.7 original-compiled-faf
+9d78587ba0a5f7adb.c; p9_accept_rc=$?; python3 /tmp/p9-foreground-faf9d78587ba0a5
+f7adb.py /n/okernel/work/foreground-faf9d78587ba0a5f7adb collect compile "$p9_ac
+cept_rc" 0
+
+P9_ASSERT_compile_foreground-faf9d78587ba0a5f7adb
+( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/foreground-faf9d78587ba0a5f7adb begin link ) && printf '%s\n' P9_TYPED_OK_46faf28c40c0ad4c21b06461
+okernel> ( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/fo
+reground-faf9d78587ba0a5f7adb begin link ) && printf '%s\n' P9_TYPED_OK_46faf28c
+40c0ad4c21b06461
+
+P9_BEGIN_link_foreground-faf9d78587ba0a5f7adb
+P9_TYPED_OK_46faf28c40c0ad4c21b06461
+okernel> [6np9 7l -o original-compiled-faf9d78587ba0a5f7adb original-compiled-faf9d
+78587ba0a5f7adb.7; p9_accept_rc=$?; python3 /tmp/p9-foreground-faf9d78587ba0a5f7
+adb.py /n/okernel/work/foreground-faf9d78587ba0a5f7adb collect link "$p9_accept_
+rc" 0
+
+P9_ASSERT_link_foreground-faf9d78587ba0a5f7adb
+( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/foreground-faf9d78587ba0a5f7adb begin execute ) && printf '%s\n' P9_TYPED_OK_a23395a073df3dd47005e76b
+okernel> ( python3 /tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/fo
+reground-faf9d78587ba0a5f7adb begin execute ) && printf '%s\n' P9_TYPED_OK_a2339
+5a073df3dd47005e76b
+
+P9_BEGIN_execute_foreground-faf9d78587ba0a5f7adb
+P9_TYPED_OK_a23395a073df3dd47005e76b
+okernel> p9 ./original-compiled-faf9d78587ba0a5f7adb; p9_accept_rc=$?; python3 /
+tmp/p9-foreground-faf9d78587ba0a5f7adb.py /n/okernel/work/foreground-faf9d78587b
+a0a5f7adb collect execute "$p9_accept_rc" 0
+ORIGINAL_COMPILED_faf9d78587ba0a5f7adb
+
+P9_ASSERT_execute_foreground-faf9d78587ba0a5f7adb
+( p9-install ./original-compiled-faf9d78587ba0a5f7adb original-installed-faf9d78587ba0a5f7adb && cmp original-compiled-faf9d78587ba0a5f7adb /n/okernel/packages/plan9/bin/original-installed-faf9d78587ba0a5f7adb && test "$(stat -c %a /n/okernel/packages/plan9/bin/original-installed-faf9d78587ba0a5f7adb)" = 555 ) && printf '%s\n' P9_TYPED_OK_43580ea3ff2acb51dbc554d6
+okernel> ( p9-install ./original-compiled-faf9d78587ba0a5f7adb original-installe
+d-faf9d78587ba0a5f7adb && cmp original-compiled-faf9d78587ba0a5f7adb /n/okernel/
+packages/plan9/bin/original-installed-faf9d78587ba0a5f7adb && test "$(stat -c %a
+ /n/okernel/packages/plan9/bin/original-installed-faf9d78587ba0a5f7adb)" = 555 )
+ && printf '%s\n' P9_TYPED_OK_43580ea3ff2acb51dbc554d6
+p9-install: the fixed native /n/okernel 9P2000 virtio mount is required
+okernel> [6n

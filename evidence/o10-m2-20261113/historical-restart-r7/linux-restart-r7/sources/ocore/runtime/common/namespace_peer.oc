@@ -1,0 +1,198 @@
+module runtime::common::namespace_peer;
+
+// A native O-core client of the ordinary Plan 9 9P2000 wire protocol. This is
+// not a Plan 9 executable loader or kernel ABI. Its /work-only RW grant is
+// created by trusted monitor policy; request paths never select authority.
+use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::handle;
+
+const WIRE_BYTES: usize = 8192;
+const MAX_INPUT: usize = 128;
+static mut REQUEST: [u8; 8192] = [0; 8192];
+static mut RESPONSE: [u8; 8192] = [0; 8192];
+static mut INPUT: [u8; 128] = [0; 128];
+static mut PREVIOUS: [u8; 128] = [0; 128];
+static mut OUTPUT: [u8; 192] = [0; 192];
+static mut SESSION: u64 = 0;
+static mut GENERATION: u64 = 0;
+static mut LAST_LENGTH: usize = 0;
+static mut EXCHANGES: u64 = 0;
+static mut ACTIVE: u64 = 0;
+static mut TAG: u64 = 0;
+
+static FROM_LINUX: [u8; 10] = b"from-linux";
+static FROM_PLAN9: [u8; 10] = b"from-plan9";
+static VERSION: [u8; 6] = b"9P2000";
+static PREFIX: [u8; 26] = b"native-9p-peer generation=";
+static LINUX_PREFIX: [u8; 7] = b"\nlinux=";
+static HEX: [u8; 16] = b"0123456789abcdef";
+
+unsafe fn put16(offset: usize, value: u64) -> void {
+    REQUEST[offset] = value as u8;
+    REQUEST[offset + 1] = (value >> 8) as u8;
+}
+unsafe fn put32(offset: usize, value: u64) -> void {
+    put16(offset, value);
+    put16(offset + 2, value >> 16);
+}
+unsafe fn put64(offset: usize, value: u64) -> void {
+    put32(offset, value);
+    put32(offset + 4, value >> 32);
+}
+unsafe fn get16(offset: usize) -> u64 {
+    return RESPONSE[offset] as u64 | ((RESPONSE[offset + 1] as u64) << 8);
+}
+unsafe fn get32(offset: usize) -> u64 {
+    return get16(offset) | (get16(offset + 2) << 16);
+}
+unsafe fn copy_request(offset: usize, source: *const u8, length: usize) -> void {
+    let mut index: usize = 0;
+    while index < length {
+        REQUEST[offset + index] = *(source + index);
+        index += 1;
+    }
+}
+unsafe fn exchange(kind: u64, length: usize, expected: u64, version: bool) -> usize {
+    if SESSION == 0 || length < 7 || length > WIRE_BYTES { return 0; }
+    TAG = (TAG + 1) & 0xffff;
+    if TAG == 0xffff { TAG = 1; }
+    if version { TAG = 0xffff; }
+    put32(0, length as u64);
+    REQUEST[4] = kind as u8;
+    put16(5, TAG);
+    let result: usize = handle(SESSION, &REQUEST[0], length, &mut RESPONSE[0], WIRE_BYTES);
+    if result < 7 || result > WIRE_BYTES || get32(0) != result as u64
+        || RESPONSE[4] as u64 != expected || get16(5) != TAG {
+        return 0;
+    }
+    return result;
+}
+unsafe fn version() -> bool {
+    put32(7, WIRE_BYTES as u64);
+    put16(11, 6);
+    copy_request(13, &VERSION[0], 6);
+    if exchange(100, 19, 101, true) != 19 || get16(11) != 6 { return false; }
+    let mut index: usize = 0;
+    while index < 6 {
+        if RESPONSE[13 + index] != VERSION[index] { return false; }
+        index += 1;
+    }
+    return true;
+}
+unsafe fn attach() -> bool {
+    put32(7, 1);
+    put32(11, 0xffff_ffff);
+    put16(15, 0);
+    put16(17, 0);
+    return exchange(104, 19, 105, false) == 20;
+}
+unsafe fn walk(fid: u64, name: *const u8, length: usize) -> bool {
+    put32(7, 1);
+    put32(11, fid);
+    put16(15, (length != 0) as u64);
+    if length == 0 { return exchange(110, 17, 111, false) == 9 && get16(7) == 0; }
+    put16(17, length as u64);
+    copy_request(19, name, length);
+    return exchange(110, 19 + length, 111, false) == 22 && get16(7) == 1;
+}
+unsafe fn open(fid: u64, mode: u64) -> bool {
+    put32(7, fid);
+    REQUEST[11] = mode as u8;
+    return exchange(112, 12, 113, false) == 24;
+}
+unsafe fn clunk(fid: u64) -> bool {
+    put32(7, fid);
+    return exchange(120, 11, 121, false) == 7;
+}
+unsafe fn read_input() -> usize {
+    if !walk(2, &FROM_LINUX[0], 10) { return 0; }
+    if !open(2, 0) { clunk(2); return 0; }
+    put32(7, 2);
+    put64(11, 0);
+    put32(19, MAX_INPUT as u64);
+    let received: usize = exchange(116, 23, 117, false);
+    let length: usize = get32(7) as usize;
+    if received < 11 || length == 0 || length > MAX_INPUT || received != 11 + length {
+        clunk(2);
+        return 0;
+    }
+    let mut index: usize = 0;
+    while index < length {
+        INPUT[index] = RESPONSE[11 + index];
+        index += 1;
+    }
+    if !clunk(2) { return 0; }
+    return length;
+}
+unsafe fn write_output(length: usize) -> bool {
+    if walk(3, &FROM_PLAN9[0], 10) {
+        if !open(3, 0x11) { clunk(3); return false; }
+    } else {
+        if !walk(3, &FROM_PLAN9[0], 0) { return false; }
+        put32(7, 3);
+        put16(11, 10);
+        copy_request(13, &FROM_PLAN9[0], 10);
+        put32(23, 0x1a4);
+        REQUEST[27] = 1;
+        if exchange(114, 28, 115, false) != 24 { clunk(3); return false; }
+    }
+    put32(7, 3);
+    put64(11, 0);
+    put32(19, length as u64);
+    copy_request(23, &OUTPUT[0], length);
+    let written: usize = exchange(118, 23 + length, 119, false);
+    let success: bool = written == 11 && get32(7) == length as u64;
+    let closed: bool = clunk(3);
+    return success && closed;
+}
+
+// Called only by trusted monitor code after namespace_store::init. Grant 2
+// means RW /work and cannot be replaced by bytes supplied by Linux or 9P.
+pub unsafe fn init(generation: u64) -> u64 {
+    ACTIVE = 0;
+    SESSION = 0;
+    GENERATION = generation;
+    LAST_LENGTH = 0;
+    EXCHANGES = 0;
+    TAG = 0;
+    if generation == 0 { return 0; }
+    SESSION = session_init(2, generation);
+    if SESSION == 0 || !version() || !attach() { return 0; }
+    ACTIVE = 1;
+    return 1;
+}
+
+// No direct object-store access occurs here. Both directions use standard
+// Twalk/Topen/Tread/Tcreate/Twrite/Tclunk against the same native server.
+pub unsafe fn poll() -> u64 {
+    if ACTIVE == 0 { return 0; }
+    let length: usize = read_input();
+    if length == 0 { return 0; }
+    let mut changed: bool = EXCHANGES == 0 || length != LAST_LENGTH;
+    let mut index: usize = 0;
+    while index < length {
+        if INPUT[index] != PREVIOUS[index] { changed = true; }
+        index += 1;
+    }
+    if !changed { return 0; }
+    index = 0;
+    while index < 26 { OUTPUT[index] = PREFIX[index]; index += 1; }
+    index = 0;
+    while index < 16 {
+        let shift: u64 = 60 - (index as u64) * 4;
+        OUTPUT[26 + index] = HEX[((GENERATION >> shift) & 15) as usize];
+        index += 1;
+    }
+    index = 0;
+    while index < 7 { OUTPUT[42 + index] = LINUX_PREFIX[index]; index += 1; }
+    index = 0;
+    while index < length { OUTPUT[49 + index] = INPUT[index]; index += 1; }
+    if !write_output(49 + length) { return 0; }
+    index = 0;
+    while index < length { PREVIOUS[index] = INPUT[index]; index += 1; }
+    LAST_LENGTH = length;
+    EXCHANGES += 1;
+    return 1;
+}
+pub unsafe fn exchanges() -> u64 { return EXCHANGES; }
+pub unsafe fn generation() -> u64 { return GENERATION; }

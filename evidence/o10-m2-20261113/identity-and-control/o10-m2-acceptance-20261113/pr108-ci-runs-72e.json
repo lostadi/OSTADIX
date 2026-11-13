@@ -1,0 +1,21 @@
+{
+  "request": {
+    "commit_sha": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+    "repo_full_name": "lostadi/OSTADIX",
+    "tool": "github.fetch_commit_workflow_runs"
+  },
+  "response": {
+    "workflow_runs": [
+      {
+        "conclusion": "success",
+        "id": 43436854460,
+        "jobs_url": "https://api.github.com/repos/lostadi/OSTADIX/actions/runs/43436854460/jobs",
+        "logs_url": "https://api.github.com/repos/lostadi/OSTADIX/actions/runs/43436854460/logs",
+        "name": "CI",
+        "run_number": 161,
+        "status": "completed",
+        "workflow_id": 336740082
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+pkg-namespace mount; _uw_rc=$?; printf '\nUNIFIED_COMMAND_4a1b1c6d87dc4099a
+2935145e9749582:%s\n' "$_uw_rc"
+OKERNEL NATIVE NAMESPACE MOUNTED
+
+UNIFIED_COMMAND_4a1b1c6d87dc4099a2935145e9749582:0
+pkg> [6n

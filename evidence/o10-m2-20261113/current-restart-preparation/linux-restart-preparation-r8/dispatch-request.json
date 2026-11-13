@@ -1,0 +1,9 @@
+{
+  "source": "python^(\nimport hashlib,json,pathlib,subprocess,sys\nA=pathlib.Path(\"/home/ustad/.cache/o10-m2-acceptance-20261113\")\nP=A/\"linux-restart-preparation-r8\"\nexpected={\"primary-dispatch.py\":\"7b335ddd80000b8491085bbd7708b2eb54848b1f76bd64d07f8c4f488f87a83c\",\"pins.json\":\"c295a57cac4dbdf62c7c75e617847d367dc4b1ac2b358265783a1d9dba4f38ef\",\"request.json\":\"932a1bc1434866d2fd3faad168d772da4f9a062cb0a47bfac717cb603d0e123c\"}\nfor n,v in expected.items():\n if hashlib.sha256((P/n).read_bytes()).hexdigest()!=v:raise ValueError(\"reviewed launcher changed \"+n)\nexecution=A/\"linux-restart-r8-execution\"\np=subprocess.run([sys.executable,\"-B\",str(P/\"primary-dispatch.py\"),\"--record-dir\",str(execution),\"--dispatch\"],capture_output=True,text=True,timeout=240)\n(P/\"dispatch.stdout\").write_text(p.stdout);(P/\"dispatch.stderr\").write_text(p.stderr)\nprint(json.dumps({\"exit\":p.returncode,\"stdout\":p.stdout,\"stderr\":p.stderr}))\nif p.returncode:raise RuntimeError(\"single primary dispatch failed; inspect retained evidence before any action\")\n\n)_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "timeout_secs": 0,
+  "env": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000"
+  }
+}

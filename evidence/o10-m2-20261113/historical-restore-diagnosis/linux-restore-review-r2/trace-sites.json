@@ -1,0 +1,108 @@
+{
+  "schema": "ostadix.o10-m2-linux-restore-trace-sites/v1",
+  "sites": [
+    {
+      "target": "uw_domain_reset",
+      "call_pc": 1074345020,
+      "return_pc": 1074345024,
+      "begin": 1074344764,
+      "end": 1074345148
+    },
+    {
+      "target": "_O_runtime__aarch64__unified_gic__reset",
+      "call_pc": 1074345124,
+      "return_pc": 1074345128,
+      "begin": 1074344868,
+      "end": 1074345252
+    },
+    {
+      "target": "_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision",
+      "call_pc": 1074345496,
+      "return_pc": 1074345500,
+      "begin": 1074345240,
+      "end": 1074345624
+    },
+    {
+      "target": "_O_runtime__aarch64__coordinator_uart__init",
+      "call_pc": 1074345688,
+      "return_pc": 1074345692,
+      "begin": 1074345432,
+      "end": 1074345816
+    }
+  ],
+  "dfilter": "0x4009333c..0x400934bc,0x400933a4..0x40093524,0x40093518..0x40093698,0x400935d8..0x40093758,0x4009e0e0..0x4009ec7f,0x400c0ae0..0x400c16bb,0x400d16d0..0x400d198f,0x400c4f10..0x400c5c87,0x400ec480..0x400ec73f,0x400ec740..0x400ec86f,0x400e4a60..0x400e4edf,0x400f7030..0x400f72ef,0x400f6450..0x400f6a5b",
+  "meaning": "CPU TB-entry register observation around exactly four actual e913 Linux Trestore callsites; in particular X00 at each return PC identifies its return value without production instrumentation",
+  "argv": [
+    "/usr/bin/llvm-objdump-18",
+    "-d",
+    "--disassemble-symbols=_O_runtime__aarch64__unified_world__o10_platform",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf"
+  ],
+  "ranges": [
+    {
+      "name": "uw_domain_reset caller return",
+      "begin": 1074344764,
+      "end": 1074345148
+    },
+    {
+      "name": "_O_runtime__aarch64__unified_gic__reset caller return",
+      "begin": 1074344868,
+      "end": 1074345252
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision caller return",
+      "begin": 1074345240,
+      "end": 1074345624
+    },
+    {
+      "name": "_O_runtime__aarch64__coordinator_uart__init caller return",
+      "begin": 1074345432,
+      "end": 1074345816
+    },
+    {
+      "name": "_O_runtime__aarch64__unified_gic__reset",
+      "begin": 1074389216,
+      "end": 1074392191
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision",
+      "begin": 1074531040,
+      "end": 1074534075
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_virtio__can_provision",
+      "begin": 1074599632,
+      "end": 1074600335
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_virtio__init",
+      "begin": 1074548496,
+      "end": 1074551943
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_net__can_provision",
+      "begin": 1074709632,
+      "end": 1074710335
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_net__provision",
+      "begin": 1074710336,
+      "end": 1074710639
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_net__init",
+      "begin": 1074678368,
+      "end": 1074679519
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_9p__can_provision",
+      "begin": 1074753584,
+      "end": 1074754287
+    },
+    {
+      "name": "_O_runtime__aarch64__kernel_world_9p__provision",
+      "begin": 1074750544,
+      "end": 1074752091
+    }
+  ]
+}

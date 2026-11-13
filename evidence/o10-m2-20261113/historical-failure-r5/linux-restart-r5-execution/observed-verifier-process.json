@@ -1,0 +1,28 @@
+{
+  "observed": 1794566392.7075307,
+  "matches": [
+    {
+      "pid": 1727021,
+      "ppid": 1634453,
+      "start_ticks": "104928289",
+      "argv": [
+        "python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_linux_restart.py",
+        "--seed-state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r3",
+        "--apk-fixture",
+        "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5",
+        "--mcp-release",
+        "76cd75c1add8795055c8a769bee57862948f2912",
+        "--timeout",
+        "180"
+      ],
+      "cwd": "/home/ustad/OSTADIX-o10-m2-20261112"
+    }
+  ],
+  "scope": "exact expanded argv/process identity; no resubmission"
+}

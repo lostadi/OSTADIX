@@ -1,0 +1,17 @@
+test_real_linux_o10_lifecycle_and_survivors (tests.test_o10_linux_restart_native.LinuxRestartNativeTests.test_real_linux_o10_lifecycle_and_survivors) ... ok
+test_real_reset_helpers_and_image_boundaries (tests.test_o10_linux_reset_native.LinuxResetNativeTests.test_real_reset_helpers_and_image_boundaries) ... ok
+test_real_transport_adopts_dotu_token_and_returns_numeric_estale (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_adopts_dotu_token_and_returns_numeric_estale) ... ok
+test_real_transport_and_server_share_authorized_objects (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_and_server_share_authorized_objects) ... ok
+test_real_transport_memory_and_protocol_boundary (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_memory_and_protocol_boundary) ... ok
+test_actual_el2_preempts_two_irq_masked_cpu_bound_worlds (tests.test_unified_world_context.UnifiedContextTests.test_actual_el2_preempts_two_irq_masked_cpu_bound_worlds) ... ok
+test_linux_slot_reset_preserves_survivor_and_callee_saved_registers (tests.test_unified_world_context.UnifiedContextTests.test_linux_slot_reset_preserves_survivor_and_callee_saved_registers) ... ok
+test_preemption_preserves_active_virtual_irq_priority_and_lr_banks (tests.test_unified_world_context.UnifiedContextTests.test_preemption_preserves_active_virtual_irq_priority_and_lr_banks) ... ok
+test_reset_clears_target_archstate_reuses_asid_safely_and_preserves_other_world (tests.test_unified_world_context.UnifiedContextTests.test_reset_clears_target_archstate_reuses_asid_safely_and_preserves_other_world) ... ok
+test_reset_of_last_current_domain_reselects_fresh_context_after_saved_el2_boundary (tests.test_unified_world_context.UnifiedContextTests.test_reset_of_last_current_domain_reselects_fresh_context_after_saved_el2_boundary) ... ok
+test_reset_of_last_current_linux_slot_reselects_fresh_context (tests.test_unified_world_context.UnifiedContextTests.test_reset_of_last_current_linux_slot_reselects_fresh_context) ... ok
+test_resident_paths_and_qualification_boundary (tests.test_o10_resident_native.O10ResidentNativeTests.test_resident_paths_and_qualification_boundary) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 20.161s
+
+OK

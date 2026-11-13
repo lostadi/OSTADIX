@@ -1,0 +1,98 @@
+{
+  "actual_argv_evidence": {
+    "bytes": 905,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/observed-verifier-process.json",
+    "sha256": "ac04e295ad77268de78c102332de20d130508857ee766652089b86d3aaf08155"
+  },
+  "actual_final_status": {
+    "bytes": 2049,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/final-status.json",
+    "sha256": "bdf0d9bc1d82776dcf1d7de7f9df11ed94b62b40eff934bf13e7e97af96c9829"
+  },
+  "actual_start_status": {
+    "bytes": 775,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/start-structured.json",
+    "sha256": "869bf74ee92854856f57d35e675b091b934b0e91d2499360fa5cb9f7e5a829d0"
+  },
+  "actual_success_readback": {
+    "bytes": 892,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/success-readback.json",
+    "sha256": "93462fba44ea522af84faba7e9e14281449beb2146b471588c0e18705ae62749"
+  },
+  "argv": [
+    "python3",
+    "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_linux_restart.py",
+    "--seed-state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "--apk-fixture",
+    "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7",
+    "--mcp-release",
+    "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+    "--timeout",
+    "180"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "managed_job": "job-1814410-1794572939003916118-1-4",
+  "process": {
+    "argv": [
+      "python3",
+      "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_linux_restart.py",
+      "--seed-state",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+      "--build",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+      "--apk-fixture",
+      "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+      "--output",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7",
+      "--mcp-release",
+      "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+      "--timeout",
+      "180"
+    ],
+    "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+    "pid": 1818008,
+    "ppid": 1814410,
+    "start_ticks": "105593564"
+  },
+  "result": {
+    "bytes": 199875,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7/result.json",
+    "sha256": "468e6f30ef9ccb1e9b4fd9bee09ed81d401d0187588e20ecb8afc44e1e74be14"
+  },
+  "returncode": 0,
+  "schema": "ostadix.o10-m2-observed-restart-command/v1",
+  "scope": "Materialized from actual retained expanded verifier argv, process identity, tool request, normal managed exit and rawlogs; no command resubmission.",
+  "source_count": 33,
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "source_snapshot": {
+    "bytes": 9513,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/sources-before.json",
+    "sha256": "dca9a7e8619f10a1a57214693b57cae367b53784afec11bf25303b97e03f5321"
+  },
+  "source_unchanged": true,
+  "stderr": {
+    "bytes": 0,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/managed-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stdout": {
+    "bytes": 140,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/managed-stdout.log",
+    "sha256": "c14bc11655169b666a0233f213d6cc500199d2d8e03af39e1b8431c3416a54df"
+  },
+  "timed_out": false,
+  "timeout_status_source": "Actual managed completion: state completed, error null, signal null, observed exit0.",
+  "tool_request": {
+    "request": {
+      "bytes": 717,
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/request.json",
+      "sha256": "65d93d6a70f520cdf33bfb26da204c2c950aa4e98c6fc26476303ec4d2fee9c5"
+    },
+    "tool": "o_cli"
+  }
+}

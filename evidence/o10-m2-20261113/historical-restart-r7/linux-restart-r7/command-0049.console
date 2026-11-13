@@ -1,0 +1,5 @@
+el> [6n: > /run/o10-m2-counter-c89838f013aba6654b8643146d837fce.submit.o10-bas
+e64; _uw_rc=$?; printf '\nUNIFIED_COMMAND_a4ae7c08cbfd41489e9b617572b7457d:%s\n'
+ "$_uw_rc"
+
+UNIFIED_COMMAND_a4ae7c08cbfd41489e9b617572b7457d:0

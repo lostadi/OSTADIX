@@ -1,0 +1,182 @@
+
+/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000000400f7030 <_O_runtime__aarch64__kernel_world_9p__can_provision>:
+400f7030: a9bf7bfd     	stp	x29, x30, [sp, #-0x10]!
+400f7034: 910003fd     	mov	x29, sp
+400f7038: a9bf7ffc     	stp	x28, xzr, [sp, #-0x10]!
+400f703c: d102c3ff     	sub	sp, sp, #0xb0
+400f7040: 910003fc     	mov	x28, sp
+400f7044: 9100038f     	add	x15, x28, #0x0
+400f7048: f90001e0     	str	x0, [x15]
+400f704c: 14000001     	b	0x400f7050 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x20>
+400f7050: d000020a     	adrp	x10, 0x40139000 <_O_runtime__aarch64__kernel_world_net__LENGTHS+0x48>
+400f7054: 9132c14a     	add	x10, x10, #0xcb0
+400f7058: f9400149     	ldr	x9, [x10]
+400f705c: 9100238f     	add	x15, x28, #0x8
+400f7060: f90001e9     	str	x9, [x15]
+400f7064: d2800009     	mov	x9, #0x0                // =0
+400f7068: 9100438f     	add	x15, x28, #0x10
+400f706c: f90001e9     	str	x9, [x15]
+400f7070: 9100238f     	add	x15, x28, #0x8
+400f7074: f94001e9     	ldr	x9, [x15]
+400f7078: 9100438f     	add	x15, x28, #0x10
+400f707c: f94001ea     	ldr	x10, [x15]
+400f7080: eb0a013f     	cmp	x9, x10
+400f7084: 9a9f17e9     	cset	x9, eq
+400f7088: f100013f     	cmp	x9, #0x0
+400f708c: 9a9f07e9     	cset	x9, ne
+400f7090: 9100638f     	add	x15, x28, #0x18
+400f7094: f90001e9     	str	x9, [x15]
+400f7098: 9100638f     	add	x15, x28, #0x18
+400f709c: f94001e9     	ldr	x9, [x15]
+400f70a0: b5000049     	cbnz	x9, 0x400f70a8 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x78>
+400f70a4: 1400001c     	b	0x400f7114 <_O_runtime__aarch64__kernel_world_9p__can_provision+0xe4>
+400f70a8: 14000001     	b	0x400f70ac <_O_runtime__aarch64__kernel_world_9p__can_provision+0x7c>
+400f70ac: 9100038a     	add	x10, x28, #0x0
+400f70b0: f9400149     	ldr	x9, [x10]
+400f70b4: 9100838f     	add	x15, x28, #0x20
+400f70b8: f90001e9     	str	x9, [x15]
+400f70bc: d2800009     	mov	x9, #0x0                // =0
+400f70c0: 9100a38f     	add	x15, x28, #0x28
+400f70c4: f90001e9     	str	x9, [x15]
+400f70c8: 9100838f     	add	x15, x28, #0x20
+400f70cc: f94001e9     	ldr	x9, [x15]
+400f70d0: 9100a38f     	add	x15, x28, #0x28
+400f70d4: f94001ea     	ldr	x10, [x15]
+400f70d8: eb0a013f     	cmp	x9, x10
+400f70dc: 9a9f07e9     	cset	x9, ne
+400f70e0: f100013f     	cmp	x9, #0x0
+400f70e4: 9a9f07e9     	cset	x9, ne
+400f70e8: 9100c38f     	add	x15, x28, #0x30
+400f70ec: f90001e9     	str	x9, [x15]
+400f70f0: 9100c38f     	add	x15, x28, #0x30
+400f70f4: f94001e9     	ldr	x9, [x15]
+400f70f8: 9102838f     	add	x15, x28, #0xa0
+400f70fc: f90001e9     	str	x9, [x15]
+400f7100: 9102838f     	add	x15, x28, #0xa0
+400f7104: f94001e9     	ldr	x9, [x15]
+400f7108: 9101038f     	add	x15, x28, #0x40
+400f710c: f90001e9     	str	x9, [x15]
+400f7110: 1400000f     	b	0x400f714c <_O_runtime__aarch64__kernel_world_9p__can_provision+0x11c>
+400f7114: d2800009     	mov	x9, #0x0                // =0
+400f7118: f100013f     	cmp	x9, #0x0
+400f711c: 9a9f07e9     	cset	x9, ne
+400f7120: 9100e38f     	add	x15, x28, #0x38
+400f7124: f90001e9     	str	x9, [x15]
+400f7128: 9100e38f     	add	x15, x28, #0x38
+400f712c: f94001e9     	ldr	x9, [x15]
+400f7130: 9102838f     	add	x15, x28, #0xa0
+400f7134: f90001e9     	str	x9, [x15]
+400f7138: 9102838f     	add	x15, x28, #0xa0
+400f713c: f94001e9     	ldr	x9, [x15]
+400f7140: 9101038f     	add	x15, x28, #0x40
+400f7144: f90001e9     	str	x9, [x15]
+400f7148: 14000001     	b	0x400f714c <_O_runtime__aarch64__kernel_world_9p__can_provision+0x11c>
+400f714c: 9101038f     	add	x15, x28, #0x40
+400f7150: f94001e9     	ldr	x9, [x15]
+400f7154: b5000049     	cbnz	x9, 0x400f715c <_O_runtime__aarch64__kernel_world_9p__can_provision+0x12c>
+400f7158: 1400001d     	b	0x400f71cc <_O_runtime__aarch64__kernel_world_9p__can_provision+0x19c>
+400f715c: 14000001     	b	0x400f7160 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x130>
+400f7160: 9100038a     	add	x10, x28, #0x0
+400f7164: f9400149     	ldr	x9, [x10]
+400f7168: 9101238f     	add	x15, x28, #0x48
+400f716c: f90001e9     	str	x9, [x15]
+400f7170: d29fffe9     	mov	x9, #0xffff             // =65535
+400f7174: f2bfffe9     	movk	x9, #0xffff, lsl #16
+400f7178: 9101438f     	add	x15, x28, #0x50
+400f717c: f90001e9     	str	x9, [x15]
+400f7180: 9101238f     	add	x15, x28, #0x48
+400f7184: f94001e9     	ldr	x9, [x15]
+400f7188: 9101438f     	add	x15, x28, #0x50
+400f718c: f94001ea     	ldr	x10, [x15]
+400f7190: eb0a013f     	cmp	x9, x10
+400f7194: 9a9f87e9     	cset	x9, ls
+400f7198: f100013f     	cmp	x9, #0x0
+400f719c: 9a9f07e9     	cset	x9, ne
+400f71a0: 9101638f     	add	x15, x28, #0x58
+400f71a4: f90001e9     	str	x9, [x15]
+400f71a8: 9101638f     	add	x15, x28, #0x58
+400f71ac: f94001e9     	ldr	x9, [x15]
+400f71b0: 9102838f     	add	x15, x28, #0xa0
+400f71b4: f90001e9     	str	x9, [x15]
+400f71b8: 9102838f     	add	x15, x28, #0xa0
+400f71bc: f94001e9     	ldr	x9, [x15]
+400f71c0: 9101a38f     	add	x15, x28, #0x68
+400f71c4: f90001e9     	str	x9, [x15]
+400f71c8: 1400000f     	b	0x400f7204 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x1d4>
+400f71cc: d2800009     	mov	x9, #0x0                // =0
+400f71d0: f100013f     	cmp	x9, #0x0
+400f71d4: 9a9f07e9     	cset	x9, ne
+400f71d8: 9101838f     	add	x15, x28, #0x60
+400f71dc: f90001e9     	str	x9, [x15]
+400f71e0: 9101838f     	add	x15, x28, #0x60
+400f71e4: f94001e9     	ldr	x9, [x15]
+400f71e8: 9102838f     	add	x15, x28, #0xa0
+400f71ec: f90001e9     	str	x9, [x15]
+400f71f0: 9102838f     	add	x15, x28, #0xa0
+400f71f4: f94001e9     	ldr	x9, [x15]
+400f71f8: 9101a38f     	add	x15, x28, #0x68
+400f71fc: f90001e9     	str	x9, [x15]
+400f7200: 14000001     	b	0x400f7204 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x1d4>
+400f7204: 9101a38f     	add	x15, x28, #0x68
+400f7208: f94001e9     	ldr	x9, [x15]
+400f720c: b5000049     	cbnz	x9, 0x400f7214 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x1e4>
+400f7210: 1400001e     	b	0x400f7288 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x258>
+400f7214: 14000001     	b	0x400f7218 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x1e8>
+400f7218: 9100038a     	add	x10, x28, #0x0
+400f721c: f9400149     	ldr	x9, [x10]
+400f7220: 9101c38f     	add	x15, x28, #0x70
+400f7224: f90001e9     	str	x9, [x15]
+400f7228: d000020a     	adrp	x10, 0x40139000 <_O_runtime__aarch64__kernel_world_net__LENGTHS+0x48>
+400f722c: 9132e14a     	add	x10, x10, #0xcb8
+400f7230: f9400149     	ldr	x9, [x10]
+400f7234: 9101e38f     	add	x15, x28, #0x78
+400f7238: f90001e9     	str	x9, [x15]
+400f723c: 9101c38f     	add	x15, x28, #0x70
+400f7240: f94001e9     	ldr	x9, [x15]
+400f7244: 9101e38f     	add	x15, x28, #0x78
+400f7248: f94001ea     	ldr	x10, [x15]
+400f724c: eb0a013f     	cmp	x9, x10
+400f7250: 9a9f97e9     	cset	x9, hi
+400f7254: f100013f     	cmp	x9, #0x0
+400f7258: 9a9f07e9     	cset	x9, ne
+400f725c: 9102038f     	add	x15, x28, #0x80
+400f7260: f90001e9     	str	x9, [x15]
+400f7264: 9102038f     	add	x15, x28, #0x80
+400f7268: f94001e9     	ldr	x9, [x15]
+400f726c: 9102838f     	add	x15, x28, #0xa0
+400f7270: f90001e9     	str	x9, [x15]
+400f7274: 9102838f     	add	x15, x28, #0xa0
+400f7278: f94001e9     	ldr	x9, [x15]
+400f727c: 9102438f     	add	x15, x28, #0x90
+400f7280: f90001e9     	str	x9, [x15]
+400f7284: 1400000f     	b	0x400f72c0 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x290>
+400f7288: d2800009     	mov	x9, #0x0                // =0
+400f728c: f100013f     	cmp	x9, #0x0
+400f7290: 9a9f07e9     	cset	x9, ne
+400f7294: 9102238f     	add	x15, x28, #0x88
+400f7298: f90001e9     	str	x9, [x15]
+400f729c: 9102238f     	add	x15, x28, #0x88
+400f72a0: f94001e9     	ldr	x9, [x15]
+400f72a4: 9102838f     	add	x15, x28, #0xa0
+400f72a8: f90001e9     	str	x9, [x15]
+400f72ac: 9102838f     	add	x15, x28, #0xa0
+400f72b0: f94001e9     	ldr	x9, [x15]
+400f72b4: 9102438f     	add	x15, x28, #0x90
+400f72b8: f90001e9     	str	x9, [x15]
+400f72bc: 14000001     	b	0x400f72c0 <_O_runtime__aarch64__kernel_world_9p__can_provision+0x290>
+400f72c0: 9102438f     	add	x15, x28, #0x90
+400f72c4: f94001e9     	ldr	x9, [x15]
+400f72c8: f100013f     	cmp	x9, #0x0
+400f72cc: 9a9f07e9     	cset	x9, ne
+400f72d0: 9102638f     	add	x15, x28, #0x98
+400f72d4: f90001e9     	str	x9, [x15]
+400f72d8: 9102638f     	add	x15, x28, #0x98
+400f72dc: f94001e0     	ldr	x0, [x15]
+400f72e0: d10043bf     	sub	sp, x29, #0x10
+400f72e4: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400f72e8: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400f72ec: d65f03c0     	ret

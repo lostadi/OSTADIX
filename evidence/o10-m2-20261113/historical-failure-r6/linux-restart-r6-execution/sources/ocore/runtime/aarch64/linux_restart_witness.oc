@@ -1,0 +1,108 @@
+module runtime::aarch64::linux_restart_witness;
+// Qualification-only native-selected observer. No request carries bearer names.
+// Output is outside both guest stage-2 mappings. This is not an O10 message.
+use runtime::common::namespace_store::qualification_fids;
+use runtime::common::namespace_store::session_handle;
+use runtime::common::namespace_store::handle;
+use runtime::common::o10_codec::read;
+use runtime::common::o10_codec::write;
+use runtime::aarch64::kernel_world_9p::qualification_session as linux_session;
+use runtime::aarch64::kernel_world_9p::generation as linux_generation;
+use runtime::aarch64::plan9_namespace_uart::qualification_session as plan9_session;
+use runtime::aarch64::plan9_namespace_uart::qualification_generation as plan9_generation;
+const BASE: usize = 0x6d0b_0000;
+const BYTES: usize = 0x50000;
+const LIMIT: usize = 512;
+const STRIDE: usize = 576;
+const MAX: u64 = 0xffff_ffff_ffff_ffff;
+static mut CAPTURED: u64 = 0;
+static mut LAST_SEQ: u64 = 0;
+static mut LS: u64 = 0;
+static mut LG: u64 = 0;
+static mut PS: u64 = 0;
+static mut PG: u64 = 0;
+static mut LC: usize = 0;
+static mut PC: usize = 0;
+// Four words per tuple: fid, object generation, mode, object index.
+static mut ORIGINAL: [u64; 2048] = [0; 2048];
+static mut CURRENT: [u64; 2048] = [0; 2048];
+unsafe fn output_ptr() -> *mut u8 { return BASE as *mut u8; }
+unsafe fn fail(code: u64, detail: u64) -> u64 {
+    write(output_ptr(), 12, code, 4); write(output_ptr(), 16, detail, 8);
+    // Never publish partial raw/token data on an error.
+    let mut i: usize = 40; while i < BYTES { volatile_store(output_ptr() + i, 0); i += 1; }
+    return code;
+}
+unsafe fn snapshot(ls: u64, ps: u64) -> u64 {
+    let lc: u64 = qualification_fids(1, ls, &mut CURRENT[0], LIMIT);
+    if lc == MAX { return 5; } if lc >= LIMIT as u64 { return 8; }
+    let pc: u64 = qualification_fids(4, ps, &mut CURRENT[lc as usize * 4], LIMIT - lc as usize);
+    if pc == MAX { return 5; } if pc > (LIMIT - lc as usize) as u64 { return 8; }
+    if lc == 0 || pc == 0 { return 12; }
+    if CAPTURED == 0 { LC = lc as usize; PC = pc as usize; }
+    else { if pc as usize != PC { return 5; } }
+    return 0;
+}
+unsafe fn exchange(index: usize, checking: bool) -> u64 {
+    let row: *mut u8 = output_ptr() + 128 + index * STRIDE;
+    let tuple: usize = index * 4;
+    let linux: bool = index < LC;
+    write(row, 0, (!linux) as u64, 4);
+    write(row, 4, ORIGINAL[tuple], 4); write(row, 8, ORIGINAL[tuple + 1], 8);
+    write(row, 16, ORIGINAL[tuple + 2], 8); write(row, 24, 11, 4);
+    let request: *mut u8 = row + 32;
+    write(request, 0, 11, 4); write(request, 4, 124, 1);
+    write(request, 5, index as u64 + 1, 2); write(request, 7, ORIGINAL[tuple], 4);
+    let mut session: u64 = PS; if linux { session = LS; }
+    let length: usize = handle(session, request as *const u8, 11, row + 48, 512);
+    if length < 7 || length > 512 || read((row + 48) as *const u8, 0, 4) != length as u64
+        || read((row + 48) as *const u8, 5, 2) != index as u64 + 1 { return 1; }
+    write(row, 28, length as u64, 4);
+    if checking && linux {
+        // Captured Linux transport must have negotiated .u; errno is numeric.
+        if read((row + 48) as *const u8, 4, 1) != 107 || length < 13
+            || read((row + 48) as *const u8, length - 4, 4) != 116 { return 12; }
+    } else {
+        if read((row + 48) as *const u8, 4, 1) != 125 { return 12; }
+    }
+    return 0;
+}
+pub unsafe fn execute(action: u64, sequence: u64, qualified: u64) -> u64 {
+    let mut i: usize = 0; while i < BYTES { volatile_store(output_ptr() + i, 0); i += 1; }
+    write(output_ptr(), 0, 0x0031_5449_5730_314f, 8); // O10WIT1 NUL
+    write(output_ptr(), 8, 1, 4); write(output_ptr(), 24, action, 8); write(output_ptr(), 32, sequence, 8);
+    if qualified != 1 { return fail(9, 0); }
+    if action != 1 && action != 2 { return fail(1, 24); }
+    if sequence == 0 || sequence <= LAST_SEQ { return fail(4, LAST_SEQ); }
+    LAST_SEQ = sequence;
+    if action == 1 {
+        if CAPTURED != 0 { return fail(7, LAST_SEQ); }
+        LS = linux_session(); LG = linux_generation(); PS = plan9_session(); PG = plan9_generation();
+        if LS == 0 || PS == 0 || LG == 0 || PG == 0 || (LS & 1) == 0 { return fail(12, 0); }
+        let error: u64 = snapshot(LS, PS); if error != 0 { return fail(error, LIMIT as u64); }
+        i = 0; while i < (LC + PC) * 4 { ORIGINAL[i] = CURRENT[i]; i += 1; }
+    } else {
+        if CAPTURED == 0 { return fail(12, 0); }
+        if session_handle(1) == LS { return fail(7, 1); }
+        if plan9_session() != PS || plan9_generation() != PG { return fail(5, 4); }
+        // Only Plan9 remains live under its original binding. Do not ask the
+        // new Linux session for the dead transport's original fid identities.
+        let count: u64 = qualification_fids(4, PS, &mut CURRENT[0], LIMIT);
+        if count == MAX { return fail(5, 4); }
+        if count != PC as u64 { return fail(5, count); }
+        i = 0; while i < PC * 4 {
+            if CURRENT[i] != ORIGINAL[LC * 4 + i] { return fail(5, i as u64); }
+            i += 1;
+        }
+    }
+    write(output_ptr(), 40, LS, 8); write(output_ptr(), 48, LG, 8);
+    write(output_ptr(), 56, PS, 8); write(output_ptr(), 64, PG, 8);
+    write(output_ptr(), 72, LC as u64, 4); write(output_ptr(), 76, PC as u64, 4);
+    write(output_ptr(), 80, (LC + PC) as u64, 4);
+    i = 0; while i < LC + PC {
+        let error: u64 = exchange(i, action == 2);
+        if error != 0 { return fail(error, i as u64); } i += 1;
+    }
+    CAPTURED = 1;
+    return 0;
+}

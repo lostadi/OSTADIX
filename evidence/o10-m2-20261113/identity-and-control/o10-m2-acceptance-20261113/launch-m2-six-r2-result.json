@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r2.py"
+  ],
+  "finished": 1794581328.7938037,
+  "returncode": 0,
+  "schema": "ostadix.o10-m2-six-launch-controller-result/v1",
+  "scope": "One prepared launch attempt; actual managed gate completion is separate.",
+  "started": 1794581328.2702007,
+  "stderr": {
+    "bytes": 0,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r2.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stdout": {
+    "bytes": 2079,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r2.stdout",
+    "sha256": "39b135cf32cda51c556e6d2113ac00b811e7605af532a90a4da36b9ccfa6b528"
+  }
+}

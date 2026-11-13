@@ -1,0 +1,6 @@
+: > /run/o10-m2-counter-fa8d482ef4eaa6cd95e999da7d36b9ef.submit.o10-bas
+e64; _uw_rc=$?; printf '\nUNIFIED_COMMAND_20a3bd6eef664bbb8967b44207501057:%s\n'
+ "$_uw_rc"
+
+UNIFIED_COMMAND_20a3bd6eef664bbb8967b44207501057:0
+okernel> [6n

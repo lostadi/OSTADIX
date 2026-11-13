@@ -1,0 +1,18 @@
+{
+  "dispatched": false,
+  "prepared_unix": 1794579842.4054384,
+  "required_prelaunch_free_bytes": 34896609280,
+  "schema": "ostadix.o10-m2-six-launcher-preparation/v1",
+  "scope": "Fresh same-revision corrected-seed six-gate launch preparation using unchanged jobs2 scheduler, resource guard and actual source/provenance/process capture. Root disk cleanup and explicit release remain pending.",
+  "script": {
+    "bytes": 6634,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r2.py",
+    "sha256": "eceb62f7826f5614bd999cce4c53201ba0321e5dc5430bc3d50dd59940705f5b"
+  },
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "tool_request_preparation": {
+    "bytes": 12911,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/m2-six-gate-preparation-r2.json",
+    "sha256": "b43eb0580af8e02f3b5934fe94c068f7ee51353464a6bfb621a7db0ea4b3e24c"
+  }
+}

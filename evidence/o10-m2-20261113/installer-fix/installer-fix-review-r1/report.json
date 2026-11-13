@@ -1,0 +1,125 @@
+{
+  "schema": "ostadix.o10-m2-installer-dotu-independent-review/v1",
+  "time_utc": "2026-11-13T13:49:54.680996+00:00",
+  "base_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "reviewed_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "reviewed_paths": {
+    "ocore/guest/linux/package-domain/p9-install": {
+      "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/ocore__guest__linux__package-domain__p9-install"
+    },
+    "tests/test_p9_install.py": {
+      "sha256": "fbeb01cbe2b596def0153483e3e562ae1446b3749bd0dc601c8711dfba123f1f",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/tests__test_p9_install.py"
+    },
+    "tests/test_namespace_store_dotu.py": {
+      "sha256": "7736262e609fcd1355a2301eeedb39502d45fabfbd793704c4fab3f272e2ecf5",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/tests__test_namespace_store_dotu.py"
+    }
+  },
+  "diff": {
+    "path": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/reviewed.patch",
+    "sha256": "b0675f7797a11a967b5b621957ffd383837b807f3b36c836b0567f21c02f1c9e"
+  },
+  "verdict": "No blocking defect found in the exact narrow three-file installer dialect fix. Fresh helper deployment and aligned live acceptance remain pending; no M2 qualification claim.",
+  "correctness": [
+    {
+      "ref": "ocore/guest/linux/package-domain/p9-install:93",
+      "finding": "Identity stays /n/okernel,9p,okernel. Sole admitted transport is virtio. Plain requires noextend and no version; .u requires exactly version=9p2000.u without noextend. Default/explicit.L,mixed or unknown dialects and conflicting transports are rejected."
+    },
+    {
+      "ref": "ocore/guest/linux/package-domain/p9-install:277",
+      "finding": "Pinned-directory same-parent os.rename/Twstat publication and native no-replace contract remain intact. No renameat2 or host fallback was added. Existing byte/header/mode/readback/private receipt and cleanup code is unchanged."
+    },
+    {
+      "ref": "tests/test_namespace_store_dotu.py:427",
+      "finding": "New compiled production namespace .u corpus stages binary bytes0600,chmods0555,rejects positive sibling rename with numericEEXIST17,preserves both bytes/modes/qid.path,checks pending name then absent-name publication/reopen/bytes0555 and old sibling bytes. This is native host wire/store execution,not Linux guest execution."
+    },
+    {
+      "ref": "tests/test_p9_install.py:245",
+      "finding": "Mount tests preserve legacy,add explicit.u positives and path/source/fs/default.L/explicit.L/plain-explicit/nonvirtio/mixed-version/mixed-transport negatives. Installer safety tests retained."
+    }
+  ],
+  "primary_linux_source": [
+    {
+      "url": "https://github.com/gregkh/linux/blob/v6.12.43/fs/9p/vfs_inode.c",
+      "sealed_response": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/linux-v6.12.43-vfs_inode.c-excerpt.json",
+      "response_sha256": "f7d25ad8ffb79ea59eb54d2bf1860a8349d6020ae37c656f2ead1ecabc4c95ad",
+      "sealed_excerpt": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/linux-v6.12.43-vfs_inode.c-excerpt.txt",
+      "excerpt_sha256": "3c57aacb5131735f41d4f4cf6338c7f963af378b240b7293c94ea8804e2a99c9",
+      "metadata": {
+        "encoding": "utf-8",
+        "sha": "3e68521f4e2f9842019cdea2755d8a657a8ebb21",
+        "display_url": "https://github.com/gregkh/linux/blob/v6.12.43/fs/9p/vfs_inode.c",
+        "display_title": "vfs_inode.c"
+      }
+    },
+    {
+      "url": "https://github.com/gregkh/linux/blob/v6.12.43/net/9p/client.c",
+      "sealed_response": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/linux-v6.12.43-client.c-excerpt.json",
+      "response_sha256": "9d54fbe217c5cdd6d22b66071857bf46d3695001f5d222e0208b1bbee23a5b75",
+      "sealed_excerpt": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/linux-v6.12.43-client.c-excerpt.txt",
+      "excerpt_sha256": "56b7f310901c684ddcdc99a6295b7ee8af22fc769aac2f1c18e95cdbe0fd9d29",
+      "metadata": {
+        "encoding": "utf-8",
+        "sha": "52a5497cfca794f93c200a0e7ce02c623e4c90d5",
+        "display_url": "https://github.com/gregkh/linux/blob/v6.12.43/net/9p/client.c",
+        "display_title": "client.c"
+      }
+    }
+  ],
+  "linux_source_scope": "Exact pinned unmodified6.12.43: v9fs_vfs_rename rejects nonzero flags,dotL-specific paths stay conditional,plain/.u require same parent then send p9_client_wstat; destination bookkeeping follows RPC success. client.c renders legacy noextend,.u explicit version,.L default neither. Full guest install remains required.",
+  "author_test_evidence": {
+    "files": {
+      "result.json": {
+        "path": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/author-result.json",
+        "sha256": "26498022803cdb04516bd762464e61afa910db529e7be6b46992c2ea9f85e8ec"
+      },
+      "stdout.log": {
+        "path": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/author-stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr.log": {
+        "path": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/author-stderr.log",
+        "sha256": "c1ab528affc143eb516f4c688e37a528b185ba0e96c38b7521041be1c13bf307"
+      }
+    },
+    "argv": [
+      "python3",
+      "-B",
+      "-m",
+      "unittest",
+      "-v",
+      "tests.test_p9_install",
+      "tests.test_namespace_store_dotu"
+    ],
+    "actual_exit": 0,
+    "count": 21,
+    "skips": 0,
+    "compiler_path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "compiler_sha256_current": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7",
+    "reviewer_rerun": false,
+    "scope": "Installer host fixtures and production native .u wire publication/mode corpus; actual Linux guest install remains required."
+  },
+  "deployment": {
+    "proposal": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/failed-client-diagnosis-and-proposal.json",
+    "proposal_sha256": "57c746d191bdccdd8daf7cc108672ba243938c839e4182f312c543d6ee90b5b8",
+    "new_seed_proposed_path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-installer-u-r1",
+    "recipe": [
+      "Fork CURRENT fixture-seed to a NEW stopped private state. Preserve original seed/head and all successful/failed saved sessions.",
+      "Import existing update_okernel_guest_tools in a private preparation process. Assign TOOLS to exactly one mapping: /usr/local/bin/p9-install -> reviewed tracked helper. Invoke update(new_state) with glibc_abi=None. Do not invoke prepare_okernel_unified: it launches a guest and broadens helper/work preparation.",
+      "Updater requires nonblocking stopped domain.lock,copies selected current disk,fscks,validates root-owned regular helper0755 and exact readback/source digest,protects /work,/etc/apk,/lib/apk/db,fscks and publishes a NEW disk/head generation. Retain immutable receipt.",
+      "Additionally compare declared signed APK/key fixture under /opt by bytes/SHA/mode,namespace raw bytes/generation and pinned original kernel/Plan9/userland/build identities before/after. Do not recreate from older seed lacking current signed APK fixture,install packages or replay workload.",
+      "Runner setup_linux_client does not update installer; verifier upload deploys a separate foreground helper. Keep mandatory new helper checksum admission.",
+      "Fresh source/MCP stamp must identify clean reviewed revision. Compiler reuse requires exact unchanged compiler inputs and pinned binary provenance. Helper/test-only change does not require broad compiler rebuild.",
+      "Use new immutable qualification outputs. Preserve historical a5 R7/R3/R5/pass/failure bytes and revisions; do not splice failed six-gate envelope into a pass."
+    ],
+    "not_executed": true
+  },
+  "remaining_acceptance": [
+    "Live original7c/7l client install,cmp,0555,installed-NAME execution and saved restart with deployed .u helper.",
+    "Actual six-gate success plus final binder/current source/MCP/toolchain/CI alignment and durable evidence packaging. Failed batch has three passed,client failed,two notstarted."
+  ],
+  "limits": "Read-only review. No source edit,staging,commit,VM launch,deployment,test rerun or workload replay. Tests inspected are author raw receipts/logs. Primary source and native corpus do not replace actual Linux guest qualification.",
+  "concurrent_commit_note": "Root committed the exact previously reviewed diff while sealing. Sealed source copies were compared byte-for-byte to committed72e90d76; tracked change set is exactly the three reviewed paths."
+}

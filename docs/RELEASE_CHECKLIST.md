@@ -309,6 +309,23 @@ python3 scripts/build_source_release.py \
 The ZIP is deterministic for one commit and prefix. It contains a canonical
 `SOURCE-MANIFEST.json` plus `SHA256SUMS`, and the command prints the digest of
 the complete archive. Rebuilding the same ref must produce identical bytes.
+The manifest inventories selected public implementation, resources and declared
+fixtures; it does not claim to contain every tracked data file or Git history.
+The default policy excludes `apps/iphone16-pro/evidence/`,
+`evidence/o10-m0-20261112/isa-coordination-rv-online/`, and the three exact captures
+`evidence/o10-m0-20261112/isa-coordination.json`,
+`tools/nano-local-loader/evidence/initialization-system-environment.json` and
+`evidence/compiler_expansion_oversight_20261020.json`. These phone, physical-host
+coordination and machine-environment records remain in the repository; packaging
+does not redact, delete or fabricate them. Neighboring implementation, tests,
+synthetic VM fixtures and licensed resources keep their existing inclusion rules.
+Both selection and verification enforce this policy even for tracked captures;
+an allowlist exception, manifest property or `--allow-dirty` cannot override it.
+A required source path excluded by policy causes an explicit build failure.
+This narrow policy is not an automatic secret detector. Review new capture data
+before expanding the public surface. The existing five-key v1 manifest format is
+unchanged, and verification rejects unknown root properties rather than letting
+an archive select an alternative policy or carry undeclared capture metadata.
 Archive verification also checks relative Markdown-link closure: every local
 target referenced outside code or comments by included documentation must be
 present in the release. Git symlinks are refused rather than encoded as archive

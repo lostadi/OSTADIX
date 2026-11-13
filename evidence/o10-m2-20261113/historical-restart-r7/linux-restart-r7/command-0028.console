@@ -1,0 +1,9 @@
+printf %s PW1vdW50KCk7YXNzZXJ0ICJybyIgaW4gYWZ0ZXJbM10uc3BsaXQoIiwiKSBhb
+mQgInJ3IiBub3QgaW4gYWZ0ZXJbM10uc3BsaXQoIiwiKQogZW1pdChkaWN0KGJlZm9yZT1iZWZvcmUsc
+mVtb3VudD1yZXN1bHQsYWZ0ZXI9YWZ0ZXIpKQplbHNlOnJhaXNlIFZhbHVlRXJyb3IoInVua25vd24gZ
+ml4ZWQgZ2F0ZSBhY3Rpb24iKQo= >> /run/o10-m2-656563e83d8031a4877560d0.py.o10-base6
+4; _uw_rc=$?; printf '\nUNIFIED_COMMAND_d3e2bceed775404f8cde16740c7cb4ca:%s\n' "
+$_uw_rc"
+
+UNIFIED_COMMAND_d3e2bceed775404f8cde16740c7cb4ca:0
+okernel> [6n

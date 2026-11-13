@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/usr/bin/qemu-system-aarch64",
+    "-dfilter",
+    "0x4009333c..0x400934bc,0x400933a4..0x40093524,0x40093518..0x40093698,0x400935d8..0x40093758,0x4009e0e0..0x4009ec7f,0x400c0ae0..0x400c16bb,0x400d16d0..0x400d198f,0x400c4f10..0x400c5c87,0x400ec480..0x400ec73f,0x400ec740..0x400ec86f,0x400e4a60..0x400e4edf,0x400f7030..0x400f72ef,0x400f6450..0x400f6a5b",
+    "-d",
+    "help"
+  ],
+  "exit_code": 1,
+  "stdout": "Log items (comma separated):\nout_asm         show generated host assembly code for each compiled TB\nin_asm          show target assembly code for each compiled TB\nop              show micro ops for each compiled TB\nop_opt          show micro ops after optimization\nop_ind          show micro ops before indirect lowering\nint             show interrupts/exceptions in short format\nexec            show trace before each executed TB (lots of logs)\ncpu             show CPU registers before entering a TB (lots of logs)\nfpu             include FPU registers in the 'cpu' logging\nmmu             log MMU-related activities\npcall           x86 only: show protected mode far calls/returns/exceptions\ncpu_reset       show CPU state before CPU resets\nunimp           log unimplemented functionality\nguest_errors    log when the guest OS does something invalid (eg accessing a\nnon-existent register)\npage            dump pages at beginning of user mode emulation\nnochain         do not chain compiled TBs so that \"exec\" and \"cpu\" show\ncomplete traces\nplugin          output from TCG plugins\nstrace          log every user-mode syscall, its input, and its result\ntid             open a separate log file per thread; filename must contain '%d'\nvpu             include VPU registers in the 'cpu' logging\ntrace:PATTERN   enable trace events\n\nUse \"-d trace:help\" to get a list of trace events.\n\n",
+  "stderr": "",
+  "accepted_range_syntax": true
+}

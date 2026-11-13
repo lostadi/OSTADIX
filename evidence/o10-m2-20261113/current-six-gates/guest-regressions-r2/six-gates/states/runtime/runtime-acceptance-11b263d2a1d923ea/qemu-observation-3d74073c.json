@@ -1,0 +1,397 @@
+{
+  "pid": 1991873,
+  "controller_pid": 1991844,
+  "start_ticks": 106494148,
+  "executable": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64",
+    "bytes": 31517544,
+    "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c"
+  },
+  "argv": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64",
+    "-L",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/data",
+    "-machine",
+    "virt,virtualization=on,gic-version=3,its=off,memory-backend=unified-ram",
+    "-object",
+    "memory-backend-file,id=unified-ram,size=3G,mem-path=/proc/self/fd/9,share=on",
+    "-accel",
+    "tcg,thread=single",
+    "-cpu",
+    "cortex-a57",
+    "-smp",
+    "1",
+    "-m",
+    "3G",
+    "-nodefaults",
+    "-nic",
+    "none",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-no-reboot",
+    "-no-shutdown",
+    "-qmp",
+    "unix:/tmp/okernel-qmp-1000-09df43a72d23197c-rwu2t6a3/control.sock,server=on,wait=off",
+    "-kernel",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/monitor.elf",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/linux.Image,addr=0x48000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/linux.dtb,addr=0x4fe00000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/linux.initramfs,addr=0x50000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/plan9.kernel,addr=0xb0100000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/plan9.dtb,addr=0xb0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/linux-recovery.Image,addr=0xd2000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/linux-recovery.dtb,addr=0xe2000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/linux-recovery.initramfs,addr=0xda000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/plan9-recovery.kernel,addr=0xd0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/inputs/plan9-recovery.dtb,addr=0xd1000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/disk.ext4,addr=0x70000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/namespace.raw,addr=0x6c000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/plan9-bootstrap.bin,addr=0x6d010000,force-raw=on",
+    "-device",
+    "loader,addr=0x6d000000,data=3780708551570290941,data-len=8",
+    "-device",
+    "loader,addr=0x6d000008,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000010,data=1794582049,data-len=8",
+    "-device",
+    "loader,addr=0x6d020000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d040000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000090,data=6050944,data-len=8",
+    "-device",
+    "loader,addr=0x6d000098,data=503,data-len=8",
+    "-device",
+    "loader,addr=0x6d000100,data=6062088,data-len=8",
+    "-device",
+    "loader,addr=0x6d000108,data=2051,data-len=8",
+    "-device",
+    "loader,addr=0x6d000110,data=8726528,data-len=8",
+    "-global",
+    "virtio-mmio.force-legacy=false",
+    "-netdev",
+    "user,id=unified-net",
+    "-device",
+    "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"
+  ],
+  "maps": "56443a6ee000-56443abfe000 r--p 00000000 fc:00 55066134                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64\n56443abfe000-56443b59b000 r-xp 00510000 fc:00 55066134                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64\n56443b59b000-56443b95b000 r--p 00ead000 fc:00 55066134                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64\n56443b95b000-56443c325000 r--p 0126d000 fc:00 55066134                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64\n56443c325000-56443c4fd000 rw-p 01c37000 fc:00 55066134                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64\n56443c4fd000-56443c530000 rw-p 00000000 00:00 0 \n5644451c5000-564445f6b000 rw-p 00000000 00:00 0                          [heap]\n75f1f7fff000-75f2394d9000 rw-p 00000000 00:00 0 \n75f2394d9000-75f23c000000 ---p 00000000 00:00 0 \n75f23fc00000-75f243c00000 rw-p 00000000 00:00 0 \n75f243c00000-75f243c01000 ---p 00000000 00:00 0 \n75f243e00000-75f247e00000 rw-p 00000000 00:00 0 \n75f247e00000-75f247e01000 ---p 00000000 00:00 0 \n75f248000000-75f248021000 rw-p 00000000 00:00 0 \n75f248021000-75f24c000000 ---p 00000000 00:00 0 \n75f24c9fc000-75f24d9fd000 rw-p 00000000 00:00 0 \n75f24e800000-75f24e801000 rw-p 00000000 00:00 0 \n75f24e801000-75f24e802000 ---p 00000000 00:00 0 \n75f24ea00000-75f24ec00000 rw-p 00000000 00:00 0 \n75f24ec00000-75f24ec01000 ---p 00000000 00:00 0 \n75f24ee00000-75f24ee10000 rw-p 00000000 00:00 0 \n75f24ee10000-75f24ee11000 ---p 00000000 00:00 0 \n75f24effe000-75f24ffff000 rw-p 00000000 00:00 0 \n75f24ffff000-75f30ffff000 rw-s 00000000 00:01 422801                     /memfd:ostadix-unified-private-ram (deleted)\n75f30ffff000-75f310000000 ---p 00000000 00:00 0 \n75f310000000-75f34ffff000 rwxp 00000000 00:00 0 \n75f34ffff000-75f350000000 ---p 00000000 00:00 0 \n75f350000000-75f350021000 rw-p 00000000 00:00 0 \n75f350021000-75f354000000 ---p 00000000 00:00 0 \n75f3540d8000-75f3568c3000 rw-p 00000000 00:00 0 \n75f3568c3000-75f3569bb000 rw-p 00000000 fc:00 53657384                   /home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/monitor.elf\n75f3569bb000-75f3569bc000 ---p 00000000 00:00 0 \n75f3569bc000-75f3571bc000 rw-p 00000000 00:00 0 \n75f3572bd000-75f3572be000 ---p 00000000 00:00 0 \n75f3572be000-75f357abe000 rw-p 00000000 00:00 0 \n75f357abe000-75f357b81000 rw-p 00000000 00:00 0 \n75f357c02000-75f357c03000 ---p 00000000 00:00 0 \n75f357c03000-75f357d03000 rw-p 00000000 00:00 0 \n75f357d03000-75f357d04000 ---p 00000000 00:00 0 \n75f357d04000-75f358504000 rw-p 00000000 00:00 0 \n75f358504000-75f358507000 r--p 00000000 fc:00 55066183                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liblzma.so.5\n75f358507000-75f358529000 r-xp 00003000 fc:00 55066183                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liblzma.so.5\n75f358529000-75f358534000 r--p 00025000 fc:00 55066183                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liblzma.so.5\n75f358534000-75f358535000 r--p 00030000 fc:00 55066183                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liblzma.so.5\n75f358535000-75f358536000 rw-p 00031000 fc:00 55066183                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liblzma.so.5\n75f358536000-75f35853d000 r--p 00000000 fc:00 55066182                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libblkid.so.1\n75f35853d000-75f358561000 r-xp 00007000 fc:00 55066182                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libblkid.so.1\n75f358561000-75f35856a000 r--p 0002b000 fc:00 55066182                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libblkid.so.1\n75f35856a000-75f358570000 r--p 00033000 fc:00 55066182                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libblkid.so.1\n75f358570000-75f358571000 rw-p 00039000 fc:00 55066182                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libblkid.so.1\n75f358571000-75f35858e000 r--p 00000000 fc:00 55066178                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-route-3.so.200\n75f35858e000-75f3585d5000 r-xp 0001d000 fc:00 55066178                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-route-3.so.200\n75f3585d5000-75f3585f5000 r--p 00064000 fc:00 55066178                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-route-3.so.200\n75f3585f5000-75f3585f8000 r--p 00084000 fc:00 55066178                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-route-3.so.200\n75f3585f8000-75f3585fd000 rw-p 00087000 fc:00 55066178                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-route-3.so.200\n75f3585fd000-75f358600000 rw-p 00000000 00:00 0 \n75f358600000-75f3586b3000 r--p 00000000 fc:00 55066169                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcrypto.so.3\n75f3586b3000-75f3589e7000 r-xp 000b3000 fc:00 55066169                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcrypto.so.3\n75f3589e7000-75f358ab2000 r--p 003e7000 fc:00 55066169                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcrypto.so.3\n75f358ab2000-75f358b0e000 r--p 004b1000 fc:00 55066169                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcrypto.so.3\n75f358b0e000-75f358b11000 rw-p 0050d000 fc:00 55066169                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcrypto.so.3\n75f358b11000-75f358b14000 rw-p 00000000 00:00 0 \n75f358b15000-75f358b1c000 rw-p 00000000 00:00 0 \n75f358b1c000-75f358b20000 r--p 00000000 fc:00 55066181                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libkmod.so.2\n75f358b20000-75f358b32000 r-xp 00004000 fc:00 55066181                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libkmod.so.2\n75f358b32000-75f358b36000 r--p 00016000 fc:00 55066181                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libkmod.so.2\n75f358b36000-75f358b37000 r--p 0001a000 fc:00 55066181                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libkmod.so.2\n75f358b37000-75f358b38000 rw-p 0001b000 fc:00 55066181                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libkmod.so.2\n75f358b38000-75f358b3a000 r--p 00000000 fc:00 55066180                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libuuid.so.1\n75f358b3a000-75f358b3f000 r-xp 00002000 fc:00 55066180                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libuuid.so.1\n75f358b3f000-75f358b40000 r--p 00007000 fc:00 55066180                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libuuid.so.1\n75f358b40000-75f358b41000 r--p 00007000 fc:00 55066180                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libuuid.so.1\n75f358b41000-75f358b42000 rw-p 00008000 fc:00 55066180                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libuuid.so.1\n75f358b42000-75f358b45000 r--p 00000000 fc:00 55066179                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libelf.so.1\n75f358b45000-75f358b5b000 r-xp 00003000 fc:00 55066179                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libelf.so.1\n75f358b5b000-75f358b5f000 r--p 00019000 fc:00 55066179                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libelf.so.1\n75f358b5f000-75f358b60000 r--p 0001c000 fc:00 55066179                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libelf.so.1\n75f358b60000-75f358b61000 rw-p 0001d000 fc:00 55066179                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libelf.so.1\n75f358b61000-75f358b69000 r--p 00000000 fc:00 55066177                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-3.so.200\n75f358b69000-75f358b78000 r-xp 00008000 fc:00 55066177                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-3.so.200\n75f358b78000-75f358b80000 r--p 00017000 fc:00 55066177                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-3.so.200\n75f358b80000-75f358b82000 r--p 0001e000 fc:00 55066177                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-3.so.200\n75f358b82000-75f358b83000 rw-p 00020000 fc:00 55066177                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-3.so.200\n75f358b83000-75f358b85000 r--p 00000000 fc:00 55066176                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpcre2-8.so.0\n75f358b85000-75f358bf3000 r-xp 00002000 fc:00 55066176                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpcre2-8.so.0\n75f358bf3000-75f358c1b000 r--p 00070000 fc:00 55066176                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpcre2-8.so.0\n75f358c1b000-75f358c1c000 r--p 00097000 fc:00 55066176                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpcre2-8.so.0\n75f358c1c000-75f358c1d000 rw-p 00098000 fc:00 55066176                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpcre2-8.so.0\n75f358c1d000-75f358c1f000 r--p 00000000 fc:00 55066175                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libffi.so.8\n75f358c1f000-75f358c26000 r-xp 00002000 fc:00 55066175                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libffi.so.8\n75f358c26000-75f358c27000 r--p 00009000 fc:00 55066175                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libffi.so.8\n75f358c27000-75f358c28000 r--p 0000a000 fc:00 55066175                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libffi.so.8\n75f358c28000-75f358c29000 rw-p 0000b000 fc:00 55066175                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libffi.so.8\n75f358c29000-75f358c2f000 r--p 00000000 fc:00 55066174                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libselinux.so.1\n75f358c2f000-75f358c4c000 r-xp 00006000 fc:00 55066174                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libselinux.so.1\n75f358c4c000-75f358c52000 r--p 00023000 fc:00 55066174                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libselinux.so.1\n75f358c52000-75f358c53000 r--p 00029000 fc:00 55066174                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libselinux.so.1\n75f358c53000-75f358c54000 rw-p 0002a000 fc:00 55066174                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libselinux.so.1\n75f358c54000-75f358c56000 rw-p 00000000 00:00 0 \n75f358c56000-75f358c5f000 r--p 00000000 fc:00 55066173                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libmount.so.1\n75f358c5f000-75f358c93000 r-xp 00009000 fc:00 55066173                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libmount.so.1\n75f358c93000-75f358ca0000 r--p 0003d000 fc:00 55066173                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libmount.so.1\n75f358ca0000-75f358ca2000 r--p 00049000 fc:00 55066173                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libmount.so.1\n75f358ca2000-75f358ca3000 rw-p 0004b000 fc:00 55066173                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libmount.so.1\n75f358ca3000-75f358ca6000 r--p 00000000 fc:00 55066172                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libdaxctl.so.1\n75f358ca6000-75f358cab000 r-xp 00003000 fc:00 55066172                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libdaxctl.so.1\n75f358cab000-75f358cad000 r--p 00008000 fc:00 55066172                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libdaxctl.so.1\n75f358cad000-75f358cae000 r--p 0000a000 fc:00 55066172                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libdaxctl.so.1\n75f358cae000-75f358caf000 rw-p 0000b000 fc:00 55066172                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libdaxctl.so.1\n75f358caf000-75f358cc0000 r--p 00000000 fc:00 55066167                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libunistring.so.5\n75f358cc0000-75f358cf7000 r-xp 00011000 fc:00 55066167                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libunistring.so.5\n75f358cf7000-75f358e57000 r--p 00048000 fc:00 55066167                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libunistring.so.5\n75f358e57000-75f358e5b000 r--p 001a8000 fc:00 55066167                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libunistring.so.5\n75f358e5b000-75f358e5c000 rw-p 001ac000 fc:00 55066167                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libunistring.so.5\n75f358e5c000-75f358e94000 r--p 00000000 fc:00 55066165                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libp11-kit.so.0\n75f358e94000-75f358f66000 r-xp 00038000 fc:00 55066165                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libp11-kit.so.0\n75f358f66000-75f358fe5000 r--p 0010a000 fc:00 55066165                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libp11-kit.so.0\n75f358fe5000-75f358ff2000 r--p 00188000 fc:00 55066165                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libp11-kit.so.0\n75f358ff2000-75f358fff000 rw-p 00195000 fc:00 55066165                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libp11-kit.so.0\n75f358fff000-75f359000000 rw-p 00000000 00:00 0 \n75f359000000-75f359028000 r--p 00000000 fc:00 55066163                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libc.so.6\n75f359028000-75f3591b1000 r-xp 00028000 fc:00 55066163                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libc.so.6\n75f3591b1000-75f359200000 r--p 001b1000 fc:00 55066163                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libc.so.6\n75f359200000-75f359204000 r--p 001ff000 fc:00 55066163                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libc.so.6\n75f359204000-75f359206000 rw-p 00203000 fc:00 55066163                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libc.so.6\n75f359206000-75f35921b000 rw-p 00000000 00:00 0 \n75f35921b000-75f359224000 r--p 00000000 fc:00 55066171                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libndctl.so.6\n75f359224000-75f35923a000 r-xp 00009000 fc:00 55066171                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libndctl.so.6\n75f35923a000-75f359243000 r--p 0001f000 fc:00 55066171                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libndctl.so.6\n75f359243000-75f359244000 r--p 00027000 fc:00 55066171                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libndctl.so.6\n75f359244000-75f359245000 rw-p 00028000 fc:00 55066171                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libndctl.so.6\n75f359245000-75f359248000 r--p 00000000 fc:00 55066170                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcap.so.2\n75f359248000-75f35924e000 r-xp 00003000 fc:00 55066170                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcap.so.2\n75f35924e000-75f359250000 r--p 00009000 fc:00 55066170                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcap.so.2\n75f359250000-75f359251000 r--p 0000b000 fc:00 55066170                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcap.so.2\n75f359251000-75f359252000 rw-p 0000c000 fc:00 55066170                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcap.so.2\n75f359252000-75f359255000 r--p 00000000 fc:00 55066168                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libtasn1.so.6\n75f359255000-75f359263000 r-xp 00003000 fc:00 55066168                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libtasn1.so.6\n75f359263000-75f359266000 r--p 00011000 fc:00 55066168                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libtasn1.so.6\n75f359266000-75f359267000 r--p 00014000 fc:00 55066168                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libtasn1.so.6\n75f359267000-75f359268000 rw-p 00015000 fc:00 55066168                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libtasn1.so.6\n75f359268000-75f35926a000 rw-p 00000000 00:00 0 \n75f35926a000-75f35926c000 r--p 00000000 fc:00 55066166                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libidn2.so.0\n75f35926c000-75f359270000 r-xp 00002000 fc:00 55066166                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libidn2.so.0\n75f359270000-75f35928a000 r--p 00006000 fc:00 55066166                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libidn2.so.0\n75f35928a000-75f35928b000 r--p 0001f000 fc:00 55066166                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libidn2.so.0\n75f35928b000-75f35928c000 rw-p 00020000 fc:00 55066166                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libidn2.so.0\n75f35928c000-75f35928d000 r--p 00000000 fc:00 55066162                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libaio.so.1t64\n75f35928d000-75f35928e000 r-xp 00001000 fc:00 55066162                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libaio.so.1t64\n75f35928e000-75f35928f000 r--p 00002000 fc:00 55066162                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libaio.so.1t64\n75f35928f000-75f359290000 r--p 00002000 fc:00 55066162                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libaio.so.1t64\n75f359290000-75f359291000 rw-p 00003000 fc:00 55066162                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libaio.so.1t64\n75f359291000-75f359298000 r--p 00000000 fc:00 55066161                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfuse3.so.3\n75f359298000-75f3592b5000 r-xp 00007000 fc:00 55066161                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfuse3.so.3\n75f3592b5000-75f3592be000 r--p 00024000 fc:00 55066161                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfuse3.so.3\n75f3592be000-75f3592d0000 r--p 0002c000 fc:00 55066161                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfuse3.so.3\n75f3592d0000-75f3592d1000 rw-p 0003e000 fc:00 55066161                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfuse3.so.3\n75f3592d1000-75f3592d3000 rw-p 00000000 00:00 0 \n75f3592d3000-75f3592db000 r--p 00000000 fc:00 55066160                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libhogweed.so.6\n75f3592db000-75f3592ef000 r-xp 00008000 fc:00 55066160                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libhogweed.so.6\n75f3592ef000-75f359318000 r--p 0001c000 fc:00 55066160                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libhogweed.so.6\n75f359318000-75f35931a000 r--p 00044000 fc:00 55066160                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libhogweed.so.6\n75f35931a000-75f35931b000 rw-p 00046000 fc:00 55066160                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libhogweed.so.6\n75f35931b000-75f359325000 r--p 00000000 fc:00 55066159                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmp.so.10\n75f359325000-75f359388000 r-xp 0000a000 fc:00 55066159                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmp.so.10\n75f359388000-75f35939d000 r--p 0006d000 fc:00 55066159                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmp.so.10\n75f35939d000-75f35939e000 r--p 00081000 fc:00 55066159                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmp.so.10\n75f35939e000-75f35939f000 rw-p 00082000 fc:00 55066159                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmp.so.10\n75f35939f000-75f3593ab000 r--p 00000000 fc:00 55066158                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnettle.so.8\n75f3593ab000-75f3593da000 r-xp 0000c000 fc:00 55066158                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnettle.so.8\n75f3593da000-75f3593f1000 r--p 0003b000 fc:00 55066158                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnettle.so.8\n75f3593f1000-75f3593f3000 r--p 00051000 fc:00 55066158                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnettle.so.8\n75f3593f3000-75f3593f4000 rw-p 00053000 fc:00 55066158                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnettle.so.8\n75f3593f4000-75f359404000 r--p 00000000 fc:00 55066157                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libm.so.6\n75f359404000-75f359483000 r-xp 00010000 fc:00 55066157                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libm.so.6\n75f359483000-75f3594db000 r--p 0008f000 fc:00 55066157                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libm.so.6\n75f3594db000-75f3594dc000 r--p 000e7000 fc:00 55066157                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libm.so.6\n75f3594dc000-75f3594dd000 rw-p 000e8000 fc:00 55066157                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libm.so.6\n75f3594dd000-75f3594df000 r--p 00000000 fc:00 55066156                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmodule-2.0.so.0\n75f3594df000-75f3594e1000 r-xp 00002000 fc:00 55066156                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmodule-2.0.so.0\n75f3594e1000-75f3594e2000 r--p 00004000 fc:00 55066156                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmodule-2.0.so.0\n75f3594e2000-75f3594e3000 r--p 00004000 fc:00 55066156                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmodule-2.0.so.0\n75f3594e3000-75f3594e4000 rw-p 00005000 fc:00 55066156                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmodule-2.0.so.0\n75f3594e4000-75f3594e6000 rw-p 00000000 00:00 0 \n75f3594e6000-75f3594e8000 r--p 00000000 fc:00 55066155                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liburing.so.2\n75f3594e8000-75f3594eb000 r-xp 00002000 fc:00 55066155                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liburing.so.2\n75f3594eb000-75f3594ec000 r--p 00005000 fc:00 55066155                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liburing.so.2\n75f3594ec000-75f3594ed000 r--p 00005000 fc:00 55066155                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liburing.so.2\n75f3594ed000-75f3594ee000 rw-p 00006000 fc:00 55066155                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liburing.so.2\n75f3594ee000-75f3594f8000 r--p 00000000 fc:00 55066154                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libbpf.so.1\n75f3594f8000-75f359535000 r-xp 0000a000 fc:00 55066154                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libbpf.so.1\n75f359535000-75f35954a000 r--p 00047000 fc:00 55066154                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libbpf.so.1\n75f35954a000-75f35954d000 r--p 0005b000 fc:00 55066154                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libbpf.so.1\n75f35954d000-75f35954e000 rw-p 0005e000 fc:00 55066154                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libbpf.so.1\n75f35954e000-75f359552000 r--p 00000000 fc:00 55066153                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libslirp.so.0\n75f359552000-75f359569000 r-xp 00004000 fc:00 55066153                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libslirp.so.0\n75f359569000-75f35956d000 r--p 0001b000 fc:00 55066153                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libslirp.so.0\n75f35956d000-75f35956e000 r--p 0001f000 fc:00 55066153                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libslirp.so.0\n75f35956e000-75f359570000 rw-p 00020000 fc:00 55066153                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libslirp.so.0\n75f359570000-75f359571000 rw-p 00000000 00:00 0 \n75f359571000-75f359575000 r--p 00000000 fc:00 55066152                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libzstd.so.1\n75f359575000-75f35961c000 r-xp 00004000 fc:00 55066152                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libzstd.so.1\n75f35961c000-75f359629000 r--p 000ab000 fc:00 55066152                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libzstd.so.1\n75f359629000-75f35962a000 r--p 000b7000 fc:00 55066152                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libzstd.so.1\n75f35962a000-75f35962b000 rw-p 000b8000 fc:00 55066152                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libzstd.so.1\n75f35962b000-75f359631000 r--p 00000000 fc:00 55066151                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libibverbs.so.1\n75f359631000-75f359647000 r-xp 00006000 fc:00 55066151                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libibverbs.so.1\n75f359647000-75f35964c000 r--p 0001c000 fc:00 55066151                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libibverbs.so.1\n75f35964c000-75f35964d000 r--p 00020000 fc:00 55066151                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libibverbs.so.1\n75f35964d000-75f35964e000 rw-p 00021000 fc:00 55066151                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libibverbs.so.1\n75f35964e000-75f359650000 rw-p 00000000 00:00 0 \n75f359650000-75f359654000 r--p 00000000 fc:00 55066150                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/librdmacm.so.1\n75f359654000-75f35966a000 r-xp 00004000 fc:00 55066150                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/librdmacm.so.1\n75f35966a000-75f35966d000 r--p 0001a000 fc:00 55066150                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/librdmacm.so.1\n75f35966d000-75f35966e000 r--p 0001c000 fc:00 55066150                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/librdmacm.so.1\n75f35966e000-75f35966f000 rw-p 0001d000 fc:00 55066150                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/librdmacm.so.1\n75f35966f000-75f359670000 rw-p 00000000 00:00 0 \n75f359670000-75f35968e000 r--p 00000000 fc:00 55066149                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libglib-2.0.so.0\n75f35968e000-75f35972e000 r-xp 0001e000 fc:00 55066149                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libglib-2.0.so.0\n75f35972e000-75f3597b6000 r--p 000be000 fc:00 55066149                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libglib-2.0.so.0\n75f3597b6000-75f3597b7000 r--p 00146000 fc:00 55066149                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libglib-2.0.so.0\n75f3597b7000-75f3597b8000 rw-p 00147000 fc:00 55066149                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libglib-2.0.so.0\n75f3597b8000-75f3597b9000 rw-p 00000000 00:00 0 \n75f3597b9000-75f3597c8000 r--p 00000000 fc:00 55066148                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgobject-2.0.so.0\n75f3597c8000-75f3597ff000 r-xp 0000f000 fc:00 55066148                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgobject-2.0.so.0\n75f3597ff000-75f359818000 r--p 00046000 fc:00 55066148                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgobject-2.0.so.0\n75f359818000-75f35981b000 r--p 0005e000 fc:00 55066148                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgobject-2.0.so.0\n75f35981b000-75f35981c000 rw-p 00061000 fc:00 55066148                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgobject-2.0.so.0\n75f35981c000-75f359855000 r--p 00000000 fc:00 55066147                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgio-2.0.so.0\n75f359855000-75f35996c000 r-xp 00039000 fc:00 55066147                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgio-2.0.so.0\n75f35996c000-75f3599e1000 r--p 00150000 fc:00 55066147                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgio-2.0.so.0\n75f3599e1000-75f3599e9000 r--p 001c4000 fc:00 55066147                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgio-2.0.so.0\n75f3599e9000-75f3599ea000 rw-p 001cc000 fc:00 55066147                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgio-2.0.so.0\n75f3599ea000-75f3599ec000 rw-p 00000000 00:00 0 \n75f3599ec000-75f3599ef000 r--p 00000000 fc:00 55066146                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnuma.so.1\n75f3599ef000-75f3599f6000 r-xp 00003000 fc:00 55066146                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnuma.so.1\n75f3599f6000-75f3599f8000 r--p 0000a000 fc:00 55066146                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnuma.so.1\n75f3599f8000-75f3599f9000 r--p 0000b000 fc:00 55066146                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnuma.so.1\n75f3599f9000-75f3599fa000 rw-p 0000c000 fc:00 55066146                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnuma.so.1\n75f3599fa000-75f3599fc000 rw-p 00000000 00:00 0 \n75f3599fc000-75f3599fe000 r--p 00000000 fc:00 55066145                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libseccomp.so.2\n75f3599fe000-75f359a0c000 r-xp 00002000 fc:00 55066145                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libseccomp.so.2\n75f359a0c000-75f359a1a000 r--p 00010000 fc:00 55066145                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libseccomp.so.2\n75f359a1a000-75f359a1b000 r--p 0001d000 fc:00 55066145                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libseccomp.so.2\n75f359a1b000-75f359a1c000 rw-p 0001e000 fc:00 55066145                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libseccomp.so.2\n75f359a1c000-75f359a20000 r--p 00000000 fc:00 55066144                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpmem.so.1\n75f359a20000-75f359a6d000 r-xp 00004000 fc:00 55066144                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpmem.so.1\n75f359a6d000-75f359a73000 r--p 00051000 fc:00 55066144                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpmem.so.1\n75f359a73000-75f359a74000 r--p 00056000 fc:00 55066144                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpmem.so.1\n75f359a74000-75f359a75000 rw-p 00057000 fc:00 55066144                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpmem.so.1\n75f359a75000-75f359a7a000 r--p 00000000 fc:00 55066143                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libudev.so.1\n75f359a7a000-75f359a9c000 r-xp 00005000 fc:00 55066143                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libudev.so.1\n75f359a9c000-75f359aa6000 r--p 00027000 fc:00 55066143                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libudev.so.1\n75f359aa6000-75f359aa7000 r--p 00031000 fc:00 55066143                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libudev.so.1\n75f359aa7000-75f359aa8000 rw-p 00032000 fc:00 55066143                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libudev.so.1\n75f359aa8000-75f359aab000 r--p 00000000 fc:00 55066142                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libsasl2.so.2\n75f359aab000-75f359abb000 r-xp 00003000 fc:00 55066142                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libsasl2.so.2\n75f359abb000-75f359ac0000 r--p 00013000 fc:00 55066142                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libsasl2.so.2\n75f359ac0000-75f359ac1000 r--p 00017000 fc:00 55066142                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libsasl2.so.2\n75f359ac1000-75f359ac2000 rw-p 00018000 fc:00 55066142                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libsasl2.so.2\n75f359ac2000-75f359ac6000 r--p 00000000 fc:00 55066141                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libjpeg.so.8\n75f359ac6000-75f359b13000 r-xp 00004000 fc:00 55066141                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libjpeg.so.8\n75f359b13000-75f359b43000 r--p 00051000 fc:00 55066141                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libjpeg.so.8\n75f359b43000-75f359b44000 r--p 00081000 fc:00 55066141                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libjpeg.so.8\n75f359b44000-75f359b45000 rw-p 00082000 fc:00 55066141                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libjpeg.so.8\n75f359b45000-75f359b47000 rw-p 00000000 00:00 0 \n75f359b47000-75f359b4c000 r--p 00000000 fc:00 55066140                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpng16.so.16\n75f359b4c000-75f359b74000 r-xp 00005000 fc:00 55066140                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpng16.so.16\n75f359b74000-75f359b7d000 r--p 0002d000 fc:00 55066140                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpng16.so.16\n75f359b7d000-75f359b7e000 r--p 00035000 fc:00 55066140                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpng16.so.16\n75f359b7e000-75f359b7f000 rw-p 00036000 fc:00 55066140                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpng16.so.16\n75f359b7f000-75f359bb2000 r--p 00000000 fc:00 55066139                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgnutls.so.30\n75f359bb2000-75f359cec000 r-xp 00033000 fc:00 55066139                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgnutls.so.30\n75f359cec000-75f359d65000 r--p 0016d000 fc:00 55066139                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgnutls.so.30\n75f359d65000-75f359d75000 r--p 001e6000 fc:00 55066139                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgnutls.so.30\n75f359d75000-75f359d77000 rw-p 001f6000 fc:00 55066139                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgnutls.so.30\n75f359d77000-75f359d7a000 rw-p 00000000 00:00 0 \n75f359d7a000-75f359d84000 r--p 00000000 fc:00 55066138                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpixman-1.so.0\n75f359d84000-75f359e11000 r-xp 0000a000 fc:00 55066138                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpixman-1.so.0\n75f359e11000-75f359e20000 r--p 00097000 fc:00 55066138                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpixman-1.so.0\n75f359e20000-75f359e28000 r--p 000a5000 fc:00 55066138                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpixman-1.so.0\n75f359e28000-75f359e29000 rw-p 000ad000 fc:00 55066138                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpixman-1.so.0\n75f359e29000-75f359e2b000 r--p 00000000 fc:00 55066137                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libz.so.1\n75f359e2b000-75f359e3d000 r-xp 00002000 fc:00 55066137                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libz.so.1\n75f359e3d000-75f359e43000 r--p 00014000 fc:00 55066137                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libz.so.1\n75f359e43000-75f359e44000 r--p 0001a000 fc:00 55066137                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libz.so.1\n75f359e44000-75f359e45000 rw-p 0001b000 fc:00 55066137                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libz.so.1\n75f359e45000-75f359e47000 r--p 00000000 fc:00 55066136                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfdt.so.1\n75f359e47000-75f359e4c000 r-xp 00002000 fc:00 55066136                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfdt.so.1\n75f359e4c000-75f359e4e000 r--p 00007000 fc:00 55066136                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfdt.so.1\n75f359e4e000-75f359e4f000 r--p 00008000 fc:00 55066136                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfdt.so.1\n75f359e4f000-75f359e50000 rw-p 00009000 fc:00 55066136                   /home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfdt.so.1\n75f359e50000-75f359e52000 rw-p 00000000 00:00 0 \n75f359e52000-75f359e56000 r--p 00000000 00:00 0                          [vvar]\n75f359e56000-75f359e58000 r--p 00000000 00:00 0                          [vvar_vclock]\n75f359e58000-75f359e5a000 r-xp 00000000 00:00 0                          [vdso]\n75f359e5a000-75f359e5b000 r--p 00000000 fc:00 262576                     /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\n75f359e5b000-75f359e86000 r-xp 00001000 fc:00 262576                     /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\n75f359e86000-75f359e90000 r--p 0002c000 fc:00 262576                     /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\n75f359e90000-75f359e92000 r--p 00036000 fc:00 262576                     /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\n75f359e92000-75f359e94000 rw-p 00038000 fc:00 262576                     /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\n7ffc2d6c0000-7ffc2d6ea000 rw-p 00000000 00:00 0                          [stack]\nffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]\n",
+  "mapped_files": [
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libaio.so.1t64",
+      "bytes": 14336,
+      "sha256": "9dbba7441fe096f6654bfd31bfdbba52f41a209bd4a560468293c226ff63c998",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libblkid.so.1",
+      "bytes": 236592,
+      "sha256": "9c3860ffab5422410ff9e073d3e82267f00bc68ff1248cbb191640ee2ff045bc",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libbpf.so.1",
+      "bytes": 387728,
+      "sha256": "0e9998e17e38d78e5ce953f89a5e6a7c8b457d3e1bfe71e3ec5a1cfb05bbd1c3",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libc.so.6",
+      "bytes": 2129424,
+      "sha256": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcap.so.2",
+      "bytes": 51536,
+      "sha256": "6ac6abc86ac891c6e13486470e26f1d939f47fda9e6b5d5508a7f5ec881adc84",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libcrypto.so.3",
+      "bytes": 5309400,
+      "sha256": "6866ed711dab8927e1bf82bf1cd30e828bdfc34f3cc1e83b1c9eb01ce6c37d9a",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libdaxctl.so.1",
+      "bytes": 47256,
+      "sha256": "9b81e8d837bc49013099d5dc8b5263772d645dfcb205d9566e91e7d414839b59",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libelf.so.1",
+      "bytes": 121560,
+      "sha256": "248c989360783cdc52f3659921de852c2efcc2097253ce58e34443f856412814",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfdt.so.1",
+      "bytes": 39064,
+      "sha256": "66c111808e61c7f6be6715b4b03d0fe75beb5bc5b3a8809608d58d99a6bc9828",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libffi.so.8",
+      "bytes": 47672,
+      "sha256": "00f593fe192f2851b8ce23b25cec2488d769beb5a8f63e8c9e563071e1075153",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libfuse3.so.3",
+      "bytes": 256184,
+      "sha256": "f1e75247f42d414df611ee554c8399bfe74565f89eed7c4501e2d97c48f21eab",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgio-2.0.so.0",
+      "bytes": 1887632,
+      "sha256": "373801faa40cd4eb46a40ce02bd0945b4905160a59894b600636e0fadfb78f2b",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libglib-2.0.so.0",
+      "bytes": 1343056,
+      "sha256": "448d9d271e77a7f6c4d057336df40c34b02c794f551caf8fa03b5122f25e601b",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmodule-2.0.so.0",
+      "bytes": 22736,
+      "sha256": "1d3459ce2cd1a1fd276b08f75aa191597ece3e44bbe12ddd6bf0fe1dc8c27181",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgmp.so.10",
+      "bytes": 534896,
+      "sha256": "0ccdfb6d6f5c039465f6d002cf7e4c072d48ac6a2cffc8dd6c748dec31592804",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgnutls.so.30",
+      "bytes": 2065824,
+      "sha256": "ddbae2995750875c07bc218d12a062d73f8250678f54dedda7e9be5068781c98",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libgobject-2.0.so.0",
+      "bytes": 399752,
+      "sha256": "2bf396b14b469ca2eed46a785b3bc0bd1fd979261c6bf505bc4debdcd0a6870a",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libhogweed.so.6",
+      "bytes": 288920,
+      "sha256": "c3c606139d4f7776efa4dbd4a6b62e30c916b07a0cafd8c3ef173d6f093607e3",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libibverbs.so.1",
+      "bytes": 138032,
+      "sha256": "249242c3ba29d72b7a9be560b768bf43fc5924c8a166f4e3bbb224bd81ade3ab",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libidn2.so.0",
+      "bytes": 133192,
+      "sha256": "6e632fd9a3125db60bbc623719bbc17b0470330321c5b1c57f1ff7190e5551ad",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libjpeg.so.8",
+      "bytes": 534592,
+      "sha256": "ac09f2cd6f8a3b8e3cb123999ce275f9bcbe31c6cf9e20212c8f297772591d15",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libkmod.so.2",
+      "bytes": 112792,
+      "sha256": "6108903e15200313fd0bb71bb7e17d8fb8d01a01fa7f3dd1649d4f0c6187c8d3",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liblzma.so.5",
+      "bytes": 202904,
+      "sha256": "26b37d25f7ca2a2d348de8ecabacda12e921cd933b21fa069a179760db77219d",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libm.so.6",
+      "bytes": 952616,
+      "sha256": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libmount.so.1",
+      "bytes": 309960,
+      "sha256": "7472255ae5799059b37ddd544788f5665dbd3e1cb78259f52180293039efc2a5",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libndctl.so.6",
+      "bytes": 168136,
+      "sha256": "97859d906e55e67786f6c3d2f568553f8638d9c717880cf1295cc53e6b0d433c",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnettle.so.8",
+      "bytes": 342280,
+      "sha256": "a245ed916229583d6fe0b07657b3ed945bc148c28cc08b5266295f620d2b91cc",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-3.so.200",
+      "bytes": 133944,
+      "sha256": "afcb69e2ef0b46c2ce7b7483848332fa9462776d33163f64209acf01f86eddd7",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnl-route-3.so.200",
+      "bytes": 575344,
+      "sha256": "088b0021d638306f5541e7baab06a0182b07db0a280e19b3b40c746f729b3773",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libnuma.so.1",
+      "bytes": 52248,
+      "sha256": "02d7582c5d391e460e56aa67a414360e3183b968206645b9123f9dc7bff5d009",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libp11-kit.so.0",
+      "bytes": 1714008,
+      "sha256": "a59efd4792d3343dedea1d26a28f5597abfe3369082deb504c4802a31b014897",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpcre2-8.so.0",
+      "bytes": 625344,
+      "sha256": "e00576d71d81d3ba0cfa4903c835a44a8723aac96f72f79ff75200b4cff9071b",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpixman-1.so.0",
+      "bytes": 710832,
+      "sha256": "73aa0daeedb7228754d798b194e2ff69c8b82a689b9aa4f1d8ab32a8763b0cc5",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpmem.so.1",
+      "bytes": 358688,
+      "sha256": "52f14a3f2a80464be81a56ac7098ba1a457309cd353e05a319ce55a915def9c0",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libpng16.so.16",
+      "bytes": 223304,
+      "sha256": "89c0c6569a8c00480d451401ad4c0a74942e62dc57f229a970592fdc5adb29e8",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/librdmacm.so.1",
+      "bytes": 122144,
+      "sha256": "18609553ba84c9206739d0a6d62ae5371d4713058ed4b68c665e627d967df648",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libsasl2.so.2",
+      "bytes": 101200,
+      "sha256": "a0f410ad093236856eee59c4ff2838dc04d932ea0993400f23ed77d67d85af34",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libseccomp.so.2",
+      "bytes": 125360,
+      "sha256": "b4d9140a7797ccf3ac14f5d9d579b64f157111662940cb8330c632b11a8cea8e",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libselinux.so.1",
+      "bytes": 174472,
+      "sha256": "0ec0843463f90e227b0e138e1f379774f50b5514bd7f5dbd4c8a87aca0aa6670",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libslirp.so.0",
+      "bytes": 141304,
+      "sha256": "1f71a24af59f3aa76c1e0bcf7852de08c1c21c40524479b9d5df404d903b2280",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libtasn1.so.6",
+      "bytes": 88216,
+      "sha256": "59994414d0cdec4f678ef91eaaafc44b26b00bca507e4cc7978caaf79f584173",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libudev.so.1",
+      "bytes": 207288,
+      "sha256": "0d6934adafb2ef3c640382440c14d6bd60f391e688c000796ffcea0c72849269",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libunistring.so.5",
+      "bytes": 1755312,
+      "sha256": "7bcf825cd449892db5105ad2aed91dcf94a27b796426600c765720c584c54dd1",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/liburing.so.2",
+      "bytes": 26856,
+      "sha256": "51594b92ac35f96595d3fcec9c3ec5d190637d9b426d5f8a8f4207875d2962f6",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libuuid.so.1",
+      "bytes": 35032,
+      "sha256": "78d7f4d6f27b7dffc1c84dfe2f83e84aefa6f6ceeffc6ac4bc41f9fbc61cb84e",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libz.so.1",
+      "bytes": 113000,
+      "sha256": "f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/lib/libzstd.so.1",
+      "bytes": 755864,
+      "sha256": "0a2128bc10841fb29e76d08d945864dfb0b6a66da5df6df5d8299197439e54bb",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/tools/native/qemu-system-aarch64",
+      "bytes": 31517544,
+      "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c",
+      "elf_machine": 62
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z/inputs/monitor.elf",
+      "bytes": 1012056,
+      "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb",
+      "elf_machine": 183
+    },
+    {
+      "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+      "bytes": 236616,
+      "sha256": "c20a2dc8917c755f02b94049356320fe1f62ac7d9f8994731f807d9df39302da",
+      "elf_machine": 62
+    }
+  ]
+}

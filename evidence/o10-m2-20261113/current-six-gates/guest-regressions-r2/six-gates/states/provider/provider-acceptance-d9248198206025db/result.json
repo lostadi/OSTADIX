@@ -1,0 +1,23 @@
+{
+  "schema": "ostadix.unified-original-provider/v1",
+  "ok": true,
+  "scope": "actual original Linux publication and original Plan9 commands/compiler under one O-core EL2 monitor; automated component acceptance",
+  "controller": {
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_provider.py",
+    "sha256": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986"
+  },
+  "started": 1794581340.762621,
+  "sessions": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/provider/unified-session-vd5swh98",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/provider/unified-session-maoc2rjg"
+  ],
+  "checks": [
+    "Linux publishes binary request; original PAQ-only 7c/7l compile and execute source with exact binary stdin, stdout, stderr and empty native status",
+    "native Plan9-only withdrawal/replacement preserves the same Linux PID/start time, progress and native files",
+    "cancelled original rc detached descendant cannot respond to a release published only after its owning domain is discarded",
+    "fresh original provider executes new work and ignores a newly published old-instance request",
+    "actual two-kernel restart preserves and re-executes identical original Plan9 executable with fresh provider identities"
+  ],
+  "program_sha256": "c6989760c4fa89c48219979bb63ba534ef1f525468b08644544f1e7188bd1640",
+  "finished": 1794581531.3852024
+}

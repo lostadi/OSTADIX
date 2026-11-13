@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_p9_install",
+    "tests.test_namespace_store_dotu"
+  ],
+  "exit": 0,
+  "started": 1794577451.7912722,
+  "finished": 1794577452.6810806,
+  "compiler": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+  "scope": "Installer host fixtures and production native .u wire publication/mode corpus; actual Linux guest install remains required.",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "c1ab528affc143eb516f4c688e37a528b185ba0e96c38b7521041be1c13bf307"
+}

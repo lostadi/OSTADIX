@@ -1,0 +1,26 @@
+{
+  "schema": "ostadix.o10-m2-independent-typed-controller-review/v1",
+  "reviewer": "m2_fixture",
+  "ok": true,
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r3.py",
+    "sha256": "8d69f04890b8ad43ce098d28cf7a46ba12980bf782939d1ea12b8a7b4f8cc311",
+    "bytes": 40159
+  },
+  "actual_controls_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/integrated-toolchain-guard-controls-r1/result.json",
+    "sha256": "546da290dbfa9ecc6d27ab5fcba8be9e92fc6679016a590b9dcb1f66ca69bbb3",
+    "bytes": 3526
+  },
+  "checks": [
+    "exact named ocorec/O descriptors bind selected and built paths, bytes, SHA, ELF ISA and alignment agreement",
+    "actual locked canonical Cargo argv, successful exits, timestamps and raw log hashes are required",
+    "build origin revision/root and clean unchanged full tracked snapshot are distinguished from final test/MCP revision",
+    "all tracked source differences are bounded to four admission paths plus the exact reviewed fifth fuzz overlay",
+    "fuzz overlay binds approved before/after hashes, typed successful audit, source revision/root, Cargo workspace observations and independent static receipt",
+    "actual MCP process inode SHA/path matches the fresh aligned MCP; current-head provenance is independently required",
+    "23 actual synthetic guard controls are all successful and source-unchanged in the retained receipt"
+  ],
+  "blocking_findings": [],
+  "scope": "Independent static review plus validation of the actual synthetic metadata/ELF/log guard receipt; no Cargo build, ordinary regression or live kernel qualification inferred."
+}

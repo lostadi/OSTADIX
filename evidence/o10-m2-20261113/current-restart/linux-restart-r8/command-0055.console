@@ -1,0 +1,8 @@
+{ PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-cad55362ec49b45f291d111
+0.py worker /run/o10-m2-cad55362ec49b45f291d1110.json > /run/o10-m2-cad55362ec49
+b45f291d1110/worker.stdout 2> /run/o10-m2-cad55362ec49b45f291d1110/worker.stderr
+ & }; _uw_rc=$?; printf '\nUNIFIED_COMMAND_078b42e12733463f89b71761b7882ec2:%s\n
+' "$_uw_rc"
+
+UNIFIED_COMMAND_078b42e12733463f89b71761b7882ec2:0
+okernel> [6n

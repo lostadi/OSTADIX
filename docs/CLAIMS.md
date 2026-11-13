@@ -2,6 +2,17 @@
 
 ## Implemented and tested now
 
+- O10 M2 restores Linux through the same O10 lifecycle as Plan 9, with zeroed
+  private RAM, reset vCPU/vGIC state, purged target-VMID translations and fresh
+  frontend generations, then namespace rebinding.
+  `verify_o10_m2.py` passed the live Linux restart, five old-fid ESTALE checks,
+  six surviving Plan 9 session/fid identities, a controlled signed APK3
+  pre-commit interruption, post-replay read-only fsck, all six guest gates,
+  652 tests and 267 source checks with zero skips. The resident check answered
+  181 observations over 60.29 seconds. [Acceptance evidence](../evidence/o10-m2-20261113/acceptance-r2.json)
+  binds source/MCP72e and the exact monitor. Scope: AArch64 QEMU/TCG on X12;
+  APK interruption occurs before package filesystem changes, and the measured
+  counter bounds include host/QMP pauses. [O10](O10.md) states the full scope.
 - O10 M1 keeps the EL2 monitor resident with zero runnable guests and restores
   the original Plan 9 provider through O10. `verify_o10_m1.py --acceptance-scope
   draft0` passed the 60.24-second resident test, source-bound classified-path

@@ -1,0 +1,178 @@
+{
+  "api_commit_runs": {
+    "bytes": 609,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/pr108-ci-runs-72e.json",
+    "sha256": "f982b2bbba841005a4630027b771e60ca9c33afb78ab7fc94001bec623bf636b"
+  },
+  "api_jobs": {
+    "bytes": 43516,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/pr108-ci-jobs-72e.json",
+    "sha256": "3de1bb1a57995c77b9605f2c1052743758145421c4a37033289ecb40c1e24332"
+  },
+  "head": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 131924086698,
+      "name": "Contract surfaces",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195464,
+      "name": "Docker minimal runtime profile",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195512,
+      "name": "Hosted value/code boundary",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195551,
+      "name": "Rust semantic and reproducibility tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195555,
+      "name": "Rust MSRV 1.93.1",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195672,
+      "name": "Rust hosted lifecycle and placement",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195753,
+      "name": "Offline kit recipient (Linux aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195831,
+      "name": "Python reference runtime",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195849,
+      "name": "Native Ethernet and real Linux integration",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195868,
+      "name": "O-core QEMU proof",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195898,
+      "name": "C17 runtime and AOT compiler",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195921,
+      "name": "Rust quality and source closure",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195925,
+      "name": "Release-claim guard",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195929,
+      "name": "Offline kit recipient (macOS x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925195993,
+      "name": "Ostadix MCP release surface",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925196025,
+      "name": "Offline kit recipient (macOS aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925196043,
+      "name": "Offline kit recipient (Linux x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131925577241,
+      "name": "Offline kit recipient matrix",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131939909314,
+      "name": "Required CI",
+      "status": "completed"
+    },
+    {
+      "conclusion": "skipped",
+      "id": 131939965886,
+      "name": "Release source package",
+      "status": "completed"
+    }
+  ],
+  "observed_unix": 1794579704.227453,
+  "portable_qemu_excerpt": {
+    "bytes": 108990,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/pr108-portable-qemu-72e-excerpt.log",
+    "scope": "Exact complete portable smoke command span, including Mode17 M5 corpus and final 26-of-26 summary, extracted from decoded GitHub job log lines3788 through4904.",
+    "sha256": "3e4849f78009a19c3d4db546e45ec5944c335c54b301b01fa817d2da80a4666e"
+  },
+  "qemu_log_archive": "https://github.com/lostadi/OSTADIX/actions/runs/43436854460/job/131925195868",
+  "raw_required_log": {
+    "bytes": 3961,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/pr108-required-ci-72e.log",
+    "sha256": "0c2648ff8044c9f721c3c0ea2fd4405c1f8de774976daceda6bf1a284bffacf8"
+  },
+  "repository": "lostadi/OSTADIX",
+  "required_aggregate_job": 131939909314,
+  "required_job_config": {
+    "bytes": 247,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/ci/required-jobs.toml",
+    "sha256": "73be644f5f379df1c1981168c9db0c8a0ac22653fb088044001d7f6a40b53d54"
+  },
+  "required_job_ids": [
+    "boundary-contract",
+    "c17",
+    "contracts",
+    "docker",
+    "mcp",
+    "native-systems",
+    "ocore-qemu",
+    "offline-kit",
+    "python",
+    "release-claims",
+    "rust-hosted",
+    "rust-msrv",
+    "rust-quality",
+    "rust-tests"
+  ],
+  "required_lanes_passed": 14,
+  "run_conclusion": "success",
+  "run_id": 43436854460,
+  "run_number": 161,
+  "run_status": "completed",
+  "schema": "ostadix.o10-m2-ci-observation/v1",
+  "scope": "Actual GitHub CI outcomes for72e90d76:19 successful jobs; all14 required lanes and Required CI aggregate passed. The conditional PR Release source package job was omitted by workflow. M2 whole-guest acceptance is recorded separately."
+}

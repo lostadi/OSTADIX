@@ -1,0 +1,272 @@
+{
+  "delegated_argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m1_regressions.py",
+    "--acceptance-scope",
+    "draft0",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "--seed-state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "--runtime",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+    "--resident-result",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates",
+    "--mcp-release",
+    "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+    "--jobs",
+    "2",
+    "--gate-timeout",
+    "5400",
+    "--minimum-free-gib",
+    "3.5",
+    "--execute"
+  ],
+  "dispatched": false,
+  "plan": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_two_domains.py",
+        "--state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+      ],
+      "fork_argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains"
+      ],
+      "gate_id": "two_domains",
+      "receipt_pattern": "two-domain-acceptance.json",
+      "script": "verify_okernel_two_domains.py",
+      "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_provider.py",
+        "--state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+      ],
+      "fork_argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider"
+      ],
+      "gate_id": "provider",
+      "receipt_pattern": "provider-acceptance-*/result.json",
+      "script": "verify_okernel_unified_provider.py",
+      "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_client.py",
+        "--state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+      ],
+      "fork_argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client"
+      ],
+      "gate_id": "client",
+      "receipt_pattern": "client-acceptance-*/result.json",
+      "script": "verify_okernel_unified_client.py",
+      "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_recovery.py",
+        "--state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+      ],
+      "fork_argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery"
+      ],
+      "gate_id": "recovery",
+      "receipt_pattern": "client-crash-acceptance-*/result.json",
+      "script": "verify_okernel_unified_recovery.py",
+      "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_p9_default_compile.py",
+        "--state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/default_compile",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+      ],
+      "fork_argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/default_compile"
+      ],
+      "gate_id": "default_compile",
+      "receipt_pattern": "p9-default-compile-*/result.json",
+      "script": "verify_okernel_p9_default_compile.py",
+      "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/default_compile"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_runtime.py",
+        "--state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/runtime",
+        "--runtime",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+        "--client-sha256",
+        "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+      ],
+      "fork_argv": [
+        "/usr/bin/python3",
+        "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+        "--source",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/runtime"
+      ],
+      "gate_id": "runtime",
+      "receipt_pattern": "runtime-acceptance-*/result.json",
+      "script": "verify_okernel_unified_runtime.py",
+      "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/runtime"
+    }
+  ],
+  "prepared_unix": 1794573850.9878647,
+  "prerequisites_passed": true,
+  "primary_binder": {
+    "bytes": 849,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/restart-binder-r7/result.json",
+    "sha256": "c662651e15e86fbd1f999c8c02d215be5a1fac798b05fd166361703a199168da"
+  },
+  "resident": {
+    "bytes": 268230,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+    "sha256": "afcc1a4e2aaf49180a9f7ce65d808b4fcb73e6df7e393db4e72d11ae26280650"
+  },
+  "resources": {
+    "free_disk_bytes": 10409926656,
+    "maximum_pair_disk_reservation_gib": 11.0,
+    "mem_available_bytes": 13437898752,
+    "minimum_free_gib": 3.5,
+    "peak_gib_by_gate": {
+      "client": 5.5,
+      "default_compile": 3.5,
+      "provider": 5.5,
+      "recovery": 3.5,
+      "runtime": 5.5,
+      "two_domains": 5.5
+    },
+    "qemu_processes": [],
+    "retained_peak_sum_gib": 29.0,
+    "two_vm_memory_reservation_gib": 8.0
+  },
+  "restart_command": {
+    "bytes": 4065,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/restart-command.json",
+    "sha256": "a7e2eea4ca315972d33f59f009cc0a2f6758dccd9e74903be15363efcf6b3964"
+  },
+  "runtime": {
+    "bytes": 243138,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "schema": "ostadix.o10-m2-six-gate-preparation/v1",
+  "scope": "Prepared exact six real guest gate command with unchanged shared two-VM reservation policy after actual same-build M2 restart and resident receipt validation; no gate/fork/VM dispatched.",
+  "seed_head": {
+    "bytes": 1423,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/head.json",
+    "sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+  },
+  "shared_source_sha256": {
+    "scripts/fork_okernel_state.py": "67d78c9e49292e1ec46c21719e5482e52bd8a597616a2e8aec1dd1c8a1cfdba0",
+    "scripts/o-kernel.sh": "3ff027fd8836150e71201bba6631203add6406b07f51109dbc558eedbb0daefc",
+    "scripts/o10.py": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e",
+    "scripts/okernel_unified_world.py": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304",
+    "scripts/verify_o10_hostile_mmio.py": "99c306934801e82b524112edd2fa3dff1aa46f7d0b55ac39b724a5dbe36fcd2f",
+    "scripts/verify_o10_m1.py": "d844e48777c76ddf31af696dc24124833eee8b444ce59f328453f28cc4bd41c7",
+    "scripts/verify_o10_m1_regressions.py": "5dc72d57e391f439d9c5a1c661029d27e373f40a545bca6c238218244103e10e",
+    "scripts/verify_o10_resident.py": "988b9bcf3ff37f13e58df3259bc734240974f71117db083b1407881dd9e169a6",
+    "scripts/verify_okernel_p9_default_compile.py": "7365adb4b52c096461316b33376cfe43f91e915ad895169c3be5293aca1d29ca",
+    "scripts/verify_okernel_two_domains.py": "fae379949c2777979480eec33b8ad4f5f39858c362c763faf8106ee9d67970ff",
+    "scripts/verify_okernel_unified_client.py": "47fe6eb3d385acd660624b1b718388ca24f5f2285bd2dd1d5146a66e72a2c8d7",
+    "scripts/verify_okernel_unified_console.py": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220",
+    "scripts/verify_okernel_unified_provider.py": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986",
+    "scripts/verify_okernel_unified_recovery.py": "90530321f667b6c1642dfccc607d4dde3c41f345624842cde1a29654a326d8e9",
+    "scripts/verify_okernel_unified_runtime.py": "6b1cee4291d7ffe6307390c4d3e240c3d2ccc2c0163162340063a25fe0d7da2b"
+  },
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "tool_request": {
+    "arguments": {
+      "args": [
+        "o10-m2-regressions",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+        "--seed-state",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "--runtime",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6",
+        "--resident-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+        "--restart-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7/result.json",
+        "--restart-command",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/restart-command.json",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1",
+        "--mcp-release",
+        "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+        "--jobs",
+        "2",
+        "--gate-timeout",
+        "5400",
+        "--minimum-free-gib",
+        "3.5",
+        "--execute"
+      ],
+      "background": true,
+      "command": "kernel",
+      "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+      "env": {
+        "O_BACKEND_STEP_TIMEOUT_MS": "3600000",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "timeout_secs": 0
+    },
+    "tool": "o_cli"
+  },
+  "wrapper": {
+    "bytes": 7011,
+    "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_o10_m2_regressions.py",
+    "sha256": "2807fa681e71d42d805a9b2065231509f8b3165c4343bef9b0b0c26640192a1e"
+  }
+}

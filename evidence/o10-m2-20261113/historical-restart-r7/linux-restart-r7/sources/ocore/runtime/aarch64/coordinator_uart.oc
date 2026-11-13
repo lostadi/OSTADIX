@@ -1,0 +1,158 @@
+module runtime::aarch64::coordinator_uart;
+
+// Linux-only PL011 adapter for the trusted coordinator. Guest MMIO never
+// selects a mailbox, output destination, domain, grant or native operation.
+// The monitor alone calls inject() after reading the stopped-CPU host mailbox.
+extern "ocore" fn cu_irq_level(asserted: u64) -> void;
+extern "ocore" fn uw_memory_barrier() -> void;
+
+const FIFO: usize = 8192;
+const MAILBOX: usize = 0x6d06_0008;
+const OUTPUT: usize = 0x6d08_0000;
+const RING: u64 = 65536;
+const MAX: u64 = 0xffff_ffff_ffff_ffff;
+static mut ACTIVE: u64 = 0;
+static mut CONTROL: u64 = 0x300;
+static mut MASK: u64 = 0;
+static mut BAUD_INTEGER: u64 = 0;
+static mut BAUD_FRACTION: u64 = 0;
+static mut LINE: u64 = 0;
+static mut FIFO_LEVEL: u64 = 0x12;
+static mut RT_PENDING: u64 = 0;
+static mut HEAD: usize = 0;
+static mut COUNT: usize = 0;
+static mut INPUT: [u8; 8192] = [0; 8192];
+
+unsafe fn receiving() -> bool { return ACTIVE == 1 && (CONTROL & 0x201) == 0x201; }
+unsafe fn transmitting() -> bool { return ACTIVE == 1 && (CONTROL & 0x101) == 0x101; }
+unsafe fn threshold() -> usize {
+    if (LINE & 0x10) == 0 { return 1; }
+    let level: u64 = (FIFO_LEVEL >> 3) & 7;
+    if level == 0 { return 2; }
+    if level == 1 { return 4; }
+    if level == 2 { return 8; }
+    if level == 3 { return 12; }
+    return 14;
+}
+unsafe fn raw_interrupts() -> u64 {
+    let mut raw: u64 = 0;
+    // TX completes synchronously into a private native ring. TX-ready is a
+    // level, not a clearable event (Linux masks TXIM when its queue is empty).
+    if transmitting() { raw |= 0x20; }
+    if receiving() && COUNT != 0 {
+        if COUNT >= threshold() { raw |= 0x10; }
+        if RT_PENDING == 1 { raw |= 0x40; }
+    }
+    return raw;
+}
+unsafe fn interrupt() -> void { cu_irq_level(((raw_interrupts() & MASK) != 0) as u64); }
+
+pub unsafe fn init() -> u64 {
+    ACTIVE = 0;
+    CONTROL = 0x300;
+    MASK = 0;
+    BAUD_INTEGER = 0;
+    BAUD_FRACTION = 0;
+    LINE = 0;
+    FIFO_LEVEL = 0x12;
+    RT_PENDING = 0;
+    HEAD = 0;
+    COUNT = 0;
+    let mut index: usize = 0;
+    while index < FIFO { INPUT[index] = 0; index += 1; }
+    index = 0;
+    while index < RING as usize { volatile_store((OUTPUT + 8 + index) as *mut u8, 0); index += 1; }
+    uw_memory_barrier();
+    volatile_store(OUTPUT as *mut u64, 0);
+    ACTIVE = 1;
+    interrupt();
+    return 1;
+}
+
+// Return 1 iff the entire message was accepted. Validate range and credit
+// before reading any byte or changing queue/IRQ state. An accepted host burst
+// survives ordinary guest CR disable/re-enable and Linux termios changes.
+pub unsafe fn inject(bytes: *const u8, count: usize) -> u64 {
+    let address: usize = bytes as usize;
+    if ACTIVE != 1 || count == 0 || count > FIFO || COUNT > FIFO
+        || count > FIFO - COUNT || address < MAILBOX || address > MAILBOX + FIFO
+        || count > MAILBOX + FIFO - address { return 0; }
+    let mut index: usize = 0;
+    while index < count {
+        INPUT[(HEAD + COUNT + index) % FIFO] = volatile_load(bytes + index);
+        index += 1;
+    }
+    COUNT += count;
+    // The virtual wire delivers a complete synchronous burst. Model its
+    // idle timeout deterministically, without claiming baud-clock timing.
+    RT_PENDING = 1;
+    interrupt();
+    return 1;
+}
+
+pub unsafe fn mmio_read(offset: u64) -> u64 {
+    if offset == 0 {
+        if !receiving() || COUNT == 0 { return 0; }
+        let value: u64 = INPUT[HEAD] as u64;
+        HEAD = (HEAD + 1) % FIFO;
+        COUNT -= 1;
+        // Re-arm an idle partial tail after a bounded driver drain. This
+        // prevents a final short burst from requiring another host message.
+        RT_PENDING = (COUNT != 0) as u64;
+        interrupt();
+        return value;
+    }
+    if offset == 4 { return 0; }
+    if offset == 0x18 {
+        let mut flags: u64 = 0x80; // TXFE; no pending physical transmission.
+        if !receiving() || COUNT == 0 { flags |= 0x10; }
+        if receiving() && COUNT == FIFO { flags |= 0x40; }
+        return flags;
+    }
+    if offset == 0x20 { return 0; }
+    if offset == 0x24 { return BAUD_INTEGER; }
+    if offset == 0x28 { return BAUD_FRACTION; }
+    if offset == 0x2c { return LINE; }
+    if offset == 0x30 { return CONTROL; }
+    if offset == 0x34 { return FIFO_LEVEL; }
+    if offset == 0x38 { return MASK; }
+    if offset == 0x3c { return raw_interrupts(); }
+    if offset == 0x40 { return raw_interrupts() & MASK; }
+    if offset == 0x44 || offset == 0x48 { return 0; }
+    if offset == 0xfe0 { return 0x11; }
+    if offset == 0xfe4 { return 0x10; }
+    if offset == 0xfe8 { return 0x14; }
+    if offset == 0xfec { return 0; }
+    if offset == 0xff0 { return 0x0d; }
+    if offset == 0xff4 { return 0xf0; }
+    if offset == 0xff8 { return 0x05; }
+    if offset == 0xffc { return 0xb1; }
+    return 0; // Unimplemented PL011 register reads are RAZ.
+}
+
+pub unsafe fn mmio_write(offset: u64, value: u64) -> bool {
+    if ACTIVE != 1 { return false; }
+    if offset == 0 {
+        if !transmitting() { return true; }
+        let position: u64 = volatile_load(OUTPUT as *const u64);
+        if position == MAX { return false; }
+        volatile_store((OUTPUT + 8 + (position % RING) as usize) as *mut u8, (value & 255) as u8);
+        uw_memory_barrier();
+        volatile_store(OUTPUT as *mut u64, position + 1);
+        return true;
+    }
+    if offset == 4 || offset == 0x20 { return true; }
+    if offset == 0x24 { BAUD_INTEGER = value & 0xffff; return true; }
+    if offset == 0x28 { BAUD_FRACTION = value & 0x3f; return true; }
+    if offset == 0x2c { LINE = value & 0xff; interrupt(); return true; }
+    if offset == 0x30 { CONTROL = value & 0xffff; interrupt(); return true; }
+    if offset == 0x34 { FIFO_LEVEL = value & 0x3f; interrupt(); return true; }
+    if offset == 0x38 { MASK = value & 0x7ff; interrupt(); return true; }
+    if offset == 0x44 {
+        if (value & 0x40) != 0 { RT_PENDING = 0; }
+        interrupt();
+        return true;
+    }
+    if offset == 0x48 && value == 0 { return true; } // No DMA interface.
+    return false;
+}

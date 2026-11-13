@@ -1,0 +1,12 @@
+printf %s c2VuY2U9Y2FwdHVyZShbImFwayIsImluZm8iLCItLWluc3RhbGxlZCIsZlsic
+GFja2FnZSJdXSkKIGFzc2VydCBhYnNlbmNlWyJyZXR1cm5jb2RlIl09PTEKIHZlcmlmaWNhdGlvbj1jY
+XB0dXJlKFsiYXBrIiwiLS1uby1uZXR3b3JrIiwiLS1rZXlzLWRpciIsZlsia2V5c19kaXJlY3RvcnkiX
+SwidmVyaWZ5Il0rW3JbInBhdGgiXSBmb3IgciBpbiBmWyJhcGtzIl1dKQogaWYgdmVyaWZpY2F0aW9uW
+yJyZXR1cm5jb2RlIl0hPTA6CiAgZW1pdChkaWN0KGZpeHR1cmVfdmVyaWZpZWQ9RmFsc2UsdmVyaWZpY
+2F0aW9uPXZlcmlmaWNhdGlvbikpO3N5cy5leGl0KDApCiBhc3NlcnQgInJ3IiBpbiBtb3VudCgpWzNdL
+nNwbGl0KCIsIikKIGhvb2s9cGF0aGxpYi5QYXRoKCIvZXRjL2Fw >> /run/o10-m2-656563e83d803
+1a4877560d0.py.o10-base64; _uw_rc=$?; printf '\nUNIFIED_COMMAND_390e70b6b81b44a7
+995f0c71438e55bb:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_390e70b6b81b44a7995f0c71438e55bb:0
+okernel> [6n

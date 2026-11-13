@@ -1,0 +1,6 @@
+: > /n/okernel/work/o10-held-a9c4d071adb564dc5cc8070e; exec 9<>/n/okern
+el/work/o10-held-a9c4d071adb564dc5cc8070e; test -e /proc/$$/fd/9; _uw_rc=$?; pri
+ntf '\nUNIFIED_COMMAND_54975d07b618499897844615fe89d072:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_54975d07b618499897844615fe89d072:0
+okernel> [6n

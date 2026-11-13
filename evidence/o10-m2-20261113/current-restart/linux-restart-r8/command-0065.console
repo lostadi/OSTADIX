@@ -1,0 +1,9 @@
+cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and origin
+al Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _
+uw_rc=$?; printf '\nUNIFIED_COMMAND_2078400bfb2c4eb39833c2bd66926baf:%s\n' "$_uw
+_rc"
+
+Linux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.
+
+UNIFIED_COMMAND_2078400bfb2c4eb39833c2bd66926baf:0
+okernel> [6n

@@ -1,0 +1,61 @@
+{
+  "schema": "ostadix.o10-m2-precheckpoint-focused/v1",
+  "scope": "Actual component and syntheticEL2 checks of authorized native/test delta through older619394 broker; preparation only, no milestone qualification",
+  "argv": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_o10_linux_restart_native",
+    "tests.test_o10_linux_reset_native",
+    "tests.test_kernel_world_9p_transport",
+    "tests.test_unified_world_context",
+    "tests.test_o10_resident_native"
+  ],
+  "exit_code": 0,
+  "started_unix": 1794572038.050165,
+  "finished_unix": 1794572058.2623723,
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "broker_built_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "broker_source_matches": false,
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "source_sha256_before": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "tests/test_o10_linux_restart_native.py": "8d6470022329c80771a9b6aa2af3ad1e4ab5c1d3fa55fb6d727d20c87229bcce",
+    "tests/test_unified_world_context.py": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+  },
+  "source_sha256_after": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "tests/test_o10_linux_restart_native.py": "8d6470022329c80771a9b6aa2af3ad1e4ab5c1d3fa55fb6d727d20c87229bcce",
+    "tests/test_unified_world_context.py": "2c0bfea4faa8b9d47e9feb8382c47b1e66fa7407138679e7f626e40b06264e8e"
+  },
+  "compiler": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+  },
+  "evaluator": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "sha256": "494fc7ff2873ce06007affc31f14c0a8dc7645b354c004e9f86881e635a05bb1"
+  },
+  "selected_environment": {
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "logs": {
+    "focused.stdout.log": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused.stdout.log",
+      "sha256": "b9d3d398c1a372b5d04458839a8a83bc166ac10b8be64eadeaaf86d8b63172ea"
+    },
+    "focused.stderr.log": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/namespace-generation-fix-r1/focused.stderr.log",
+      "sha256": "b5a1a86ab7148c309d0a3734922783d8ab00d62533b1aaa1e6380ee65d19b26e"
+    }
+  },
+  "source_unchanged": true
+}

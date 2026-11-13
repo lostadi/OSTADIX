@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+    "--source",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-r2",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/two_domains"
+  ],
+  "started": 1794581331.112664,
+  "returncode": 0,
+  "timed_out": false,
+  "finished": 1794581340.6982532
+}

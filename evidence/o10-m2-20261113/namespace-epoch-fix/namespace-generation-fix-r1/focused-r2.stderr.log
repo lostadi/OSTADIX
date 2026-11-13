@@ -1,0 +1,6 @@
+test_real_linux_o10_lifecycle_and_survivors (tests.test_o10_linux_restart_native.LinuxRestartNativeTests.test_real_linux_o10_lifecycle_and_survivors) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 5.166s
+
+OK
