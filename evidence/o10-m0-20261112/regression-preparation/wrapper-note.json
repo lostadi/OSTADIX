@@ -1,0 +1,9 @@
+{
+  "job_id": "job-905616-1794540001293931787-1-6",
+  "wrapper_status": "failed_after_actual_child_completed",
+  "cause": "The nested subprocess inherited the O Python backend stdout; its final print was misread as a binary control frame.",
+  "artifact_receipt_verified": true,
+  "artifact_result": "result.json",
+  "runtime_inventory_self_check_verified": true,
+  "replayed": false
+}

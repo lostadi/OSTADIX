@@ -1,0 +1,28 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-p",
+    "test_okernel_*.py",
+    "-v"
+  ],
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-p",
+    "test_okernel_*.py",
+    "-v"
+  ],
+  "started": 1794546043.6427443,
+  "timed_out": false,
+  "returncode": 1,
+  "finished": 1794546156.4738264
+}

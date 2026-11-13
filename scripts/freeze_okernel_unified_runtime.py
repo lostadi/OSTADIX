@@ -26,7 +26,7 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("scripts/okernel_unified_world.py", "scripts/okernel_package_domain.py",
+RUNTIME_FILES = ("scripts/okernel_unified_world.py", "scripts/o10.py", "scripts/okernel_package_domain.py",
                  "scripts/okernel_native_volume.py", "scripts/okernel-unified-console.sh",
                  "ocore/guest/plan9/unified/protocol.py")
 SCHEMA = "ostadix.okernel-unified-runtime/v1"

@@ -1,0 +1,17 @@
+{
+  "paths": {
+    "request": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/request",
+    "submit": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/submit",
+    "started": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/started",
+    "stdout": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/stdout",
+    "stderr": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/stderr",
+    "status": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/status",
+    "result": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/result",
+    "done": "/n/okernel/services/plan9/gf7b36d3fcae2ec35/s5378aabb36733f10be1c3a2dc020b370/r38e53896bcb623864cc48c67a53e82b2/done"
+  },
+  "service": {
+    "generation": "f7b36d3fcae2ec35",
+    "instance": "5378aabb36733f10be1c3a2dc020b370"
+  },
+  "id": "38e53896bcb623864cc48c67a53e82b2"
+}

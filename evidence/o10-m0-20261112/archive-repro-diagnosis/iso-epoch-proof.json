@@ -1,0 +1,42 @@
+[
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/home/ustad/.cache/o10-archive-diagnosis-20261113/repo",
+      "archive",
+      "--format=tar",
+      "--mtime=1970-01-01T00:00:01Z",
+      "--output",
+      "/home/ustad/.cache/o10-archive-diagnosis-20261113/iso-epoch-0.tar",
+      "e2b3aca4132a27954a4149857f8ba50efea5436d"
+    ],
+    "rc": 0,
+    "sha256": "7b178d9f664678dc28810fbcf245a53dea72452de63355b0286d44a614048bed",
+    "mtimes": {
+      "Cargo.lock": 1,
+      "removed": 1,
+      "tracked": 1
+    }
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/home/ustad/.cache/o10-archive-diagnosis-20261113/repo",
+      "archive",
+      "--format=tar",
+      "--mtime=1970-01-01T00:00:01Z",
+      "--output",
+      "/home/ustad/.cache/o10-archive-diagnosis-20261113/iso-epoch-1.tar",
+      "e2b3aca4132a27954a4149857f8ba50efea5436d"
+    ],
+    "rc": 0,
+    "sha256": "7b178d9f664678dc28810fbcf245a53dea72452de63355b0286d44a614048bed",
+    "mtimes": {
+      "Cargo.lock": 1,
+      "removed": 1,
+      "tracked": 1
+    }
+  }
+]

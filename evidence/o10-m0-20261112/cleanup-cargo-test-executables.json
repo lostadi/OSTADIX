@@ -1,0 +1,459 @@
+{
+  "authorization": "Lee: delete whatever you need to make space",
+  "scope": "unused hash-named Cargo debug dependency/test executables; direct binaries, active executable paths and multiply-linked files retained",
+  "directory": "/home/ustad/ostadix-BM/target/debug/deps",
+  "before_free_bytes": 4666052608,
+  "files": [
+    {
+      "name": "ocore_kernel_world_record-123584b6358b9de0",
+      "bytes": 6979528
+    },
+    {
+      "name": "o_info-54a59df0b758f282",
+      "bytes": 251138176
+    },
+    {
+      "name": "ocore_kernel_world_record-d8d674f66f3bbe47",
+      "bytes": 247581048
+    },
+    {
+      "name": "ostadix_device-f5d4d021c7e8a635",
+      "bytes": 20531784
+    },
+    {
+      "name": "hosted_supervisor_transactions-f5963a38017b5829",
+      "bytes": 247187952
+    },
+    {
+      "name": "o_cli_routes_blackbox-7f17f8fb7f83f915",
+      "bytes": 247193976
+    },
+    {
+      "name": "ostadix_device_cli-7e95a4c4c5ea7b84",
+      "bytes": 11508296
+    },
+    {
+      "name": "ogit-af3d003399a3df46",
+      "bytes": 17132992
+    },
+    {
+      "name": "ocorec-552cb90b27441330",
+      "bytes": 253876080
+    },
+    {
+      "name": "world_receipt-1fbdb5f29668b140",
+      "bytes": 239436760
+    },
+    {
+      "name": "o_node-6ab17b38705fcae4",
+      "bytes": 300231392
+    },
+    {
+      "name": "project_logical_hgraph-e3771d8bdef931d7",
+      "bytes": 261304184
+    },
+    {
+      "name": "octl-65d7e7043547bd8a",
+      "bytes": 284401344
+    },
+    {
+      "name": "O-6d98a306e53b3f22",
+      "bytes": 6978880
+    },
+    {
+      "name": "ostadix_api-29004e692f18ea82",
+      "bytes": 375218240
+    },
+    {
+      "name": "olangc-cf82b80d557862eb",
+      "bytes": 320172552
+    },
+    {
+      "name": "executor_state_complete-4f5f4170c1be6992",
+      "bytes": 239861384
+    },
+    {
+      "name": "hgraph_observational_confluence-00f01488dfbfc7dc",
+      "bytes": 247510104
+    },
+    {
+      "name": "independent_runtime_engine-4cead18f05aabf68",
+      "bytes": 237653256
+    },
+    {
+      "name": "octl-f4a865c32c5b5f31",
+      "bytes": 248507680
+    },
+    {
+      "name": "world_identity_wire-3644bfb3387948a9",
+      "bytes": 236810352
+    },
+    {
+      "name": "oir_physical_execution-e9ff47e2dc42476a",
+      "bytes": 266841752
+    },
+    {
+      "name": "placement_v6-4a53e19ab3cf4d5a",
+      "bytes": 242007832
+    },
+    {
+      "name": "project_integration-65fdf311ab2307d4",
+      "bytes": 251964384
+    },
+    {
+      "name": "actor_migration-2ebb825db833e5ed",
+      "bytes": 262541016
+    },
+    {
+      "name": "o_notebook-11e2db9354504350",
+      "bytes": 279522920
+    },
+    {
+      "name": "registry_v1-bcbb5e44e3fdf4da",
+      "bytes": 243327944
+    },
+    {
+      "name": "hosted_actor_migration-3d5b337dee00d430",
+      "bytes": 268369760
+    },
+    {
+      "name": "olangc-1c2b5fbd37679d25",
+      "bytes": 315313264
+    },
+    {
+      "name": "execution_intent_cli-20ab83cb410b52e0",
+      "bytes": 238382656
+    },
+    {
+      "name": "o_unlink-1c36b46d18c5349a",
+      "bytes": 246097304
+    },
+    {
+      "name": "hosted_remote_v2-ca32295eb32b5868",
+      "bytes": 270069240
+    },
+    {
+      "name": "o_registry-61a164289fd5b793",
+      "bytes": 259084856
+    },
+    {
+      "name": "o_cli_selection_reuse_blackbox-8af005b85e985d6b",
+      "bytes": 12886768
+    },
+    {
+      "name": "version_cli-776fa43763a5206e",
+      "bytes": 236864024
+    },
+    {
+      "name": "execution_fabric_two_node-aa59f01c60042aec",
+      "bytes": 274208016
+    },
+    {
+      "name": "cli_diagnostics-e56ac0f5e1c01b04",
+      "bytes": 238444576
+    },
+    {
+      "name": "project_deployment_plan-5f58f54a45164c7a",
+      "bytes": 262428376
+    },
+    {
+      "name": "o_live_host-0e528615a8c8b63d",
+      "bytes": 256151520
+    },
+    {
+      "name": "ocorec-05d38727584c7174",
+      "bytes": 253717192
+    },
+    {
+      "name": "o_info-80f9d16adf86f3a1",
+      "bytes": 6979016
+    },
+    {
+      "name": "runtime_adapter_closure-b1610c9f9c5172db",
+      "bytes": 239645768
+    },
+    {
+      "name": "ostadix-c20d7345995e1bd2",
+      "bytes": 6979080
+    },
+    {
+      "name": "runtime_exec_capacity-0f5e61a7e5608f3e",
+      "bytes": 239117008
+    },
+    {
+      "name": "project_hgraph_exec-0d9a21bdf4e2b5c7",
+      "bytes": 269749672
+    },
+    {
+      "name": "O-bf205cccd200660d",
+      "bytes": 267737408
+    },
+    {
+      "name": "kernel_world_contract-59900bf1611b03b2",
+      "bytes": 243756280
+    },
+    {
+      "name": "world_protocol-ae653c2c4e31e403",
+      "bytes": 236899312
+    },
+    {
+      "name": "world_value-4d9d1991420a8806",
+      "bytes": 235201584
+    },
+    {
+      "name": "hosted_remote_v2_recovery-6e8a116ac3944509",
+      "bytes": 272346160
+    },
+    {
+      "name": "aicore_resource_contract-024a73269a5897d1",
+      "bytes": 260267088
+    },
+    {
+      "name": "world_resource_keys-578d00a8f89eb91b",
+      "bytes": 237077144
+    },
+    {
+      "name": "fidelity_evaluation-e3877dd28f9fe216",
+      "bytes": 245119160
+    },
+    {
+      "name": "o_registry-08e89e608bff04a4",
+      "bytes": 251162888
+    },
+    {
+      "name": "O-55aabaaacc7ee858",
+      "bytes": 264398696
+    },
+    {
+      "name": "o_link-15210b8ff4d859ce",
+      "bytes": 257632336
+    },
+    {
+      "name": "o_cli-b31334143ac97073",
+      "bytes": 318704520
+    },
+    {
+      "name": "o_cli_operation_planner_blackbox-bb0a34f6960ed6dc",
+      "bytes": 262615944
+    },
+    {
+      "name": "o_link-a4605af5769ea3c2",
+      "bytes": 294635448
+    },
+    {
+      "name": "o_cli_optimize_progress_blackbox-45fca14dbda1af58",
+      "bytes": 240004560
+    },
+    {
+      "name": "world_native_scalar-d4aeb81282c43938",
+      "bytes": 239008464
+    },
+    {
+      "name": "unified_intent_acceptance-2932c1c9428d98c6",
+      "bytes": 284494280
+    },
+    {
+      "name": "project_world_runtime-cfdfa5ba86981747",
+      "bytes": 267795704
+    },
+    {
+      "name": "semantic_custody_demo-bbfe62f1ec5d46da",
+      "bytes": 240393632
+    },
+    {
+      "name": "world_identity_wire-81baf50cda4a3625",
+      "bytes": 233855192
+    },
+    {
+      "name": "world_protocol-eb19c71f5e813bd1",
+      "bytes": 233944168
+    },
+    {
+      "name": "autonomous_hosted_parallel-cd9e1edbb5f5d0ea",
+      "bytes": 253675664
+    },
+    {
+      "name": "hgraph_ontology-125f449f08cd4dc5",
+      "bytes": 248702840
+    },
+    {
+      "name": "o_live_host-043ad5375a98db3f",
+      "bytes": 6979144
+    },
+    {
+      "name": "o_unlink-39fd5b57b0015f8c",
+      "bytes": 244810192
+    },
+    {
+      "name": "public_surface-69982a32b17069c8",
+      "bytes": 263004488
+    },
+    {
+      "name": "o_lang-740bfd53eb69e387",
+      "bytes": 249842016
+    },
+    {
+      "name": "world_identity-239d428301b3835d",
+      "bytes": 237745600
+    },
+    {
+      "name": "olangc-58b7f626e82bfc8b",
+      "bytes": 311782904
+    },
+    {
+      "name": "parser_proptest-29801b38beff5444",
+      "bytes": 249572384
+    },
+    {
+      "name": "o_node-9e63e2e3f81023fe",
+      "bytes": 257985416
+    },
+    {
+      "name": "hosted_remote_cli-b2565e12b192878e",
+      "bytes": 240956760
+    },
+    {
+      "name": "hosted_live_cli-b08d93528ecf1cb8",
+      "bytes": 244299936
+    },
+    {
+      "name": "unified_plan_boundaries-ba3bfcbf45787d18",
+      "bytes": 11983544
+    },
+    {
+      "name": "backend_morphism_enforcement-2b31ac003a06be92",
+      "bytes": 243212488
+    },
+    {
+      "name": "ocore_kernel_world_record-af31980dc83cb7e3",
+      "bytes": 244617864
+    },
+    {
+      "name": "o_info_cli-20b48110281e69bb",
+      "bytes": 240361744
+    },
+    {
+      "name": "world_grounding-93e6637d2ef92050",
+      "bytes": 247405864
+    },
+    {
+      "name": "aicore_embedding_contract-305292710f89be91",
+      "bytes": 261996232
+    },
+    {
+      "name": "ogit-87d20244fe45cab1",
+      "bytes": 18247392
+    },
+    {
+      "name": "o_cli-968ccde08c010b46",
+      "bytes": 299840760
+    },
+    {
+      "name": "ostadix_api-cfa18e15af21589d",
+      "bytes": 371346536
+    },
+    {
+      "name": "olink_roundtrip_proptest-83fdb7c9efc79749",
+      "bytes": 26797504
+    },
+    {
+      "name": "o_cli_operation_blackbox-256f4104aff0cc29",
+      "bytes": 240214008
+    },
+    {
+      "name": "native_cli_dispatch-36a3920d0d267467",
+      "bytes": 239439304
+    },
+    {
+      "name": "project_mesh_cli-dc6c658b9d800cfc",
+      "bytes": 248288904
+    },
+    {
+      "name": "executor_reentrancy-9f1c0c23d59d421a",
+      "bytes": 237793568
+    },
+    {
+      "name": "graph_realization_execution-f3cd4b6875237bfc",
+      "bytes": 255622280
+    },
+    {
+      "name": "project_hgraph-7d20cd4fa9576867",
+      "bytes": 262928976
+    },
+    {
+      "name": "runtime_exec_toctou-d62ace7c70e986be",
+      "bytes": 238135600
+    },
+    {
+      "name": "world_receipt-fb524582fc5f1ff4",
+      "bytes": 236484848
+    },
+    {
+      "name": "linux_runtime_rootfs-9604dd8e1fea3c4a",
+      "bytes": 11883048
+    },
+    {
+      "name": "executor_actors_effects-5faee4f590907c8b",
+      "bytes": 244959040
+    },
+    {
+      "name": "project_world_runtime-785648017fdf515d",
+      "bytes": 271096384
+    },
+    {
+      "name": "embedded_runtime_bundle-79d4241bfbc80856",
+      "bytes": 12108752
+    },
+    {
+      "name": "olink_project-8c44703e99f8887c",
+      "bytes": 241776952
+    },
+    {
+      "name": "ocorec-8fa16873ed34540a",
+      "bytes": 257064224
+    },
+    {
+      "name": "python_native_handles-46f47759062c0b4c",
+      "bytes": 262524728
+    },
+    {
+      "name": "hgraph_schedule_proptest-d5946bf0332d65c6",
+      "bytes": 259119176
+    },
+    {
+      "name": "runtime_request_contract-1d7b9064f16c60de",
+      "bytes": 259994880
+    },
+    {
+      "name": "ostadix_device-526cde3ac00b83a6",
+      "bytes": 23819712
+    },
+    {
+      "name": "backend_morphism_v1-9626118de6826f2c",
+      "bytes": 246054720
+    },
+    {
+      "name": "ocorec-db36f0f5190332ab",
+      "bytes": 254179720
+    },
+    {
+      "name": "world_value-5349f5b3e454417a",
+      "bytes": 238149416
+    },
+    {
+      "name": "o_cli_intent_blackbox-535b58ce67dca5d8",
+      "bytes": 241067832
+    },
+    {
+      "name": "information_bridge_v1-148e1283a039843c",
+      "bytes": 264609544
+    },
+    {
+      "name": "hosted_live_reference-0d368555f56d4a57",
+      "bytes": 9111936
+    }
+  ],
+  "started": 1794539171.4792979,
+  "after_free_bytes": 29611446272,
+  "finished": 1794539171.5135853
+}

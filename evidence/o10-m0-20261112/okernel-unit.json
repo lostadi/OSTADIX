@@ -1,0 +1,16 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-p",
+    "test_okernel_*.py",
+    "-v"
+  ],
+  "returncode": 1,
+  "compiler": "/home/ustad/.local/bin/ocorec",
+  "scope": "development regression run on x86_64; release mismatch retained separately"
+}

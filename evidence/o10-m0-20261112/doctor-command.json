@@ -1,0 +1,11 @@
+{
+  "command": [
+    "timeout",
+    "20s",
+    "/home/ustad/.local/bin/o",
+    "doctor",
+    "--json"
+  ],
+  "returncode": 0,
+  "scope": "bounded current installed tool preflight; timeout retained"
+}

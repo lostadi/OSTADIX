@@ -32,6 +32,8 @@ SOURCES = (
     "ocore/runtime/aarch64/plan9_namespace_uart.oc",
     "ocore/runtime/aarch64/coordinator_uart.oc",
     "ocore/runtime/common/namespace_store.oc",
+    "ocore/runtime/common/o10_codec.oc",
+    "ocore/runtime/common/o10_executor.oc",
     "ocore/runtime/common/namespace_peer.oc",
 )
 PLATFORM = ROOT / "ocore/kernel/aarch64/unified_world"
@@ -478,6 +480,8 @@ pub const NAMESPACE: u64 = 1;
         "plan9_uimage": container}
     if "provider_admission" in admitted:
         manifest["plan9_command_provider"] = admitted["provider_admission"]
+    manifest["o10"] = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
+                       "completion": 0x6d0a0200, "msize": 512}
     if recovery is not None:
         manifest["plan9_recovery"] = recovery
         manifest["loader_addresses"].update({"inputs/plan9-recovery.kernel": recovery["kernel_backup_address"],

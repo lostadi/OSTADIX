@@ -1,0 +1,46 @@
+{
+  "version": "18.0.13",
+  "results": [
+    {
+      "command": [
+        "npm",
+        "install",
+        "--prefix",
+        "/home/ustad/.cache/o10-docs-renderer-20261112",
+        "--no-package-lock",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "marked@18.0.13"
+      ],
+      "rc": 0,
+      "out": "\nadded 1 package in 464ms\n",
+      "err": "npm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'marked@18.0.13',\nnpm WARN EBADENGINE   required: { node: '>= 20' },\nnpm WARN EBADENGINE   current: { node: 'v18.19.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\n"
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/render_docs.py",
+        "write",
+        "--marked",
+        "/home/ustad/.cache/o10-docs-renderer-20261112/node_modules/.bin/marked"
+      ],
+      "rc": 0,
+      "out": "html-exports: 114 complete documents; 2482818 bytes; 0 updated\n",
+      "err": ""
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/render_docs.py",
+        "check",
+        "--marked",
+        "/home/ustad/.cache/o10-docs-renderer-20261112/node_modules/.bin/marked"
+      ],
+      "rc": 0,
+      "out": "html-exports: 114 complete documents; 2482818 bytes; 0 drifted\n",
+      "err": ""
+    }
+  ],
+  "ok": true
+}

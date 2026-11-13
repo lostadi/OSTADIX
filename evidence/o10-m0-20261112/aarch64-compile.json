@@ -1,0 +1,102 @@
+{
+  "command": "ocorec",
+  "args": [
+    "/tmp/o10-review-profile.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/unified_world.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/unified_gic.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/kernel_world_monitor.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/kernel_world_virtio.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/kernel_world_net_host.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/kernel_world_net.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/kernel_world_9p.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/plan9_namespace_uart.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/aarch64/coordinator_uart.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/common/namespace_store.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/common/o10_codec.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/common/o10_executor.oc",
+    "/home/ustad/OSTADIX-o10-m0-20261112/ocore/runtime/common/namespace_peer.oc",
+    "--emit",
+    "obj",
+    "--target",
+    "aarch64-unknown-none",
+    "-o",
+    "/tmp/o10-m0-final-aarch64.o"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m0-20261112",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":633757,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input_error\":null,\"job_id\":\"job-615831-1794486323170173196-1-67\",\"pid\":633757,\"pty\":false,\"restart_persistence\":false,\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes_read\":42,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-615831-1794486323170173196-1-67\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":42,\"offset\":0,\"path\":\"/tmp/ostadix-mcp-jobs-615831-1794486323170173196-1/job-615831-1794486323170173196-1-67/stderr.log\",\"stream\":\"stderr\",\"text\":\"ocorec: wrote /tmp/o10-m0-final-aarch64.o\\n\",\"total_bytes\":42},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-615831-1794486323170173196-1-67\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/tmp/ostadix-mcp-jobs-615831-1794486323170173196-1/job-615831-1794486323170173196-1-67/stdout.log\",\"stream\":\"stdout\",\"text\":\"\",\"total_bytes\":0},\"timeout_secs\":30}"
+      }
+    ],
+    "structuredContent": {
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": false,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 633757,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 0,
+        "session_scan_complete": false
+      },
+      "error": null,
+      "exit_code": 0,
+      "initial_input_state": "not_supplied",
+      "input_error": null,
+      "job_id": "job-615831-1794486323170173196-1-67",
+      "pid": 633757,
+      "pty": false,
+      "restart_persistence": false,
+      "session_scoped": true,
+      "signal": null,
+      "state": "completed",
+      "stderr": {
+        "bytes_read": 42,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-615831-1794486323170173196-1-67",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 42,
+        "offset": 0,
+        "path": "/tmp/ostadix-mcp-jobs-615831-1794486323170173196-1/job-615831-1794486323170173196-1-67/stderr.log",
+        "stream": "stderr",
+        "text": "ocorec: wrote /tmp/o10-m0-final-aarch64.o\n",
+        "total_bytes": 42
+      },
+      "stdin_eof_mode": "pipe_close",
+      "stdin_open": false,
+      "stdout": {
+        "bytes_read": 0,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-615831-1794486323170173196-1-67",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 0,
+        "offset": 0,
+        "path": "/tmp/ostadix-mcp-jobs-615831-1794486323170173196-1/job-615831-1794486323170173196-1-67/stdout.log",
+        "stream": "stdout",
+        "text": "",
+        "total_bytes": 0
+      },
+      "timeout_secs": 30
+    },
+    "isError": false
+  },
+  "milestone": "M0",
+  "gate_id": "aarch64-object-compilation",
+  "source_revision": "1fc414e7e21b577cbdb9c032a94f51182a0ff96c",
+  "scope": "full monitor O-core graph emitted as AArch64 object on x86_64 MCP host; architectural execution requires guest gates",
+  "artifact": {
+    "path": "/tmp/o10-m0-final-aarch64.o",
+    "bytes": 957352,
+    "sha256": "9df91baebcfaf96ac97ce52861399dbf0b583728b3ab3a57079cb6b46b2feb81"
+  }
+}

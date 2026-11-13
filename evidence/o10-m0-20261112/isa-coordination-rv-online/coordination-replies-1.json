@@ -1,0 +1,7 @@
+{
+  "returncode": 0,
+  "stdout": "{\"thread\": \"01a19fbe-fe6a-7a10-8b49-2b3875e19475\", \"history_bytes\": 103541461, \"events\": [{\"timestamp\": \"2026-11-11T09:15:30.412Z\", \"type\": \"task_complete\"}, {\"timestamp\": \"2026-11-11T09:19:17.728Z\", \"type\": \"task_started\"}, {\"timestamp\": \"2026-11-11T09:31:56.065Z\", \"type\": \"task_complete\"}, {\"timestamp\": \"2026-11-13T04:09:25.221Z\", \"type\": \"task_started\"}], \"coordination_replies\": []}\n{\"thread\": \"01a142f8-ca9d-7640-8532-d638fa874ab2\", \"history_bytes\": 462446467, \"events\": [{\"timestamp\": \"2026-11-11T09:12:49.944Z\", \"type\": \"task_started\"}, {\"timestamp\": \"2026-11-11T09:14:53.551Z\", \"type\": \"task_complete\"}, {\"timestamp\": \"2026-11-11T09:19:19.933Z\", \"type\": \"task_started\"}, {\"timestamp\": \"2026-11-11T09:19:37.617Z\", \"type\": \"task_complete\"}], \"coordination_replies\": []}\n{\"thread\": \"01a1659d-4fac-7e91-ab9a-1d8c41a9ab14\", \"history_bytes\": 3363967, \"events\": [{\"timestamp\": \"2026-11-11T07:16:28.799Z\", \"type\": \"task_started\"}, {\"timestamp\": \"2026-11-11T07:20:46.566Z\", \"type\": \"task_complete\"}, {\"timestamp\": \"2026-11-11T09:12:58.814Z\", \"type\": \"task_started\"}, {\"timestamp\": \"2026-11-11T09:20:21.426Z\", \"type\": \"task_complete\"}], \"coordination_replies\": []}\n",
+  "stderr": "",
+  "checked": 1794544911.6956396,
+  "scope": "bounded exact-thread last1MiB metadata and O10marker assistant replies only; no user history reproduced"
+}

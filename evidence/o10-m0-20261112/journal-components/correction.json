@@ -1,0 +1,4 @@
+{
+  "superseded_by": "../journal-components-final/result.json",
+  "correction": "The initial run supplied abbreviated compiler source2634 as MCP release metadata. That is not an observed MCP release. The final run records unknown-observed-current and remains unqualified. Initial component test outputs remain real."
+}

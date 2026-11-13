@@ -1,0 +1,12 @@
+{
+  "scope": "Corrected legacy generation path: exact observed R3 monitor/profile admitted to foreground/runtime regression; full M0 requires all gates",
+  "live_receipt": "fresh-live-3/result.json",
+  "live_receipt_sha256": "d4b209af25d3cd323cbef1b2de43caf318c7389abc8dd4c16319d9792bc435fa",
+  "monitor_sha256": "641a0ad14fb96979f7d4b141779f8bbad7b8b854ea1fde4fe1b25d984504aeaf",
+  "profile_sha256": "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e",
+  "supersedes_candidate": {
+    "monitor": "9a2fea3172725da0096b2aa769f054af5e7d9c08987b882c134a41dd42784e9b",
+    "profile": "f2fedbcb28d687ebaaa6a68025d2fb7c336165dbbc58f342d9f5cefd5b3c4d3f",
+    "reason": "preclaim legacy generation alias; old candidate no longer admitted"
+  }
+}

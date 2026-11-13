@@ -1,0 +1,25 @@
+test_catalog_roundtrip (test_o10_codec.O10CodecTests.test_catalog_roundtrip) ... ok
+test_every_truncation_and_surplus_rejected (test_o10_codec.O10CodecTests.test_every_truncation_and_surplus_rejected) ... ok
+test_exact_field_set_and_prefix (test_o10_codec.O10CodecTests.test_exact_field_set_and_prefix) ... ok
+test_fixed_bytes_and_integer_boundaries (test_o10_codec.O10CodecTests.test_fixed_bytes_and_integer_boundaries) ... ok
+test_restore_offsets_and_max_mutating_request (test_o10_codec.O10CodecTests.test_restore_offsets_and_max_mutating_request) ... ok
+test_sizes_and_transport_bound (test_o10_codec.O10CodecTests.test_sizes_and_transport_bound) ... ok
+test_snapshot_mutable_input_and_opaque_lstat (test_o10_codec.O10CodecTests.test_snapshot_mutable_input_and_opaque_lstat) ... ok
+test_unknown_and_9p_types_and_illegal_terror (test_o10_codec.O10CodecTests.test_unknown_and_9p_types_and_illegal_terror) ... ok
+test_variable_lengths_and_event_padding (test_o10_codec.O10CodecTests.test_variable_lengths_and_event_padding) ... ok
+test_version_independent_wire_vector (test_o10_codec.O10CodecTests.test_version_independent_wire_vector) ... ok
+test_wire_corpus_and_exactly_once_journal (test_o10_native.O10NativeTests.test_wire_corpus_and_exactly_once_journal) ... ok
+test_real_platform_dispatch_and_fid_revocation (test_o10_platform.O10PlatformTests.test_real_platform_dispatch_and_fid_revocation) ... ok
+test_coordinator_remains_service_operation_three (test_o10_runner.O10RunnerTests.test_coordinator_remains_service_operation_three) ... ok
+test_error_observes_consumed_sequence_without_replay (test_o10_runner.O10RunnerTests.test_error_observes_consumed_sequence_without_replay) ... ok
+test_legacy_manifest_or_explicit_rollback_uses_original_operation (test_o10_runner.O10RunnerTests.test_legacy_manifest_or_explicit_rollback_uses_original_operation) ... ok
+test_lifecycle_uses_claim_withdraw_restore_bind_and_new_handles (test_o10_runner.O10RunnerTests.test_lifecycle_uses_claim_withdraw_restore_bind_and_new_handles) ... ok
+test_transport_rejects_wrong_tag_and_never_writes_completion (test_o10_runner.O10RunnerTests.test_transport_rejects_wrong_tag_and_never_writes_completion) ... ok
+test_transport_writes_op10_and_reads_completion_after_ack (test_o10_runner.O10RunnerTests.test_transport_writes_op10_and_reads_completion_after_ack) ... ok
+test_unknown_mutation_retains_exact_frame_and_blocks_new_mutation (test_o10_runner.O10RunnerTests.test_unknown_mutation_retains_exact_frame_and_blocks_new_mutation) ... ok
+test_write_allowlist_protects_reply_slot_and_guest_ram (test_o10_runner.O10RunnerTests.test_write_allowlist_protects_reply_slot_and_guest_ram) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.833s
+
+OK

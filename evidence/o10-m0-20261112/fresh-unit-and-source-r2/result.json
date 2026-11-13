@@ -1,0 +1,71 @@
+{
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "mcp_release": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "results": [
+    {
+      "command": [
+        "python3",
+        "scripts/verify_o10_journal.py",
+        "--session",
+        "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source-r2/o10",
+        "--mcp-release",
+        "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+        "--component-only"
+      ],
+      "returncode": 0,
+      "skipped": false,
+      "summary": "{\"component_ok\": true, \"qualified\": false, \"result\": \"/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source-r2/o10/result.json\"}\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_okernel_*.py",
+        "-v"
+      ],
+      "returncode": 0,
+      "skipped": false,
+      "summary": "or_guest_input_after_boot (test_okernel_x12_usb_hid.USBProofBoundaries.test_serial_is_unusable_for_guest_input_after_boot) ... ok\ntest_success_requires_phase_bound_screenshot_token_and_error (test_okernel_x12_usb_hid.USBProofBoundaries.test_success_requires_phase_bound_screenshot_token_and_error) ... ok\ntest_usb_driver_evidence_requires_hid_child_and_rejects_boot_fallback (test_okernel_x12_usb_hid.USBProofBoundaries.test_usb_driver_evidence_requires_hid_child_and_rejects_boot_fallback) ... ok\n\n----------------------------------------------------------------------\nRan 288 tests in 157.260s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "tests.test_unified_client_acceptance",
+        "tests.test_unified_runtime_acceptance",
+        "tests.test_o10_regressions",
+        "tests.test_freeze_okernel_unified_runtime"
+      ],
+      "returncode": 1,
+      "skipped": false,
+      "summary": "\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/ustad/OSTADIX-o10-m0-20261112/tests/test_unified_runtime_acceptance.py\", line 196, in test_declared_interpreter_must_really_be_mapped_and_parent_must_match\n    with self.assertRaisesRegex(ValueError, \"interpreter was not observed\"):\nAssertionError: \"interpreter was not observed\" does not match \"owned process does not run an explicitly admitted monitor\"\n\n----------------------------------------------------------------------\nRan 31 tests in 0.629s\n\nFAILED (failures=1, errors=1)\n"
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check_language_sources.py",
+        "check",
+        "--o-bin",
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+        "--ocorec",
+        "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+        "--jobs",
+        "4",
+        "--json-report",
+        "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/fresh-unit-and-source-r2/language.json"
+      ],
+      "returncode": 0,
+      "skipped": false,
+      "summary": "language-sources: 261 classified (86 .O, 175 .oc); 261 parsed as expected; 0 failed; 0 programs executed\n"
+    }
+  ],
+  "complete": true,
+  "ok": false
+}

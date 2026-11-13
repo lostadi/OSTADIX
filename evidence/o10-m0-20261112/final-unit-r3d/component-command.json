@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "scripts/verify_o10_journal.py",
+    "--session",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/final-unit-r3d/component",
+    "--mcp-release",
+    "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+    "--component-only"
+  ],
+  "argv": [
+    "/usr/bin/python3",
+    "scripts/verify_o10_journal.py",
+    "--session",
+    "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/final-unit-r3d/component",
+    "--mcp-release",
+    "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+    "--component-only"
+  ],
+  "started": 1794546993.4469576,
+  "timed_out": false,
+  "environment_overrides": {},
+  "returncode": 0,
+  "finished": 1794546997.7718072
+}

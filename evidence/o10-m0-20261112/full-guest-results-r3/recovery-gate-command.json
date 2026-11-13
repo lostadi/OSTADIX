@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m0-20261112/scripts/verify_okernel_unified_recovery.py",
+    "--state",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/full-guest-regressions-3/states/recovery",
+    "--build",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3"
+  ],
+  "started": 1794544672.9402256,
+  "returncode": 0,
+  "timed_out": false,
+  "finished": 1794545384.36451
+}

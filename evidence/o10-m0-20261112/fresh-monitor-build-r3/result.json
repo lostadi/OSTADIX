@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "argv": [
+    "python3",
+    "scripts/build_okernel_unified_world.py",
+    "--payload",
+    "/home/ustad/.local/state/ostadix/okernel/unified-system-20261106-idle-ui/payload",
+    "--plan9-kernel",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/KERNEL.U",
+    "--derivation-receipt",
+    "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/result.json",
+    "--output",
+    "/home/ustad/.cache/o10-m0-acceptance-20261112/unified-build-r3",
+    "--ocorec",
+    "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "--clang",
+    "/usr/lib/llvm-18/bin/clang",
+    "--lld",
+    "/usr/lib/llvm-18/bin/ld.lld",
+    "--dtc",
+    "/home/ustad/ostadix-BM/target/bm-dev-env/bin/dtc",
+    "--plan9-recovery"
+  ],
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "mcp_release": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "started": 1794543081.0862246,
+  "scope": "R3 monitor build with preclaim legacy generation fix; no VM",
+  "returncode": 0,
+  "finished": 1794543083.406315
+}

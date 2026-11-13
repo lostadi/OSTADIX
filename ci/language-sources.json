@@ -948,6 +948,22 @@
       "sources": [
         "ocore/kernel/native_original_process/probe.oc"
       ]
+    },
+    {
+      "id": "ocore-o10-protocol",
+      "category": "runtime-module",
+      "reason": "O10 fixed-width codec and serialized monitor journal.",
+      "coverage": [
+        {
+          "path": "tests/test_o10_native.py",
+          "kind": "runtime",
+          "conditions": "Built ocorec and clang required; native corpus covers wire and journal; system lifecycle needs QEMU regression gates."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/common/o10_codec.oc",
+        "ocore/runtime/common/o10_executor.oc"
+      ]
     }
   ],
   "expected_parse_failures": {

@@ -29,6 +29,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from okernel_native_volume import Volume
+import o10
 
 PROTOCOL_SPEC = importlib.util.spec_from_file_location("original_plan9_protocol", ROOT / "ocore/guest/plan9/unified/protocol.py")
 protocol = importlib.util.module_from_spec(PROTOCOL_SPEC)
@@ -44,6 +45,8 @@ RECOVERY = {"control_address": 0x6d000070, "control_bytes": 48,
             "kernel_backup_address": 0xd0000000, "kernel_max_bytes": 0x1000000,
             "dtb_backup_address": 0xd1000000, "dtb_max_bytes": 0x10000,
             "pause": 1, "restart": 2}
+O10_PROFILE = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
+               "completion": 0x6d0a0200, "msize": 512}
 COORDINATOR_UART = {"guest_address": 0x09001000, "guest_irq": 51,
                     "input_address": 0x6d060000, "input_bytes": 8192,
                     "output_address": 0x6d080000, "output_bytes": 65536}
@@ -117,6 +120,8 @@ def validate_profile(profile: dict) -> None:
                                              "inputs/plan9-recovery.dtb": 0xd1000000})
     if "coordinator_uart" in profile:
         required["coordinator_uart"] = COORDINATOR_UART
+    if "o10" in profile:
+        required["o10"] = O10_PROFILE
     if "idle_scheduler" in profile:
         required["idle_scheduler"] = IDLE_SCHEDULER
     if any(profile.get(key) != value for key, value in required.items()):
@@ -136,7 +141,7 @@ def validate_recovery_inputs(artifacts: dict[str, Path]) -> None:
 
 class UnifiedDomain:
     def __init__(self, state: Path, build: Path, qemu: str, *, bootstrap: bytes = DEFAULT_BOOTSTRAP,
-                 live: bool = False, timeout: float = 180):
+                 live: bool = False, timeout: float = 180, legacy_control: bool = False):
         if state.is_symlink():
             raise ValueError("state must not be a symlink")
         self.state, self.build = state.resolve(strict=True), build.resolve(strict=True)
@@ -161,6 +166,13 @@ class UnifiedDomain:
         self.process = self.qmp = None
         self.ram = None
         self.control_sequence = 0
+        self.legacy_control = legacy_control
+        self.o10_profile = None
+        self.o10_epoch = self.o10_sequence = self.o10_tag = 0
+        self.o10_claimed = False
+        self.o10_pending = None
+        self.o10_plan9 = (1 << 32) | 1
+        self.o10_lease_generation = 1
         self.control_active = False
         self.last_provider_poll = 0.0
         self.service = None
@@ -230,6 +242,7 @@ class UnifiedDomain:
             self.epoch = secrets.randbits(64) or 1
             self.clock = int(time.time())
             self.recovery = manifest.get("plan9_recovery")
+            self.o10_profile = manifest.get("o10")
             self.coordinator_uart = manifest.get("coordinator_uart")
             if self.recovery:
                 validate_recovery_inputs(artifacts)
@@ -369,6 +382,36 @@ class UnifiedDomain:
     def native_control(self, operation: int, bootstrap: bytes | None = None, payload: bytes | None = None):
         if not self.recovery or operation not in (1, 2, 3) or (operation == 3 and not self.coordinator_uart):
             raise ValueError("native recovery is unavailable for this profile")
+        if getattr(self, "o10_profile", None) and not getattr(self, "legacy_control", False) and operation in (1, 2):
+            if payload is not None:
+                raise ValueError("lifecycle control cannot carry coordinator payload")
+            if bootstrap is not None and (operation != 2 or len(bootstrap) > 4096 or b"\0" in bootstrap):
+                raise ValueError("invalid native recovery bootstrap")
+            self.o10_claim()
+            if operation == 1:
+                self.o10_call("Twithdraw", dom=self.o10_plan9, mode=0, deadline_ms=0)
+                self.o10_lease_generation += 1
+            else:
+                restored = self.o10_call("Trestore", bootstrap=bootstrap, dom=self.o10_plan9,
+                                         inst=secrets.token_bytes(16), img_kernel=1, img_aux=2)
+                self.o10_plan9 = restored["dom"]
+                holder = self.o10_plan9
+                transport = holder & ~0xffffffff
+                try:
+                    self.o10_call("Tbind", lease=(self.o10_lease_generation << 32) | 4,
+                                  transport=transport)
+                except o10.O10Error as error:
+                    # Fault containment may already have revoked the boot grant
+                    # before this explicit withdrawal. The definite ESTALE reply
+                    # is journaled: refresh only its lease generation and send a
+                    # new mechanism request. Never replay restore or bootstrap.
+                    if (error.code != o10.O10_ESTALE or not self.o10_lease_generation < error.detail <= 0xffffffff
+                            or self.o10_plan9 != holder):
+                        raise
+                    self.o10_lease_generation = error.detail
+                    self.o10_call("Tbind", lease=(self.o10_lease_generation << 32) | 4,
+                                  transport=transport)
+            return
         self.control_sequence += 1
         self.stopped()
         try:
@@ -399,11 +442,105 @@ class UnifiedDomain:
             self.pump(0.01)
         raise TimeoutError("native Plan9 recovery acknowledgement missing")
 
+    def o10_exchange(self, frame: bytes, *, bootstrap: bytes | None = None) -> dict:
+        """Send one exact mechanism frame. Timeouts never resubmit the frame."""
+        if getattr(self, "o10_profile", None) != O10_PROFILE:
+            raise ValueError("O10 is unavailable for this monitor profile")
+        request = o10.decode(frame)
+        if not request["type"].startswith("T"):
+            raise ValueError("O10 transport requires a request")
+        self.control_sequence += 1
+        mailbox_sequence = self.control_sequence
+        self.stopped()
+        try:
+            if bootstrap is not None:
+                if request["type"] != "Trestore" or len(bootstrap) > 4096 or b"\0" in bootstrap:
+                    raise ValueError("invalid native recovery bootstrap")
+                # Bootstrap is service data on the existing console path, not
+                # part of the journaled mechanism request.
+                self.write_native(0x6d010000, struct.pack("<Q", len(bootstrap)) + bootstrap)
+            self.write_native(O10_PROFILE["submission"], frame)
+            self.write_native(0x6d000070, struct.pack("<QQ", mailbox_sequence, 10))
+        finally:
+            self.qmp.execute("cont")
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            ack, result = struct.unpack("<QQ", os.pread(self.ram, 16, 0x6d000080 - 0x40000000))
+            if ack == mailbox_sequence:
+                self.stopped()
+                try:
+                    if result != 1:
+                        raise RuntimeError("native O10 mailbox rejected frame")
+                    offset = O10_PROFILE["completion"] - 0x40000000
+                    size_bytes = os.pread(self.ram, 4, offset)
+                    if len(size_bytes) != 4:
+                        raise RuntimeError("native O10 reply header is incomplete")
+                    size, = struct.unpack("<I", size_bytes)
+                    if not 7 <= size <= O10_PROFILE["msize"]:
+                        raise RuntimeError("native O10 reply size is invalid")
+                    reply = o10.decode(os.pread(self.ram, size, offset))
+                    if reply["tag"] != request["tag"]:
+                        raise RuntimeError("native O10 reply tag does not match request")
+                    if reply["type"] not in ("Rerror", "R" + request["type"][1:]):
+                        raise RuntimeError("native O10 reply type does not match request")
+                    return reply
+                finally:
+                    self.qmp.execute("cont")
+            if self.process.poll() is not None:
+                raise RuntimeError("native supervisor exited during O10")
+            self.pump(0.01)
+        raise TimeoutError("native O10 acknowledgement missing; outcome unresolved")
+
+    def o10_version(self) -> dict:
+        self.o10_tag = (self.o10_tag % 65535) + 1
+        reply = self.o10_exchange(o10.encode("Tversion", self.o10_tag,
+                                             negotiated_msize=512, version=o10.O10_VERSION))
+        if reply["type"] != "Rversion" or reply["version"] != o10.O10_VERSION or reply["negotiated_msize"] != 512:
+            raise RuntimeError("native O10 version negotiation failed")
+        self.o10_epoch, self.o10_sequence = reply["epoch"], reply["last_seq"]
+        return reply
+
+    def o10_claim(self):
+        if self.o10_claimed:
+            return
+        if self.o10_pending is not None:
+            raise RuntimeError("unresolved O10 mutation requires an explicit outcome query")
+        self.o10_version()
+        reply = self.o10_call("Tclaim", new_epoch=self.o10_epoch + 1, expected=self.o10_epoch)
+        self.o10_epoch = reply["epoch"]
+        self.o10_claimed = True
+
+    def o10_call(self, message_type: str, *, bootstrap: bytes | None = None, **fields) -> dict:
+        """Apply one request, retaining unknown mutations for outcome inspection."""
+        mutation = message_type in o10.MUTATING
+        if mutation and self.o10_pending is not None:
+            raise RuntimeError("unresolved O10 mutation requires an explicit outcome query")
+        self.o10_tag = (self.o10_tag % 65535) + 1
+        seq = self.o10_sequence + 1 if mutation else 0
+        frame = o10.encode(message_type, self.o10_tag, epoch=self.o10_epoch, seq=seq, **fields)
+        if mutation:
+            self.o10_pending = {"frame": frame, "epoch": self.o10_epoch, "seq": seq}
+        reply = self.o10_exchange(frame, bootstrap=bootstrap)
+        if reply["type"] == "Rerror":
+            # Some errors occur before sequence admission; dispatched failures
+            # are journaled. Observe the position instead of guessing/replaying.
+            self.o10_version()
+            if mutation:
+                self.o10_pending = None
+            raise o10.O10Error(reply["code"], reply["detail"], "native O10 request rejected")
+        if mutation:
+            self.o10_sequence = seq
+            self.o10_pending = None
+        return reply
+
     def write_native(self, address: int, data: bytes):
         # Called only under stopped(), to these private control/input regions.
         if not ((0x6d000070 <= address and address + len(data) <= 0x6d000080)
                 or (0x6d010000 <= address and address + len(data) <= 0x6d011008)
-                or (0x6d060000 <= address and address + len(data) <= 0x6d062008)):
+                or (0x6d060000 <= address and address + len(data) <= 0x6d062008)
+                or (getattr(self, "o10_profile", None) == O10_PROFILE
+                    and O10_PROFILE["submission"] <= address
+                    and address + len(data) <= O10_PROFILE["submission"] + O10_PROFILE["msize"])):
             raise ValueError("host write escaped native provisioning region")
         if self.qmp.execute("query-status").get("running") is not False:
             raise RuntimeError("native control write requires a stopped CPU")
@@ -826,6 +963,7 @@ def main() -> int:
     parser.add_argument("--qemu", default="qemu-system-aarch64")
     parser.add_argument("--bootstrap", type=Path)
     parser.add_argument("--timeout", type=float, default=180)
+    parser.add_argument("--legacy-control", action="store_true", help="use rollback mailbox operations 1/2")
     args = parser.parse_args()
     def terminate(signum, frame):
         raise SystemExit(128 + signum)
@@ -834,7 +972,7 @@ def main() -> int:
     try:
         bootstrap = args.bootstrap.read_bytes() if args.bootstrap else DEFAULT_BOOTSTRAP
         domain = UnifiedDomain(args.state.expanduser(), args.build.expanduser(), args.qemu,
-                               bootstrap=bootstrap, live=args.action == "run", timeout=args.timeout)
+                               bootstrap=bootstrap, live=args.action == "run", timeout=args.timeout, legacy_control=args.legacy_control)
         if args.action == "run":
             if not sys.stdin.isatty():
                 raise ValueError("interactive unified console requires a real foreground terminal")
