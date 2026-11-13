@@ -317,6 +317,17 @@ fn run_cli() -> Result<()> {
         } else {
             None
         };
+        // a partially failed batch is an error at the api boundary; the cli
+        // still prints its value, then each member error once.
+        let (evaluation, failed_batch_members) = match evaluation {
+            Err(error) if error.is::<o_lang::eval::BatchMemberFailures>() => {
+                let partial = error
+                    .downcast::<o_lang::eval::BatchMemberFailures>()
+                    .expect("checked batch failure type");
+                (Ok(partial.value), partial.failures)
+            }
+            other => (other, Vec::new()),
+        };
         let result = match evaluation {
             Ok(result) => result,
             Err(e) if crossing_evidence => {
@@ -345,16 +356,6 @@ fn run_cli() -> Result<()> {
         };
 
         let elapsed = start.elapsed();
-        let failed_batch_members = evaluator
-            .last_execution_trace()
-            .map(|trace| {
-                trace
-                    .failed_batch_members
-                    .iter()
-                    .map(|(_, message)| message.clone())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
         if json_output {
             let mut envelope = serde_json::json!({
                 "ok": failed_batch_members.is_empty(),
@@ -400,13 +401,23 @@ fn run_cli() -> Result<()> {
                     serde_json::json!("direct-admitted-graph-bindings-and-lifted-results");
             }
             if !failed_batch_members.is_empty() {
-                envelope["failed_batch_members"] = serde_json::json!(failed_batch_members);
+                envelope["failed_batch_members"] = serde_json::json!(failed_batch_members
+                    .iter()
+                    .map(|failure| serde_json::json!({
+                        "member": failure.member,
+                        "node": failure.node.0,
+                        "error": failure.message,
+                    }))
+                    .collect::<Vec<_>>());
             }
             println!("{envelope}");
         } else {
             print_result(&result);
-            for message in &failed_batch_members {
-                eprintln!("error: batch member failed\n{message}");
+            for failure in &failed_batch_members {
+                eprintln!(
+                    "error: batch member {} failed\n{}",
+                    failure.member, failure.message
+                );
             }
         }
 

@@ -762,10 +762,25 @@ A group with no members is rejected at construction time; calling
 #### Batch result shape
 
 `batch(a, b, …)` returns an `OList` with exactly one element per input member,
-in declaration order, for ordinary Fresh-mode resolution. Failures are NOT
-fatal in that path: a member that fails is wrapped as an `OValue::Error` in the
-list so every input slot has a corresponding output slot. Callers can
-distinguish success from failure by testing `is_error()` on each element.
+in declaration order, for ordinary Fresh-mode resolution. A member execution
+error is not fatal to the other members: the failed member settles as an
+`OValue::Error` in its own slot, so every input slot has a corresponding output
+slot, and the other members still return their values. Only member execution
+errors are absorbed this way; infrastructure failures, cancellation, and the
+Strict cache miss below stay fatal. If any member failed, the batch and the
+run are marked failed. When some members succeeded, the batch still yields its
+list (failed slots hold `<error>`). When every direct member failed, the batch
+yields no value and raises its summary error. These checks read which members
+failed, not the value shape, so a member that returns an `OValue::Error` value
+did not fail.
+
+A run with any failed member is still a failed run. Every `eval_document*` and
+`eval_ir_program*` entry point returns a `BatchMemberFailures` error that
+carries the produced value and one record per failed member (its zero-based
+index in its own `batch(...)` and its message). A nested batch whose members
+all failed is reported once by its summary, since its members are listed on
+their own. `O` prints the value, then `error: batch member N failed` for each
+record, and exits with status 1.
 
 Under `CacheMode::Strict`, used after an autonomous scheduler flush, a cache
 miss is not an ordinary member failure. It is a scheduler invariant failure and
@@ -1128,11 +1143,7 @@ Adding a new language: write a Backend subclass, add it to
   background job(s); they were stopped`. A `bash[N]` session's jobs live until
   the session ends and are stopped the same way then. A descendant that makes
   itself a subreaper, or one started by an external service manager, is not
-  caught; only a cgroup could hold it. A failing member of `batch(...)` settles as its
-  own error value; the other members still return their values, and the batch
-  fails only when every member failed. When any member failed, `O` prints the
-  document value, reports each member error on stderr, and exits with status
-  1. Effect ordering is unaffected: source
+  caught; only a cgroup could hold it. Effect ordering is unaffected: source
   sequence edges and resource-state chains are independent of these data
   edges. The Python ref impl threads the complete scope through
   `_eval_expression`.

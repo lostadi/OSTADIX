@@ -280,10 +280,21 @@ Package SemVer is only one of the independent coordinates documented in
   array subscripts. With the environment pass-through removed in the entry
   above, these had evaluated to 0. Runtime-built names (`v=name; $((v))`) still see nothing.
 
-- A failing member of `batch(...)` now settles as its own error value while
-  the other members still return their values. The batch fails only when every
-  member failed; otherwise `O` prints the value, reports each member error,
-  and exits with status 1.
+- A failing member of `batch(...)` now settles as `<error>` at its own index
+  while the other members still return their values. The batch is marked
+  failed: `O` prints the partial value, reports each member error, and exits
+  with status 1. If every member failed, the batch produces no value.
+
+- Breaking for embedders: a document with a failed `batch(...)` member now
+  returns an error (`BatchMemberFailures`, carrying the value and each failed
+  member's index and message) from every `eval_document*` and
+  `eval_ir_program*` entry point, so intent, coordinator, MCP, and server
+  callers fail instead of reporting success. Only member execution errors are
+  absorbed; a Strict cache miss after an autonomous flush, cancellation, and
+  infrastructure failures stay fatal. The all-failed check uses failure flags,
+  so `batch($e)` where `$e` is an error value no longer fails. Nested batch
+  errors are reported once, as `error: batch member N failed`, and the JSON
+  envelope lists `{member, node, error}` records.
 
 - Failure output changed for documents with failing batch members:
   `benchmarks/hgraph_hosted/heterogeneous.O` now prints partial results with
