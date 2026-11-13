@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import re
@@ -97,6 +98,104 @@ class LocalCiPostureTests(unittest.TestCase):
             for record in report.ordered_checks()
             if record["status"] == "finding"
         }
+
+    def audit_native_release_fixture(
+        self, text: str, *, relative: str | None = None, update_digest: bool = False
+    ) -> object:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            relative = relative or posture.NATIVE_RUNTIME_CONTRACT["path"]
+            workflow = root / relative
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text(text, encoding="utf-8")
+            report = posture.PostureReport("baseline", False)
+            replacement = dict(posture.NATIVE_RUNTIME_CONTRACT)
+            if update_digest:
+                replacement["workflow_sha256"] = hashlib.sha256(text.encode()).hexdigest()
+            with mock.patch.object(posture, "NATIVE_RUNTIME_CONTRACT", replacement):
+                posture.audit_workflow_safety(report, root, [workflow])
+            return report
+
+    def native_release_source(self) -> str:
+        return (ROOT / posture.NATIVE_RUNTIME_CONTRACT["path"]).read_text(encoding="utf-8")
+
+    def test_exact_native_release_contract_is_reported_without_generic_waivers(self) -> None:
+        report = self.audit_native_release_fixture(self.native_release_source())
+        self.assertEqual(report.exit_code(), 0, report.document())
+        recognized = [record for record in report.checks
+                      if record["id"] == "baseline.workflows.native-runtime-contract"]
+        self.assertEqual(len(recognized), 1)
+        self.assertIn("release-published", recognized[0]["message"])
+
+    def test_native_release_contract_does_not_follow_a_copied_workflow_name(self) -> None:
+        report = self.audit_native_release_fixture(
+            self.native_release_source(), relative=".github/workflows/other-release.yml"
+        )
+        self.assertTrue({"baseline.workflows.permissions", "baseline.workflows.self-hosted"}
+                        <= self.finding_ids(report))
+
+    def test_native_release_digest_covers_physical_newline_bytes(self) -> None:
+        original = self.native_release_source()
+        for newline in ("\r\n", "\r"):
+            with self.subTest(newline=repr(newline)):
+                report = self.audit_native_release_fixture(original.replace("\n", newline))
+                self.assertTrue({"baseline.workflows.permissions", "baseline.workflows.self-hosted"}
+                                <= self.finding_ids(report))
+
+    def test_native_release_contract_pins_inherited_environment_and_job_steps(self) -> None:
+        original = self.native_release_source()
+        mutations = [
+            original.replace("jobs:\n", "env:\n  BASH_ENV: /tmp/injected.sh\n\njobs:\n", 1),
+            original.replace("['gh', 'release', 'upload'", "['gh', 'release', 'delete'", 1),
+        ]
+        for mutated in mutations:
+            self.assertNotEqual(mutated, original)
+            with self.subTest(change=hashlib.sha256(mutated.encode()).hexdigest()):
+                report = self.audit_native_release_fixture(mutated)
+                self.assertTrue({"baseline.workflows.permissions", "baseline.workflows.self-hosted"}
+                                <= self.finding_ids(report))
+
+    def test_digest_update_alone_cannot_widen_native_runner_or_dependency_contract(self) -> None:
+        original = self.native_release_source()
+        mutations = [
+            original.replace("runner: ubuntu-24.04-arm", "runner: self-hosted", 1),
+            original.replace("runner: macos-15", "runner: ${{ inputs.runner }}", 1),
+            original.replace("target: aarch64-apple-darwin", "target: x86_64-apple-darwin", 1),
+            original.replace("needs: installer-contract", "needs: unrelated", 1),
+            original.replace("if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository",
+                             "if: always()", 1),
+            original.replace("            target: aarch64-apple-darwin\n", "            target: aarch64-apple-darwin\n          - runner: self-hosted\n            target: aarch64-unknown-linux-gnu\n", 1),
+        ]
+        for mutated in mutations:
+            self.assertNotEqual(mutated, original)
+            with self.subTest(change=hashlib.sha256(mutated.encode()).hexdigest()):
+                report = self.audit_native_release_fixture(mutated, update_digest=True)
+                self.assertIn("baseline.workflows.self-hosted", self.finding_ids(report))
+
+    def test_digest_update_alone_cannot_widen_publisher_event_permissions_or_needs(self) -> None:
+        original = self.native_release_source()
+        mutations = [
+            original.replace("github.event_name == 'release' && github.event.action == 'published'", "always()", 1),
+            original.replace("    needs: native", "    needs: installer-contract", 1),
+            original.replace("      actions: read", "      actions: write", 1),
+            original.replace("      contents: write", "      contents: write\n      id-token: write", 1),
+            original.replace("  contents: read", "  contents: write", 1),
+            original.replace("types: [published]", "types: [published, edited]", 1),
+            original.replace("  workflow_dispatch:\n", "  push:\n  workflow_dispatch:\n", 1),
+        ]
+        for mutated in mutations:
+            self.assertNotEqual(mutated, original)
+            with self.subTest(change=hashlib.sha256(mutated.encode()).hexdigest()):
+                report = self.audit_native_release_fixture(mutated, update_digest=True)
+                self.assertIn("baseline.workflows.permissions", self.finding_ids(report))
+
+    def test_another_job_cannot_borrow_the_native_release_write_contract(self) -> None:
+        original = self.native_release_source()
+        mutated = original.replace("  publish:\n", "  unrelated:\n    runs-on: ubuntu-24.04\n    permissions:\n      contents: write\n    steps:\n      - run: echo unrelated\n\n  publish:\n", 1)
+        report = self.audit_native_release_fixture(mutated, update_digest=True)
+        self.assertIn("baseline.workflows.permissions", self.finding_ids(report))
+        self.assertTrue(any(record["id"] == "baseline.workflows.native-runtime-contract"
+                            for record in report.checks))
 
     def test_checked_in_baseline_passes(self) -> None:
         result = self.run_posture("--profile", "baseline", "--format", "text")
