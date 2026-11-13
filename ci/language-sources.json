@@ -835,6 +835,7 @@
       ],
       "sources": [
         "ocore/runtime/aarch64/coordinator_uart.oc",
+        "ocore/runtime/aarch64/domain_table.oc",
         "ocore/runtime/aarch64/kernel_world_9p.oc",
         "ocore/runtime/aarch64/kernel_world_net.oc",
         "ocore/runtime/aarch64/kernel_world_net_host.oc",

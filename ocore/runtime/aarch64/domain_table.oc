@@ -1,0 +1,190 @@
+module runtime::aarch64::domain_table;
+
+// One canonical lifecycle table. Only trusted O-core callers change these
+// rows; names and generations returned here never confer transport authority.
+pub const CAPACITY: u64 = 8;
+pub const NONE: u64 = 8;
+pub const EMPTY: u64 = 0;
+pub const PROVISIONED: u64 = 1;
+pub const RUNNING: u64 = 2;
+pub const BLOCKED: u64 = 3;
+pub const FAULTED: u64 = 4;
+pub const WITHDRAWN: u64 = 5;
+pub const GOVERNOR: u64 = 1;
+pub const GUEST_KERNEL: u64 = 2;
+pub const NATIVE_SERVICE: u64 = 3;
+pub const BACKEND_NONE: u64 = 0;
+pub const BACKEND_LINUX: u64 = 1;
+pub const BACKEND_PLAN9: u64 = 2;
+pub const BACKEND_NATIVE: u64 = 3;
+const GENERATION_MAX: u64 = 0xffff_ffff;
+
+static mut STATE: [u64; 8] = [0; 8];
+static mut GENERATION: [u64; 8] = [1; 8];
+static mut RETIRED: [u64; 8] = [0; 8];
+static mut KIND: [u64; 8] = [0; 8];
+static mut BACKEND: [u64; 8] = [0; 8];
+static mut RAM_BASE: [u64; 8] = [0; 8];
+static mut RAM_BYTES: [u64; 8] = [0; 8];
+static mut KERNEL_IMAGE: [u64; 8] = [0; 8];
+static mut AUX_IMAGE: [u64; 8] = [0; 8];
+static mut ENTRY_PC: [u64; 8] = [0; 8];
+static mut ENTRY_X0: [u64; 8] = [0; 8];
+static mut WAIT_BIND: [u64; 8] = [0; 8];
+static mut INSTANCE: [u8; 128] = [0; 128];
+
+pub unsafe fn state(slot: u64) -> u64 {
+    if slot >= CAPACITY { return EMPTY; } return STATE[slot as usize];
+}
+pub unsafe fn generation(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return GENERATION[slot as usize];
+}
+pub unsafe fn retired(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 1; } return RETIRED[slot as usize];
+}
+pub unsafe fn handle(slot: u64) -> u64 {
+    if slot >= CAPACITY || STATE[slot as usize] == EMPTY { return 0; }
+    return (GENERATION[slot as usize] << 32) | slot;
+}
+pub unsafe fn lookup(name: u64) -> u64 {
+    let slot: u64 = name & 0xffff_ffff;
+    if slot >= CAPACITY || STATE[slot as usize] == EMPTY
+        || (name >> 32) != GENERATION[slot as usize] { return NONE; }
+    return slot;
+}
+pub unsafe fn kind(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return KIND[slot as usize];
+}
+pub unsafe fn backend(slot: u64) -> u64 {
+    if slot >= CAPACITY { return BACKEND_NONE; } return BACKEND[slot as usize];
+}
+pub unsafe fn ram_base(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return RAM_BASE[slot as usize];
+}
+pub unsafe fn ram_bytes(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return RAM_BYTES[slot as usize];
+}
+pub unsafe fn kernel_image(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return KERNEL_IMAGE[slot as usize];
+}
+pub unsafe fn aux_image(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return AUX_IMAGE[slot as usize];
+}
+pub unsafe fn entry_pc(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return ENTRY_PC[slot as usize];
+}
+pub unsafe fn entry_x0(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return ENTRY_X0[slot as usize];
+}
+pub unsafe fn instance_byte(slot: u64, offset: usize) -> u64 {
+    if slot >= CAPACITY || offset >= 16 { return 0; }
+    return INSTANCE[slot as usize * 16 + offset] as u64;
+}
+// Existing native backends are singletons. Multiple native components require
+// their own explicit transport-owner handles, never the first matching row.
+pub unsafe fn owner(which: u64) -> u64 {
+    if which != BACKEND_LINUX && which != BACKEND_PLAN9 { return 0; }
+    let mut slot: u64 = 0;
+    while slot < CAPACITY {
+        if STATE[slot as usize] != EMPTY && BACKEND[slot as usize] == which { return handle(slot); }
+        slot += 1;
+    }
+    return 0;
+}
+
+// Trusted boot metadata admission only. The caller must already have validated
+// the immutable images and installed the exact stage-2 mapping. This function
+// allocates no RAM, copies no image and grants no authority; O10 provisioning
+// stays unsupported until its independent image/allocator backend is present.
+pub unsafe fn boot(slot: u64, personality: u64, driver: u64, base: u64, bytes: u64,
+                   kernel: u64, auxiliary: u64) -> u64 {
+    if slot >= CAPACITY || STATE[slot as usize] != EMPTY || RETIRED[slot as usize] != 0
+        || personality == 0 || personality > NATIVE_SERVICE || driver == 0 || driver > BACKEND_NATIVE
+        || (personality == GUEST_KERNEL && driver != BACKEND_LINUX && driver != BACKEND_PLAN9)
+        || (personality != GUEST_KERNEL && driver != BACKEND_NATIVE)
+        || kernel == 0 || bytes == 0 || bytes > 0x2000_0000
+        || (base & 0x1f_ffff) != 0 || (bytes & 0x1f_ffff) != 0
+        || base > 0xffff_ffff_ffff_ffff - bytes { return 0; }
+    if (driver == BACKEND_LINUX || driver == BACKEND_PLAN9) && owner(driver) != 0 { return 0; }
+    let mut other: u64 = 0;
+    while other < CAPACITY {
+        if STATE[other as usize] != EMPTY && base < RAM_BASE[other as usize] + RAM_BYTES[other as usize]
+            && RAM_BASE[other as usize] < base + bytes { return 0; }
+        other += 1;
+    }
+    let i: usize = slot as usize;
+    KIND[i] = personality; BACKEND[i] = driver; RAM_BASE[i] = base; RAM_BYTES[i] = bytes;
+    KERNEL_IMAGE[i] = kernel; AUX_IMAGE[i] = auxiliary;
+    STATE[i] = PROVISIONED;
+    return 1;
+}
+pub unsafe fn boot_start(slot: u64, pc: u64, x0: u64) -> u64 {
+    if slot >= CAPACITY || STATE[slot as usize] != PROVISIONED || pc < 0x4000_0000
+        || pc >= 0x4000_0000 + RAM_BYTES[slot as usize] || (pc & 3) != 0 { return 0; }
+    ENTRY_PC[slot as usize] = pc; ENTRY_X0[slot as usize] = x0;
+    STATE[slot as usize] = RUNNING; return 1;
+}
+pub unsafe fn live(slot: u64) -> bool {
+    return slot < CAPACITY && (STATE[slot as usize] == RUNNING || STATE[slot as usize] == BLOCKED);
+}
+pub unsafe fn waiting(slot: u64) -> u64 {
+    if slot >= CAPACITY { return 0; } return WAIT_BIND[slot as usize];
+}
+pub unsafe fn runnable(slot: u64) -> bool {
+    return slot < CAPACITY && STATE[slot as usize] == RUNNING && WAIT_BIND[slot as usize] == 0;
+}
+pub unsafe fn block(slot: u64) -> u64 {
+    if slot >= CAPACITY || STATE[slot as usize] != RUNNING { return 0; }
+    STATE[slot as usize] = BLOCKED; return 1;
+}
+pub unsafe fn wake(slot: u64) -> u64 {
+    if slot >= CAPACITY || STATE[slot as usize] != BLOCKED || WAIT_BIND[slot as usize] != 0 { return 0; }
+    STATE[slot as usize] = RUNNING; return 1;
+}
+pub unsafe fn fault(slot: u64) -> u64 {
+    if !live(slot) { return 0; }
+    STATE[slot as usize] = FAULTED; WAIT_BIND[slot as usize] = 0; return 1;
+}
+pub unsafe fn withdraw(slot: u64) -> u64 {
+    if slot >= CAPACITY || (!live(slot) && STATE[slot as usize] != FAULTED) { return 0; }
+    STATE[slot as usize] = WITHDRAWN; WAIT_BIND[slot as usize] = 0; return 1;
+}
+pub unsafe fn next_generation(slot: u64) -> u64 {
+    if slot >= CAPACITY || (STATE[slot as usize] != FAULTED && STATE[slot as usize] != WITHDRAWN)
+        || RETIRED[slot as usize] != 0 { return 0; }
+    if GENERATION[slot as usize] == GENERATION_MAX { RETIRED[slot as usize] = 1; return 0; }
+    return GENERATION[slot as usize] + 1;
+}
+// The caller completes RAM reload, arch reset and new-generation IRQ binding
+// before publishing. Slots never reuse a previously issued generation.
+pub unsafe fn restored(slot: u64, expected: u64, instance: *const u8) -> u64 {
+    if slot >= CAPACITY || GENERATION[slot as usize] != expected { return 0; }
+    let fresh: u64 = next_generation(slot);
+    if fresh == 0 { return 0; }
+    let mut j: usize = 0;
+    while j < 16 { INSTANCE[slot as usize * 16 + j] = volatile_load(instance + j); j += 1; }
+    GENERATION[slot as usize] = fresh; WAIT_BIND[slot as usize] = 1;
+    STATE[slot as usize] = BLOCKED; return 1;
+}
+pub unsafe fn bound(slot: u64) -> u64 {
+    if slot >= CAPACITY || STATE[slot as usize] != BLOCKED || WAIT_BIND[slot as usize] != 1 { return 0; }
+    WAIT_BIND[slot as usize] = 0; STATE[slot as usize] = RUNNING; return 1;
+}
+pub unsafe fn next(after: u64) -> u64 {
+    let mut candidate: u64 = 0;
+    if after < CAPACITY { candidate = (after + 1) % CAPACITY; }
+    let mut scanned: u64 = 0;
+    while scanned < CAPACITY {
+        if runnable(candidate) { return candidate; }
+        candidate = (candidate + 1) % CAPACITY; scanned += 1;
+    }
+    return NONE;
+}
+pub unsafe fn live_mask() -> u64 {
+    let mut mask: u64 = 0; let mut slot: u64 = 0;
+    while slot < CAPACITY { if live(slot) { mask |= 1 << slot; } slot += 1; } return mask;
+}
+pub unsafe fn blocked_mask() -> u64 {
+    let mut mask: u64 = 0; let mut slot: u64 = 0;
+    while slot < CAPACITY { if STATE[slot as usize] == BLOCKED { mask |= 1 << slot; } slot += 1; } return mask;
+}

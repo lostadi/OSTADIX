@@ -12,6 +12,8 @@ import subprocess
 import tempfile
 import unittest
 
+from tests.test_o10_domain_table import write_table_fixture, extend_world
+
 ROOT=Path(__file__).resolve().parents[1]
 HARNESS = r"""
 
@@ -82,6 +84,9 @@ static void held_read(void){
 }
 
 #define W(n) _O_runtime__aarch64__unified_world__##n
+#define G(n) _O_runtime__aarch64__unified_gic__##n
+extern uint64_t G(binding_generation)(uint64_t);
+extern uint64_t G(set_transport_level)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t W(test_init)(void),W(test_mailbox)(void),W(test_plan9_input)(void),W(test_linux_input)(void);
 extern void W(test_inputs)(void),W(test_generation)(uint64_t);
 static uint64_t ticks,reset_calls,vmcr[2],hcr[2],lrs[2][4];
@@ -160,6 +165,9 @@ int main(int argc,char**argv){
   assert(guest[i]==expected);
  }
  assert(hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);survivors();state(2ull<<32,3);
+ assert(G(binding_generation)(0)==2&&G(binding_generation)(1)==1);
+ assert(!G(set_transport_level)(0,1,0,50,0)&&G(set_transport_level)(0,2,0,50,0));
+
  memcpy(request,retransmit,63);call();assert(!memcmp(reply,saved,15)&&reset_calls==1);
  state(2ull<<32,3);assert(kw_guest_address(0x40000000,1)==0);
  frame(178,31,0);st(request+23,handle,8);call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
@@ -177,13 +185,20 @@ int main(int argc,char**argv){
 
 """
 WRAPPER = r"""
+use runtime::aarch64::domain_table::test_generation as table_test_generation;
 
-pub unsafe fn test_init() -> u64 { LIVE[0]=1; LIVE[1]=1; return gic_init(); }
-pub unsafe fn test_mailbox() -> u64 { native_control(); return LIVE[0] | (LIVE[1]<<1); }
+pub unsafe fn test_init() -> u64 {
+    if boot_rows()!=1 || gic_init()!=1 || configure_irqs(linux_slot(),d_generation(linux_slot()))!=1
+        || configure_irqs(plan9_slot(),d_generation(plan9_slot()))!=1 { return 0; } return 1;
+}
+pub unsafe fn test_mailbox() -> u64 { native_control(); return d_live_mask(); }
 pub unsafe fn test_inputs() -> void { LINUX_INPUT_COUNT=3; LINUX_INPUT[0]=0x55; RX_COUNT=7; RX[0]=0xa7; }
 pub unsafe fn test_plan9_input() -> u64 { return (RX_COUNT==7 && RX[0]==0xa7) as u64; }
 pub unsafe fn test_linux_input() -> u64 { return LINUX_INPUT_COUNT as u64; }
-pub unsafe fn test_generation(value:u64) -> void { O10_DOMAIN_GENERATION[0]=value; }
+pub unsafe fn test_generation(value:u64) -> void {
+    let slot:u64=linux_slot(); close_irqs(slot); table_test_generation(slot,value);
+    if configure_irqs(slot,value)!=1 { uw_internal_failure(0x1109,0x1127,slot,value); }
+}
 
 """
 
@@ -200,11 +215,12 @@ class LinuxRestartNativeTests(unittest.TestCase):
                 "pub const PERSISTENT:u64=1;\npub const NETWORK:u64=1;\npub const NAMESPACE:u64=1;\n"
                 "pub const BACKING_BASE:usize=0x70000000;\npub const BACKING_BYTES:usize=4096;\n"
                 "pub const O10_QUALIFICATION:u64=1;\n")
-            world=out/"world.oc";world.write_text((ROOT/sources[0]).read_text()+WRAPPER)
+            table=write_table_fixture(out)
+            world=out/"world.oc";world.write_text(extend_world((ROOT/sources[0]).read_text(),WRAPPER))
             monitor_name="ocore/runtime/aarch64/kernel_world_monitor.oc"
             monitor=out/"monitor.oc";monitor.write_text((ROOT/monitor_name).read_text()+
                 "\npub unsafe fn test_admit() -> void { RAM_LIVE=1; }\n")
-            inputs=[str(profile),str(world),*(str(monitor if n==monitor_name else ROOT/n) for n in sources[1:])]
+            inputs=[str(profile),str(world),*(str(monitor if n==monitor_name else table if n=="ocore/runtime/aarch64/domain_table.oc" else ROOT/n) for n in sources[1:])]
             for target,emit,name in [("aarch64-unknown-none","mir","arm.mir"),("x86_64-unknown-none","obj","native.o")]:
                 p=subprocess.run([str(compiler),*inputs,"--target",target,"--emit",emit,"--function-sections","-o",str(out/name)],
                                  capture_output=True,text=True,timeout=120)

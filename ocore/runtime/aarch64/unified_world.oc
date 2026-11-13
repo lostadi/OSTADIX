@@ -1,5 +1,35 @@
 module runtime::aarch64::unified_world;
 
+use runtime::aarch64::domain_table::boot as d_boot;
+use runtime::aarch64::domain_table::boot_start as d_boot_start;
+use runtime::aarch64::domain_table::state as d_state;
+use runtime::aarch64::domain_table::generation as d_generation;
+use runtime::aarch64::domain_table::handle as d_handle;
+use runtime::aarch64::domain_table::lookup as d_lookup;
+use runtime::aarch64::domain_table::kind as d_kind;
+use runtime::aarch64::domain_table::backend as d_backend;
+use runtime::aarch64::domain_table::owner as d_owner;
+use runtime::aarch64::domain_table::entry_pc as d_entry_pc;
+use runtime::aarch64::domain_table::entry_x0 as d_entry_x0;
+use runtime::aarch64::domain_table::ram_base as d_ram_base;
+use runtime::aarch64::domain_table::ram_bytes as d_ram_bytes;
+use runtime::aarch64::domain_table::kernel_image as d_kernel_image;
+use runtime::aarch64::domain_table::aux_image as d_aux_image;
+use runtime::aarch64::domain_table::instance_byte as d_instance_byte;
+use runtime::aarch64::domain_table::live as d_live;
+use runtime::aarch64::domain_table::waiting as d_waiting;
+use runtime::aarch64::domain_table::runnable as d_runnable;
+use runtime::aarch64::domain_table::block as d_block;
+use runtime::aarch64::domain_table::wake as d_wake;
+use runtime::aarch64::domain_table::fault as d_fault;
+use runtime::aarch64::domain_table::withdraw as d_withdraw;
+use runtime::aarch64::domain_table::next_generation as d_next_generation;
+use runtime::aarch64::domain_table::restored as d_restored;
+use runtime::aarch64::domain_table::bound as d_bound;
+use runtime::aarch64::domain_table::next as d_next;
+use runtime::aarch64::domain_table::live_mask as d_live_mask;
+use runtime::aarch64::domain_table::blocked_mask as d_blocked_mask;
+
 use runtime::aarch64::kernel_world_monitor::kw_monitor_init as linux_init;
 use runtime::aarch64::kernel_world_monitor::kw_linux_detach as linux_detach;
 use runtime::aarch64::kernel_world_monitor::kw_linux_provision as linux_provision;
@@ -27,7 +57,9 @@ use runtime::aarch64::plan9_namespace_uart::request_byte_count as plan9_wire_req
 use runtime::aarch64::plan9_namespace_uart::reply_byte_count as plan9_wire_reply_bytes;
 use runtime::aarch64::unified_gic::init as gic_init;
 use runtime::aarch64::unified_gic::configure as gic_configure;
-use runtime::aarch64::unified_gic::reset as gic_reset;
+use runtime::aarch64::unified_gic::unconfigure as gic_unconfigure;
+use runtime::aarch64::unified_gic::binding_generation as gic_generation;
+use runtime::aarch64::unified_gic::set_transport_level;
 use runtime::aarch64::unified_gic::mmio_read as gic_read;
 use runtime::aarch64::unified_gic::mmio_write as gic_write;
 use runtime::aarch64::unified_gic::set_level;
@@ -69,12 +101,13 @@ extern "ocore" fn uw_serial_try_read() -> u64;
 extern "ocore" fn uw_memory_barrier() -> void;
 extern "ocore" fn uw_halt() -> never;
 
+const DOMAINS: u64 = 8;
+const BACKEND_LINUX: u64 = 1;
+const BACKEND_PLAN9: u64 = 2;
 const MAX: u64 = 0xffff_ffff_ffff_ffff;
 static ONLINE: [u8; 35] = b"KW unified Linux/Plan9 EL2: online\n";
 static FAIL: [u8; 27] = b"KW unified domain failure: ";
 static P9READY: [u8; 11] = b"bootargs is";
-static mut LIVE: [u64; 2] = [0; 2];
-static mut BLOCKED: [u64; 2] = [0; 2];
 static mut IDLE_WAITS: u64 = 0;
 static mut DEADLINE: u64 = 0;
 static mut PERIOD: u64 = 0;
@@ -93,25 +126,21 @@ static mut INPUT_OFFSET: usize = 0;
 static mut INPUT_LAST: u64 = 0;
 static mut OUTPUT_LAST: u64 = 0;
 static mut SWITCHES: u64 = 0;
-static mut EXITS: [u64; 2] = [0; 2];
-static mut LAST_PC: [u64; 2] = [0; 2];
-static mut LAST_ESR: [u64; 2] = [0; 2];
+static mut EXITS: [u64; 8] = [0; 8];
+static mut LAST_PC: [u64; 8] = [0; 8];
+static mut LAST_ESR: [u64; 8] = [0; 8];
 static mut CONSOLE_MODE: u64 = 0;
 static mut CONSOLE_PREFIX: u64 = 0;
 static mut INPUT_DROPPED: u64 = 0;
-static mut PLAN9_WITHDRAWN: u64 = 0;
-static mut LINUX_WITHDRAWN: u64 = 0;
 static mut LINUX_DETACHED: u64 = 0;
-static mut LINUX_WAIT_BIND: u64 = 0;
+static mut LINUX_LEASE_RETIRED: u64 = 0;
+static mut PLAN9_LEASE_RETIRED: u64 = 0;
 static mut LINUX_LEASE_GENERATION: u64 = 1;
 static mut LINUX_SESSION_GENERATION: u64 = 1;
-static mut O10_DOMAIN_GENERATION: [u64; 2] = [1; 2];
-static mut O10_INSTANCE: [u8; 32] = [0; 32];
-static mut O10_SWITCHES: [u64; 2] = [0; 2];
-static mut O10_LAST_IPA: [u64; 2] = [0; 2];
+static mut O10_SWITCHES: [u64; 8] = [0; 8];
+static mut O10_LAST_IPA: [u64; 8] = [0; 8];
 static mut O10_LEASE_GENERATION: u64 = 1;
 static mut O10_SESSION_GENERATION: u64 = 1;
-static mut O10_WAIT_BIND: u64 = 0;
 static mut O10_REPLY: [u8; 512] = [0; 512];
 static mut LINUX_INPUT: [u8; 4096] = [0; 4096];
 static mut LINUX_INPUT_HEAD: usize = 0;
@@ -119,6 +148,64 @@ static mut LINUX_INPUT_COUNT: usize = 0;
 static CONSOLE_LINUX: [u8; 66] = b"\r\n[O-core console: Linux; Ctrl-^ then 1 selects original Plan 9]\r\n";
 static CONSOLE_PLAN9: [u8; 66] = b"\r\n[O-core console: original Plan 9; Ctrl-^ then 0 selects Linux]\r\n";
 static INPUT_FULL: [u8; 38] = b"\r\n[O-core console input buffer full]\r\n";
+
+
+unsafe fn backend_slot(which: u64) -> u64 { return d_lookup(d_owner(which)); }
+unsafe fn linux_slot() -> u64 { return backend_slot(BACKEND_LINUX); }
+unsafe fn plan9_slot() -> u64 { return backend_slot(BACKEND_PLAN9); }
+unsafe fn boot_rows() -> u64 {
+    if d_boot(0, 2, BACKEND_LINUX, 0x4800_0000, 0x2000_0000, 3, 4) != 1
+        || d_boot_start(0, 0x4000_0000, 0x47e0_0000) != 1
+        || d_boot(1, 2, BACKEND_PLAN9, 0xb000_0000, 0x2000_0000, 1, 2) != 1
+        || d_boot_start(1, 0x4010_0000, 0x4000_0000) != 1 { return 0; }
+    return 1;
+}
+unsafe fn close_irqs(domain: u64) -> void {
+    let bound: u64 = gic_generation(domain);
+    if bound != 0 && (bound != d_generation(domain) || gic_unconfigure(domain, bound) != 1) {
+        uw_internal_failure(0x1109, 0x1120, domain, bound);
+    }
+}
+unsafe fn configure_irqs(domain: u64, generation: u64) -> u64 {
+    if d_backend(domain) == BACKEND_LINUX {
+        return gic_configure(domain, generation, 1 << 50, 1 << 48, 1 << 49, (1 << 33) | (1 << 51));
+    }
+    if d_backend(domain) == BACKEND_PLAN9 {
+        return gic_configure(domain, generation, 1 << 50, 1 << 33, 0, 0);
+    }
+    return 0;
+}
+// A WFI-blocked holder can receive input and wake. A replacement waiting for
+// its explicit lease bind cannot receive bytes from the preceding transport.
+unsafe fn console_ready(which: u64) -> bool {
+    let domain: u64 = backend_slot(which);
+    return domain < DOMAINS && d_live(domain) && d_waiting(domain) == 0;
+}
+unsafe fn stop_plan9_input() -> void {
+    RX_HEAD = 0; RX_COUNT = 0;
+    let mut index: usize = 0;
+    while index < 1024 { RX[index] = 0; index += 1; }
+    INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = 0;
+    BOOT_MATCH = 0; BOOT_SEEN = 0; OUTPUT_LAST = 0;
+    UART[0x38 / 4] = 0;
+}
+unsafe fn backend_irq(which: u64, transport: u64, irq: u64, asserted: u64) -> void {
+    let domain: u64 = backend_slot(which);
+    // Teardown callbacks may deassert after the row stopped; closing the whole
+    // binding follows teardown. A stopped/absent owner never receives an IRQ.
+    if domain >= DOMAINS || !d_live(domain) {
+        if asserted != 0 { uw_internal_failure(0x1109, 0x1121, which, irq); }
+        return;
+    }
+    if set_transport_level(domain, d_generation(domain), transport, irq, asserted) != 1 {
+        uw_internal_failure(0x1109, 0x1122, domain, irq);
+    }
+}
+unsafe fn grant_for(domain: u64) -> u64 {
+    if d_backend(domain) == BACKEND_LINUX { return 1; }
+    if d_backend(domain) == BACKEND_PLAN9 { return 4; }
+    return 0;
+}
 
 // Only native EL2 code writes these words. The complete native service request
 // runs with EL2 interrupts masked; a quantum may not interrupt its codec.
@@ -187,43 +274,52 @@ unsafe fn hex(value: u64) -> void {
 }
 unsafe fn stop_linux(pc: u64) -> void {
         if LINUX_DETACHED == 0 {
-            if LINUX_LEASE_GENERATION == 0xffff_ffff { uw_internal_failure(0x1106, 0, LINUX_LEASE_GENERATION, 0); }
-            LINUX_LEASE_GENERATION += 1;
+            if LINUX_LEASE_GENERATION < 0xffff_ffff { LINUX_LEASE_GENERATION += 1; }
+            else { LINUX_LEASE_RETIRED = 1; }
             if linux_detach(linux_block_generation(), linux_net_generation(), linux_namespace_generation()) != 1 {
                 uw_internal_failure(0x1109, 0x1114, 0, pc);
             }
             LINUX_DETACHED = 1;
         }
-        LINUX_WAIT_BIND = 0;
         LINUX_INPUT_HEAD = 0; LINUX_INPUT_COUNT = 0;
         let mut input: usize = 0; while input < 4096 { LINUX_INPUT[input] = 0; input += 1; }
         if session_handle(1) != 0 { namespace_revoke(1); }
-        set_level(0, 27, 0); set_level(0, 30, 0); set_level(0, 33, 0);
-        set_level(0, 48, 0); set_level(0, 49, 0); set_level(0, 50, 0); set_level(0, 34, 0);
 }
 unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
+    if domain >= DOMAINS || d_kind(domain) == 0 { uw_internal_failure(0x1101, domain, 0, pc); }
     emit((&FAIL[0]), 27); hex(domain); control_putc(32);
     hex(esr); control_putc(32); hex(ipa); control_putc(32); hex(pc); control_putc(10);
-    if domain < 2 { O10_LAST_IPA[domain as usize] = ipa; LIVE[domain as usize] = 0; BLOCKED[domain as usize] = 0; }
-    if domain == 0 { stop_linux(pc); }
-    if domain == 1 {
-        if O10_LEASE_GENERATION == 0xffff_ffff { uw_internal_failure(0x1106, domain, O10_LEASE_GENERATION, 0); }
-        O10_LEASE_GENERATION += 1;
-        plan9_wire_revoke(); set_level(1, 33, 0);
+    O10_LAST_IPA[domain as usize] = ipa;
+    if d_fault(domain) != 1 { uw_internal_failure(0x1109, 0x1123, domain, d_state(domain)); }
+    if d_backend(domain) == BACKEND_LINUX { stop_linux(pc); }
+    if d_backend(domain) == BACKEND_PLAN9 {
+        stop_plan9_input();
+        // Exhaustion makes this lease permanently unavailable; containment
+        // still closes its holder and transport, without reissuing the pair.
+        if O10_LEASE_GENERATION < 0xffff_ffff { O10_LEASE_GENERATION += 1; }
+        else { PLAN9_LEASE_RETIRED = 1; }
+        plan9_wire_revoke();
     }
+    close_irqs(domain);
 }
 unsafe fn record_status() -> void {
-    volatile_store(0x6d00_0020 as *mut u64, LIVE[0] | (LIVE[1] << 1));
+    let linux: usize = linux_slot() as usize; let plan9: usize = plan9_slot() as usize;
+    let mut linux_exits:u64=0; let mut plan9_exits:u64=0;
+    let mut linux_pc:u64=0; let mut plan9_pc:u64=0;
+    let mut linux_esr:u64=0; let mut plan9_esr:u64=0;
+    if linux < 8 { linux_exits=EXITS[linux]; linux_pc=LAST_PC[linux]; linux_esr=LAST_ESR[linux]; }
+    if plan9 < 8 { plan9_exits=EXITS[plan9]; plan9_pc=LAST_PC[plan9]; plan9_esr=LAST_ESR[plan9]; }
+    volatile_store(0x6d00_0020 as *mut u64, d_live_mask());
     volatile_store(0x6d00_0028 as *mut u64, SWITCHES);
-    volatile_store(0x6d00_0030 as *mut u64, EXITS[0]);
-    volatile_store(0x6d00_0038 as *mut u64, EXITS[1]);
-    volatile_store(0x6d00_0040 as *mut u64, LAST_PC[0]);
-    volatile_store(0x6d00_0048 as *mut u64, LAST_PC[1]);
-    volatile_store(0x6d00_0050 as *mut u64, LAST_ESR[0]);
-    volatile_store(0x6d00_0058 as *mut u64, LAST_ESR[1]);
+    volatile_store(0x6d00_0030 as *mut u64, linux_exits);
+    volatile_store(0x6d00_0038 as *mut u64, plan9_exits);
+    volatile_store(0x6d00_0040 as *mut u64, linux_pc);
+    volatile_store(0x6d00_0048 as *mut u64, plan9_pc);
+    volatile_store(0x6d00_0050 as *mut u64, linux_esr);
+    volatile_store(0x6d00_0058 as *mut u64, plan9_esr);
     volatile_store(0x6d00_0060 as *mut u64, CONSOLE_MODE);
     volatile_store(0x6d00_0068 as *mut u64, INPUT_DROPPED);
-    volatile_store(0x6d00_00a0 as *mut u64, BLOCKED[0] | (BLOCKED[1] << 1));
+    volatile_store(0x6d00_00a0 as *mut u64, d_blocked_mask());
     volatile_store(0x6d00_00a8 as *mut u64, IDLE_WAITS);
     volatile_store(0x6d00_00b0 as *mut u64, plan9_wire_requests());
     volatile_store(0x6d00_00b8 as *mut u64, plan9_wire_request_bytes());
@@ -245,11 +341,11 @@ pub unsafe fn kw_serial_try_read() -> u64 {
     return value | 256;
 }
 unsafe fn route_byte(value: u8) -> void {
-    if CONSOLE_MODE == 0 && LIVE[0] == 1 && LINUX_WAIT_BIND == 0 && LINUX_INPUT_COUNT < 4096 {
+    if CONSOLE_MODE == 0 && console_ready(BACKEND_LINUX) && LINUX_INPUT_COUNT < 4096 {
         LINUX_INPUT[(LINUX_INPUT_HEAD + LINUX_INPUT_COUNT) % 4096] = value;
         LINUX_INPUT_COUNT += 1; return;
     }
-    if CONSOLE_MODE == 1 && RX_COUNT < 1024 {
+    if CONSOLE_MODE == 1 && console_ready(BACKEND_PLAN9) && RX_COUNT < 1024 {
         RX[(RX_HEAD + RX_COUNT) % 1024] = value; RX_COUNT += 1; uart_irq(); return;
     }
     INPUT_DROPPED += 1;
@@ -276,33 +372,33 @@ unsafe fn route_input() -> void {
 // callbacks. No guest register can choose a target domain or interrupt number.
 @export
 @no_mangle
-pub unsafe fn kw_irq_level(asserted: u64) -> void { set_level(0, 48, asserted); }
+pub unsafe fn kw_irq_level(asserted: u64) -> void { backend_irq(BACKEND_LINUX, 1, 48, asserted); }
 @export
 @no_mangle
-pub unsafe fn kw_net_irq_level(asserted: u64) -> void { set_level(0, 49, asserted); }
+pub unsafe fn kw_net_irq_level(asserted: u64) -> void { backend_irq(BACKEND_LINUX, 2, 49, asserted); }
 @export
 @no_mangle
-pub unsafe fn kw_9p_irq_level(asserted: u64) -> void { set_level(0, 50, asserted); }
+pub unsafe fn kw_9p_irq_level(asserted: u64) -> void { backend_irq(BACKEND_LINUX, 0, 50, asserted); }
 @export
 @no_mangle
-pub unsafe fn kw_uart_irq_level(asserted: u64) -> void { set_level(0, 33, asserted); }
+pub unsafe fn kw_uart_irq_level(asserted: u64) -> void { backend_irq(BACKEND_LINUX, 3, 33, asserted); }
 @export
 @no_mangle
-pub unsafe fn p9_namespace_irq_level(asserted: u64) -> void { set_level(1, 50, asserted); }
+pub unsafe fn p9_namespace_irq_level(asserted: u64) -> void { backend_irq(BACKEND_PLAN9, 0, 50, asserted); }
 @export
 @no_mangle
-pub unsafe fn cu_irq_level(asserted: u64) -> void { set_level(0, 51, asserted); }
+pub unsafe fn cu_irq_level(asserted: u64) -> void { backend_irq(BACKEND_LINUX, 3, 51, asserted); }
 
 unsafe fn uart_irq() -> void {
-    set_level(1, 33, ((RX_COUNT != 0) && ((UART[0x38 / 4] & 0x50) != 0)) as u64);
+    backend_irq(BACKEND_PLAN9, 1, 33, (console_ready(BACKEND_PLAN9) && RX_COUNT != 0 && ((UART[0x38 / 4] & 0x50) != 0)) as u64);
 }
 unsafe fn supply() -> void {
-    if INPUT_ALLOWED != 1 || LIVE[1] != 1 { uart_irq(); return; }
+    if INPUT_ALLOWED != 1 || !console_ready(BACKEND_PLAN9) { uart_irq(); return; }
     let now: u64 = uw_counter_read();
     if now - INPUT_LAST < FREQUENCY / 200 { uart_irq(); return; }
     INPUT_LAST = now;
     let length: u64 = volatile_load(0x6d01_0000 as *const u64);
-    if length > 4096 { contain(1, 0x801, length, 0); return; }
+    if length > 4096 { contain(plan9_slot(), 0x801, length, 0); return; }
     let mut count: usize = 0;
     while count < 8 && RX_COUNT < 1024 && INPUT_OFFSET < length as usize && INPUT_ALLOWED == 1 {
         let byte: u8 = volatile_load(((0x6d01_0008 as usize) + INPUT_OFFSET) as *const u8);
@@ -313,7 +409,7 @@ unsafe fn supply() -> void {
 }
 unsafe fn plan9_output(value: u8) -> void {
     let position: u64 = volatile_load(0x6d02_0000 as *const u64);
-    if position == MAX { contain(1, 0x802, position, 0); return; }
+    if position == MAX { contain(plan9_slot(), 0x802, position, 0); return; }
     volatile_store(((0x6d02_0008 as usize) + (position % 65536) as usize) as *mut u8, value);
     uw_memory_barrier(); volatile_store(0x6d02_0000 as *mut u64, position + 1);
     if CONSOLE_MODE == 1 { uw_serial_putc(value as u64); }
@@ -356,12 +452,13 @@ pub unsafe fn uw_init() -> u64 {
     RTC_FLOOR = volatile_load(0x6d00_0010 as *const u64);
     if FREQUENCY < 100 || RTC_FLOOR == 0 || RTC_FLOOR > 0xffff_ffff { return 0; }
     PERIOD = FREQUENCY / 100; DEADLINE = RTC_START + PERIOD;
+    if boot_rows() != 1 { return 0; }
     if uw_domain_init(0, 0x4000_0000, 0x47e0_0000, 0x3c5) != 1
         || uw_domain_init(1, 0x4010_0000, 0x4000_0000, 0x3c5) != 1 || gic_init() != 1 { return 0; }
     // Explicit boot transport declarations; the GIC infers no personality
     // or device authority from a domain index. Other rows stay unconfigured.
-    if gic_configure(0, 1, 1 << 50, 1 << 48, 1 << 49, (1 << 33) | (1 << 51)) != 1
-        || gic_configure(1, 1, 1 << 50, 1 << 33, 0, 0) != 1 { return 0; }
+    if configure_irqs(linux_slot(), d_generation(linux_slot())) != 1
+        || configure_irqs(plan9_slot(), d_generation(plan9_slot())) != 1 { return 0; }
     // The original 9front platform expects firmware to leave its CPU awake;
     // its GIC driver does not perform a redistributor WAKER transition.
     if gic_write(1, 0x080a_0014, 4, 0) != 1 { return 0; }
@@ -373,7 +470,7 @@ pub unsafe fn uw_init() -> u64 {
     busy(1);
     if volatile_load(0xb000_0000 as *const u32) != 0xedfe_0dd0
         || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 { return 0; }
-    LIVE[0] = 1; LIVE[1] = 1; BLOCKED[0] = 0; BLOCKED[1] = 0; UART[0x30 / 4] = 0x301;
+    UART[0x30 / 4] = 0x301;
     record_status(); emit((&ONLINE[0]), 35);
     busy(0); return 1;
 }
@@ -390,8 +487,8 @@ pub unsafe fn uw_next_deadline() -> u64 {
 unsafe fn earlier_timer(limit: u64, now: u64) -> u64 {
     let mut result: u64 = limit;
     let mut domain: u64 = 0;
-    while domain < 2 {
-        if LIVE[domain as usize] == 1 {
+    while domain < DOMAINS {
+        if d_live(domain) {
             let mut kind: u64 = 0;
             while kind < 2 {
                 let deadline: u64 = uw_timer_deadline(domain, kind);
@@ -406,20 +503,17 @@ unsafe fn earlier_timer(limit: u64, now: u64) -> u64 {
 
 unsafe fn wake_blocked() -> void {
     let mut domain: u64 = 0;
-    while domain < 2 {
-        if LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 1 {
+    while domain < DOMAINS {
+        if d_state(domain) == 3 && d_waiting(domain) == 0 {
             let pending: u64 = gic_wake_pending(domain);
             if pending == MAX { uw_internal_failure(0x1103, domain, 0x805, LAST_PC[domain as usize]); }
-            else { if pending == 1 { BLOCKED[domain as usize] = 0; } }
+            if pending == 1 && d_wake(domain) != 1 { uw_internal_failure(0x1104, domain, 0x806, 0); }
         }
         domain += 1;
     }
 }
 
-unsafe fn runnable(domain: u64) -> bool {
-    if (domain == 1 && O10_WAIT_BIND == 1) || (domain == 0 && LINUX_WAIT_BIND == 1) { return false; }
-    return LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 0;
-}
+unsafe fn runnable(domain: u64) -> bool { return d_runnable(domain); }
 
 @export
 @no_mangle
@@ -539,16 +633,16 @@ unsafe fn coordinator_mmio(frame: *mut u64, esr: u64, ipa: u64) -> bool {
 unsafe fn progress() -> void {
     native_control();
     route_input();
-    if LIVE[0] == 1 && LINUX_WAIT_BIND == 0 {
+    if d_live(linux_slot()) && d_waiting(linux_slot()) == 0 {
         busy(1);
         let result: u64 = linux_exit((&mut POLL_FRAME[0]) as usize, 1 << 26, 0, 0);
-        if result == 3 { uw_internal_failure(0x1109, linux_diagnostic(), linux_detail(), LAST_PC[0]); }
-        if result != 0 { contain(0, LAST_ESR[0], O10_LAST_IPA[0], LAST_PC[0]); }
+        if result == 3 { uw_internal_failure(0x1109, linux_diagnostic(), linux_detail(), LAST_PC[linux_slot() as usize]); }
+        if result != 0 { contain(linux_slot(), LAST_ESR[linux_slot() as usize], O10_LAST_IPA[linux_slot() as usize], LAST_PC[linux_slot() as usize]); }
     }
     supply();
     let mut domain: u64 = 0;
-    while domain < 2 {
-        if LIVE[domain as usize] == 1 {
+    while domain < DOMAINS {
+        if d_live(domain) {
             set_level(domain, 27, uw_timer_pending(domain, 0));
             set_level(domain, 30, uw_timer_pending(domain, 1));
         }
@@ -570,157 +664,127 @@ unsafe fn progress() -> void {
 // Linux immutable image lengths at0x6d000100..117 are boot-only metadata;
 // private backup windows d200..da00,da00..e200,e200..e201 are never guest mapped.
 unsafe fn o10_domain(handle: u64) -> u64 {
-    let index: u64 = handle & 0xffff_ffff;
-    if index >= 2 { return MAX; }
-    if (handle >> 32) != O10_DOMAIN_GENERATION[index as usize] { return MAX; }
-    return index;
+    let slot: u64 = d_lookup(handle); if slot == DOMAINS { return MAX; } return slot;
 }
 unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
-    let kind: u64 = o10_read(request, 4, 1);
+    let message: u64 = o10_read(request, 4, 1);
     let tag: u64 = o10_read(request, 5, 2);
-    if kind == 196 {
-        // This executor is reachable only through the host-private mailbox.
-        // Production builds do not admit any fault injection operation.
+    if message == 196 {
         if O10_QUALIFICATION != 1 { return o10_error(response, 512, tag, 9, 0); }
         let handle: u64 = o10_read(request, 23, 8);
         let index: u64 = o10_domain(handle);
-        if index == MAX {
-            let slot: u64 = handle & 0xffff_ffff;
-            let mut generation: u64 = 0;
-            if slot < 2 { generation = O10_DOMAIN_GENERATION[slot as usize]; }
-            return o10_error(response, 512, tag, 5, generation);
-        }
+        if index == MAX { return o10_error(response, 512, tag, 5, d_generation(handle & 0xffff_ffff)); }
         if o10_read(request, 31, 2) != 1 { return o10_error(response, 512, tag, 9, 0); }
-        if LIVE[index as usize] != 1 {
-            let mut state: u64 = 4;
-            if (index == 1 && PLAN9_WITHDRAWN == 1) || (index == 0 && LINUX_WITHDRAWN == 1) { state = 5; }
-            return o10_error(response, 512, tag, 12, state);
-        }
+        if !d_live(index) { return o10_error(response, 512, tag, 12, d_state(index)); }
         contain(index, 0x901, 0, LAST_PC[index as usize]);
         o10_header(response, 197, tag, 15); o10_write(response, 7, handle, 8); return 15;
     }
-    if kind == 178 || kind == 172 || kind == 174 {
+    if message == 178 || message == 172 || message == 174 {
         let handle: u64 = o10_read(request, 23, 8);
-        let index: u64 = handle & 0xffff_ffff;
-        if index >= 2 { return o10_error(response, 512, tag, 5, 0); }
-        if o10_domain(handle) == MAX {
-            return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[index as usize]);
-        }
-        if kind == 178 {
+        let index: u64 = o10_domain(handle);
+        if index == MAX { return o10_error(response, 512, tag, 5, d_generation(handle & 0xffff_ffff)); }
+        let backend: u64 = d_backend(index);
+        let grant: u64 = grant_for(index);
+        if message == 178 {
             o10_header(response, 179, tag, 77);
-            o10_write(response, 7, handle, 8); o10_write(response, 15, 2, 1);
-            let mut state: u64 = 4;
-            if LIVE[index as usize] == 1 {
-                state = 2;
-                if BLOCKED[index as usize] == 1 || (index == 1 && O10_WAIT_BIND == 1) || (index == 0 && LINUX_WAIT_BIND == 1) { state = 3; }
-            } else { if (index == 1 && PLAN9_WITHDRAWN == 1) || (index == 0 && LINUX_WITHDRAWN == 1) { state = 5; } }
-            o10_write(response, 16, state, 1);
+            o10_write(response, 7, handle, 8); o10_write(response, 15, d_kind(index), 1);
+            o10_write(response, 16, d_state(index), 1);
             let mut j: usize = 0;
-            while j < 16 { volatile_store(response + 17 + j, O10_INSTANCE[index as usize * 16 + j]); j += 1; }
+            while j < 16 { volatile_store(response + 17 + j, d_instance_byte(index, j) as u8); j += 1; }
             o10_write(response, 33, EXITS[index as usize], 8);
             o10_write(response, 41, O10_SWITCHES[index as usize], 8);
             o10_write(response, 49, LAST_ESR[index as usize], 8);
             o10_write(response, 57, O10_LAST_IPA[index as usize], 8);
             o10_write(response, 65, LAST_PC[index as usize], 8);
-            let mut grant: u64 = 1; if index == 1 { grant = 4; }
-            o10_write(response, 73, (session_handle(grant) != 0) as u64, 4);
+            o10_write(response, 73, (grant != 0 && session_handle(grant) != 0) as u64, 4);
             return 77;
         }
-        if index == 0 {
-            if kind == 172 {
-                if LINUX_WITHDRAWN == 1 { return o10_error(response, 512, tag, 12, 5); }
-                if o10_read(request, 31, 1) != 0 { return o10_error(response, 512, tag, 9, 0); }
-                if LINUX_DETACHED == 0 && LINUX_LEASE_GENERATION == 0xffff_ffff {
-                    return o10_error(response, 512, tag, 8, 0xffff_ffff);
-                }
-                let sessions: u64 = (session_handle(1) != 0) as u64;
-                let fids: u64 = session_fid_count(1);
-                LIVE[0] = 0; BLOCKED[0] = 0; stop_linux(LAST_PC[0]);
-                LINUX_WITHDRAWN = 1;
-                o10_header(response, 173, tag, 27); o10_write(response, 7, handle, 8);
-                o10_write(response, 15, sessions, 4); o10_write(response, 19, sessions, 4);
-                o10_write(response, 23, fids, 4); return 27;
-            }
-            if LIVE[0] != 0 || LINUX_DETACHED != 1 { return o10_error(response, 512, tag, 12, 2); }
-            // Boot image3 is Linux Image; auxiliary4 binds the immutable
-            // initrd+DTB descriptor captured together by the build manifest.
-            if o10_read(request, 47, 8) != 3 || o10_read(request, 55, 8) != 4 {
-                return o10_error(response, 512, tag, 5, 0);
-            }
-            if O10_DOMAIN_GENERATION[0] == 0xffff_ffff || linux_block_generation() == 0xffff_ffff
-                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == 0xffff_ffff {
+        if message == 172 {
+            if !d_live(index) && d_state(index) != 4 { return o10_error(response, 512, tag, 12, d_state(index)); }
+            if o10_read(request, 31, 1) != 0 { return o10_error(response, 512, tag, 9, 0); }
+            if d_live(index) && ((backend == BACKEND_LINUX && (LINUX_LEASE_GENERATION == 0xffff_ffff || LINUX_LEASE_RETIRED != 0))
+                || (backend == BACKEND_PLAN9 && (O10_LEASE_GENERATION == 0xffff_ffff || PLAN9_LEASE_RETIRED != 0))) {
                 return o10_error(response, 512, tag, 8, 0xffff_ffff);
             }
-            if linux_images_reload() != 0 { return o10_error(response, 512, tag, 12, 4); }
-            if uw_domain_reset(0, 0x4000_0000, 0x47e0_0000, 0x3c5) != 1 || gic_reset(0) != 1
-                || linux_provision(linux_block_generation() + 1, linux_net_generation() + 1, linux_namespace_generation() + 1) != 1
-                || coordinator_init() != 1 {
-                uw_internal_failure(0x1109, 0x1115, 0, LAST_PC[0]);
+            let sessions: u64 = (grant != 0 && session_handle(grant) != 0) as u64;
+            let mut fids: u64 = 0; if grant != 0 { fids = session_fid_count(grant); }
+            let was_live: bool = d_live(index);
+            if d_withdraw(index) != 1 { uw_internal_failure(0x1109, 0x1124, index, d_state(index)); }
+            if backend == BACKEND_LINUX { stop_linux(LAST_PC[index as usize]); }
+            if backend == BACKEND_PLAN9 {
+                if was_live { O10_LEASE_GENERATION += 1; plan9_wire_revoke(); }
+                stop_plan9_input();
             }
-            O10_DOMAIN_GENERATION[0] += 1;
-            let mut j: usize = 0; while j < 16 { O10_INSTANCE[j] = volatile_load(request + 31 + j); j += 1; }
-            LINUX_WITHDRAWN = 0; LINUX_WAIT_BIND = 1; BLOCKED[0] = 1; LIVE[0] = 1;
-            o10_header(response, 175, tag, 15); o10_write(response, 7, O10_DOMAIN_GENERATION[0] << 32, 8); return 15;
-        }
-        if kind == 172 {
-            if PLAN9_WITHDRAWN == 1 { return o10_error(response, 512, tag, 12, 5); }
-            if o10_read(request, 31, 1) != 0 { return o10_error(response, 512, tag, 9, 0); }
-            if O10_LEASE_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
-            let sessions: u64 = (session_handle(4) != 0) as u64;
-            let fids: u64 = session_fid_count(4);
-            O10_LEASE_GENERATION += 1;
-            LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1; O10_WAIT_BIND = 0;
-            plan9_wire_revoke();
-            set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
-            RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
+            close_irqs(index);
             o10_header(response, 173, tag, 27); o10_write(response, 7, handle, 8);
             o10_write(response, 15, sessions, 4); o10_write(response, 19, sessions, 4);
             o10_write(response, 23, fids, 4); return 27;
         }
-        if LIVE[1] != 0 { return o10_error(response, 512, tag, 12, 2); }
-        if o10_read(request, 47, 8) != 1 || o10_read(request, 55, 8) != 2 {
+        if d_state(index) != 4 && d_state(index) != 5 { return o10_error(response, 512, tag, 12, d_state(index)); }
+        // Until the independently admitted image/backend registry exists, only
+        // these two immutable boot backends are restorable. Every other row
+        // fails before RAM, IRQs or identity changes.
+        if backend != BACKEND_LINUX && backend != BACKEND_PLAN9 { return o10_error(response, 512, tag, 9, 0); }
+        if o10_read(request, 47, 8) != d_kernel_image(index) || o10_read(request, 55, 8) != d_aux_image(index) {
             return o10_error(response, 512, tag, 5, 0);
         }
-        if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
-        if restore_plan9(false) != 1 { return o10_error(response, 512, tag, 12, 4); }
-        let mut j: usize = 0;
-        while j < 16 { O10_INSTANCE[16 + j] = volatile_load(request + 31 + j); j += 1; }
-        // The new kernel waits for its explicit namespace transport binding.
-        O10_WAIT_BIND = 1; BLOCKED[1] = 1;
-        o10_header(response, 175, tag, 15);
-        o10_write(response, 7, (O10_DOMAIN_GENERATION[1] << 32) | 1, 8); return 15;
+        let fresh: u64 = d_next_generation(index);
+        if fresh == 0 { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+        if backend == BACKEND_LINUX {
+            if LINUX_DETACHED != 1 { return o10_error(response, 512, tag, 12, d_state(index)); }
+            if LINUX_LEASE_RETIRED != 0 || linux_block_generation() == 0xffff_ffff
+                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == 0xffff_ffff {
+                return o10_error(response, 512, tag, 8, 0xffff_ffff);
+            }
+            if linux_images_reload() != 0 { return o10_error(response, 512, tag, 12, 4); }
+            if uw_domain_reset(index, d_entry_pc(index), d_entry_x0(index), 0x3c5) != 1
+                || linux_provision(linux_block_generation() + 1, linux_net_generation() + 1, linux_namespace_generation() + 1) != 1
+                || coordinator_init() != 1 { uw_internal_failure(0x1109, 0x1115, index, LAST_PC[index as usize]); }
+            close_irqs(index);
+            if configure_irqs(index, fresh) != 1
+                || d_restored(index, d_generation(index), request + 31) != 1 {
+                uw_internal_failure(0x1109, 0x1125, index, fresh);
+            }
+        } else {
+            if PLAN9_LEASE_RETIRED != 0 { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+            if restore_plan9(index, request + 31) != 1 { return o10_error(response, 512, tag, 12, 4); }
+        }
+        o10_header(response, 175, tag, 15); o10_write(response, 7, d_handle(index), 8); return 15;
     }
-    if kind == 184 {
+    if message == 184 {
         let lease: u64 = o10_read(request, 23, 8);
         let transport: u64 = o10_read(request, 31, 8);
-        if (lease & 0xffff_ffff) == 1 {
-            if (lease >> 32) != LINUX_LEASE_GENERATION { return o10_error(response, 512, tag, 5, LINUX_LEASE_GENERATION); }
-            if (transport >> 32) != O10_DOMAIN_GENERATION[0] { return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[0]); }
-            if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
-            if LIVE[0] != 1 || LINUX_WAIT_BIND != 1 { return o10_error(response, 512, tag, 12, 5); }
+        let grant: u64 = lease & 0xffff_ffff;
+        let mut index: u64 = DOMAINS;
+        let mut generation: u64 = 0;
+        if grant == 1 { index = linux_slot(); generation = LINUX_LEASE_GENERATION; }
+        if grant == 4 { index = plan9_slot(); generation = O10_LEASE_GENERATION; }
+        if index >= DOMAINS { return o10_error(response, 512, tag, 6, 0); }
+        if (lease >> 32) != generation { return o10_error(response, 512, tag, 5, generation); }
+        if (transport >> 32) != d_generation(index) { return o10_error(response, 512, tag, 5, d_generation(index)); }
+        if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
+        if !d_live(index) { return o10_error(response, 512, tag, 12, d_state(index)); }
+        if grant == 1 {
+            if d_waiting(index) != 1 { return o10_error(response, 512, tag, 12, d_state(index)); }
             let epoch: u64 = linux_next_session_epoch();
-            if epoch == 0 || LINUX_SESSION_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+            if LINUX_LEASE_RETIRED != 0 || epoch == 0 || LINUX_SESSION_GENERATION == 0xffff_ffff {
+                return o10_error(response, 512, tag, 8, 0xffff_ffff);
+            }
             let session: u64 = namespace_session_init(1, epoch);
             if session == 0 || linux_bind(linux_namespace_generation(), session, epoch) != 1 || linux_activate() != 1 {
-                uw_internal_failure(0x1109, 0x1116, epoch, LAST_PC[0]);
+                uw_internal_failure(0x1109, 0x1116, epoch, LAST_PC[index as usize]);
             }
-            LINUX_SESSION_GENERATION += 1; LINUX_WAIT_BIND = 0; LINUX_DETACHED = 0; BLOCKED[0] = 0;
+            LINUX_SESSION_GENERATION += 1; LINUX_DETACHED = 0;
+            if d_bound(index) != 1 { uw_internal_failure(0x1109, 0x1126, index, 0); }
             o10_header(response, 185, tag, 15); o10_write(response, 7, (LINUX_SESSION_GENERATION << 32) | 1, 8); return 15;
         }
-        if (lease & 0xffff_ffff) != 4 { return o10_error(response, 512, tag, 6, 0); }
-        if (lease >> 32) != O10_LEASE_GENERATION { return o10_error(response, 512, tag, 5, O10_LEASE_GENERATION); }
-        if (transport >> 32) != O10_DOMAIN_GENERATION[1] {
-            return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[1]);
+        if PLAN9_LEASE_RETIRED != 0 || O10_SESSION_GENERATION == 0xffff_ffff {
+            return o10_error(response, 512, tag, 8, 0xffff_ffff);
         }
-        if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
-        if LIVE[1] != 1 { return o10_error(response, 512, tag, 12, 5); }
-        if O10_SESSION_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
-        if plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 {
-            return o10_error(response, 512, tag, 12, 4);
-        }
-        O10_SESSION_GENERATION += 1; O10_WAIT_BIND = 0; BLOCKED[1] = 0;
-        o10_header(response, 185, tag, 15);
-        o10_write(response, 7, (O10_SESSION_GENERATION << 32) | 4, 8); return 15;
+        if plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 { return o10_error(response, 512, tag, 12, 4); }
+        O10_SESSION_GENERATION += 1;
+        if d_waiting(index) == 1 && d_bound(index) != 1 { uw_internal_failure(0x1109, 0x1126, index, 0); }
+        o10_header(response, 185, tag, 15); o10_write(response, 7, (O10_SESSION_GENERATION << 32) | 4, 8); return 15;
     }
     return o10_error(response, 512, tag, 9, 0);
 }
@@ -741,43 +805,34 @@ unsafe fn o10_mailbox() -> u64 {
     return 1;
 }
 
-unsafe fn restore_plan9(bind_wire: bool) -> u64 {
-    // Shared by legacy pre-claim and O10 replacement. Reject exhaustion before
-    // zeroing RAM or touching architectural state; publish one new identity
-    // only after the complete replacement succeeds.
-    if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return 0; }
-    let mut result: u64 = 0;
-        let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
-        let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
-        if kernel_bytes != 0 && kernel_bytes <= 0x0100_0000 && dtb_bytes != 0 && dtb_bytes <= 0x0001_0000
-            && volatile_load(0xd100_0000 as *const u32) == 0xedfe_0dd0 {
-            // CPU stores deliberately perform the replacement: QEMU's
-            // translated-code invalidation sees these physical RAM writes.
-            let mut address: usize = 0xb000_0000 as usize;
-            while address < 0xd000_0000 as usize { volatile_store(address as *mut u64, 0); address += 8; }
-            let mut index: usize = 0;
-            while index < kernel_bytes as usize {
-                volatile_store(((0xb010_0000 as usize) + index) as *mut u8,
-                    volatile_load(((0xd000_0000 as usize) + index) as *const u8)); index += 1;
-            }
-            index = 0;
-            while index < dtb_bytes as usize {
-                volatile_store(((0xb000_0000 as usize) + index) as *mut u8,
-                    volatile_load(((0xd100_0000 as usize) + index) as *const u8)); index += 1;
-            }
-            if uw_domain_reset(1, 0x4010_0000, 0x4000_0000, 0x3c5) == 1 && gic_reset(1) == 1
-                && gic_write(1, 0x080a_0014, 4, 0) == 1
-                && (!bind_wire || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) == 1) {
-                index = 0; while index < 64 { UART[index] = 0; index += 1; }
-                UART[0x30 / 4] = 0x301;
-                RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
-                INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
-                O10_DOMAIN_GENERATION[1] += 1;
-                PLAN9_WITHDRAWN = 0; BLOCKED[1] = 0; LIVE[1] = 1; result = 1;
-            }
-        }
-
-    return result;
+unsafe fn restore_plan9(domain: u64, instance: *const u8) -> u64 {
+    let fresh: u64 = d_next_generation(domain);
+    if fresh == 0 || d_backend(domain) != BACKEND_PLAN9 { return 0; }
+    let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
+    let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
+    if kernel_bytes == 0 || kernel_bytes > 0x0100_0000 || dtb_bytes == 0 || dtb_bytes > 0x0001_0000
+        || volatile_load(0xd100_0000 as *const u32) != 0xedfe_0dd0 { return 0; }
+    let base: usize = d_ram_base(domain) as usize;
+    let end: usize = base + d_ram_bytes(domain) as usize;
+    let mut address: usize = base;
+    while address < end { volatile_store(address as *mut u64, 0); address += 8; }
+    let mut index: usize = 0;
+    while index < kernel_bytes as usize {
+        volatile_store((base + 0x0010_0000 + index) as *mut u8, volatile_load((0xd000_0000 as usize + index) as *const u8));
+        index += 1;
+    }
+    index = 0;
+    while index < dtb_bytes as usize {
+        volatile_store((base + index) as *mut u8, volatile_load((0xd100_0000 as usize + index) as *const u8));
+        index += 1;
+    }
+    if uw_domain_reset(domain, d_entry_pc(domain), d_entry_x0(domain), 0x3c5) != 1 { return 0; }
+    close_irqs(domain);
+    if configure_irqs(domain, fresh) != 1 || gic_write(domain, 0x080a_0014, 4, 0) != 1 { return 0; }
+    index = 0; while index < 64 { UART[index] = 0; index += 1; }
+    UART[0x30 / 4] = 0x301; stop_plan9_input();
+    INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
+    return d_restored(domain, d_generation(domain), instance);
 }
 
 unsafe fn native_control() -> void {
@@ -793,7 +848,7 @@ unsafe fn native_control() -> void {
     // M2 retires pre-O10 lifecycle rollback: mailbox result9 is the
     // documented EUNSUPPORTED error, with no lifecycle/session mutation.
     if operation == 1 || operation == 2 { result = 9; }
-    if operation == 3 && LIVE[0] == 1 {
+    if operation == 3 && d_live(linux_slot()) {
         let length: u64 = volatile_load(0x6d06_0000 as *const u64);
         if length <= 8192 { result = coordinator_inject(0x6d06_0008 as *const u8, length as usize); }
     }
@@ -805,7 +860,7 @@ unsafe fn native_control() -> void {
 @no_mangle
 pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u64, hpfar: u64) -> u64 {
     busy(1);
-    let domain: u64 = uw_current_domain(); if domain > 1 { uw_internal_failure(0x1101, domain, 0, 0); }
+    let domain: u64 = uw_current_domain(); if domain >= DOMAINS || d_kind(domain) == 0 { uw_internal_failure(0x1101, domain, 0, 0); }
     EXITS[domain as usize] += 1;
     let frame: *mut u64 = frame_address as *mut u64;
     let pc: u64 = volatile_load(frame + 31); let ec: u64 = esr >> 26;
@@ -827,7 +882,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
             volatile_store(frame + 31, pc + 4); accepted = true; yield_now = true;
             // ISS.TI distinguishes WFE from WFI. WFE is permitted to complete
             // as a hint; a virtual event register is not an IRQ-only wait.
-            if (esr & 1) == 0 { BLOCKED[domain as usize] = 1; }
+            if (esr & 1) == 0 && d_block(domain) != 1 { uw_internal_failure(0x1104, domain, 0x807, pc); }
         }
         else { if ec == 0x18 { accepted = system_register(domain, frame, esr); }
         else { if ec == 0x16 || ec == 0x17 { accepted = psci(frame, ec, esr); }
@@ -835,7 +890,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
             if (ipa >= 0x0800_0000 && ipa < 0x0801_0000) || (ipa >= 0x080a_0000 && ipa < 0x080c_0000) {
                 accepted = controller_mmio(domain, frame, esr, ipa);
             } else {
-                if domain == 0 {
+                if d_backend(domain) == BACKEND_LINUX {
                     if ipa >= 0x0900_1000 && ipa < 0x0900_2000 { accepted = coordinator_mmio(frame, esr, ipa); }
                     else {
                         let result: u64 = linux_exit(frame_address, esr, far, hpfar);
@@ -843,7 +898,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
                         accepted = result == 0;
                     }
                 }
-                else { accepted = plan9_mmio(frame, esr, ipa); }
+                else { if d_backend(domain) == BACKEND_PLAN9 { accepted = plan9_mmio(frame, esr, ipa); } }
             }
         } } } }
         if !accepted { contain(domain, esr, ipa, pc); }
@@ -854,7 +909,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
     // bounded by its physical timer and resampled before any guest restore.
     wake_blocked();
     let mut now: u64 = uw_counter_read();
-    while !runnable(0) && !runnable(1) {
+    while d_next(DOMAINS) == DOMAINS {
         record_status(); busy(0);
         IDLE_WAITS += 1;
         // Physical UART/SPIs are intentionally masked: keep native mailbox,
@@ -867,8 +922,7 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
     }
     let mut next: u64 = domain;
     if yield_now || now >= DEADLINE || !runnable(domain) {
-        let other: u64 = domain ^ 1;
-        if runnable(other) { next = other; }
+        next = d_next(domain);
         DEADLINE = now + PERIOD;
     }
     if !runnable(next) { uw_internal_failure(0x1104, next, domain, pc); }

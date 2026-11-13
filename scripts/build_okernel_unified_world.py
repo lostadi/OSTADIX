@@ -27,6 +27,7 @@ LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
 SOURCES = (
     "ocore/runtime/aarch64/unified_world.oc",
     "ocore/runtime/aarch64/unified_gic.oc",
+    "ocore/runtime/aarch64/domain_table.oc",
     "ocore/runtime/aarch64/linux_domain_images.oc",
     "ocore/runtime/aarch64/linux_restart_witness.oc",
     "ocore/runtime/aarch64/kernel_world_monitor.oc",

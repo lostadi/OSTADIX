@@ -13,19 +13,65 @@ import subprocess
 import tempfile
 import unittest
 
+from tests.test_o10_domain_table import write_table_fixture, extend_world
+
 ROOT = Path(__file__).resolve().parents[1]
 WRAPPER = r"""
+use runtime::aarch64::domain_table::test_mask;
 pub unsafe fn resident_test_init(mask: u64) -> u64 {
-    LIVE[0] = mask & 1; LIVE[1] = (mask >> 1) & 1;
+    if d_kind(0) == 0 && boot_rows() != 1 { return 0; }
+    test_mask(mask);
     FREQUENCY = 1000; PERIOD = 10; DEADLINE = 10;
     if gic_init() != 1 { return 0; }
     if gic_configure(0, 1, 1 << 50, 1 << 48, 1 << 49, (1 << 33) | (1 << 51)) != 1
         || gic_configure(1, 1, 1 << 50, 1 << 33, 0, 0) != 1 { return 0; }
     return 1;
 }
-pub unsafe fn resident_test_live() -> u64 { return LIVE[0] | (LIVE[1] << 1); }
+pub unsafe fn resident_test_extra(slot:u64) -> u64 {
+    if d_boot(slot,3,3,0xe260_0000+(slot-2)*0x20_0000,0x20_0000,5+slot,0)!=1
+        || d_boot_start(slot,0x4000_0000,0)!=1
+        || gic_configure(slot,1,0,0,0,0)!=1 { return 0; }
+    return 1;
+}
+pub unsafe fn resident_test_console_input(value:u64) -> void {
+    CONSOLE_MODE=1; UART[0x38 / 4]=0x50; route_byte(value as u8);
+}
+pub unsafe fn resident_test_console_seed() -> void {
+    resident_test_console_input(65); RX[17]=0xee;
+    INPUT_ALLOWED=1; INPUT_OFFSET=7; BOOT_MATCH=3; BOOT_SEEN=1; OUTPUT_LAST=37;
+}
+pub unsafe fn resident_test_console_clean() -> u64 {
+    if RX_HEAD!=0 || RX_COUNT!=0 || INPUT_ALLOWED!=0 || INPUT_OFFSET!=0
+        || BOOT_MATCH!=0 || BOOT_SEEN!=0 || OUTPUT_LAST!=0 { return 0; }
+    let mut i:usize=0; while i<1024 { if RX[i]!=0 { return 0; } i+=1; }
+    return 1;
+}
+pub unsafe fn resident_test_console_get(field:u64) -> u64 {
+    if field==0 { return RX_COUNT as u64; }
+    if field==1 { return INPUT_DROPPED; }
+    if field==2 { return INPUT_OFFSET as u64; }
+    if field==3 { return INPUT_ALLOWED; }
+    if field==4 { return console_ready(BACKEND_PLAN9) as u64; }
+    if field==5 { return UART[0x38 / 4] as u64; }
+    return MAX;
+}
+pub unsafe fn resident_test_console_wait() -> u64 {
+    let slot:u64=plan9_slot(); let old:u64=d_generation(slot);
+    let instance:[u8;16]=[0;16];
+    contain(slot,0x901,0,0);
+    if configure_irqs(slot,old+1)!=1 { return 0; }
+    return d_restored(slot,old,&instance[0]);
+}
+pub unsafe fn resident_test_console_stale_supply() -> void {
+    INPUT_ALLOWED=1; INPUT_OFFSET=0; supply();
+}
+pub unsafe fn resident_test_console_native_assert() -> void {
+    backend_irq(BACKEND_PLAN9,1,33,1);
+}
+pub unsafe fn resident_test_console_read() -> u64 { return uart_read(0); }
+pub unsafe fn resident_test_live() -> u64 { return d_live_mask(); }
 pub unsafe fn resident_test_mailbox() -> u64 {
-    native_control(); return LIVE[0] | (LIVE[1] << 1);
+    native_control(); return d_live_mask();
 }
 """
 HARNESS = r"""
@@ -46,6 +92,11 @@ extern size_t NS(handle)(uint64_t,const uint8_t*,size_t,uint8_t*,size_t);
 static uint64_t linux_session,plan9_session;
 extern uint64_t UW(resident_test_init)(uint64_t),UW(resident_test_live)(void),UW(resident_test_mailbox)(void);
 extern uint64_t uw_handle_exit(uintptr_t,uint64_t,uint64_t,uint64_t,uint64_t);
+extern void UW(resident_test_console_input)(uint64_t),UW(resident_test_console_seed)(void);
+extern void UW(resident_test_console_stale_supply)(void),UW(resident_test_console_native_assert)(void);
+extern uint64_t UW(resident_test_console_get)(uint64_t),UW(resident_test_console_clean)(void);
+extern uint64_t UW(resident_test_console_wait)(void),UW(resident_test_console_read)(void);
+
 extern uint64_t _O_runtime__aarch64__kernel_world_monitor__resident_test_uart_value(uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_net__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_9p__init(uint64_t,uint64_t,uint64_t);
@@ -59,7 +110,7 @@ extern void uw_unexpected_exit(uint64_t,uint64_t,uint64_t);
 extern void uw_internal_failure(uint64_t,uint64_t,uint64_t,uint64_t);
 static jmp_buf stop;
 static unsigned char serial[8192];static size_t serial_count;
-static uint64_t current=0,physical_irq=26,clock_ticks=0,lrs[2][4],vmcr[2],hcr[2];
+static uint64_t current=0,physical_irq=26,clock_ticks=0,lrs[8][4],vmcr[8],hcr[8],timer_pending[8][2];
 static unsigned idle_count=0,eoi_count=0,halt_count=0;static uint64_t idle_irq=26;
 static unsigned char *request=(void*)0x6d0a0000,*reply=(void*)0x6d0a0200;
 static uint64_t mailbox_seq=0;
@@ -116,16 +167,16 @@ void uw_serial_putc(uint64_t byte){assert(serial_count<sizeof serial-1);serial[s
 // Real assembly uses bit8 as present; zero models an empty UART.
 uint64_t uw_serial_try_read(void){return 0;}
 
-uint64_t uw_timer_pending(uint64_t domain,uint64_t kind){assert(domain<2&&kind<2);return 0;}
-uint64_t uw_timer_deadline(uint64_t domain,uint64_t kind){assert(domain<2&&kind<2);return UINT64_MAX;}
+uint64_t uw_timer_pending(uint64_t domain,uint64_t kind){assert(domain<8&&kind<2);return timer_pending[domain][kind];}
+uint64_t uw_timer_deadline(uint64_t domain,uint64_t kind){assert(domain<8&&kind<2);return UINT64_MAX;}
 uint64_t uw_vgic_lr_count(void){return 4;}
-uint64_t uw_vgic_lr_read(uint64_t domain,uint64_t index){assert(domain<2&&index<4);return lrs[domain][index];}
-void uw_vgic_lr_write(uint64_t domain,uint64_t index,uint64_t value){assert(domain<2&&index<4);lrs[domain][index]=value;}
-uint64_t uw_vgic_vmcr_read(uint64_t domain){assert(domain<2);return vmcr[domain];}
-void uw_vgic_vmcr_write(uint64_t domain,uint64_t value){assert(domain<2);vmcr[domain]=value;}
-uint64_t uw_vgic_hcr_read(uint64_t domain){assert(domain<2);return hcr[domain];}
-void uw_vgic_hcr_write(uint64_t domain,uint64_t value){assert(domain<2);hcr[domain]=value;}
-uint64_t uw_vgic_running_priority(uint64_t domain){assert(domain<2);return 0xff;}
+uint64_t uw_vgic_lr_read(uint64_t domain,uint64_t index){assert(domain<8&&index<4);return lrs[domain][index];}
+void uw_vgic_lr_write(uint64_t domain,uint64_t index,uint64_t value){assert(domain<8&&index<4);lrs[domain][index]=value;}
+uint64_t uw_vgic_vmcr_read(uint64_t domain){assert(domain<8);return vmcr[domain];}
+void uw_vgic_vmcr_write(uint64_t domain,uint64_t value){assert(domain<8);vmcr[domain]=value;}
+uint64_t uw_vgic_hcr_read(uint64_t domain){assert(domain<8);return hcr[domain];}
+void uw_vgic_hcr_write(uint64_t domain,uint64_t value){assert(domain<8);hcr[domain]=value;}
+uint64_t uw_vgic_running_priority(uint64_t domain){assert(domain<8);return 0xff;}
 void uw_halt(void){halt_count++;longjmp(stop,2);}
 uint64_t uw_idle_until(uint64_t deadline){
  assert(rd((void*)0x6d000008,8)==0);assert(deadline>=clock_ticks);
@@ -135,6 +186,16 @@ uint64_t uw_idle_until(uint64_t deadline){
  frame(178,31,0,0);st(request+23,((uint64_t)1<<32)|1,8);
  st((void*)0x6d000070,++mailbox_seq,8);st((void*)0x6d000078,10,8);
  clock_ticks=deadline;return 26;
+}
+
+#define G(n) _O_runtime__aarch64__unified_gic__##n
+extern uint64_t UW(resident_test_extra)(uint64_t);
+extern uint64_t G(mmio_write)(uint64_t,uint64_t,uint64_t,uint64_t),G(binding_generation)(uint64_t);
+extern uint64_t G(unconfigure)(uint64_t,uint64_t);
+static void eight_rows(void){
+ namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+ for(unsigned d=2;d<8;d++)assert(UW(resident_test_extra)(d)==1);
+ assert(UW(resident_test_live)()==255);
 }
 static void diagnostic(uint64_t reason,uint64_t arg0){
  assert(halt_count==1);assert(rd((void*)0x6d0000d0,8)==reason);
@@ -344,6 +405,134 @@ int main(int argc,char**argv){
     assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);
     assert(stat_session(linux_session)==125&&stat_session(plan9_session)==125);
    }else assert(!"PSCI guest result was mistaken for a monitor sentinel");
+  }else if(scenario==36){
+   if(setjmp(stop)){diagnostic(rd((void*)0x6d0000d0,8),rd((void*)0x6d0000d8,8));assert(!"unexpected eight-row scheduler halt");}
+   eight_rows();
+   for(unsigned d=0;d<8;d++){
+    current=d;registers[31]=0x40000000+d*4;
+    assert(uw_handle_exit((uintptr_t)registers,1,0,0,0)==(d+1)%8);
+    assert(UW(resident_test_live)()==255&&halt_count==0);
+   }
+   assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);
+   assert(stat_session(linux_session)==125&&stat_session(plan9_session)==125);
+  }else if(scenario==37){
+   if(setjmp(stop)){diagnostic(rd((void*)0x6d0000d0,8),rd((void*)0x6d0000d8,8));assert(!"unexpected third-row containment halt");}
+   eight_rows();current=2;
+   assert(uw_handle_exit((uintptr_t)registers,2,0x1234,0,0)==3);
+   assert(UW(resident_test_live)()==(255u^4u)&&G(binding_generation)(2)==0);
+   for(unsigned d=0;d<8;d++)if(d!=2)assert(G(binding_generation)(d)==1);
+   assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);
+   frame(178,31,0,0);st(request+23,(1ull<<32)|2,8);mailbox();
+   assert(reply[4]==179&&reply[15]==3&&reply[16]==4&&rd(reply+49,8)==0x1234);
+   // A declared native row has no image/transport backend in this patch.
+   // Its restore fails closed before changing the faulted generation.
+   frame(164,39,0,1);st(request+23,1,8);mailbox();assert(reply[4]==165);
+   frame(174,63,1,2);st(request+23,(1ull<<32)|2,8);st(request+47,7,8);st(request+55,0,8);mailbox();
+   assert(reply[4]==161&&rd(reply+7,4)==9&&UW(resident_test_live)()==(255u^4u));
+  }else if(scenario==38){
+   if(setjmp(stop)){diagnostic(rd((void*)0x6d0000d0,8),rd((void*)0x6d0000d8,8));assert(!"unexpected highest-row wake halt");}
+   eight_rows();current=7;
+   assert(uw_handle_exit((uintptr_t)registers,0,1ull<<26,0,0)==0);
+   frame(178,31,0,0);st(request+23,(1ull<<32)|7,8);mailbox();
+   assert(reply[4]==179&&reply[16]==3);
+   assert(G(mmio_write)(7,0x080a0014,4,0)==1);
+   assert(G(mmio_write)(7,0x08000000,4,0x13)==1);
+   assert(G(mmio_write)(7,0x080b0080,4,1u<<27)==1);
+   assert(G(mmio_write)(7,0x080b041b,1,0x80)==1);
+   assert(G(mmio_write)(7,0x080b0100,4,1u<<27)==1);
+   timer_pending[7][0]=1;current=6;
+   assert(uw_handle_exit((uintptr_t)registers,1,0,0,0)==7);
+   frame(178,31,0,0);st(request+23,(1ull<<32)|7,8);mailbox();
+   assert(reply[4]==179&&reply[16]==2&&UW(resident_test_live)()==255);
+  }else if(scenario==39){
+   // Exact independent trigger: canonical Twithdraw, then selected Plan9 input.
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+   UW(resident_test_console_seed)();
+   frame(164,39,0,1);st(request+23,1,8);mailbox();assert(reply[4]==165);
+   frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);mailbox();
+   assert(reply[4]==173&&rd(reply+19,4)==1&&rd(reply+23,4)==1);
+   assert(UW(resident_test_live)()==1&&UW(resident_test_console_clean)());
+   assert(UW(resident_test_console_get)(5)==0&&G(binding_generation)(1)==0&&hcr[1]==0);
+   int code=setjmp(stop);
+   if(!code){
+    // The helper preserves the review's stale UART RX-mask0x50 condition.
+    UW(resident_test_console_input)(65);
+    assert(UW(resident_test_console_get)(0)==0&&UW(resident_test_console_get)(1)==1);
+    current=0;assert(uw_handle_exit((uintptr_t)registers,1,0,0,0)==0);
+    assert(halt_count==0&&UW(resident_test_live)()==1&&G(binding_generation)(1)==0);
+    assert(NS(session_handle)(1)==linux_session&&stat_session(linux_session)==125);
+    assert(NS(session_handle)(4)==0&&stat_session(plan9_session)==107);
+    frame(178,31,1,0);st(request+23,1ull<<32,8);mailbox();
+    assert(reply[4]==179&&reply[16]==2);
+   }else assert(!"post-withdraw console input halted the survivor");
+  }else if(scenario==40){
+   // Exact independent trigger: queued RX, then containment -> progress/supply.
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+   UW(resident_test_console_seed)();assert(UW(resident_test_console_get)(0)==1);
+   current=1;int code=setjmp(stop);
+   if(!code){
+    assert(uw_handle_exit((uintptr_t)registers,2,0x1234,0,0)==0);
+    assert(UW(resident_test_live)()==1&&UW(resident_test_console_clean)());
+    assert(UW(resident_test_console_get)(5)==0&&G(binding_generation)(1)==0&&hcr[1]==0);
+    for(unsigned i=0;i<4;i++)assert(lrs[1][i]==0);
+    UW(resident_test_console_input)(66);
+    assert(UW(resident_test_console_get)(0)==0&&UW(resident_test_console_get)(1)==1);
+    current=0;assert(uw_handle_exit((uintptr_t)registers,1,0,0,0)==0);
+    assert(halt_count==0&&NS(session_handle)(1)==linux_session&&stat_session(linux_session)==125);
+    frame(178,31,0,0);st(request+23,(1ull<<32)|1,8);mailbox();
+    assert(reply[4]==179&&reply[16]==4&&NS(session_handle)(4)==0);
+   }else assert(!"queued Plan9 input at fault halted the survivor");
+  }else if(scenario==41){
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+   assert(G(mmio_write)(1,0x080a0014,4,0)==1);
+   assert(G(mmio_write)(1,0x08000000,4,0x13)==1);
+   assert(G(mmio_write)(1,0x08000084,4,2)==1);
+   assert(G(mmio_write)(1,0x08000421,1,0x80)==1);
+   assert(G(mmio_write)(1,0x08000104,4,2)==1);
+   current=1;int code=setjmp(stop);
+   if(!code){
+    assert(uw_handle_exit((uintptr_t)registers,0,1ull<<26,0,0)==0);
+    frame(178,31,0,0);st(request+23,(1ull<<32)|1,8);mailbox();
+    assert(reply[4]==179&&reply[16]==3&&UW(resident_test_console_get)(4)==1);
+    UW(resident_test_console_input)(65);
+    assert(UW(resident_test_console_get)(0)==1&&UW(resident_test_console_get)(1)==0);
+    current=0;assert(uw_handle_exit((uintptr_t)registers,1,0,0,0)==1);
+    frame(178,31,0,0);st(request+23,(1ull<<32)|1,8);mailbox();
+    assert(reply[4]==179&&reply[16]==2&&UW(resident_test_console_read)()==65);
+    assert(UW(resident_test_console_get)(0)==0&&halt_count==0);
+    assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);
+   }else assert(!"ordinary blocked Plan9 console input failed to wake");
+  }else if(scenario==42){
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+   assert(UW(resident_test_console_wait)()==1&&UW(resident_test_console_get)(4)==0);
+   assert(G(binding_generation)(1)==2);
+   st((void*)0x6d010000,1,8);st((void*)0x6d010008,67,1);
+   int code=setjmp(stop);
+   if(!code){
+    UW(resident_test_console_input)(65);UW(resident_test_console_stale_supply)();
+    assert(UW(resident_test_console_get)(0)==0&&UW(resident_test_console_get)(2)==0);
+    assert(UW(resident_test_console_get)(1)==1&&halt_count==0);
+    frame(178,31,0,0);st(request+23,(2ull<<32)|1,8);mailbox();
+    assert(reply[4]==179&&reply[16]==3&&UW(resident_test_live)()==3);
+    assert(NS(session_handle)(1)==linux_session&&stat_session(linux_session)==125);
+   }else assert(!"wait-bind console input asserted an interrupt");
+  }else if(scenario==43){
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+   // A live owner whose declared IRQ binding disappeared is an internal fault.
+   assert(G(unconfigure)(1,1)==1);
+   int code=setjmp(stop);
+   if(!code){UW(resident_test_console_input)(65);assert(!"invalid live IRQ route accepted");}
+   assert(code==2);diagnostic(0x1109,0x1122);
+   assert(rd((void*)0x6d0000e0,8)==1&&rd((void*)0x6d0000e8,8)==33);
+  }else if(scenario==44){
+   namespace_sessions();linux_frontends();assert(UW(resident_test_init)(3)==1);
+   frame(164,39,0,1);st(request+23,1,8);mailbox();assert(reply[4]==165);
+   frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);mailbox();assert(reply[4]==173);
+   // Native mechanism code asserting a withdrawn owner's route stays fatal.
+   int code=setjmp(stop);
+   if(!code){UW(resident_test_console_native_assert)();assert(!"stopped native assertion accepted");}
+   assert(code==2);diagnostic(0x1109,0x1121);
+   assert(rd((void*)0x6d0000e0,8)==2&&rd((void*)0x6d0000e8,8)==33);
   }else assert(!"unknown scenario");
  puts("resident native scenario PASS");return 0;
 }
@@ -360,7 +549,8 @@ class O10ResidentNativeTests(unittest.TestCase):
         sources=runpy.run_path(str(ROOT/"scripts/build_okernel_unified_world.py"))["SOURCES"]
         with tempfile.TemporaryDirectory(prefix="o10-resident-") as directory:
             output=Path(directory)
-            world=output/"unified_world.oc";world.write_text((ROOT/sources[0]).read_text()+WRAPPER)
+            world=output/"unified_world.oc";world.write_text(extend_world((ROOT/sources[0]).read_text(),WRAPPER))
+            table = write_table_fixture(output)
             (output/"harness.c").write_text(HARNESS)
             block_name="ocore/runtime/aarch64/kernel_world_virtio.oc"
             block=output/"block.oc"
@@ -377,7 +567,7 @@ class O10ResidentNativeTests(unittest.TestCase):
                     "pub const PERSISTENT: u64 = 1;\npub const BACKING_BASE: usize = 0x7000_0000;\n"
                     "pub const BACKING_BYTES: usize = 1_073_741_824;\npub const NETWORK: u64 = "+str(services)+";\n"
                     "pub const NAMESPACE: u64 = "+str(services)+";\npub const O10_QUALIFICATION: u64 = "+str(qualification)+";\n")
-                command=[str(compiler),str(profile),str(world),*(str(block if name==block_name else monitor if name==monitor_name else ROOT/name) for name in sources[1:]),
+                command=[str(compiler),str(profile),str(world),*(str(block if name==block_name else monitor if name==monitor_name else table if name=="ocore/runtime/aarch64/domain_table.oc" else ROOT/name) for name in sources[1:]),
                          "--target","x86_64-unknown-none","--emit","obj","--function-sections","-o",str(output/"native.o")]
                 result=subprocess.run(command,capture_output=True,text=True,timeout=120)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -397,7 +587,10 @@ class O10ResidentNativeTests(unittest.TestCase):
                          str(output/"harness.c"),str(output/"sentinels.c"),str(output/"native.o"),"-o",str(output/"selftest")]
                 result=subprocess.run(command,capture_output=True,text=True,timeout=120)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-                for scenario in list(range(17))+[33,34,35]+([20,21,22,25,26,27,29,30,31] if services else [17,18,19,23,24,25,26,27,28,29,30,31,32]):
+                # The eight-running-row fixture uses the block-only profile:
+                # outer NIC initialization is outside this register model.
+                # Existing service-enabled missing-backend diagnostics remain.
+                for scenario in list(range(17))+[33,34,35,42,43,44]+([36,37,38,39,40,41] if not services else [])+([20,21,22,25,26,27,29,30,31] if services else [17,18,19,23,24,25,26,27,28,29,30,31,32]):
                     result=subprocess.run([str(output/"selftest"),str(scenario)],capture_output=True,text=True,timeout=10)
                     self.assertEqual(result.returncode,0,f"qualification={qualification} scenario={scenario}: "+result.stdout+result.stderr)
 
