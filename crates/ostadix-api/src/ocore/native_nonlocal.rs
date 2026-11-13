@@ -141,7 +141,7 @@ pub(crate) fn snapshot<T: Serialize>(value: &T) -> Result<JsonValue, Diagnostic>
 }
 
 pub(crate) fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 impl FunctionFrameProof {
@@ -149,55 +149,86 @@ impl FunctionFrameProof {
     /// emitter's regions. The caller also binds every SSA chunk and fixed
     /// allocation to these regions while constructing this witness.
     pub(crate) fn validate_regions(&self) -> Result<(), Diagnostic> {
-        let fail = || error_diagnostic("nonlocal frame storage containment/alignment/non-reuse proof failed");
-        if self.fixed_frame_bytes < 0 || self.fixed_frame_bytes % 16 != 0
+        let fail = || {
+            error_diagnostic("nonlocal frame storage containment/alignment/non-reuse proof failed")
+        };
+        if self.fixed_frame_bytes < 0
+            || self.fixed_frame_bytes % 16 != 0
             || self.steady_sp_from_fp != -self.fixed_frame_bytes
-            || self.stack_alignment != 16 {
+            || self.stack_alignment != 16
+        {
             return Err(fail());
         }
         let mut spans = Vec::new();
         for region in &self.regions {
             let size = i64::try_from(region.bytes).map_err(|_| fail())?;
             let end = region.offset_from_fp.checked_add(size).ok_or_else(fail)?;
-            if region.alignment == 0 || !region.alignment.is_power_of_two()
+            if region.alignment == 0
+                || !region.alignment.is_power_of_two()
                 || region.alignment > 16
-                || region.offset_from_fp < -self.fixed_frame_bytes || end > 0
-                || region.offset_from_fp.rem_euclid(region.alignment as i64) != 0 {
+                || region.offset_from_fp < -self.fixed_frame_bytes
+                || end > 0
+                || region.offset_from_fp.rem_euclid(region.alignment as i64) != 0
+            {
                 return Err(fail());
             }
-            if size > 0 { spans.push((region.offset_from_fp, end)); }
+            if size > 0 {
+                spans.push((region.offset_from_fp, end));
+            }
             let mut chunks = Vec::new();
             for chunk in &region.chunks {
                 let chunk_end = chunk.offset_from_fp.checked_add(8).ok_or_else(fail)?;
-                if chunk.storage_bytes != 8 || !(1..=64).contains(&chunk.value_bits)
-                    || chunk.offset_from_fp < region.offset_from_fp || chunk_end > end
-                    || chunk.offset_from_fp % 8 != 0 {
+                if chunk.storage_bytes != 8
+                    || !(1..=64).contains(&chunk.value_bits)
+                    || chunk.offset_from_fp < region.offset_from_fp
+                    || chunk_end > end
+                    || chunk.offset_from_fp % 8 != 0
+                {
                     return Err(fail());
                 }
                 chunks.push((chunk.offset_from_fp, chunk_end));
             }
             chunks.sort_unstable();
-            if chunks.windows(2).any(|p| p[0].1 > p[1].0) { return Err(fail()); }
+            if chunks.windows(2).any(|p| p[0].1 > p[1].0) {
+                return Err(fail());
+            }
         }
         spans.sort_unstable();
-        if spans.windows(2).any(|p| p[0].1 > p[1].0) { return Err(fail()); }
+        if spans.windows(2).any(|p| p[0].1 > p[1].0) {
+            return Err(fail());
+        }
         Ok(())
     }
 }
 
 impl NativeNonlocalReport {
-    pub(crate) fn from_emission(module: &NativeModule, target: Target, assembly: &str,
-        functions: Vec<FunctionFrameProof>) -> Result<Self, Diagnostic> {
+    pub(crate) fn from_emission(
+        module: &NativeModule,
+        target: Target,
+        assembly: &str,
+        functions: Vec<FunctionFrameProof>,
+    ) -> Result<Self, Diagnostic> {
         let mut obligations = Vec::new();
         for (index, function) in module.functions.iter().enumerate() {
-            let effective_sites: Vec<_> = functions.iter().flat_map(|caller| {
-                caller.call_sites.iter().filter(move |site| site.callee_function_index == index)
-                    .map(move |site| ProviderSite { caller_function_index: caller.function_index,
-                        block: site.block, instruction: site.instruction })
-            }).collect();
+            let effective_sites: Vec<_> = functions
+                .iter()
+                .flat_map(|caller| {
+                    caller
+                        .call_sites
+                        .iter()
+                        .filter(move |site| site.callee_function_index == index)
+                        .map(move |site| ProviderSite {
+                            caller_function_index: caller.function_index,
+                            block: site.block,
+                            instruction: site.instruction,
+                        })
+                })
+                .collect();
             // Preserve cold declarations; site-only effects do not get promoted
             // into invented declaration attributes or omitted provider duties.
-            if !function.control_effects.returns_twice && effective_sites.is_empty() { continue; }
+            if !function.control_effects.returns_twice && effective_sites.is_empty() {
+                continue;
+            }
             let mut required_context = vec![
                 "original save/resume implementation and recursive provider closure are not admitted".into(),
                 "resume the exact call continuation with its saved FP/SP and ABI return locations".into(),
@@ -211,18 +242,35 @@ impl NativeNonlocalReport {
                 Target::Riscv64UnknownNone if module.target.abi.as_deref() == Some("lp64d") => "RV64 LP64D original provider must account for RA, SP, S0-S11 and FS0-FS11 with the original FLEN/ABI contract",
                 Target::Riscv64UnknownNone => "RV64 LP64 original provider must account for RA, SP and S0-S11; hard-float provider compatibility is not inferred",
             }.into());
-            obligations.push(OriginalProviderObligation { function_index: index,
-                symbol: function.name.clone(), original_definition_present: function.entry.is_some(),
-                declaration_effects: function.control_effects, signature: function.signature.clone(),
-                source_abi: snapshot(&function.source_abi)?, effective_sites, required_context,
-                provider_qualified: false, library_exposure_admitted: false });
+            obligations.push(OriginalProviderObligation {
+                function_index: index,
+                symbol: function.name.clone(),
+                original_definition_present: function.entry.is_some(),
+                declaration_effects: function.control_effects,
+                signature: function.signature.clone(),
+                source_abi: snapshot(&function.source_abi)?,
+                effective_sites,
+                required_context,
+                provider_qualified: false,
+                library_exposure_admitted: false,
+            });
         }
-        Ok(Self { format: FORMAT.into(), target: target.name().into(), source_target: snapshot(&module.target)?,
-            module_sha256: digest(&serde_json::to_vec(module).map_err(|e| error_diagnostic(e.to_string()))?),
-            input_sha256: module.provenance.input_sha256.clone(), assembly_sha256: digest(assembly.as_bytes()),
-            assembly_bytes: assembly.len(), has_nonlocal_effects: module.has_nonlocal_control_effects(),
-            functions, original_provider_obligations: obligations, provider_qualified: false,
-            library_exposure_admitted: false })
+        Ok(Self {
+            format: FORMAT.into(),
+            target: target.name().into(),
+            source_target: snapshot(&module.target)?,
+            module_sha256: digest(
+                &serde_json::to_vec(module).map_err(|e| error_diagnostic(e.to_string()))?,
+            ),
+            input_sha256: module.provenance.input_sha256.clone(),
+            assembly_sha256: digest(assembly.as_bytes()),
+            assembly_bytes: assembly.len(),
+            has_nonlocal_effects: module.has_nonlocal_control_effects(),
+            functions,
+            original_provider_obligations: obligations,
+            provider_qualified: false,
+            library_exposure_admitted: false,
+        })
     }
 
     pub fn to_json(&self) -> Result<Vec<u8>, Diagnostic> {
@@ -234,22 +282,30 @@ impl NativeNonlocalReport {
 /// Strictly decode and recompute every physical frame/site and exact assembly.
 /// No report field, claimed digest, provider flag or mutated resume label grants
 /// admission on its own. This remains descriptive compiler evidence only.
-pub fn verify_report_json(report_json: &[u8], module: &NativeModule, target: Target,
-    assembly: &str) -> Result<NativeNonlocalReport, Diagnostic> {
+pub fn verify_report_json(
+    report_json: &[u8],
+    module: &NativeModule,
+    target: Target,
+    assembly: &str,
+) -> Result<NativeNonlocalReport, Diagnostic> {
     let report: NativeNonlocalReport = serde_json::from_slice(report_json)
         .map_err(|error| error_diagnostic(format!("invalid nonlocal report: {error}")))?;
-    let (expected_assembly, expected) = super::native_codegen::emit_with_nonlocal_report(module, target)?;
+    let (expected_assembly, expected) =
+        super::native_codegen::emit_with_nonlocal_report(module, target)?;
     if expected_assembly != assembly || report != expected {
-        return Err(error_diagnostic("nonlocal report or assembly differs from canonical computed emission"));
+        return Err(error_diagnostic(
+            "nonlocal report or assembly differs from canonical computed emission",
+        ));
     }
     Ok(report)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::native_codegen::{
+        emit, emit_with_map, emit_with_map_and_nonlocal_report, emit_with_nonlocal_report,
+    };
     use super::*;
-    use super::super::native_codegen::{emit, emit_with_map, emit_with_nonlocal_report,
-        emit_with_map_and_nonlocal_report};
     use serde_json::json;
 
     fn fixture(target: Target, abi: Option<&str>, declaration: bool, site: bool) -> NativeModule {
@@ -258,9 +314,11 @@ mod tests {
             Target::Aarch64UnknownNone => "aarch64-unknown-linux-gnu",
             Target::Riscv64UnknownNone => "riscv64-unknown-linux-gnu",
         };
-        let signature = json!({"params":[3,2,2,2,2,2,2,2,2,2],"result":1,"abi":"c","variadic":false});
-        let declaration_params: Vec<_> = (0..10).map(|id|
-            json!({"id":id,"ty":if id==0 {3} else {2}})).collect();
+        let signature =
+            json!({"params":[3,2,2,2,2,2,2,2,2,2],"result":1,"abi":"c","variadic":false});
+        let declaration_params: Vec<_> = (0..10)
+            .map(|id| json!({"id":id,"ty":if id==0 {3} else {2}}))
+            .collect();
         let mut args = vec![json!({"kind":"value","id":2})];
         args.extend((1..=9).map(|n| json!({"kind":"int","ty":2,"bits":n.to_string()})));
         serde_json::from_value(json!({
@@ -300,8 +358,12 @@ mod tests {
     }
 
     fn profiles() -> [(Target, Option<&'static str>); 4] {
-        [(Target::X86_64UnknownNone,None),(Target::Aarch64UnknownNone,None),
-            (Target::Riscv64UnknownNone,Some("lp64")),(Target::Riscv64UnknownNone,Some("lp64d"))]
+        [
+            (Target::X86_64UnknownNone, None),
+            (Target::Aarch64UnknownNone, None),
+            (Target::Riscv64UnknownNone, Some("lp64")),
+            (Target::Riscv64UnknownNone, Some("lp64d")),
+        ]
     }
 
     #[test]
@@ -309,101 +371,165 @@ mod tests {
         for (target, abi) in profiles() {
             let m = fixture(target, abi, true, true);
             let (assembly, map, report) = emit_with_map_and_nonlocal_report(&m, target).unwrap();
-            assert_eq!(emit(&m,target).unwrap(),assembly);
-            assert_eq!(emit_with_map(&m,target).unwrap().0,assembly);
-            assert_eq!(report.functions.len(),1);
+            assert_eq!(emit(&m, target).unwrap(), assembly);
+            assert_eq!(emit_with_map(&m, target).unwrap().0, assembly);
+            assert_eq!(report.functions.len(), 1);
             assert!(!report.provider_qualified && !report.library_exposure_admitted);
             let frame = &report.functions[0];
-            assert_eq!(frame.function,"caller");
+            assert_eq!(frame.function, "caller");
             frame.validate_regions().unwrap();
-            assert!(frame.regions.iter().any(|r| r.role=="fixed_original_alloca" && r.bytes==32 && r.alignment==16));
-            assert!(frame.regions.iter().any(|r| r.role=="phi_parallel_copy" && r.bytes==8));
-            assert_eq!(frame.regions.iter().find(|r| r.value==Some(1) && r.role=="ssa_spill").unwrap().chunks.len(),2);
+            assert!(frame
+                .regions
+                .iter()
+                .any(|r| r.role == "fixed_original_alloca" && r.bytes == 32 && r.alignment == 16));
+            assert!(frame
+                .regions
+                .iter()
+                .any(|r| r.role == "phi_parallel_copy" && r.bytes == 8));
+            assert_eq!(
+                frame
+                    .regions
+                    .iter()
+                    .find(|r| r.value == Some(1) && r.role == "ssa_spill")
+                    .unwrap()
+                    .chunks
+                    .len(),
+                2
+            );
             let site = &frame.call_sites[0];
-            assert_eq!((site.block,site.instruction),(0,3));
-            assert!(site.outgoing_stack_bytes>0);
-            assert_eq!(site.continuation_sp_from_fp,-frame.fixed_frame_bytes-site.outgoing_stack_bytes);
-            assert_eq!(site.call_assembly_end,site.resume_assembly_start);
-            assert_eq!(&assembly[site.resume_assembly_start..site.resume_assembly_end],format!("{}:\n",site.resume_label));
-            assert_eq!(&assembly[site.call_assembly_start..site.call_assembly_end],format!("  {} original_checkpoint\n",if target==Target::Aarch64UnknownNone {"bl"} else {"call"}));
+            assert_eq!((site.block, site.instruction), (0, 3));
+            assert!(site.outgoing_stack_bytes > 0);
+            assert_eq!(
+                site.continuation_sp_from_fp,
+                -frame.fixed_frame_bytes - site.outgoing_stack_bytes
+            );
+            assert_eq!(site.call_assembly_end, site.resume_assembly_start);
+            assert_eq!(
+                &assembly[site.resume_assembly_start..site.resume_assembly_end],
+                format!("{}:\n", site.resume_label)
+            );
+            assert_eq!(
+                &assembly[site.call_assembly_start..site.call_assembly_end],
+                format!(
+                    "  {} original_checkpoint\n",
+                    if target == Target::Aarch64UnknownNone {
+                        "bl"
+                    } else {
+                        "call"
+                    }
+                )
+            );
             assert!(site.result_capture_after_resume && site.stack_restore_after_resume);
-            assert!(map.sites.iter().any(|s| s.function=="caller" && s.block==Some(0) && s.instruction==Some(3)
-                && s.assembly_start<=site.call_assembly_start && s.assembly_end>site.resume_assembly_end));
-            let verified=verify_report_json(&report.to_json().unwrap(),&m,target,&assembly).unwrap();
-            assert_eq!(verified,report);
-            assert_eq!(report.original_provider_obligations.len(),2);
-            assert!(report.original_provider_obligations.iter().all(|p| !p.provider_qualified && !p.library_exposure_admitted));
-            let cold=report.original_provider_obligations.iter().find(|p| p.symbol=="original_cold_checkpoint").unwrap();
+            assert!(map.sites.iter().any(|s| s.function == "caller"
+                && s.block == Some(0)
+                && s.instruction == Some(3)
+                && s.assembly_start <= site.call_assembly_start
+                && s.assembly_end > site.resume_assembly_end));
+            let verified =
+                verify_report_json(&report.to_json().unwrap(), &m, target, &assembly).unwrap();
+            assert_eq!(verified, report);
+            assert_eq!(report.original_provider_obligations.len(), 2);
+            assert!(report
+                .original_provider_obligations
+                .iter()
+                .all(|p| !p.provider_qualified && !p.library_exposure_admitted));
+            let cold = report
+                .original_provider_obligations
+                .iter()
+                .find(|p| p.symbol == "original_cold_checkpoint")
+                .unwrap();
             assert!(cold.effective_sites.is_empty());
         }
     }
 
     #[test]
     fn declaration_and_site_only_effects_do_not_invent_each_others_raw_attributes() {
-        for (declaration,site) in [(true,false),(false,true),(true,true)] {
-            let m=fixture(Target::Riscv64UnknownNone,Some("lp64d"),declaration,site);
-            let (_,report)=emit_with_nonlocal_report(&m,Target::Riscv64UnknownNone).unwrap();
-            let proof=&report.functions[0].call_sites[0];
-            assert_eq!(proof.declaration_effects.returns_twice,declaration);
-            assert_eq!(proof.call_effects.returns_twice,site);
-            assert_eq!(report.original_provider_obligations[0].declaration_effects.returns_twice,declaration);
-            assert_eq!(report.original_provider_obligations[0].effective_sites.len(),1);
+        for (declaration, site) in [(true, false), (false, true), (true, true)] {
+            let m = fixture(Target::Riscv64UnknownNone, Some("lp64d"), declaration, site);
+            let (_, report) = emit_with_nonlocal_report(&m, Target::Riscv64UnknownNone).unwrap();
+            let proof = &report.functions[0].call_sites[0];
+            assert_eq!(proof.declaration_effects.returns_twice, declaration);
+            assert_eq!(proof.call_effects.returns_twice, site);
+            assert_eq!(
+                report.original_provider_obligations[0]
+                    .declaration_effects
+                    .returns_twice,
+                declaration
+            );
+            assert_eq!(
+                report.original_provider_obligations[0]
+                    .effective_sites
+                    .len(),
+                1
+            );
         }
     }
 
     #[test]
     fn cold_declarations_remain_unqualified_without_invented_native_calls() {
-        let m=fixture(Target::Riscv64UnknownNone,Some("lp64d"),false,false);
-        let (assembly,report)=emit_with_nonlocal_report(&m,Target::Riscv64UnknownNone).unwrap();
+        let m = fixture(Target::Riscv64UnknownNone, Some("lp64d"), false, false);
+        let (assembly, report) = emit_with_nonlocal_report(&m, Target::Riscv64UnknownNone).unwrap();
         assert!(report.has_nonlocal_effects);
         assert!(report.functions.is_empty());
-        assert_eq!(report.original_provider_obligations.len(),1);
-        assert_eq!(report.original_provider_obligations[0].symbol,"original_cold_checkpoint");
-        assert!(report.original_provider_obligations[0].effective_sites.is_empty());
+        assert_eq!(report.original_provider_obligations.len(), 1);
+        assert_eq!(
+            report.original_provider_obligations[0].symbol,
+            "original_cold_checkpoint"
+        );
+        assert!(report.original_provider_obligations[0]
+            .effective_sites
+            .is_empty());
         assert!(!assembly.contains("_nonlocal_b"));
     }
 
     #[test]
     fn canonical_report_rejects_forged_frames_sites_targets_effects_and_qualification() {
-        let target=Target::Riscv64UnknownNone;
-        let m=fixture(target,Some("lp64d"),true,true);
-        let (assembly,report)=emit_with_nonlocal_report(&m,target).unwrap();
-        let baseline=serde_json::to_value(&report).unwrap();
+        let target = Target::Riscv64UnknownNone;
+        let m = fixture(target, Some("lp64d"), true, true);
+        let (assembly, report) = emit_with_nonlocal_report(&m, target).unwrap();
+        let baseline = serde_json::to_value(&report).unwrap();
         for mutation in 0..12 {
-            let mut v=baseline.clone();
+            let mut v = baseline.clone();
             match mutation {
-                0=>v["provider_qualified"]=json!(true),
-                1=>v["library_exposure_admitted"]=json!(true),
-                2=>v["functions"][0]["call_sites"][0]["resume_label"]=json!("invented"),
-                3=>v["functions"][0]["call_sites"][0]["continuation_sp_from_fp"]=json!(0),
-                4=>v["functions"][0]["call_sites"][0]["call_effects"]["returns_twice"]=json!(false),
-                5=>v["functions"][0]["regions"][0]["offset_from_fp"]=json!(0),
-                6=>v["functions"][0]["entry_abi_plan"]["stack_bytes"]=json!(999),
-                7=>v["source_target"]["abi"]=json!("lp64"),
-                8=>v["original_provider_obligations"]=json!([]),
-                9=>v["assembly_sha256"]=json!("0".repeat(64)),
-                10=>v["target"]=json!("x86_64-unknown-none"),
-                _=>v["invented_authority"]=json!(true),
+                0 => v["provider_qualified"] = json!(true),
+                1 => v["library_exposure_admitted"] = json!(true),
+                2 => v["functions"][0]["call_sites"][0]["resume_label"] = json!("invented"),
+                3 => v["functions"][0]["call_sites"][0]["continuation_sp_from_fp"] = json!(0),
+                4 => {
+                    v["functions"][0]["call_sites"][0]["call_effects"]["returns_twice"] =
+                        json!(false)
+                }
+                5 => v["functions"][0]["regions"][0]["offset_from_fp"] = json!(0),
+                6 => v["functions"][0]["entry_abi_plan"]["stack_bytes"] = json!(999),
+                7 => v["source_target"]["abi"] = json!("lp64"),
+                8 => v["original_provider_obligations"] = json!([]),
+                9 => v["assembly_sha256"] = json!("0".repeat(64)),
+                10 => v["target"] = json!("x86_64-unknown-none"),
+                _ => v["invented_authority"] = json!(true),
             }
-            assert!(verify_report_json(&serde_json::to_vec(&v).unwrap(),&m,target,&assembly).is_err(),"mutation {mutation}");
+            assert!(
+                verify_report_json(&serde_json::to_vec(&v).unwrap(), &m, target, &assembly)
+                    .is_err(),
+                "mutation {mutation}"
+            );
         }
-        let changed=assembly.replace("original_checkpoint\n","original_cold_checkpoint\n");
-        assert_ne!(changed,assembly);
-        assert!(verify_report_json(&report.to_json().unwrap(),&m,target,&changed).is_err());
+        let changed = assembly.replace("original_checkpoint\n", "original_cold_checkpoint\n");
+        assert_ne!(changed, assembly);
+        assert!(verify_report_json(&report.to_json().unwrap(), &m, target, &changed).is_err());
     }
 
     #[test]
     fn physical_region_check_rejects_overlap_escape_and_misalignment() {
-        let m=fixture(Target::Riscv64UnknownNone,Some("lp64d"),true,true);
-        let (_,r)=emit_with_nonlocal_report(&m,Target::Riscv64UnknownNone).unwrap();
-        let original=&r.functions[0];
+        let m = fixture(Target::Riscv64UnknownNone, Some("lp64d"), true, true);
+        let (_, r) = emit_with_nonlocal_report(&m, Target::Riscv64UnknownNone).unwrap();
+        let original = &r.functions[0];
         for kind in 0..4 {
-            let mut p=original.clone();
+            let mut p = original.clone();
             match kind {
-                0=>p.regions.push(p.regions[0].clone()),
-                1=>p.regions[0].offset_from_fp=0,
-                2=>p.regions[0].offset_from_fp-=1,
-                _=>p.steady_sp_from_fp+=16,
+                0 => p.regions.push(p.regions[0].clone()),
+                1 => p.regions[0].offset_from_fp = 0,
+                2 => p.regions[0].offset_from_fp -= 1,
+                _ => p.steady_sp_from_fp += 16,
             }
             assert!(p.validate_regions().is_err());
         }
@@ -412,7 +538,7 @@ mod tests {
     #[test]
     fn unsupported_nonlocal_overalignment_or_nonentry_alloca_is_not_admitted_by_frame_report() {
         use super::super::native_ir::{Instruction, Operation, Value};
-        let target=Target::Riscv64UnknownNone;
+        let target = Target::Riscv64UnknownNone;
         // These are authored test controls, not edited original-engine inputs.
         // Independently prove each mutant has valid SSA/types/dominance when
         // only its nonlocal effects are absent. A second unrelated verifier
@@ -421,8 +547,15 @@ mod tests {
             let mut ordinary = module.clone();
             for function in &mut ordinary.functions {
                 function.control_effects = ControlEffects::default();
-                for instruction in function.blocks.iter_mut().flat_map(|block| &mut block.instructions) {
-                    if let Operation::Call { control_effects, .. } = &mut instruction.operation {
+                for instruction in function
+                    .blocks
+                    .iter_mut()
+                    .flat_map(|block| &mut block.instructions)
+                {
+                    if let Operation::Call {
+                        control_effects, ..
+                    } = &mut instruction.operation
+                    {
                         *control_effects = ControlEffects::default();
                     }
                 }
@@ -430,27 +563,46 @@ mod tests {
             super::super::native_verify::verify(&ordinary).unwrap();
         };
         let expected = "returns_twice exposure requires ordinary C with fixed entry allocas and no EH/dynamic-stack combination";
-        let mut aligned=fixture(target,Some("lp64d"),true,true);
-        aligned.functions[2].blocks[0].instructions[0].operation=Operation::Alloca {size:32,alignment:32};
+        let mut aligned = fixture(target, Some("lp64d"), true, true);
+        aligned.functions[2].blocks[0].instructions[0].operation = Operation::Alloca {
+            size: 32,
+            alignment: 32,
+        };
         prove_otherwise_well_typed(&aligned);
-        let error=emit_with_nonlocal_report(&aligned,target).unwrap_err();
+        let error = emit_with_nonlocal_report(&aligned, target).unwrap_err();
         assert!(error.message.contains(expected), "{}", error.message);
 
-        let mut nonentry=fixture(target,Some("lp64d"),true,true);
+        let mut nonentry = fixture(target, Some("lp64d"), true, true);
         // Keep the original entry allocation (id2) and every use unchanged.
         // This fresh otherwise unused id8 is after the existing block7 PHI,
         // so it neither breaks dominance nor moves a PHI behind an instruction.
-        assert!(!nonentry.functions[2].params.iter().any(|value| value.id==8));
-        assert!(!nonentry.functions[2].blocks.iter().flat_map(|block| &block.instructions)
-            .any(|instruction| instruction.result.is_some_and(|value| value.id==8)));
-        nonentry.functions[2].blocks[1].instructions.push(Instruction {
-            result: Some(Value { id:8, ty:3 }),
-            operation: Operation::Alloca { size:8, alignment:8 },
-        });
-        assert!(matches!(nonentry.functions[2].blocks[0].instructions[0].operation,
-            Operation::Alloca {size:32,alignment:16}));
+        assert!(!nonentry.functions[2]
+            .params
+            .iter()
+            .any(|value| value.id == 8));
+        assert!(!nonentry.functions[2]
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| instruction.result.is_some_and(|value| value.id == 8)));
+        nonentry.functions[2].blocks[1]
+            .instructions
+            .push(Instruction {
+                result: Some(Value { id: 8, ty: 3 }),
+                operation: Operation::Alloca {
+                    size: 8,
+                    alignment: 8,
+                },
+            });
+        assert!(matches!(
+            nonentry.functions[2].blocks[0].instructions[0].operation,
+            Operation::Alloca {
+                size: 32,
+                alignment: 16
+            }
+        ));
         prove_otherwise_well_typed(&nonentry);
-        let error=emit_with_nonlocal_report(&nonentry,target).unwrap_err();
+        let error = emit_with_nonlocal_report(&nonentry, target).unwrap_err();
         assert!(error.message.contains(expected), "{}", error.message);
     }
 }
