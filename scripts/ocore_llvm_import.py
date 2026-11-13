@@ -319,6 +319,7 @@ class Importer:
                                  for bits in (*range(1, 65), 128)}
     INTEGER_SATURATING_SUB_INTRINSICS = {f"llvm.usub.sat.i{bits}": bits
                                          for bits in (*range(1, 65), 128)}
+    CONSTRAINED_MUL_INTRINSICS = {f"llvm.experimental.constrained.fmul.f{bits}": bits for bits in (32, 64)}
     FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
     FLOAT_INTEGRAL_INTRINSICS = {f"llvm.{kind}.f{bits}": (kind, bits)
                                  for kind in ("floor", "ceil", "trunc") for bits in (32, 64, 128)}
@@ -332,7 +333,7 @@ class Importer:
     POINTER_MASK_INTRINSIC = "llvm.ptrmask.p0.i64"
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_BYTE_SWAP_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS) | set(FUNNEL_INTRINSICS) | set(FLOAT_INTEGRAL_INTRINSICS) | set(INTEGER_SATURATING_SUB_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | set(CONSTRAINED_MUL_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_BYTE_SWAP_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS) | set(FUNNEL_INTRINSICS) | set(FLOAT_INTEGRAL_INTRINSICS) | set(INTEGER_SATURATING_SUB_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
@@ -400,6 +401,7 @@ class Importer:
         self.exception_handling = None
         self.symbol = ""
         self.strict_fp_sites = set()
+        self.constrained_mul_seen = False
         self.attribute_names = {}
         for name in self.ERASED | self.ERASED_RESTRICTIONS | {"returns_twice",
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
@@ -976,7 +978,18 @@ class Importer:
         if variadic and abi != "c":
             self.reject("variadic signatures require the exact C calling convention")
         result = self.ty(result_type) if a.GetTypeKind(result_type) == 0 else self.value_type(result_type)
-        if intrinsic == self.NOALIAS_INTRINSIC:
+        if intrinsic in self.CONSTRAINED_MUL_INTRINSICS:
+            bits = self.CONSTRAINED_MUL_INTRINSICS[intrinsic]
+            if (count != 4 or variadic or a.GetTypeKind(result_type) != {32: 2, 64: 3}[bits]
+                    or any(params[i] != result_type for i in (0, 1))
+                    or any(a.GetTypeKind(params[i]) != 14 for i in (2, 3))):
+                self.reject("constrained multiply requires exact scalar (T,T,metadata,metadata)->T signature")
+            metadata_type = params[2]
+            if metadata_type not in self.type_ids:
+                self.type_ids[metadata_type] = len(self.types)
+                self.types.append({"kind": "metadata"})
+            param_types = [result, result, self.type_ids[metadata_type], self.type_ids[metadata_type]]
+        elif intrinsic == self.NOALIAS_INTRINSIC:
             if count != 1 or a.GetTypeKind(params[0]) != 14 or a.GetTypeKind(result_type) != 0:
                 self.reject("llvm.experimental.noalias.scope.decl requires exact void(metadata) signature")
             metadata_type = params[0]
@@ -1016,6 +1029,33 @@ class Importer:
                     self.reject("metadata-only personality declaration requires no ABI extension attributes")
                 self.refinements.add(f"{self.symbol}: retained metadata-only personality declaration i32(...) with exact C convention and no ABI extension attributes; original declaration, personality references and dependency identity retained; explicit included five-argument C unwinder callback adaptation required; no ordinary variadic call admission")
         return signature
+
+    def has_strict_fp(self, value, call=False):
+        return any(self.a.IsEnumAttribute(attr)
+                   and self.a.GetEnumAttributeKind(attr) == self.a.GetEnumAttributeKindForName(b"strictfp", 8)
+                   and self.a.GetEnumAttributeValue(attr) == 0
+                   for attr in self.attribute_records(value, 0xffffffff, call))
+
+    def constrained_mul_identity(self, value, name):
+        a = self.a
+        base = b"llvm.experimental.constrained.fmul"
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (name not in self.CONSTRAINED_MUL_INTRINSICS or not expected
+                or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject("constrained multiply requires its actual pinned external AS0 strictfp intrinsic identity")
+
+    def constrained_mul_metadata(self, value, index, expected):
+        operand = self.a.GetOperand(value, index)
+        if self.a.GetTypeKind(self.a.TypeOf(operand)) != 14:
+            self.reject("constrained multiply requires genuine metadata arguments")
+        metadata = self.a.ValueAsMetadata(operand)
+        if not metadata or self.a.GetMetadataKind(metadata) != 0:
+            self.reject("constrained multiply mode must be an actual MDString")
+        raw = bytes(self.noalias_bytes(metadata))
+        if raw != expected:
+            self.reject("unsupported constrained multiply mode: " + repr(raw))
 
     def integer_byte_swap_identity(self, value, name):
         a = self.a
@@ -1139,6 +1179,15 @@ class Importer:
                     or signature["result_attributes"] or any(signature["param_attributes"])
                     or signature.get("return_storage") is not None):
                 self.reject("vector reduction requires its exact integer-vector operand and scalar-element result signature without ABI attributes")
+            return
+        if name in self.CONSTRAINED_MUL_INTRINSICS:
+            expected = {"kind": "float", "bits": self.CONSTRAINED_MUL_INTRINSICS[name]}
+            if (self.types[signature["result"]] != expected
+                    or [self.types[t] for t in signature["params"]] != [expected, expected, {"kind": "metadata"}, {"kind": "metadata"}]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject("invalid owned constrained multiply declaration signature")
             return
         if name in self.INTEGER_BYTE_SWAP_INTRINSICS:
             width = self.INTEGER_BYTE_SWAP_INTRINSICS[name]
@@ -2726,6 +2775,8 @@ class Importer:
                     self.reject(f"intrinsic {intrinsic} requires explicit call lowering")
                 if self.vector_reduce_add_name(intrinsic) is not None:
                     self.vector_reduce_add_identity(callee, intrinsic)
+                if intrinsic in self.CONSTRAINED_MUL_INTRINSICS:
+                    self.constrained_mul_identity(callee, intrinsic)
                 if intrinsic in self.INTEGER_BYTE_SWAP_INTRINSICS:
                     self.integer_byte_swap_identity(callee, intrinsic)
                 if intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
@@ -2756,11 +2807,21 @@ class Importer:
             # not an ordinary constant Symbol address. Only this owned call
             # reads its literal global argument without materializing a Symbol.
             args = ([] if intrinsic in {"llvm.threadlocal.address.p0", self.NOALIAS_INTRINSIC} else
-                    [self.operand(a.GetOperand(value, i)) for i in range(a.GetNumArgOperands(value))])
+                    [self.operand(a.GetOperand(value, i)) for i in range(2 if intrinsic in self.CONSTRAINED_MUL_INTRINSICS else a.GetNumArgOperands(value))])
             if intrinsic:
                 self.intrinsic_signature(intrinsic, signature)
             if a.IsAInlineAsm(callee) and self.linux_syscall_profile is not None:
                 operation = self.linux_syscall(value, callee, signature, args)
+            elif intrinsic in self.CONSTRAINED_MUL_INTRINSICS:
+                if (not self.current_strict_fp or not (self.has_strict_fp(value, True) or self.has_strict_fp(callee))
+                        or any(self.fast_math(value).values())):
+                    self.reject("constrained multiply requires enclosing/call strictfp and no fast-math assumptions")
+                self.constrained_mul_metadata(value, 2, b"round.dynamic")
+                self.constrained_mul_metadata(value, 3, b"fpexcept.ignore")
+                self.constrained_mul_seen = True
+                operation = {"op": "constrained_float_binary", "kind": "mul", "lhs": args[0], "rhs": args[1],
+                             "rounding": "dynamic", "exceptions": "ignore"}
+                self.refinements.add("constrained scalar multiply retains actual intrinsic identity, metadata signature, strictfp sites, dynamic rounding and exception-ignore; ordered own hardware instruction under unchanged ambient controls; flags/traps are not strict exception guarantees")
             elif intrinsic == self.NOALIAS_INTRINSIC:
                 argument = a.GetOperand(value, 0)
                 if a.GetTypeKind(a.TypeOf(argument)) != 14:
@@ -3036,6 +3097,8 @@ class Importer:
             intrinsic = self.symbol
             if self.vector_reduce_add_name(intrinsic) is not None:
                 self.vector_reduce_add_identity(value, intrinsic)
+            if intrinsic in self.CONSTRAINED_MUL_INTRINSICS:
+                self.constrained_mul_identity(value, intrinsic)
             if intrinsic in self.INTEGER_BYTE_SWAP_INTRINSICS:
                 self.integer_byte_swap_identity(value, intrinsic)
             if intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
@@ -3064,6 +3127,7 @@ class Importer:
                                        "personality": self.exception_pointer(a.GetPersonalityFn(value), personality=True)}
             self.refinements.add(f"{self.symbol}: retained original Itanium/DWARF personality identity without callback substitution; native instruction-precise CFI/LSDA, unwind services and complete included provider closure require independent realization")
         signature = self.signature(a.GlobalGetValueType(value), value, intrinsic=intrinsic)
+        self.current_strict_fp = self.has_strict_fp(value)
         self.current_variadic = signature["variadic"]
         self.current_abi = signature["abi"]
         function_effects = self.control_effects(value)
@@ -3325,9 +3389,15 @@ class Importer:
             self.refinements.add("LLVM poison/undef may be refined deterministically; dropped assumptions are never used for optimization")
             if self.strict_fp_sites:
                 self.audit_strict_fp_integer_operations(functions)
+            if self.constrained_mul_seen:
+                if self.linux_syscall_profile is not None:
+                    self.reject("scalar dynamic multiply does not admit the separate Linux syscall profile")
+                self.refinements = {note for note in self.refinements if ": strictfp-integer-v1 " not in note}
+                for symbol, site, index in self.strict_fp_sites:
+                    self.refinements.add(f"{symbol}: strictfp-scalar-dynamic-mul-v1 {site} attribute index {index}: audited scalar32/64 transport, bit/sign operations and ordered dynamic-rounding multiplication; ambient controls retained, exception-ignore not strict flags/traps; required original calls/providers remain separate obligations")
             target = {"triple": triple, "data_layout": layout, "pointer_bits": 64, "little_endian": True}
             if self.strict_fp_sites:
-                target["strict_fp_profile"] = ("integer_linux_syscall_v1" if self.linux_syscall_profile else "integer_only_v1")
+                target["strict_fp_profile"] = ("scalar_dynamic_mul_v1" if self.constrained_mul_seen else "integer_linux_syscall_v1" if self.linux_syscall_profile else "integer_only_v1")
             if self.linux_syscall_profile is not None:
                 target["linux_syscall_profile"] = "linux_user_raw_v1"
             if self.target_abi is not None:
@@ -3370,6 +3440,8 @@ class Importer:
         """Bound the strictfp realization independently of future IR expansion."""
         def value_type(ident):
             record = self.types[ident]
+            if record["kind"] == "float" and self.constrained_mul_seen and record["bits"] in {32, 64}:
+                return
             if record["kind"] in {"void", "int", "pointer", "metadata"}:
                 return
             if record["kind"] == "struct":
@@ -3411,6 +3483,12 @@ class Importer:
                 for operation in operations:
                     name = operation["op"]
                     if name == "linux_syscall" and self.linux_syscall_profile == "linux-user-raw-v1":
+                        continue
+                    if name in {"constrained_float_binary", "float_neg", "float_abs"} and self.constrained_mul_seen:
+                        if name == "constrained_float_binary" and (operation["kind"] != "mul" or operation["rounding"] != "dynamic" or operation["exceptions"] != "ignore"):
+                            self.reject("unsupported constrained scalar operation")
+                        if name in {"float_neg", "float_abs"} and any(operation["flags"].values()):
+                            self.reject("strict scalar sign operation cannot use fast-math assumptions")
                         continue
                     if name not in self.STRICT_FP_INTEGER_OPERATIONS:
                         self.reject(f"strictfp-integer-v1 has no audited environment-preserving realization for {name}")

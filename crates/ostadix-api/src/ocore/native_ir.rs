@@ -294,6 +294,21 @@ pub enum StrictFpProfile {
     /// IntegerOnlyV1 plus the separately audited opaque Linux platform operation.
     /// The original Linux provider remains an external execution obligation.
     IntegerLinuxSyscallV1,
+    /// Ordered scalar IEEE32/64 multiplication under the unchanged dynamic
+    /// environment; exception-ignore is not a strict/trapping contract.
+    ScalarDynamicMulV1,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ConstrainedFpRounding {
+    Dynamic,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ConstrainedFpExceptions {
+    Ignore,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -878,6 +893,14 @@ pub enum Operation {
         rhs: Operand,
         #[serde(default)]
         flags: FastMathFlags,
+    },
+    /// Distinct environment-sensitive operation; never ordinary FloatBinary.
+    ConstrainedFloatBinary {
+        kind: FloatBinaryOp,
+        lhs: Operand,
+        rhs: Operand,
+        rounding: ConstrainedFpRounding,
+        exceptions: ConstrainedFpExceptions,
     },
     FloatNeg {
         value: Operand,

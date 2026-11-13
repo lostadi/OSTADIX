@@ -435,6 +435,7 @@ impl<'a> Prepared<'a> {
                             return Err(fail("Linux platform effects cannot execute in the scalar reference interpreter"));
                         }
                         Operation::FloatBinary { .. }
+                        | Operation::ConstrainedFloatBinary { .. }
                         | Operation::FloatNeg { .. }
                         | Operation::FloatAbs { .. }
                         | Operation::FCmp { .. } => {

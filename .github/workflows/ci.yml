@@ -37,6 +37,15 @@ jobs:
           python3 scripts/contract_surfaces.py validate
           python3 scripts/check_architecture_boundaries.py
           python3 -m unittest -v tests.test_contract_surfaces tests.test_local_ci_posture tests.test_commit_authors tests.test_architecture_boundaries tests.test_governance_surfaces tests.test_ci_nix_profile
+      - name: Verify required LLVM provisioning and refusal controls
+        run: |
+          python3 -B - <<'PY'
+          import unittest
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_prepare_ci_llvm_profile")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun < 26 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
+              raise SystemExit("required LLVM archive/refusal controls must execute with no skips")
+          PY
       - name: Verify complete-source inventory worker and recipe bindings
         run: |
           python3 - <<'PY'
@@ -46,6 +55,114 @@ jobs:
           if not result.wasSuccessful() or result.testsRun < 17 or result.skipped:
               raise SystemExit("complete-source inventory regressions must execute without skips")
           PY
+
+  ocore-constrained-fp:
+    name: Required original-source constrained FP
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Initialize required FP evidence
+        run: |
+          mkdir -p target/ocore-constrained-fp
+          git rev-parse HEAD > target/ocore-constrained-fp/source-commit.txt
+          git status --porcelain > target/ocore-constrained-fp/source-status.txt
+          test ! -s target/ocore-constrained-fp/source-status.txt
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: 1.97.1
+      - name: Install declared Linux-host build and supplied-tool dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential make git python3 xz-utils libxml2 zlib1g
+          python3 scripts/contract_surfaces.py probe-runtimes --suite ocore-constrained-fp
+      - name: Authenticate and stream the exact minimal LLVM release
+        run: |
+          set -euo pipefail
+          rust_sysroot="$(rustc +1.97.1 --print sysroot)"
+          python3 - <<'PYCODE'
+          import json, pathlib, subprocess
+          root = pathlib.Path(subprocess.check_output(["rustc", "+1.97.1", "--print", "sysroot"], text=True).strip())
+          libraries = sorted((root / "lib").glob("libLLVM.so.22.1-rust-1.97.1-*"))
+          selection = {"status": "passed" if len(libraries) == 1 else "failed",
+                       "candidates": [str(path) for path in libraries],
+                       "required": "Rust1.97.1 x86-64 Linux LLVM22.1.6 C API"}
+          pathlib.Path("target/ocore-constrained-fp/parser-selection.json").write_text(json.dumps(selection, indent=2) + "\n")
+          if len(libraries) != 1:
+              raise SystemExit("required exact Rust1.97.1 parser library is missing or ambiguous")
+          pathlib.Path("target/ocore-constrained-fp/parser-path.txt").write_text(str(libraries[0]) + "\n")
+          PYCODE
+          parser_library="$(cat target/ocore-constrained-fp/parser-path.txt)"
+          python3 -B scripts/prepare_ci_llvm_profile.py \
+            --archive "$RUNNER_TEMP/LLVM-22.1.6-Linux-X64.tar.xz" \
+            --prefix "$RUNNER_TEMP/llvm22-constrained-fp" \
+            --output "$GITHUB_WORKSPACE/target/ocore-constrained-fp/setup" \
+            --rustc "$rust_sysroot/bin/rustc" --parser-library "$parser_library" \
+            2>&1 | tee target/ocore-constrained-fp/provision.log
+      - name: Capture clean original musl and freeze the newly built compiler
+        run: |
+          set -euo pipefail
+          git clone https://git.musl-libc.org/git/musl "$RUNNER_TEMP/musl-constrained-fp" 2>&1 | tee target/ocore-constrained-fp/musl-clone.log
+          git -C "$RUNNER_TEMP/musl-constrained-fp" checkout --detach 0784374d561435f7c787a555aeab8ede699ed298
+          test -z "$(git -C "$RUNNER_TEMP/musl-constrained-fp" status --porcelain)"
+          git -C "$RUNNER_TEMP/musl-constrained-fp" rev-parse HEAD > target/ocore-constrained-fp/musl-commit.txt
+          git -C "$RUNNER_TEMP/musl-constrained-fp" ls-tree -r --full-tree HEAD > target/ocore-constrained-fp/musl-source-tree.txt
+          git -C "$RUNNER_TEMP/musl-constrained-fp" archive --format=tar --output "$GITHUB_WORKSPACE/target/ocore-constrained-fp/original-musl-source.tar" HEAD
+          sha256sum target/ocore-constrained-fp/original-musl-source.tar > target/ocore-constrained-fp/original-musl-source.sha256
+          cargo +1.97.1 build --locked --bin ocorec 2>&1 | tee target/ocore-constrained-fp/compiler-build.log
+          cp target/debug/ocorec target/ocore-constrained-fp/ocorec-frozen
+          chmod 0555 target/ocore-constrained-fp/ocorec-frozen
+          python3 - <<'PYCODE'
+          import hashlib, json, os, pathlib
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          path = root / "target/ocore-constrained-fp/ocorec-frozen"
+          record = {"path": str(path), "bytes": path.stat().st_size,
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "source_commit": (root / "target/ocore-constrained-fp/source-commit.txt").read_text().strip()}
+          (path.parent / "compiler-pin.json").write_text(json.dumps(record, indent=2) + "\n")
+          PYCODE
+      - name: Execute every required original-source constrained-multiply test
+        run: |
+          set -euo pipefail
+          python3 - <<'PYCODE' 2>&1 | tee target/ocore-constrained-fp/tests.log
+          import hashlib, json, os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/ocore-constrained-fp"
+          environment = json.loads((evidence / "setup/environment.json").read_text())
+          compiler = json.loads((evidence / "compiler-pin.json").read_text())
+          environment.update(OCOREC_BIN=compiler["path"], OCOREC_BIN_SHA256=compiler["sha256"],
+                             OCORE_MUSL_SOURCE=str(pathlib.Path(os.environ["RUNNER_TEMP"]) / "musl-constrained-fp"),
+                             OCORE_CONSTRAINED_FP_REQUIRED="1",
+                             OCORE_CONSTRAINED_FP_OUTPUT=str(evidence / "suite"))
+          os.environ.update(environment)
+          os.environ["PATH"] = str(pathlib.Path(environment["OCORE_TEST_CLANG"]).parent) + os.pathsep + os.environ["PATH"]
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_native_constrained_fmul")
+          discovered = suite.countTestCases()
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          unchanged = hashlib.sha256(pathlib.Path(compiler["path"]).read_bytes()).hexdigest() == compiler["sha256"]
+          from scripts.prepare_ci_llvm_profile import required_test_report
+          report = required_test_report(discovered, result, unchanged)
+          (evidence / "test-result.json").write_text(json.dumps(report, indent=2) + "\n")
+          if not report["passed"]:
+              raise SystemExit("required constrained FP gate must execute all9 tests with no skips and unchanged compiler")
+          PYCODE
+      - name: Retain exact prerequisite and original-source execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: constrained-fp-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/ocore-constrained-fp/
+          if-no-files-found: error
+          retention-days: 14
 
   boundary-contract:
     name: Hosted value/code boundary
@@ -1220,6 +1337,7 @@ jobs:
       - docker
       - mcp
       - native-systems
+      - ocore-constrained-fp
       - ocore-qemu
       - offline-kit
       - python
@@ -1244,11 +1362,12 @@ jobs:
           MCP: ${{ needs.mcp.result }}
           OFFLINE_KIT: ${{ needs.offline-kit.result }}
           RELEASE_CLAIMS: ${{ needs.release-claims.result }}
+          OCORE_CONSTRAINED_FP: ${{ needs.ocore-constrained-fp.result }}
           OCORE_QEMU: ${{ needs.ocore-qemu.result }}
           NATIVE_SYSTEMS: ${{ needs.native-systems.result }}
         run: |
           status=0
-          for name in BOUNDARY_CONTRACT CONTRACTS RUST_MSRV RUST_QUALITY RUST_TESTS RUST_HOSTED PYTHON C17 DOCKER MCP OFFLINE_KIT RELEASE_CLAIMS OCORE_QEMU NATIVE_SYSTEMS; do
+          for name in BOUNDARY_CONTRACT CONTRACTS RUST_MSRV RUST_QUALITY RUST_TESTS RUST_HOSTED PYTHON C17 DOCKER MCP OFFLINE_KIT RELEASE_CLAIMS OCORE_CONSTRAINED_FP OCORE_QEMU NATIVE_SYSTEMS; do
             result="${!name}"
             printf '%s=%s\n' "$name" "$result"
             [[ "$result" == success ]] || status=1

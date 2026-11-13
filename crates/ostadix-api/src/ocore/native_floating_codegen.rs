@@ -8,6 +8,7 @@ impl Emitter<'_> {
     ) -> Result<bool, Diagnostic> {
         let relevant = match &instruction.operation {
             Operation::FloatBinary { .. }
+            | Operation::ConstrainedFloatBinary { .. }
             | Operation::FloatNeg { .. }
             | Operation::FloatAbs { .. }
             | Operation::FCmp { .. } => true,
@@ -88,6 +89,30 @@ impl Emitter<'_> {
                     }
                     self.spill_chunk(out, result, 0, 64);
                 }
+            }
+            Operation::ConstrainedFloatBinary { lhs, rhs, .. } => {
+                let bits = self.bits(lhs);
+                self.floating_load(out, lhs, Some(rhs), bits)?;
+                match self.target {
+                    Target::X86_64UnknownNone => writeln!(
+                        out,
+                        "  mul{} xmm14, xmm15",
+                        if bits == 32 { "ss" } else { "sd" }
+                    )
+                    .unwrap(),
+                    Target::Aarch64UnknownNone => {
+                        let p = if bits == 32 { "s" } else { "d" };
+                        writeln!(out, "  fmul {p}16, {p}16, {p}17").unwrap();
+                    }
+                    Target::Riscv64UnknownNone => writeln!(
+                        out,
+                        "  fmul.{} ft0, ft0, ft1, dyn",
+                        if bits == 32 { "s" } else { "d" }
+                    )
+                    .unwrap(),
+                }
+                self.floating_read_result(out, bits);
+                self.spill_chunk(out, result, 0, 0);
             }
             Operation::FloatBinary { kind, lhs, rhs, .. } => {
                 let bits = self.bits(lhs);

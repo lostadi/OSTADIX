@@ -1,6 +1,84 @@
 //! Structural admission tests; these providers do not qualify helper arithmetic.
 use super::*;
 
+#[test]
+fn constrained_multiply_artifacts_keep_compiler_metadata_without_a_fake_provider() {
+    // Authored structural fixture. Original-source custody and arithmetic are
+    // established by the separate unchanged-source differential tests.
+    for arch in ["x86_64", "aarch64", "riscv64"] {
+        let value = json!({
+            "format":"ocore-native-module-v1", "name":"constrained-artifact-fixture",
+            "target":{"triple":format!("{arch}-unknown-linux-gnu"),
+                "data_layout":"e-p:64:64-i64:64-f64:64", "pointer_bits":64,
+                "little_endian":true, "abi":(arch == "riscv64").then_some("lp64d"),
+                "strict_fp_profile":"scalar_dynamic_mul_v1"},
+            "semantics":"llvm_defined_behavior_v1",
+            "types":[{"kind":"void"},{"kind":"float","bits":64},{"kind":"metadata"}],
+            "globals":[],
+            "functions":[
+                {"name":"native_mul","linkage":"external",
+                    "signature":{"params":[1,1],"result":1,"abi":"c","variadic":false},
+                    "params":[{"id":0,"ty":1},{"id":1,"ty":1}],"entry":0,
+                    "blocks":[{"id":0,"instructions":[{"result":{"id":2,"ty":1},
+                        "operation":{"op":"constrained_float_binary","kind":"mul",
+                            "lhs":{"kind":"value","id":0},"rhs":{"kind":"value","id":1},
+                            "rounding":"dynamic","exceptions":"ignore"}}],
+                        "terminator":{"op":"return","value":{"kind":"value","id":2}}}]},
+                {"name":"llvm.experimental.constrained.fmul.f64","linkage":"external",
+                    "intrinsic":"llvm.experimental.constrained.fmul.f64",
+                    "signature":{"params":[1,1,2,2],"result":1,"abi":"c","variadic":false},
+                    "params":[{"id":0,"ty":1},{"id":1,"ty":1},
+                        {"id":2,"ty":2},{"id":3,"ty":2}],"entry":null,"blocks":[]}
+            ],
+            "provenance":{"input_sha256":"0".repeat(64),"frontend":"authored-test",
+                "frontend_version":"1","importer":"authored-test","importer_version":"1",
+                "source_function_count":2,"source_global_count":0,"refinements":[]}
+        });
+        let module = NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let inventory = symbols("fixture", &module).unwrap();
+        let intrinsic = inventory
+            .iter()
+            .find(|symbol| symbol.name == "llvm.experimental.constrained.fmul.f64")
+            .unwrap();
+        assert!(!intrinsic.definition);
+        assert_eq!(
+            intrinsic.intrinsic.as_deref(),
+            Some(intrinsic.name.as_str())
+        );
+        let (closed, issues) = resolve_symbols(&inventory);
+        assert!(issues.is_empty(), "{issues:?}");
+        assert_eq!(closed["closed"], true);
+        let package = artifact::Artifact::build(
+            "fixture",
+            &"0".repeat(64),
+            &[("fixture".into(), module.to_json().unwrap())],
+            &[],
+        )
+        .unwrap();
+        artifact::Artifact::from_bytes(&serde_json::to_vec(&package).unwrap()).unwrap();
+
+        let mut missing = module.clone();
+        missing.functions.pop();
+        missing.provenance.source_function_count = 1;
+        let error = NativeModule::from_json(&serde_json::to_vec(&missing).unwrap()).unwrap_err();
+        assert!(error
+            .message
+            .contains("included exact intrinsic declaration"));
+        let mut ordinary_abi = module.clone();
+        ordinary_abi.functions[1].signature.params[2] = 1;
+        ordinary_abi.functions[1].params[2].ty = 1;
+        let error =
+            NativeModule::from_json(&serde_json::to_vec(&ordinary_abi).unwrap()).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("invalid compiler-only metadata intrinsic signature"),
+            "{}",
+            error.message
+        );
+    }
+}
+
 fn provider(consumer: &NativeModule) -> NativeModule {
     use o_lang::ocore::native_ir::{Operand, Terminator, Value};
     let mut provider = consumer.clone();

@@ -340,14 +340,14 @@ The two records remain distinct.
 
 
 def fixture_public_boundary_link_targets() -> dict[str, bytes]:
-    """Close real new document links inside the otherwise synthetic tree.
+    """Close real boundary/required-FP links inside the otherwise synthetic tree.
 
     These existing targets need only inert fixture payloads here. The public
     boundary files themselves retain their actual bytes, and the actual-tree
     archive test separately validates the complete real source tree.
     """
     targets = {}
-    for source in release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS:
+    for source in release.PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS:
         if not source.endswith(".md"):
             continue
         for destination in release._markdown_destinations((PROJECT_ROOT / source).read_text()):
@@ -1092,7 +1092,7 @@ class SourceReleaseTests(unittest.TestCase):
         for path in blocked:
             with self.subTest(blocked=path):
                 self.assertFalse(release.is_allowed_release_path(path))
-        for path in allowed | release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS:
+        for path in allowed | release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS:
             with self.subTest(retained=path):
                 self.assertTrue(release.is_allowed_release_path(path))
 
@@ -1915,7 +1915,7 @@ class SourceReleaseTests(unittest.TestCase):
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             contents.setdefault(path, b"fixture human and LLM interface source\n")
         contents.update(fixture_setup_sources())
-        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS:
+        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS:
             contents[path] = (PROJECT_ROOT / path).read_bytes()
         if files:
             contents.update(files)
@@ -2665,6 +2665,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.OKERNEL_PACKAGE_BOOT_RELEASE_PATHS)
             included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
             included.update(release.NATIVE_FOUNDATION_RELEASE_PATHS)
+            included.update(release.CONSTRAINED_FP_RELEASE_PATHS)
             included.update(release.O10_COMPONENT_RELEASE_PATHS)
             included.update(fixture_setup_sources())
             excluded = {
@@ -4261,6 +4262,13 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("rm", *paths)
         self._git("commit", "-q", "-m", "remove install observation and TLS carrier inputs")
         self._assert_missing_required_paths("missing-install-observation.zip", paths)
+
+    def test_constrained_fp_provisioning_and_full_source_closure_are_required(self) -> None:
+        paths = sorted(release.CONSTRAINED_FP_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", *paths)
+        self._git("commit", "-q", "-m", "remove mandatory exact-LLVM scalar FP source closure")
+        self._assert_missing_required_paths("missing-constrained-fp.zip", paths)
 
     def test_o10_component_source_closure_is_required(self) -> None:
         paths = sorted(release.O10_COMPONENT_RELEASE_PATHS)

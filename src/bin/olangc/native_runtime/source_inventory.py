@@ -81,6 +81,8 @@ class Reader:
             "ValueMetadataEntriesGetMetadata": (P, [P, U]),
             "DisposeValueMetadataEntries": (None, [P]),
             "MetadataAsValue": (P, [P, P]), "ValueAsMetadata": (P, [P]),
+            "GetMetadataKind": (U, [P]), "GetMDString": (P, [P, c.POINTER(U)]),
+            "LookupIntrinsicID": (U, [c.c_char_p, Z]),
             "MDNodeInContext2": (P, [P, c.POINTER(P), Z]),
             "GetMDNodeOperands": (None, [P, c.POINTER(P)]),
             "GetIntrinsicID": (U, [P]), "GetFunctionCallConv": (U, [P]),
@@ -274,7 +276,15 @@ class Reader:
             integer = self.ConstBitCast(value, self.IntTypeInContext(self.context, ty["bits"]))
             return {"kind": "float", "type": ty, "bits": str(self.integer(integer) % (1 << ty["bits"]))}
         if ty["kind"] == "metadata":
-            return {"kind": "compiler_metadata", "printed_sha256": hashlib.sha256(self.printed(value).encode()).hexdigest()}
+            result = {"kind": "compiler_metadata", "printed_sha256": hashlib.sha256(self.printed(value).encode()).hexdigest()}
+            metadata = self.ValueAsMetadata(value)
+            if metadata and self.GetMetadataKind(metadata) == 0:
+                length = c.c_uint()
+                raw = self.GetMDString(value, c.byref(length))
+                if not raw and length.value:
+                    raise InventoryMismatch("actual MDString has no byte storage")
+                result["mdstring_bytes"] = list(c.string_at(raw, length.value)) if length.value else []
+            return result
         raise InventoryMismatch("independent inventory has no intrinsic operand mapping")
 
     def constant_pointer_integer(self, value, values):
@@ -1056,7 +1066,14 @@ class Reader:
                                                   for index in range(self.GetNumArgOperands(instruction))],
                                     "args": [self.operand(self.GetOperand(instruction, index), values)
                                              for index in range(self.GetNumArgOperands(instruction))],
-                                    "fast_math": self.GetFastMathFlags(instruction) if intrinsic_name.startswith(("llvm.fabs.", "llvm.floor.", "llvm.ceil.", "llvm.trunc.")) else 0})
+                                    "fast_math": self.GetFastMathFlags(instruction) if intrinsic_name.startswith(("llvm.fabs.", "llvm.floor.", "llvm.ceil.", "llvm.trunc.", "llvm.experimental.constrained.fmul.")) else 0})
+                                if intrinsic_name in {"llvm.experimental.constrained.fmul.f32", "llvm.experimental.constrained.fmul.f64"}:
+                                    base = b"llvm.experimental.constrained.fmul"
+                                    sites[-1]["constrained_fp_source"] = {
+                                        "actual_intrinsic_id": self.GetIntrinsicID(callee),
+                                        "expected_intrinsic_id": self.LookupIntrinsicID(base, len(base)),
+                                        "enclosing_strictfp": self.strict_fp(function),
+                                        "call_or_declaration_strictfp": self.strict_fp(instruction, call=True) or self.strict_fp(callee)}
                                 if intrinsic_name == "llvm.ptrmask.p0.i64":
                                     sites[-1]["return_alignment"] = self.call_return_alignment(instruction)
                 output["functions"][name] = {"type": self.shape(self.GlobalGetValueType(function)),
@@ -1439,6 +1456,22 @@ def intrinsic_mapping(site, function, types, graph_claims=None):
             return op == "assume" and same("condition", 0)
         if name == "llvm.trap":
             return op == "trap"
+        if name in {"llvm.experimental.constrained.fmul.f32", "llvm.experimental.constrained.fmul.f64"}:
+            width = 32 if name.endswith("f32") else 64
+            scalar = {"kind": "float", "bits": width}
+            fact = site.get("constrained_fp_source", {})
+            if (not fact.get("expected_intrinsic_id") or fact.get("actual_intrinsic_id") != fact["expected_intrinsic_id"]
+                    or not fact.get("enclosing_strictfp") or not fact.get("call_or_declaration_strictfp")
+                    or site.get("fast_math") != 0
+                    or site.get("arg_types") != [scalar, scalar, {"kind": "metadata"}, {"kind": "metadata"}]
+                    or site.get("result_type") != scalar or len(args) != 4
+                    or args[2].get("mdstring_bytes") != list(b"round.dynamic")
+                    or args[3].get("mdstring_bytes") != list(b"fpexcept.ignore")):
+                raise InventoryMismatch("original constrained multiply identity/signature/metadata/strictfp mismatch")
+            return (op == "constrained_float_binary" and operation.get("kind") == "mul"
+                    and same("lhs", 0) and same("rhs", 1)
+                    and operation.get("rounding") == "dynamic" and operation.get("exceptions") == "ignore"
+                    and result is not None and native_shape(types, result["ty"]) == scalar)
         if name.startswith("llvm.fabs."):
             flags = {flag: bool(site["fast_math"] & (1 << bit))
                      for bit, flag in enumerate(("reassoc", "nnan", "ninf", "nsz", "arcp", "contract", "afn"))}
@@ -1829,9 +1862,11 @@ def check_inventory(source, module):
         if not condition:
             raise InventoryMismatch(message)
     if source.get("strict_fp_required"):
-        expected_strict = ("integer_linux_syscall_v1" if module["target"].get("linux_syscall_profile") == "linux_user_raw_v1" else "integer_only_v1")
+        constrained_mul = any(site["name"] in {"llvm.experimental.constrained.fmul.f32", "llvm.experimental.constrained.fmul.f64"}
+                              for function in source["functions"].values() for site in function["intrinsic_sites"])
+        expected_strict = ("scalar_dynamic_mul_v1" if constrained_mul else "integer_linux_syscall_v1" if module["target"].get("linux_syscall_profile") == "linux_user_raw_v1" else "integer_only_v1")
         require(module["target"].get("strict_fp_profile") == expected_strict,
-                "original strictfp requires its independently verified integer-only realization profile")
+                "original strictfp requires its independently verified realization profile")
     types = module["types"]
     # TypeIds, not a fabricated common name or empty field list, distinguish
     # anonymous identified opaque structures. Compare their complete global
@@ -2007,7 +2042,7 @@ def check_inventory(source, module):
                 for block in translated["blocks"]:
                     for index, instruction in enumerate(block["instructions"]):
                         if instruction["operation"]["op"] in {
-                                "ptr_mask", "integer_count_leading_zeros", "integer_abs", "integer_population_count", "vector_reduce_add"}:
+                                "ptr_mask", "integer_count_leading_zeros", "integer_abs", "integer_population_count", "vector_reduce_add", "constrained_float_binary"}:
                             require((block["id"], index) in consumed,
                                     f"unaccounted scalar intrinsic operation: {name}")
                 if any(site["name"].startswith("llvm.usub.sat.i")
