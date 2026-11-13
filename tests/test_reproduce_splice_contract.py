@@ -220,14 +220,17 @@ class ReproductionContractTests(unittest.TestCase):
         self.assertFalse(succeeds(0))
         listing.write_text("backend::tests::sqlite_file_requests_recover_from_syntax_errors_and_marker_collisions: test\n")
         self.assertTrue(succeeds(0))
-        (logs / "foreign-splice.log").write_text("test result: ok. 14 passed; 0 failed; 0 ignored;\n")
+        (logs / "foreign-splice.log").write_text("test result: ok. 18 passed; 0 failed; 0 ignored;\n")
         (logs / "sql-regression.log").write_text("test result: ok. 1 passed; 0 failed; 0 ignored;\n")
         (logs / "python-contracts.log").write_text("Ran 7 tests in 0.1s\n\nOK\n")
         self.assertTrue(succeeds(1))
         for filename, corrupt in (
             ("sql-regression.log", "test result: ok. 0 passed; 0 failed; 0 ignored;\n"),
-            ("foreign-splice.log", "test result: ok. 0 passed; 0 failed; 0 ignored;\n"),
-            ("foreign-splice.log", "test result: ok. 13 passed; 0 failed; 1 ignored;\n"),
+            *(("foreign-splice.log", f"test result: ok. {count} passed; 0 failed; 0 ignored;\n")
+              for count in (0, 1, 14, 16, 17, 19)),
+            ("foreign-splice.log", ""),
+            ("foreign-splice.log", "test result: ok. 18 passed; 0 failed; 0 ignored;\n" * 2),
+            ("foreign-splice.log", "test result: ok. 18 passed; 0 failed; 1 ignored;\n"),
             ("python-contracts.log", "Ran 0 tests in 0.1s\n\nOK\n"),
             ("python-contracts.log", "Ran 7 tests in 0.1s\n\nOK (skipped=1)\n"),
         ):
