@@ -984,13 +984,25 @@ fn timeout_diagnostics_identify_native_javascript_after_python_retirement() {
         !diagnostic.contains("event=backend.script_output_collected language=javascript"),
         "{diagnostic}"
     );
+    // Node versions choose different kernel thread names (for example
+    // `node` or `MainThread`). Bind the observed owned row to the launch
+    // event's PID; this diagnostic comparison grants no process authority.
+    let child_pid = diagnostic
+        .lines()
+        .find_map(|line| {
+            if !line.contains(" event=backend.script_spawned language=javascript command=node ") {
+                return None;
+            }
+            line.split_whitespace()
+                .find_map(|field| field.strip_prefix("child_pid=")?.parse::<u64>().ok())
+        })
+        .expect("native JavaScript launch event retains its child PID");
     let snapshot = timeout_snapshot(&diagnostic);
-    assert!(
-        snapshot["processes_up_to_32"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row["stat"]["comm"] == "node"),
-        "{diagnostic}"
-    );
+    let row = snapshot["processes_up_to_32"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["pid"].as_u64() == Some(child_pid))
+        .expect("launched Node PID is present in the identity-checked owned snapshot");
+    assert_eq!(row["stat"]["starttime"], row["starttime"], "{diagnostic}");
 }
