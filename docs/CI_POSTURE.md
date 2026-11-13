@@ -26,6 +26,74 @@ The baseline checks:
 - agreement among release metadata, the release-claim/package jobs, the
   contracts lane, and the required source-release surfaces.
 
+### Required exact-LLVM scalar FP contract
+
+The independent `ocore-constrained-fp` job on Ubuntu 24.04 is required by
+`required-ci`; it runs outside the older optional installed-SDK block. A
+missing download, tool, parser library, original source, compiler or test is a
+failed required job. It does not turn the older optional SDK suites into
+qualified executions.
+
+`scripts/prepare_ci_llvm_profile.py` authenticates the complete official
+`LLVM-22.1.6-Linux-X64.tar.xz`: 1,937,446,204 bytes, SHA-256
+`c5ac8ef89ca39d30cb32e9b83772f995dd891c685ebc188d593c943a64d5f8b5`.
+It streams only the exact members in `ci/llvm-22.1.6-linux-x64.json` into a
+new prefix: six executable bodies, all 305 resource headers, the original
+three aliases and archive license notice (653,779,274 regular-file bytes).
+It never extracts the full SDK. Cold provisioning needs about 2.6 GB for the
+compressed archive plus selected subset, with additional headroom for the
+compiler build and test outputs. An existing extracted SDK or version string
+alone does not establish archive membership. No global PATH, loader or tools
+are replaced.
+
+The supplied tools require an x86-64 Linux host, its ELF loader and declared
+native DSOs. The job installs build-essential, make, Git, Python 3, xz,
+libxml2 and zlib through the runner package manager. The provisioner captures
+actual tool versions and resolved host DSO identities; these runner inputs
+remain provided dependencies. The required LLVM C API parser is independently
+pinned to the actual Rust 1.97.1 Linux x86-64 library (199,494,192 bytes,
+SHA-256 `ed4f320c4e1ed6de7d2db6fd89faccf764d63186c2f877057ddf31065b1fac09`)
+and checks `LLVMGetVersion` as 22.1.6. No SDK-library fallback is allowed.
+Complete upstream license text is retained in `ci/llvm-22.1.6-LICENSE.TXT`;
+original selected resource notices remain unchanged.
+
+The job checks out clean original musl at
+`0784374d561435f7c787a555aeab8ede699ed298`, builds `ocorec` from the CI source
+commit with Rust 1.97.1 and the locked dependency graph, freezes its bytes,
+and executes all nine `tests.test_ocore_native_constrained_fmul` tests with
+`OCORE_CONSTRAINED_FP_REQUIRED=1`. Discovery, execution counts, skipped tests
+and compiler mutation are mandatory checks. The artifact is uploaded with
+`always()` and includes setup/refusal records, actual tool/compiler/source
+identities, configure/build commands, original LLVM IR, native modules,
+objects and raw oracle outputs, even when a later stage fails. The artifact
+contains supplied/generated executables and is not a public text-only bundle.
+
+For a local run, use a new absent `--prefix` and `--output`, the exact archive
+(or an absent archive path for a cold download), and the explicitly selected
+Rust tool and parser:
+
+```bash
+python3 -B scripts/prepare_ci_llvm_profile.py \
+  --archive /path/to/LLVM-22.1.6-Linux-X64.tar.xz \
+  --prefix /new/llvm-subset --output /new/setup-evidence \
+  --rustc /path/to/rust-1.97.1/bin/rustc \
+  --parser-library /path/to/rust-1.97.1/lib/libLLVM.so.22.1-rust-1.97.1-stable
+```
+
+The setup's `environment.json` provides exact test tool/library inputs. Set
+`OCOREC_BIN` and `OCOREC_BIN_SHA256` to the newly built, frozen compiler,
+`OCORE_MUSL_SOURCE` to that clean musl checkout and
+`OCORE_CONSTRAINED_FP_OUTPUT` to a new evidence directory. Prefix the test
+child PATH with the subset's `bin` for original configure/link tools. The
+workflow contains the complete invocation and zero-skip result guard.
+
+This is a bounded scalar dynamic-multiply source/verification and actual
+x86-64 host execution gate. Original AArch64 ordered FP-register barriers,
+long-double profiles, cross-ISA raw NaN identity, full musl lowering, native
+kernel FP lifecycle and whole-system/driver/efficiency acceptance remain
+unmet. Preserved exception bits under `fpexcept.ignore` are observations for
+the pinned reference cases, not a universal exception-flag or trap guarantee.
+
 ### Native runtime release contract
 
 The native bundle workflow retains the explicit source-bound reviews in

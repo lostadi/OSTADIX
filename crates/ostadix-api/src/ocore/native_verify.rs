@@ -1449,6 +1449,7 @@ fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
 /// symbol dependencies. Their complete declaration contracts are verified.
 pub fn is_builtin_intrinsic(name: &str) -> bool {
     builtin_signature(name).is_some()
+        || constrained_mul_intrinsic(name).is_some()
         || integer_overflow_intrinsic(name).is_some()
         || integer_minmax_intrinsic(name).is_some()
         || funnel_shift_intrinsic(name).is_some()
@@ -1490,7 +1491,15 @@ pub fn funnel_shift_intrinsic(name: &str) -> Option<u16> {
 /// Compiler-only declarations have no ordinary native ABI or executable
 /// parameter values. This classifier is used only after whole-module verify.
 pub fn is_metadata_builtin_intrinsic(name: &str) -> bool {
-    name == NOALIAS_SCOPE_DECL
+    name == NOALIAS_SCOPE_DECL || constrained_mul_intrinsic(name).is_some()
+}
+
+pub fn constrained_mul_intrinsic(name: &str) -> Option<u16> {
+    match name {
+        "llvm.experimental.constrained.fmul.f32" => Some(32),
+        "llvm.experimental.constrained.fmul.f64" => Some(64),
+        _ => None,
+    }
 }
 
 /// Canonical LLVM scalar overflow names in the supported integer profile.
@@ -1718,6 +1727,28 @@ impl<'a> Verifier<'a> {
     }
 
     fn metadata_signature(&self, sig: &Signature, context: &str) -> Result<()> {
+        let constrained = sig.params.len() == 4
+            && matches!(self.ty(sig.result, context)?, Type::Float { bits: 32 | 64 })
+            && self.same_type(sig.params[0], sig.result, context).is_ok()
+            && self.same_type(sig.params[1], sig.result, context).is_ok()
+            && sig.params[2..]
+                .iter()
+                .all(|t| matches!(self.module.types.get(*t), Some(Type::Metadata {})));
+        if constrained {
+            if sig.abi != "c"
+                || sig.variadic
+                || sig.return_storage.is_some()
+                || !sig.result_attributes.is_empty()
+                || (!sig.param_attributes.is_empty() && sig.param_attributes.len() != 4)
+                || sig.param_attributes.iter().any(|a| !a.is_empty())
+            {
+                return Err(fail(
+                    context,
+                    "invalid constrained metadata intrinsic signature",
+                ));
+            }
+            return Ok(());
+        }
         if sig.abi != "c"
             || sig.variadic
             || !matches!(self.ty(sig.result, context)?, Type::Void)
@@ -2420,8 +2451,8 @@ pub fn verify(module: &NativeModule) -> Result<()> {
             {
                 v.metadata_signature(signature, &context)?;
                 if !module.functions.iter().any(|function| {
-                    function.name == NOALIAS_SCOPE_DECL
-                        && function.intrinsic.as_deref() == Some(NOALIAS_SCOPE_DECL)
+                    is_metadata_builtin_intrinsic(&function.name)
+                        && function.intrinsic.as_deref() == Some(function.name.as_str())
                         && v.function_value_signature_matches(signature, &function.signature)
                 }) {
                     return Err(fail(
@@ -2483,10 +2514,15 @@ pub fn verify(module: &NativeModule) -> Result<()> {
 pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
     match module.target.strict_fp_profile {
         None => return Ok(()),
-        Some(StrictFpProfile::IntegerOnlyV1 | StrictFpProfile::IntegerLinuxSyscallV1) => {}
+        Some(
+            StrictFpProfile::IntegerOnlyV1
+            | StrictFpProfile::IntegerLinuxSyscallV1
+            | StrictFpProfile::ScalarDynamicMulV1,
+        ) => {}
     }
     fn value_type(module: &NativeModule, ty: TypeId) -> Result<()> {
         match module.types.get(ty) {
+            Some(Type::Float { bits: 32 | 64 }) if module.target.strict_fp_profile == Some(StrictFpProfile::ScalarDynamicMulV1) => Ok(()),
             Some(Type::Void | Type::Metadata {} | Type::Int { .. } | Type::Pointer { .. }) => Ok(()),
             Some(Type::Struct { fields, .. }) => {
                 for ty in fields { value_type(module, *ty)?; }
@@ -2587,6 +2623,28 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
                             ))
                         }
                     },
+                    Operation::ConstrainedFloatBinary {
+                        kind,
+                        rounding,
+                        exceptions,
+                        ..
+                    } => {
+                        if module.target.strict_fp_profile
+                            != Some(StrictFpProfile::ScalarDynamicMulV1)
+                            || *kind != FloatBinaryOp::Mul
+                            || *rounding != ConstrainedFpRounding::Dynamic
+                            || *exceptions != ConstrainedFpExceptions::Ignore
+                        {
+                            return Err(fail(
+                                "strict_fp_profile",
+                                "unsupported constrained scalar multiply environment",
+                            ));
+                        }
+                    }
+                    Operation::FloatNeg { flags, .. } | Operation::FloatAbs { flags, .. }
+                        if module.target.strict_fp_profile
+                            == Some(StrictFpProfile::ScalarDynamicMulV1)
+                            && *flags == FastMathFlags::default() => {}
                     Operation::FloatBinary { .. }
                     | Operation::FloatNeg { .. }
                     | Operation::FloatAbs { .. }
@@ -3123,7 +3181,7 @@ impl<'a> Verifier<'a> {
         }
         self.call_target_constraints(function, &context)?;
         alignment(function.alignment, true, &context)?;
-        if function.name == NOALIAS_SCOPE_DECL {
+        if is_metadata_builtin_intrinsic(&function.name) {
             self.metadata_signature(&function.signature, &context)?;
         } else {
             self.signature(&function.signature, &context)?;
@@ -3147,7 +3205,16 @@ impl<'a> Verifier<'a> {
                 return Err(fail(&context, "pointer mask requires integral AS0 64-bit pointers/indices and default address spaces"));
             }
             let sig = &function.signature;
-            let shape = if let Some((len, bits)) = vector_reduce_add_intrinsic(&function.name) {
+            let shape = if let Some(bits) = constrained_mul_intrinsic(&function.name) {
+                sig.params.len() == 4
+                    && matches!(self.module.types.get(sig.result), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && sig.params[..2]
+                        .iter()
+                        .all(|t| self.same_type(*t, sig.result, &context).is_ok())
+                    && sig.params[2..]
+                        .iter()
+                        .all(|t| matches!(self.module.types.get(*t), Some(Type::Metadata {})))
+            } else if let Some((len, bits)) = vector_reduce_add_intrinsic(&function.name) {
                 sig.params.len() == 1
                     && fixed_vector_layout(self.module, sig.params[0])
                         .is_ok_and(|vector| vector.len == len && vector.lane_bits == bits)
@@ -3973,6 +4040,41 @@ impl<'a> Verifier<'a> {
                     }
                 }
             }
+            Operation::ConstrainedFloatBinary {
+                kind,
+                lhs,
+                rhs,
+                rounding,
+                exceptions,
+            } => {
+                let ty = operand(lhs)?;
+                let bits = self.floating_width(ty, context)?;
+                self.same_type(ty, operand(rhs)?, context)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(bits, 32 | 64)
+                    || *kind != FloatBinaryOp::Mul
+                    || *rounding != ConstrainedFpRounding::Dynamic
+                    || *exceptions != ConstrainedFpExceptions::Ignore
+                    || self.module.target.strict_fp_profile
+                        != Some(StrictFpProfile::ScalarDynamicMulV1)
+                {
+                    return Err(fail(
+                        context,
+                        "constrained multiply requires scalar32/64 dynamic-ignore profile",
+                    ));
+                }
+                let intrinsic = format!("llvm.experimental.constrained.fmul.f{bits}");
+                if !self.module.functions.iter().any(|f| {
+                    f.name == intrinsic
+                        && f.intrinsic.as_deref() == Some(intrinsic.as_str())
+                        && self.same_type(f.signature.result, ty, context).is_ok()
+                }) {
+                    return Err(fail(
+                        context,
+                        "constrained multiply lacks its included exact intrinsic declaration",
+                    ));
+                }
+            }
             Operation::FloatBinary { lhs, rhs, .. } => {
                 let ty = operand(lhs)?;
                 self.floating_width(ty, context)?;
@@ -4765,6 +4867,7 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
         } => vec![destination, source, length],
         Operation::Binary { lhs, rhs, .. }
         | Operation::FloatBinary { lhs, rhs, .. }
+        | Operation::ConstrainedFloatBinary { lhs, rhs, .. }
         | Operation::FCmp { lhs, rhs, .. }
         | Operation::IntegerOverflow { lhs, rhs, .. }
         | Operation::IntegerMinMax { lhs, rhs, .. }

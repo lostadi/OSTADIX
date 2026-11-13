@@ -628,16 +628,40 @@ controls. The immutable owned report SHA-256 is
 This compiler fixture evidence uses Linux/QEMU carriers and explicit test
 providers; it does not establish lowering or closure of an upstream engine.
 
-LLVM `strictfp` scopes require the serialized NativeIR target field
-`strict_fp_profile: "integer_only_v1"`. The importer admits only audited
-integer/pointer operations and ABI values under this profile. Native verification
-and emission independently enforce the profile, including rejection of floating
-atomic operations; unknown profile names fail deserialization. Modules without
-the field retain the ordinary realization. Native execution preserves ambient
-floating control/status state and the ordered effects of original provider
-calls. Floating SSA/ABI values, constrained arithmetic/conversions, and extended
-precision formatting still require separate lowering; this profile does not
-qualify musl `vfprintf` or complete original-runtime dependencies.
+LLVM `strictfp` scopes require an explicit serialized NativeIR
+`strict_fp_profile`. The existing `integer_only_v1` profile admits audited
+integer/pointer operations and ABI values. The separate `scalar_dynamic_mul_v1`
+profile also admits scalar f32/f64 `llvm.experimental.constrained.fmul` with
+`round.dynamic` and `fpexcept.ignore`. Import requires the actual LLVM intrinsic,
+its exact declaration and typed metadata, and the original strict-FP scope.
+Native verification and emission independently enforce the closed operation and
+profile in every block. Compiler-only metadata parameters remain in the source
+and symbol inventories; they are not ordinary runtime arguments or providers.
+Unknown profiles, other constrained operations or rounding/exception modes, and
+floating atomic operations are rejected. Modules without a strict-FP profile
+retain their ordinary realization.
+
+Constrained multiplication uses the target's current rounding mode: scalar SSE
+on x86-64, FPCR-governed scalar arithmetic on AArch64, and dynamic rounding on
+RV64 LP64D. Raw result bits, accrued flags and control state matched the
+separately declared pinned reference profiles. The `fpexcept.ignore` contract
+is not a universal exception-flag or trapping guarantee and does not establish a
+complete fenv provider. The interpreter explicitly refuses this operation, and the pure
+`ocore_i64` graph leaf does not admit it.
+
+`tests/test_ocore_native_constrained_fmul.py` checks four unchanged original
+musl 1.2.5 units (`scalbn`, `scalbnf`, `__math_xflow`, `__math_xflowf`) from commit
+`0784374d561435f7c787a555aeab8ede699ed298` using Clang 22.1.6 and its configured
+headers/build commands. Its x86-64 comparison covers 10,368 raw result and
+floating-environment pairs, and its target checks preserve explicit refusals.
+Original AArch64 `__math_xflow{,f}` still contain unsupported ordered inline
+assembly; long-double and complete musl dependency closure remain unqualified.
+Target-local equality does not establish identical NaN payloads across ISAs:
+RV arithmetic canonicalizes NaNs in cases where the x86-64 and AArch64 reference
+profiles retain payloads. The exact cross-ISA raw-bit comparison therefore
+remains a failed gate; it is not waived by target-local success. These component
+checks do not qualify musl `vfprintf`, complete runtime lowering, kernel FP
+lifecycle, physical drivers, a native OS or whole-system efficiency.
 
 LLVM `weak` function and global definitions retain their bodies, initializers,
 relocations and actual ELF weak bindings. Symbol closure selects a compatible

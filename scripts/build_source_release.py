@@ -273,6 +273,34 @@ NATIVE_INSTALL_OBSERVATION_RELEASE_PATHS = frozenset(
         ),
     }
 )
+# Complete source/configuration inputs for the mandatory bounded scalar-FP lane.
+# Supplied SDK/parser/musl executables and sources are separately pinned prerequisites;
+# including this contract does not claim full-libc or cross-ISA execution support.
+CONSTRAINED_FP_RELEASE_PATHS = frozenset(
+    {
+        ".github/workflows/ci.yml",
+        "ci/llvm-22.1.6-LICENSE.TXT",
+        "ci/llvm-22.1.6-linux-x64.json",
+        "ci/required-jobs.toml",
+        "ci/test-suites.toml",
+        "crates/ostadix-api/src/ocore/native_codegen.rs",
+        "crates/ostadix-api/src/ocore/native_floating_codegen.rs",
+        "crates/ostadix-api/src/ocore/native_floating_helpers.rs",
+        "crates/ostadix-api/src/ocore/native_interpret.rs",
+        "crates/ostadix-api/src/ocore/native_ir.rs",
+        "crates/ostadix-api/src/ocore/native_verify.rs",
+        "docs/CI_POSTURE.md",
+        "docs/OCORE.md",
+        "scripts/ocore_llvm_import.py",
+        "scripts/prepare_ci_llvm_profile.py",
+        "src/bin/olangc/native_runtime.rs",
+        "src/bin/olangc/native_runtime/floating_helper_tests.rs",
+        "src/bin/olangc/native_runtime/source_inventory.py",
+        "tests/ocore_llvm_source_inventory.py",
+        "tests/test_ocore_native_constrained_fmul.py",
+        "tests/test_prepare_ci_llvm_profile.py",
+    }
+)
 NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
     {
         "scripts/ocore_runtime_capture.py",
@@ -1287,6 +1315,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
     HOSTED_HGRAPH_BENCHMARK_RELEASE_PATHS
     | REAL_WORLD_BENCHMARK_RELEASE_PATHS
     | NATIVE_FOUNDATION_RELEASE_PATHS
+    | CONSTRAINED_FP_RELEASE_PATHS
     | O10_COMPONENT_RELEASE_PATHS
     | PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS
     | OSTADIX_API_RELEASE_PATHS
