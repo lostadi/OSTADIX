@@ -1036,6 +1036,7 @@ pub fn is_builtin_intrinsic(name: &str) -> bool {
         || integer_unary_intrinsic(name).is_some()
         || integer_population_count_intrinsic(name).is_some()
         || integer_funnel_intrinsic(name).is_some()
+        || float_integral_intrinsic(name).is_some()
 }
 
 /// Compiler-only declarations have no ordinary native ABI or executable
@@ -1107,6 +1108,17 @@ pub fn integer_funnel_intrinsic(name: &str) -> Option<u16> {
     let bits = width.parse::<u16>().ok()?;
     (matches!(bits, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128) && width == bits.to_string())
         .then_some(bits)
+}
+
+/// Exact IEEE scalar overloads expanded by the importer into a verified
+/// integer graph. They never authorize an unresolved intrinsic call.
+pub fn float_integral_intrinsic(name: &str) -> Option<u16> {
+    let (operation, width) = name.strip_prefix("llvm.")?.split_once(".f")?;
+    if !matches!(operation, "floor" | "ceil" | "trunc") {
+        return None;
+    }
+    let bits = width.parse::<u16>().ok()?;
+    (matches!(bits, 32 | 64 | 128) && width == bits.to_string()).then_some(bits)
 }
 
 pub fn integer_minmax_intrinsic(name: &str) -> Option<(IntegerMinMaxKind, u16)> {
@@ -2113,6 +2125,10 @@ impl<'a> Verifier<'a> {
                         matches!(self.module.types.get(*ty), Some(Type::Int { bits: actual }) if *actual == bits)
                     })
                     && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = float_integral_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Float { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Float { bits: actual }) if *actual == bits)
             } else if let Some((_, bits)) = integer_unary_intrinsic(&function.name) {
                 sig.params.len() == 2
                     && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
@@ -3291,8 +3307,13 @@ impl<'a> Verifier<'a> {
         if matches!(callee, Operand::Symbol { name, .. } if name == POINTER_MASK_INTRINSIC) {
             return Err(fail(context, "pointer-mask intrinsic requires the explicit typed PtrMask operation, never an ordinary call or invoke"));
         }
-        if matches!(callee, Operand::Symbol { name, .. } if integer_funnel_intrinsic(name).is_some()) {
+        if matches!(callee, Operand::Symbol { name, .. } if integer_funnel_intrinsic(name).is_some())
+        {
             return Err(fail(context, "funnel-shift intrinsic requires its lowered integer operation graph, never an ordinary call or invoke"));
+        }
+        if matches!(callee, Operand::Symbol { name, .. } if float_integral_intrinsic(name).is_some())
+        {
+            return Err(fail(context, "floating integral-rounding intrinsic requires its lowered bit operation graph, never an ordinary call or invoke"));
         }
         let fixed_signature = if signature.variadic {
             if signature.param_attributes.len() != args.len() {
@@ -5611,12 +5632,88 @@ mod tests {
                         args: vec![integer(ty, 0); 3],
                     },
                 };
-                rejects(&invalid, "funnel-shift intrinsic requires its lowered integer operation graph");
+                rejects(
+                    &invalid,
+                    "funnel-shift intrinsic requires its lowered integer operation graph",
+                );
             }
         }
-        for name in ["llvm.fshl.i0", "llvm.fshl.i3", "llvm.fshl.i65", "llvm.fshl.i256",
-                     "llvm.fshr.i0128", "llvm.fshr.v2i64", "llvm.fshr.i128.extra"] {
+        for name in [
+            "llvm.fshl.i0",
+            "llvm.fshl.i3",
+            "llvm.fshl.i65",
+            "llvm.fshl.i256",
+            "llvm.fshr.i0128",
+            "llvm.fshr.v2i64",
+            "llvm.fshr.i128.extra",
+        ] {
             assert_eq!(integer_funnel_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
+    }
+
+    #[test]
+    fn integral_rounding_declarations_require_exact_ieee_contract_and_no_calls() {
+        for bits in [32, 64, 128] {
+            for operation in ["floor", "ceil", "trunc"] {
+                let name = format!("llvm.{operation}.f{bits}");
+                assert_eq!(float_integral_intrinsic(&name), Some(bits));
+                assert!(is_builtin_intrinsic(&name));
+                let mut m = module();
+                let ty = m.types.len();
+                m.types.push(Type::Float { bits });
+                let mut declaration = builtin(&name, &[ty]);
+                declaration.signature.result = ty;
+                m.functions.push(declaration);
+                m.provenance.source_function_count += 1;
+                verify(&m).unwrap();
+                for change in 0..8 {
+                    let mut invalid = m.clone();
+                    let function = invalid.functions.last_mut().unwrap();
+                    match change {
+                        0 => function.intrinsic = None,
+                        1 => function.signature.params.clear(),
+                        2 => function.signature.result = 0,
+                        3 => function.signature.abi = "fastcc".into(),
+                        4 => function.visibility = Visibility::Hidden,
+                        5 => function.signature.variadic = true,
+                        6 => function.signature.result_attributes = vec!["zeroext".into()],
+                        7 => function.signature.params[0] = 2,
+                        _ => unreachable!(),
+                    }
+                    assert!(
+                        verify(&invalid).is_err(),
+                        "forged rounding contract {change}"
+                    );
+                }
+                let mut invalid = m.clone();
+                let declaration = invalid.functions.last().unwrap().clone();
+                invalid.functions[0].blocks[0].instructions[0] = Instruction {
+                    result: Some(Value { id: 8, ty }),
+                    operation: Operation::Call {
+                        callee: Operand::Symbol { ty: 3, name },
+                        signature: declaration.signature,
+                        args: vec![Operand::Float {
+                            ty,
+                            bits: "0".into(),
+                        }],
+                    },
+                };
+                rejects(
+                    &invalid,
+                    "floating integral-rounding intrinsic requires its lowered bit operation graph",
+                );
+            }
+        }
+        for name in [
+            "llvm.floor.f16",
+            "llvm.floor.f80",
+            "llvm.floor.f0128",
+            "llvm.ceil.v2f64",
+            "llvm.trunc.f64.extra",
+            "llvm.round.f64",
+        ] {
+            assert_eq!(float_integral_intrinsic(name), None);
             assert!(!is_builtin_intrinsic(name));
         }
     }
