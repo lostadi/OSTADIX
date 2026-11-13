@@ -28,6 +28,9 @@ pub struct ExecutionTrace {
     pub backend_crossings: Vec<crate::backend_morphism::BackendCrossingObservationV1>,
     /// Actual successful settlement outputs; no static or predicted state.
     pub publications: Vec<serde_json::Value>,
+    /// `batch(...)` members that failed and settled as their own error value.
+    /// The document still produces a value, but its run is reported failed.
+    pub failed_batch_members: Vec<(PlanNodeId, String)>,
 }
 
 impl ExecutionTrace {
@@ -36,6 +39,7 @@ impl ExecutionTrace {
             events: Vec::new(),
             backend_crossings: Vec::new(),
             publications: Vec::new(),
+            failed_batch_members: Vec::new(),
         }
     }
 }
@@ -258,6 +262,27 @@ pub(crate) fn data_predecessors(
         .collect::<Vec<_>>();
     sources.sort_by_key(|id| id.0);
     sources
+}
+
+/// Whether a failure of `node_id` is settled as that member's own
+/// `OValue::Error` instead of failing the document: true for a direct member
+/// of a `batch(...)` group. The other members still return their values, and
+/// the batch itself fails only when every member failed.
+pub(crate) fn batch_member_absorbs_failure(
+    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
+    node_id: PlanNodeId,
+) -> bool {
+    index.outgoing(node_id).iter().any(|edge| {
+        edge.kind == PlanEdgeKind::Structural
+            && matches!(
+                plan.nodes[edge.to.0].kind,
+                PlanNodeKind::Group {
+                    mode: crate::value::GroupMode::Batch,
+                    ..
+                }
+            )
+    })
 }
 
 fn structural_children(index: &ExecutionPlanIndex, parent: PlanNodeId) -> Vec<PlanNodeId> {
