@@ -28,6 +28,7 @@ def domain():
     value.o10_claimed = False
     value.o10_pending = None
     value.o10_plan9 = (1 << 32) | 1
+    value.o10_linux = 1 << 32
     value.o10_lease_generation = 1
     value.ram = 12
     value.process = Mock()
@@ -250,8 +251,10 @@ class O10RunnerTests(unittest.TestCase):
             self.assertNotEqual(missing.returncode, 0)
             self.assertIn("No module named 'o10'", missing.stderr)
 
-    def provider_domain(self, live):
+    def provider_domain(self, live, *, linux_slot=0, plan9_slot=1):
         value = domain()
+        value.o10_linux = (5 << 32) | linux_slot
+        value.o10_plan9 = (9 << 32) | plan9_slot
         value.native_store_ready = value.provider_ready = True
         value.provider_failed = value.control_active = False
         value.live = True
@@ -292,22 +295,25 @@ class O10RunnerTests(unittest.TestCase):
         output.assert_not_called()
 
     def test_plan9_failure_reports_linux_survival_from_actual_live_mask(self):
-        for live in (0, 1):
-            with self.subTest(live=live):
-                value = self.provider_domain(live)
-                with patch.object(runner.os, "write") as output, patch.object(runner.common, "write_json"):
-                    runner.UnifiedDomain.pump(value, 0)
-                self.assertTrue(value.provider_failed)
-                self.assertFalse(value.provider_ready)
-                value.native_control.assert_called_once_with(1)
-                value.recycle_plan9.assert_not_called()
-                value.native_volume.assert_not_called()
-                self.assertEqual(value.record["provider_failure"]["counters"]["live_domains"], live)
-                text = output.call_args.args[1].decode()
-                self.assertIn("pending work is not replayed", text)
-                self.assertIn("Linux remains available." if live else "Linux is stopped.", text)
-                if not live:
-                    self.assertNotIn("Linux remains available.", text)
+        for linux_slot, plan9_slot in ((0,1),(6,3),(2,7)):
+            for linux_alive in (False, True):
+                with self.subTest(linux_slot=linux_slot,plan9_slot=plan9_slot,linux_alive=linux_alive):
+                    other=next(i for i in range(8) if i not in (linux_slot,plan9_slot))
+                    live=(1<<other)|((1<<linux_slot) if linux_alive else 0)
+                    value = self.provider_domain(live,linux_slot=linux_slot,plan9_slot=plan9_slot)
+                    with patch.object(runner.os, "write") as output, patch.object(runner.common, "write_json"):
+                        runner.UnifiedDomain.pump(value, 0)
+                    self.assertTrue(value.provider_failed)
+                    self.assertFalse(value.provider_ready)
+                    value.native_control.assert_called_once_with(1)
+                    value.recycle_plan9.assert_not_called()
+                    value.native_volume.assert_not_called()
+                    self.assertEqual(value.record["provider_failure"]["counters"]["live_domains"], live)
+                    text = output.call_args.args[1].decode()
+                    self.assertIn("pending work is not replayed", text)
+                    self.assertIn("Linux remains available." if linux_alive else "Linux is stopped.", text)
+                    if not linux_alive:
+                        self.assertNotIn("Linux remains available.", text)
 
     def test_coordinator_remains_service_operation_three(self):
         value = domain()
