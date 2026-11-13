@@ -718,7 +718,7 @@ jobs:
           os.environ["NATIVE_COPY_TEST_OUTPUT"] = str(evidence)
           suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_native_copy")
           result = unittest.TextTestRunner(verbosity=2).run(suite)
-          if not result.wasSuccessful() or result.testsRun < 43 or result.skipped:
+          if not result.wasSuccessful() or result.testsRun < 46 or result.skipped:
               raise SystemExit("original-copy observations must execute without skips; output ownership remains disabled")
           PY
       - name: Retain bounded original-copy observation evidence

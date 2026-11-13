@@ -131,7 +131,7 @@ Run the self-contained component tests with:
 python3 -m unittest -v tests.test_ocore_native_copy
 ```
 
-The 43 cases use authored C/assembly fixtures compiled by the selected original
+The 46 cases use authored C/assembly fixtures compiled by the selected original
 Clang, real `cp`, real signals and a destination-replacement race. They compare
 bytes, statuses and streams, reject forged or mutated observations and retain
 the missing ownership authority. Prerequisites are Linux, Python 3.10 or later,

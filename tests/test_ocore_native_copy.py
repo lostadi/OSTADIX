@@ -1,4 +1,4 @@
-"""Actual cp + original Clang fixtures for a cache-only provenance mechanism.
+"""Actual cp + original Clang fixtures for an unregistered host observer.
 
 The fixture controller really executes the selected compiler and binds observed
 output lifetimes. It is NOT production frontend admission or O-core lowering.
@@ -11,6 +11,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import select
 import signal
@@ -19,6 +20,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 MODULE = Path(__file__).resolve().parents[1] / "scripts" / "ocore_native_copy.py"
 spec = importlib.util.spec_from_file_location("ocore_native_copy", MODULE)
@@ -106,6 +108,7 @@ class NativeCopyTests(unittest.TestCase):
         self.pins = m.Pins(CP, sha(CP), sha(MODULE), self.registry, sha(self.registry))
         self.controller = m.CaptureController(pins=self.pins, inventory=self.inventory, evidence=self.root / "evidence")
         self.outcomes = []
+        self._owned_child_fds = {}
 
     def tearDown(self):
         self.records.append({"case": self._testMethodName, "root": str(self.root),
@@ -114,6 +117,42 @@ class NativeCopyTests(unittest.TestCase):
                                              "spawn_error": type(o.spawn_error).__name__ if o.spawn_error else None,
                                              "receipt": str(o.receipt) if o.receipt else None,
                                              "capture_errors": o.capture_errors} for o in self.outcomes]})
+
+    def _finish_owned_process(self, process):
+        # Registered child pidfds retain the exact lifetime even when a carrier
+        # has already exited and its numeric process-group ID cannot be trusted.
+        for fd in self._owned_child_fds.pop(process, []):
+            try:
+                if not select.select([fd], [], [], 0)[0]:
+                    try:
+                        signal.pidfd_send_signal(fd, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                if not select.select([fd], [], [], 5)[0]:
+                    signal.pidfd_send_signal(fd, signal.SIGKILL)
+                    self.assertTrue(select.select([fd], [], [], 5)[0], "owned fixture child did not exit")
+            finally:
+                os.close(fd)
+        if process.poll() is None:
+            self.assertEqual(os.getpgid(process.pid), process.pid)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        try:
+            process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            if process.poll() is None:
+                self.assertEqual(os.getpgid(process.pid), process.pid)
+                os.killpg(process.pid, signal.SIGKILL)
+            process.communicate(timeout=5)
+
+    def _managed_process(self, *arguments, **options):
+        options.setdefault("start_new_session", True)
+        self.assertTrue(options["start_new_session"])
+        process = subprocess.Popen(*arguments, **options)
+        self.addCleanup(self._finish_owned_process, process)
+        return process
 
     def run_copy(self, source="source.o", destination="installed.o", *, extra=(), callback=None, controller=None):
         controller = controller or self.controller
@@ -370,7 +409,7 @@ class NativeCopyTests(unittest.TestCase):
         driver = self.root / "driver.py"
         # The child driver inherits binary stdio. No capture/replay is performed
         # inside the wrapper; the test runner compares native process pipes.
-        driver.write_text("""import importlib.util,json,sys\nfrom pathlib import Path\nspec=importlib.util.spec_from_file_location('copy_observer',sys.argv[1]);m=importlib.util.module_from_spec(spec);sys.modules[spec.name]=m;spec.loader.exec_module(m)\nclass NoOwners(m.VerifiedProducerInventory):\n def predecessor(self,*args): return None\nargs=json.loads(sys.argv[2]);pins=m.Pins(Path(args['tool']),args['tool_sha'],args['observer_sha'],Path(args['registry']),args['registry_sha'])\nc=m.CaptureController(pins=pins,inventory=NoOwners(),evidence=Path(args['evidence']))\ndef started(pid):\n if args.get('pid_file'): Path(args['pid_file']).write_text(str(pid))\no=c.observe_copy(args['argv'],cwd=Path(args['cwd']),on_started=started,relay_parent_signals=True);o.forward_native_outcome()\n""")
+        driver.write_text("""import importlib.util,json,sys\nfrom pathlib import Path\nspec=importlib.util.spec_from_file_location('copy_observer',sys.argv[1]);m=importlib.util.module_from_spec(spec);sys.modules[spec.name]=m;spec.loader.exec_module(m)\nclass NoOwners(m.VerifiedProducerInventory):\n def predecessor(self,*args): return None\nargs=json.loads(sys.argv[2]);pins=m.Pins(Path(args['tool']),args['tool_sha'],args['observer_sha'],Path(args['registry']),args['registry_sha'])\nc=m.CaptureController(pins=pins,inventory=NoOwners(),evidence=Path(args['evidence']))\ndef started(pid):\n if args.get('pid_file'):\n  target=Path(args['pid_file']);pending=target.with_name(target.name+'.pending');pending.write_text(str(pid));pending.replace(target)\no=c.observe_copy(args['argv'],cwd=Path(args['cwd']),on_started=started,relay_parent_signals=True);o.forward_native_outcome()\n""")
         args = {"tool": str(CP), "tool_sha": sha(CP), "observer_sha": sha(MODULE),
                 "registry": str(self.registry), "registry_sha": sha(self.registry),
                 "evidence": str(self.root / "driver-evidence"), "cwd": str(self.root),
@@ -401,19 +440,13 @@ class NativeCopyTests(unittest.TestCase):
     def test_original_signal_outcome_is_forwarded_not_fabricated_exit143(self):
         fifo = self.root / "input-fifo"
         os.mkfifo(fifo)
-        native = subprocess.Popen(["cp", "input-fifo", "native-destination"], executable=str(CP), cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        native = self._managed_process(["cp", "input-fifo", "native-destination"], executable=str(CP), cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         native.send_signal(signal.SIGTERM)
         _, native_error = native.communicate(timeout=5)
         self.assertEqual(native.returncode, -signal.SIGTERM)
         child_pid = self.root / "owned-child.pid"
-        wrapper = subprocess.Popen(self._driver(["cp", "input-fifo", "wrapped-destination"], pid_file=child_pid), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        deadline = time.monotonic() + 5
-        while not child_pid.exists() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        if not child_pid.exists():
-            wrapper.kill()
-            self.fail("controller did not observe owned cp child")
-        os.kill(int(child_pid.read_text()), signal.SIGTERM)
+        wrapper = self._managed_process(self._driver(["cp", "input-fifo", "wrapped-destination"], pid_file=child_pid), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.kill(self._wait_for_pid(child_pid, wrapper), signal.SIGTERM)
         wrapped_out, wrapped_error = wrapper.communicate(timeout=5)
         self.assertEqual(wrapper.returncode, native.returncode)
         self.assertEqual(wrapped_out, b"")
@@ -475,17 +508,88 @@ class NativeCopyTests(unittest.TestCase):
 
     def _wait_for_pid(self, path, process):
         deadline = time.monotonic() + 5
-        while not path.exists() and time.monotonic() < deadline:
+        while time.monotonic() < deadline:
+            try:
+                payload = path.read_bytes()
+            except FileNotFoundError:
+                payload = b""
+            if payload:
+                self.assertIsNotNone(re.fullmatch(rb"[1-9][0-9]*", payload), "invalid fixture PID")
+                pid = int(payload)
+                self.assertLessEqual(pid, 0x7fffffff)
+                fd = os.pidfd_open(pid)
+                try:
+                    self.assertFalse(select.select([fd], [], [], 0)[0], "published fixture child already exited")
+                    if pid != process.pid:
+                        child = Path("/proc") / str(pid)
+                        parent = next(line.split()[1] for line in (child / "status").read_text().splitlines()
+                                      if line.startswith("PPid:"))
+                        self.assertEqual(int(parent), process.pid)
+                        self.assertEqual(os.getpgid(pid), process.pid)
+                        self.assertEqual((child / "cwd").resolve(), self.root.resolve())
+                        self.assertEqual((child / "exe").resolve(), CP)
+                    self._owned_child_fds.setdefault(process, []).append(fd)
+                except BaseException:
+                    os.close(fd)
+                    raise
+                return pid
+            if process.poll() is not None:
+                self.fail("fixture driver exited before publishing its child PID")
             time.sleep(0.01)
-        if not path.exists():
-            process.kill()
-            process.communicate(timeout=5)
-            self.fail("controller did not observe its original child")
-        return int(path.read_text())
+        self.fail("controller did not observe its original child")
+
+    def test_empty_pid_publication_is_observed_then_retried(self):
+        child = self._managed_process([sys.executable, "-c", "import sys; sys.stdin.buffer.read(1)"],
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        marker = self.root / "partial-child.pid"
+        marker.write_bytes(b"")
+        original_read = Path.read_bytes
+        reads = []
+        def staged_read(path):
+            result = original_read(path)
+            if path == marker:
+                reads.append(result)
+                if result == b"":
+                    marker.write_bytes(str(child.pid).encode("ascii"))
+            return result
+        with mock.patch.object(Path, "read_bytes", staged_read):
+            self.assertEqual(self._wait_for_pid(marker, child), child.pid)
+        self.assertEqual(reads, [b"", str(child.pid).encode("ascii")])
+
+    def test_owned_blocked_copy_is_cleaned_up_after_setup(self):
+        os.mkfifo(self.root / "cleanup-fifo")
+        marker = self.root / "cleanup-child.pid"
+        wrapper = self._managed_process(self._driver(["cp", "cleanup-fifo", "cleanup-dest"], pid_file=marker),
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        child = self._wait_for_pid(marker, wrapper)
+        fd = os.pidfd_open(child)
+        try:
+            self._finish_owned_process(wrapper)
+            self.assertIsNotNone(wrapper.returncode)
+            self.assertTrue(select.select([fd], [], [], 5)[0], "owned copy survived fixture cleanup")
+        finally:
+            os.close(fd)
+
+    def test_owned_copy_cleanup_survives_reaped_wrapper(self):
+        os.mkfifo(self.root / "orphan-fifo")
+        marker = self.root / "orphan-child.pid"
+        wrapper = self._managed_process(self._driver(["cp", "orphan-fifo", "orphan-dest"], pid_file=marker),
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        child = self._wait_for_pid(marker, wrapper)
+        fd = os.pidfd_open(child)
+        try:
+            self.assertFalse(select.select([fd], [], [], 0)[0])
+            wrapper.kill()
+            self.assertEqual(wrapper.wait(timeout=5), -signal.SIGKILL)
+            self.assertFalse(select.select([fd], [], [], 0)[0], "fixture did not exercise a surviving child")
+            self._finish_owned_process(wrapper)
+            self.assertTrue(select.select([fd], [], [], 5)[0], "owned child survived its reaped carrier")
+        finally:
+            os.close(fd)
 
     def _group_signal_comparison(self, number):
         os.mkfifo(self.root / "group-fifo")
-        native = subprocess.Popen(["cp", "group-fifo", "native-dest"], executable=str(CP), cwd=self.root,
+        native = self._managed_process(["cp", "group-fifo", "native-dest"], executable=str(CP), cwd=self.root,
                                   start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # Wait until the actual reference blocks in open on the FIFO. It has
         # already exec'd and is alive; no guessed sleep determines its result.
@@ -500,7 +604,7 @@ class NativeCopyTests(unittest.TestCase):
         os.killpg(native.pid, number)
         native_out, native_err = native.communicate(timeout=5)
         pid_file = self.root / "group-child.pid"
-        wrapper = subprocess.Popen(self._driver(["cp", "group-fifo", "wrapped-dest"], pid_file=pid_file),
+        wrapper = self._managed_process(self._driver(["cp", "group-fifo", "wrapped-dest"], pid_file=pid_file),
                                    start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self._wait_for_pid(pid_file, wrapper)
         os.killpg(wrapper.pid, number)
@@ -523,7 +627,7 @@ class NativeCopyTests(unittest.TestCase):
     def test_parent_only_sigterm_relays_to_owned_child_and_matches_signal(self):
         os.mkfifo(self.root / "parent-fifo")
         pid_file = self.root / "parent-child.pid"
-        wrapper = subprocess.Popen(self._driver(["cp", "parent-fifo", "parent-destination"], pid_file=pid_file),
+        wrapper = self._managed_process(self._driver(["cp", "parent-fifo", "parent-destination"], pid_file=pid_file),
                                    start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self._wait_for_pid(pid_file, wrapper)
         wrapper.send_signal(signal.SIGTERM)
@@ -536,7 +640,7 @@ class NativeCopyTests(unittest.TestCase):
     def test_original_sigkill_can_be_forwarded_without_illegal_handler_call(self):
         os.mkfifo(self.root / "kill-fifo")
         pid_file = self.root / "kill-child.pid"
-        wrapper = subprocess.Popen(self._driver(["cp", "kill-fifo", "kill-destination"], pid_file=pid_file),
+        wrapper = self._managed_process(self._driver(["cp", "kill-fifo", "kill-destination"], pid_file=pid_file),
                                    start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         child = self._wait_for_pid(pid_file, wrapper)
         os.kill(child, signal.SIGKILL)
