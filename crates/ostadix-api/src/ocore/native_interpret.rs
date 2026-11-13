@@ -297,6 +297,7 @@ impl<'a> Prepared<'a> {
                     && super::native_verify::integer_minmax_intrinsic(name).is_none()
                     && super::native_verify::integer_unary_intrinsic(name).is_none()
                     && super::native_verify::integer_population_count_intrinsic(name).is_none()
+                    && super::native_verify::integer_saturating_sub_intrinsic(name).is_none()
             }) || function.blocks.iter().any(|block| {
                 block.instructions.iter().any(|instruction| {
                     matches!(

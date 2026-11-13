@@ -290,10 +290,41 @@ class Reader:
                         if self.GetTypeKind(self.TypeOf(instruction)) != 0:
                             values[instruction] = len(values)
                 sites, references = [], set()
+                primitive_counts, gep_counts = Counter(), Counter()
                 if self.HasPersonalityFn(function):
                     references.add(self.address(self.GetPersonalityFn(function))[0])
                 for block_id, block in enumerate(blocks):
                     for ordinal, instruction in enumerate(self.sequence(self.GetFirstInstruction, self.GetNextInstruction, block)):
+                        opcode = self.GetInstructionOpcode(instruction)
+                        primitive = {8: "binary:add", 10: "binary:sub", 12: "binary:mul",
+                                     14: "binary:u_div", 15: "binary:s_div", 17: "binary:u_rem", 18: "binary:s_rem",
+                                     20: "binary:shl", 21: "binary:l_shr", 22: "binary:a_shr",
+                                     23: "binary:and", 24: "binary:or", 25: "binary:xor",
+                                     42: "i_cmp", 46: "select", 68: "freeze"}.get(opcode)
+                        if primitive:
+                            primitive_counts[primitive] += 1
+                        # Byte-offset GEP lowering contributes integer arithmetic
+                        # without corresponding source binary instructions. Derive
+                        # only those exact counts independently from source types.
+                        if opcode == 29:
+                            current = self.GetGEPSourceElementType(instruction)
+                            for index in range(1, self.GetNumOperands(instruction)):
+                                value = self.GetOperand(instruction, index)
+                                if index > 1 and self.GetTypeKind(current) == 10:
+                                    if not self.IsAConstantInt(value):
+                                        raise InventoryMismatch("nonconstant source struct GEP field")
+                                    fields = (c.c_void_p * self.CountStructElementTypes(current))()
+                                    self.GetStructElementTypes(current, fields)
+                                    current = fields[self.integer(value)]
+                                    continue
+                                if index > 1:
+                                    if self.GetTypeKind(current) != 11:
+                                        raise InventoryMismatch("unmapped source GEP index type")
+                                    current = self.GetElementType(current)
+                                if not self.IsAConstantInt(value):
+                                    if self.ABISizeOfType(self.layout, current) != 1:
+                                        gep_counts["binary:mul"] += 1
+                                    gep_counts["binary:add"] += 1
                         pending = [self.GetOperand(instruction, index) for index in range(self.GetNumOperands(instruction))]
                         while pending:
                             value = pending.pop()
@@ -319,7 +350,9 @@ class Reader:
                 output["functions"][name] = {"type": self.shape(self.GlobalGetValueType(function)),
                     "defined": bool(self.GetFirstBasicBlock(function)), "calling_convention": self.GetFunctionCallConv(function),
                     "intrinsic_id": self.GetIntrinsicID(function), "intrinsic_uses": dict(uses),
-                    "intrinsic_sites": sites, "symbol_references": sorted(references), **self.contract(function)}
+                    "intrinsic_sites": sites, "primitive_graph_counts": dict(primitive_counts),
+                    "gep_offset_graph_counts": dict(gep_counts),
+                    "symbol_references": sorted(references), **self.contract(function)}
             for global_ in self.sequence(self.GetFirstGlobal, self.GetNextGlobal, module):
                 ty, initial = self.GlobalGetValueType(global_), self.GetInitializer(global_)
                 encoded, refinements = self.initializer(initial, ty) if initial else (None, [])
@@ -363,7 +396,7 @@ def native_operand(operand, types):
     return output
 
 
-def intrinsic_mapping(site, function, types):
+def intrinsic_mapping(site, function, types, graph_claims=None):
     """Account for each actual source call by retained identity/operands.
 
     This is an independently specified test contract, not a production-importer
@@ -454,6 +487,59 @@ def intrinsic_mapping(site, function, types):
             flags = {flag: bool(site["fast_math"] & (1 << bit))
                      for bit, flag in enumerate(("reassoc", "nnan", "ninf", "nsz", "arcp", "contract", "afn"))}
             return op == "float_abs" and same("value", 0) and operation["flags"] == flags
+        if name.startswith("llvm.usub.sat.i"):
+            spelling = name.removeprefix("llvm.usub.sat.i")
+            if not spelling.isdecimal():
+                return False
+            width = int(spelling)
+            integer = {"kind": "int", "bits": width}
+            if (str(width) != spelling or not (1 <= width <= 64 or width == 128)
+                    or site.get("arg_types") != [integer, integer] or site.get("result_type") != integer
+                    or result is None or native_shape(types, result["ty"]) != integer):
+                return False
+            definitions = {item["result"]["id"]: item for item in block["instructions"] if item.get("result")}
+            lhs, rhs = [{"op": "freeze", "value": {"source": arg}} for arg in args]
+            difference = {"op": "binary", "kind": "sub", "lhs": lhs, "rhs": rhs, "flags": []}
+            underflow = {"op": "i_cmp", "predicate": "ult", "lhs": lhs, "rhs": rhs}
+            expected = {"op": "select", "condition": underflow,
+                        "on_true": {"literal": 0}, "on_false": difference}
+            bindings = {}
+
+            def edge(value, wanted, bits):
+                if "source" in wanted:
+                    return native_operand(value, types) == wanted["source"]
+                if "literal" in wanted:
+                    return native_operand(value, types) == {"kind": "int", "type": {"kind": "int", "bits": bits}, "bits": str(wanted["literal"])}
+                if value.get("kind") != "value":
+                    return False
+                identity = id(wanted)
+                if identity in bindings:
+                    return bindings[identity] == value["id"]
+                item = definitions.get(value["id"])
+                if not item or native_shape(types, item["result"]["ty"]) != {"kind": "int", "bits": bits}:
+                    return False
+                bindings[identity] = value["id"]
+                return node(item["operation"], wanted)
+
+            def node(actual, wanted):
+                if set(actual) != set(wanted):
+                    return False
+                for field, expected_value in wanted.items():
+                    if isinstance(expected_value, dict):
+                        if not edge(actual[field], expected_value, 1 if field == "condition" else width):
+                            return False
+                    elif actual[field] != expected_value:
+                        return False
+                return True
+
+            if not node(operation, expected) or len(set(bindings.values())) != 4:
+                return False
+            claimed = set(bindings.values()) | {result["id"]}
+            if len(claimed) != 5:
+                return False
+            if graph_claims is not None:
+                graph_claims[result["id"]] = claimed
+            return True
         if re.fullmatch(r"llvm\.fs(?:hl|hr)\.i(?:1|2|4|8|16|32|64|128)", name):
             width = int(name.rsplit(".i", 1)[1])
             integer = {"kind": "int", "bits": width}
@@ -600,13 +686,18 @@ def check_inventory(source, module):
                     if not original["defined"]:
                         mappings["external_declarations"].append(name)
                 require(translated.get("alignment", 0) == original["alignment"], f"function alignment changed: {name}")
-                consumed, previous = set(), {}
+                consumed, previous, graph_claims, consumed_graph = set(), {}, {}, set()
                 for site in original["intrinsic_sites"]:
-                    found = intrinsic_mapping(site, translated, types)
+                    found = intrinsic_mapping(site, translated, types, graph_claims)
                     match = next(((index, instruction) for index, instruction in found
                                   if (site["block"], index) not in consumed and index > previous.get(site["block"], -1)), None)
                     require(match is not None, f"intrinsic site count/order changed: {name}/{site['name']}")
                     consumed.add((site["block"], match[0])); previous[site["block"]] = match[0]
+                    if site["name"].startswith("llvm.usub.sat.i"):
+                        claimed = graph_claims.get(match[1]["result"]["id"], set())
+                        require(len(claimed) == 5 and not (claimed & consumed_graph),
+                                f"shared/missing saturation graph nodes: {name}")
+                        consumed_graph.update(claimed)
                     mappings["intrinsic_sites"].append({"function": name, "source": site,
                         "native_block": site["block"], "native_instruction": match[0],
                         "native_operation": match[1]["operation"], "ordinary_external_provider_required": False,
@@ -620,6 +711,26 @@ def check_inventory(source, module):
                                 "ptr_mask", "integer_count_leading_zeros", "integer_abs", "integer_population_count"}:
                             require((block["id"], index) in consumed,
                                     f"unaccounted scalar intrinsic operation: {name}")
+                if any(site["name"].startswith("llvm.usub.sat.i") for site in original["intrinsic_sites"]):
+                    expected_counts = Counter(original["primitive_graph_counts"])
+                    expected_counts.update(original["gep_offset_graph_counts"])
+                    for site in original["intrinsic_sites"]:
+                        if site["name"].startswith("llvm.usub.sat.i"):
+                            expected_counts.update({"freeze": 2, "binary:sub": 1, "i_cmp": 1, "select": 1})
+                        elif re.fullmatch(r"llvm\.fs(?:hl|hr)\.i(?:1|2|4|8|16|32|64|128)", site["name"]):
+                            expected_counts.update({"freeze": 3, "binary:and": 2, "binary:sub": 1,
+                                                    "binary:shl": 1, "binary:l_shr": 1,
+                                                    "binary:or": 1, "i_cmp": 1, "select": 1})
+                    actual_counts = Counter()
+                    for block in translated["blocks"]:
+                        for instruction in block["instructions"]:
+                            operation = instruction["operation"]
+                            if operation["op"] == "binary":
+                                actual_counts["binary:" + operation["kind"]] += 1
+                            elif operation["op"] in ("freeze", "i_cmp", "select"):
+                                actual_counts[operation["op"]] += 1
+                    require(actual_counts == expected_counts,
+                            f"integer intrinsic graph primitive inventory changed: {name}")
                 intrinsic_names = {symbol for symbol, item in source["functions"].items() if item["intrinsic_id"]}
                 original_refs = set(original["symbol_references"]) - intrinsic_names
                 native_refs, pending = set(), [translated["blocks"], translated.get("exception_handling")]
