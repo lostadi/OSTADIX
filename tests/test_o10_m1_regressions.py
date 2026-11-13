@@ -189,5 +189,52 @@ class O10M1RegressionGuards(unittest.TestCase):
         for entry in plan:
             self.assertEqual(entry["fork_argv"][-1], entry["state"])
 
+    def test_explicit_draft0_needs_only_actual_resident_prerequisite(self):
+        primary = {"gate_passed": True}
+        with patch("verify_o10_m1.validate_resident", return_value=(primary, {"/private/resident"}, [])) as validate:
+            result = gate.validate_m1_prerequisites(ROOT, Path("/build"), {}, "revision",
+                Path("/resident.json"), None, acceptance_scope="draft0")
+        self.assertEqual(result, (primary, None))
+        self.assertEqual(validate.call_count, 1)
+
+    def test_draft0_retains_failed_extra_without_promoting_it(self):
+        primary = {"gate_passed": True}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "failed-extra.json"
+            path.write_text(json.dumps({"schema": "ostadix.o10-resident-gate/v1",
+                "gate_id": "verify_o10_hostile_mmio", "gate_passed": False, "error": "prerequisite unavailable"}))
+            with patch("verify_o10_m1.validate_resident", return_value=(primary, {"/private/resident"}, [])) as validate:
+                result = gate.validate_m1_prerequisites(ROOT, Path("/build"), {}, "revision",
+                    Path("/resident.json"), path, acceptance_scope="draft0")
+        self.assertIs(result[1]["gate_passed"], False)
+        self.assertEqual(validate.call_count, 1)
+
+    def test_default_extended_cannot_omit_extra(self):
+        with patch("verify_o10_m1.validate_resident", return_value=({}, {"/private/resident"}, [])):
+            with self.assertRaisesRegex(ValueError, "extended acceptance requires"):
+                gate.validate_m1_prerequisites(ROOT, Path("/build"), {}, "revision", Path("/resident.json"), None)
+
+    def test_default_extended_still_calls_failed_extra_validator(self):
+        with patch("verify_o10_m1.validate_resident", side_effect=[
+                ({}, {"/private/resident"}, []), ValueError("failed extra gate")]) as validate:
+            with self.assertRaisesRegex(ValueError, "failed extra gate"):
+                gate.validate_m1_prerequisites(ROOT, Path("/build"), {}, "revision",
+                    Path("/resident.json"), Path("/failed-extra.json"))
+        self.assertEqual(validate.call_count, 2)
+
+    def test_resume_cannot_switch_acceptance_scope(self):
+        previous = self.identities()
+        current = copy.deepcopy(previous)
+        current.update(acceptance_scope="draft0", contract_id="O10-Draft0-M1")
+        with self.assertRaisesRegex(ValueError, "acceptance scope"):
+            gate.resumable_entries(previous, current)
+
+    def test_resume_cannot_switch_contract(self):
+        previous = self.identities()
+        current = copy.deepcopy(previous)
+        previous["contract_id"] = "another"
+        with self.assertRaisesRegex(ValueError, "acceptance contract"):
+            gate.resumable_entries(previous, current)
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,304 @@
+{
+  "schema": "ostadix.p9-default-compile/v1",
+  "ok": true,
+  "started": 1794557010.9911427,
+  "inputs": {
+    "state": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile",
+    "build": "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7",
+    "before": {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+        "bytes": 1073741824,
+        "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+        "bytes": 1073741824,
+        "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+      },
+      "session": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l",
+      "guest_tools_update": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l/result.json",
+      "namespace": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "fork_origin": {
+        "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed",
+        "head_sha256": "32bea222f957592f938032f6d47a6fd92e24112ca3c1ea61b3adacc2dca8f0fe"
+      }
+    },
+    "monitor_revision": "O10-M1-R7-resident-candidate",
+    "profile_sha256": "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938",
+    "monitor": {
+      "path": "monitor.elf",
+      "bytes": 909416,
+      "sha256": "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
+    }
+  },
+  "source_sha256": {
+    "scripts/verify_okernel_p9_default_compile.py": "7365adb4b52c096461316b33376cfe43f91e915ad895169c3be5293aca1d29ca",
+    "scripts/verify_okernel_unified_client.py": "501daec344246c9af87d6880aa790e7cd744554c569437062db11b44e52c5053",
+    "scripts/verify_okernel_unified_console.py": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220",
+    "scripts/okernel_unified_world.py": "9b22236ec9d135139207c96b9ac6e95686d15e2304fb661a01af0f89b56b5d99",
+    "scripts/okernel_package_domain.py": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f",
+    "scripts/okernel_native_volume.py": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef",
+    "ocore/guest/linux/package-domain/p9": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+    "ocore/guest/linux/package-domain/p9-controller": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+    "ocore/guest/linux/package-domain/p9-history": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+    "ocore/guest/linux/package-domain/p9-install": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+  },
+  "scope": "one isolated real boot; typed implicit-default p9 7c/7l/hello through the original Linux client and original Plan9 provider; not source-native compiler or complete OS qualification",
+  "source_artifacts": {
+    "scripts/verify_okernel_p9_default_compile.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/scripts/verify_okernel_p9_default_compile.py",
+      "bytes": 15327,
+      "sha256": "7365adb4b52c096461316b33376cfe43f91e915ad895169c3be5293aca1d29ca"
+    },
+    "scripts/verify_okernel_unified_client.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/scripts/verify_okernel_unified_client.py",
+      "bytes": 34475,
+      "sha256": "501daec344246c9af87d6880aa790e7cd744554c569437062db11b44e52c5053"
+    },
+    "scripts/verify_okernel_unified_console.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/scripts/verify_okernel_unified_console.py",
+      "bytes": 10606,
+      "sha256": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220"
+    },
+    "scripts/okernel_unified_world.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/scripts/okernel_unified_world.py",
+      "bytes": 57966,
+      "sha256": "9b22236ec9d135139207c96b9ac6e95686d15e2304fb661a01af0f89b56b5d99"
+    },
+    "scripts/okernel_package_domain.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/scripts/okernel_package_domain.py",
+      "bytes": 41952,
+      "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+    },
+    "scripts/okernel_native_volume.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/scripts/okernel_native_volume.py",
+      "bytes": 11240,
+      "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+    },
+    "ocore/guest/linux/package-domain/p9": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/ocore/guest/linux/package-domain/p9",
+      "bytes": 33362,
+      "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+    },
+    "ocore/guest/linux/package-domain/p9-controller": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/ocore/guest/linux/package-domain/p9-controller",
+      "bytes": 19477,
+      "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4"
+    },
+    "ocore/guest/linux/package-domain/p9-history": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/ocore/guest/linux/package-domain/p9-history",
+      "bytes": 30438,
+      "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4"
+    },
+    "ocore/guest/linux/package-domain/p9-install": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/ocore/guest/linux/package-domain/p9-install",
+      "bytes": 15229,
+      "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016"
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/sources/ocore/guest/plan9/unified/protocol.py",
+      "bytes": 16391,
+      "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+    }
+  },
+  "checks": [
+    "exact selected helpers matched the actual guest before and after the typed commands",
+    "implicit p9 7c, p9 7l and p9 ./hello each emitted a 120000ms wire request with exact argv/cwd/input/result",
+    "original compiler/linker produced a retained executable with exact fresh-nonce output",
+    "both native domains remained live and the same Linux shell survived without dropped input",
+    "one Ctrl+] produced a quiescent paired save; saved source, full wire captures and compiled artifacts independently validated"
+  ],
+  "host_timeout_contract": {
+    "client_run_default_ms": 30000,
+    "wire_default_ms": 30000,
+    "wire_maximum_ms": 300000,
+    "above_maximum_rejected": true
+  },
+  "host_tools": {
+    "python": {
+      "path": "/usr/bin/python3.12",
+      "bytes": 8020928,
+      "sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f"
+    },
+    "qemu": {
+      "path": "/usr/bin/qemu-system-aarch64",
+      "bytes": 31517544,
+      "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c"
+    }
+  },
+  "qemu_version": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)\nCopyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers\n",
+  "fork": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/fork.json",
+    "bytes": 3571,
+    "sha256": "278f3f5be65dfe6fe373924695257209b73f72c50bd6b60a71f9a24916c2219a"
+  },
+  "session": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/unified-session-gqc3uyje",
+  "workspace": "/n/okernel/work/default-compile-95315c30f37c7e7d41fd5e30",
+  "installed_guest_sources": {
+    "/usr/local/bin/p9": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+    "/usr/local/libexec/p9-controller": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+    "/usr/local/libexec/p9-history": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+    "/usr/local/bin/p9-install": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016",
+    "/usr/lib/okernel/p9_protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+  },
+  "native_observation": {
+    "live_domains": 3,
+    "switches": 21122,
+    "linux_exits": 143524,
+    "plan9_exits": 288699,
+    "linux_pc": "0xffffffc08042bda8",
+    "plan9_pc": "0xffffffffc01a1c3c",
+    "linux_esr": "0x7e00000",
+    "plan9_esr": "0x7e00000",
+    "console": 0,
+    "input_dropped": 0,
+    "blocked_domains": 3,
+    "native_idle_waits": 644,
+    "plan9_9p_requests": 852,
+    "plan9_9p_request_bytes": 68391,
+    "plan9_9p_reply_bytes": 68188
+  },
+  "paired_save": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/unified-session-gqc3uyje/result.json",
+    "bytes": 27313,
+    "sha256": "98ae0de20bafa4feb40771677e1fa7e52e9807cd70c43a01a45ded5fee9b7887"
+  },
+  "after": {
+    "schema": "ostadix.package-domain-disk-head/v2",
+    "previous": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+      "bytes": 1073741824,
+      "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+    },
+    "previous_namespace": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    "session": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/unified-session-gqc3uyje",
+    "console_exit_consumed": [],
+    "disk": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/disk-generations/33f283b792d4e2ba6110cfd06ecbda96d88a001daf75b5fea17530f9eceef3ba.ext4",
+      "bytes": 1073741824,
+      "sha256": "33f283b792d4e2ba6110cfd06ecbda96d88a001daf75b5fea17530f9eceef3ba"
+    },
+    "namespace": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/namespace-generations/91c937ab9ae1ebf0dee9995df5181b56b439688db2c1e03296c0db0aa85e35ee.raw",
+      "bytes": 16777216,
+      "sha256": "91c937ab9ae1ebf0dee9995df5181b56b439688db2c1e03296c0db0aa85e35ee"
+    }
+  },
+  "commands": {
+    "compile": {
+      "generation": "6f8403728bbdbce2",
+      "instance": "0a222e0c19b707e4d0f7362405a2b939",
+      "request_id": "0a90dfb03121d2a6914509565af1f946",
+      "argv": [
+        "/arm64/bin/7c",
+        "-o",
+        "hello.7",
+        "hello.c"
+      ],
+      "cwd": "/n/work/default-compile-95315c30f37c7e7d41fd5e30",
+      "timeout_ms": 120000,
+      "wire_sha256": {
+        "request": "2d3a0936b08ab2848f21fa6cafec6db3522dfb660dcd03e3391ab8861bf31868",
+        "submit": "5423fa21e221e4fdf14a708c084d8de0855dedaa1cc209ba1b5a3136b0b1f2d1",
+        "started": "5423fa21e221e4fdf14a708c084d8de0855dedaa1cc209ba1b5a3136b0b1f2d1",
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "result": "77bdd58d1e6fd53338e6aa134b25f9ef8e7859b3837dde8cae71bb01b03c9a04",
+        "done": "1972e522c4270fc2f8115a7ceaf459ca0156aa3e3a4f8a3974ef2ac951a99cc2"
+      },
+      "evidence": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/commands/compile/evidence.json",
+        "bytes": 1786,
+        "sha256": "dc3995b94798dcc33f4ea562f778c7b746c3bbc1644fa3d22419b6dcf034ee6e"
+      }
+    },
+    "link": {
+      "generation": "6f8403728bbdbce2",
+      "instance": "0a222e0c19b707e4d0f7362405a2b939",
+      "request_id": "fedf800e6ec428dfbd4cd013edf1f452",
+      "argv": [
+        "/arm64/bin/7l",
+        "-o",
+        "hello",
+        "hello.7"
+      ],
+      "cwd": "/n/work/default-compile-95315c30f37c7e7d41fd5e30",
+      "timeout_ms": 120000,
+      "wire_sha256": {
+        "request": "969cf143b392b204e63ffd7a015ca778bd2b6d4700549a63ef37e56a554975f3",
+        "submit": "ab1afd2bb8147de74a3d6f2c486f520e040be858aa2cebe0904f11dba9359150",
+        "started": "ab1afd2bb8147de74a3d6f2c486f520e040be858aa2cebe0904f11dba9359150",
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "result": "4786c5bc2f3660ff5dbb123ec6d6703c2a888d3120c7165e3e71ab734c29065b",
+        "done": "a56e2c56062fadd6e39e0fdc30cb3304d6a64186828609591634ed3868700118"
+      },
+      "evidence": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/commands/link/evidence.json",
+        "bytes": 1784,
+        "sha256": "cc7503045cfce572bbe5db0bcec691f4384709d87255f3f2f3b5676bf93303f8"
+      }
+    },
+    "execute": {
+      "generation": "6f8403728bbdbce2",
+      "instance": "0a222e0c19b707e4d0f7362405a2b939",
+      "request_id": "7623a25b770981b0ad8205aae46a9456",
+      "argv": [
+        "/n/work/default-compile-95315c30f37c7e7d41fd5e30/hello"
+      ],
+      "cwd": "/n/work/default-compile-95315c30f37c7e7d41fd5e30",
+      "timeout_ms": 120000,
+      "wire_sha256": {
+        "request": "492afb80f18b745dcf9d38cbc15109c2bf895a9878d3f2a2942f52ac02abed6b",
+        "submit": "7187d4c3f7ff2983767aa987a7c6dca78c52f045a9fd1e7e27f47821d5769193",
+        "started": "7187d4c3f7ff2983767aa987a7c6dca78c52f045a9fd1e7e27f47821d5769193",
+        "stdout": "68f500e5c4ac72ec8a65107217e55dd7b3ed0d0e166debc35c7e4ce0d9ab2d7c",
+        "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "status": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "result": "576afcc74f09aba193310302dc7328d98f7abb728ba6dc68e2020670a092c7fe",
+        "done": "4ad9d71afc883df9d6d957228cb6b99e04126bca9f69bbb22bb59cf2c6090b52"
+      },
+      "evidence": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/commands/execute/evidence.json",
+        "bytes": 1800,
+        "sha256": "6f429fd99733387da1bf4102a7b533ee7029ce9c029fb5148287bb56bb3f5157"
+      }
+    }
+  },
+  "artifacts": {
+    "hello.c": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/hello.c",
+      "bytes": 118,
+      "sha256": "237b8076b92ea47b91c692b53f119d6393c1842d9b72b7a64d608c85cbe2d7b5"
+    },
+    "hello.7": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/hello.7",
+      "bytes": 678,
+      "sha256": "386934bf6c63e2f3884249d1b4aa29372b37a4e238805aebe15cbd3e0e2e8bcc"
+    },
+    "hello": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/default_compile/p9-default-compile-btjcd6t0/hello",
+      "bytes": 34103,
+      "sha256": "0a06810a9a67fb2006bb403b9548dd3b98cd1ce5c43e16b69ac1fb1e14e2b71c"
+    }
+  },
+  "finished": 1794557149.503038
+}

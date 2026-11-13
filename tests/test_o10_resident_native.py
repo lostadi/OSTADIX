@@ -51,6 +51,7 @@ extern void _O_runtime__aarch64__kernel_world_virtio__resident_test_hold(void);
 extern uint64_t _O_runtime__aarch64__kernel_world_virtio__init(uint64_t,uint64_t,uint64_t);
 extern uint64_t _O_runtime__aarch64__kernel_world_virtio__mmio_write(uint64_t,uint64_t);
 extern void uw_unexpected_exit(uint64_t,uint64_t,uint64_t);
+extern void uw_internal_failure(uint64_t,uint64_t,uint64_t,uint64_t);
 static jmp_buf stop;
 static unsigned char serial[8192];static size_t serial_count;
 static uint64_t current=0,physical_irq=26,clock_ticks=0,lrs[2][4],vmcr[2],hcr[2];
@@ -291,6 +292,41 @@ int main(int argc,char**argv){
     assert(NS(session_handle)(1)==linux_session&&stat_session(linux_session)==125);
     assert(NS(session_handle)(4)==plan9_session&&NS(session_fid_count)(4)==1&&stat_session(plan9_session)==125);
    }else assert(!"ordinary Linux PL011 registration halted the monitor");
+  }else if(scenario==33){
+   // Direct defensive disposition only: valid serialized scheduler state
+   // cannot reach its postselection1104 guard. Do not fake that reachability.
+   namespace_sessions();assert(UW(resident_test_init)(3)==1);
+   st((void*)0x6d000008,1,8);
+   int code=setjmp(stop);if(!code)uw_internal_failure(0x1104,1,0,0x40101234);
+   assert(code==2);diagnostic(0x1104,1);
+   assert(rd((void*)0x6d0000e0,8)==0&&rd((void*)0x6d0000e8,8)==0x40101234);
+   assert(UW(resident_test_live)()==3);
+   assert(NS(session_handle)(1)==linux_session&&stat_session(linux_session)==125);
+   assert(NS(session_handle)(4)==plan9_session&&stat_session(plan9_session)==125);
+   assert(strstr((char*)serial,"KW unified domain failure: ")==NULL);
+  }else if(scenario==34){
+   // WFI enters the actual blocked-domain wake path, distinct from final
+   // next-domain gic_poll (detail804). The modeled saved LR is invalid.
+   namespace_sessions();assert(UW(resident_test_init)(2)==1);current=1;
+   lrs[1][0]=((uint64_t)1<<62)|1023;
+   int code=setjmp(stop);if(!code)uw_handle_exit((uintptr_t)registers,0,(uint64_t)1<<26,0,0);
+   assert(code==2);diagnostic(0x1103,1);
+   assert(rd((void*)0x6d0000e0,8)==0x805&&rd((void*)0x6d0000e8,8)==0x40100000);
+   assert(UW(resident_test_live)()==2);
+   assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);
+   assert(stat_session(linux_session)==125&&stat_session(plan9_session)==125);
+   assert(strstr((char*)serial,"KW unified domain failure: ")==NULL);
+  }else if(scenario==35){
+   // PSCI_FEATURES uses all-ones as a guest result, not a monitor sentinel.
+   namespace_sessions();assert(UW(resident_test_init)(2)==1);current=1;
+   registers[0]=0x8400000a;
+   int code=setjmp(stop);if(!code){
+    assert(uw_handle_exit((uintptr_t)registers,0,(uint64_t)0x16<<26,0,0)==1);
+    assert(registers[0]==UINT64_MAX&&registers[31]==0x40100000);
+    assert(UW(resident_test_live)()==2&&halt_count==0);
+    assert(NS(session_handle)(1)==linux_session&&NS(session_handle)(4)==plan9_session);
+    assert(stat_session(linux_session)==125&&stat_session(plan9_session)==125);
+   }else assert(!"PSCI guest result was mistaken for a monitor sentinel");
   }else assert(!"unknown scenario");
  puts("resident native scenario PASS");return 0;
 }
@@ -344,7 +380,7 @@ class O10ResidentNativeTests(unittest.TestCase):
                          str(output/"harness.c"),str(output/"sentinels.c"),str(output/"native.o"),"-o",str(output/"selftest")]
                 result=subprocess.run(command,capture_output=True,text=True,timeout=120)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-                for scenario in list(range(17))+([20,21,22,25,26,27,29,30,31] if services else [17,18,19,23,24,25,26,27,28,29,30,31,32]):
+                for scenario in list(range(17))+[33,34,35]+([20,21,22,25,26,27,29,30,31] if services else [17,18,19,23,24,25,26,27,28,29,30,31,32]):
                     result=subprocess.run([str(output/"selftest"),str(scenario)],capture_output=True,text=True,timeout=10)
                     self.assertEqual(result.returncode,0,f"qualification={qualification} scenario={scenario}: "+result.stdout+result.stderr)
 

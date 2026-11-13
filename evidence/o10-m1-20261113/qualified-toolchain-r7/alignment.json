@@ -1,0 +1,32 @@
+{
+  "schema": "ostadix.o10-m1-toolchain-alignment/v1",
+  "ok": true,
+  "revision": "cb53ca51c5e8ef3e4692870640d71935a82556fa",
+  "source_root": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "build_dirty": true,
+  "runtime_dirty": true,
+  "dirty_scope": "retained R6/native R7 evidence; tracked source unchanged",
+  "mcp": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/ostadix-mcp",
+    "sha256": "a0fde77c94cbdbb69de01413cd3e83e480a2ffcd97323e8d4527e81c882e6245",
+    "bytes": 7675144
+  },
+  "status": {
+    "running": true,
+    "bridge_pid": 1109912,
+    "mcp_pid": 1109913,
+    "binary": "/home/ustad/.local/state/ostadix/o10-m1-toolchain-r7-20261113/bin/ostadix-mcp",
+    "root": "/home/ustad/OSTADIX-o10-m1-20261112",
+    "backends": "/home/ustad/OSTADIX-o10-m1-20261112/backends",
+    "socket": "/tmp/o10-m1-r7-mcp-20261113/5c71bfe432c0b07fc55bb005.sock",
+    "started_at": 1794550043.3618834,
+    "stopping": false
+  },
+  "observed": 1794550109.8098092,
+  "scope": "fresh R7 private MCP build/runtime/process-inode root+commit alignment; actual pinned evaluator fixed Python smoke PASS, compiler --help rc0, runtime inventory retained; no guest gates",
+  "activation_note": "Activation wrapper parsed o_runtimes text as JSON after actual successful environment/doctor/runtime calls. Failed wrapper receipt preserved; independent readback validates actual successful retained evidence without replay.",
+  "compiler": {
+    "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+  }
+}

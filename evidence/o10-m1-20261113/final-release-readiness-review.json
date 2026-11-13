@@ -1,0 +1,40 @@
+{
+  "scope": "Independent read-only final M1 documentation/evidence/release review; no new gate execution or source edit",
+  "reviewer": "OpenAI Codex gate_review agent",
+  "recorded": 1794557772.1058452,
+  "ready": true,
+  "diff_check_exit": 0,
+  "evidence_scan": {
+    "files": 417,
+    "bytes": 9653581,
+    "credential_transcript_pattern_hits": [],
+    "symlinks": [],
+    "limits": "Pattern scan plus manual inspection of final docs and selected provenance/receipts; no blanket secret-detection guarantee. Deployment paths and session nonces remain."
+  },
+  "verified": {
+    "acceptance_sha256": "61a17588a627e83c3671c89208d0f933d9e0ef91cc29cf985478ffa3b501ef86",
+    "contract": "O10-Draft0-M1",
+    "acceptance_scope": "draft0",
+    "resident_samples": 182,
+    "resident_seconds": 60.24371229996905,
+    "guest_gates": 6,
+    "guest_actual_exits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "component_tests": 147,
+    "kernel_tests": 288,
+    "targeted_tests": 74,
+    "language_sources": 261,
+    "extra_mmio_probe_qualified": false,
+    "physical_hardware_claim": false
+  },
+  "nonblocking_notes": [
+    "docs/O10.md opening qualification-evidence pointer still names only evidence/o10-m0-20261112; later M1 section links correct M1 receipt."
+  ],
+  "findings": []
+}

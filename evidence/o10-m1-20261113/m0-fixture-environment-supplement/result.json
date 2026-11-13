@@ -1,0 +1,23 @@
+{
+  "schema": "ostadix.o10-m0-fixture-environment-supplement/v1",
+  "recorded": 1794552671.838647,
+  "scope": "Documents explicit base environment in retained completed controller; original accepted receipt remains unchanged",
+  "accepted_receipt": "/home/ustad/OSTADIX-o10-m0-20261112/evidence/o10-m0-20261112/acceptance-r3d.json",
+  "controller": {
+    "path": "/home/ustad/.cache/o10-final-unit-r3d.py",
+    "retained_copy": "retained-controller.py",
+    "sha256": "0245ed7766ee9344345542a5360927e95f491fda033a617d458792d10dafa74e"
+  },
+  "environment": {
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec"
+  },
+  "files": {
+    "OCORE_U9FS_MANIFEST": "0c27a483b847a0f1b66d7c4bf574e90db45ec25463dd55a1c424f07309e8b5e2",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "56887d41253810986cfeb7a8a559b193b5d4c302ace18bff0a03c48f1dea9bcd",
+    "OCOREC_BIN": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+  },
+  "qualification_added": false
+}

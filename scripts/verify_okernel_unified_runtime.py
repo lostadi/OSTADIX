@@ -38,10 +38,23 @@ R9_PROFILE = "d16d00728c1c52ba46c04485c9c0a564f4836ec9cd72a8e913622023eeabccba"
 # O10 candidate admitted for this runtime gate by the live control/provider receipt.
 O10_M0_MONITOR = "641a0ad14fb96979f7d4b141779f8bbad7b8b854ea1fde4fe1b25d984504aeaf"
 O10_M0_PROFILE = "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae0295e"
-ADMITTED_RUNTIME_PROFILES = {R9_MONITOR: R9_PROFILE, O10_M0_MONITOR: O10_M0_PROFILE}
+# Observed R7 resident/normal functional candidate, not extra-device qualification.
+# evidence/o10-m1-20261113/resident-r7/result.json
+O10_M1_R7_MONITOR = "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
+O10_M1_R7_PROFILE = "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938"
+ADMITTED_RUNTIME_PROFILES = {R9_MONITOR: R9_PROFILE, O10_M0_MONITOR: O10_M0_PROFILE,
+                             O10_M1_R7_MONITOR: O10_M1_R7_PROFILE}
 RUNTIME_SCHEMA = "ostadix.okernel-unified-runtime/v1"
 SESSION_SCHEMA = "ostadix.unified-world-session/v1"
 TARGET = "=okernel-unified:console.0"
+
+
+def admitted_runtime_profile(monitor_digest, profile_digest):
+    expected = (ADMITTED_RUNTIME_PROFILES.get(monitor_digest)
+                if isinstance(monitor_digest, str) else None)
+    if expected is None or not isinstance(profile_digest, str) or profile_digest != expected:
+        raise ValueError("runtime monitor/profile pair is not explicitly admitted")
+    return expected
 
 
 def digest(path):
@@ -430,10 +443,10 @@ class Verification:
         self.fork = validate_private_fork(self.state, self.runner.common.DEFAULT_STATE)
         self.profile = document(self.runtime / "build/monitor-profile.json")
         self.runner.validate_profile(self.profile)
-        admitted_profile = ADMITTED_RUNTIME_PROFILES.get(self.profile["artifacts"]["monitor.elf"]["sha256"])
-        if (admitted_profile is None
-                or digest(self.runtime / "build/monitor-profile.json") != admitted_profile
-                or self.manifest["admitted_manifest"]["sha256"] != admitted_profile):
+        admitted_profile = admitted_runtime_profile(
+            self.profile["artifacts"]["monitor.elf"]["sha256"],
+            digest(self.runtime / "build/monitor-profile.json"))
+        if self.manifest["admitted_manifest"]["sha256"] != admitted_profile:
             raise ValueError("runtime monitor/profile pair is not explicitly admitted")
         self.before = document(self.state / "head.json")
         self.runner.common.validate_head(self.state, self.before)

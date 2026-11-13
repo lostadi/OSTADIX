@@ -276,8 +276,106 @@ def validate_resident(root, receipt_path, build, profile, expected_revision, *, 
             and stat.get("inst") != first_plan9.get("inst"), label + " provider restore generation invalid")
     return receipt, {str(session)}, captures
 
-def validate_acceptance(*, root, build, resident_result, hostile_mmio_result, guest_result, component_result,
-                        unit_result, provenance, compiler, expected_revision):
+
+BASELINE_M0 = "808996422536667e61a7da52f29c75e2fa3a5f48"
+WORLD_SOURCE = "ocore/runtime/aarch64/unified_world.oc"
+CLASSIFIED_TEST = "tests/test_o10_resident_native.py"
+CLASSIFIED_METHOD = "O10ResidentNativeTests.test_resident_paths_and_qualification_boundary"
+CONTRACTS = {"extended": "O10-M1-extended-mmio/v1", "draft0": "O10-Draft0-M1"}
+CLASSIFIED_ROWS = {
+    "invalid_current": ("internal_diagnostic", 0x1101, None, 1),
+    "idle_unexpected_irq": ("internal_diagnostic", 0x1102, None, 9),
+    "no_runnable_domain": ("resident_continuation", None, None, 0),
+    "vgic_poll_failure": ("internal_diagnostic", 0x1103, 0x804, 5),
+}
+AUXILIARY_ROWS = {
+    "defensive_selected_result": ("defensive_diagnostic", 0x1104, None, 33),
+    "vgic_wake_failure": ("internal_diagnostic", 0x1103, 0x805, 34),
+    "psci_unsupported_result": ("guest_result", None, None, 35),
+}
+
+def contract_id(scope):
+    require(scope in CONTRACTS, "unknown acceptance scope")
+    return CONTRACTS[scope]
+
+def observe_extra_probe(path):
+    record = document(path)
+    require(record.get("schema") == "ostadix.o10-resident-gate/v1" and
+            record.get("gate_id") == "verify_o10_hostile_mmio", "wrong extra probe receipt")
+    return {"reference": identity(path), "qualified": False,
+            "observed_gate_passed": record.get("gate_passed"),
+            "observed_error": record.get("error"),
+            "scope": "Additional probe outside O10 Draft 0 M1; never evidence for Draft 0 acceptance"}
+
+def git_source_identity(root, revision, name):
+    blob = subprocess.run(["git", "-C", str(root), "show", revision + ":" + name],
+                          check=True, capture_output=True).stdout
+    object_id = subprocess.run(["git", "-C", str(root), "rev-parse", revision + ":" + name],
+                               check=True, capture_output=True, text=True).stdout.strip()
+    return {"sha256": hashlib.sha256(blob).hexdigest(), "git_blob": object_id}
+
+def validate_classification(root, path, expected_revision, component, component_log):
+    mapping = document(path)
+    require(mapping.get("schema") == "ostadix.o10-m1-max-classification/v1" and
+            mapping.get("contract_id") == CONTRACTS["draft0"], "wrong Draft 0 classified-path contract")
+    require(mapping.get("baseline_revision") == BASELINE_M0 and
+            mapping.get("implementation_revision") == expected_revision, "classified-path revision mismatch")
+    baseline = git_source_identity(root, BASELINE_M0, WORLD_SOURCE)
+    current = git_source_identity(root, expected_revision, WORLD_SOURCE)
+    require(current["sha256"] == digest(root / WORLD_SOURCE), "classified native source differs from commit")
+    test_sha = digest(root / CLASSIFIED_TEST)
+    require(component.get("source_sha256", {}).get(CLASSIFIED_TEST) == test_sha,
+            "classified test source differs from executed component")
+    require(component.get("source_sha256", {}).get(WORLD_SOURCE) == current["sha256"],
+            "classified mechanism source differs from executed component")
+    token = CLASSIFIED_METHOD.split(".")[-1]
+    require(token + " (" in component_log and CLASSIFIED_METHOD in component_log,
+            "classified-path method missing from actual component log")
+    for field, required in (("rows", CLASSIFIED_ROWS), ("auxiliary_rows", AUXILIARY_ROWS)):
+        rows = mapping.get(field)
+        require(isinstance(rows, list) and len(rows) == len(required) and
+                {row.get("id") for row in rows} == set(required), "classified-path rows incomplete: " + field)
+        for row in rows:
+            classification, diagnostic, detail, scenario = required[row["id"]]
+            require(row.get("classification") == classification, "classified-path category mismatch")
+            for which, actual in (("baseline", baseline), ("current", current)):
+                source = row.get(which, {})
+                require(source.get("path") == WORLD_SOURCE and source.get("sha256") == actual["sha256"] and
+                        type(source.get("line")) is int and source["line"] > 0,
+                        "classified-path source binding mismatch")
+                if source.get("git_blob") is not None:
+                    require(source["git_blob"] == actual["git_blob"], "classified-path git blob mismatch")
+            if diagnostic is not None:
+                require(type(row.get("diagnostic")) is int and row["diagnostic"] == diagnostic,
+                        "classified-path diagnostic mismatch")
+            if detail is not None:
+                require(type(row.get("detail")) is int and row["detail"] == detail,
+                        "classified-path diagnostic detail mismatch")
+            if row["id"] == "psci_unsupported_result":
+                require(row.get("value") == "18446744073709551615", "architectural sentinel value mismatch")
+            test = row.get("test", {})
+            scope = ("native-host-register-model-diagnostic-only" if row["id"] == "defensive_selected_result"
+                     else "native-host-register-model")
+            require(test.get("path") == CLASSIFIED_TEST and test.get("method") == CLASSIFIED_METHOD and
+                    test.get("sha256") == test_sha and test.get("scope") == scope,
+                    "classified-path test binding mismatch")
+            require(test.get("scenario_ids") == [scenario] and len(test.get("configurations", [])) == 4 and
+                    {tuple(value) for value in test.get("configurations", [])} == {(0, 1), (1, 1), (0, 0), (1, 0)},
+                    "classified-path scenario coverage mismatch")
+            execution = row.get("execution", {})
+            require(execution.get("source") == "component_receipt" and execution.get("method_log_token") == token,
+                    "classified execution is not bound to actual component")
+            if row["id"] == "defensive_selected_result":
+                require(bool(row.get("note")) and "direct diagnostic" in row["note"] and "not reachable" in row["note"],
+                        "defensive guard scope must disclose direct diagnostic coverage")
+    if mapping.get("retained_run_ref") is not None:
+        reference(mapping["retained_run_ref"], "retained classified model run")
+    return identity(path)
+
+def validate_acceptance(*, root, build, resident_result, hostile_mmio_result=None, guest_result, component_result,
+                        unit_result, provenance, compiler, expected_revision,
+                        acceptance_scope='extended', classified_paths_result=None):
+    selected_contract = contract_id(acceptance_scope)
     root, build = Path(root).resolve(), Path(build).resolve()
     require(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", expected_revision) is not None, "invalid expected revision")
     profile_path, monitor_path = build / "monitor-profile.json", build / "monitor.elf"
@@ -325,14 +423,45 @@ def validate_acceptance(*, root, build, resident_result, hostile_mmio_result, gu
         {"scripts/fork_okernel_state.py", "scripts/o10.py", "scripts/okernel_unified_world.py",
          "scripts/verify_o10_m1_regressions.py"}, "guest")
     resident, resident_sessions, resident_captures = validate_resident(root, resident_result, build, profile, expected_revision)
-    hostile, hostile_sessions, hostile_captures = validate_resident(root, hostile_mmio_result, build, profile, expected_revision, hostile=True)
-    require(resident_sessions.isdisjoint(hostile_sessions), "M1 live gates reused a VM session")
-    require(Path(resident["fork"]["output"]).resolve() != Path(hostile["fork"]["output"]).resolve(),
-            "M1 live gates reused a private state")
+    hostile, hostile_sessions, hostile_captures = None, set(), []
+    extra_probe = None
+    if acceptance_scope == "extended":
+        require(hostile_mmio_result is not None, "extended acceptance requires actual extra probe result")
+        hostile, hostile_sessions, hostile_captures = validate_resident(root, hostile_mmio_result, build, profile, expected_revision, hostile=True)
+        require(resident_sessions.isdisjoint(hostile_sessions), "M1 live gates reused a VM session")
+        require(Path(resident["fork"]["output"]).resolve() != Path(hostile["fork"]["output"]).resolve(),
+                "M1 live gates reused a private state")
+    else:
+        require(classified_paths_result is not None, "Draft 0 classified-path mapping required")
+        guest_probe_ref = guest.get("hostile_mmio_result") or (guest.get("extra_probe") or {}).get("reference")
+        if hostile_mmio_result is None and guest_probe_ref is not None:
+            reference(guest_probe_ref, "retained extra probe")
+            hostile_mmio_result = Path(guest_probe_ref["path"])
+        if hostile_mmio_result is not None:
+            extra_probe = observe_extra_probe(hostile_mmio_result)
+    require(guest.get("acceptance_scope", "extended") == acceptance_scope,
+            "guest acceptance scope mismatch")
+    if guest.get("contract_id") is not None:
+        require(guest["contract_id"] == selected_contract, "guest acceptance contract mismatch")
+    if acceptance_scope == "draft0":
+        require(guest.get("contract_id") == selected_contract, "guest Draft 0 contract missing")
+
     require(guest.get("schema") == "ostadix.o10-guest-regressions/v1", "wrong guest receipt")
     require(not guest.get("skips"), "guest tests skipped")
     require(reference(guest.get("resident_result"), "guest resident") == resident, "guest references another resident result")
-    require(reference(guest.get("hostile_mmio_result"), "guest hostile MMIO") == hostile, "guest references another hostile MMIO result")
+    if acceptance_scope == "extended":
+        require(reference(guest.get("hostile_mmio_result"), "guest hostile MMIO") == hostile, "guest references another hostile MMIO result")
+    elif guest_probe_ref is not None:
+        require(extra_probe is not None and guest_probe_ref == extra_probe["reference"],
+                "guest extra probe reference mismatch")
+        if guest.get("hostile_mmio_result") is not None:
+            require(guest["hostile_mmio_result"] == extra_probe["reference"], "guest extra probe reference mismatch")
+        require(guest.get("extra_probe", {}).get("qualified") is False and
+                guest["extra_probe"].get("reference") == extra_probe["reference"],
+                "Draft 0 guest extra probe must remain explicitly unqualified")
+        require(guest["extra_probe"].get("observed_gate_passed") == extra_probe["observed_gate_passed"] and
+                guest["extra_probe"].get("observed_error") == extra_probe["observed_error"],
+                "guest extra probe observation differs from retained receipt")
     frozen = reference(guest.get("frozen_runtime"), "frozen runtime")
     require(frozen.get("passed") is True, "frozen runtime not admitted")
     runtime_dir = Path(guest["frozen_runtime"]["path"]).parent
@@ -437,24 +566,38 @@ def validate_acceptance(*, root, build, resident_result, hostile_mmio_result, gu
     require(language.get("binaries", {}).get("O", {}).get("sha256") == observed_tools["O"].get("sha256"),
             "language evaluator differs from observed MCP tool")
 
+    classification = None
+    if acceptance_scope == "draft0":
+        classification = validate_classification(root, classified_paths_result, expected_revision, component, log)
+
     inputs = {name: identity(path) for name, path in {
-        "profile": profile_path, "monitor": monitor_path, "resident": resident_result, "hostile_mmio": hostile_mmio_result, "guest": guest_result,
+        "profile": profile_path, "monitor": monitor_path, "resident": resident_result, "guest": guest_result,
         "component": component_result, "component_log": log_path, "unit": unit_result,
         "language": language_meta["path"], "provenance": provenance, "compiler": compiler,
     }.items()}
-    return {"schema": "ostadix.o10-m1-acceptance/v1", "milestone": "M1", "gate_id": "verify_o10_m1",
+    if hostile_mmio_result is not None:
+        inputs["hostile_mmio"] = identity(hostile_mmio_result)
+    if classification is not None:
+        inputs["classified_paths"] = classification
+    return {"schema": "ostadix.o10-m1-acceptance/v1", "acceptance_scope": acceptance_scope,
+            "contract_id": selected_contract, "extra_probe": extra_probe, "milestone": "M1", "gate_id": "verify_o10_m1",
             "ok": True, "full_milestone_qualified": True, "source_revision": expected_revision,
             "mcp_release": expected_revision, "monitor_sha256": monitor_sha, "profile_sha256": profile_sha,
             "compiler_sha256": compiler_sha, "inputs": inputs, "guest_gate_ids": sorted(GATES),
             "guest_receipts": child_inputs, "sessions_checked": sorted(sessions),
             "okernel_unit_tests": total, "component_tests": component["tests_run"], "language_sources": len(inventory), "live_captures": resident_captures + hostile_captures,
             "skips": [], "finished": time.time(),
-            "scope": "M1 resident EL2 control for at least 60 seconds with both guests stopped, qualification Tinjection and additional actual hostile Linux MMIO survivor corpus, classified native paths, and full regressions on this exact AArch64 QEMU build; no physical hardware or later milestones"}
+            "scope": ("O10 Draft 0 M1: resident EL2 control for at least 60 seconds with both guests stopped, qualification Tinjection, provider restoration, source-bound native classified paths, and full aligned regressions; additional probes remain unqualified; QEMU scope only"
+                      if acceptance_scope == "draft0" else
+                      "Extended M1: Draft 0 resident control plus additional actual hostile Linux MMIO survivor corpus and full aligned regressions; QEMU scope only")}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for flag in ("build", "resident-result", "hostile-mmio-result", "guest-result", "component-result", "unit-result", "provenance", "compiler", "output"):
+    for flag in ("build", "resident-result", "guest-result", "component-result", "unit-result", "provenance", "compiler", "output"):
         parser.add_argument("--" + flag, type=Path, required=True)
+    parser.add_argument("--hostile-mmio-result", type=Path)
+    parser.add_argument("--classified-paths-result", type=Path)
+    parser.add_argument("--acceptance-scope", choices=tuple(CONTRACTS), default="extended")
     parser.add_argument("--expected-revision", required=True)
     parser.add_argument("--supersedes", type=Path, action="append", default=[])
     args = parser.parse_args()
@@ -462,11 +605,13 @@ def main():
     if output.exists() or output.is_symlink():
         parser.error("output must be a new receipt; historical evidence is preserved")
     record = {"schema": "ostadix.o10-m1-acceptance/v1", "milestone": "M1", "ok": False,
-              "full_milestone_qualified": False, "started": time.time()}
+              "full_milestone_qualified": False, "acceptance_scope": args.acceptance_scope,
+              "contract_id": contract_id(args.acceptance_scope), "started": time.time()}
     try:
         record.update(validate_acceptance(root=ROOT, build=args.build, resident_result=args.resident_result, hostile_mmio_result=args.hostile_mmio_result,
             guest_result=args.guest_result, component_result=args.component_result, unit_result=args.unit_result,
-            provenance=args.provenance, compiler=args.compiler, expected_revision=args.expected_revision))
+            provenance=args.provenance, compiler=args.compiler, expected_revision=args.expected_revision,
+            acceptance_scope=args.acceptance_scope, classified_paths_result=args.classified_paths_result))
         record["superseded_evidence"] = [identity(path) for path in args.supersedes]
         record["supersession_scope"] = "Historical files remain unchanged; this receipt supersedes only their qualification conclusion."
     except (OSError, ValueError, KeyError, TypeError, AttributeError, ImportError, SyntaxError, subprocess.SubprocessError) as error:

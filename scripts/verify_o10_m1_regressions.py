@@ -102,12 +102,19 @@ def execute_command(argv, output, timeout):
     (output / "command.json").write_text(json.dumps(result, indent=2) + "\n")
     return result
 
-def validate_m1_prerequisites(root, build, profile, revision, resident_path, hostile_path):
+def validate_m1_prerequisites(root, build, profile, revision, resident_path, hostile_path, acceptance_scope="extended"):
     # Reuse the same semantic receipt validator as the final M1 binder. This
     # driver cannot manufacture admission from a count or caller-supplied flag.
-    from verify_o10_m1 import validate_resident
+    from verify_o10_m1 import validate_resident, contract_id, observe_extra_probe
+    contract_id(acceptance_scope)
     primary, primary_sessions, _ = validate_resident(
         root, resident_path, build, profile, revision)
+    if acceptance_scope == "draft0":
+        if hostile_path is not None:
+            observe_extra_probe(hostile_path)  # retained separately, never a prerequisite pass
+        return primary, document(hostile_path) if hostile_path is not None else None
+    if hostile_path is None:
+        raise ValueError("extended acceptance requires actual extra probe result")
     hostile, hostile_sessions, _ = validate_resident(
         root, hostile_path, build, profile, revision, hostile=True)
     if primary_sessions & hostile_sessions:
@@ -131,7 +138,7 @@ def preflight(args):
     if args.mcp_release != revision:
         raise ValueError("observed MCP release must match the M1 branch under test")
     validate_m1_prerequisites(ROOT, args.build, profile, revision,
-                              args.resident_result, args.hostile_mmio_result)
+                              args.resident_result, args.hostile_mmio_result, args.acceptance_scope)
     # Actual qualified component evidence does not silently admit a monitor to
     # foreground tests. Its observed hash pair still needs explicit selection.
     from verify_okernel_unified_client import admitted_monitor_revision
@@ -153,15 +160,19 @@ def preflight(args):
                      {"verify_o10_m1_regressions.py", "verify_o10_m1.py",
                       "verify_o10_resident.py", "verify_o10_hostile_mmio.py",
                       "fork_okernel_state.py", "okernel_unified_world.py",
-                      "o10.py", "verify_okernel_unified_console.py"})
+                      "o10.py", "verify_okernel_unified_console.py", "o-kernel.sh"})
     return profile, revision, {str(Path("scripts") / name): digest(ROOT / "scripts" / name) for name in sources}
 
 
 def resumable_entries(previous, current):
     # Only completed positive executions can be reused. An interrupted process
     # with a positive child receipt but no observed exit code remains unknown.
+    if previous.get("acceptance_scope", "extended") != current.get("acceptance_scope", "extended"):
+        raise ValueError("resume acceptance scope differs")
+    if previous.get("contract_id") != current.get("contract_id"):
+        raise ValueError("resume acceptance contract differs")
     for key in ("resident_result", "hostile_mmio_result"):
-        if previous.get(key, {}).get("sha256") != current.get(key, {}).get("sha256"):
+        if (previous.get(key) or {}).get("sha256") != (current.get(key) or {}).get("sha256"):
             raise ValueError("resume component prerequisite differs: " + key)
     for field in ("source_revision", "mcp_release", "profile_sha256", "monitor_sha256", "seed_head_sha256"):
         if previous.get(field) != current.get(field):
@@ -276,7 +287,8 @@ def main():
     parser.add_argument("--seed-state", type=Path, required=True)
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--resident-result", type=Path, required=True)
-    parser.add_argument("--hostile-mmio-result", type=Path, required=True)
+    parser.add_argument("--hostile-mmio-result", type=Path)
+    parser.add_argument("--acceptance-scope", choices=("extended", "draft0"), default="extended")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mcp-release", required=True)
     parser.add_argument("--execute", action="store_true")
@@ -285,20 +297,29 @@ def main():
     parser.add_argument("--jobs", type=int, choices=(1, 2), default=1)
     parser.add_argument("--minimum-free-gib", type=float, default=3.5)
     args = parser.parse_args()
+    if args.acceptance_scope == "extended" and args.hostile_mmio_result is None:
+        parser.error("default extended acceptance requires --hostile-mmio-result")
+    from verify_o10_m1 import contract_id, observe_extra_probe
+    selected_contract = contract_id(args.acceptance_scope)
     for name in ("build", "seed_state", "runtime", "resident_result", "hostile_mmio_result"):
-        path = getattr(args, name).expanduser()
+        value = getattr(args, name)
+        if value is None:
+            continue
+        path = value.expanduser()
         if path.is_symlink():
             parser.error(name + " must not be a symlink")
         setattr(args, name, path.resolve(strict=True))
     args.output = args.output.expanduser().resolve()
     steps = plan(args)
     if not args.execute:
-        print(json.dumps({"scope": "plan only; no gate/fork/VM executed", "steps": steps}, indent=2))
+        print(json.dumps({"scope": "plan only; no gate/fork/VM executed", "acceptance_scope": args.acceptance_scope,
+                          "contract_id": selected_contract, "steps": steps}, indent=2))
         return 0
     if args.output.exists() or args.output.is_symlink():
         parser.error("execution output must be a new directory; no automatic reruns")
     args.output.mkdir(parents=True, exist_ok=False)
     record = {"schema": "ostadix.o10-guest-regressions/v1", "milestone": "M1",
+              "acceptance_scope": args.acceptance_scope, "contract_id": selected_contract,
               "ok": False, "full_milestone_qualified": False, "started": time.time(),
               "scope": "six real guest regression gates on the same captured M1 O10 qualification build, each in a fresh private seed fork; at most two concurrent VMs; unit and language checks are separate",
               "mcp_release": args.mcp_release, "build": str(args.build),
@@ -316,9 +337,12 @@ def main():
                       profile_sha256=digest(args.build / "monitor-profile.json"),
                       monitor_sha256=profile["artifacts"]["monitor.elf"]["sha256"],
                       build_tools=profile["tools"], resident_result={"path": str(args.resident_result), "sha256": digest(args.resident_result)},
-                      hostile_mmio_result={"path": str(args.hostile_mmio_result), "sha256": digest(args.hostile_mmio_result)},
                       frozen_runtime={"path": str(args.runtime / "runtime.json"), "sha256": digest(args.runtime / "runtime.json")},
                       seed_head_sha256=digest(args.seed_state / "head.json"))
+        if args.hostile_mmio_result is not None:
+            record["hostile_mmio_result"] = {"path": str(args.hostile_mmio_result), "sha256": digest(args.hostile_mmio_result)}
+            if args.acceptance_scope == "draft0":
+                record["extra_probe"] = observe_extra_probe(args.hostile_mmio_result)
         save()
         resumed = resumable_entries(document(args.resume_from), record) if args.resume_from else {}
         if args.resume_from:

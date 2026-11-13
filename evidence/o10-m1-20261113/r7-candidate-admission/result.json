@@ -1,0 +1,23 @@
+{
+  "scope": "R7 resident/normal functional candidate exact monitor/profile admission; no extra-device claim",
+  "returncode": 0,
+  "argv": [
+    "python3",
+    "-c",
+    "import unittest; l=unittest.TestLoader(); s=unittest.TestSuite([l.discover('tests',pattern=p) for p in ['test_unified_client_acceptance.py','test_unified_runtime_acceptance.py']]); r=unittest.TextTestRunner(verbosity=2).run(s); raise SystemExit(not r.wasSuccessful() or bool(r.skipped))"
+  ],
+  "source_sha256": {
+    "scripts/verify_okernel_unified_client.py": "501daec344246c9af87d6880aa790e7cd744554c569437062db11b44e52c5053",
+    "scripts/verify_okernel_unified_runtime.py": "c77388b56134817fe44457b39cbe3117604750e6b205d444e3e324d3b99b5369",
+    "tests/test_unified_client_acceptance.py": "97ba0869810b0aca2c4bacbfa20de5213aa7c377980452f8868e06119c7611ce",
+    "tests/test_unified_runtime_acceptance.py": "1e873deafdfe671accd26afccf363de2d7c532d7d7186f027b881c3d295b7aa4",
+    "scripts/o-kernel.sh": "0f4e234f3f77db14d4e39b74585e1702cc5d41d7e2a2d161d127d02d386616b3"
+  },
+  "resident_result": {
+    "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/resident-live-r7/result.json",
+    "sha256": "e01017f5f430078cf129c9339ce263c783bf3c17ca940514d989a8e7bc1d0a77"
+  },
+  "monitor_sha256": "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32",
+  "profile_sha256": "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938",
+  "qualified": false
+}

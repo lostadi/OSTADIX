@@ -1,0 +1,53 @@
+{
+  "schema": "ostadix.o10-m1-failed-boot-observation/v1",
+  "qualified": false,
+  "gate_passed": false,
+  "source_revision": "bc3ed73bcc7fc897afdd85e26779b93d8f5ed539",
+  "job_id": "job-999526-1794548849331026888-1-6",
+  "session": "/home/ustad/.cache/o10-m1-acceptance-20261112/hostile-mmio-live-r6",
+  "cause": "Both R6 gates failed normal Linux boot before readiness; contained UART initialization write ESR0x93490045 IPA0x09000044 PC0xffffffc08027b50c. Fault injection/hostile corpus not reached.",
+  "action": "Root authorized close of these failed gate VMs; no R6 retry or positive qualification.",
+  "captures": [
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/console.log",
+      "sha256": "0249ea9f7c4e76f73c570b60c83388f2f32428109f27957f8adf2d22da3b925b",
+      "bytes": 1102
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/linux-console.log",
+      "sha256": "0249ea9f7c4e76f73c570b60c83388f2f32428109f27957f8adf2d22da3b925b",
+      "bytes": 1102
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/plan9-console.log",
+      "sha256": "e30e97d1e3590fa29c901025b0024695d0601aceb61e3a5b723fc62f7235067a",
+      "bytes": 585
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/qemu-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/native-observation.json",
+      "sha256": "7e7f5803fe5acc1357b881e213ec1fd2cc7bb2bc451e7768df15d198542d1b42",
+      "bytes": 403
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/native-status.bin",
+      "sha256": "bbb9cae5d6c23785b2e23676b85eeb0939dda4397ea7f8cbdb54c1a278c0c8b0",
+      "bytes": 40
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/result.json",
+      "sha256": "9863e91a80a4376cf8a6fce812066011dd9bf700567b4e6dd439a8cfbfb23d1a",
+      "bytes": 23339
+    },
+    {
+      "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/hostile-mmio-r6/failed-guest/monitor-profile.json",
+      "sha256": "955a0d499f4cdfd6e1a143a1b664ea068836426eac1a76cdc2b6b9c34f894db5",
+      "bytes": 25054
+    }
+  ],
+  "recorded": 1794549249.766412
+}

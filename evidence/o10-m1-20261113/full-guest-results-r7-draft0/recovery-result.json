@@ -1,0 +1,490 @@
+{
+  "schema": "ostadix.unified-foreground-client-crash/v1",
+  "ok": true,
+  "started": 1794556631.9974213,
+  "scope": "actual typed Linux background p9 client with original Plan9 stream; guest pidfd SIGKILL, unknown native recovery, no automatic successor submission, explicit retry and paired save",
+  "timing_scope": "guest monotonic/proc-uptime observations; warmup intervals include typed invocation and result validation; full foreground gate independently enforces host-wall30s streaming",
+  "inputs": {
+    "state": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/recovery",
+    "build": "/home/ustad/.cache/o10-m1-acceptance-20261112/unified-build-qualification-r7",
+    "before": {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/recovery/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+        "bytes": 1073741824,
+        "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/disk-generations/fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde.ext4",
+        "bytes": 1073741824,
+        "sha256": "fd222b618a10deed8bb954170996555f569d9f66e45217230d3b131912f9cfde"
+      },
+      "session": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l",
+      "guest_tools_update": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/guest-tools-updates/update-uisr0y7l/result.json",
+      "namespace": {
+        "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/recovery/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "fork_origin": {
+        "source": "/home/ustad/.cache/o10-m0-acceptance-20261112/regression-seed",
+        "head_sha256": "32bea222f957592f938032f6d47a6fd92e24112ca3c1ea61b3adacc2dca8f0fe"
+      }
+    },
+    "monitor_revision": "O10-M1-R7-resident-candidate",
+    "profile_sha256": "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938",
+    "monitor": {
+      "path": "monitor.elf",
+      "bytes": 909416,
+      "sha256": "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
+    }
+  },
+  "source_sha256": {
+    "scripts/verify_okernel_unified_recovery.py": "90530321f667b6c1642dfccc607d4dde3c41f345624842cde1a29654a326d8e9",
+    "scripts/verify_okernel_unified_client.py": "501daec344246c9af87d6880aa790e7cd744554c569437062db11b44e52c5053",
+    "scripts/verify_okernel_unified_console.py": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220",
+    "scripts/okernel_unified_world.py": "9b22236ec9d135139207c96b9ac6e95686d15e2304fb661a01af0f89b56b5d99",
+    "scripts/okernel_package_domain.py": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f",
+    "scripts/okernel_native_volume.py": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef",
+    "ocore/guest/linux/package-domain/p9": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+    "ocore/guest/linux/package-domain/p9-controller": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+    "ocore/guest/linux/package-domain/p9-history": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+  },
+  "source_artifacts": {
+    "scripts/verify_okernel_unified_recovery.py": {
+      "path": "sources/scripts/verify_okernel_unified_recovery.py",
+      "bytes": 17337,
+      "sha256": "90530321f667b6c1642dfccc607d4dde3c41f345624842cde1a29654a326d8e9"
+    },
+    "scripts/verify_okernel_unified_client.py": {
+      "path": "sources/scripts/verify_okernel_unified_client.py",
+      "bytes": 34475,
+      "sha256": "501daec344246c9af87d6880aa790e7cd744554c569437062db11b44e52c5053"
+    },
+    "scripts/verify_okernel_unified_console.py": {
+      "path": "sources/scripts/verify_okernel_unified_console.py",
+      "bytes": 10606,
+      "sha256": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220"
+    },
+    "scripts/okernel_unified_world.py": {
+      "path": "sources/scripts/okernel_unified_world.py",
+      "bytes": 57966,
+      "sha256": "9b22236ec9d135139207c96b9ac6e95686d15e2304fb661a01af0f89b56b5d99"
+    },
+    "scripts/okernel_package_domain.py": {
+      "path": "sources/scripts/okernel_package_domain.py",
+      "bytes": 41952,
+      "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+    },
+    "scripts/okernel_native_volume.py": {
+      "path": "sources/scripts/okernel_native_volume.py",
+      "bytes": 11240,
+      "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+    },
+    "ocore/guest/linux/package-domain/p9": {
+      "path": "sources/ocore/guest/linux/package-domain/p9",
+      "bytes": 33362,
+      "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+    },
+    "ocore/guest/linux/package-domain/p9-controller": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-controller",
+      "bytes": 19477,
+      "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4"
+    },
+    "ocore/guest/linux/package-domain/p9-history": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-history",
+      "bytes": 30438,
+      "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4"
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "path": "sources/ocore/guest/plan9/unified/protocol.py",
+      "bytes": 16391,
+      "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+    }
+  },
+  "session": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/recovery/unified-session-l133gux7",
+  "finished": 1794557078.7703319,
+  "evidence": {
+    "client_pid": 322,
+    "client_start_ticks": "34477",
+    "current": {
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "bee829ef8e778e5d6e8136d9752fb316",
+      "linux_mount": "/n/okernel",
+      "plan9_mount": "/n",
+      "program_dir": "/arm64/bin",
+      "recovery_mode": "controller-v1",
+      "schema": "ostadix.p9.client-session/v1",
+      "service_root": "/n/okernel/services/plan9",
+      "state": "ready"
+    },
+    "guest_client_killed": true,
+    "native_started_seconds": 20.58000000000004,
+    "observation": "actual-stream-observed",
+    "owned_processes": [
+      {
+        "args": "python3 /usr/local/bin/p9 --timeout-ms 180000 rc -I -c echo ABANDON_STREAM_0ebe29e3e0a1f3729207; sleep 120 ",
+        "parent": 90,
+        "pid": 322,
+        "start_ticks": "34477",
+        "state": "R"
+      }
+    ],
+    "pending": {
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "bee829ef8e778e5d6e8136d9752fb316",
+      "phase": "submitted",
+      "request_hex": "4f43395245513031326637666566643862313263343565616265653832396566386537373865356436653831333664393735326662333136366138386462666539643939396163363665383834346636393362646634653704000000290000000000000020bf020000001000000010002f6e2f776f726b2f636c69656e742d63726173682d30656265323965336530613166333732393230370d0000002f61726d36342f62696e2f7263020000002d49020000002d63330000006563686f204142414e444f4e5f53545245414d5f30656265323965336530613166333732393230373b20736c65657020313230",
+      "request_id": "6a88dbfe9d999ac66e8844f693bdf4e7",
+      "request_sha256": "5bbc2a0d4306d2dc271b7a7cde6adbf4bc07b34e4e887fb916e2cfd6cf94b7e2",
+      "schema": "ostadix.p9.client-pending/v1",
+      "service_root": "/n/okernel/services/plan9"
+    },
+    "pending_seconds": 15.980000000000018,
+    "private_ack": {
+      "done_sha256": null,
+      "generation": "2f7fefd8b12c45ea",
+      "new_instance": "b7234abf2389e6e01e2baf365a61ab27",
+      "old_instance": "bee829ef8e778e5d6e8136d9752fb316",
+      "outcome": "unknown",
+      "ready_sha256": "4ed0f67242eba079c98b0fc410a8d60db13756a3a8c8e70d5e9aa1a44c11d390",
+      "request_id": "6a88dbfe9d999ac66e8844f693bdf4e7",
+      "request_sha256": "5bbc2a0d4306d2dc271b7a7cde6adbf4bc07b34e4e887fb916e2cfd6cf94b7e2",
+      "reset_sha256": null,
+      "result_sha256": null,
+      "schema": "ostadix.p9.recovered/v1"
+    },
+    "replacement": {
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "b7234abf2389e6e01e2baf365a61ab27",
+      "linux_mount": "/n/okernel",
+      "plan9_mount": "/n",
+      "program_dir": "/arm64/bin",
+      "recovery_mode": "controller-v1",
+      "schema": "ostadix.p9.client-session/v1",
+      "service_root": "/n/okernel/services/plan9",
+      "state": "ready"
+    },
+    "results": [
+      "02eaa51da59ba24d9a6379f84d71b2d1.json",
+      "0c2577919121c54876e0805f573d78b0.json",
+      "51e50ab12ea46243063bfac197cbaf7a.json",
+      "69fcd22ec8d7d3d529cbc6fcca498915.json",
+      "7933ec67276e5dfd560dbee47569260b.json",
+      "b3432edf7faee13b61d1bb382d3652ec.json",
+      "b500524fcdd8769df89aea7c4eda3cda.json",
+      "d3356bd5198769af7592fd930547d5f3.json",
+      "d4e9497360164c4df91d60c4a8bb94f5.json",
+      "f7423e03b05b93b6c7e9613c29ef28b0.json"
+    ],
+    "retained_phase_before_successor": "submitted",
+    "retry_receipt": {
+      "flags": 0,
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "b7234abf2389e6e01e2baf365a61ab27",
+      "recovered": false,
+      "request_id": "d33f245d3e2fab42fa092b6c1edcf88a",
+      "request_sha256": "de1d6e4cc367e0bf7cc2d29d37c4f27bdf6b44cbbf432eec22e3374e24deca03",
+      "result_sha256": "4370379f9ce6814f54b265a3839e863c8114a282c04fb80762115e81248f4519",
+      "schema": "ostadix.p9.client-result/v1",
+      "service_root": "/n/okernel/services/plan9",
+      "status_hex": "",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 49,
+      "stdout_sha256": "a2a0fc98e3488b39e0e0ec58395dec5f05e1ca73f69505dc5ef9a4d155007783"
+    },
+    "retry_stdout_sha256": "a2a0fc98e3488b39e0e0ec58395dec5f05e1ca73f69505dc5ef9a4d155007783",
+    "started_monotonic": 343.892139552,
+    "stream_seconds": 21.319999999999993,
+    "successor_exit": 125,
+    "successor_not_submitted": true,
+    "warmup_results": [
+      "02eaa51da59ba24d9a6379f84d71b2d1.json",
+      "0c2577919121c54876e0805f573d78b0.json",
+      "69fcd22ec8d7d3d529cbc6fcca498915.json",
+      "7933ec67276e5dfd560dbee47569260b.json",
+      "b3432edf7faee13b61d1bb382d3652ec.json",
+      "b500524fcdd8769df89aea7c4eda3cda.json",
+      "d3356bd5198769af7592fd930547d5f3.json",
+      "d4e9497360164c4df91d60c4a8bb94f5.json",
+      "f7423e03b05b93b6c7e9613c29ef28b0.json"
+    ],
+    "warmup_started": 315.842065488,
+    "warmups": [
+      {
+        "index": 0,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "69fcd22ec8d7d3d529cbc6fcca498915",
+          "request_sha256": "34340ebe0355c819a4aa5cd3a8d812336c9653a7ecfc8ff4b8fbdb6f8fd154bc",
+          "result_sha256": "50db605f90fa71be57a27e49da7817f6b7e5478ed61d12a09ef215cfed94dd14",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "54363444c723b9d80634e66ac73ffb402f3d57bbbee707ebde15f5e140a9a5d1"
+        },
+        "seconds": 21.785486847999998
+      },
+      {
+        "index": 1,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "02eaa51da59ba24d9a6379f84d71b2d1",
+          "request_sha256": "0703fe894d9ccd879941befd7119619be154f411def95dc875f57cdc68a20571",
+          "result_sha256": "9c76269875513d43770a806e30f65905c9fad37cfd2d790a61582700c6d4d77a",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "d58b0df9ad7a5418eacf31713a22eec3dfc51f695faccae802390c27957e8c8d"
+        },
+        "seconds": 17.776255328000005
+      },
+      {
+        "index": 2,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "b500524fcdd8769df89aea7c4eda3cda",
+          "request_sha256": "73e1d69240d9042d2a87835025c9df6f966ca108b46677bfe7dbc31ccf280c83",
+          "result_sha256": "d4d87347a1232ab80ec8707106d984e6d10805c927116e276e4dc2b334562470",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "7bb799e7b723d453334068f4c610cc2b6caca4c74e7d450b8aff673f39321973"
+        },
+        "seconds": 21.799511472000006
+      },
+      {
+        "index": 3,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "d4e9497360164c4df91d60c4a8bb94f5",
+          "request_sha256": "c0a5d2d0ba606e854169149fb7fe3ce7808fcf5ce22d6fe963ba4a39fe7e03e1",
+          "result_sha256": "67d4e8ebbc2fe1b5b1028d6346f6cffcb60461801cda5387a414979416536365",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "f8c42a80c98129eebb03c743045ec624a011bb79cd3487c58b3b2e33e51e6c78"
+        },
+        "seconds": 24.25743249599998
+      },
+      {
+        "index": 4,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "f7423e03b05b93b6c7e9613c29ef28b0",
+          "request_sha256": "63503d177d9b13c95819f644d3934bf7d36fbc62c3869a4e304dffabb3583c03",
+          "result_sha256": "692f8af34d97f2c70becd5aaa71fc9da3e29e2b57a6721fa0d31f0e7454588ef",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "8fdb8c9db2e234593a1d51ebd8c32117058795d859775f172d8dedca8f377964"
+        },
+        "seconds": 23.562957823999994
+      },
+      {
+        "index": 5,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "b3432edf7faee13b61d1bb382d3652ec",
+          "request_sha256": "d13f64f0d1e81953034e61d0c19079dde0735697e07a666963c3f2c8fb6fef1e",
+          "result_sha256": "5c067a3ca52091af536c9a660d46b1b194fdd2e92cd0d9810b66913cdb4e88bd",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "032bb8e78f5d94b652b06a9a1b121fc6dd1de536b34b441fd22fa3823a96cf99"
+        },
+        "seconds": 22.960797568000004
+      },
+      {
+        "index": 6,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "7933ec67276e5dfd560dbee47569260b",
+          "request_sha256": "33cf27903a867ab4adeba7c99878e61a568eef5f8d452790154c5a818d563b22",
+          "result_sha256": "4e1be474a0d61cec18019d0ca0e5da919fb85904a1125ac4d261c325a8116062",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "94f3436ee028ba99533ceb9c504f459599c43277b1484ddda2bbfaac4c7413f2"
+        },
+        "seconds": 22.99320558400001
+      },
+      {
+        "index": 7,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "d3356bd5198769af7592fd930547d5f3",
+          "request_sha256": "2bd497a2aa7bd213e591985771aadeec5a3b3cbf86f8def4da5e862e125012b6",
+          "result_sha256": "b3d4adb5916d7e1090b2b93d0368e2f0881666c8db8ff094b597562e2255ea76",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "50c0eef41b83ae506d5bffb1c57ff28be16a120e83e2a3c618f9f588e24a64b6"
+        },
+        "seconds": 25.119636736000018
+      },
+      {
+        "index": 8,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "0c2577919121c54876e0805f573d78b0",
+          "request_sha256": "4978f52831546a163173501b824564d9b398c23e1faa886a330cbcbbf2736dcf",
+          "result_sha256": "3543f3ecb329923627623d2bf174e071f158bd138d350e51e5c76af7fd30a52f",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "6f25a44f7749f6d8a0a4f470734bc7e6163eed6da99b1c05d52f854eb9f8f066"
+        },
+        "seconds": 21.909643775999996
+      },
+      {
+        "index": 9,
+        "receipt": {
+          "flags": 0,
+          "generation": "2f7fefd8b12c45ea",
+          "instance": "bee829ef8e778e5d6e8136d9752fb316",
+          "recovered": false,
+          "request_id": "51e50ab12ea46243063bfac197cbaf7a",
+          "request_sha256": "3c7d01b9d96518c20c19d15929d3c300e5cf8f8232211880a4d75c7154b2d59f",
+          "result_sha256": "9666d9c35446d88ae8b87f3a8e481b5e9a048f5fa9035da313073dedf0518540",
+          "schema": "ostadix.p9.client-result/v1",
+          "service_root": "/n/okernel/services/plan9",
+          "status_hex": "",
+          "stderr_bytes": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_bytes": 33,
+          "stdout_sha256": "6369e2bb7b9ca5b2424b9f1417856df13fcfbfc5267397a5a74d03168c1bd253"
+        },
+        "seconds": 22.922582544000022
+      }
+    ]
+  },
+  "native_recovery": {
+    "previous": {
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "bee829ef8e778e5d6e8136d9752fb316"
+    },
+    "reset": null,
+    "unknown": {
+      "event": "unknown",
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "bee829ef8e778e5d6e8136d9752fb316",
+      "request_id": "6a88dbfe9d999ac66e8844f693bdf4e7",
+      "request_sha256": "5bbc2a0d4306d2dc271b7a7cde6adbf4bc07b34e4e887fb916e2cfd6cf94b7e2"
+    },
+    "started": 1794557026.2939768,
+    "namespace_before": {
+      "path": "/home/ustad/.cache/o10-m1-acceptance-20261112/full-guest-regressions-r7-draft0/states/recovery/unified-session-l133gux7/namespace-before-recycle-1.raw",
+      "bytes": 16777216,
+      "sha256": "a3e948fe5b5d8447bd6c07ac5aea391996e1108cab750c5ddb26ff07620d1ece"
+    },
+    "ok": true,
+    "finished": 1794557036.8242877,
+    "current": {
+      "generation": "2f7fefd8b12c45ea",
+      "instance": "b7234abf2389e6e01e2baf365a61ab27"
+    },
+    "withdrawn": {
+      "live_domains": 1,
+      "switches": 65870,
+      "linux_exits": 357966,
+      "plan9_exits": 717955,
+      "linux_pc": "0xffffffc08042bda8",
+      "plan9_pc": "0xffffffffc01a1c3c",
+      "linux_esr": "0x7e00000",
+      "plan9_esr": "0x7e00000",
+      "console": 0,
+      "input_dropped": 0,
+      "blocked_domains": 1,
+      "native_idle_waits": 1891,
+      "plan9_9p_requests": 2686,
+      "plan9_9p_request_bytes": 117337,
+      "plan9_9p_reply_bytes": 220279
+    },
+    "restored": {
+      "live_domains": 3,
+      "switches": 67767,
+      "linux_exits": 360694,
+      "plan9_exits": 727626,
+      "linux_pc": "0xffffffc080064354",
+      "plan9_pc": "0xffffffffc012c870",
+      "linux_esr": "0x93890045",
+      "plan9_esr": "0x93830045",
+      "console": 0,
+      "input_dropped": 0,
+      "blocked_domains": 0,
+      "native_idle_waits": 1907,
+      "plan9_9p_requests": 2734,
+      "plan9_9p_request_bytes": 118905,
+      "plan9_9p_reply_bytes": 221792
+    }
+  },
+  "checks": [
+    "background original stream is witnessed before guest-only pidfd SIGKILL of the exact clientPID/starttime",
+    "ten typed original p9echo invocations have individually validated native wire results and recorded CLI durations",
+    "submitted pending claim survives crash; successor triggers native unknown recovery and submits no new request",
+    "explicit retry executes on the replacement original Plan9 domain; Linux shellPID/starttime survives",
+    "one explicit Ctrl+] publishes quiescent paired storage and restores full foreground termios"
+  ]
+}

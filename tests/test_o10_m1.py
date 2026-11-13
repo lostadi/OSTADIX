@@ -37,7 +37,7 @@ class M1EvidenceTests(unittest.TestCase):
                         "scripts/fork_okernel_state.py", "scripts/check_language_sources.py",
                         "ci/language-sources.json", "ocore/guest/plan9/unified/protocol.py",
                         "scripts/verify_o10_resident.py", "scripts/verify_o10_hostile_mmio.py", "scripts/verify_o10_m1_regressions.py"} | {"scripts/" + x for x in gate.GATES.values()}
-        names = gate.COMPILED | helper_names | {"tests/test_o10_fixture.py", "tests/test_okernel_fixture.py"}
+        names = gate.COMPILED | helper_names | {"tests/test_o10_fixture.py", "tests/test_o10_resident_native.py", "tests/test_okernel_fixture.py"}
         for name in names:
             write(name, "fixture " + name)
         protocol_path = self.root / "ocore/guest/plan9/unified/protocol.py"
@@ -157,9 +157,10 @@ class M1EvidenceTests(unittest.TestCase):
         self.paths["guest_result"] = write("receipts/guest.json", guest)
         component = {**binding, "gate_id": "verify_o10_journal", "component_ok": True,
                      "source_unchanged": True, "source_sha256": hashes, "compiler_sha256": compiler_sha,
-                     "tests_run": 1, "failures": 0, "errors": 0, "skips": []}
+                     "tests_run": 2, "failures": 0, "errors": 0, "skips": []}
         self.paths["component_result"] = write("component/result.json", component)
-        write("component/tests.log", "test_fixture (test_o10_fixture.Fixture.test_fixture) ... ok\n\nRan 1 test in 0.001s\n\nOK\n")
+        write("component/tests.log", "test_fixture (test_o10_fixture.Fixture.test_fixture) ... ok\n"
+              "test_resident_paths_and_qualification_boundary (test_o10_resident_native.O10ResidentNativeTests.test_resident_paths_and_qualification_boundary) ... ok\n\nRan 2 tests in 0.001s\n\nOK\n")
         language_names = sorted(name for name in gate.COMPILED if name.endswith((".oc", ".O")))
         for i in range(261 - len(language_names)):
             name = "language/source-" + str(i) + ".oc"
@@ -198,10 +199,15 @@ class M1EvidenceTests(unittest.TestCase):
         path.write_text(json.dumps(value))
 
 
-    def validate(self):
-        with patch.object(gate, "tracked_language", return_value=self.inventory):
+    def validate(self, **overrides):
+        def git_identity(root, revision, name):
+            return {"sha256": "b" * 64 if revision == gate.BASELINE_M0 else gate.digest(self.root / name),
+                    "git_blob": "a" * 40 if revision == gate.BASELINE_M0 else "c" * 40}
+        arguments = {**self.paths, **overrides}
+        with patch.object(gate, "tracked_language", return_value=self.inventory), patch.object(
+                gate, "git_source_identity", side_effect=git_identity):
             return gate.validate_acceptance(root=self.root, build=self.build, compiler=self.compiler,
-                                            expected_revision=self.revision, **self.paths)
+                                            expected_revision=self.revision, **arguments)
 
 
     def test_truncated_fork_argument_is_explicit_error(self):
@@ -399,3 +405,160 @@ class M1EvidenceTests(unittest.TestCase):
         unit["language"] = {**unit["language"], **gate.identity(path)}
         self.paths["unit_result"].write_text(json.dumps(unit))
         self.assertEqual(self.validate()["language_sources"], 260)
+
+    def draft0_mapping(self):
+        def row(name, expected):
+            category, diagnostic, detail, scenario = expected
+            result = {"id": name,
+                "baseline": {"path": gate.WORLD_SOURCE, "line": 1, "sha256": "b" * 64, "git_blob": "a" * 40},
+                "current": {"path": gate.WORLD_SOURCE, "line": 1, "sha256": gate.digest(self.root / gate.WORLD_SOURCE),
+                            "git_blob": "c" * 40},
+                "classification": category,
+                "test": {"path": gate.CLASSIFIED_TEST, "method": gate.CLASSIFIED_METHOD,
+                         "sha256": gate.digest(self.root / gate.CLASSIFIED_TEST), "scenario_ids": [scenario],
+                         "configurations": [[0, 1], [1, 1], [0, 0], [1, 0]],
+                         "scope": "native-host-register-model-diagnostic-only" if name == "defensive_selected_result"
+                                  else "native-host-register-model"},
+                "execution": {"source": "component_receipt",
+                              "method_log_token": "test_resident_paths_and_qualification_boundary"}}
+            if diagnostic is not None: result["diagnostic"] = diagnostic
+            if detail is not None: result["detail"] = detail
+            if name == "defensive_selected_result":
+                result["note"] = "not reachable under serialized scheduler state; direct diagnostic invocation only"
+            if name == "psci_unsupported_result": result["value"] = "18446744073709551615"
+            return result
+        return self.write("receipts/classification.json", {"schema": "ostadix.o10-m1-max-classification/v1",
+            "contract_id": gate.CONTRACTS["draft0"], "baseline_revision": gate.BASELINE_M0,
+            "implementation_revision": self.revision,
+            "rows": [row(k, v) for k, v in gate.CLASSIFIED_ROWS.items()],
+            "auxiliary_rows": [row(k, v) for k, v in gate.AUXILIARY_ROWS.items()]})
+
+    def draft0(self, *, extra=True, mapping=None):
+        def update_guest(guest):
+            guest.update(acceptance_scope="draft0", contract_id=gate.CONTRACTS["draft0"])
+            if extra:
+                extra_record = gate.observe_extra_probe(self.paths["hostile_mmio_result"])
+                guest["hostile_mmio_result"] = extra_record["reference"]
+                guest["extra_probe"] = extra_record
+            else:
+                guest.pop("hostile_mmio_result", None)
+                guest.pop("extra_probe", None)
+        self.mutate("guest_result", update_guest)
+        return self.validate(acceptance_scope="draft0", classified_paths_result=mapping or self.draft0_mapping(),
+                             hostile_mmio_result=self.paths["hostile_mmio_result"] if extra else None)
+
+    def test_explicit_draft0_qualifies_without_extra_probe(self):
+        result = self.draft0(extra=False)
+        self.assertTrue(result["full_milestone_qualified"])
+        self.assertEqual(result["acceptance_scope"], "draft0")
+        self.assertEqual(result["contract_id"], "O10-Draft0-M1")
+        self.assertIsNone(result["extra_probe"])
+        self.assertNotIn("hostile_mmio", result["inputs"])
+
+    def test_draft0_preserves_failed_extra_probe_as_unqualified(self):
+        self.mutate("hostile_mmio_result", lambda x: x.update(gate_passed=False, error="prerequisite failed"))
+        result = self.draft0()
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["extra_probe"]["qualified"])
+        self.assertIs(result["extra_probe"]["observed_gate_passed"], False)
+        self.assertEqual(result["extra_probe"]["observed_error"], "prerequisite failed")
+        self.assertEqual(result["extra_probe"]["reference"], gate.identity(self.paths["hostile_mmio_result"]))
+        self.assertNotIn(json.loads(self.paths["hostile_mmio_result"].read_text())["guest_session"], result["sessions_checked"])
+
+    def test_default_extended_still_rejects_failed_extra_probe(self):
+        self.mutate("hostile_mmio_result", lambda x: x.update(gate_passed=False, error="prerequisite failed"))
+        with self.assertRaisesRegex(gate.EvidenceError, "gate not passed"):
+            self.validate()
+
+    def test_default_extended_still_requires_extra_probe(self):
+        with self.assertRaisesRegex(gate.EvidenceError, "extended acceptance requires"):
+            self.validate(hostile_mmio_result=None)
+
+    def test_draft0_requires_explicit_guest_scope(self):
+        with self.assertRaisesRegex(gate.EvidenceError, "guest acceptance scope"):
+            self.validate(acceptance_scope="draft0", classified_paths_result=self.draft0_mapping())
+
+    def test_draft0_requires_classified_path_mapping(self):
+        self.mutate("guest_result", lambda x: x.update(acceptance_scope="draft0", contract_id="O10-Draft0-M1"))
+        with self.assertRaisesRegex(gate.EvidenceError, "mapping required"):
+            self.validate(acceptance_scope="draft0", hostile_mmio_result=None)
+
+    def test_draft0_does_not_silently_drop_guest_extra_reference(self):
+        self.mutate("hostile_mmio_result", lambda x: x.update(gate_passed=False))
+        extra = gate.observe_extra_probe(self.paths["hostile_mmio_result"])
+        self.mutate("guest_result", lambda x: x.update(acceptance_scope="draft0", contract_id="O10-Draft0-M1",
+                    hostile_mmio_result=extra["reference"], extra_probe=extra))
+        result = self.validate(acceptance_scope="draft0", hostile_mmio_result=None,
+                               classified_paths_result=self.draft0_mapping())
+        self.assertEqual(result["extra_probe"]["reference"], extra["reference"])
+
+    def test_draft0_rejects_extra_probe_promoted_by_driver(self):
+        extra = gate.observe_extra_probe(self.paths["hostile_mmio_result"])
+        self.mutate("guest_result", lambda x: x.update(acceptance_scope="draft0", contract_id="O10-Draft0-M1",
+                    hostile_mmio_result=extra["reference"], extra_probe={**extra, "qualified": True}))
+        with self.assertRaisesRegex(gate.EvidenceError, "explicitly unqualified"):
+            self.validate(acceptance_scope="draft0", classified_paths_result=self.draft0_mapping())
+
+    def test_draft0_rejects_missing_reclassified_max_row(self):
+        mapping = self.draft0_mapping()
+        value = json.loads(mapping.read_text()); value["rows"].pop(); mapping.write_text(json.dumps(value))
+        with self.assertRaisesRegex(gate.EvidenceError, "rows incomplete"):
+            self.draft0(mapping=mapping)
+
+    def test_draft0_rejects_mapping_test_source_drift(self):
+        mapping = self.draft0_mapping()
+        value = json.loads(mapping.read_text()); value["rows"][0]["test"]["sha256"] = "0" * 64
+        mapping.write_text(json.dumps(value))
+        with self.assertRaisesRegex(gate.EvidenceError, "test binding"):
+            self.draft0(mapping=mapping)
+
+    def test_draft0_mapping_requires_actual_component_method_log(self):
+        path = self.paths["component_result"].parent / "tests.log"
+        path.write_text(path.read_text().replace("test_resident_paths_and_qualification_boundary", "another_method"))
+        with self.assertRaisesRegex(gate.EvidenceError, "method missing"):
+            self.draft0()
+
+    def test_draft0_diagnostic_guard_claim_cannot_expand_to_real_dispatch(self):
+        mapping = self.draft0_mapping()
+        value = json.loads(mapping.read_text())
+        value["auxiliary_rows"][0]["test"]["scope"] = "actual-el2"
+        mapping.write_text(json.dumps(value))
+        with self.assertRaisesRegex(gate.EvidenceError, "test binding"):
+            self.draft0(mapping=mapping)
+
+    def test_unknown_acceptance_scope_rejected(self):
+        with self.assertRaisesRegex(gate.EvidenceError, "unknown acceptance scope"):
+            self.validate(acceptance_scope="implicit-downgrade")
+
+
+    def test_draft0_preserves_extra_reference_in_explicit_extra_field(self):
+        self.mutate("hostile_mmio_result", lambda x: x.update(gate_passed=False))
+        extra = gate.observe_extra_probe(self.paths["hostile_mmio_result"])
+        self.mutate("guest_result", lambda x: (x.pop("hostile_mmio_result"),
+            x.update(acceptance_scope="draft0", contract_id="O10-Draft0-M1", extra_probe=extra)))
+        result = self.validate(acceptance_scope="draft0", hostile_mmio_result=None,
+                               classified_paths_result=self.draft0_mapping())
+        self.assertEqual(result["extra_probe"]["reference"], extra["reference"])
+
+    def test_draft0_rejects_baseline_source_misbinding(self):
+        mapping = self.draft0_mapping()
+        value = json.loads(mapping.read_text()); value["rows"][0]["baseline"]["sha256"] = "0" * 64
+        mapping.write_text(json.dumps(value))
+        with self.assertRaisesRegex(gate.EvidenceError, "source binding"):
+            self.draft0(mapping=mapping)
+
+    def test_draft0_rejects_missing_native_configuration(self):
+        mapping = self.draft0_mapping()
+        value = json.loads(mapping.read_text()); value["rows"][0]["test"]["configurations"].pop()
+        mapping.write_text(json.dumps(value))
+        with self.assertRaisesRegex(gate.EvidenceError, "scenario coverage"):
+            self.draft0(mapping=mapping)
+
+    def test_draft0_cannot_fabricate_successful_extra_observation(self):
+        self.mutate("hostile_mmio_result", lambda x: x.update(gate_passed=False, error="prerequisite unavailable"))
+        extra = gate.observe_extra_probe(self.paths["hostile_mmio_result"])
+        self.mutate("guest_result", lambda x: x.update(acceptance_scope="draft0", contract_id="O10-Draft0-M1",
+                    hostile_mmio_result=extra["reference"],
+                    extra_probe={**extra, "observed_gate_passed": True, "observed_error": None}))
+        with self.assertRaisesRegex(gate.EvidenceError, "observation differs"):
+            self.validate(acceptance_scope="draft0", classified_paths_result=self.draft0_mapping())

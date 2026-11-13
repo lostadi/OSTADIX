@@ -1,0 +1,93 @@
+runtime-catalog-schema=ostadix.backend-catalog/v6
+runtime-catalog-legacy-schema-v5=ostadix.backend-catalog/v5
+runtime-catalog-legacy-schema-v4=ostadix.backend-catalog/v4
+runtime-catalog-legacy-schema-v3=ostadix.backend-catalog/v3
+runtime-catalog-projection=compiled-mcp-snapshot
+runtime-search-mode=discover-local
+runtime-search-path=/home/ustad/.local/bin:/home/ustad/OSTADIX-o10-m1-20261112/target/release:/home/ustad/OSTADIX-o10-m0-20261112/target/release:/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin:/home/ustad/.codex/tmp/arg0-linux/codex-arg0WOl30j:/home/ustad/.codex/packages/app-server-daemon/releases/0.167.2-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0tCXLG1:/home/ustad/.codex/packages/app-server-daemon/releases/0.167.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0KXEbG0:/home/ustad/.codex/packages/app-server-daemon/releases/0.167.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0HrnPnx:/home/ustad/.codex/packages/app-server-daemon/releases/0.166.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0FkJUqj:/home/ustad/.codex/packages/standalone/releases/0.166.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.bun/bin:/home/ustad/.cargo/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.dotnet
+runtime-summary backend-count=30 builtin-backends=7 located-backends=21 missing-backends=2
+runtime-search-entry index=0 source=inherited:0 path=/home/ustad/.local/bin
+runtime-search-entry index=1 source=inherited:1 path=/home/ustad/OSTADIX-o10-m1-20261112/target/release
+runtime-search-entry index=2 source=inherited:6 path=/home/ustad/OSTADIX-o10-m0-20261112/target/release
+runtime-search-entry index=3 source=inherited:7 path=/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin
+runtime-search-entry index=4 source=inherited:8 path=/home/ustad/.codex/tmp/arg0-linux/codex-arg0WOl30j
+runtime-search-entry index=5 source=inherited:9 path=/home/ustad/.codex/packages/app-server-daemon/releases/0.167.2-x86_64-unknown-linux-musl/codex-path
+runtime-search-entry index=6 source=inherited:10 path=/home/ustad/.codex/tmp/arg0-linux/codex-arg0tCXLG1
+runtime-search-entry index=7 source=inherited:11 path=/home/ustad/.codex/packages/app-server-daemon/releases/0.167.1-x86_64-unknown-linux-musl/codex-path
+runtime-search-entry index=8 source=inherited:12 path=/home/ustad/.codex/tmp/arg0-linux/codex-arg0KXEbG0
+runtime-search-entry index=9 source=inherited:13 path=/home/ustad/.codex/packages/app-server-daemon/releases/0.167.0-x86_64-unknown-linux-musl/codex-path
+runtime-search-entry index=10 source=inherited:14 path=/home/ustad/.codex/tmp/arg0-linux/codex-arg0HrnPnx
+runtime-search-entry index=11 source=inherited:15 path=/home/ustad/.codex/packages/app-server-daemon/releases/0.166.0-x86_64-unknown-linux-musl/codex-path
+runtime-search-entry index=12 source=inherited:16 path=/home/ustad/.codex/tmp/arg0-linux/codex-arg0FkJUqj
+runtime-search-entry index=13 source=inherited:17 path=/home/ustad/.codex/packages/standalone/releases/0.166.0-x86_64-unknown-linux-musl/codex-path
+runtime-search-entry index=14 source=inherited:18 path=/home/ustad/.bun/bin
+runtime-search-entry index=15 source=inherited:19 path=/home/ustad/.cargo/bin
+runtime-search-entry index=16 source=inherited:20 path=/home/ustad/.nix-profile/bin
+runtime-search-entry index=17 source=inherited:21 path=/nix/var/nix/profiles/default/bin
+runtime-search-entry index=18 source=inherited:22 path=/usr/local/sbin
+runtime-search-entry index=19 source=inherited:23 path=/usr/local/bin
+runtime-search-entry index=20 source=inherited:24 path=/usr/sbin
+runtime-search-entry index=21 source=inherited:25 path=/usr/bin
+runtime-search-entry index=22 source=inherited:26 path=/sbin
+runtime-search-entry index=23 source=inherited:27 path=/bin
+runtime-search-entry index=24 source=inherited:28 path=/usr/games
+runtime-search-entry index=25 source=inherited:29 path=/usr/local/games
+runtime-search-entry index=26 source=inherited:30 path=/snap/bin
+runtime-search-entry index=27 source=inherited:31 path=/home/ustad/ostadix-BM/target/release
+runtime-search-entry index=28 source=inherited:32 path=/home/ustad/.dotnet
+runtime backends=O,quote,nix_expr,html,markdown,latex,text status=builtin precision=exact declared=catalog located=not-required invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=ostadix-runtime
+runtime backends=python status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=python3 paths=[python3=/usr/bin/python3] path-sources=[python3=inherited:25]
+runtime backends=bash status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=bash paths=[bash=/usr/bin/bash] path-sources=[bash=inherited:25]
+runtime backends=shell status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=sh paths=[sh=/usr/bin/sh] path-sources=[sh=inherited:25]
+runtime backends=javascript status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=node paths=[node=/usr/bin/node] path-sources=[node=inherited:25]
+runtime backends=ruby status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=ruby paths=[ruby=/usr/bin/ruby] path-sources=[ruby=inherited:25]
+runtime backends=rust status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=rustc paths=[rustc=/home/ustad/.cargo/bin/rustc] path-sources=[rustc=inherited:19]
+runtime backends=c status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=cc paths=[cc=/usr/bin/cc] path-sources=[cc=inherited:25]
+runtime backends=cpp status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=g++ paths=[g++=/usr/bin/g++] path-sources=[g++=inherited:25]
+runtime backends=java status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=javac+java paths=[javac=/usr/bin/javac,java=/usr/bin/java] path-sources=[javac=inherited:25,java=inherited:25]
+runtime backends=nix,nix_store status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=nix paths=[nix=/nix/var/nix/profiles/default/bin/nix] path-sources=[nix=inherited:21]
+runtime backends=nixos_test status=located precision=conservative-all-sources declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=python3+nix paths=[python3=/usr/bin/python3,nix=/nix/var/nix/profiles/default/bin/nix] path-sources=[python3=inherited:25,nix=inherited:21]
+runtime backends=sql status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=sqlite3 paths=[sqlite3=/usr/bin/sqlite3] path-sources=[sqlite3=inherited:25]
+runtime backends=haskell status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=runghc paths=[runghc=/usr/bin/runghc] path-sources=[runghc=inherited:25]
+runtime backends=ocaml status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=ocaml paths=[ocaml=/usr/bin/ocaml] path-sources=[ocaml=inherited:25]
+runtime backends=racket status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=racket paths=[racket=/usr/bin/racket] path-sources=[racket=inherited:25]
+runtime backends=lisp,common_lisp status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=sbcl paths=[sbcl=/usr/bin/sbcl] path-sources=[sbcl=inherited:25]
+runtime backends=csharp status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=mcs+mono paths=[mcs=/usr/bin/mcs,mono=/usr/bin/mono] path-sources=[mcs=inherited:25,mono=inherited:25]
+runtime backends=matlab status=located precision=exact declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=octave paths=[octave=/usr/bin/octave] path-sources=[octave=inherited:25]
+runtime backends=mathematica status=missing precision=exact declared=catalog located=unsatisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated alternatives=[wolframscript]
+runtime backends=webassembly status=located precision=conservative-all-sources declared=catalog located=satisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated selected=wat2wasm+wasmtime paths=[wat2wasm=/usr/bin/wat2wasm,wasmtime=/home/ustad/.cargo/bin/wasmtime] path-sources=[wat2wasm=inherited:25,wasmtime=inherited:19]
+runtime backends=ubuntu_vm status=missing precision=exact declared=catalog located=unsatisfied invocable=not-probed compatible=not-probed authorized=operation-scoped-deferred healthy=not-probed admitted=operation-scoped-not-evaluated alternatives=[python3+multipass]
+runtime-capability backend=O integer-exactness=arbitrary rich-numbers=preserved state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=quote integer-exactness=unknown rich-numbers=unknown state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=nix integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=nix_expr integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=nix_store integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=nixos_test integer-exactness=unknown rich-numbers=unknown state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=html integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=markdown integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=latex integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=text integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=sql integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=semantic-snapshot codec=ostadix.sqlite-cli-main/v1 compatibility=exact-implementation morphism-profile=none provenance=catalog
+runtime-capability backend=haskell integer-exactness=arbitrary rich-numbers=preserved state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=ocaml integer-exactness=unknown rich-numbers=unknown state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=webassembly integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=python integer-exactness=arbitrary rich-numbers=preserved state-support=semantic-snapshot codec=ostadix.python-graph/v1 compatibility=exact-implementation morphism-profile=python-plain-data provenance=catalog
+runtime-capability backend=ubuntu_vm integer-exactness=unknown rich-numbers=unknown state-support=external-pinned manifest-schema=ostadix.multipass-resource/v1 morphism-profile=none provenance=catalog
+runtime-capability backend=bash integer-exactness=unknown rich-numbers=unknown state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=shell integer-exactness=unknown rich-numbers=unknown state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=rust integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=rust-source-constant-stdout provenance=catalog
+runtime-capability backend=racket integer-exactness=arbitrary rich-numbers=preserved state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=csharp integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=c integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=cpp integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=lisp integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=common_lisp integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=ruby integer-exactness=arbitrary rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=matlab integer-exactness=exact-magnitude-bits:53 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=mathematica integer-exactness=arbitrary rich-numbers=preserved state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=java integer-exactness=twos-complement-bits:63 rich-numbers=collapsed state-support=stateless morphism-profile=none provenance=catalog
+runtime-capability backend=javascript integer-exactness=exact-magnitude-bits:53 rich-numbers=collapsed state-support=stateless morphism-profile=javascript-binding-stdout provenance=catalog
+runtime-note discovery is descriptive; missing optional runtimes do not block unrelated backends
+runtime-note only declared and located are established here; invocability, compatibility, authorization, health, and per-operation admission require separate evidence
+runtime-note morphism profiles are bounded shadow descriptions; they do not authorize execution or claim generic backend crossings
+

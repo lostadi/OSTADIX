@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nsys.path.insert(0,root+\"/scripts\")\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m1-20261112",
+    "[\"tests.test_unified_client_acceptance\", \"tests.test_unified_runtime_acceptance\", \"tests.test_unified_world_plan9_userland_admission\", \"tests.test_unified_userland_admission_readonly_integration\", \"tests.test_freeze_okernel_unified_runtime\", \"tests.test_unified_world_context\", \"tests.test_unified_world_profile\"]",
+    ""
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nsys.path.insert(0,root+\"/scripts\")\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m1-20261112",
+    "[\"tests.test_unified_client_acceptance\", \"tests.test_unified_runtime_acceptance\", \"tests.test_unified_world_plan9_userland_admission\", \"tests.test_unified_userland_admission_readonly_integration\", \"tests.test_freeze_okernel_unified_runtime\", \"tests.test_unified_world_context\", \"tests.test_unified_world_profile\"]",
+    ""
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "started": 1794555747.6221159,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "TMPDIR": null
+  },
+  "finished": 1794555747.7364662,
+  "log": {
+    "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7c/targeted-inventory.log",
+    "sha256": "672fba67cc5621e15e579a45329ca07cb48c2a7fce556345cd361e728104a78f"
+  }
+}

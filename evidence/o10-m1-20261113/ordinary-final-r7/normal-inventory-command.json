@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m1-20261112",
+    "[\"tests.test_okernel_boot_entry\", \"tests.test_okernel_completion_records\", \"tests.test_okernel_console_launcher\", \"tests.test_okernel_control_socket\", \"tests.test_okernel_disk_growth\", \"tests.test_okernel_glibc_cc\", \"tests.test_okernel_guest_exit\", \"tests.test_okernel_guest_namespace\", \"tests.test_okernel_guest_network_tools\", \"tests.test_okernel_guest_status\", \"tests.test_okernel_linux_baseline\", \"tests.test_okernel_local_interface\", \"tests.test_okernel_namespace_peer\", \"tests.test_okernel_native_codec\", \"tests.test_okernel_native_volume\", \"tests.test_okernel_original_9p_bridge\", \"tests.test_okernel_package_domain\", \"tests.test_okernel_plan9_namespace_import\", \"tests.test_okernel_repro\", \"tests.test_okernel_state_fork\", \"tests.test_okernel_two_domains_repro\", \"tests.test_okernel_u9fs_peer\", \"tests.test_okernel_x12_audit_transport\", \"tests.test_okernel_x12_iso\", \"tests.test_okernel_x12_iso_verifier\", \"tests.test_okernel_x12_usb_hid\"]",
+    ""
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "-c",
+    "\nimport json,sys,unittest\nroot,modules,pattern=sys.argv[1],json.loads(sys.argv[2]),sys.argv[3]\nsys.path.insert(0,root)\nloader=unittest.TestLoader()\nsuite=loader.discover(root+\"/tests\",pattern=pattern) if pattern else loader.loadTestsFromNames(modules)\ndef flatten(suite):\n for item in suite:\n  if isinstance(item,unittest.TestSuite): yield from flatten(item)\n  else: yield item.id()\nids=list(flatten(suite))\nprint(json.dumps({\"count\":suite.countTestCases(),\"ids\":ids,\"loader_errors\":loader.errors}))\n",
+    "/home/ustad/OSTADIX-o10-m1-20261112",
+    "[\"tests.test_okernel_boot_entry\", \"tests.test_okernel_completion_records\", \"tests.test_okernel_console_launcher\", \"tests.test_okernel_control_socket\", \"tests.test_okernel_disk_growth\", \"tests.test_okernel_glibc_cc\", \"tests.test_okernel_guest_exit\", \"tests.test_okernel_guest_namespace\", \"tests.test_okernel_guest_network_tools\", \"tests.test_okernel_guest_status\", \"tests.test_okernel_linux_baseline\", \"tests.test_okernel_local_interface\", \"tests.test_okernel_namespace_peer\", \"tests.test_okernel_native_codec\", \"tests.test_okernel_native_volume\", \"tests.test_okernel_original_9p_bridge\", \"tests.test_okernel_package_domain\", \"tests.test_okernel_plan9_namespace_import\", \"tests.test_okernel_repro\", \"tests.test_okernel_state_fork\", \"tests.test_okernel_two_domains_repro\", \"tests.test_okernel_u9fs_peer\", \"tests.test_okernel_x12_audit_transport\", \"tests.test_okernel_x12_iso\", \"tests.test_okernel_x12_iso_verifier\", \"tests.test_okernel_x12_usb_hid\"]",
+    ""
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "started": 1794554100.2267046,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": null,
+    "U9FS_ARCHIVE": null,
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": null,
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": null,
+    "OCORE_U9FS_MANIFEST": null,
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O",
+    "TMPDIR": null
+  },
+  "finished": 1794554100.4410763,
+  "log": {
+    "path": "/home/ustad/OSTADIX-o10-m1-20261112/evidence/o10-m1-20261113/ordinary-final-r7/normal-inventory.log",
+    "sha256": "e064ee23a9799a5804b6b17c637d7766fea33646e885a03ec03737946017911b"
+  }
+}
