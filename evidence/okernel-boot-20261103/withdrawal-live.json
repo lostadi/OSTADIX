@@ -1,0 +1,127 @@
+{
+  "schema": "ostadix.kernel-world-real-linux-bringup/v1",
+  "passed": true,
+  "reason": "completed",
+  "elapsed_seconds": 1.222120324993739,
+  "artifacts": {
+    "Image": {
+      "source_path": "/home/ustad/.local/state/ostadix/okernel/withdrawal-regression/payload/Image",
+      "snapshot_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/Image",
+      "bytes": 3700744,
+      "sha256": "ab64c951207ab70fe0ba23d7dd10eb217ed5e374178b1975820fe1a8cb9f9b7b"
+    },
+    "initramfs": {
+      "source_path": "/home/ustad/.local/state/ostadix/okernel/withdrawal-regression/payload/initramfs.cpio",
+      "snapshot_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/initramfs",
+      "bytes": 221696,
+      "sha256": "08bbbf16acfe1ff0f6aea4a734771f393743aabacee04146178d08cad863e7ef"
+    },
+    "linux_config": {
+      "source_path": "/home/ustad/.local/state/ostadix/okernel/withdrawal-regression/payload/linux.config",
+      "snapshot_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/linux_config",
+      "bytes": 47163,
+      "sha256": "3822b702bee9380ec97eae8112f86e1d3b4d580c6c2d7fb70531857b8077c8e0"
+    },
+    "monitor": {
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-monitor/monitor.elf",
+      "snapshot_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/monitor",
+      "bytes": 475712,
+      "sha256": "04ca943d12e16123cffe51e14617c296a9cec3385d742d58144b9f36b3ef4ba3"
+    },
+    "guest_dtb": {
+      "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-monitor/guest.dtb",
+      "snapshot_path": "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/guest_dtb",
+      "bytes": 1589,
+      "sha256": "91b340c72954489c94b32ea959e8e03d238a63a60ee38885fd392526c76043c8"
+    },
+    "qemu": {
+      "path": "/usr/bin/qemu-system-aarch64",
+      "bytes": 31517544,
+      "sha256": "b511b60cc31479b71dfdd589e6c981ae37b20ef0e75adc5a57bb0d6737e9b30c"
+    }
+  },
+  "linux_source": {
+    "schema": "ostadix.real-linux-payload/v1",
+    "linux_version": "6.12.43",
+    "source_url": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.43.tar.xz",
+    "source_archive_sha256": "0fcbbbbcd456e87bbbfc8bf37af541fda62ccfcce76903503424fd101ef7bdee",
+    "source_modifications": false,
+    "profile": "withdrawal",
+    "compiler": "clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)",
+    "artifacts": {
+      "Image": {
+        "sha256": "ab64c951207ab70fe0ba23d7dd10eb217ed5e374178b1975820fe1a8cb9f9b7b",
+        "bytes": 3700744
+      },
+      "linux.config": {
+        "sha256": "3822b702bee9380ec97eae8112f86e1d3b4d580c6c2d7fb70531857b8077c8e0",
+        "bytes": 47163
+      }
+    },
+    "scope": "foreign Linux payload; boot and isolation require the O-core monitor qualification"
+  },
+  "qemu_version": "QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)",
+  "revoked_access": {
+    "esr": 2181038214,
+    "ipa": 1076369392,
+    "pc": 18446743800980940784,
+    "line": 21
+  },
+  "command": [
+    "/usr/bin/qemu-system-aarch64",
+    "-machine",
+    "virt,virtualization=on,gic-version=2",
+    "-accel",
+    "tcg,thread=single",
+    "-cpu",
+    "cortex-a57",
+    "-smp",
+    "1",
+    "-m",
+    "1G",
+    "-nodefaults",
+    "-nic",
+    "none",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-no-reboot",
+    "-no-shutdown",
+    "-kernel",
+    "/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/monitor",
+    "-device",
+    "loader,file=/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/Image,addr=0x48000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/initramfs,addr=0x50000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/okernel-boot-integration-20261103/withdrawal-live/linux-run-b1jaq029/guest_dtb,addr=0x4fe00000,force-raw=on"
+  ],
+  "observed_markers": [
+    "KW AArch64 EL2 monitor: online",
+    "KW native virtio negative selftests: PASS",
+    "KW stage2 guest-only RAM: online",
+    "Linux version 6.12.43-ostadix-kernelworld",
+    "KW LINUX SERVICE HEALTHY",
+    "KW Linux block pattern and service health observed: PASS",
+    "KW virtio pending read withdrawal: begun",
+    "KW LINUX IOERR CONSUMED",
+    "KW LINUX POST-WITHDRAWAL ALIVE",
+    "KW virtio guest-consumed IOERR completion: PASS",
+    "KW guest RAM stage2 mappings withdrawn: PASS",
+    "KW real Linux revoked-access stage2 fault contained: PASS",
+    "KW post-Linux EL2 counter progress: PASS"
+  ],
+  "scope": "one real Linux guest under O-core EL2 stage2 with an emulated virtio block endpoint",
+  "nonclaims": [
+    "G7 passage",
+    "separate host EL1 broker boundary",
+    "physical hardware",
+    "DMA/IOMMU isolation",
+    "distributed consensus",
+    "signed authority receipts",
+    "physical frame reuse after teardown"
+  ]
+}

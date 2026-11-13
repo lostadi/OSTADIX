@@ -1,0 +1,330 @@
+{
+  "schema": "ostadix.live-native-u9fs/v1",
+  "ok": true,
+  "started": 1793745738.9165728,
+  "monitor_profile": {
+    "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/monitor-profile.json",
+    "bytes": 11860,
+    "sha256": "22b3f8b395835c8c68c868d15ccd9c994d1938312d6f8fd099e03cd144682a3d"
+  },
+  "component": {
+    "schema": "ostadix.monitor-native-u9fs/v1",
+    "isa": "aarch64",
+    "source_manifest": {
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/native-codec.json",
+      "bytes": 7835,
+      "sha256": "ec7e5103acfe0d61679ec634d1dfa6ef860c23a448fc1ec6b20fe791090d95d5"
+    },
+    "captured_manifest": {
+      "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/native-codec.json",
+      "bytes": 7835,
+      "sha256": "ec7e5103acfe0d61679ec634d1dfa6ef860c23a448fc1ec6b20fe791090d95d5"
+    },
+    "objects": [
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-00.o",
+        "bytes": 8568,
+        "sha256": "0a0dba8c2505c00d44163dab2b74f74e6dfbfd5712274144de27e1f097e08fbf"
+      },
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-01.o",
+        "bytes": 38032,
+        "sha256": "8668908a63842c647756af21484c2dac8b7f73f9f124d77c418b477dde42b78a"
+      },
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-02.o",
+        "bytes": 37352,
+        "sha256": "dd0e3d71f049dd01289c4cf144ab1ea540fad766044741e6db8cb23bc067d8ee"
+      },
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-03.o",
+        "bytes": 8096,
+        "sha256": "787b85dde080b0168ace2575c911ed61c0439654056c342a9c47823c15ca86f3"
+      },
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-04.o",
+        "bytes": 14944,
+        "sha256": "78c9bb39a760d3c865f017686f3d5d985d2f03ddabf381c1bfda45377777e60d"
+      },
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-05.o",
+        "bytes": 4688,
+        "sha256": "bed860d630e939fc6a2c8e2060e868fe5cf4d195b143c643e3274703c6e4f6e5"
+      },
+      {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/object-06.o",
+        "bytes": 1760,
+        "sha256": "e61f36dcd6f6885cb3d4506c84395b2868b187a1650a37215227522677f177ed"
+      }
+    ],
+    "receipts": [
+      {
+        "source": {
+          "bytes": 4048,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/memory/source-recipe.json",
+          "sha256": "2660035f3e8680b99fdb9350d220a4b930ceb677ed321f115471e84b94adfbeb"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/receipt-00.json",
+          "bytes": 4048,
+          "sha256": "2660035f3e8680b99fdb9350d220a4b930ceb677ed321f115471e84b94adfbeb"
+        }
+      },
+      {
+        "source": {
+          "bytes": 4049,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/codecs/source-recipe.json",
+          "sha256": "388a07e9049863f85ef34dd1d16bf9c703b1c9456120fa2ef8e173a204489a3c"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/receipt-01.json",
+          "bytes": 4049,
+          "sha256": "388a07e9049863f85ef34dd1d16bf9c703b1c9456120fa2ef8e173a204489a3c"
+        }
+      },
+      {
+        "source": {
+          "bytes": 35124,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/memory/lowered/coverage.json",
+          "sha256": "5cc2a383af4d2fe43d326220dddd13fdce3c554fe3e2c58709ebc5842b6fb6e0"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/receipt-02.json",
+          "bytes": 35124,
+          "sha256": "5cc2a383af4d2fe43d326220dddd13fdce3c554fe3e2c58709ebc5842b6fb6e0"
+        }
+      },
+      {
+        "source": {
+          "bytes": 93759,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/codecs/lowered/coverage.json",
+          "sha256": "f2aed8ea5832b166651de3592153bee943a6088af226309f94f0333d0a643ac0"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/receipt-03.json",
+          "bytes": 93759,
+          "sha256": "f2aed8ea5832b166651de3592153bee943a6088af226309f94f0333d0a643ac0"
+        }
+      },
+      {
+        "source": {
+          "bytes": 354995,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/memory/lowered/runtime.native-ir.json",
+          "sha256": "4ec0b111ade4965f27ee996aa58e178c07b95a0da4834447b85ebb58e7436da6"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/receipt-04.json",
+          "bytes": 354995,
+          "sha256": "4ec0b111ade4965f27ee996aa58e178c07b95a0da4834447b85ebb58e7436da6"
+        }
+      },
+      {
+        "source": {
+          "bytes": 1715182,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/codecs/lowered/runtime.native-ir.json",
+          "sha256": "f396e29b8a7d754d25f900f631c33c405a9ddb0b0ef8128fb2163e561ed83a42"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/receipt-05.json",
+          "bytes": 1715182,
+          "sha256": "f396e29b8a7d754d25f900f631c33c405a9ddb0b0ef8128fb2163e561ed83a42"
+        }
+      }
+    ],
+    "semantic_evidence": [
+      {
+        "source": {
+          "bytes": 121648,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/semantic-test/verify",
+          "sha256": "853b3613da5675468669b89ce6674485df561e53c58b7f1215ed87568566af37"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/evidence-00.bin",
+          "bytes": 121648,
+          "sha256": "853b3613da5675468669b89ce6674485df561e53c58b7f1215ed87568566af37"
+        }
+      },
+      {
+        "source": {
+          "bytes": 6858,
+          "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tools/ocore-runtime/u9fs/verify_component.c",
+          "sha256": "67c2b083df8f92f397d2f006f7a3608102cedaa335bbfecb429113cc04acf906"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/evidence-01.bin",
+          "bytes": 6858,
+          "sha256": "67c2b083df8f92f397d2f006f7a3608102cedaa335bbfecb429113cc04acf906"
+        }
+      },
+      {
+        "source": {
+          "bytes": 293,
+          "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tools/ocore-runtime/u9fs/carrier-aarch64.S",
+          "sha256": "0093b99d33ea2a6dcd721660c6607503e9c8e8bb5ad2d5d2c9d29307068fadcd"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/evidence-02.bin",
+          "bytes": 293,
+          "sha256": "0093b99d33ea2a6dcd721660c6607503e9c8e8bb5ad2d5d2c9d29307068fadcd"
+        }
+      },
+      {
+        "source": {
+          "bytes": 26206,
+          "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/commands.json",
+          "sha256": "e0506b89437b15be52c64ada450cf79ba2ea0bf1ad868e22372cb672d95dbda4"
+        },
+        "snapshot": {
+          "path": "/home/ustad/.cache/okb20261103/package-domain/monitor/native-u9fs-jb4_moxx/evidence-03.bin",
+          "bytes": 26206,
+          "sha256": "e0506b89437b15be52c64ada450cf79ba2ea0bf1ad868e22372cb672d95dbda4"
+        }
+      }
+    ],
+    "abi": {
+      "pointer_bits": 64,
+      "Fcall_bytes": 712,
+      "Fcall_alignment": 8,
+      "Qid_bytes": 24
+    },
+    "symbols": [
+      "convD2M",
+      "convM2D",
+      "convM2S",
+      "convS2M",
+      "memcpy",
+      "memmove",
+      "sizeD2M",
+      "statcheck",
+      "strlen"
+    ],
+    "scope": "native namespace peer request/reply codec; unchanged native object-store authority; not full u9fs or merged OS"
+  },
+  "scope": "original u9fs/musl codec lowered through O-core inside the live native namespace peer; original Linux kernel remains a guest",
+  "sessions": [
+    "/home/ustad/.cache/okb20261103/package-domain/session-i_02xnf5",
+    "/home/ustad/.cache/okb20261103/package-domain/session-azih0rpw"
+  ],
+  "exchanges": [
+    {
+      "challenge": "native-source-519a8e6869034208addaf4d1810abd44-0",
+      "epoch": 3839559261438804013,
+      "before": {
+        "DECODE_BYTES": 3267,
+        "DECODE_CALLS": 118,
+        "ENCODE_BYTES": 2311,
+        "ENCODE_CALLS": 118
+      },
+      "after": {
+        "DECODE_BYTES": 4009,
+        "DECODE_CALLS": 146,
+        "ENCODE_BYTES": 2934,
+        "ENCODE_CALLS": 146
+      },
+      "delta": {
+        "ENCODE_CALLS": 28,
+        "DECODE_CALLS": 28,
+        "ENCODE_BYTES": 623,
+        "DECODE_BYTES": 742
+      }
+    },
+    {
+      "challenge": "native-source-519a8e6869034208addaf4d1810abd44-1",
+      "epoch": 4486894297343416024,
+      "before": {
+        "DECODE_BYTES": 3154,
+        "DECODE_CALLS": 114,
+        "ENCODE_BYTES": 2236,
+        "ENCODE_CALLS": 114
+      },
+      "after": {
+        "DECODE_BYTES": 3670,
+        "DECODE_CALLS": 134,
+        "ENCODE_BYTES": 2709,
+        "ENCODE_CALLS": 134
+      },
+      "delta": {
+        "ENCODE_CALLS": 20,
+        "DECODE_CALLS": 20,
+        "ENCODE_BYTES": 473,
+        "DECODE_BYTES": 516
+      }
+    }
+  ],
+  "executed_profiles": [
+    {
+      "path": "/home/ustad/.cache/okb20261103/package-domain/session-i_02xnf5/monitor-profile.json",
+      "bytes": 11860,
+      "sha256": "22b3f8b395835c8c68c868d15ccd9c994d1938312d6f8fd099e03cd144682a3d"
+    },
+    {
+      "path": "/home/ustad/.cache/okb20261103/package-domain/session-azih0rpw/monitor-profile.json",
+      "bytes": 11860,
+      "sha256": "22b3f8b395835c8c68c868d15ccd9c994d1938312d6f8fd099e03cd144682a3d"
+    }
+  ],
+  "counter_addresses": {
+    "DECODE_BYTES": 1074798808,
+    "DECODE_CALLS": 1074798792,
+    "ENCODE_BYTES": 1074798800,
+    "ENCODE_CALLS": 1074798784
+  },
+  "saved_pairs": [
+    {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/disk-generations/04e3853a072c44495bf5a35c9c09e2c8789d6da3dd1104608d1dcd389e0ebace.ext4",
+        "bytes": 1073741824,
+        "sha256": "04e3853a072c44495bf5a35c9c09e2c8789d6da3dd1104608d1dcd389e0ebace"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/disk-generations/a5bed152aee0230b31cc5a4dc82f90f86074d118f980b0ec4787ffc24a8dd5d7.ext4",
+        "bytes": 1073741824,
+        "sha256": "a5bed152aee0230b31cc5a4dc82f90f86074d118f980b0ec4787ffc24a8dd5d7"
+      },
+      "session": "/home/ustad/.cache/okb20261103/package-domain/session-i_02xnf5",
+      "namespace": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/namespace-generations/bdc289f2201fe5fee6434fac422e8f969761efd798705d3abc0bab3fd3f04fb8.raw",
+        "bytes": 16777216,
+        "sha256": "bdc289f2201fe5fee6434fac422e8f969761efd798705d3abc0bab3fd3f04fb8"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/namespace-generations/2ff729b89c87e8b826a506c0de2786cf85a57c214af97a3481cab63763ac8880.raw",
+        "bytes": 16777216,
+        "sha256": "2ff729b89c87e8b826a506c0de2786cf85a57c214af97a3481cab63763ac8880"
+      }
+    },
+    {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/disk-generations/d8dc72470e9b085a79a6eccf649e351c775b166a9bec46dc46e2c0164eff6ef4.ext4",
+        "bytes": 1073741824,
+        "sha256": "d8dc72470e9b085a79a6eccf649e351c775b166a9bec46dc46e2c0164eff6ef4"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/disk-generations/04e3853a072c44495bf5a35c9c09e2c8789d6da3dd1104608d1dcd389e0ebace.ext4",
+        "bytes": 1073741824,
+        "sha256": "04e3853a072c44495bf5a35c9c09e2c8789d6da3dd1104608d1dcd389e0ebace"
+      },
+      "session": "/home/ustad/.cache/okb20261103/package-domain/session-azih0rpw",
+      "namespace": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/namespace-generations/28f16bb4efb516f0988fcbe3a328d0525f61ecf8541cf7fbed48166229266dfa.raw",
+        "bytes": 16777216,
+        "sha256": "28f16bb4efb516f0988fcbe3a328d0525f61ecf8541cf7fbed48166229266dfa"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/okb20261103/package-domain/namespace-generations/bdc289f2201fe5fee6434fac422e8f969761efd798705d3abc0bab3fd3f04fb8.raw",
+        "bytes": 16777216,
+        "sha256": "bdc289f2201fe5fee6434fac422e8f969761efd798705d3abc0bab3fd3f04fb8"
+      }
+    }
+  ],
+  "finished": 1793745779.607089,
+  "checks": [
+    "fresh Linux/native shared-file exchange executes original native codec on both boots",
+    "QMP reads increasing encode/decode counters from the exact running monitor",
+    "original guest GCC reads C source from the shared namespace and runs its Linux executable",
+    "original Plan9port rc accesses the same live native namespace",
+    "paired disk/namespace save survives restart with a fresh namespace generation"
+  ]
+}

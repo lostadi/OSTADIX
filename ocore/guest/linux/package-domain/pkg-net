@@ -1,0 +1,57 @@
+#!/bin/sh
+# Configure ordinary guest Linux networking and choose APK repository transport.
+set -eu
+set -f
+run_dir="${OSTADIX_PKG_NET_RUN:-/run/pkg-net}"
+repositories="${OSTADIX_PKG_REPOSITORIES:-/etc/apk/repositories}"
+dhcp_script="${OSTADIX_PKG_DHCP_SCRIPT:-/usr/local/libexec/pkg-net-udhcpc}"
+interface="${2:-eth0}"
+case "$interface" in ''|*[!a-zA-Z0-9_.:-]*) echo 'Invalid network interface name' >&2; exit 2 ;; esac
+mkdir -p "$run_dir"
+case "${1:-help}" in
+    online)
+        ip link set dev "$interface" up
+        rm -f "$run_dir/$interface.lease"
+        export OSTADIX_PKG_NET_RUN="$run_dir"
+        if ! udhcpc -f -n -q -i "$interface" -s "$dhcp_script" -t 8 -T 2; then
+            echo 'Package network setup failed: no DHCP lease was obtained.' >&2
+            exit 1
+        fi
+        if [ ! -s "$run_dir/$interface.lease" ]; then
+            echo 'Package network setup failed: DHCP configuration did not complete.' >&2
+            exit 1
+        fi
+        candidate="$(mktemp "${repositories}.XXXXXX")"
+        trap 'rm -f "$candidate"' EXIT HUP INT TERM
+        printf '%s\n' \
+            https://dl-cdn.alpinelinux.org/alpine/v3.24/main \
+            https://dl-cdn.alpinelinux.org/alpine/v3.24/community > "$candidate"
+        chmod 0644 "$candidate"
+        mv "$candidate" "$repositories"
+        trap - EXIT HUP INT TERM
+        printf '%s\n' online > "$run_dir/mode"
+        echo 'OKERNEL PACKAGE NETWORK ONLINE'
+        ;;
+    offline)
+        candidate="$(mktemp "${repositories}.XXXXXX")"
+        trap 'rm -f "$candidate"' EXIT HUP INT TERM
+        printf '%s\n' /repositories/main /repositories/community > "$candidate"
+        chmod 0644 "$candidate"
+        mv "$candidate" "$repositories"
+        trap - EXIT HUP INT TERM
+        printf '%s\n' offline > "$run_dir/mode"
+        echo 'Offline APK repositories selected.'
+        ;;
+    status)
+        printf 'APK repositories:\n'
+        cat "$repositories"
+        ip address show dev "$interface"
+        ip route show
+        ;;
+    help|--help|-h)
+        echo 'pkg-net online [IFACE]   Obtain DHCP through Linux and select original HTTPS APK repositories'
+        echo 'pkg-net offline         Select staged local APK repositories; device grant is unchanged'
+        echo 'pkg-net status [IFACE]   Show repository, address and routing state'
+        ;;
+    *) echo 'Usage: pkg-net online|offline|status|help [IFACE]' >&2; exit 2 ;;
+esac
