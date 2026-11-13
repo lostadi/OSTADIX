@@ -1,0 +1,170 @@
+module runtime::aarch64::native_namespace_uart;
+
+// Per-holder polled PL011/9P wire. Baseline grant3 is /work read-only. Its
+// single live binding is a bounded pre-M4 resource; guest bytes never select it.
+use runtime::aarch64::domain_table::lookup;
+use runtime::aarch64::domain_table::backend;
+use runtime::aarch64::domain_table::state;
+use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::session_handle;
+use runtime::common::namespace_store::handle;
+use runtime::common::namespace_store::revoke_if_current;
+extern "ocore" fn native_namespace_irq_level(holder:u64,asserted:u64) -> void;
+const MAX:u64=0xffff_ffff_ffff_ffff;
+const FRAME:usize=8192;
+static mut OWNER:[u64;8]=[0;8];
+static mut ACTIVE:[u64;8]=[0;8];
+static mut ERROR:[u64;8]=[0;8];
+static mut SESSION:[u64;8]=[0;8];
+static mut CONTROL:[u64;8]=[0;8];
+static mut MASK:[u64;8]=[0;8];
+static mut REQUEST_BYTES:[u64;8]=[0;8];
+static mut EXPECTED:[u64;8]=[0;8];
+static mut HEAD:[u64;8]=[0;8];
+static mut COUNT:[u64;8]=[0;8];
+static mut REQUEST:[u8;65536]=[0;65536];
+static mut RESPONSE:[u8;65536]=[0;65536];
+static mut OUTPUT:[u8;65536]=[0;65536];
+static mut EPOCH:u64=0;
+fn index(holder:u64) -> usize { return (holder&0xffff_ffff) as usize; }
+unsafe fn owned(holder:u64) -> bool {
+    let slot:u64=lookup(holder);
+    return slot<8 && backend(slot)==3 && OWNER[slot as usize]==holder;
+}
+unsafe fn ready(holder:u64) -> bool {
+    if !owned(holder) { return false; }
+    let slot:usize=index(holder);
+    return ACTIVE[slot]==1 && ERROR[slot]==0 && SESSION[slot]!=0 && session_handle(3)==SESSION[slot];
+}
+unsafe fn fail(holder:u64,reason:u64) -> u64 {
+    if index(holder)<8 && OWNER[index(holder)]==holder && ERROR[index(holder)]==0 { ERROR[index(holder)]=reason; }
+    return 0;
+}
+unsafe fn raw(holder:u64) -> u64 {
+    let slot:usize=index(holder);let mut result:u64=0;
+    if (CONTROL[slot]&0x101)==0x101 && COUNT[slot]==0 { result|=0x20; }
+    if (CONTROL[slot]&0x201)==0x201 && COUNT[slot]!=0 { result|=0x50; }
+    return result;
+}
+unsafe fn interrupt(holder:u64) -> void {
+    let asserted:u64=((raw(holder)&MASK[index(holder)])!=0) as u64;
+    native_namespace_irq_level(holder,asserted);
+}
+unsafe fn clear(holder:u64) -> void {
+    let slot:usize=index(holder);
+    CONTROL[slot]=0x300;MASK[slot]=0;REQUEST_BYTES[slot]=0;EXPECTED[slot]=0;HEAD[slot]=0;COUNT[slot]=0;ERROR[slot]=0;
+    let mut i:usize=0;while i<FRAME {
+        REQUEST[slot*FRAME+i]=0;RESPONSE[slot*FRAME+i]=0;OUTPUT[slot*FRAME+i]=0;i+=1;
+    }
+    native_namespace_irq_level(holder,0);
+}
+pub unsafe fn active_owner() -> u64 {
+    let mut slot:usize=0;while slot<8 { if ACTIVE[slot]==1 { return OWNER[slot]; } slot+=1; }return 0;
+}
+pub unsafe fn provision(holder:u64) -> u64 {
+    let slot:u64=lookup(holder);
+    if slot>=8 || backend(slot)!=3 || state(slot)!=1 || OWNER[slot as usize]!=0 { return 0; }
+    OWNER[slot as usize]=holder;ACTIVE[slot as usize]=0;SESSION[slot as usize]=0;clear(holder);return 1;
+}
+pub unsafe fn replace(old:u64,fresh:u64) -> u64 {
+    let slot:u64=lookup(old);
+    if slot>=8 || !owned(old) || ACTIVE[slot as usize]!=0
+        || (state(slot)!=4 && state(slot)!=5) || (fresh&0xffff_ffff)!=slot
+        || (old>>32)==0xffff_ffff || (fresh>>32)!=(old>>32)+1 { return 0; }
+    OWNER[slot as usize]=fresh;SESSION[slot as usize]=0;clear(fresh);return 1;
+}
+unsafe fn fresh_session(holder:u64) -> u64 {
+    if EPOCH==MAX { return 8; }
+    EPOCH+=1;
+    let session:u64=session_init(3,EPOCH);
+    if session==0 { fail(holder,11);return 12; }
+    SESSION[index(holder)]=session;return 0;
+}
+// Return an O10 error code,0 on success. A different live holder is refused
+// before changing either its session or the proposed holder's buffers.
+pub unsafe fn bind(holder:u64) -> u64 {
+    if !owned(holder) { return 5; }
+    let lifecycle:u64=state(holder&0xffff_ffff);
+    if lifecycle!=1 && lifecycle!=2 && lifecycle!=3 { return 12; }
+    let current:u64=active_owner();if current!=0 && current!=holder { return 7; }
+    if EPOCH==MAX { return 8; }
+    ACTIVE[index(holder)]=0;clear(holder);
+    let result:u64=fresh_session(holder);if result!=0 { return result; }
+    ACTIVE[index(holder)]=1;return 0;
+}
+pub unsafe fn revoke(holder:u64) -> u64 {
+    if !owned(holder) { return 0; }
+    let slot:usize=index(holder);let session:u64=SESSION[slot];
+    ACTIVE[slot]=0;SESSION[slot]=0;clear(holder);
+    if session!=0 && revoke_if_current(3,session)!=1 { return 0; }
+    return 1;
+}
+pub unsafe fn retire(holder:u64) -> u64 {
+    if revoke(holder)!=1 { return 0; }OWNER[index(holder)]=0;return 1;
+}
+pub unsafe fn session(holder:u64) -> u64 { if !ready(holder) { return 0; }return SESSION[index(holder)]; }
+pub unsafe fn healthy(holder:u64) -> u64 { return ready(holder) as u64; }
+pub unsafe fn diagnostic(holder:u64) -> u64 {
+    if index(holder)>=8 || OWNER[index(holder)]!=holder { return 5; }return ERROR[index(holder)];
+}
+unsafe fn transmit(holder:u64,value:u8) -> u64 {
+    let slot:usize=index(holder);
+    if !ready(holder) { return fail(holder,12); }
+    if (CONTROL[slot]&0x101)!=0x101 { return fail(holder,13); }
+    if COUNT[slot]!=0 || REQUEST_BYTES[slot]>=FRAME as u64 { return fail(holder,20); }
+    REQUEST[slot*FRAME+REQUEST_BYTES[slot] as usize]=value;REQUEST_BYTES[slot]+=1;
+    if REQUEST_BYTES[slot]==4 {
+        let base:usize=slot*FRAME;
+        EXPECTED[slot]=REQUEST[base] as u64 | (REQUEST[base+1] as u64<<8)
+            | (REQUEST[base+2] as u64<<16) | (REQUEST[base+3] as u64<<24);
+        if EXPECTED[slot]<7 || EXPECTED[slot]>FRAME as u64 { return fail(holder,21); }
+    }
+    if EXPECTED[slot]!=0 && REQUEST_BYTES[slot]==EXPECTED[slot] {
+        let base:usize=slot*FRAME;
+        let reply:usize=handle(SESSION[slot],&REQUEST[base],REQUEST_BYTES[slot] as usize,&mut RESPONSE[base],FRAME);
+        if reply<7 || reply>FRAME || RESPONSE[base+5]!=REQUEST[base+5] || RESPONSE[base+6]!=REQUEST[base+6]
+            || (RESPONSE[base+4]!=107 && RESPONSE[base+4] as u64!=REQUEST[base+4] as u64+1) { return fail(holder,22); }
+        let length:u64=RESPONSE[base] as u64 | (RESPONSE[base+1] as u64<<8)
+            | (RESPONSE[base+2] as u64<<16) | (RESPONSE[base+3] as u64<<24);
+        if length!=reply as u64 { return fail(holder,23); }
+        let mut i:usize=0;while i<reply { OUTPUT[base+i]=RESPONSE[base+i];i+=1; }
+        HEAD[slot]=0;COUNT[slot]=reply as u64;REQUEST_BYTES[slot]=0;EXPECTED[slot]=0;
+    }
+    interrupt(holder);return 1;
+}
+pub unsafe fn mmio_read(holder:u64,offset:u64) -> u64 {
+    if !ready(holder) { fail(holder,12);return MAX; }
+    let slot:usize=index(holder);
+    if offset==0 {
+        if (CONTROL[slot]&0x201)!=0x201 || COUNT[slot]==0 { return 0; }
+        let value:u64=OUTPUT[slot*FRAME+HEAD[slot] as usize] as u64;
+        HEAD[slot]+=1;COUNT[slot]-=1;interrupt(holder);return value;
+    }
+    if offset==0x18 {
+        let mut flags:u64=0x80;
+        if COUNT[slot]!=0 { flags=0x20; }
+        if COUNT[slot]==0 || (CONTROL[slot]&0x201)!=0x201 { flags|=0x10; }
+        return flags;
+    }
+    if offset==0x30 { return CONTROL[slot]; }if offset==0x38 { return MASK[slot]; }
+    if offset==0x3c { return raw(holder); }if offset==0x40 { return raw(holder)&MASK[slot]; }
+    fail(holder,24);return MAX;
+}
+pub unsafe fn mmio_write(holder:u64,offset:u64,value:u64) -> u64 {
+    if !ready(holder) { return fail(holder,12); }
+    let slot:usize=index(holder);
+    if offset==0 { return transmit(holder,(value&255) as u8); }
+    if offset==0x30 {
+        if (value&~0x301)!=0 { return fail(holder,25); }
+        if (value&1)==0 {
+            clear(holder);let result:u64=fresh_session(holder);if result!=0 { return fail(holder,26); }
+        }
+        CONTROL[slot]=value;interrupt(holder);return 1;
+    }
+    if offset==0x38 {
+        if (value&~0x70)!=0 { return fail(holder,27); }
+        MASK[slot]=value;interrupt(holder);return 1;
+    }
+    if offset==0x44 && (value&~0x70)==0 { interrupt(holder);return 1; }
+    return fail(holder,28);
+}

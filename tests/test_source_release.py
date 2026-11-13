@@ -975,6 +975,25 @@ class SetupSourceClosureTests(unittest.TestCase):
 
 
 class O10ComponentSourceClosureTests(unittest.TestCase):
+    def test_all_o10_gate_helpers_are_required(self) -> None:
+        sources = {str(path.relative_to(PROJECT_ROOT))
+                   for path in (PROJECT_ROOT / "scripts").glob("verify_o10_*.py")}
+        self.assertTrue(sources)
+        self.assertFalse(sources - release.O10_COMPONENT_RELEASE_PATHS)
+
+    def test_native_fixture_build_sources_are_required(self) -> None:
+        path = PROJECT_ROOT / "scripts/build_o10_native_fixture.py"
+        spec = importlib.util.spec_from_file_location("o10_fixture_release_sources", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        builder = importlib.util.module_from_spec(spec)
+        with mock.patch.object(sys, "path", [str(PROJECT_ROOT / "scripts"), *sys.path]):
+            spec.loader.exec_module(builder)
+        sources = {*builder.SOURCES, "scripts/build_o10_native_fixture.py",
+                   "scripts/o10_native_fixture.py"}
+        self.assertTrue(sources)
+        self.assertFalse(sources - release.O10_COMPONENT_RELEASE_PATHS)
+
     def test_all_frozen_runtime_sources_are_required(self) -> None:
         tree = ast.parse((PROJECT_ROOT / "scripts/freeze_okernel_unified_runtime.py").read_text())
         declarations = [node.value for node in tree.body if isinstance(node, ast.Assign)

@@ -14,20 +14,31 @@ import subprocess
 import tempfile
 import unittest
 
+from tests.test_o10_domain_table import write_table_fixture, extend_world
+
 ROOT = Path(__file__).resolve().parents[1]
 WRAPPER = r"""
+use runtime::aarch64::domain_table::test_generation;
 pub unsafe fn o10_platform_test_init() -> u64 {
-    LIVE[0] = 1; LIVE[1] = 1;
+    return boot_rows();
+}
+pub unsafe fn o10_platform_test_gic_init() -> u64 {
+    if gic_init()!=1 || configure_irqs(linux_slot(),d_generation(linux_slot()))!=1
+        || configure_irqs(plan9_slot(),d_generation(plan9_slot()))!=1 { return 0; }
     return 1;
 }
-pub unsafe fn o10_platform_test_gic_init() -> u64 { return gic_init(); }
 pub unsafe fn o10_platform_test_wire_init() -> u64 { return plan9_wire_init(1); }
 pub unsafe fn o10_platform_test_generations(domain: u64, lease: u64) -> void {
-    O10_DOMAIN_GENERATION[1] = domain; O10_LEASE_GENERATION = lease;
+    let slot:u64=plan9_slot();
+    if domain != d_generation(slot) {
+        close_irqs(slot); test_generation(slot,domain);
+        if configure_irqs(slot,domain)!=1 { uw_internal_failure(0x1109,0x1127,slot,domain); }
+    }
+    O10_LEASE_GENERATION = lease;
 }
 pub unsafe fn o10_platform_test_mailbox() -> u64 {
     native_control();
-    return LIVE[0] | (LIVE[1] << 1);
+    return d_live_mask();
 }
 """
 HARNESS = r"""
@@ -40,6 +51,9 @@ HARNESS = r"""
 #include <sys/mman.h>
 #define NS(n) _O_runtime__common__namespace_store__##n
 #define UW(n) _O_runtime__aarch64__unified_world__##n
+#define G(n) _O_runtime__aarch64__unified_gic__##n
+extern uint64_t G(binding_generation)(uint64_t);
+extern uint64_t G(set_transport_level)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t NS(init)(uintptr_t,size_t,uint64_t),NS(session_init)(uint64_t,uint64_t);
 extern uint64_t NS(session_handle)(uint64_t),NS(session_fid_count)(uint64_t);
 extern size_t NS(handle)(uint64_t,const uint8_t*,size_t,uint8_t*,size_t);
@@ -74,8 +88,20 @@ static unsigned stat_session(uint64_t session){
 // Assembly is deliberately outside this harness's corpus. Reaching a sentinel
 // aborts instead of simulating successful device or architectural behavior.
 #define SENTINEL(name) uint64_t name(void){fprintf(stderr,"off-corpus assembly: "#name"\n");abort();}
-SENTINEL(uw_domain_reset)
+// Only architectural register reset is modeled; the full 512 MiB RAM clear
+// runs in production O-core before this model is entered.
+static uint64_t reset_calls;
+static unsigned char arch_bank[2][4096];
+uint64_t uw_domain_reset(uint64_t slot,uint64_t pc,uint64_t x0,uint64_t pstate){
+ assert(slot==1&&pc==0x40100000&&x0==0x40000000&&pstate==0x3c5);
+ for(size_t i=0;i<0x20000000;i+=8)assert(rd((void*)(0xb0000000+i),8)==0);
+ memset(arch_bank[slot],0,sizeof arch_bank[slot]);reset_calls++;return 1;
+}
 SENTINEL(uw_current_domain)
+SENTINEL(uw_domain_configured)
+SENTINEL(uw_domain_configure)
+SENTINEL(uw_domain_unconfigure)
+SENTINEL(uw_domain_init)
 SENTINEL(uw_counter_read)
 void uw_memory_barrier(void){__sync_synchronize();}
 void kw_memory_barrier(void){__sync_synchronize();}
@@ -93,6 +119,9 @@ int main(void){
  uint64_t linux=NS(session_init)(1,1),plan9=NS(session_init)(4,1);assert(linux&&plan9);
  attach(linux);attach(plan9);assert(NS(session_fid_count)(1)==1&&NS(session_fid_count)(4)==1);
  assert(UW(o10_platform_test_init)()==1);
+ void *ram=mmap((void*)0xb0000000,0x20000000,PROT_READ|PROT_WRITE,
+ MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);assert(ram==(void*)0xb0000000);
+ memset(ram,0x3c,0x20000000);memset(arch_bank[0],0xa3,4096);memset(arch_bank[1],0xb7,4096);
  frame(164,39,0,1);st(request+23,1,8);call();assert(reply[4]==165);
  frame(178,31,1,0);st(request+23,((uint64_t)1<<32)|1,8);call();
  assert(reply[4]==179&&rd(reply+73,4)==1);
@@ -102,10 +131,15 @@ int main(void){
  assert(call()==1);assert(reply[4]==173&&rd(reply,4)==27);
  assert(rd(reply+15,4)==1&&rd(reply+19,4)==1&&rd(reply+23,4)==1);
  memcpy(outcome,reply,27);
+ assert(reset_calls==1);
+ for(size_t i=0;i<0x20000000;i+=8)assert(rd((unsigned char*)ram+i,8)==0);
+ for(unsigned i=0;i<4096;i++)assert(arch_bank[0][i]==0xa3&&arch_bank[1][i]==0);
+ ((unsigned char*)ram)[4096]=0x5e; // A replay must not repeat the applied clear.
  assert(NS(session_handle)(1)==linux&&NS(session_fid_count)(1)==1);
  assert(NS(session_handle)(4)==0&&NS(session_fid_count)(4)==0);
  assert(stat_session(plan9)==107);assert(stat_session(linux)==125);
  memcpy(request,retry,36);assert(call()==1);assert(!memcmp(reply,outcome,27));
+ assert(reset_calls==1&&((unsigned char*)ram)[4096]==0x5e);
  request[31]=1;call();assert(reply[4]==161&&rd(reply+7,4)==4);
  frame(178,31,1,0);st(request+23,((uint64_t)1<<32)|1,8);call();assert(reply[4]==179&&reply[16]==5);
  frame(184,39,1,3);st(request+23,((uint64_t)1<<32)|4,8);st(request+31,((uint64_t)1<<32),8);
@@ -133,6 +167,9 @@ LEGACY_HARNESS = r"""
 #include <sys/mman.h>
 #define NS(n) _O_runtime__common__namespace_store__##n
 #define UW(n) _O_runtime__aarch64__unified_world__##n
+#define G(n) _O_runtime__aarch64__unified_gic__##n
+extern uint64_t G(binding_generation)(uint64_t);
+extern uint64_t G(set_transport_level)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t NS(init)(uintptr_t,size_t,uint64_t),NS(session_init)(uint64_t,uint64_t);
 extern uint64_t NS(session_handle)(uint64_t),NS(session_fid_count)(uint64_t);
 extern size_t NS(handle)(uint64_t,const uint8_t*,size_t,uint8_t*,size_t);
@@ -185,6 +222,10 @@ void uw_vgic_hcr_write(uint64_t domain,uint64_t value){assert(domain<2);hcr[doma
 uint64_t uw_vgic_running_priority(uint64_t domain){assert(domain<2);return 0xff;}
 #define SENTINEL(name) uint64_t name(void){fprintf(stderr,"off-corpus architecture: "#name"\n");abort();}
 SENTINEL(uw_current_domain)
+SENTINEL(uw_domain_configured)
+SENTINEL(uw_domain_configure)
+SENTINEL(uw_domain_unconfigure)
+SENTINEL(uw_domain_init)
 SENTINEL(uw_serial_putc)
 SENTINEL(uw_halt)
 static uint64_t legacy(unsigned operation,uint64_t expected){
@@ -230,13 +271,16 @@ int main(int argc,char**argv){
   frame(172,36,1,2);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);assert(call()==1&&reply[4]==173);
   frame(174,63,1,3);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);st(request+47,1,8);st(request+55,2,8);
   assert(call()==1&&reply[4]==161&&rd(reply+7,4)==8);
-  assert(rd(ram+0x1000,8)==0xaabbccdd&&reset_calls==0);
+  assert(rd(ram+0x1000,8)==0&&reset_calls==1);
  }else{
   assert(scenario==0);
   frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);assert(call()==1&&reply[4]==173);
   memset(ram,0x3c,0x20000000);frame(174,63,1,3);st(request+23,(1ull<<32)|1,8);
   st(request+47,1,8);st(request+55,2,8);assert(call()==3&&reply[4]==175&&rd(reply+7,8)==((2ull<<32)|1));
-  assert(reset_calls==1);images(ram);assert(stat_session(plan9)==107);
+  assert(reset_calls==2);images(ram);assert(stat_session(plan9)==107);
+  assert(G(binding_generation)(1)==2&&G(binding_generation)(0)==1);
+  assert(!G(set_transport_level)(1,1,0,50,0)&&G(set_transport_level)(1,2,0,50,0));
+
   frame(178,31,1,0);st(request+23,(1ull<<32)|1,8);call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
   frame(184,39,1,4);st(request+23,(1ull<<32)|4,8);st(request+31,2ull<<32,8);
   call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
@@ -274,8 +318,9 @@ class O10PlatformTests(unittest.TestCase):
         sources = runpy.run_path(str(ROOT / "scripts/build_okernel_unified_world.py"))["SOURCES"]
         with tempfile.TemporaryDirectory(prefix="o10-platform-") as directory:
             output = Path(directory)
+            table = write_table_fixture(output)
             unified = output / "unified_world.oc"
-            unified.write_text((ROOT / sources[0]).read_text() + WRAPPER)
+            unified.write_text(extend_world((ROOT / sources[0]).read_text(), WRAPPER))
             profile = output / "profile.oc"
             profile.write_text("module runtime::aarch64::kernel_world_profile;\n"
                 "pub const PERSISTENT: u64 = 1;\npub const BACKING_BASE: usize = 0x7000_0000;\n"
@@ -284,7 +329,7 @@ class O10PlatformTests(unittest.TestCase):
                 "pub const O10_QUALIFICATION: u64 = 0;\n")
             (output / "harness.c").write_text(harness)
             commands = [
-                [str(compiler), str(profile), str(unified), *(str(ROOT / name) for name in sources[1:]),
+                [str(compiler), str(profile), str(unified), *(str(table if name=="ocore/runtime/aarch64/domain_table.oc" else ROOT / name) for name in sources[1:]),
                  "--target", "x86_64-unknown-none", "--emit", "obj", "--function-sections", "-o", str(output / "native.o")],
                 [clang, "-O2", "-no-pie", "-Wl,--gc-sections", "-Ulinux", str(output / "harness.c"),
                  str(output / "native.o"), "-o", str(output / "selftest")],
