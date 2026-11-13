@@ -1281,6 +1281,372 @@ pub(crate) fn bash_braced_references(body: &[OIr]) -> std::collections::HashSet<
     names
 }
 
+// ############################################################################
+// bash arithmetic references
+// ############################################################################
+
+/// Where a bracket or paren region opened by the arithmetic scanner closes.
+#[derive(Clone, Copy, PartialEq)]
+enum ArithClose {
+    /// `$(( ))`, `(( ))`, and `for (( ; ; ))`: closes at `))` at depth zero.
+    Parens,
+    /// `$[ ]` and `name[ ]` subscripts: closes at `]` at depth zero.
+    Bracket,
+    /// `${s:offset:length}`: closes at `}` at depth zero.
+    Brace,
+    /// a whole slice that bash evaluates as arithmetic; never closes.
+    Never,
+}
+
+struct ArithFrame {
+    close: ArithClose,
+    depth: usize,
+}
+
+fn is_bash_ident_start(byte: u8) -> bool {
+    byte.is_ascii_alphabetic() || byte == b'_'
+}
+
+fn is_bash_ident_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+/// Whether the word starting at `start` is in command position, so a
+/// builtin such as `let` or `declare` there is the builtin and not an
+/// argument of another command.
+fn bash_command_position(bytes: &[u8], start: usize) -> bool {
+    let mut p = start;
+    while p > 0 && (bytes[p - 1] == b' ' || bytes[p - 1] == b'\t') {
+        p -= 1;
+    }
+    if p == 0 || b";&|({\n".contains(&bytes[p - 1]) {
+        return true;
+    }
+    let before = &bytes[..p];
+    // compound-command keywords also start a command, so `if [[ x -gt 1 ]]`
+    // and `while let ...` scan like a bare `[[` or `let`.
+    [
+        &b"do"[..],
+        b"then",
+        b"else",
+        b"!",
+        b"if",
+        b"elif",
+        b"while",
+        b"until",
+        b"time",
+    ]
+    .iter()
+    .any(|word| {
+        before.ends_with(word)
+            && (before.len() == word.len()
+                || !is_bash_ident_byte(before[before.len() - word.len() - 1]))
+    })
+}
+
+/// End of the simple command that starts at `start`: the first unquoted
+/// `;`, `&`, `|`, `)`, or newline.
+fn bash_command_end(bytes: &[u8], start: usize) -> usize {
+    let mut i = start;
+    let mut quote = None;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        match quote {
+            Some(q) if byte == q => quote = None,
+            Some(_) => {}
+            None if byte == b'\\' => i += 1,
+            None if byte == b'\'' || byte == b'"' => quote = Some(byte),
+            None if b";&|)\n".contains(&byte) => return i,
+            None => {}
+        }
+        i += 1;
+    }
+    bytes.len()
+}
+
+/// Words of a simple command with their quote characters removed, so
+/// `let "x = y + 1"` yields the expression text bash evaluates.
+fn bash_command_words(segment: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quote = None;
+    for ch in segment.chars() {
+        match quote {
+            Some(q) if ch == q => quote = None,
+            Some(_) => word.push(ch),
+            None if ch == '\'' || ch == '"' => quote = Some(ch),
+            None if ch.is_whitespace() => {
+                if !word.is_empty() {
+                    words.push(std::mem::take(&mut word));
+                }
+            }
+            None => word.push(ch),
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
+}
+
+/// A `declare`, `local`, or `typeset` command at `start`: its option
+/// letters and its operand words.
+fn bash_declaration(bytes: &[u8], text: &str, start: usize) -> Option<(String, Vec<String>)> {
+    let word_end = start
+        + bytes[start..]
+            .iter()
+            .take_while(|byte| is_bash_ident_byte(**byte))
+            .count();
+    if !matches!(&text[start..word_end], "declare" | "local" | "typeset")
+        || !bash_command_position(bytes, start)
+    {
+        return None;
+    }
+    let end = bash_command_end(bytes, word_end);
+    let mut options = String::new();
+    let mut operands = Vec::new();
+    for word in bash_command_words(&text[word_end..end]) {
+        if let Some(letters) = word.strip_prefix('-') {
+            options.push_str(letters);
+        } else {
+            operands.push(word);
+        }
+    }
+    Some((options, operands))
+}
+
+/// Names a bash block reads as bare identifiers in arithmetic context:
+/// inside `$(( ))`, `(( ))`, `for (( ; ; ))`, and `$[ ]`; in indexed array
+/// subscripts `name[...]` and `${name[...]}`, for reads and writes; in the
+/// offset and length of `${s:offset:length}`; in the arguments of the `let`
+/// builtin; on the right of `declare -i`, `local -i`, or `typeset -i`
+/// assignments; and as operands of the `[[ ]]` operators `-eq`, `-ne`,
+/// `-lt`, `-le`, `-gt`, and `-ge`. Bash reads such a name as a variable,
+/// so it is a reference just like `${name}`. Every subscript counts, with no
+/// classification of the array kind: an associative key that happens to be
+/// a `let` name only gets a harmless extra edge. `[[ == ]]`, `!=`, and `=~`
+/// compare strings, and their operands are not references. A bare word
+/// outside these contexts, `$name`, and a name built at runtime, such as
+/// `v=name; echo $((v))`, are not references.
+///
+/// The scan is textual, so a match inside a double-quoted string, a comment,
+/// or a heredoc body (`echo "(( x ))"`, `# let x`, `foo[x]` as a glob) also
+/// counts. That only over-includes: an extra edge and an unexported value.
+pub(crate) fn bash_arithmetic_references(body: &[OIr]) -> HashSet<String> {
+    let mut names = HashSet::new();
+    scan_bash_arithmetic(&bash_scan_text(body), false, &mut names);
+    names
+}
+
+/// One string for the arithmetic scan of a whole bash body, so a region
+/// that a `$name` splice interrupts, as in `$(( $n + x ))` or
+/// `[[ $n -gt x ]]`, still reads `x` in arithmetic context. A splice or
+/// nested block stands in as `0`, which is a number and names nothing. An
+/// escaped `$` always ends its `Text` node, so a node ending in `$` before
+/// more text becomes `\$`, which the scanner skips: `\$((x))` opts out like
+/// `\${x}`.
+fn bash_scan_text(body: &[OIr]) -> String {
+    let mut joined = String::new();
+    for (index, node) in body.iter().enumerate() {
+        match node {
+            OIr::Text(text) => {
+                let escaped = text.ends_with('$')
+                    && matches!(body.get(index + 1), Some(OIr::Text(_)));
+                if escaped {
+                    joined.push_str(&text[..text.len() - 1]);
+                    joined.push_str("\\$");
+                } else {
+                    joined.push_str(text);
+                }
+            }
+            _ => joined.push('0'),
+        }
+    }
+    joined
+}
+
+fn scan_bash_arithmetic(text: &str, whole: bool, names: &mut HashSet<String>) {
+    let bytes = text.as_bytes();
+    let mut stack = Vec::new();
+    if whole {
+        stack.push(ArithFrame {
+            close: ArithClose::Never,
+            depth: 0,
+        });
+    }
+    let at = |index: usize| bytes.get(index).copied();
+    let mut i = 0;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        let arith = !stack.is_empty();
+        if byte == b'\\' {
+            // an escaped `$((` or `$[` is not an arithmetic opener, so its
+            // parens or bracket must not open a region either.
+            i += match (at(i + 1), at(i + 2), at(i + 3)) {
+                (Some(b'$'), Some(b'('), Some(b'(')) => 4,
+                (Some(b'$'), Some(b'['), _) => 3,
+                _ => 2,
+            };
+            continue;
+        }
+        // single quotes keep their text literal outside arithmetic, and a
+        // child `bash -c '...'` never sees the non-exported value anyway.
+        if byte == b'\'' && !arith {
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'\'' {
+                i += 1;
+            }
+            i += 1;
+            continue;
+        }
+        // ---- region openers ----
+        if byte == b'$' && at(i + 1) == Some(b'(') && at(i + 2) == Some(b'(') {
+            stack.push(ArithFrame {
+                close: ArithClose::Parens,
+                depth: 0,
+            });
+            i += 3;
+            continue;
+        }
+        if byte == b'$' && at(i + 1) == Some(b'[') {
+            stack.push(ArithFrame {
+                close: ArithClose::Bracket,
+                depth: 0,
+            });
+            i += 2;
+            continue;
+        }
+        if byte == b'(' && at(i + 1) == Some(b'(') && !arith {
+            stack.push(ArithFrame {
+                close: ArithClose::Parens,
+                depth: 0,
+            });
+            i += 2;
+            continue;
+        }
+        if byte == b'[' && at(i + 1) == Some(b'[') && !arith && bash_command_position(bytes, i) {
+            scan_bash_test_operands(text, i + 2, names);
+            i += 2;
+            continue;
+        }
+        // ---- region closers ----
+        if let Some(frame) = stack.last_mut() {
+            let closed = match (frame.close, byte) {
+                (ArithClose::Parens, b'(')
+                | (ArithClose::Bracket, b'[')
+                | (ArithClose::Brace, b'{') => {
+                    frame.depth += 1;
+                    false
+                }
+                (ArithClose::Parens, b')') if frame.depth == 0 && at(i + 1) == Some(b')') => {
+                    i += 1;
+                    true
+                }
+                (ArithClose::Bracket, b']') | (ArithClose::Brace, b'}') if frame.depth == 0 => true,
+                (ArithClose::Parens, b')')
+                | (ArithClose::Bracket, b']')
+                | (ArithClose::Brace, b'}') => {
+                    frame.depth = frame.depth.saturating_sub(1);
+                    false
+                }
+                _ => false,
+            };
+            if closed {
+                stack.pop();
+                i += 1;
+                continue;
+            }
+        }
+        // ---- identifiers ----
+        if is_bash_ident_start(byte) && (i == 0 || !is_bash_ident_byte(bytes[i - 1])) {
+            let start = i;
+            let mut end = i + 1;
+            while end < bytes.len() && is_bash_ident_byte(bytes[end]) {
+                end += 1;
+            }
+            let word = &text[start..end];
+            let prev = start.checked_sub(1).map(|p| bytes[p]);
+            let braced = prev == Some(b'{')
+                || (matches!(prev, Some(b'!') | Some(b'#'))
+                    && start >= 2
+                    && bytes[start - 2] == b'{');
+            // `$x` is an O splice or an escaped session read, `${x}` belongs
+            // to the braced scanner, and `16#ff` is a base, not a name.
+            let named = !matches!(prev, Some(b'$') | Some(b'#') | Some(b'{'))
+                && !(prev == Some(b'!') && braced);
+            if arith && named {
+                names.insert(word.to_string());
+            }
+            if at(end) == Some(b'[') {
+                stack.push(ArithFrame {
+                    close: ArithClose::Bracket,
+                    depth: 0,
+                });
+                i = end + 1;
+                continue;
+            }
+            // `${s:offset:length}`; `${s:-x}`, `${s:=x}`, `${s:+x}`, and
+            // `${s:?x}` are defaults, not offsets.
+            if braced
+                && prev == Some(b'{')
+                && at(end) == Some(b':')
+                && !matches!(
+                    at(end + 1),
+                    Some(b'-') | Some(b'=') | Some(b'+') | Some(b'?')
+                )
+            {
+                stack.push(ArithFrame {
+                    close: ArithClose::Brace,
+                    depth: 0,
+                });
+                i = end + 1;
+                continue;
+            }
+            if !arith && bash_command_position(bytes, start) {
+                if word == "let" {
+                    let stop = bash_command_end(bytes, end);
+                    for expr in bash_command_words(&text[end..stop]) {
+                        scan_bash_arithmetic(&expr, true, names);
+                    }
+                } else if let Some((options, operands)) = bash_declaration(bytes, text, start) {
+                    if options.contains('i') && !options.contains('A') {
+                        for operand in operands {
+                            if let Some((_, value)) = operand.split_once('=') {
+                                scan_bash_arithmetic(value, true, names);
+                            }
+                        }
+                    }
+                }
+            }
+            i = end;
+            continue;
+        }
+        i += 1;
+    }
+}
+
+/// Operands of the `[[ ]]` arithmetic operators in the test that starts at
+/// `start`, just after its `[[`.
+fn scan_bash_test_operands(text: &str, start: usize, names: &mut HashSet<String>) {
+    let end = text[start..]
+        .find("]]")
+        .map_or(text.len(), |offset| start + offset);
+    let words = bash_command_words(&text[start..end]);
+    for (index, word) in words.iter().enumerate() {
+        if !matches!(word.as_str(), "-eq" | "-ne" | "-lt" | "-le" | "-gt" | "-ge") {
+            continue;
+        }
+        for operand in [index.checked_sub(1), Some(index + 1)]
+            .into_iter()
+            .flatten()
+        {
+            if let Some(operand) = words.get(operand) {
+                scan_bash_arithmetic(operand, true, names);
+            }
+        }
+    }
+}
+
 /// Plan sources of the visible `let` bindings a shim block receives: exactly
 /// the bindings whose names its body references by whole identifier token
 /// or `$name` splice, for every backend and every parallel branch. With
@@ -1297,7 +1663,8 @@ fn shim_scope_sources(
         if backend.canonical != "bash" {
             return Vec::new();
         }
-        let names = bash_braced_references(body);
+        let mut names = bash_braced_references(body);
+        names.extend(bash_arithmetic_references(body));
         let mut seen = std::collections::HashSet::new();
         let mut sources = Vec::new();
         for lexical_scope in scope_stack.iter().rev() {
@@ -2160,6 +2527,59 @@ mod tests {
             ("bash^(echo a b c ${HOME})_bash", vec![]),
             ("bash[0]^(echo ${b})_bash[0]", vec!["b"]),
             ("sh^(echo ${c})_sh", vec![]),
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            let expected: Vec<String> = expected.into_iter().map(String::from).collect();
+            assert_eq!(execs.last().unwrap(), &expected, "{body}");
+        }
+    }
+
+    #[test]
+    fn bash_arithmetic_contexts_reference_bare_let_names() {
+        for (body, expected) in [
+            ("bash^(echo $((c + 1)))_bash", vec!["c"]),
+            ("bash^((( c > 1 )) && echo big)_bash", vec!["c"]),
+            (
+                "bash^(for ((i=a; i<b; i++)); do :; done)_bash",
+                vec!["a", "b"],
+            ),
+            ("bash^(echo $[c + 1])_bash", vec!["c"]),
+            ("bash^(let \"x = a * 2\" y=b)_bash", vec!["a", "b"]),
+            ("bash^(declare -i y=c+1; echo ok)_bash", vec!["c"]),
+            (
+                "bash^([[ a -gt 10 && 3 -le b ]] && echo big)_bash",
+                vec!["a", "b"],
+            ),
+            ("bash^(s=abcdef; echo ${s:a:b})_bash", vec!["a", "b"]),
+            ("bash^(x=(0 1 2 3); echo ${x[c % 4]})_bash", vec!["c"]),
+            ("bash^(x=(); x[c]=v; echo ${!x[@]})_bash", vec!["c"]),
+            ("bash^(echo $(( a > 1 ? b : c )))_bash", vec!["a", "b", "c"]),
+            ("bash^(declare -A m; m[c]=k; echo ${m[c]})_bash", vec!["c"]),
+            (
+                "bash^(if [[ a -gt 1 ]]; then echo y; fi; while let b; do :; done)_bash",
+                vec!["a", "b"],
+            ),
+            // runtime-built names, string tests, and bare words stay unreferenced.
+            ("bash^(v=c; echo $((v + 1)))_bash", vec![]),
+            ("bash^(v=c; echo ${!v})_bash", vec![]),
+            (
+                "bash^([[ a == b ]] && [[ c =~ x ]] && [[ a != b ]])_bash",
+                vec![],
+            ),
+            ("bash^([ a -gt 1 ]; echo a b c)_bash", vec![]),
+            (
+                "bash^(declare -i y; y=c+1; declare -n r=a; eval b)_bash",
+                vec![],
+            ),
+            ("bash^(echo $((16#ff + 0x1c)))_bash", vec![]),
+            ("bash^(echo ${s:-a})_bash", vec![]),
+            ("sh^(echo $((c + 1)))_sh", vec![]),
+            // a `$name` splice does not end an arithmetic region.
+            ("bash^(echo $(( $c + a )))_bash", vec!["a"]),
+            ("bash^([[ $c -gt a ]] && echo y)_bash", vec!["a"]),
+            ("bash^(s=abc; echo ${s:$c:a}; x[$c+b]=1)_bash", vec!["a", "b"]),
+            // escaped arithmetic opts out like `\${x}`.
+            (r#"bash^(echo \$((a + 1)) \$[b])_bash"#, vec![]),
         ] {
             let execs = exec_data_sources(&three_bindings(body));
             let expected: Vec<String> = expected.into_iter().map(String::from).collect();
