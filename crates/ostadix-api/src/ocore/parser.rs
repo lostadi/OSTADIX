@@ -4,7 +4,103 @@ use super::ast::*;
 use super::lexer::{lex, Token, TokenKind};
 use super::{Diagnostic, Span};
 
+// ############################################################################
+// fail-closed rejection of ordinary .O orchestration source
+// ############################################################################
+
+/// Reject ordinary `.O` orchestration inputs before `.oc` lexing or parsing.
+/// why: `ocorec` compiles only statically typed `.oc` O-core modules (and
+/// verified imported IR); giving it a `.O` file or `lang^(...)_lang` program
+/// used to fail with a low-level lexer or `expected module declaration` error.
+pub fn reject_orchestration_input(file: &str, source: Option<&str>) -> Result<(), Diagnostic> {
+    if std::path::Path::new(file)
+        .extension()
+        .is_some_and(|ext| ext == "O" || ext == "o_lang")
+    {
+        return Err(Diagnostic {
+            file: file.to_string(),
+            span: Span {
+                start: 0,
+                end: source.map_or(0, |s| s.lines().next().map_or(0, str::len)),
+                line: 1,
+                column: 1,
+            },
+            message: format!(
+                "`{file}` is an O orchestration program, not a statically typed `.oc` O-core module; compile `.O` programs with `olangc {file}` or run them with `O {file}` (`ocorec` compiles `.oc` modules and verified `--input-kind native-ir` or `llvm-ir` modules without falling back to the hosted runtime)"
+            ),
+        });
+    }
+    if let Some(source) = source {
+        if let Some((span, hint)) = detect_orchestration_surface(source) {
+            return Err(Diagnostic {
+                file: file.to_string(),
+                span,
+                message: format!(
+                    "input contains O orchestration syntax ({hint}), not a statically typed `.oc` O-core `module <name>;` unit; compile `.O` programs with `olangc` or run them with `O` (`ocorec` compiles `.oc` modules and verified `--input-kind native-ir` or `llvm-ir` modules without falling back to the hosted runtime)"
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn detect_orchestration_surface(source: &str) -> Option<(Span, &'static str)> {
+    let trimmed = source.trim_start();
+    if trimmed.starts_with("module ")
+        || trimmed.starts_with("module	")
+        || trimmed.starts_with(
+            "module
+",
+        )
+    {
+        return None;
+    }
+    for (line_idx, line) in source.lines().enumerate() {
+        let code = line.split("//").next().unwrap_or(line);
+        let trimmed_line = code.trim_start();
+        if trimmed_line.is_empty()
+            || trimmed_line.starts_with("/*")
+            || trimmed_line.starts_with('*')
+        {
+            continue;
+        }
+        if let Some(pos) = code.find("^(") {
+            let prefix = &code[..pos];
+            let tag: String = prefix
+                .chars()
+                .rev()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '[' || *c == ']')
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect();
+            if !tag.is_empty() {
+                let start_col = pos - tag.len() + 1;
+                let byte_offset = source
+                    .lines()
+                    .take(line_idx)
+                    .map(|l| l.len() + 1)
+                    .sum::<usize>();
+                let start = byte_offset + (pos - tag.len());
+                let end = byte_offset + pos + 2;
+                return Some((
+                    Span {
+                        start,
+                        end,
+                        line: line_idx + 1,
+                        column: start_col,
+                    },
+                    "foreign-language block `^(...)`",
+                ));
+            }
+        }
+        break;
+    }
+    None
+}
+
 pub fn parse(file: &str, source: &str) -> Result<SourceModule, Diagnostic> {
+    reject_orchestration_input(file, Some(source))?;
     let tokens = lex(file, source)?;
     Parser {
         file,
@@ -22,7 +118,10 @@ struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     fn parse_module(&mut self) -> Result<SourceModule, Diagnostic> {
-        let start = self.expect(TokenKind::Module, "expected `module` declaration")?;
+        let start = self.expect(
+            TokenKind::Module,
+            "expected `module <name>;` declaration at top of `.oc` O-core module (for `.O` orchestration programs, use `olangc` or `O`)",
+        )?;
         let name = self.parse_path()?;
         self.expect(TokenKind::Semi, "expected `;` after module declaration")?;
 
@@ -945,5 +1044,49 @@ struct Vtable { call: fn(*mut u8, [u64; 4]) -> i32 }
             def.fields[0].ty.kind,
             TypeExprKind::FnPointer { .. }
         ));
+    }
+
+    #[test]
+    fn rejects_orchestration_files_and_blocks_fail_closed() {
+        let err = parse(
+            "hello.O",
+            "bash^(echo hi)_bash
+",
+        )
+        .unwrap_err();
+        assert!(
+            err.message.contains("is an O orchestration program")
+                && err.message.contains("olangc hello.O"),
+            "unexpected diagnostic: {}",
+            err.message
+        );
+
+        let err_inline = parse(
+            "misnamed.oc",
+            "python^(1 + 1)_python
+",
+        )
+        .unwrap_err();
+        assert!(
+            err_inline.message.contains("O orchestration syntax")
+                && err_inline.message.contains("olangc"),
+            "unexpected diagnostic: {}",
+            err_inline.message
+        );
+
+        let err_top_let = parse(
+            "top_let.oc",
+            "let x = 42
+",
+        )
+        .unwrap_err();
+        assert!(
+            err_top_let
+                .message
+                .contains("expected `module <name>;` declaration")
+                && err_top_let.message.contains("olangc"),
+            "unexpected diagnostic: {}",
+            err_top_let.message
+        );
     }
 }
