@@ -458,6 +458,87 @@ mod tests {
 
     static PROJECT_EXECUTOR_ENV_LOCK: Mutex<()> = Mutex::new(());
 
+    const ISOLATED_ENV_TEST: &str = "OSTADIX_REUSE_ISOLATED_ENV_TEST";
+    const SELECTED_REUSE_TEST: &str = "intent::reuse::tests::selected_route_reuse_is_pinned_and_revalidates_public_prepared_fields";
+    const UNKNOWN_REUSE_TEST: &str =
+        "intent::reuse::tests::unknown_alternative_or_prerequisite_is_never_admitted_for_reuse";
+
+    fn isolated_test_command(test: &str) -> std::process::Command {
+        assert!(matches!(test, SELECTED_REUSE_TEST | UNKNOWN_REUSE_TEST));
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command.args(["--exact", test, "--test-threads=1", "--nocapture"]);
+        command.env(ISOLATED_ENV_TEST, test);
+        command
+    }
+
+    fn validate_isolated_test_output(
+        test: &str,
+        output: &std::process::Output,
+    ) -> Result<(), String> {
+        if !output.status.success() {
+            return Err(format!(
+                "isolated test {test} failed: {}\nstdout: {}\nstderr: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        let stdout = std::str::from_utf8(&output.stdout).map_err(|e| e.to_string())?;
+        let summaries = stdout
+            .lines()
+            .filter(|line| line.starts_with("test result: "))
+            .collect::<Vec<_>>();
+        if summaries.len() != 1
+            || !summaries[0]
+                .starts_with("test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; ")
+            || stdout
+                .lines()
+                .filter(|line| *line == "running 1 test")
+                .count()
+                != 1
+            || !stdout.contains(&format!("test {test} ... ok"))
+        {
+            return Err(format!(
+                "isolated test {test} did not execute exactly one unignored case: {stdout}"
+            ));
+        }
+        Ok(())
+    }
+
+    /// Return true in the parent after the exact child test passes. The child
+    /// runs the unchanged body, whose deliberate environment changes are local
+    /// to that process. Command::env never mutates the parent environment.
+    fn dispatch_isolated_environment_test(test: &str) -> bool {
+        if let Some(selected) = std::env::var_os(ISOLATED_ENV_TEST) {
+            assert_eq!(
+                selected,
+                OsString::from(test),
+                "wrong isolated child test identity"
+            );
+            assert_eq!(
+                std::env::args_os().skip(1).collect::<Vec<_>>(),
+                ["--exact", test, "--test-threads=1", "--nocapture"].map(OsString::from),
+                "isolated child requires its exact single-test invocation"
+            );
+            return false;
+        }
+        let original = std::env::var_os(PROJECT_EXECUTOR_ENV);
+        let output = isolated_test_command(test)
+            .output()
+            .expect("failed to launch isolated environment test");
+        validate_isolated_test_output(test, &output).unwrap_or_else(|message| panic!("{message}"));
+        assert_eq!(
+            std::env::var_os(PROJECT_EXECUTOR_ENV),
+            original,
+            "isolated test changed the parent executor environment"
+        );
+        assert!(
+            std::env::var_os(ISOLATED_ENV_TEST).is_none(),
+            "child selector escaped into parent environment"
+        );
+        true
+    }
+
     #[derive(Clone, Copy)]
     enum EffectBoundaryFixture {
         Pure,
@@ -767,6 +848,9 @@ policy = "benchmark_validate_and_select"
 
     #[test]
     fn selected_route_reuse_is_pinned_and_revalidates_public_prepared_fields() {
+        if dispatch_isolated_environment_test(SELECTED_REUSE_TEST) {
+            return;
+        }
         let _env_lock = PROJECT_EXECUTOR_ENV_LOCK.lock().unwrap();
         let _executor_env = ExecutorEnvRestore::unset();
         let temporary = tempfile::tempdir().unwrap();
@@ -930,6 +1014,9 @@ policy = "benchmark_validate_and_select"
 
     #[test]
     fn unknown_alternative_or_prerequisite_is_never_admitted_for_reuse() {
+        if dispatch_isolated_environment_test(UNKNOWN_REUSE_TEST) {
+            return;
+        }
         let _env_lock = PROJECT_EXECUTOR_ENV_LOCK.lock().unwrap();
         let _executor_env = ExecutorEnvRestore::unset();
         for (name, boundary) in [
@@ -960,6 +1047,72 @@ policy = "benchmark_validate_and_select"
                 "unexpected {name} admission error: {error:#}"
             );
             markers.assert_absent();
+        }
+    }
+
+    #[test]
+    fn isolated_children_preserve_the_observer_admission_context() {
+        let program = crate::ir::OIrProgram {
+            nodes: vec![crate::ir::OIr::Text("observer".into())],
+        };
+        let plan = program.plan();
+        let mut graph = crate::hgraph::from_oir::build_program(&program);
+        crate::hgraph::solve::solve_types(&mut graph).unwrap();
+        let runtime = crate::evidence::runtime_binding_from_adapter_bytes(&plan, &[], &[]);
+        let evidence =
+            crate::evidence::analyze_execution(&program, &plan, &graph, runtime.clone()).unwrap();
+        let admitted = crate::evidence::admit_execution(
+            &program,
+            &plan,
+            graph,
+            crate::execution_contract::Policy::Eager,
+            runtime,
+            evidence,
+        )
+        .unwrap();
+        let control = crate::evidence::runtime_binding_from_adapter_bytes(&plan, &[], &[]);
+        admitted.verify_runtime(&control).unwrap();
+        for test in [SELECTED_REUSE_TEST, UNKNOWN_REUSE_TEST] {
+            assert!(dispatch_isolated_environment_test(test));
+            let current = crate::evidence::runtime_binding_from_adapter_bytes(&plan, &[], &[]);
+            admitted
+                .verify_runtime(&current)
+                .expect("child test invalidated parent admission context");
+        }
+    }
+
+    #[test]
+    fn isolated_child_selection_and_count_guards_reject_invalid_runs() {
+        let mut zero = isolated_test_command(SELECTED_REUSE_TEST);
+        zero.args(["--skip", SELECTED_REUSE_TEST]);
+        let zero = zero.output().unwrap();
+        assert!(zero.status.success());
+        assert!(validate_isolated_test_output(SELECTED_REUSE_TEST, &zero)
+            .unwrap_err()
+            .contains("exactly one unignored case"));
+
+        let mut wrong = isolated_test_command(UNKNOWN_REUSE_TEST);
+        wrong.env(ISOLATED_ENV_TEST, SELECTED_REUSE_TEST);
+        let wrong = wrong.output().unwrap();
+        assert!(!wrong.status.success());
+        assert!(
+            String::from_utf8_lossy(&wrong.stderr).contains("wrong isolated child test identity")
+        );
+        assert!(validate_isolated_test_output(UNKNOWN_REUSE_TEST, &wrong).is_err());
+
+        let positive = isolated_test_command(UNKNOWN_REUSE_TEST).output().unwrap();
+        validate_isolated_test_output(UNKNOWN_REUSE_TEST, &positive).unwrap();
+        // Count-parser controls deliberately corrupt a real successful harness
+        // transcript; they do not claim another native child execution.
+        for (from, to) in [("1 passed", "0 passed"), ("0 ignored", "1 ignored")] {
+            let mut corrupt = positive.clone();
+            corrupt.stdout = String::from_utf8(corrupt.stdout)
+                .unwrap()
+                .replace(from, to)
+                .into_bytes();
+            assert!(validate_isolated_test_output(UNKNOWN_REUSE_TEST, &corrupt)
+                .unwrap_err()
+                .contains("exactly one unignored case"));
         }
     }
 }
