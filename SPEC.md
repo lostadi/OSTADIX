@@ -1153,11 +1153,14 @@ silent default.
   is killed and reaped within 2 s, and stderr says `bash block left N
   background process(es); they were stopped`. N is the number of distinct
   live (non-zombie) processes below the helper other than the block's own
-  bash, taken once, when the block's bash has exited (or, on a cancel, when
-  the SIGTERM arrives) and before anything is signalled. So
-  `sleep 900 | sleep 901 & setsid sleep 902 &` gives 3 on every run, at the
-  block's end and on a cancel; a cancel also counts the block's foreground
-  command. The line is written once the cleanup has finished. A process still
+  bash, taken once, when the block's bash has exited and before anything is
+  signalled, so `sleep 900 | sleep 901 & setsid sleep 902 &` gives 3 on every
+  run. On a cancel the snapshot is taken when the helper's SIGTERM arrives,
+  so it also counts the block's foreground command, and stderr says `bash
+  block cancelled; stopped N process(es)`: the same block cancelled
+  while `sleep 60` runs in the foreground gives 4. A process list that cannot
+  be read fails the cleanup, but the walk still kills every job it can list.
+  The line is written once the cleanup has finished. A process still
   alive after the 2 s, or a process list that cannot be read, fails the block
   with `bash job cleanup failed: ...`, which names the pids, and the helper is
   retired. A `bash[N]` session's jobs live until the session ends, and are
