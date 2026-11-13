@@ -80,7 +80,7 @@ fn identity(m: &Metadata) -> FileIdentity {
     }
 }
 fn digest(raw: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(raw))
+    hex::encode(Sha256::digest(raw))
 }
 fn sha_shape(s: &str) -> bool {
     s.len() == 64

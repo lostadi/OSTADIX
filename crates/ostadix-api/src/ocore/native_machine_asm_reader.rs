@@ -459,7 +459,7 @@ pub struct ParsedAssembly {
 fn identity(bytes: &[u8]) -> ArtifactIdentity {
     ArtifactIdentity {
         bytes: bytes.len() as u64,
-        sha256: format!("{:x}", Sha256::digest(bytes)),
+        sha256: hex::encode(Sha256::digest(bytes)),
     }
 }
 fn identity_shape(value: &ArtifactIdentity) -> bool {

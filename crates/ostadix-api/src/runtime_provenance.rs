@@ -19,7 +19,7 @@ const MAX_BINARY_BYTES: u64 = 1024 * 1024 * 1024;
 const PROBE_OUTPUT_BYTES: usize = 64 * 1024;
 
 fn hash(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn architecture(bytes: &[u8]) -> Option<&'static str> {
@@ -117,7 +117,7 @@ fn file_identity_at(display: &Path, opened: &Path, max_bytes: u64) -> Value {
         return result;
     }
     result["status"] = "hashed".into();
-    result["sha256"] = format!("{:x}", hasher.finalize()).into();
+    result["sha256"] = hex::encode(hasher.finalize()).into();
     result["architecture"] = architecture(&prefix).into();
     result["canonicalPath"] = json!(display.canonicalize().ok());
     result

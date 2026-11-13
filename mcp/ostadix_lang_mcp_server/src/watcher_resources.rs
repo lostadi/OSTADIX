@@ -448,7 +448,7 @@ fn read_snapshot(root: &Path) -> Result<(SnapshotV1, String, usize), SnapshotErr
     if !validate(&snapshot) {
         return Err(SnapshotError::InvalidData);
     }
-    let digest = format!("{:x}", Sha256::digest(&bytes));
+    let digest = hex::encode(Sha256::digest(&bytes));
     Ok((snapshot, digest, bytes.len()))
 }
 
@@ -714,10 +714,9 @@ mod tests {
         assert_eq!(hashes.len(), 1);
         assert_eq!(
             hashes.first().unwrap(),
-            &format!(
-                "{:x}",
-                Sha256::digest(fs::read(root.0.join(SNAPSHOT_FILE)).unwrap())
-            )
+            &hex::encode(Sha256::digest(
+                fs::read(root.0.join(SNAPSHOT_FILE)).unwrap()
+            ))
         );
         let measurements = root.read("measurements");
         assert!(measurements["data"].get("interpretations").is_none());

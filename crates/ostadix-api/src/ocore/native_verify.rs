@@ -790,7 +790,7 @@ fn noalias_metadata(module: &NativeModule) -> Result<HashMap<usize, &NoAliasScop
             if source.metadata_kind != 4 {
                 return Err(fail(context, "source metadata node is not an MDTuple"));
             }
-            if source.printer_sha256 != format!("{:x}", Sha256::digest(&source.printer_bytes)) {
+            if source.printer_sha256 != hex::encode(Sha256::digest(&source.printer_bytes)) {
                 return Err(fail(
                     context,
                     "source metadata printer digest does not match bytes",
@@ -12378,7 +12378,7 @@ mod tests {
                 NoAliasNodeSource {
                     id,
                     metadata_kind: 4,
-                    printer_sha256: format!("{:x}", Sha256::digest(&printer_bytes)),
+                    printer_sha256: hex::encode(Sha256::digest(&printer_bytes)),
                     printer_bytes,
                 }
             })
@@ -12544,13 +12544,13 @@ mod tests {
             bad = m.clone();
             let node = &mut bad.provenance.noalias_metadata_source[0];
             node.printer_bytes = body.to_vec();
-            node.printer_sha256 = format!("{:x}", Sha256::digest(body));
+            node.printer_sha256 = hex::encode(Sha256::digest(body));
             rejects(&bad, "storage prefix");
         }
         // A process-address fallback is evidence only, not a portable node ID.
         let node = &mut m.provenance.noalias_metadata_source[0];
         node.printer_bytes = b"<0x123ABC> = distinct !{}".to_vec();
-        node.printer_sha256 = format!("{:x}", Sha256::digest(&node.printer_bytes));
+        node.printer_sha256 = hex::encode(Sha256::digest(&node.printer_bytes));
         assert_eq!(node.id, 100);
         verify(&m).unwrap();
     }
