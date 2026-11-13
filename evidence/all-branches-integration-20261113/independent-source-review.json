@@ -1,0 +1,161 @@
+{
+  "schema": "ostadix.independent-recovered-review/v1",
+  "created_utc": "2026-11-13T10:24:50.759320+00:00",
+  "role": "independent read-only source/publication watchdog after daemon recovery",
+  "reviewed_head": "adef92238050064ab80fb8e5aab8ad5a6f8841ad",
+  "reviewed_tree": "e3af3c42c06933dbee41e6f03012a75c49811cb5",
+  "source_mutations_performed": false,
+  "new_remote_ref_updates_performed": false,
+  "working_tree_clean": true,
+  "published_head_inputs": {
+    "master": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+    "native_copy": "82f6e3007339c3a19f744788c8635648df6c32eb"
+  },
+  "independent_executions": [
+    {
+      "command": "python3 scripts/render_docs.py check --marked /mnt/data-hdd2/ostadix-build/doc-tools-marked18/node_modules/.bin/marked",
+      "rc": 0,
+      "result": "114 complete documents; 2494453 bytes; 0 drifted"
+    },
+    {
+      "rc": 0,
+      "artifact_sha256": "7c7453661a0bc0f13d9666833cef6702c54d1fb2b0754b54161e8c590e05345a",
+      "result": "Node-hosted browser WASI host execution PASS",
+      "argv": [
+        "node",
+        "apps/olang-browser-wasi/test-direct-wasm.mjs",
+        "/mnt/data-hdd2/ostadix-integration/examples/wasm_hello.O",
+        "/mnt/data-hdd2/ostadix-build/integration-validation-20261113/wasi-proof/attempt-3-recovered/inline.wasm",
+        "OSTADIX OLANGC WASM EXECUTION PASS"
+      ],
+      "cwd": "/mnt/data-hdd2/ostadix-integration"
+    },
+    {
+      "command": "node apps/olang-browser-wasi/test-host.mjs",
+      "rc": 0,
+      "result": "strict host/ABI/signature and missing/extra/duplicate import negative controls PASS"
+    },
+    {
+      "command": "import-publication-commits.py default dry run for both repos",
+      "rc": 0,
+      "result": "All223 records validated; private92/public118 exact commit reconstructions; no objects or refs written",
+      "reports": [
+        "/tmp/ostadix-watchdog-import-private-final-dryrun-20261113.json",
+        "/tmp/ostadix-watchdog-import-public-final-dryrun-20261113.json"
+      ]
+    },
+    {
+      "command": "python3 scripts/render_docs.py check --marked /mnt/data-hdd2/ostadix-build/doc-tools-marked18/node_modules/.bin/marked",
+      "source_head": "adef92238050064ab80fb8e5aab8ad5a6f8841ad",
+      "rc": 0,
+      "result": "115 complete documents;2499877bytes;0drifted"
+    }
+  ],
+  "delegated_independent_execution": {
+    "task": "review_new_copy",
+    "suite": "tests.test_reproduce_splice_contract",
+    "result": "8 tests passed; newest two test files preserved byte-exact",
+    "new_install_source_omission_case": "PASS1test1.301s"
+  },
+  "publication_graph_review": {
+    "lostadi/ostadix-BM": {
+      "records": 109,
+      "mapped_source_tip": "bcc445367ca00c3a22314363dc1452180eaee2ff",
+      "source_tip_tree": "e3af3c42c06933dbee41e6f03012a75c49811cb5",
+      "issues": []
+    },
+    "lostadi/OSTADIX": {
+      "records": 122,
+      "mapped_source_tip": "900bfb42df57161f5743e0e5f05e30d27dbcc44c",
+      "source_tip_tree": "e3af3c42c06933dbee41e6f03012a75c49811cb5",
+      "issues": []
+    }
+  },
+  "observed_writer_execution": {
+    "release_build": "PASS470.288s; O/olangc/ocorec/notebook",
+    "generated_runtime_tests": "PASS8,0failed,299filtered",
+    "original_wasi_setup_component": "PASS222.164s; fresh4,206,208-bytehello.wasm",
+    "qualification_note": "Observed writer execution logs are distinguished from independent executions above.",
+    "pairing_tests": "PASS10; HMAC/HKDFwirevectors, reciprocalhandshake, rejection/redaction controls",
+    "tls_retry_tests": "PASS5",
+    "all_root_binaries": "PASS884.508s includinglockwait",
+    "workspace_cli_tools": "PASS690.426s includinglockwait",
+    "foreign_splice_tests": "PASS18; 0failed/ignored/filtered;71.81s execution",
+    "standalone_mcp_build": "PASS194.201s withlocked451manifest",
+    "standalone_mcp_tests": "PASS137;0failed/ignored/filtered;11.26s execution",
+    "android_runtime_check": "PASS47.187s; cargo check--release--locked (notclaimingAndroiddeviceexecution)",
+    "latest_install_and_frame": "PASS8/8 actualnative(5INSTALL+3frame),0skips;ocorecSHA3cd51503dd2ccfdea6c87efd6eb141a7cc217cf8e5f1d7d5a2ac95d453eca650",
+    "latest_source_release": "PASS121tests199.276s",
+    "latest_language_parse": "261classified/parsedexpected,0fail,0programsexecuted",
+    "latest_docs": "PASS115complete/0drift",
+    "latest_author_policy": "PASS9d..adef"
+  },
+  "resolved_findings": [
+    {
+      "issue": "direct WASI test harness assumed25 imports while fresh optimized module has existing admitted24-import contract",
+      "resolution": "9b06307f selects exact preexisting legacy contract; production runner untouched; independent direct/strict tests pass"
+    },
+    {
+      "issue": "tracked HTML drift",
+      "resolution": "2e954aa7 regenerates exact existing Markdown; pinned114-document check passes"
+    },
+    {
+      "issue": "import helper did not validate identities for existing-source nodes",
+      "resolution": "helper now validates ALL audited author/committer identities before any import; default dry runs pass"
+    },
+    {
+      "issue": "standalone MCP missing hex dependency after SHA2 encoding migration",
+      "resolution": "451f69e8 adds canonicalhex0.4.3 andMCPedge; freshMCPbuild/tests required beforepublication"
+    },
+    {
+      "issue": "offlinewholelock regeneration introduced unrelatedtransitiveupgrades",
+      "resolution": "Writerdiscardedownuncommittedresolution andusedtargetedcargo update; independentparsedlockcheckconfirms existingcoordinates unchangedexceptrequiredMCPhexedge"
+    }
+  ],
+  "remaining_gates": [
+    "Final118-head sourceledger/evidencecommitmustbindlatestinputsandreviewedimplementation",
+    "Separatereviewoftheappendedevidencecommit(thecurrentcodereviewdoesnotcoveritself)",
+    "Freshauthenticatedfullbranchcollections immediately beforeguardedfastforwardpublication",
+    "Verifyfinalreceipt/sourcetreesandremoteauthor/committeridentitiesafterpublication",
+    "Guardedprimarycheckoutfastforwardandtestednativecommandinstallation"
+  ],
+  "post_install_storage_review": {
+    "path": "/home/ustad/.local/state/storage-migration-20261113/post-helldivers-install-independent-check.json",
+    "ssd_free_gib": 46.08,
+    "game_state": "FullyInstalled/NoError",
+    "previous_preinstall_ssd_free_gib": 69.41
+  },
+  "root_runtime_implementation_unchanged_since_passed_release_checkpoint": true,
+  "publication_metadata_normalization": {
+    "file_trees": "Exact Git tree hashes and file bytes preserved",
+    "parent_graph": "Parent topology preserved with explicit originalSHA-to-publicationSHA mapping",
+    "original_histories": "Original source branch refs/commit histories retained; no forced updates or rewriting published source objects",
+    "new_api_objects": "API author/committer dates change; historical usernoreply emails normalize to userGmail; all names remainLee Daghlar Ostadi",
+    "message_terminator": "Planner gitshowformat%B appends an additional terminalLF to API request; textual message content is preserved, source-message byte identity is not claimed",
+    "raw_object_reconstruction": "Import helper reconstructs exact API object bytes from authenticatedSHA, mappedparents/tree, APIidentities/dates, sourceplanrequest message and matchedtimezone; this verifies actual APIobject, not originalsourcecommit identity"
+  },
+  "newest_source_heads": {
+    "copy": "4597a73ee9e7c9387087997dcb27b2929e99ce18",
+    "install": "114b83ac12814b3cea6c8ad18cbb822dea490173",
+    "both_are_ancestors": true
+  },
+  "latest_install_runtime_review": {
+    "role": "independent source review plus delegated exactblob/sourceclosure review",
+    "production_delta": "O-corex86_64threadruntime changes; noRustcompiler orCargo changesfrom451",
+    "private_phase_privacy_abi": "Private32-wordcapsule has distinctnonFPmagic, monotonicserial/closed/exhaustionchecks; snapshot validatesframe/queue/PCB/domain/address/CSpaceandrefstate; rejectsCPUauthority andinvalidcapsules; noFPledgerticket orreadygrant isproduced",
+    "ordinary_abi_preservation": "Publicqueueinvariant wrapper usesexceptionMAX_THREADS; originalinstallresults retained; processreleaseis checkedrefdecrement; newrollbackobservation changestransientstateonly",
+    "compiled_source_check": "No thread.oc reference in src/crates Rustsources; existingRustcompilerbuildreused legitimately",
+    "upstream_preservation": "10/11 changedfiles matchlatestcopyexactly; CIretainsoldnativeevidencechecks alongnewINSTALL/M1/foreignsplice lanes",
+    "required_source_closures": {
+      "install": 42,
+      "native_foundation": 54,
+      "m1": 49,
+      "missing_paths": 0
+    },
+    "tls_consumer": "NOTEXECUTED; requiredindependentlyverifiedseven-original-codec-objectmanifest unavailable; noqualificationclaim",
+    "broader_limits": "No FPactivation/currentCPUauthority/physicaldrivers/fullkernelboot orallISAparityqualification"
+  },
+  "historical_dependency_policy_exception": {
+    "rustyline19": "Historical19proposalancestryretained; newerf0500686 pins18.0.1 forRust1.93.1MSRV; numeric19floorisnotclaimed"
+  }
+}

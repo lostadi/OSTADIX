@@ -21,6 +21,31 @@ and GitHub Actions workflow;</li>
 <li>agreement among release metadata, the release-claim/package jobs, the
 contracts lane, and the required source-release surfaces.</li>
 </ul>
+<h3>Native runtime release contract</h3>
+<p>The native bundle workflow retains the explicit source-bound reviews in
+<code>ci/workflow-reviews.toml</code> for its finite hosted ARM64 matrix and release-asset
+publisher. The baseline additionally recognizes their structural contract when the complete
+workflow text matches the SHA-256 in <code>NATIVE_RUNTIME_CONTRACT</code> in
+<code>scripts/local_ci_posture.py</code> and its structural checks also match:</p>
+<ul>
+<li>Linux AArch64 uses <code>ubuntu-24.04-arm</code>, and macOS AArch64 uses <code>macos-15</code>;
+arbitrary expressions, additional matrix entries and self-hosted runners do
+not match.</li>
+<li>The native job depends on <code>installer-contract</code>, and pull requests must come
+from the same repository. The publisher depends on the native job, including
+both matrix results, and runs only for <code>release</code> with action <code>published</code>.</li>
+<li>The workflow defaults to <code>contents: read</code>. Only the publisher receives
+<code>actions: read</code> and <code>contents: write</code>, for attaching already qualified release
+assets; it does not create releases or overwrite existing asset names.</li>
+</ul>
+<p>The audit prints <code>baseline.workflows.native-runtime-contract</code> when this exact
+contract matches. Recognition supplies evidence and never suppresses a generic
+finding: the explicit review registry still must match each finding. This is
+not a filename-wide exemption or a claim of general workflow security. Changes to inherited environment, defaults or steps also
+invalidate the full-text binding and require renewed source review. Changing
+the digest alone cannot widen the explicit runner, event, dependency or
+permission constraints. Unknown or changed workflows retain the usual findings;
+optional full-profile analyzers remain independent checks.</p>
 <h2>Full local audit</h2>
 <p>The full profile first runs the baseline, then detects these optional tools on
 <code>PATH</code>: <code>actionlint</code>, <code>zizmor</code>, <code>gitleaks</code>, <code>cargo-audit</code>, <code>cargo-deny</code>, and

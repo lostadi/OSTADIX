@@ -15,7 +15,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::Engine as _;
 use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use spake2::{Ed25519Group, Identity, Password, Spake2};
@@ -740,7 +740,7 @@ fn derive_confirmation_keys(
     salt_hasher.update(offer_nonce.as_bytes());
     let salt = salt_hasher.finalize();
     let transcript_sha256 = Sha256::digest(transcript);
-    let hkdf = Hkdf::<sha2_11::Sha256>::new(Some(&salt), shared);
+    let hkdf = Hkdf::<Sha256>::new(Some(&salt), shared);
 
     let mut offer_to_join = Zeroizing::new([0_u8; 32]);
     let mut offer_info = Vec::new();
@@ -770,7 +770,7 @@ fn confirmation_tag(
     certificate_for_offer: Option<&str>,
     certificate_for_joiner: Option<&str>,
 ) -> Result<String> {
-    let mut mac = <HmacSha256 as Mac>::new_from_slice(key)
+    let mut mac = <HmacSha256 as KeyInit>::new_from_slice(key)
         .map_err(|_| anyhow!("failed to initialize pairing confirmation"))?;
     update_mac_field(&mut mac, PAIRING_CONFIRMATION_DOMAIN_V1);
     update_mac_field(&mut mac, LAN_PAIRING_SCHEMA_V1.as_bytes());
@@ -797,7 +797,8 @@ fn verify_confirmation(
     received: &str,
 ) -> Result<()> {
     let received = decode_fixed_hex::<32>(received).map_err(|_| authentication_failure())?;
-    let mut mac = <HmacSha256 as Mac>::new_from_slice(key).map_err(|_| authentication_failure())?;
+    let mut mac =
+        <HmacSha256 as KeyInit>::new_from_slice(key).map_err(|_| authentication_failure())?;
     update_mac_field(&mut mac, PAIRING_CONFIRMATION_DOMAIN_V1);
     update_mac_field(&mut mac, LAN_PAIRING_SCHEMA_V1.as_bytes());
     update_mac_field(&mut mac, LAN_PAIRING_SUITE_V1.as_bytes());
@@ -1023,6 +1024,91 @@ mod tests {
             "-----BEGIN CERTIFICATE-----\nissued-for-{}\n-----END CERTIFICATE-----\n",
             peer.node_id
         ))
+    }
+
+    #[test]
+    fn sha256_preserves_standard_hash_bytes() {
+        for (message, expected) in [
+            (
+                b"".as_slice(),
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            ),
+            (
+                b"abc".as_slice(),
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            ),
+        ] {
+            assert_eq!(hex::encode(Sha256::digest(message)), expected);
+        }
+    }
+
+    #[test]
+    fn hmac_sha256_preserves_rfc4231_bytes() {
+        for (key, message, expected) in [
+            (
+                vec![0x0b; 20],
+                b"Hi There".as_slice(),
+                "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
+            ),
+            (
+                b"Jefe".to_vec(),
+                b"what do ya want for nothing?".as_slice(),
+                "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843",
+            ),
+            (
+                vec![0xaa; 131],
+                b"Test Using Larger Than Block-Size Key - Hash Key First".as_slice(),
+                "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54",
+            ),
+        ] {
+            let mut mac = <HmacSha256 as KeyInit>::new_from_slice(&key).unwrap();
+            mac.update(message);
+            assert_eq!(hex::encode(mac.finalize().into_bytes()), expected);
+        }
+    }
+
+    #[test]
+    fn confirmation_tag_preserves_v1_wire_bytes() {
+        // Independent Python hashlib/hmac oracle over the unchanged V1
+        // length-prefixed fields, domain separator and public certificates.
+        let key = [0x42; 32];
+        let transcript = b"pairing-v1 compatibility vector";
+        let expected = "f791a759ea965dea7ed70adc5c8cf9a70f61b9be368e4838ff87bee07f7aa49a";
+        assert_eq!(
+            confirmation_tag(
+                &key,
+                "offer",
+                transcript,
+                Some("offer-cert"),
+                Some("joiner-cert")
+            )
+            .unwrap(),
+            expected
+        );
+        verify_confirmation(
+            &key,
+            "offer",
+            transcript,
+            Some("offer-cert"),
+            Some("joiner-cert"),
+            expected,
+        )
+        .unwrap();
+        for (stage, certificate) in [("join", Some("offer-cert")), ("offer", None)] {
+            assert_eq!(
+                verify_confirmation(
+                    &key,
+                    stage,
+                    transcript,
+                    certificate,
+                    Some("joiner-cert"),
+                    expected
+                )
+                .unwrap_err()
+                .to_string(),
+                PAIRING_AUTHENTICATION_FAILURE
+            );
+        }
     }
 
     #[test]

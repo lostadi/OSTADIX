@@ -1,0 +1,52 @@
+{
+  "all14_families_still_required": true,
+  "all_source_authors_committers_Lee": true,
+  "canonical_contracts": {
+    "AGENTS.md": {
+      "bytes": 19879,
+      "sha256": "f312645c976451e81bb2a02dffb661edfcafdafca213f19336b69f4ec457c4e8"
+    },
+    "tools/ocore-runtime/expansion.requirements.json": {
+      "bytes": 39262,
+      "sha256": "a3faa4dcd137bb149f28d909b40776849ce301748d9684a5f6f932610d3168c8"
+    },
+    "tools/ocore-runtime/isa.requirements.json": {
+      "bytes": 31821,
+      "sha256": "1c9a3677dc88ba390c5e83a7f07edb72522182d541a2922ca5fe55b399450bd9"
+    }
+  },
+  "full22_commit_bundle_local": {
+    "bytes": 468978,
+    "sha256": "595959d753626b63bbc4e4c6de421a2c7ba7c8ead6b0568503409cdbc4e3e05d"
+  },
+  "incremental_bundle": {
+    "decoded_bytes": 19254,
+    "decoded_sha256": "5dc99e6b6131f3d81f0a88640fb1f91ed313c80f3a234683bb254dcc7f3a8e08",
+    "encoding": "base64"
+  },
+  "incremental_commits": [
+    "0cf986cc0cdef48aeddb00f30962b5e1f0708838\tLee Daghlar Ostadi\tostadi.lee@gmail.com\tLee Daghlar Ostadi\tostadi.lee@gmail.com",
+    "6e8708fe44680aacfc21b7d924fc5037a429bd72\tLee Daghlar Ostadi\tostadi.lee@gmail.com\tLee Daghlar Ostadi\tostadi.lee@gmail.com",
+    "09e71a279dae3b216b4dff4865778a1145f915e0\tLee Daghlar Ostadi\tostadi.lee@gmail.com\tLee Daghlar Ostadi\tostadi.lee@gmail.com"
+  ],
+  "new_compiler_build_started": false,
+  "original_runtime_provider_and_all_ISA_qualified": false,
+  "raw_verification": "The bundle contains this ref:\n0cf986cc0cdef48aeddb00f30962b5e1f0708838 HEAD\nThe bundle requires this ref:\n16b070828911f7d0366c1fea0500d7691151a299 \nThe bundle uses this hash algorithm: sha1\n/home/orangepi/ostadix-BM/target/oversight-20261021/combined-fast-source-recovery-bundle-r2/incremental.bundle is okay\n",
+  "required_base_recovery": {
+    "archive_commit": "c18f7c7579cf40c6a4b9f6ffceaf591e112406ae",
+    "archive_tree": "eacb65bcdfe25424747eac5e324a89564c748f0e",
+    "bundle_path": "recovery/source-union-20261021/source-union.bundle.b64",
+    "decoded_bundle_sha256": "d37fd6ff7d0fa8cecd339285fe148e38a26cc24b86241468a68c1b5330ef6dff",
+    "path_verified_from": "Retained raw prior private recovery receipt0695a05c and exact remote archive commitc18f7c75.",
+    "prerequisite": "Restore prior source-union bundle through16b first, then unbase64 and import this incremental Git bundle.",
+    "private": true,
+    "repository": "lostadi/ostadix-BM",
+    "repository_id": 1412862058
+  },
+  "required_base_source_commit": "16b070828911f7d0366c1fea0500d7691151a299",
+  "schema": "ostadix-private-source-recovery-increment/v1",
+  "scope": "Source-only private crash-recovery archive, not a finished compiler/runtime or master publication.",
+  "source89_qualified": false,
+  "source_commit": "0cf986cc0cdef48aeddb00f30962b5e1f0708838",
+  "source_tree": "387ccb086161f28e16696407a78448a16d03a8d8"
+}

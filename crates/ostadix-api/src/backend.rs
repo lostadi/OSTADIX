@@ -77,8 +77,10 @@ pub fn has_native_backend(lang: &str) -> bool {
 }
 
 pub fn run_backend(lang: &str) -> Result<()> {
+    crate::process::lifecycle_trace("backend.startup_started", format!("language={lang}"));
     let tools = BackendToolchain::from_env(lang)?;
     tools.verify_all()?;
+    crate::process::lifecycle_trace("backend.tools_verified", format!("language={lang}"));
     if lang == "bash" {
         // fail closed: without the subreaper bit a setsid or double-forked
         // job escapes to init and outlives its block.
@@ -1260,6 +1262,7 @@ impl RustBackend {
             "shell" => run_shell(&self.tools, "sh", &["-c", code], Some(scalar_env(bindings))),
             "javascript" => run_script(
                 &self.tools,
+                &self.child_pid,
                 "javascript",
                 "node",
                 "js",
@@ -1268,6 +1271,7 @@ impl RustBackend {
             ),
             "ruby" => run_script(
                 &self.tools,
+                &self.child_pid,
                 "ruby",
                 "ruby",
                 "rb",
@@ -2103,12 +2107,17 @@ fn run_shell(
 
 fn run_script(
     tools: &BackendToolchain,
+    child_pid: &std::sync::atomic::AtomicU32,
     lang: &str,
     program: &str,
     suffix: &str,
     preamble: &str,
     code: &str,
 ) -> Result<OValue> {
+    crate::process::lifecycle_trace(
+        "backend.script_prepare_started",
+        format!("language={lang} command={program}"),
+    );
     let temp = TempDir::new("o-backend-script")?;
     let source = temp.path().join(format!("main.{suffix}"));
     let mut source_file = fs::File::create(&source)?;
@@ -2116,13 +2125,38 @@ fn run_script(
     source_file.write_all(code.as_bytes())?;
     drop(source_file);
     let mut command = tools.command(program)?;
-    output_to_value(
-        lang,
-        command
-            .arg(&source)
-            .output()
-            .with_context(|| format!("failed to launch admitted `{program}` executable"))?,
-    )
+    crate::process::lifecycle_trace(
+        "backend.script_tool_verified",
+        format!("language={lang} command={program}"),
+    );
+    // These are Command::output's defaults. Keep the stream semantics while
+    // exposing the owned engine PID before waiting for its output.
+    let child = command
+        .arg(&source)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .with_context(|| format!("failed to launch admitted `{program}` executable"))?;
+    let pid = child.id();
+    child_pid.store(pid, std::sync::atomic::Ordering::Relaxed);
+    crate::process::lifecycle_trace(
+        "backend.script_spawned",
+        format!("language={lang} command={program} child_pid={pid}"),
+    );
+    let output = child.wait_with_output();
+    child_pid.store(0, std::sync::atomic::Ordering::Relaxed);
+    let output = output.with_context(|| format!("failed to collect `{program}` output"))?;
+    crate::process::lifecycle_trace(
+        "backend.script_output_collected",
+        format!(
+            "language={lang} child_pid={pid} status={} stdout_bytes={} stderr_bytes={}",
+            output.status,
+            output.stdout.len(),
+            output.stderr.len()
+        ),
+    );
+    output_to_value(lang, output)
 }
 
 // A dedicated inherited socket carries callbacks; ordinary stdout/stderr keep

@@ -98,4 +98,54 @@ Run the inventory regression gate with:
 python3 -m unittest discover -s tools/ocore-runtime/libc -p 'test_*.py' -v
 ```
 
+## Observed-copy foundation
+
+`scripts/ocore_native_copy.py` is an experimental host observer for the original
+regular-file `cp` operation. It records the exact argv, original exit or signal,
+stable file identities, execution interval and captured bytes. Observation
+failure does not skip, rewrite or retry the original operation. Its library
+caller owns signal handling; a standalone wrapper explicitly opts into parent
+signal relay and forwards the recorded native outcome after collecting evidence.
+This is not a registered capture producer or an original runtime implementation.
+
+An in-memory controller binding establishes that an observation was actually
+made. A separate trusted `VerifiedProducerInventory` can identify an earlier
+source producer; there is no JSON loader that promotes receipt fields to this
+authority. These are trusted host interfaces, not authentication against arbitrary
+host Python code. Selected executable hashes do not establish complete dynamic
+loader or library provenance.
+
+The distinction between an observed copy and output-source ownership matters.
+Another writer can replace the destination after the original command exits but
+before the observer reads it. Equal bytes, a successful real compiler and copy,
+or a cooperative lock cannot prove which operation produced that inode.
+`verify_observation` therefore always returns `source_owned: false`,
+`destination_causality_qualified: false` and false output lowering/replay flags.
+Any checked predecessor facts are reported separately. `verify_transfer` always
+refuses until a registered owning controller enforces and verifies every writer
+and output lifetime. No caller flag or self-consistent receipt enables it.
+
+Run the self-contained component tests with:
+
+```bash
+python3 -m unittest -v tests.test_ocore_native_copy
+```
+
+The 46 cases use authored C/assembly fixtures compiled by the selected original
+Clang, real `cp`, real signals and a destination-replacement race. They compare
+bytes, statuses and streams, reject forged or mutated observations and retain
+the missing ownership authority. Prerequisites are Linux, Python 3.10 or later,
+Clang, GNU `cp`, `/proc`, `pidfd_open` and POSIX signals. Select tools through
+`NATIVE_COPY_TEST_CLANG` and `NATIVE_COPY_TEST_CP`; set `NATIVE_COPY_TEST_OUTPUT`
+to an existing private directory to retain fixture evidence. The selected tools
+and inputs are recorded. This is host component execution, not O-core lowering,
+an all-ISA test or a hermetic toolchain bootstrap. Current capture keeps file
+bytes in memory; large-file streaming and broader host profiles remain unqualified.
+
+The observer is not wired into the original musl recipes or independent runtime
+admission. The five startup-copy ownership gaps therefore remain unresolved,
+alongside required assembly, configure-role and LLVM replay obligations. A fresh
+whole-source capture and independent verification are required after actual
+producer integration; historical failed reports cannot be repaired with new text.
+
 Primary source contracts are the pinned original [Makefile](https://git.musl-libc.org/cgit/musl/tree/Makefile?id=0784374d561435f7c787a555aeab8ede699ed298), [configure script](https://git.musl-libc.org/cgit/musl/tree/configure?id=0784374d561435f7c787a555aeab8ede699ed298), [pthread declarations](https://git.musl-libc.org/cgit/musl/tree/include/pthread.h?id=0784374d561435f7c787a555aeab8ede699ed298), [generated type inputs](https://git.musl-libc.org/cgit/musl/tree/include/alltypes.h.in?id=0784374d561435f7c787a555aeab8ede699ed298), and [thread creation implementation](https://git.musl-libc.org/cgit/musl/tree/src/thread/pthread_create.c?id=0784374d561435f7c787a555aeab8ede699ed298).

@@ -783,18 +783,19 @@ class SetupScriptTests(unittest.TestCase):
                     installed = home / "cargo" / "bin" / binary
                     self.assertIn(f"replace {installed}", output)
             native_device = home / ".local" / "bin" / "ostadix-device"
+            build_directory = (PROJECT_ROOT / "target" / "release").resolve()
             self.assertIn(
-                f"replace {native_device} from {PROJECT_ROOT / 'target' / 'release' / 'ostadix-device'}",
+                f"replace {native_device} from {build_directory / 'ostadix-device'}",
                 output,
             )
             evaluator_alias = home / "cargo" / "bin" / "ostadix-evaluator"
             self.assertIn(
-                f"replace {evaluator_alias} from {PROJECT_ROOT / 'target' / 'release' / 'O'}",
+                f"replace {evaluator_alias} from {build_directory / 'O'}",
                 output,
             )
             local_alias = home / ".local" / "bin" / "ostadix-evaluator"
             self.assertIn(
-                f"replace {local_alias} from {PROJECT_ROOT / 'target' / 'release' / 'O'}",
+                f"replace {local_alias} from {build_directory / 'O'}",
                 output,
             )
 

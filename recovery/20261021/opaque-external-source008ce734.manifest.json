@@ -1,0 +1,78 @@
+{
+  "author_and_committer": {
+    "email": "ostadi.lee@gmail.com",
+    "name": "Lee Daghlar Ostadi"
+  },
+  "bundle_bytes": 13774,
+  "bundle_prerequisite": "3c85e64b0b5b4805cbc8b245d74d441605c98c52",
+  "bundle_sha256": "6763c5b249c8838502f5cccd79bc53da9adb7efc17949286e871e1c755bb3b05",
+  "changed_nine_source_buffers": [
+    {
+      "bytes": 153960,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/crates/ostadix-api/src/ocore/native_codegen.rs",
+      "sha256": "fb4ca63926de98efe38f3c491645509796b716339be86aa175f7f1344605c212"
+    },
+    {
+      "bytes": 35205,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/crates/ostadix-api/src/ocore/native_ir.rs",
+      "sha256": "057d8d4ea00290c4ac46e95963a730b8b67ec2fd3fdac88ad4904d271344ce8d"
+    },
+    {
+      "bytes": 488139,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/crates/ostadix-api/src/ocore/native_verify.rs",
+      "sha256": "6567c650e02d4d064ab76cb2fdfe643d52f1107b6611eab08e5a41eab2b43e17"
+    },
+    {
+      "bytes": 219015,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/scripts/ocore_llvm_import.py",
+      "sha256": "46a89f24a4bd9fa792d2985a4f02532202a1afc0b8f8dc924bcec5ebfe839925"
+    },
+    {
+      "bytes": 187038,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/src/bin/olangc/native_runtime.rs",
+      "sha256": "c468983ca6211fcd07e5ecb348f0590092f30157ee36603b683d57614a466147"
+    },
+    {
+      "bytes": 93958,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/src/bin/olangc/native_runtime/source_inventory.py",
+      "sha256": "7aed70481b8974159e6de2c1bfd7a7b228d4cfc120d3e2efe8278fc64860263a"
+    },
+    {
+      "bytes": 93958,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/tests/ocore_llvm_source_inventory.py",
+      "sha256": "7aed70481b8974159e6de2c1bfd7a7b228d4cfc120d3e2efe8278fc64860263a"
+    },
+    {
+      "bytes": 14605,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/tests/test_ocore_llvm_opaque_globals.py",
+      "sha256": "2b5d3c4d61963bf8c9296d54cb85d8e8527d0cfc98e8571048e2fe8659d48a7b"
+    },
+    {
+      "bytes": 4244,
+      "path": "/home/orangepi/ostadix-BM/target/oversight-20261021/native-opaque-external-lossless-source-r4/tests/test_ocore_provider_group_source_closure.py",
+      "sha256": "8deae3727bdb4323cd57378b3a24faa65f6d8f81ccf289d723a3d7e0848f18a5"
+    }
+  ],
+  "encoding": "base64 of exact git bundle, UTF-8 text file",
+  "independent_local_source_admission": {
+    "bytes": 3878,
+    "path": "/run/screen/ostadix-build-space-1000-20261021-r1/opaque-nine-independent-root-source-commit-admission.json",
+    "sha256": "f5ef372c614ab08e34bd236130866dd1d27f3da05dfc7cc82e26a1b3d1c2e233"
+  },
+  "master_unchanged": true,
+  "qualification": {
+    "all_ISA": false,
+    "consumer_Rust_tests_compiled": false,
+    "core_Rust_tests_compiled": false,
+    "new_compiler_built": false,
+    "original_source_controls": true,
+    "provider_closure": false,
+    "runtime_accepted": false
+  },
+  "raw_commit_sha256": "71dbae95c1b9442b0fc8ecdcf54aa8991a906dee0935a5a3a3afa808fc5e3310",
+  "restore": "Restore earlier original0cf/3c bundle chain retained in the parent recovery tree, decode this exact base64 and verify13774B/SHA, then git bundle verify/fetch. Archive commit is a private recovery carrier, not a master merge.",
+  "schema": "ostadix-private-source-recovery-manifest-v1",
+  "source_commit": "008ce734fd08d658d61b8644cc474fbfc96481d9",
+  "source_parent": "3c85e64b0b5b4805cbc8b245d74d441605c98c52",
+  "source_tree": "93d6f47ddeba4f08a8bc3e9c3e33caf2a8655ec7"
+}

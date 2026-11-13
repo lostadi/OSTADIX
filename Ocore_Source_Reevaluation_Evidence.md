@@ -499,3 +499,60 @@ frames, complete original-compiler/provider closure and general native graph
 or instruction-debugger execution remain separate required gates. Linux
 carriers and QEMU qualify their recorded development profiles. The scalar native
 reference interpreter's variadic rejection is unchanged.
+
+## Executed review validation: October 17, 2026 UTC
+
+The review reconstructed all 2,781 tracked files in published checkpoint
+`0c8a1a1218a404765f78a883d2ce63d66e88e74d`, verifying the complete Git tree
+`cae24aa2621c75d5275a21b9363b3b892e247b4e`, and then applied the evidence fixes
+in this change. A fresh `ocorec` was built with the pinned Rust 1.97.1 toolchain.
+The [machine-readable validation record](evidence/ocore/native-review-20261017.json)
+binds the tested files, compiler binary, tool versions and resulting artifacts.
+
+| Check | Observed result |
+|---|---|
+| `cargo build --locked --bin ocorec` | Passed; fresh `ocorec 0.4.0`. |
+| `test_ocore_native_equivalence.py` | All 11 regression tests passed. These exercise producer freshness, receipt removal and executable selection, rather than native code generation. |
+| `test_ocore_native_map.py` | All 10 tests passed without skips, including assembly and real ELF object maps for x86-64, AArch64 and RV64. |
+| `check_ocore_native_equivalence.py` | All three targets passed with digest `b1009525e0d57799` and 12,288 arithmetic comparisons per target. |
+| Fault and nonreturning-expression checks | Six synchronous fault cases and two exit-status-42 nonreturning-expression cases passed per target. |
+| Object reproducibility | Both independently emitted object files were byte-identical for each target. |
+| Driver formatting and patch whitespace | Passed with pinned Rustfmt and `git diff --check`. |
+| Tracked HTML exports | All 97 documents matched Marked 18.0.13 after regenerating the stale O-core export. |
+
+The arithmetic count is 4,096 deterministic inputs times three directly
+checked C-reference comparisons: unsigned, signed and narrow integer mixes.
+The harness compares each result before incorporating it into the common
+64-bit digest. Additional ABI, memory, atomic and evaluation-order selftests
+are outside that count. Atomic checks in this corpus run in one thread;
+they do not establish ordering between concurrent threads.
+
+x86-64 ran directly on the Linux host. AArch64 and RV64 ran under QEMU user
+8.2.2. Clang/LLD 18.1.3 compiled the independent C harness, assembled O-core's
+generated assembly and linked static Linux test executables. This does not
+exercise the foreign importer's separate digest-pinned LLVM 22.1.6 path.
+
+The fixes remove several ways an evidence check could succeed without testing
+the intended operation:
+
+- Each compiler or linker invocation must produce fresh, nonempty regular
+  artifact files. Old objects, retained assembly and executables can no longer
+  satisfy a successful invocation that produces no output. Seven regressions
+  against the original checker failed as expected: six stale-artifact cases
+  and one selected-compiler identity mismatch.
+- Selected executable paths become absolute before any working-directory
+  change, while preserving symlink command names needed by multicall tools.
+  The compiler executed and the compiler hashed use the same selected path.
+- Native artifact alias checks reject dangling or looping symlinks before
+  writes, while retaining support for genuinely absent output directories.
+- Map tests invoke the implemented `--keep-asm` option and Clang selected from
+  `PATH`. They recognize Clang's `x86-64` backend name and require collision
+  diagnostics, so an argument-parser error cannot stand in for alias rejection.
+- Both Python suites now run in the existing O-core CI job after its compiler
+  build. Their successful local runs are recorded separately from CI status.
+
+The nine-test original Lua inventory transcript supplied during this review
+refers to newer local work absent from the published checkpoint. Those tests
+were not independently rerun here. Their reported success does not establish
+complete original Lua lowering or execution, and this review does not include
+or replace those unpublished source changes.

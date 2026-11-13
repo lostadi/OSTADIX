@@ -579,7 +579,7 @@ fn real_evaluator_smoke_and_relocated_bundled_shims_use_typed_value_protocol() {
         use sha2::Digest;
         assert_eq!(
             report["provenance"]["binary"]["sha256"],
-            format!("{:x}", sha2::Sha256::digest(fs::read(&front).unwrap()))
+            hex::encode(sha2::Sha256::digest(fs::read(&front).unwrap()))
         );
     }
     let extracted = std::path::Path::new(report["backends"]["directory"].as_str().unwrap());

@@ -378,7 +378,7 @@ fn require(ok: bool, message: &str) -> Result<()> {
 fn artifact(raw: &[u8]) -> ArtifactIdentity {
     ArtifactIdentity {
         bytes: raw.len() as u64,
-        sha256: format!("{:x}", Sha256::digest(raw)),
+        sha256: hex::encode(Sha256::digest(raw)),
     }
 }
 fn identity(i: &ArtifactIdentity) -> Result<()> {

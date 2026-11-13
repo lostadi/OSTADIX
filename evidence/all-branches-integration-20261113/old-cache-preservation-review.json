@@ -1,0 +1,728 @@
+{
+  "schema": "ostadix.old-tracking-cache-preservation-review/v1",
+  "integration": "451f69e8c054effd5d2e2524622cf514fdc517e4",
+  "integration_tree": "55fe5884c7fb8ae86fa42c4c8047dd5993c36794",
+  "old_branch_count": 68,
+  "same_private_head_count": 52,
+  "same_private_heads_all_present_in_current_116_head_ledger": true,
+  "changed_or_removed_count": 16,
+  "changed_or_removed_dependency_only_count": 15,
+  "old_master_is_actual_ancestor": true,
+  "non_dependency_feature_heads_missing": [],
+  "unresolved_material_issues": [],
+  "cargo_coordinate_count": 25,
+  "cargo_coordinate_meets_or_exceeds_count": 24,
+  "intentional_newer_policy_exception": {
+    "name": "rustyline",
+    "old_proposal": "19.0.0",
+    "current": "18.0.1",
+    "policy_commit": "f0500686b8c29a7576c00e3fc261f716af72e036",
+    "policy_commit_is_ancestor": true,
+    "reason": "Newer canonical baseline explicitly preserves Rust1.93.1 MSRV; Rustyline19 uses cfg_select!, unavailable at that floor. Current Cargo.toml documents the deliberate override. Preserve this newer reviewed decision rather than replay the stale proposal."
+  },
+  "non_cargo_proposals": [
+    {
+      "branch": "dependabot/docker/src/bin/olangc/browser_guix/library/python-3.15-slim-bookworm",
+      "old_sha": "d75963c4f51b74bc49697c2af0d269d942e0772c",
+      "old_commit_date": "2026-10-17T01:42:30Z",
+      "old_version": "3.15-slim-bookworm",
+      "old_digest": "122756f3fe72c4f5d3d71897888204ee85774bc79de952555b8a474e1d0a5d53",
+      "current_version": "3.15-slim-bookworm",
+      "current_digest": "4e03260adeeebafccd084f3584e6b84823aba5651cfb53ef8a078ed441ddf9cd",
+      "newer_update_commit": "d967d30d0536a9915475f1e78304db25585ea678",
+      "newer_update_date": "2026-11-06T10:25:31-05:00",
+      "resolution": "Superseded by actual-ancestor newer Nov6 pin; old proposal Oct17."
+    },
+    {
+      "branch": "dependabot/docker/src/bin/olangc/wasm_exit/golang-1.27-bookworm",
+      "resolution": "Requested golang:1.27-bookworm is exactly retained in current Dockerfile."
+    },
+    {
+      "branch": "dependabot/github_actions/actions/setup-python-7.1.0",
+      "resolution": "Requested6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 v7.1.0 pin exactly retained in all9 current workflow uses."
+    }
+  ],
+  "same_current_heads": [
+    {
+      "branch": "architecture-boundaries-manifest",
+      "sha": "e7ada443f093cdc1eef98355eb565bbaa1b2e45d",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "author-check-merge-exception",
+      "sha": "ae3e6c2869721230674752d869d098f346144729",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "backup/compiler-expansion-20261025-5cb-vector-r1",
+      "sha": "68b14e811005e89df2ba10db2d4ac978be814a27",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "backup/compiler-expansion-20261025-source-D-r1",
+      "sha": "2b7491bdbf75711aa3d1597f525bda4a63b0e71e",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "bug-fixes",
+      "sha": "27fb77281c56f5a74d39b4a779fcbab37ea14d56",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "bug-fixes-rebased",
+      "sha": "c2cd192ca498b93f24b283143642d7e2f50fc2be",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "checkpoint/latest-build-source-20261104",
+      "sha": "b7df79c0aa4ede007b87922e4a53fc058642960f",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "checkpoint/runtime-expansion-20261103",
+      "sha": "adfbdbbc2a948d15d1679cd12e610351a3023973",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "ci-commit-author-check",
+      "sha": "1775008733cd45d79c5554b4ffb28bd2afcdb8dd",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+      "sha": "295cb28dc38776f7e04a94e77b52fc4e585efbb3",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+      "sha": "42d456326ea142143a68d403fea075a42eb2b905",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/apps/mobile-console/libc-0.2.191",
+      "sha": "1bdb0d2595f24033f1c9264c40bfafa5f5efd402",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/hmac-0.13.0",
+      "sha": "9c7f4cb883ca0ac044bb23090f5feb3612331436",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/futures-util-0.3.34",
+      "sha": "5289defc1704afdf6cdde5951f8fc9402ec56327",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.191",
+      "sha": "25fe0687f2068bc9062aec7e1bb28b0ed7c3cb11",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.8.0",
+      "sha": "9db59f0add51677d36e8dd79be7d03b684195182",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.3",
+      "sha": "cf1524f17d3240c779e05a4ccfc0fdc0e0950fc9",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+      "sha": "9534cea79764b16fcc5ab15ffd942da622405c0a",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/cargo/sha2-0.11.0",
+      "sha": "21edc4f45ef8b00830c7b71f9e85f4133c3154ae",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/docker/examples/guix-wasm/library/python-3.15-slim-bookworm",
+      "sha": "0d7cc308c0f4ff670daead4c9aa1bcc181b55172",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "dependabot/docker/src/bin/olangc/wasm_exit/gcc-16",
+      "sha": "66ace79a8b184944a3addaaf680bda2afccc4eb2",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "fix/vscode-run-automation-20261020",
+      "sha": "7423a63af309e0c680a957e812d896db10f823ec",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "improvement/mcp-onboarding-20261025",
+      "sha": "7c08ed923077f2bffdcf557f46f2445e8ca5c616",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "okernel-v3",
+      "sha": "e9e7a96f96cae01682e331bed6d47790f3c74ab2",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "portfolio/readme-2026-11-06",
+      "sha": "78b036ff3da0eb08a529910c7fe476d4e33155bb",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-byte-swap-source-20261022-e4aa036d",
+      "sha": "e4aa036d61baff64302cf5b2aa561ab6456a4896",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-combined-catalog-20261022-5fc33651",
+      "sha": "d86c9cadec9b84fdb4057260ba8be6e4c7bd7fdd",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-combined-source-20261022-8c18be95",
+      "sha": "6e063c60a28d62ca4da128178f8426d02f41879e",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-core-test-constructor-repair-20261021-747b3d0f",
+      "sha": "747b3d0f509ac46a12655c6ff028fc67deec47bf",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-frozen-native-union-20261021-c18f7c75",
+      "sha": "c18f7c7579cf40c6a4b9f6ffceaf591e112406ae",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-machine-source-20261021-4b0fbdad",
+      "sha": "4b0fbdade6031cacffd4a7e32ee03e5c9698c9b8",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-ctpop-20261020",
+      "sha": "528b04ff301d5c4285ac6f3c42bfb765d2ad92ce",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-fp-20261020",
+      "sha": "fd55f87124ed55d1be082aaf951283bc6b76546b",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-integral-rounding-20261021",
+      "sha": "dc78ed57b92f62a3db97dcc53e9c18f553739a4c",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-next-source-20261021-12ef9d8a",
+      "sha": "12ef9d8ac5dc45af8233cee5918961d78126b6db",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-python-c-rust-20261018",
+      "sha": "ca5b3ac9e46bcc0dfe90f57484d9c136ccb8252d",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-runtime-v5-20261020",
+      "sha": "73f66b81737e6c8b55a5612bceae4c54ce6de39c",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-usub-saturation-20261021",
+      "sha": "8ac166a025c6be356b413e87bebe77697e6580ac",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-v6-20261020",
+      "sha": "dc4861001c7645b29161a150d5544ecfc71193b5",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-v6-r2-20261020",
+      "sha": "9b69c4c5362506790bf505d84ba869022b9c8bd7",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-v7-20261020",
+      "sha": "2f6de263fd130057ca2fce7ceffbea25d3bf0f3f",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-validation-20261020",
+      "sha": "0526fa0e8828334fb4d3f0f5ee3732db8b8acf25",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-native-variadic-20261020",
+      "sha": "e39da043a0396a1276fa41fc19f92e00446d27ee",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-ocore-native-20261017",
+      "sha": "69109d4ffc083e2eeec8792eee9db44e0364e6a4",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-opaque-source-20261021-1bb8921e",
+      "sha": "1bb8921e9c25272d92d6971d4d035ac23a97c389",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-runtime-acceptance-20261020",
+      "sha": "d0524d9f3a1f67707ba362fb593c36c68a84130e",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-runtime-producers-20261020",
+      "sha": "e4727e456bc2c192533090262f3f0096eb3908fc",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-source-provider-group-20261021",
+      "sha": "644b53ead711e418a967ff94c02ba1c7b39ecd26",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery-source-provider-repair-20261021-55ed34b5",
+      "sha": "55ed34b5d2429b1a409eb661c5ac0d372e202cb1",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "recovery/orangepirv-runtime-expansion-20261103-8e4f1c",
+      "sha": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "work/ocore-evidence-review-20261017",
+      "sha": "44cd0329d401a114a434347c469152c42d1cc991",
+      "current_ledger_present": true
+    },
+    {
+      "branch": "work/ocore-native-integration-20261016",
+      "sha": "0c8a1a1218a404765f78a883d2ce63d66e88e74d",
+      "current_ledger_present": true
+    }
+  ],
+  "changed_or_removed_heads": [
+    {
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ed25519-dalek-3.0.0",
+      "old_sha": "479ae16bd989f5760899cfc4e09783a583c1c41d",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump ed25519-dalek from 2.2.0 to 3.0.0 in /apps/android-terminal/runtime",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34",
+      "old_sha": "6bcd041c8837a0b432abc8ed2d76cf0e95e62c7f",
+      "latest_private": "c9166da56f83296743e68ed9a81c9311ff432ef8",
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump ignore from 0.4.33 to 0.4.34 in /apps/android-terminal/runtime",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/ed25519-dalek-3.0.0",
+      "old_sha": "0313b1c87556f9ece6a8d34cf2884563072ab1a0",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump ed25519-dalek from 2.2.0 to 3.0.0",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/serde_json-1.0.154",
+      "old_sha": "82b2cec1276fbc40b8707a03bafebd164204c6d1",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump serde_json from 1.0.151 to 1.0.154 in /mcp/ostadix_lang_mcp_server",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.53.3",
+      "old_sha": "200cbefa2e661b3f9f6535d77118bf282d1ad5e1",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump tokio from 1.53.1 to 1.53.3 in /mcp/ostadix_lang_mcp_server",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/rust-patch-updates-30db53e4ee",
+      "old_sha": "3ac529713cb2f517ad02a0051aae855ffdba0c13",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump the rust-patch-updates group across 1 directory with 3 updates",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/rust-patch-updates-564b9a1fd8",
+      "old_sha": "f1f65f365cfebbb6b05adddccf060643358e06d0",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump the rust-patch-updates group across 1 directory with 3 updates",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/rust-patch-updates-8b6300443b",
+      "old_sha": "f689f9ee6914bd19fcc94c8defef6b2554b8ebbb",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump tokio from 1.53.2 to 1.53.3 in the rust-patch-updates group",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/rust-patch-updates-d39ec1b172",
+      "old_sha": "d18e2fb6c05816358291102008d927ee6c1120d0",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump the rust-patch-updates group across 1 directory with 2 updates",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/rustyline-19.0.0",
+      "old_sha": "b9fd67514a1686c224ba1f75fc23ae683e5bc4a1",
+      "latest_private": null,
+      "latest_public": "e529b8834bce7e2a3d6b4f06732cb78e5ca69796",
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump rustyline from 18.0.1 to 19.0.0",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/signal-hook-0.4.5",
+      "old_sha": "6702e24f75cb97a807a1a240d87fdab66a54ef3f",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump signal-hook from 0.3.18 to 0.4.5",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/cargo/tokio-1.54.1",
+      "old_sha": "870a5dc4f3a132304eac5ca732cdc984d03e2a3f",
+      "latest_private": null,
+      "latest_public": "35746bd02f1dacad895336c65f816000c29a8435",
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump tokio from 1.53.2 to 1.54.1",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/docker/src/bin/olangc/browser_guix/library/python-3.15-slim-bookworm",
+      "old_sha": "d75963c4f51b74bc49697c2af0d269d942e0772c",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump library/python in /src/bin/olangc/browser_guix",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/docker/src/bin/olangc/wasm_exit/golang-1.27-bookworm",
+      "old_sha": "5d80e44649b0fdd9b3f24c57e9240239b3b92a8c",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump golang in /src/bin/olangc/wasm_exit",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "dependabot/github_actions/actions/setup-python-7.1.0",
+      "old_sha": "fa9e227fcfe3e2c86e8b59e59537a4fc4a4c865d",
+      "latest_private": null,
+      "latest_public": null,
+      "old_ancestor_integration": false,
+      "metadata": "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com> | Bump actions/setup-python from 7.0.0 to 7.1.0",
+      "old_ancestor_private_counterpart": false,
+      "old_ancestor_public_counterpart": false
+    },
+    {
+      "branch": "master",
+      "old_sha": "431fc070bdf71cf79cbe0e9dc6d9c3a64f37ca7c",
+      "latest_private": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+      "latest_public": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4",
+      "old_ancestor_integration": true,
+      "metadata": "Lee Daghlar Ostadi <34668360+lostadi@users.noreply.github.com> | Bind kernel admission checks to verified build artifacts",
+      "old_ancestor_private_counterpart": true,
+      "old_ancestor_public_counterpart": true
+    }
+  ],
+  "cargo_coordinate_checks": [
+    {
+      "path": "apps/android-terminal/runtime/Cargo.lock",
+      "name": "curve25519-dalek",
+      "proposed": "5.0.0",
+      "current": [
+        "4.1.3",
+        "5.0.0"
+      ],
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "apps/android-terminal/runtime/Cargo.lock",
+      "name": "ed25519",
+      "proposed": "3.0.0",
+      "current": [
+        "3.0.0"
+      ],
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "apps/android-terminal/runtime/Cargo.lock",
+      "name": "ed25519-dalek",
+      "proposed": "3.0.0",
+      "current": [
+        "3.0.0"
+      ],
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "apps/android-terminal/runtime/Cargo.lock",
+      "name": "fiat-crypto",
+      "proposed": "0.3.0",
+      "current": [
+        "0.2.9",
+        "0.3.0"
+      ],
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "apps/android-terminal/runtime/Cargo.lock",
+      "name": "signature",
+      "proposed": "3.0.0",
+      "current": [
+        "3.0.0"
+      ],
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "apps/android-terminal/runtime/Cargo.lock",
+      "name": "ignore",
+      "proposed": "0.4.34",
+      "current": [
+        "0.4.34"
+      ],
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "curve25519-dalek",
+      "proposed": "5.0.0",
+      "current": [
+        "4.1.3",
+        "5.0.0"
+      ],
+      "branch": "dependabot/cargo/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "ed25519",
+      "proposed": "3.0.0",
+      "current": [
+        "3.0.0"
+      ],
+      "branch": "dependabot/cargo/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "ed25519-dalek",
+      "proposed": "3.0.0",
+      "current": [
+        "3.0.0"
+      ],
+      "branch": "dependabot/cargo/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "fiat-crypto",
+      "proposed": "0.3.0",
+      "current": [
+        "0.2.9",
+        "0.3.0"
+      ],
+      "branch": "dependabot/cargo/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "signature",
+      "proposed": "3.0.0",
+      "current": [
+        "3.0.0"
+      ],
+      "branch": "dependabot/cargo/ed25519-dalek-3.0.0",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+      "name": "serde_json",
+      "proposed": "1.0.154",
+      "current": [
+        "1.0.154"
+      ],
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/serde_json-1.0.154",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+      "name": "tokio",
+      "proposed": "1.53.3",
+      "current": [
+        "1.54.1"
+      ],
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.53.3",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "libc",
+      "proposed": "0.2.191",
+      "current": [
+        "0.2.191"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-30db53e4ee",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "rustls",
+      "proposed": "0.23.46",
+      "current": [
+        "0.23.46"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-30db53e4ee",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "tokio",
+      "proposed": "1.53.3",
+      "current": [
+        "1.54.1"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-30db53e4ee",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "ignore",
+      "proposed": "0.4.34",
+      "current": [
+        "0.4.34"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-564b9a1fd8",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "libc",
+      "proposed": "0.2.191",
+      "current": [
+        "0.2.191"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-564b9a1fd8",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "rustls",
+      "proposed": "0.23.46",
+      "current": [
+        "0.23.46"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-564b9a1fd8",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "tokio",
+      "proposed": "1.53.3",
+      "current": [
+        "1.54.1"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-8b6300443b",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "rustls",
+      "proposed": "0.23.46",
+      "current": [
+        "0.23.46"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-d39ec1b172",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "tokio",
+      "proposed": "1.53.3",
+      "current": [
+        "1.54.1"
+      ],
+      "branch": "dependabot/cargo/rust-patch-updates-d39ec1b172",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "rustyline",
+      "proposed": "19.0.0",
+      "current": [
+        "18.0.1"
+      ],
+      "branch": "dependabot/cargo/rustyline-19.0.0",
+      "current_meets_or_exceeds": false
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "signal-hook",
+      "proposed": "0.4.5",
+      "current": [
+        "0.4.6"
+      ],
+      "branch": "dependabot/cargo/signal-hook-0.4.5",
+      "current_meets_or_exceeds": true
+    },
+    {
+      "path": "Cargo.lock",
+      "name": "tokio",
+      "proposed": "1.54.1",
+      "current": [
+        "1.54.1"
+      ],
+      "branch": "dependabot/cargo/tokio-1.54.1",
+      "current_meets_or_exceeds": true
+    }
+  ],
+  "source_mutations": false,
+  "ref_mutations": false,
+  "limitation": "This audits cached older proposals against current integration and ledger. It does not replace a final fresh remote lease/snapshot check."
+}

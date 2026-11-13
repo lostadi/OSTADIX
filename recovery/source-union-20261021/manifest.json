@@ -1,0 +1,185 @@
+{
+  "schema": "ostadix-frozen-source-recovery-bundle/v1",
+  "source_commit": "16b070828911f7d0366c1fea0500d7691151a299",
+  "source_tree": "a7e31fe0a4ed7360e40ae3287ac6c6e45366d6b3",
+  "included_new_commit_count": 19,
+  "all_new_authors_and_committers_Lee": true,
+  "private_remote_base": "e4727e456bc2c192533090262f3f0096eb3908fc",
+  "bundle": {
+    "path": "/home/orangepi/ostadix-BM/target/oversight-20261020/combined-source-recovery-bundle-20261021-v1/source-union.bundle",
+    "bytes": 384263,
+    "sha256": "d37fd6ff7d0fa8cecd339285fe148e38a26cc24b86241468a68c1b5330ef6dff"
+  },
+  "list_heads": "16b070828911f7d0366c1fea0500d7691151a299 refs/heads/recovery-frozen-native-union-20261021\n",
+  "verification_stdout": "The bundle contains this ref:\n16b070828911f7d0366c1fea0500d7691151a299 refs/heads/recovery-frozen-native-union-20261021\nThe bundle requires this ref:\ne39da043a0396a1276fa41fc19f92e00446d27ee \nThe bundle uses this hash algorithm: sha1\n",
+  "verification_stderr": "/home/orangepi/ostadix-BM/target/oversight-20261020/combined-source-recovery-bundle-20261021-v1/source-union.bundle is okay\n",
+  "source_only": true,
+  "compiled": false,
+  "runtime_accepted": false,
+  "master_updated": false,
+  "restoration": "After obtaining the private repository history at e4727e45, verify and fetch this Git bundle; included source snapshot retains exact original commit and tree IDs.",
+  "new_commit_identities": [
+    [
+      "16b070828911f7d0366c1fea0500d7691151a299",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "166200259ba5b982a5f32402262f3a1e368e8bb5",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "144796f15e724eadc1803ab277e8578943205998",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "0715d8c64d9b7f69baa2930e1d511281eedee862",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "ca70472188272d0f450aed7c3a48179c659ed5fa",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "220de641016328dfab27a1297b8b2ff594a58689",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "73e15fbacb90d36a80b32d97fbec587984fa9341",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "c7bef96b73f22f2761adae1fe8a0d0c3cdd0e281",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "fef88d651d41a3c6aa97a8a95b372d4c24638a96",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "b38d33f0f2bbd5261cf380d4bf550405c6548c7c",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "b2da89d351e1268c249ed2484771910301fa6f77",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "e4384f6877782662f8f0a897e7257c083c0b1c03",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "4a2e98da628609cacce84988616deb962be3a3c3",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "1a1125b505562c13c41a6a24cba249b6befe7afe",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "b0002ab9c24a8cfc94ea58ff3d8f676a7331e259",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "9c5eac646bb2dbee13e89ced97bcfc83e8d54244",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "fd55f87124ed55d1be082aaf951283bc6b76546b",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "57402f64f0912ea5c497411271cc8672edfeb818",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ],
+    [
+      "7e64326efd1e0e89526f5e3746a41e02aeaec605",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com",
+      "Lee Daghlar Ostadi",
+      "ostadi.lee@gmail.com"
+    ]
+  ],
+  "archive_format": "base64-encoded Git bundle; decode before git bundle verify/fetch",
+  "archive_encoding": "RFC4648 base64 with one trailing LF",
+  "encoded_archive": {
+    "bytes": 512353,
+    "sha256": "d965b420db6861af66e4d9d867bec4568383f4b3fc02adaad4deeaa329b8b799"
+  },
+  "current_scope_contracts": {
+    "AGENTS.md": {
+      "bytes": 19879,
+      "sha256": "f312645c976451e81bb2a02dffb661edfcafdafca213f19336b69f4ec457c4e8"
+    },
+    "tools/ocore-runtime/expansion.requirements.json": {
+      "bytes": 39262,
+      "sha256": "a3faa4dcd137bb149f28d909b40776849ce301748d9684a5f6f932610d3168c8"
+    },
+    "tools/ocore-runtime/isa.requirements.json": {
+      "bytes": 31821,
+      "sha256": "1c9a3677dc88ba390c5e83a7f07edb72522182d541a2922ca5fe55b399450bd9"
+    }
+  },
+  "contracts_are_separate_from_historical_source_commit": true,
+  "restore_instructions": [
+    "Obtain private lostadi/ostadix-BM repository history including e4727e456bc2c192533090262f3f0096eb3908fc.",
+    "Decode source-union.bundle.b64 and verify decoded SHA256 d37fd6ff7d0fa8cecd339285fe148e38a26cc24b86241468a68c1b5330ef6dff.",
+    "Run git bundle verify, then fetch refs/heads/recovery-frozen-native-union-20261021 into an isolated branch.",
+    "The source commit is16b070828911f7d0366c1fea0500d7691151a299 with tree a7e31fe0a4ed7360e40ae3287ac6c6e45366d6b3.",
+    "Keep separately archived current contracts binding all fourteen mandatory families and every implemented ISA.",
+    "This source-only checkpoint is uncompiled and is not runtime acceptance."
+  ]
+}

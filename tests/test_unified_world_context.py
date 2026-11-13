@@ -243,7 +243,7 @@ class UnifiedContextTests(unittest.TestCase):
         (output / "guest.S").write_text(guest_source(virtual_irq,reset))
         commands = [[clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(CORE / "monitor.S"), "-o", str(output / "core.o")],
                     [clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(output / "guest.S"), "-o", str(output / "guest.o")],
-                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
+                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
                     [linker, "-m", "aarch64elf", "-nostdlib", "--build-id=none", "-T", str(CORE / "linker.ld"), "-o", str(output / "test.elf"), str(output / "core.o"), str(output / "guest.o"), str(output / "fixture.o")]]
         for command in commands:
             result = subprocess.run(command, capture_output=True, text=True, timeout=30)

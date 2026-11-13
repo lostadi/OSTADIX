@@ -1912,11 +1912,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_minimal_tree(root)
-            (root / "crates/ostadix-api/src/version.rs").unlink()
+            # shims owns a compiled fragment, so use a root that owns none.
+            (root / "crates/ostadix-api/src/cancellation.rs").unlink()
             result = run_checker(root)
         self.assertEqual(result.returncode, 1)
         self.assertIn(
-            "manifest root `version` has no production Rust source", result.stderr
+            "manifest root `cancellation` has no production Rust source", result.stderr
         )
 
     def test_manifest_cannot_exclude_an_arbitrary_compiled_module_file(self) -> None:

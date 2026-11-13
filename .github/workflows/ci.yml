@@ -91,7 +91,7 @@ jobs:
           from pathlib import Path
           import re
           root = Path("target/boundary-contract-logs")
-          for filename, expected in (("foreign-splice.log", None), ("sql-regression.log", 1)):
+          for filename, expected in (("foreign-splice.log", 18), ("sql-regression.log", 1)):
               summaries = re.findall(r"(?m)^test result: ok\. ([0-9]+) passed; 0 failed; 0 ignored;", (root / filename).read_text())
               if len(summaries) != 1 or int(summaries[0]) <= 0 or (expected is not None and int(summaries[0]) != expected):
                   raise SystemExit("missing, skipped or zero-case Rust qualification: " + filename)
@@ -688,6 +688,10 @@ jobs:
           PY
       - name: Build the O-core compiler for native equivalence
         run: cargo build --locked --bin ocorec --bin olangc
+      - name: Verify native evidence freshness and artifact maps
+        run: |
+          python3 -m unittest discover -s tests -p test_ocore_native_equivalence.py -v
+          python3 -m unittest discover -s tests -p test_ocore_native_map.py -v
       - name: Verify imported IR contracts and complete capture inventories
         env:
           OCORE_TEST_POINTER_CONSTANTS_OUTPUT_DIR: target/ocore-pointer-initializers
@@ -708,6 +712,27 @@ jobs:
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_build_inventory.py -v
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_stage_roles.py -v
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_observe_cargo.py -v
+      - name: Verify original-copy observation without source admission
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/native-copy-observations"
+          evidence.mkdir(parents=True, exist_ok=True)
+          os.environ["NATIVE_COPY_TEST_OUTPUT"] = str(evidence)
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_native_copy")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun < 46 or result.skipped:
+              raise SystemExit("original-copy observations must execute without skips; output ownership remains disabled")
+          PY
+      - name: Retain bounded original-copy observation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-copy-observations-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/native-copy-observations/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Test runtime admission and ELF selection with an installed exact LLVM SDK
         run: |
           python3 - <<'PY'
@@ -1010,6 +1035,45 @@ jobs:
         with:
           name: native-thread-frame-contents-${{ github.sha }}-${{ github.run_attempt }}
           path: target/ocore-thread-frame-contents/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Verify serialized x86 INSTALL observations without FP admission
+        env:
+          OCORE_INSTALL_OBSERVATION_REQUIRED: "1"
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/ocore-install-observation"
+          os.environ["OCOREC_BIN"] = str(root / "target/debug/ocorec")
+          os.environ["OCORE_INSTALL_OBSERVATION_OUTPUT"] = str(evidence)
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_install_observation")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          passed = result.wasSuccessful() and result.testsRun >= 5 and not result.skipped
+          evidence.mkdir(parents=True, exist_ok=True)
+          status = {
+              "schema": "ostadix.install-observation-ci-status/v1",
+              "source_revision": os.environ["GITHUB_SHA"],
+              "stage_observation": {"passed": passed, "tests_run": result.testsRun,
+                                    "skipped": len(result.skipped)},
+              "tls_consumer": {
+                  "status": "not-executed", "qualified": False,
+                  "test": "tests.test_linux_tls",
+                  "reason": "This job does not provision the independently verified seven-object original codec manifest or run the TLS consumer gate.",
+              },
+              "fp_admission": False, "cpu_context_qualified": False,
+              "cross_isa_runtime_parity": False,
+          }
+          (evidence / "ci-status.json").write_text(json.dumps(status, indent=2) + "\n")
+          if not passed:
+              raise SystemExit("INSTALL observation regressions must execute without failures or skips")
+          PY
+      - name: Retain bounded INSTALL observation and consumer-status evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-install-observation-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/ocore-install-observation/
           if-no-files-found: warn
           retention-days: 14
       - name: Verify required O10 host and native components

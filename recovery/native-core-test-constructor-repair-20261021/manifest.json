@@ -1,0 +1,50 @@
+{
+  "schema": "ostadix-private-source-recovery-checkpoint-v1",
+  "repository": {
+    "id": 1412862058,
+    "full_name": "lostadi/ostadix-BM",
+    "visibility": "private"
+  },
+  "purpose": "Periodic source-only recovery of the three cfg(test) constructor fields; no build/test/runtime completion claim",
+  "source_commit": "3c85e64b0b5b4805cbc8b245d74d441605c98c52",
+  "source_tree": "24d2e7c2f90c3c8bc9101baf105dc280050d91d0",
+  "source_parent": "0cf986cc0cdef48aeddb00f30962b5e1f0708838",
+  "author": {
+    "name": "Lee Daghlar Ostadi",
+    "email": "ostadi.lee@gmail.com"
+  },
+  "committer": {
+    "name": "Lee Daghlar Ostadi",
+    "email": "ostadi.lee@gmail.com"
+  },
+  "bundle": {
+    "decoded_bytes": 862,
+    "decoded_sha256": "57b250e2ebf5edc44b06e8b3df2773cc6b6f4935580affab72fd534c8db13a92",
+    "path": "recovery/native-core-test-constructor-repair-20261021/repair.bundle.b64",
+    "requires_source_commit": "0cf986cc0cdef48aeddb00f30962b5e1f0708838"
+  },
+  "base_recovery": {
+    "branch": "recovery-native-next-source-20261021-12ef9d8a",
+    "commit": "12ef9d8ac5dc45af8233cee5918961d78126b6db",
+    "manifest": "recovery/native-next-source-20261021/manifest.json"
+  },
+  "change": {
+    "files": 1,
+    "insertions": 3,
+    "deletions": 0,
+    "production_prefix_bytes_unchanged": 167736
+  },
+  "independent_source_review_sha256": "1b11f48d1d2212c774e87366aa1fbbfc6c2191c42c1b0a9b9fa806c116e22152",
+  "retained_actual_core_failure": {
+    "receipt_sha256": "dc8eacd0f9132a2dc652ea5e01c810684c77286eb404ef6f875f5f9ac4b7f355",
+    "cargo_exit": 101,
+    "tests_run": 0
+  },
+  "source_repair_compiled": false,
+  "source_repair_tests_run": false,
+  "complete_runtime_accepted": false,
+  "provider_closure_accepted": false,
+  "all_ISA_identity_accepted": false,
+  "master_updated": false,
+  "installed_tools_replaced": false
+}

@@ -1,0 +1,242 @@
+[
+  {
+    "branch": "architecture-boundaries-manifest",
+    "sha": "080461db4887f9128c6ec1b3bf67b7e25a2bdcdc"
+  },
+  {
+    "branch": "author-check-merge-exception",
+    "sha": "98b180f7ebc3812f263af1d4321afb0540eab38a"
+  },
+  {
+    "branch": "backup/master-before-dependabot-undo-2026-10-31-82f7a39",
+    "sha": "82f7a39d6c9db02a1c4a03c60a69f3e5d5063671"
+  },
+  {
+    "branch": "bug-fixes",
+    "sha": "353ed11df24fbf65ceffe8e63d491ff9630dab0e"
+  },
+  {
+    "branch": "bug-fixes-rebased",
+    "sha": "96277898686b84b0f94dfc77992e25aa9a5b99a5"
+  },
+  {
+    "branch": "ci-commit-author-check",
+    "sha": "33c9571fae076678bd1f57d7fbe07d9fa5aebd6b"
+  },
+  {
+    "branch": "cli-error-ux-10775695524624767334",
+    "sha": "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e"
+  },
+  {
+    "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+    "sha": "c14185309eea39886f4d216adedf7ea6556d08d5"
+  },
+  {
+    "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+    "sha": "de6785ec1427f19102cca7efdc89f5eef5e76cc8"
+  },
+  {
+    "branch": "dependabot/cargo/apps/android-terminal/runtime/toml-1.2.1spec-1.1.0",
+    "sha": "3ce2bcb1fc973afb883215a4118830249c5d9259"
+  },
+  {
+    "branch": "dependabot/cargo/hmac-0.13.0",
+    "sha": "ab8be064b3000148e98899de12d3b32c0a4de3c2"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.2",
+    "sha": "0c731c244f6aae9c68fc782420fccddc42996534"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/sha2-0.11.1",
+    "sha": "d44d458e264b332795fa87a7274229741aec6f3a"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.54.1",
+    "sha": "10cb9bbe99ce40f27fdc91a34054db0c3afb967a"
+  },
+  {
+    "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-util-0.7.20",
+    "sha": "e9481ae4ccfe1bda5a54aac173d4fd3836ca6149"
+  },
+  {
+    "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+    "sha": "fdf1111820753b704c1af2500a631701d045126b"
+  },
+  {
+    "branch": "dependabot/cargo/rustyline-19.0.0",
+    "sha": "e529b8834bce7e2a3d6b4f06732cb78e5ca69796"
+  },
+  {
+    "branch": "dependabot/cargo/tokio-1.54.1",
+    "sha": "35746bd02f1dacad895336c65f816000c29a8435"
+  },
+  {
+    "branch": "dependabot/cargo/toml-1.2.0spec-1.1.0",
+    "sha": "acd56b64ecd13f1076164057112df7b579b84740"
+  },
+  {
+    "branch": "dependabot/docker/rust-1.99.1-slim-bookworm",
+    "sha": "e76e6bc23924e8005405a811596b0dee890088a1"
+  },
+  {
+    "branch": "feat/repl-clear-screen-2213356304128161974",
+    "sha": "11e2694b07bdc66e70b8be417375669a24c05eed"
+  },
+  {
+    "branch": "fix/hosted-tls-timeout-einval-retry",
+    "sha": "3f94456ea2ac181b3620e8d3cf299355329c2bd3"
+  },
+  {
+    "branch": "integration/native-copy-observation-20261113",
+    "sha": "4597a73ee9e7c9387087997dcb27b2929e99ce18"
+  },
+  {
+    "branch": "integration/native-foundations-20261113",
+    "sha": "6390bf2d2d725d477cfa1c1f087fcec426b15315"
+  },
+  {
+    "branch": "integration/native-install-observation-20261113",
+    "sha": "114b83ac12814b3cea6c8ad18cbb822dea490173"
+  },
+  {
+    "branch": "integration/public-contract-20261111",
+    "sha": "a8742f638c265d68cde6977aa2783cfad74ccc2a"
+  },
+  {
+    "branch": "iphone16pro/p0-recon",
+    "sha": "f26d55c78f0676869a903ec24bf01088b653648c"
+  },
+  {
+    "branch": "jules-no-ux-changes-10815942145392224836",
+    "sha": "d214fef5d9ed79ec44995479a091231b44314deb"
+  },
+  {
+    "branch": "jules-palette-ux-notebook-16726529523203072523",
+    "sha": "2e78a34f22897d25cdda97c1d46790fdd18b1ce5"
+  },
+  {
+    "branch": "jules-repl-ctrl-c-ux-4582478923382288125",
+    "sha": "ac424d942091c8acfd2d93f75dd067af677542be"
+  },
+  {
+    "branch": "jules-ux-cli-file-errors-9567731891484906250",
+    "sha": "20560612c4bc9d3af5ff5c90cf2cd657df9620e8"
+  },
+  {
+    "branch": "main",
+    "sha": "2cfe674e6396a3d1f8fbe95dc10ac51b699d0717"
+  },
+  {
+    "branch": "master",
+    "sha": "9d1c66977a192fae01f2aa0e3d320e0b8735e6d4"
+  },
+  {
+    "branch": "palette/a11y-notebook-buttons-2197054148375180996",
+    "sha": "9b1da302a2322bb83d248e386585f6d46262fccd"
+  },
+  {
+    "branch": "palette/add-aria-labels-2491562967081533933",
+    "sha": "320d87b482e434db81725fcdccfc80b2a6816a99"
+  },
+  {
+    "branch": "palette/cli-error-handling-4423928523852424637",
+    "sha": "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3"
+  },
+  {
+    "branch": "palette-a11y-aria-labels-2646689895582229506",
+    "sha": "5df8ca3e62c9c9cb7ef8ec8cc878a86b45020830"
+  },
+  {
+    "branch": "palette-a11y-aria-labels-3239229341697886775",
+    "sha": "31d7ca772412243810641cf1d47175cc152e87cf"
+  },
+  {
+    "branch": "palette-a11y-notebook-buttons-8877382972196947979",
+    "sha": "e638002cbb6c265ede815e416b6a7d77574138ee"
+  },
+  {
+    "branch": "palette-a11y-o-notebook-5879869801819256557",
+    "sha": "91336ddca7af2ddb3d122f6310302eb49649184a"
+  },
+  {
+    "branch": "palette-a11y-o-notebook-buttons-3740742993044951928",
+    "sha": "5893efabb7b73671649139e330c5753749af14b9"
+  },
+  {
+    "branch": "palette-accessibility-improvements-6900761552579760188",
+    "sha": "f6629dad9127bf45ddffe5dfab9d1d11276863ba"
+  },
+  {
+    "branch": "palette-add-aria-labels-14417253590846761119",
+    "sha": "7ce8220083facf64bd8219177cdfd4916745b4f8"
+  },
+  {
+    "branch": "palette-add-aria-labels-16419148431743606071",
+    "sha": "f47448ca44142c80d0b264a909be1ec4f318f078"
+  },
+  {
+    "branch": "palette-aria-labels-8875698085291375879",
+    "sha": "d2d40cb26e4bac1cba4d6ed3cf78ae8130259fdb"
+  },
+  {
+    "branch": "palette-cli-error-ux-9104623671049710645",
+    "sha": "a18400d093c97d6f4550ba591f37bdaf3253de6f"
+  },
+  {
+    "branch": "palette-repl-clear-10920733176746515596",
+    "sha": "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e"
+  },
+  {
+    "branch": "palette-repl-clear-cmd-8745059712295164011",
+    "sha": "5a2d88cda7c974bb93ef986d526f869e11a250ca"
+  },
+  {
+    "branch": "palette-ux-aria-labels-17543968112545744121",
+    "sha": "d213da3c0c6cc6f4710f364426a987a5e410e7d6"
+  },
+  {
+    "branch": "palette-ux-focus-styles-16129010864209994965",
+    "sha": "08345d02cf772065f94c0d4ec5cd9b989d7036a2"
+  },
+  {
+    "branch": "palette-ux-focus-visible-1827802116544364666",
+    "sha": "af86ee920057790f10ce823a28204dc18d8d6e3d"
+  },
+  {
+    "branch": "palette-ux-improvement-repl-clear-12002940389259549745",
+    "sha": "ab35a13a6c10c325869c7b8be3e1ad5dfd050788"
+  },
+  {
+    "branch": "ux/aria-labels-notebook-8364054777992041889",
+    "sha": "0e2c8931a81a7cad8bcc1bc93f162741569fc8a5"
+  },
+  {
+    "branch": "ux-accessibility-aria-labels-14334279760534824759",
+    "sha": "be46f5f159c0f166dd3f61bd3d71fedfd687734b"
+  },
+  {
+    "branch": "ux-add-repl-clear-command-14385163191800482413",
+    "sha": "0efe66383c5b0f918632922d877f47f6df41be64"
+  },
+  {
+    "branch": "ux-aria-labels-17754742340276186369",
+    "sha": "6318810ff04a3b50dd8b926e509c6fe4199a310f"
+  },
+  {
+    "branch": "ux-aria-labels-notebook-13384412976883904429",
+    "sha": "8afe5c0a5c41ad78955bf01cb8f9275053c0f231"
+  },
+  {
+    "branch": "ux-aria-labels-notebook-6048319483155626166",
+    "sha": "5af57b5ad1646a2fe7a4f939e0275d70c09a6b45"
+  },
+  {
+    "branch": "work/o10-m0-20261112",
+    "sha": "55fb940e4ad54247826baf12d5e85f339b62911c"
+  },
+  {
+    "branch": "work/o10-m1-publish-20261113",
+    "sha": "9a21e81079a41faf402d59b73a929c351b619e18"
+  }
+]

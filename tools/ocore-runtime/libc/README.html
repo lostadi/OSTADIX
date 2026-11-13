@@ -104,4 +104,45 @@ python3 scripts/ocore_runtime_capture.py capture \
 <p>Run the inventory regression gate with:</p>
 <pre><code class="language-bash">python3 -m unittest discover -s tools/ocore-runtime/libc -p &#39;test_*.py&#39; -v
 </code></pre>
+<h2>Observed-copy foundation</h2>
+<p><code>scripts/ocore_native_copy.py</code> is an experimental host observer for the original
+regular-file <code>cp</code> operation. It records the exact argv, original exit or signal,
+stable file identities, execution interval and captured bytes. Observation
+failure does not skip, rewrite or retry the original operation. Its library
+caller owns signal handling; a standalone wrapper explicitly opts into parent
+signal relay and forwards the recorded native outcome after collecting evidence.
+This is not a registered capture producer or an original runtime implementation.</p>
+<p>An in-memory controller binding establishes that an observation was actually
+made. A separate trusted <code>VerifiedProducerInventory</code> can identify an earlier
+source producer; there is no JSON loader that promotes receipt fields to this
+authority. These are trusted host interfaces, not authentication against arbitrary
+host Python code. Selected executable hashes do not establish complete dynamic
+loader or library provenance.</p>
+<p>The distinction between an observed copy and output-source ownership matters.
+Another writer can replace the destination after the original command exits but
+before the observer reads it. Equal bytes, a successful real compiler and copy,
+or a cooperative lock cannot prove which operation produced that inode.
+<code>verify_observation</code> therefore always returns <code>source_owned: false</code>,
+<code>destination_causality_qualified: false</code> and false output lowering/replay flags.
+Any checked predecessor facts are reported separately. <code>verify_transfer</code> always
+refuses until a registered owning controller enforces and verifies every writer
+and output lifetime. No caller flag or self-consistent receipt enables it.</p>
+<p>Run the self-contained component tests with:</p>
+<pre><code class="language-bash">python3 -m unittest -v tests.test_ocore_native_copy
+</code></pre>
+<p>The 46 cases use authored C/assembly fixtures compiled by the selected original
+Clang, real <code>cp</code>, real signals and a destination-replacement race. They compare
+bytes, statuses and streams, reject forged or mutated observations and retain
+the missing ownership authority. Prerequisites are Linux, Python 3.10 or later,
+Clang, GNU <code>cp</code>, <code>/proc</code>, <code>pidfd_open</code> and POSIX signals. Select tools through
+<code>NATIVE_COPY_TEST_CLANG</code> and <code>NATIVE_COPY_TEST_CP</code>; set <code>NATIVE_COPY_TEST_OUTPUT</code>
+to an existing private directory to retain fixture evidence. The selected tools
+and inputs are recorded. This is host component execution, not O-core lowering,
+an all-ISA test or a hermetic toolchain bootstrap. Current capture keeps file
+bytes in memory; large-file streaming and broader host profiles remain unqualified.</p>
+<p>The observer is not wired into the original musl recipes or independent runtime
+admission. The five startup-copy ownership gaps therefore remain unresolved,
+alongside required assembly, configure-role and LLVM replay obligations. A fresh
+whole-source capture and independent verification are required after actual
+producer integration; historical failed reports cannot be repaired with new text.</p>
 <p>Primary source contracts are the pinned original <a href="https://git.musl-libc.org/cgit/musl/tree/Makefile?id=0784374d561435f7c787a555aeab8ede699ed298">Makefile</a>, <a href="https://git.musl-libc.org/cgit/musl/tree/configure?id=0784374d561435f7c787a555aeab8ede699ed298">configure script</a>, <a href="https://git.musl-libc.org/cgit/musl/tree/include/pthread.h?id=0784374d561435f7c787a555aeab8ede699ed298">pthread declarations</a>, <a href="https://git.musl-libc.org/cgit/musl/tree/include/alltypes.h.in?id=0784374d561435f7c787a555aeab8ede699ed298">generated type inputs</a>, and <a href="https://git.musl-libc.org/cgit/musl/tree/src/thread/pthread_create.c?id=0784374d561435f7c787a555aeab8ede699ed298">thread creation implementation</a>.</p>

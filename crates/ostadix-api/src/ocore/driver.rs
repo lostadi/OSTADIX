@@ -287,8 +287,29 @@ fn paths_alias(left: &Path, right: &Path) -> Result<bool, Diagnostic> {
         let mut ancestor = absolute.as_path();
         let mut tail = Vec::new();
         let mut resolved = loop {
-            if let Ok(resolved) = ancestor.canonicalize() {
-                break resolved;
+            let canonical_error = match ancestor.canonicalize() {
+                Ok(resolved) => break resolved,
+                Err(error) => error,
+            };
+            // Only genuinely absent components may be reconstructed below.
+            // Unresolvable symlinks can alias the map once emission creates
+            // their target; other resolution failures must also fail closed.
+            match fs::symlink_metadata(ancestor) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    return Err(driver_error(format!(
+                        "cannot resolve native artifact symlink {}: {canonical_error}",
+                        ancestor.display()
+                    )));
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::NotFound
+                        && canonical_error.kind() == std::io::ErrorKind::NotFound => {}
+                _ => {
+                    return Err(driver_error(format!(
+                        "cannot resolve native artifact path {}: {canonical_error}",
+                        ancestor.display()
+                    )));
+                }
             }
             let name = ancestor
                 .file_name()

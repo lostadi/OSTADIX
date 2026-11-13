@@ -18,6 +18,13 @@ from test_ocore_native_import_backend import (
 )
 
 
+CLANG_TARGET_NAMES = {
+    "x86_64": "x86-64",
+    "aarch64": "aarch64",
+    "riscv64": "riscv64",
+}
+
+
 def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -224,22 +231,26 @@ class NativeMapTests(unittest.TestCase):
         clang = shutil.which("clang")
         if clang is None:
             self.skipTest("Clang required for object artifact bindings")
-        supported = self.succeeded([clang, "--print-targets"]).stdout
+        supported = set()
+        for line in self.succeeded([clang, "--print-targets"]).stdout.splitlines():
+            name, separator, _description = line.partition(" - ")
+            if separator:
+                supported.add(name.strip())
+        self.assertTrue(supported, "Clang --print-targets did not report registered target names")
         for isa in TARGETS:
             with self.subTest(isa=isa):
-                target_name = "x86-64" if isa == "x86_64" else isa
-                if target_name not in supported:
+                if CLANG_TARGET_NAMES[isa] not in supported:
                     self.skipTest(f"Clang lacks {isa}")
                 source = self.source(map_module(isa), f"{isa}.json")
                 obj = self.directory / f"{isa}.o"
                 sidecar = self.directory / f"{isa}.map.json"
                 self.succeeded(self.compile_args(source, obj, sidecar, isa, "obj",
-                                                keep_assembly=True, clang=clang))
+                                                keep_assembly=True))
                 self.assertEqual(obj.read_bytes()[:4], b"\x7fELF")
                 assembly = obj.with_suffix(".s")
                 self.assert_bindings(source, assembly, obj, sidecar, "object")
                 plain = self.directory / f"{isa}-plain.o"
-                self.succeeded(self.compile_args(source, plain, isa=isa, emit="obj", clang=clang))
+                self.succeeded(self.compile_args(source, plain, isa=isa, emit="obj"))
                 self.assertEqual(obj.read_bytes(), plain.read_bytes())
                 obj.write_bytes(obj.read_bytes() + b"tampered")
                 result = self.run_command(self.verify_args(source, sidecar, assembly, obj, isa))
@@ -401,17 +412,45 @@ class NativeMapTests(unittest.TestCase):
                             sidecar.symlink_to(protected)
                         else:
                             os.link(protected, sidecar)
-                    self.assertNotEqual(self.run_command(self.compile_args(source, output, sidecar)).returncode, 0)
+                    result = self.run_command(self.compile_args(source, output, sidecar))
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("native map must not overwrite", result.stderr)
                     self.assertEqual(before, protected.read_bytes())
                     self.assertTrue(sidecar.exists())
+
+    def test_new_artifact_and_map_parent_directories_are_allowed(self):
+        source = self.source()
+        output = self.directory / "new-artifacts" / "nested" / "out.s"
+        sidecar = self.directory / "new-maps" / "nested" / "map.json"
+        self.succeeded(self.compile_args(source, output, sidecar))
+        self.assert_bindings(source, output, output, sidecar, "assembly")
+
+    def test_unresolvable_output_symlinks_reject_before_overwriting_artifacts(self):
+        source = self.source()
+        original = source.read_bytes()
+        for style in ("dangling-map", "loop"):
+            with self.subTest(style=style):
+                output = self.directory / f"{style}.s"
+                sidecar = self.directory / f"{style}.map.json"
+                link_target = sidecar if style == "dangling-map" else output
+                output.symlink_to(link_target)
+                result = self.run_command(self.compile_args(source, output, sidecar))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot resolve native artifact symlink", result.stderr)
+                self.assertTrue(output.is_symlink())
+                self.assertEqual(output.readlink(), link_target)
+                self.assertFalse(sidecar.exists())
+                self.assertEqual(source.read_bytes(), original)
 
     def test_object_and_retained_assembly_collision_is_rejected_before_overwrite(self):
         source = self.source()
         output = self.directory / "out.s"
         output.write_text("previous artifact", encoding="utf-8")
         sidecar = self.directory / "map.json"
-        self.assertNotEqual(self.run_command(self.compile_args(source, output, sidecar,
-                                                              emit="obj", keep_assembly=True)).returncode, 0)
+        result = self.run_command(self.compile_args(source, output, sidecar,
+                                                  emit="obj", keep_assembly=True))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("native output and retained assembly must be distinct files", result.stderr)
         self.assertEqual(output.read_text(encoding="utf-8"), "previous artifact")
         self.assertFalse(sidecar.exists())
 

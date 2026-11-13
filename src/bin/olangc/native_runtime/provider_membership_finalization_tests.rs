@@ -11,7 +11,7 @@ use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::PathBuf;
 
 fn finalizer_sha(raw: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(raw))
+    hex::encode(Sha256::digest(raw))
 }
 
 struct FinalizerItem {

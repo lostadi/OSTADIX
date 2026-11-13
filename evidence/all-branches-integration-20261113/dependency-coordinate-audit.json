@@ -1,0 +1,138 @@
+{
+  "scope": "Independent lock coordinate floor review, not replacement for fresh compatibility builds",
+  "proposals": [
+    {
+      "sha": "295cb28dc38776f7e04a94e77b52fc4e585efbb3",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+      "remote": "origin",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "c9166da56f83296743e68ed9a81c9311ff432ef8",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/ignore-0.4.34",
+      "remote": "origin",
+      "changed_coordinates": 1,
+      "not_met": []
+    },
+    {
+      "sha": "42d456326ea142143a68d403fea075a42eb2b905",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+      "remote": "origin",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "9c7f4cb883ca0ac044bb23090f5feb3612331436",
+      "branch": "dependabot/cargo/hmac-0.13.0",
+      "remote": "origin",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "5289defc1704afdf6cdde5951f8fc9402ec56327",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/futures-util-0.3.34",
+      "remote": "origin",
+      "changed_coordinates": 7,
+      "not_met": []
+    },
+    {
+      "sha": "25fe0687f2068bc9062aec7e1bb28b0ed7c3cb11",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.191",
+      "remote": "origin",
+      "changed_coordinates": 1,
+      "not_met": []
+    },
+    {
+      "sha": "9db59f0add51677d36e8dd79be7d03b684195182",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.8.0",
+      "remote": "origin",
+      "changed_coordinates": 2,
+      "not_met": []
+    },
+    {
+      "sha": "9534cea79764b16fcc5ab15ffd942da622405c0a",
+      "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+      "remote": "origin",
+      "changed_coordinates": 1,
+      "not_met": []
+    },
+    {
+      "sha": "21edc4f45ef8b00830c7b71f9e85f4133c3154ae",
+      "branch": "dependabot/cargo/sha2-0.11.0",
+      "remote": "origin",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "c14185309eea39886f4d216adedf7ea6556d08d5",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/hmac-0.13.0",
+      "remote": "canonical",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "de6785ec1427f19102cca7efdc89f5eef5e76cc8",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/sha2-0.11.0",
+      "remote": "canonical",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "3ce2bcb1fc973afb883215a4118830249c5d9259",
+      "branch": "dependabot/cargo/apps/android-terminal/runtime/toml-1.2.1spec-1.1.0",
+      "remote": "canonical",
+      "changed_coordinates": 4,
+      "not_met": []
+    },
+    {
+      "sha": "ab8be064b3000148e98899de12d3b32c0a4de3c2",
+      "branch": "dependabot/cargo/hmac-0.13.0",
+      "remote": "canonical",
+      "changed_coordinates": 0,
+      "not_met": []
+    },
+    {
+      "sha": "0c731c244f6aae9c68fc782420fccddc42996534",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/schemars-1.2.2",
+      "remote": "canonical",
+      "changed_coordinates": 3,
+      "not_met": []
+    },
+    {
+      "sha": "d44d458e264b332795fa87a7274229741aec6f3a",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/sha2-0.11.1",
+      "remote": "canonical",
+      "changed_coordinates": 6,
+      "not_met": []
+    },
+    {
+      "sha": "10cb9bbe99ce40f27fdc91a34054db0c3afb967a",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-1.54.1",
+      "remote": "canonical",
+      "changed_coordinates": 1,
+      "not_met": []
+    },
+    {
+      "sha": "e9481ae4ccfe1bda5a54aac173d4fd3836ca6149",
+      "branch": "dependabot/cargo/mcp/ostadix_lang_mcp_server/tokio-util-0.7.20",
+      "remote": "canonical",
+      "changed_coordinates": 1,
+      "not_met": []
+    },
+    {
+      "sha": "fdf1111820753b704c1af2500a631701d045126b",
+      "branch": "dependabot/cargo/rust-patch-updates-45952e8026",
+      "remote": "canonical",
+      "changed_coordinates": 1,
+      "not_met": []
+    },
+    {
+      "sha": "acd56b64ecd13f1076164057112df7b579b84740",
+      "branch": "dependabot/cargo/toml-1.2.0spec-1.1.0",
+      "remote": "canonical",
+      "changed_coordinates": 2,
+      "not_met": []
+    }
+  ]
+}
