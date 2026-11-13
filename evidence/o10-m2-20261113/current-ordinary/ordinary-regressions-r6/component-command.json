@@ -1,0 +1,43 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "scripts/verify_o10_journal.py",
+    "--session",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component",
+    "--mcp-release",
+    "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+    "--component-only"
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "scripts/verify_o10_journal.py",
+    "--session",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component",
+    "--mcp-release",
+    "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+    "--component-only"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "started": 1794578527.483388,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OCORE_U9FS_ARM_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "TMPDIR": null,
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "finished": 1794578633.184638,
+  "log": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component.log",
+    "sha256": "44a69fad1d77e2bca052a18836c14c7c30296f825ababaf83208b1425a8e806b"
+  }
+}

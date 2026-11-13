@@ -1,0 +1,29 @@
+test_actual_uart_transport_and_native_store (tests.test_plan9_namespace_uart.Plan9NamespaceUartTests.test_actual_uart_transport_and_native_store) ... ok
+test_real_wire_bidirectional_files_scoped_grants_and_restart (tests.test_okernel_namespace_peer.NativeNamespacePeerTests.test_real_wire_bidirectional_files_scoped_grants_and_restart) ... ok
+test_original_codec_in_live_native_store_path (tests.test_okernel_u9fs_peer.OriginalU9fsNativePeerTests.test_original_codec_in_live_native_store_path) ... skipped 'optional source-recipe native codec profile needs OCORE_U9FS_MANIFEST'
+test_actual_uart_revocation_preserves_live_linux_fid (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_actual_uart_revocation_preserves_live_linux_fid) ... ok
+test_actual_uart_version_preserves_live_linux_fid (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_actual_uart_version_preserves_live_linux_fid) ... ok
+test_concurrent_readonly_grant_retains_authority (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_concurrent_readonly_grant_retains_authority) ... ok
+test_concurrent_root_grants_preserve_fids (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_concurrent_root_grants_preserve_fids) ... ok
+test_rejected_generations_preserve_live_sessions (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_rejected_generations_preserve_live_sessions) ... ok
+test_replacement_never_resurrects_stale_session (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_replacement_never_resurrects_stale_session) ... ok
+test_store_reopen_never_resurrects_stale_session (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_store_reopen_never_resurrects_stale_session) ... ok
+test_zero_remapping_does_not_alias_readonly_grant (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_zero_remapping_does_not_alias_readonly_grant) ... ok
+test_real_store_tokens_are_unique_until_native_counter_exhaustion (tests.test_namespace_session_tokens.NamespaceSessionTokenTests.test_real_store_tokens_are_unique_until_native_counter_exhaustion) ... 
+  test_real_store_tokens_are_unique_until_native_counter_exhaustion (tests.test_namespace_session_tokens.NamespaceSessionTokenTests.test_real_store_tokens_are_unique_until_native_counter_exhaustion) (scenario=3) ... FAIL
+test_readonly_regular_files_use_original_codec_and_shared_store (tests.test_posix_namespace_files.PosixNamespaceFilesTests.test_readonly_regular_files_use_original_codec_and_shared_store) ... skipped 'verified original codec closure requires OCORE_U9FS_MANIFEST'
+test_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation) ... ok
+
+======================================================================
+FAIL: test_real_store_tokens_are_unique_until_native_counter_exhaustion (tests.test_namespace_session_tokens.NamespaceSessionTokenTests.test_real_store_tokens_are_unique_until_native_counter_exhaustion) (scenario=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_session_tokens.py", line 205, in test_real_store_tokens_are_unique_until_native_counter_exhaustion
+    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+AssertionError: -6 != 0 : selftest: /tmp/namespace-session-tokens-7_f6bmg6/harness.c:111: void exhaustion(void): Assertion `last==UINT64_MAX' failed.
+
+
+----------------------------------------------------------------------
+Ran 14 tests in 3.379s
+
+FAILED (failures=1, skipped=2)

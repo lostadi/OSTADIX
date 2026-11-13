@@ -1,0 +1,6 @@
+test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 15.437s
+
+OK

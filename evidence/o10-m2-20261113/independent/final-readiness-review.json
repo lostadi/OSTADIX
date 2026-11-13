@@ -1,0 +1,628 @@
+{
+  "schema": "ostadix.o10-m2-final-independent-readiness-review/v1",
+  "time_utc": "2026-11-13T15:20:45.626025+00:00",
+  "qualified_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "publication_revision_observed": "e654dc84c38f3466f11a0539b0c9d2500352af78",
+  "verdict": "No blocking defect found in the scoped OriginalDraft0M2 qualification evidence or reviewed normal integration. Publication remains conditional on completed packet/docs/finalCI and recipient verification.",
+  "new_qualification_blockers": [],
+  "acceptance": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2.json",
+    "sha256": "7781ee645075d700fed24c51ffca0fc95c742a6e75494584d9b2b6cec6fc73d0",
+    "full_milestone_qualified": true,
+    "scope": "Original Draft0 M2 live Linux fault/replacement and binding, native old-fid ESTALE, surviving Plan9 counter/fids, controlled signed APK3 pre-commit interruption, fsynced-prefix preservation and post-replay read-only fsck; Linux withdrawal and reset paths also have source-bound component coverage; complete same-build regressions; AArch64 QEMU only"
+  },
+  "mandatory_input_checks": {
+    "profile": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+      "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c",
+      "bytes": 28349
+    },
+    "monitor": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor.elf",
+      "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb",
+      "bytes": 1012056
+    },
+    "restart": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8/result.json",
+      "sha256": "518d4860120d243d0eef49d181b13c9979ecb5f9fb892a2e07acdf7640f0aabb",
+      "bytes": 190265
+    },
+    "restart_command": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/restart-command.json",
+      "sha256": "5c5460af0b4275537445685b896f9fe5018e61066bf238d26a5f7c6b76af4c0f",
+      "bytes": 4259
+    },
+    "resident": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r4/result.json",
+      "sha256": "12b5b09086b767351f2187a357ded919fe7eb8e607e5e15711741bff38f4d70f",
+      "bytes": 252482
+    },
+    "guest": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/result.json",
+      "sha256": "9685c4222967c6daeb72e85c6845475fa62983dfb02a69dcccee1491358d4961",
+      "bytes": 3669
+    },
+    "component": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/result.json",
+      "sha256": "90a70ccede827c7df4119d7b04f5e2755d25421b42bf7ece2fba54725943776b",
+      "bytes": 8232
+    },
+    "component_log": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/tests.log",
+      "sha256": "5fcd470a6e39bf9f45cbab71c9533a4d44be1f19e5962a089d06303cabe933b8",
+      "bytes": 37075
+    },
+    "unit": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/result.json",
+      "sha256": "d36138add59bed3dcae83ca754068449cdcd7c5fe209ac625c6bdaf01267daf3",
+      "bytes": 743396
+    },
+    "language": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/language.json",
+      "sha256": "d9e075b91a0860bc3605f7d49eb5a41e6424edd2a9c1450e220f84fcd84d8983",
+      "bytes": 217678
+    },
+    "provenance": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/current-env.json",
+      "sha256": "b4ba9c550f7d29e29ed4c51df429ac0d533cafb2fb2a1e455a2116cec7d22072",
+      "bytes": 6610
+    },
+    "compiler": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+      "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7",
+      "bytes": 3817336
+    }
+  },
+  "managed_normal_exits": {
+    "linux-restart-r8-execution": {
+      "state": "completed",
+      "exit_code": 0,
+      "child_reaped": true,
+      "logs_drained": true,
+      "job_id": "job-1960399-1794578286458176260-1-9",
+      "pid": 1970650
+    },
+    "acceptance-r2-execution": {
+      "state": "completed",
+      "exit_code": 0,
+      "child_reaped": true,
+      "logs_drained": true,
+      "job_id": "job-1960399-1794578286458176260-1-22",
+      "pid": 1994853
+    },
+    "guest-regressions-r2-execution": {
+      "state": "completed",
+      "exit_code": 0,
+      "child_reaped": true,
+      "logs_drained": true,
+      "job_id": "job-1960399-1794578286458176260-1-20",
+      "pid": 1985657
+    },
+    "ordinary-regressions-r6-execution": {
+      "state": "completed",
+      "exit_code": 0,
+      "child_reaped": true,
+      "logs_drained": true,
+      "job_id": "job-1960399-1794578286458176260-1-4",
+      "pid": 1962235
+    }
+  },
+  "six_guest_gates": [
+    {
+      "id": "two_domains",
+      "command_exit": 0,
+      "status": "passed"
+    },
+    {
+      "id": "provider",
+      "command_exit": 0,
+      "status": "passed"
+    },
+    {
+      "id": "client",
+      "command_exit": 0,
+      "status": "passed"
+    },
+    {
+      "id": "recovery",
+      "command_exit": 0,
+      "status": "passed"
+    },
+    {
+      "id": "default_compile",
+      "command_exit": 0,
+      "status": "passed"
+    },
+    {
+      "id": "runtime",
+      "command_exit": 0,
+      "status": "passed"
+    }
+  ],
+  "distinct_actual_sessions": [
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/client/unified-session-102irh27",
+      "result_sha256": "38731a0a2ce753ccb3ccc2e00d9f833c2a573c31ee7083e2ba6363329245eaca",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/client/unified-session-bu489rs1",
+      "result_sha256": "15e07c348aaf499ed023cb80986e98536f944703cd7efe98c245205d811ed2e4",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/default_compile/unified-session-42ude89r",
+      "result_sha256": "86fccbea155da8e9fe2bd69f4b9d9c006c61a155244b2fcdad24dd21f04d73ce",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/provider/unified-session-maoc2rjg",
+      "result_sha256": "d6f4881ebbf26484a8bab274812b3b19100447523e17ca8f599504ee2dc71ac4",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/provider/unified-session-vd5swh98",
+      "result_sha256": "22ce77867600d50c819c66e0bf75d69d69e00fc8280b73cca1a4a34eff9aebcf",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/recovery/unified-session-pv3ig0qx",
+      "result_sha256": "c0f581a25c11229a0a57d094fc9a24ac40c832843834b08377c9fde0ed7e2fef",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-bbdlp2vb",
+      "result_sha256": "e64b623fab5bb62608f66607c488d5276164cb3e67682412376f18ed60388a44",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/unified-session-ix0t8i5z",
+      "result_sha256": "d269e1e9ffc30cf445860bf3b26370bf223ef256b3798819da1c584d6014339d",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/two_domains/unified-session-1ztnqre5",
+      "result_sha256": "3c720370483be4045d862abc7436520a83d89b7590031081feb26812dd3e75ea",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/two_domains/unified-session-lrinonjz",
+      "result_sha256": "09efcb4a1f25c5fb2ac4fabfaba406f570db7a16cd38851db805fd35d3f10e0a",
+      "saved_pair": true
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8/state/unified-session-3ro2tfwj",
+      "result_sha256": "b1de0b6aa141cb10fec58c35cb3ccea8adfc5960112b92842de22f31b28a8349",
+      "saved_pair": false
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r4/state/unified-session-q6v1q1ze",
+      "result_sha256": "bfe4bf1dc5e3ce18d401decc82723bba634965bde7e345810a868d6e37e3acae",
+      "saved_pair": false
+    }
+  ],
+  "source_closure": {
+    "ocore/guest/linux/package-domain/init": {
+      "sha256": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/guest/plan9/unified/p9cmdsrv.c": {
+      "sha256": "e3e85652ce83159882f14b84a72a9cbaf55085d14f228a9c50b2433f5eb143f3",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/kernel/aarch64/kernel_world/guest.dts": {
+      "sha256": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": {
+      "sha256": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/kernel/aarch64/unified_world/linker.ld": {
+      "sha256": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/kernel/aarch64/unified_world/monitor.S": {
+      "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/coordinator_uart.oc": {
+      "sha256": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/kernel_world_9p.oc": {
+      "sha256": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": {
+      "sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/kernel_world_net.oc": {
+      "sha256": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": {
+      "sha256": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": {
+      "sha256": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": {
+      "sha256": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/linux_domain_images.oc": {
+      "sha256": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/linux_restart_witness.oc": {
+      "sha256": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": {
+      "sha256": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/unified_gic.oc": {
+      "sha256": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/aarch64/unified_world.oc": {
+      "sha256": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/common/namespace_peer.oc": {
+      "sha256": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/common/namespace_store.oc": {
+      "sha256": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/common/o10_codec.oc": {
+      "sha256": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/runtime/common/o10_executor.oc": {
+      "sha256": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/build_okernel_plan9_original.py": {
+      "sha256": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/build_okernel_plan9_userland.py": {
+      "sha256": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/build_okernel_unified_world.py": {
+      "sha256": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/fork_okernel_state.py": {
+      "sha256": "67d78c9e49292e1ec46c21719e5482e52bd8a597616a2e8aec1dd1c8a1cfdba0",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/okernel_unified_world.py": {
+      "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/plan9_userland_admission.py": {
+      "sha256": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/probe_okernel_plan9.py": {
+      "sha256": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_o10_linux_restart.py": {
+      "sha256": "e55ab54ca9edacf2906fa7262f50de3c9b402222d4d2a8f00cb8c5782fa55865",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_okernel_unified_provider.py": {
+      "sha256": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "tests/test_o10_linux_restart.py": {
+      "sha256": "e6452b54071a06f131fc575e2d28a76fe79b4ef3c6c997fb4edf77190987ea3a",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_o10_m2.py": {
+      "sha256": "7410497aa4cdfcee4c52c7bcae22e4c16ffd0fe1f3610d8a57b9b893b5cb0490",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_o10_m2_regressions.py": {
+      "sha256": "2807fa681e71d42d805a9b2065231509f8b3165c4343bef9b0b0c26640192a1e",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_o10_m1_regressions.py": {
+      "sha256": "5dc72d57e391f439d9c5a1c661029d27e373f40a545bca6c238218244103e10e",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_okernel_unified_client.py": {
+      "sha256": "47fe6eb3d385acd660624b1b718388ca24f5f2285bd2dd1d5146a66e72a2c8d7",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/verify_okernel_unified_console.py": {
+      "sha256": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/okernel_package_domain.py": {
+      "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "scripts/okernel_native_volume.py": {
+      "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/guest/linux/package-domain/p9": {
+      "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/guest/linux/package-domain/p9-controller": {
+      "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/guest/linux/package-domain/p9-history": {
+      "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+      "publication_match": true,
+      "qualified_source_match": true
+    },
+    "ocore/guest/linux/package-domain/p9-install": {
+      "sha256": "afeed62dcc916ebceb0d8a6e898637c2a98e93f3c14cc09b60dc1f2920cf5704",
+      "publication_match": true,
+      "qualified_source_match": true
+    }
+  },
+  "provenance": {
+    "MCP_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+    "MCP_sha256": "694ae45ecd21bc376ae0047afee3e70975ddd835c942a37a984b3d3d2b069f3a",
+    "MCP_identity_scope": "Retained R4 running_process_inode provenance,clean matching build/runtime source;qualification brokerPID1960399. This audit does not relabel that broker as the eventual publication merge.",
+    "compiler_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+    "compiler_sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7",
+    "evaluator_sha256": "494fc7ff2873ce06007affc31f14c0a8dc7645b354c004e9f86881e635a05bb1",
+    "monitor_sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb",
+    "profile_sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+  },
+  "R8_scope": {
+    "canonical_completed_cli_verified": true,
+    "expanded_verifier_process_observed": false,
+    "no_reconstructed_argv_claim": true,
+    "commands_observed_exit0": 99,
+    "native_linux_old_fids": 5,
+    "numeric_ESTALE": 116,
+    "plan9_surviving_fids": 6,
+    "independent_witness_counter_command_validators_passed": true,
+    "counter_observations": 100,
+    "largest_observed_gap_seconds": 11.077140550827608,
+    "host_bracket_upper_bound_seconds": 12.111919598886743,
+    "timing_scope": "Host/QMP pause brackets,not exact guest latency",
+    "file_bytes": 2097152,
+    "fsynced_prefix_bytes": 1048576,
+    "unknown_tail_bytes": 1048576,
+    "work_not_replayed": true,
+    "apk_scope": "APK3 pre-commit hook before package filesystem changes; not arbitrary transaction crash consistency",
+    "post_replay_readonly_fsck_exit": 0,
+    "CPU": "AArch64 QEMU/TCG Cortex-A57,1vCPU,3GiB;no physical hardware qualification"
+  },
+  "ordinary_scope": {
+    "executed_test_count": 652,
+    "components": 247,
+    "kernel_units": 292,
+    "targeted": 113,
+    "parser_inputs": 267,
+    "skips": 0,
+    "classification": "124 source-defined resident host-model invocations from one successful unit method;6separate actualQEMU EL2 context tests;neither count alone is the60s resident VM proof.",
+    "resident_seconds": 60.289850441971794,
+    "resident_samples": 181
+  },
+  "packet_inventory": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/evidence-inventory-r4.json",
+    "sha256": "11971074f9045dd19d668bc7c313f156b5cb685e19d938ad41d89ba484612356",
+    "files_verified": 1956,
+    "bytes_verified": 34752297,
+    "every_selected_path_regular_hash_size_verified": true,
+    "unique_package_paths": true,
+    "groups": {
+      "current-final-binder": 15,
+      "current-helper-seed-preparation": 7,
+      "current-ordinary": 58,
+      "current-resident-classification": 2,
+      "current-resident-preparation": 30,
+      "current-resident-validation": 9,
+      "current-resident": 29,
+      "current-restart-preparation": 18,
+      "current-restart": 172,
+      "current-six-gates": 380,
+      "current-synthetic-el2": 30,
+      "historical-failed-six-r1": 247,
+      "historical-failure-r5": 156,
+      "historical-failure-r6": 151,
+      "historical-ordinary-r5": 64,
+      "historical-resident-r3": 41,
+      "historical-restart-r7": 212,
+      "historical-restore-diagnosis": 173,
+      "identity-and-control": 79,
+      "installer-fix": 16,
+      "mode17-review": 13,
+      "namespace-epoch-fix": 54
+    },
+    "secret_pattern_hits": [],
+    "private_configuration_selected": [],
+    "scan_limits": "Bounded credential-pattern/name scan is not a general proof of absence of every possible secret. Local provenance paths/host facts remain in immutable raw records;do not present them as portable deployment instructions.",
+    "copies_in_original_inventory": 0,
+    "profile_raw_bytes": "Exact profileSHA is included in current session monitor-profile copies. Monitor/compiler/disk/runtime payloads are deliberately external identities,so this is an audit evidence packet,not a standalone runnable runtime distribution."
+  },
+  "CI": {
+    "qualified_source_run": 43436854460,
+    "url": "https://github.com/lostadi/OSTADIX/actions/runs/43436854460",
+    "independent_readback": "19successful jobs;Required CI success across14required lanes;conditional Release source package job skipped as expected for PR.",
+    "publication_final_CI_pending": true,
+    "receipt": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/ci-readback.json",
+    "sha256": "ea68d8421427f27651f2e58f5cba0210ef4abeb12858b951b2587b0c08dbffd0"
+  },
+  "publication_scope": {
+    "all44guest_native_runtime_gate_source_hashes_match": true,
+    "merge_delta": "M\tcrates/ostadix-api/src/intent/reuse.rs\nM\tdocs/RELEASE_CHECKLIST.html\nM\tdocs/RELEASE_CHECKLIST.md\nM\tscripts/build_source_release.py\nM\ttests/test_source_release.py\n",
+    "delta_note": "reuse.rs changes are inside modtests;other delta is source-release privacy policy/tests/docs. No qualified monitor/guest/runtime/gate captured source changed. Final publication commit remains a separate identity;do not relabel72e raw receipts/MCP stamp as e654 or a later docs commit."
+  },
+  "pending_publication_requirements": [
+    "Create immutable public packet from the exact verified manifest;rehash copied bytes and retain original path/hash -> package-relative mapping. Preserve historical failed candidates unchanged.",
+    "Provide README/CLAIMS/O10 facts matching the exact scoped72e qualification,controlledAPKprecommit/no-replay limits,100observation host timing,652executions/267parses andAArch64QEMU-only scope. No fullnativeOS/physicalboard/arbitraryAPKcrashconsistency claim.",
+    "State audit-only payload omissions and recipient prerequisites;link versioned large artifacts or declared reconstruction recipe/identity where appropriate. Packet alone omits executable/state/image/toolchain payloads by design.",
+    "Complete independent review of actual packet/README/docs once written;no final packet bytes or new docs were present at this audit snapshot.",
+    "Run requiredCI on the final publication merge/docs/evidence commit andverify immutable shared artifact download/SHA before announcing publication complete."
+  ],
+  "evidence": {
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2.json": {
+      "sha256": "7781ee645075d700fed24c51ffca0fc95c742a6e75494584d9b2b6cec6fc73d0",
+      "bytes": 165736,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/acceptance-r2.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/evidence-inventory-r4.json": {
+      "sha256": "11971074f9045dd19d668bc7c313f156b5cb685e19d938ad41d89ba484612356",
+      "bytes": 2852119,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/evidence-inventory-r4.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json": {
+      "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c",
+      "bytes": 28349,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/profile.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8/result.json": {
+      "sha256": "518d4860120d243d0eef49d181b13c9979ecb5f9fb892a2e07acdf7640f0aabb",
+      "bytes": 190265,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/restart.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/restart-command.json": {
+      "sha256": "5c5460af0b4275537445685b896f9fe5018e61066bf238d26a5f7c6b76af4c0f",
+      "bytes": 4259,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/restart_command.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r4/result.json": {
+      "sha256": "12b5b09086b767351f2187a357ded919fe7eb8e607e5e15711741bff38f4d70f",
+      "bytes": 252482,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/resident.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/result.json": {
+      "sha256": "9685c4222967c6daeb72e85c6845475fa62983dfb02a69dcccee1491358d4961",
+      "bytes": 3669,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/guest.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/result.json": {
+      "sha256": "90a70ccede827c7df4119d7b04f5e2755d25421b42bf7ece2fba54725943776b",
+      "bytes": 8232,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/component.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/tests.log": {
+      "sha256": "5fcd470a6e39bf9f45cbab71c9533a4d44be1f19e5962a089d06303cabe933b8",
+      "bytes": 37075,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/component_log.log"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/result.json": {
+      "sha256": "d36138add59bed3dcae83ca754068449cdcd7c5fe209ac625c6bdaf01267daf3",
+      "bytes": 743396,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/unit.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/language.json": {
+      "sha256": "d9e075b91a0860bc3605f7d49eb5a41e6424edd2a9c1450e220f84fcd84d8983",
+      "bytes": 217678,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/language.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/current-env.json": {
+      "sha256": "b4ba9c550f7d29e29ed4c51df429ac0d533cafb2fb2a1e455a2116cec7d22072",
+      "bytes": 6610,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/mandatory/provenance.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/final-status.json": {
+      "sha256": "9aca69b816513a7d2c8549d29a6f369f7167db51290ae7d69993b560b2734b77",
+      "bytes": 1077,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/restart-command/actual_final_status.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2-execution/final-status.json": {
+      "sha256": "61dc58ec780b3bbe8578c051da49f3f242ff5a1fcee0187db17f8d3967977a5e",
+      "bytes": 1079,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/managed/acceptance-r2-execution.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/final-status.json": {
+      "sha256": "54d3b6a79b93cca7a891823333ac43a89dc9070a8e998bc3ca96c2b0ac1b30fa",
+      "bytes": 1080,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/managed/guest-regressions-r2-execution.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6-execution/status-final.json": {
+      "sha256": "f3fe7db885d83e12e3167d697138c7bd4897bb7d174e37f4cfae2f2b4688e030",
+      "bytes": 1078,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/managed/ordinary-regressions-r6-execution.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/start-structured.json": {
+      "sha256": "fc35db1206817d12f45af10a95d4b1ba6ffe273f99160292bbf5a26be68d9481",
+      "bytes": 775,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/restart-command/actual_start_status.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/completion-readback.json": {
+      "sha256": "3a8fd573e0d7b93c62acd84aa4febdb0c8808f9d6cc71d2449c0be3dbb744637",
+      "bytes": 1421,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/restart-command/actual_success_readback.json"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/managed-stdout.log": {
+      "sha256": "93d9aefc82b9d3e8095790c02438a98ee5c8d02cbfc7e587368c8502331c4465",
+      "bytes": 140,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/restart-command/stdout.log"
+    },
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r8-execution/managed-stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/evidence/restart-command/stderr.log"
+    }
+  },
+  "policy": "Read-only audit and small new review receipts. No source edit,stage,commit,VMlaunch,replay,test-suite rerun,fullbinder rerun,large allocation orpreserved-state mutation. All historical failed/source-qualified receipts retained unchanged."
+}

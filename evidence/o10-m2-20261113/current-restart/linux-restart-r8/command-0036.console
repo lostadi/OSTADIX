@@ -1,0 +1,12 @@
+printf %s aXNpb25pbmdfc2NvcGUiOiJQYXlsb2FkIGZpbGVzIHByZXBhcmVkIHVuZGVyI
+HJvb3Rmcy8gb25seS4gT3JpZ2luYWwgc2VlZCB1bmNoYW5nZWQuIENvcHkgaW50byBhIG5ldyBwcml2Y
+XRlIGdhdGUgc2VlZCBiZWZvcmUgYWN0dWFsIGV4ZWN1dGlvbjsgZ2F0ZSByZS12ZXJpZmllcyBldmVye
+SBieXRlL2tleS9zaWduYXR1cmUvdmVyc2lvbiBpbiB0aGUgb3JpZ2luYWwgZ3Vlc3QuIiwic2NoZW1hI
+joib3N0YWRpeC5vMTAtbGludXgtYXBrLWZpeHR1cmUvdjEiLCJ0YXJnZXRfYXBrIjoiL29wdC9vMTAtb
+TItZml4dHVyZS9wa2djb25mLTIuNS4xLXIwL2Fwa3MvcGtnY29uZi0yLjUuMS1yMC5hcGsiLCJ2ZXJza
+W9uIjoiMi41LjEtcjAifSwibm9uY2UiOiJjYWQ1NTM2MmVjNDli >> /run/o10-m2-cad55362ec49b
+45f291d1110.json.o10-base64; _uw_rc=$?; printf '\nUNIFIED_COMMAND_e7a7d486251341
+4dbff045b2fcfa0e6a:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_e7a7d4862513414dbff045b2fcfa0e6a:0
+okernel> [6n

@@ -1,0 +1,17 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_plan9_namespace_uart",
+    "tests.test_okernel_namespace_peer",
+    "tests.test_okernel_u9fs_peer",
+    "tests.test_namespace_session_identity",
+    "tests.test_namespace_session_tokens",
+    "tests.test_posix_namespace_files",
+    "tests.test_namespace_store_dotu"
+  ],
+  "exit_code": 1,
+  "scope": "Ordinary host-native opaque-session API and plain9P2000 compatibility only; no guest execution."
+}

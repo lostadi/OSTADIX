@@ -1,0 +1,117 @@
+{
+  "schema": "ostadix.unified-foreground-client/v1",
+  "ok": false,
+  "started": 1794576466.3068204,
+  "scope": "automated keystrokes through a real foreground PTY: original Linux p9 client and concurrent original9front commands/compiler beneath one native O-core monitor; not a human typing claim",
+  "inputs": {
+    "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client",
+    "build": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+    "before": {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+        "bytes": 1073741824,
+        "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+        "bytes": 1073741824,
+        "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+      },
+      "session": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation",
+      "o10_apk_fixture_preparation": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation/result.json",
+      "namespace": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "fork_origin": {
+        "source": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "head_sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+      }
+    },
+    "monitor_revision": "O10-M2-private-candidate",
+    "profile_sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c",
+    "monitor": {
+      "path": "monitor.elf",
+      "bytes": 1012056,
+      "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+    }
+  },
+  "source_sha256": {
+    "scripts/verify_okernel_unified_client.py": "47fe6eb3d385acd660624b1b718388ca24f5f2285bd2dd1d5146a66e72a2c8d7",
+    "scripts/verify_okernel_unified_console.py": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220",
+    "scripts/okernel_unified_world.py": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304",
+    "scripts/okernel_package_domain.py": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f",
+    "scripts/okernel_native_volume.py": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef",
+    "ocore/guest/linux/package-domain/p9": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e",
+    "ocore/guest/linux/package-domain/p9-controller": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4",
+    "ocore/guest/linux/package-domain/p9-history": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4",
+    "ocore/guest/linux/package-domain/p9-install": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+  },
+  "watchdog": false,
+  "raw_console": false,
+  "sessions": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/unified-session-86a0591y"
+  ],
+  "checks": [],
+  "source_artifacts": {
+    "scripts/verify_okernel_unified_client.py": {
+      "path": "sources/scripts/verify_okernel_unified_client.py",
+      "bytes": 34890,
+      "sha256": "47fe6eb3d385acd660624b1b718388ca24f5f2285bd2dd1d5146a66e72a2c8d7"
+    },
+    "scripts/verify_okernel_unified_console.py": {
+      "path": "sources/scripts/verify_okernel_unified_console.py",
+      "bytes": 10606,
+      "sha256": "524f9e711df0e656c68dafd1f8cda3c317777994d119a5fc703a9d50dd0b2220"
+    },
+    "scripts/okernel_unified_world.py": {
+      "path": "sources/scripts/okernel_unified_world.py",
+      "bytes": 73391,
+      "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+    },
+    "scripts/okernel_package_domain.py": {
+      "path": "sources/scripts/okernel_package_domain.py",
+      "bytes": 41952,
+      "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+    },
+    "scripts/okernel_native_volume.py": {
+      "path": "sources/scripts/okernel_native_volume.py",
+      "bytes": 11240,
+      "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+    },
+    "ocore/guest/linux/package-domain/p9": {
+      "path": "sources/ocore/guest/linux/package-domain/p9",
+      "bytes": 33362,
+      "sha256": "1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e"
+    },
+    "ocore/guest/linux/package-domain/p9-controller": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-controller",
+      "bytes": 19477,
+      "sha256": "b546f05a9766e3734fae8d3167af20acd2ab3b6933028572da7357c00202afe4"
+    },
+    "ocore/guest/linux/package-domain/p9-history": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-history",
+      "bytes": 30438,
+      "sha256": "c696bb679de3c7bbc1679e453283dd325a15b959dfa5fd34be6e32f5e853ddb4"
+    },
+    "ocore/guest/linux/package-domain/p9-install": {
+      "path": "sources/ocore/guest/linux/package-domain/p9-install",
+      "bytes": 15229,
+      "sha256": "ebcce9e74dd194500425e34347b4599def0ace3b652f4f500089aa2b5170d016"
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "path": "sources/ocore/guest/plan9/unified/protocol.py",
+      "bytes": 16391,
+      "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+    }
+  },
+  "error": "TimeoutError: missing typed-console output b'P9_TYPED_OK_43580ea3ff2acb51dbc554d6'"
+}

@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "scripts/check_language_sources.py",
+    "check"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "language-sources: required compiler/interpreter missing: /home/ustad/OSTADIX-o10-m2-20261112/target/debug/O\n",
+  "started_unix": 1794572510.1994345,
+  "finished_unix": 1794572510.328962,
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "broker_built_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "scope": "Pre-checkpoint source inventory check; preparation only"
+}

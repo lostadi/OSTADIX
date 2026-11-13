@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "scripts/check_language_sources.py",
+    "--help"
+  ],
+  "exit_code": 0,
+  "stdout": "usage: check_language_sources.py [-h] [--root ROOT] [--o-bin O_BIN]\n                                 [--ocorec OCOREC] [--jobs JOBS]\n                                 [--timeout TIMEOUT]\n                                 [--json-report JSON_REPORT]\n                                 {validate,check}\n\nAccount for and parse every tracked .O/.oc source without executing programs.\n\npositional arguments:\n  {validate,check}\n\noptions:\n  -h, --help            show this help message and exit\n  --root ROOT\n  --o-bin O_BIN\n  --ocorec OCOREC\n  --jobs JOBS\n  --timeout TIMEOUT\n  --json-report JSON_REPORT\n",
+  "stderr": ""
+}

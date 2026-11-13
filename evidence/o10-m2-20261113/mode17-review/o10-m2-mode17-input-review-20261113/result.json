@@ -1,0 +1,98 @@
+{
+  "after_sha256": {
+    "ocore/kernel/build.sh": "94df579b2e8a18ee33da2c322e7105b8fcbcbadc25d0e8bf3f5cd6a8cd39029b",
+    "tests/test_ocore_kernel_build_profiles.py": "9e3ac67139c7e150297a2d421196d7b59a9e90c5a0789f31fcb3cec955377792"
+  },
+  "apply_check": {
+    "argv": [
+      "git",
+      "apply",
+      "--check",
+      "--verbose",
+      "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/mode17-37961f95.patch"
+    ],
+    "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+    "returncode": 0,
+    "stderr": {
+      "bytes": 100,
+      "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/apply-check.stderr",
+      "sha256": "6471b803db0a85509785cf71fd44cea3a8fa1fa891e80693d20d59bf19e27813"
+    },
+    "stdout": {
+      "bytes": 0,
+      "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/apply-check.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "apply_scope": [
+    "ocore/kernel/build.sh",
+    "tests/test_ocore_kernel_build_profiles.py"
+  ],
+  "before_sha256": {
+    "ocore/kernel/build.sh": "d7f109d15925a3a1b09672a4a101218948beae783adfb94a787898737ac2992a",
+    "tests/test_ocore_kernel_build_profiles.py": "a49302b02897d0656ed6308f10fef344bbb3d9f88357d386a3710ca2296a5d8a"
+  },
+  "commit_evidence": {
+    "bytes": 11045,
+    "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/commit.json",
+    "sha256": "2a2fdf49eb5faa80533661202e38dc08b260e9e11d867c32869f8cccca602d80"
+  },
+  "compiler_code_changed": false,
+  "direct_consumer": "ocore/kernel/smoke-live-semantics-qemu.sh sets OCORE_PROBE_MODE=17 and invokes ocore/kernel/build.sh",
+  "exact_mechanism": "Mode17 joins existing per-function/per-data section and linker garbage-collection policy; all source-selection bodies, linker and bootstrap reserve remain unchanged.",
+  "fix_commit": "37961f95efed2c3cff8421263818b6073e92372b",
+  "fresh_current_head_mcp_stamp_required": true,
+  "m2_dependency_scope": "M2 unified Python builder does not reference the changed bootstrap build script; full tracked provenance still changes and requires a fresh MCP stamp.",
+  "mode17_kernel_end_limit": "0x00380000",
+  "native_ocore_source_changed": false,
+  "observed": 1794571061.2994897,
+  "ok": true,
+  "patch": {
+    "bytes": 5057,
+    "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/mode17-37961f95.patch",
+    "sha256": "6ba71091437a61c9411fa9240117e3c9d40176136d9984959932d1722a5220b7"
+  },
+  "private_copy_apply_exit": 0,
+  "published_after_bytes_match_private_patch": true,
+  "qualification": {
+    "all_jobs_passed": 20,
+    "ci_jobs": {
+      "bytes": 3387,
+      "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/qualified-ci-jobs.json",
+      "sha256": "2025a9d855988a861d81f62d16529171ab6435d43e45748bdf342f2a4b19bb4a"
+    },
+    "head_sha": "c320fdeea72ae21ec8c92995e52f36809e5f7cf8",
+    "job_id": 131850078375,
+    "log": {
+      "bytes": 1512,
+      "path": "/home/ustad/.cache/o10-m2-mode17-input-review-20261113/qualified-mode17-ci.log",
+      "sha256": "7d0f6cd622ca5069ea545490573ebbf0bb000ac153c3b7f26adcf17b6e6ec843"
+    },
+    "m5_semantic_markers_passed": 7,
+    "one_second_survival_required": true,
+    "portable_gates_passed": 26,
+    "post_test_tick_required": true,
+    "required_lanes_passed": 14,
+    "run_id": 43414593342,
+    "scope": "Foundation c320 source, x86 QEMU Mode17 M5 semantic corpus; no M2-tree guest qualification"
+  },
+  "reserve_changed": false,
+  "review_source_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "root_mcp_dependency_resolution_inputs_changed": false,
+  "schema": "ostadix.o10-m2-reviewed-mode17-input-overlay/v1",
+  "scope": "Independent read-only exact patch/input/qualified-CI review; no root source mutation, tests, build or VM dispatched",
+  "source_root": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "source_unchanged": true,
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "unchanged_inputs": {
+    "Cargo.lock": "31f81ac32e461d1a8bd433f31fa65b3759a1fff73b196ad7a24ce751e345dca8",
+    "Cargo.toml": "1eeb28b44de3f4eaea63fc90f2abcbb21216a653ce53b4ed0b7b5f93a423fe95",
+    "mcp/ostadix_lang_mcp_server/Cargo.lock": "d8411ca4c9b9c5afac3c23af21cc5620ee9e307bdecca4abb96e948a68af8b9b",
+    "mcp/ostadix_lang_mcp_server/Cargo.toml": "b6d1ad91c22729e35243efb93646ad843b75204b7e5b7c8a1adc4799921224ea",
+    "ocore/kernel/boot.S": "d2a4d297e2d436638d9279ed90dc12cb7f3648c7686013762d9161e36a366469",
+    "ocore/kernel/linker.ld": "af2a222686ced913422e830300acdfbb504fb821c79c1c6936c85ede2a97a913",
+    "ocore/kernel/smoke-live-semantics-qemu.sh": "1628028d5ed33a8b65177a6879df598260900d938002a0541d85d59ddf42c948",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3"
+  },
+  "watched_build_identity_changed": true
+}

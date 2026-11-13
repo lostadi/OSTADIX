@@ -1,0 +1,50 @@
+{
+  "schema": "ostadix.o10-m2-components/v1",
+  "milestone": "M2",
+  "milestone_qualified": false,
+  "base_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "candidate_uncommitted": true,
+  "M1_copied_source_receipt": "base-source.json",
+  "source_sha256": {
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "1e8231aba1e196eaec0ce0cb4ce4c28c629970bc2f74e04712540661d1b9fc7c",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "bb605352283f8c1bcdf569ccd1bc2de8b970075886e2e0865a0177c1a9423f6d",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ci/language-sources.json": "f0381ec529b320a02290b5dea20b2186e8ab74d0adb11af5ae3735dd5e97e260",
+    "tests/test_o10_linux_reset_native.py": "37185549bd540603bb6e06dfdcfcb3c266b9ff20dc63b0fc1340c7896b4166fd",
+    "tests/test_kernel_world_9p_transport.py": "202eddbb7f27e9d9eeb63a148344eae046dfa1edc566b6e32d89c37a93e788c4"
+  },
+  "host": {
+    "system": "Linux",
+    "node": "X12",
+    "release": "7.0.14-ustad-native-20261031",
+    "version": "#ustad1 SMP PREEMPT_DYNAMIC Sat Oct 31 17:55:45 EDT 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "finished_unix": 1794546317.3386695,
+  "compiler": {
+    "path": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+    "sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42"
+  },
+  "MCP_scope": "Fresh binary built at M0base5fb; persistent M1-root bridge explicitly executes native M2 tests with M2 cwd. Not aligned final M2 release.",
+  "component_result": "final-components/result.json",
+  "unit_tests": 19,
+  "unit_skips": 0,
+  "native_reset_scenarios": 4,
+  "language_result": "final-components/language-sources.json",
+  "language_classified": 262,
+  "language_parsed_as_expected": 262,
+  "language_failed": 0,
+  "scope": "Production Linux-only reset and immutable-copy helpers executed under x86_64 mapped-memory/IRQ model; all512MiB bytes verified after zero/reload, actual namespace session/fid revoke and survivor retention. New module compiles AArch64 MIR. No guest boot/filesystem/physical-board claim.",
+  "not_implemented": [
+    "O10 Linux symmetric lifecycle executor integration",
+    "VMID/architectural reset and interrupt-routing guest gates",
+    "bootloader/builder immutable image registration and captured image identities",
+    "runner Linux restart policy",
+    "literal ESTALE namespace error mapping",
+    "APK/ext4 interrupted-write recovery gate",
+    "final M1 lineage inheritance and aligned M2 release"
+  ]
+}

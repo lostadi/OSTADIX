@@ -36,8 +36,13 @@ O10_M0_PROFILE = "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae029
 # evidence/o10-m1-20261113/resident-r7/result.json
 O10_M1_R7_MONITOR = "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
 O10_M1_R7_PROFILE = "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938"
-MONITOR_REVISIONS = {O10_M1_R7_MONITOR: "O10-M1-R7-resident-candidate", O10_M0_MONITOR: "O10-M0-live", R8_MONITOR: "R8", R9_MONITOR: "R9", R10_MONITOR: "R10-idle-traffic"}
+# Private M2 candidate admission for live/regression gates only; qualification is pending.
+# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5
+O10_M2_MONITOR = "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+O10_M2_PROFILE = "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+MONITOR_REVISIONS = {O10_M2_MONITOR: "O10-M2-private-candidate", O10_M1_R7_MONITOR: "O10-M1-R7-resident-candidate", O10_M0_MONITOR: "O10-M0-live", R8_MONITOR: "R8", R9_MONITOR: "R9", R10_MONITOR: "R10-idle-traffic"}
 MONITOR_PROFILES = {
+    O10_M2_MONITOR: O10_M2_PROFILE,
     O10_M1_R7_MONITOR: O10_M1_R7_PROFILE,
     O10_M0_MONITOR: O10_M0_PROFILE,
     R8_MONITOR: "de9938bb381d7db3613cabedc1fdbf0d18b3eb65b4318a8cee7a26f7292bee2c",

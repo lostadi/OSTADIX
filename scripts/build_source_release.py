@@ -306,9 +306,12 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         "scripts/o10.py",
         "scripts/verify_o10_journal.py",
         "scripts/verify_o10_live.py",
+        "scripts/verify_o10_linux_restart.py",
         "scripts/verify_o10_m0.py",
         "scripts/verify_o10_m1.py",
         "scripts/verify_o10_m1_regressions.py",
+        "scripts/verify_o10_m2.py",
+        "scripts/verify_o10_m2_regressions.py",
         "scripts/verify_o10_resident.py",
         "scripts/verify_o10_hostile_mmio.py",
         "scripts/verify_o10_regressions.py",
@@ -326,15 +329,24 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         "scripts/fork_okernel_state.py",
         "ocore/guest/plan9/unified/protocol.py",
         "ci/language-sources.json",
+        "tests/test_namespace_store_dotu.py",
+        # Exact historical AST inputs referenced by the language-source manifest.
+        # Their inclusion preserves source completeness, without a runtime claim.
+        "evidence/o10-m2-20261112/historical-wire-before/artifacts/baseline.oc",
+        "evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/baseline.oc",
+        "evidence/o10-m2-20261112/integration-check/profile.oc",
+        "evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc",
         *(
             f"tests/test_o10_{name}.py"
-            for name in ("codec", "live", "m0", "m1", "m1_regressions", "native", "platform",
-                         "regressions", "runner", "resident", "resident_native", "hostile_mmio")
+            for name in ("codec", "live", "m0", "m1", "m1_regressions", "m2", "m2_regressions", "native", "platform",
+                         "regressions", "runner", "resident", "resident_native", "hostile_mmio",
+                         "linux_profile", "linux_reset_native", "linux_restart_native",
+                         "linux_runner", "linux_restart", "linux_witness", "linux_witness_native")
         ),
         *(
             f"ocore/runtime/aarch64/{name}.oc"
             for name in (
-                "unified_world", "unified_gic", "kernel_world_monitor",
+                "unified_world", "unified_gic", "kernel_world_monitor", "linux_domain_images", "linux_restart_witness",
                 "kernel_world_virtio", "kernel_world_virtio_selftest",
                 "kernel_world_net_host", "kernel_world_net", "kernel_world_9p",
                 "plan9_namespace_uart", "coordinator_uart",

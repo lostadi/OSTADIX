@@ -1,0 +1,87 @@
+{
+  "schema": "ostadix.o10-private-state-retired/v1",
+  "resumable": false,
+  "state": "retired",
+  "reason": "Only reviewed working clones retired for authorized space cleanup; all evidence/head bytes retained.",
+  "head": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/head.json",
+    "bytes": 1651,
+    "allocated_bytes": 4096,
+    "device": 64512,
+    "inode": 55065355,
+    "links": 1,
+    "mode": "0o600",
+    "regular": true,
+    "symlink": false,
+    "mtime_ns": 1794571453654746807,
+    "ctime_ns": 1794571453658196894,
+    "sha256": "52c5c4d2e1d31a5f9e897dc77a2f1c57681bc81720d4665f2543707021f8da3b"
+  },
+  "retirement_receipt": "/home/ustad/.cache/o10-m2-acceptance-20261113/closed-private-clone-retirement-r1/receipt.json",
+  "candidate_paths": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/disk.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/namespace.raw"
+  ],
+  "started_unix": 1794575244.5648892,
+  "finished_unix": 1794575247.1695936,
+  "removed": [
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "device": 64512,
+      "inode": 55065336,
+      "links": 1,
+      "mode": "0o400",
+      "regular": true,
+      "symlink": false,
+      "mtime_ns": 1794571451571242799,
+      "ctime_ns": 1794571452762216602,
+      "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "device": 64512,
+      "inode": 55065349,
+      "links": 1,
+      "mode": "0o400",
+      "regular": true,
+      "symlink": false,
+      "mtime_ns": 1794571453481200787,
+      "ctime_ns": 1794571453552199226,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/disk.ext4",
+      "bytes": 1073741824,
+      "allocated_bytes": 1073745920,
+      "device": 64512,
+      "inode": 55065430,
+      "links": 1,
+      "mode": "0o400",
+      "regular": true,
+      "symlink": false,
+      "mtime_ns": 1794571454889169819,
+      "ctime_ns": 1794571455568154886,
+      "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+    },
+    {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/gate/state/unified-session-z87zdx5x/inputs/namespace.raw",
+      "bytes": 16777216,
+      "allocated_bytes": 16777216,
+      "device": 64512,
+      "inode": 55065431,
+      "links": 1,
+      "mode": "0o400",
+      "regular": true,
+      "symlink": false,
+      "mtime_ns": 1794571455583154556,
+      "ctime_ns": 1794571455594154314,
+      "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+    }
+  ]
+}

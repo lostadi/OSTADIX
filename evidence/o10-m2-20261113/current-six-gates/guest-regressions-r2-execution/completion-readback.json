@@ -1,0 +1,111 @@
+{
+  "free_disk_bytes_after": 5615013888,
+  "gates": [
+    {
+      "command_returncode": 0,
+      "fork_returncode": 0,
+      "gate_id": "two_domains",
+      "receipt": {
+        "bytes": 5427,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/two_domains/two-domain-acceptance.json",
+        "sha256": "227f806ba34672cce4f00d0ce2cb68278d7a3e1d91840ffface7c8661ccecf6e"
+      }
+    },
+    {
+      "command_returncode": 0,
+      "fork_returncode": 0,
+      "gate_id": "provider",
+      "receipt": {
+        "bytes": 1479,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/provider/provider-acceptance-d9248198206025db/result.json",
+        "sha256": "1997b7485bab2c9455806dbaba57c851047e09f4e224cf90703020eaa248716d"
+      }
+    },
+    {
+      "command_returncode": 0,
+      "fork_returncode": 0,
+      "gate_id": "client",
+      "receipt": {
+        "bytes": 9797,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/client/client-acceptance-3da9kd4r/result.json",
+        "sha256": "5271c0bebd4eba8c73128e6362638a8d646432627e066d5f439cdbb2d52714fc"
+      }
+    },
+    {
+      "command_returncode": 0,
+      "fork_returncode": 0,
+      "gate_id": "recovery",
+      "receipt": {
+        "bytes": 22708,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/recovery/client-crash-acceptance-e2nn1bcn/result.json",
+        "sha256": "d8c6d9459448de966a3b7febbc60480d685706d17ba57dff6252f970492af2c4"
+      }
+    },
+    {
+      "command_returncode": 0,
+      "fork_returncode": 0,
+      "gate_id": "default_compile",
+      "receipt": {
+        "bytes": 17587,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/default_compile/p9-default-compile-7ny3w53f/result.json",
+        "sha256": "2c2e8ba074b0bf8e7f527cc4f34edaeba16e302ef9a73d473312caff198b30cb"
+      }
+    },
+    {
+      "command_returncode": 0,
+      "fork_returncode": 0,
+      "gate_id": "runtime",
+      "receipt": {
+        "bytes": 89531,
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/states/runtime/runtime-acceptance-11b263d2a1d923ea/result.json",
+        "sha256": "ed633a692e4d874d75a59f6042d2815a1daeeca7c59d74a0c31a3ba6fee762d3"
+      }
+    }
+  ],
+  "managed_exit_code": 0,
+  "managed_job": "job-1960399-1794578286458176260-1-20",
+  "managed_status": {
+    "bytes": 1080,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/final-status.json",
+    "sha256": "54d3b6a79b93cca7a891823333ac43a89dc9070a8e998bc3ca96c2b0ac1b30fa"
+  },
+  "managed_stderr": {
+    "bytes": 0,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/managed-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "managed_stdout": {
+    "bytes": 140,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/managed-stdout.log",
+    "sha256": "a1e382a518155ee382569c678a0785847c219dd0203280f7eb8a7c8c25951242"
+  },
+  "observed_unix": 1794582416.498472,
+  "ok": true,
+  "qemu_processes_after": [],
+  "schema": "ostadix.o10-m2-six-completion-independent-readback/v1",
+  "scope": "Actual six fresh original guest gates all passed with zero skips, exact exit0 commands and unchanged sources on72e; final full M2 acceptance binder remains separate.",
+  "seed_head_unchanged": true,
+  "shared_result": {
+    "bytes": 184212,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/six-gates/result.json",
+    "sha256": "0f5f20e3d1ec453dfb8b87192549908676d33cd4d79d137775303db14a1f48df"
+  },
+  "source_after": {
+    "bytes": 10617,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/sources-after.json",
+    "sha256": "37e082233c9d6aa615d6a80881e10f85e6a43f4a802dc05139ea6dd8149eebd5"
+  },
+  "source_before": {
+    "bytes": 12773,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2-execution/sources-before.json",
+    "sha256": "ca01449de68e6652cedf86d61da2b70a18034fa91a14ec522f51a9c3745e4dd7"
+  },
+  "source_count": 44,
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "source_unchanged": true,
+  "wrapper": {
+    "bytes": 3669,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r2/result.json",
+    "sha256": "9685c4222967c6daeb72e85c6845475fa62983dfb02a69dcccee1491358d4961"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "bash",
+    "scripts/o-kernel.sh",
+    "o10-linux-restart",
+    "--help"
+  ],
+  "returncode": 0,
+  "timed_out": false,
+  "source_sha256": {
+    "scripts/o-kernel.sh": "eac81c4939f65aefa4c9efdce62fe5280d7fc5fd7fd7ac20bac8a17e7d9b6d59",
+    "scripts/verify_o10_linux_restart.py": "ff5b5c055171810e7fec87f127f6adc975a10983c6f467d875d0b0e049fb0122"
+  },
+  "scope": "Canonical CLI help routing only; no VM or gate run"
+}

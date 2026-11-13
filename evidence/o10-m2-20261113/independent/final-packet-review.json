@@ -1,0 +1,75 @@
+{
+  "schema": "ostadix.o10-m2-publication-packet-independent-review/v1",
+  "time_utc": "2026-11-13T15:28:42.699636+00:00",
+  "verdict": "Actual small Git evidence packet and corrected README/O10/CLAIMS scope accepted;no remaining packet/documentation blocker found. Final publication commit/CI/push/master integration remain root-owned.",
+  "qualified_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "acceptance_sha256": "7781ee645075d700fed24c51ffca0fc95c742a6e75494584d9b2b6cec6fc73d0",
+  "packet": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m2-20261113",
+  "copied_files_verified": 1962,
+  "copied_bytes_verified": 37831649,
+  "preexisting_files_verified": 31,
+  "copied_hashes_regular_sizes_and_original_preservation_verified": true,
+  "privacy": "Bounded strong credential-pattern scan of copied packet found no private-key/token/bearer patterns or private client configurations. Local provenance paths remain immutable historical identifiers,not portable deployment commands. No raw bytes were rewritten.",
+  "README_and_scope": "MatchesR8 numeric116x5 oldLinuxfids,6Plan9survivors,100counterobservations0..99 and11.077/12.112hostbounds,60.290s/181residentobservations,12VMsessions,652executions/267qualifiedparserinputs andcontrolledAPK3precommit/no-replay/1MiBdurable+1MiBunknown tail. Originalsource72e/MCP andcompilerorigin7c distinctions retained;no fabricatedexpandedPythonargv.",
+  "corrected_source_claims": "O10 now distinguishes fullu64 namespace epochs/frontend generations from32bitdomain/lease/block/network bounds. CLAIMS describes resetvCPU/vGIC state andpurged targetVMID translations,not newly chosen numericVMIDs.",
+  "links": "README/O10/CLAIMS local targets independently checked to exist;no broken local link found.",
+  "publication_language_inventory": {
+    "current_qualified_inputs": 267,
+    "historical_oc_captures": 190,
+    "publication_parse_inputs": 457,
+    "programs_executed": 0,
+    "exact190path_group_matches_packet": true,
+    "classification": "historical-snapshot",
+    "HTML_pairs": 115,
+    "HTML_drift": 0,
+    "scope": "Publication-only source inventory;qualified72e267 count andrawreceipts unchanged."
+  },
+  "publication_channel": "GitPR/master only for this small audit packet. Shared artifact-store download is not a prerequisite for the selected publication scope;this supersedes that generic pending item in the earlier pre-copy review.",
+  "payload_limits": "Large executable/state/image/toolchain artifacts are external identity references,not a runnable distribution. README states omissions and historical/private-cache role. No claim of physicalhardware,arbitraryAPKcrashconsistency orfullnativeOS support.",
+  "sources": {
+    "evidence/o10-m2-20261113/README.md": {
+      "sha256": "c2300e90dff130347d3d8cb8c423e44cc56b9f21e7ca479931d9f27399cf0ff7",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/packet-review-r1/source-freeze/evidence/o10-m2-20261113/README.md"
+    },
+    "docs/O10.md": {
+      "sha256": "029948023b9b0135a9a6d460883a5cd042ff02854a729437921f6c53f3ca32f3",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/packet-review-r1/source-freeze/docs/O10.md"
+    },
+    "docs/CLAIMS.md": {
+      "sha256": "c34b1326c49bdcd92374e4e4f8be3f62a8c89e0f07b7cddd6b0563963aa9fc20",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/packet-review-r1/source-freeze/docs/CLAIMS.md"
+    },
+    "docs/CLAIMS.html": {
+      "sha256": "68a276c297e851eaad7aab4885a8e46aa0aeaf518b60a2ec08adce32d813348c",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/packet-review-r1/source-freeze/docs/CLAIMS.html"
+    },
+    "ci/language-sources.json": {
+      "sha256": "a7eda896afa449a4207502eb5ab615087d40bff6be0073061e0d44545cec73a1",
+      "sealed_copy": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/packet-review-r1/source-freeze/ci/language-sources.json"
+    }
+  },
+  "evidence": {
+    "copy-receipt.json": {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m2-20261113/copy-receipt.json",
+      "sha256": "ff0f118ff76e30526465b424b6c1366317087cc4fe95bdd12010397ae3973ce7",
+      "bytes": 780339
+    },
+    "publication-checks-r2.json": {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m2-20261113/publication-checks-r2.json",
+      "sha256": "e233be27c3682b7e87949227de9918f9ea284916e4301e014fcac629fe86f988",
+      "bytes": 2938
+    },
+    "publication-language-check.json": {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m2-20261113/publication-language-check.json",
+      "sha256": "5b911a8ee3eb3e1b234f3b27ea12c0a812ccf20865084f8253b294bba6bd4290",
+      "bytes": 447001
+    },
+    "publication-validation.json": {
+      "path": "/home/ustad/OSTADIX-o10-m1-publish-20261113/evidence/o10-m2-20261113/publication-validation.json",
+      "sha256": "ffea20ac2e93f74093b6c48cf66c8995bd890237840eaf24acc7f551c75836a5",
+      "bytes": 2625
+    }
+  },
+  "prior_review": "/home/ustad/.cache/o10-m2-final-independent-review-20261113/report.json",
+  "policy": "Read-only packet/docs audit;small additive cache receipt only. No source edit,stage,commit,VM/compiler/suite launch,large allocation orpreserved-state mutation."
+}

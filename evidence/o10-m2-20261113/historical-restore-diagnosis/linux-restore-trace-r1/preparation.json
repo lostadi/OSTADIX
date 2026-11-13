@@ -1,0 +1,33 @@
+{
+  "schema": "ostadix.o10-m2-trace-preparation/v1",
+  "prepared_only": true,
+  "source_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "scope": "Cache-only read-only CPU trace preparation for one new explicit diagnostic workload fork. No VM started. Original R6 unknown frame remains unmodified and is explicitly rejected by the observer hook.",
+  "files": {
+    "trace-sites.json": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-sites.json",
+      "bytes": 3307,
+      "sha256": "54d4b18bc35701260280ed1b6ae36a38b77e946665feee1296d94cee93952dd1"
+    },
+    "trace-driver.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-driver.py",
+      "bytes": 5185,
+      "sha256": "c49e39201c2202437c4d732cbea0eacaeb59bf62e269634d08b8b1e501d3d488"
+    },
+    "qemu-trace": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/qemu-trace",
+      "bytes": 446,
+      "sha256": "01698845946bbd83f5336ed96cca363ecbd088fee8c141db3a79a6844b366ff4"
+    }
+  },
+  "startup_logging": false,
+  "activation": "HMP log cpu,nochain immediately before the single fresh Linux Trestore; retained actual HMP help/response; log none in finally preserves original exception",
+  "trace_ranges": "Four caller return blocks plus gic_reset, Linux provision and child frontend generation/state guards; excludes Linux RAM zero/copy module and coordinator output clear loop",
+  "argv": [
+    "python3",
+    "-B",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-driver.py"
+  ],
+  "expected_output": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/debug-result.json",
+  "prepared_unix": 1794571257.9496636
+}

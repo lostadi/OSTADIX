@@ -2,8 +2,10 @@
 
 Both complete production stores execute as native x86-64 objects. The fixture
 changes only the historical module name and ELF symbol visibility, allowing a
-byte comparison of the whole volume and authoritative session/fid state after
-every operation. No C model implements store policy. All callers remain wire
+byte comparison of the whole volume and semantic session/fid state after
+every operation. Independently issued opaque session names are associated by
+trusted API return values; wire replies and all other state remain exact.
+Historical source bytes are unchanged. No C model implements store policy. All callers remain wire
 clients in this checkpoint; this is not a local-backend or guest-boot proof.
 """
 import hashlib
@@ -43,10 +45,37 @@ DECLARE(REF)
 DECLARE(NEW)
 static uint8_t *pair_original,*pair_candidate;
 static uint64_t pair_operations,pair_states;
+static uint64_t old_tokens[4096],new_tokens[4096];static size_t token_count;
+static uint64_t mapped_token(uint64_t old){
+ if(!old)return 0;
+ for(size_t i=0;i<token_count;i++)if(old_tokens[i]==old)return new_tokens[i];
+ // Preserve nonzero invalidity: zero is special for an empty-role claim.
+ // Select an even name never issued by the candidate, without guessing a
+ // relationship between the two implementations' opaque encodings.
+ uint64_t invalid=UINT64_MAX-1;
+ for(;;){
+  int used=0;for(size_t i=0;i<token_count;i++)if(new_tokens[i]==invalid)used=1;
+  if(!used)return invalid;
+  assert(invalid>2);invalid-=2;
+ }
+}
+static void associate_token(uint64_t old,uint64_t current){
+ assert((old==0)==(current==0));if(!old)return;
+ assert(token_count<4096 && !(current&1)); // Plain session corpus only.
+ for(size_t i=0;i<token_count;i++)assert(old_tokens[i]!=old && new_tokens[i]!=current);
+ old_tokens[token_count]=old;new_tokens[token_count++]=current;
+}
+static void same_tokens(const uint64_t *old,const uint64_t *current,size_t count){
+ for(size_t i=0;i<count;i++){
+  if(old[i]){int known=0;for(size_t j=0;j<token_count;j++)if(old_tokens[j]==old[i])known=1;assert(known);}
+  assert(mapped_token(old[i])==current[i]);
+ }
+}
 #define SAME(n) do { if(memcmp(&NEW(n),&REF(n),sizeof NEW(n))){fprintf(stderr,"state differs: %s at operation %llu\n",#n,(unsigned long long)pair_operations);abort();} }while(0)
 static void pair_state(void){
  SAME(READY);SAME(EPOCH);SAME(SERIAL);SAME(CLOCK);SAME(USED);SAME(FREE_BLOCKS);
- SAME(SESSION);SAME(GENERATION);SAME(VERSIONED);SAME(MSIZE);SAME(F_SESSION);
+ same_tokens(REF(SESSION),NEW(SESSION),5);SAME(GENERATION);SAME(VERSIONED);SAME(MSIZE);
+ same_tokens(REF(F_SESSION),NEW(F_SESSION),512);
  SAME(F_NUMBER);SAME(F_OBJECT);SAME(F_GENERATION);SAME(F_MODE);
  if(pair_original)assert(!memcmp(pair_original,pair_candidate,16777216));
  pair_states++;
@@ -64,11 +93,11 @@ uint64_t PAIR_init(uintptr_t address,size_t length,uint64_t epoch){
 }
 uint64_t PAIR_healthy(void){uint64_t a=REF(healthy)(),b=NEW(healthy)();assert(a==b);pair_state();return a;}
 uint64_t PAIR_provision_clock(uint64_t x){uint64_t a=REF(provision_clock)(x),b=NEW(provision_clock)(x);pair_operations++;assert(a==b);pair_state();return a;}
-uint64_t PAIR_session_init(uint64_t g,uint64_t e){uint64_t a=REF(session_init)(g,e),b=NEW(session_init)(g,e);pair_operations++;assert(a==b);pair_state();return a;}
+uint64_t PAIR_session_init(uint64_t g,uint64_t e){uint64_t a=REF(session_init)(g,e),b=NEW(session_init)(g,e);pair_operations++;associate_token(a,b);pair_state();return a;}
 uint64_t PAIR_revoke(uint64_t g){uint64_t a=REF(revoke)(g),b=NEW(revoke)(g);pair_operations++;assert(a==b);pair_state();return a;}
-uint64_t PAIR_session_claim(uint64_t g,uint64_t e,uint64_t old){uint64_t a=REF(session_claim)(g,e,old),b=NEW(session_claim)(g,e,old);pair_operations++;assert(a==b);pair_state();return a;}
-uint64_t PAIR_session_is_current(uint64_t g,uint64_t old){uint64_t a=REF(session_is_current)(g,old),b=NEW(session_is_current)(g,old);pair_operations++;assert(a==b);pair_state();return a;}
-uint64_t PAIR_revoke_if_current(uint64_t g,uint64_t old){uint64_t a=REF(revoke_if_current)(g,old),b=NEW(revoke_if_current)(g,old);pair_operations++;assert(a==b);pair_state();return a;}
+uint64_t PAIR_session_claim(uint64_t g,uint64_t e,uint64_t old){uint64_t a=REF(session_claim)(g,e,old),b=NEW(session_claim)(g,e,mapped_token(old));pair_operations++;associate_token(a,b);pair_state();return a;}
+uint64_t PAIR_session_is_current(uint64_t g,uint64_t old){uint64_t a=REF(session_is_current)(g,old),b=NEW(session_is_current)(g,mapped_token(old));pair_operations++;assert(a==b);pair_state();return a;}
+uint64_t PAIR_revoke_if_current(uint64_t g,uint64_t old){uint64_t a=REF(revoke_if_current)(g,old),b=NEW(revoke_if_current)(g,mapped_token(old));pair_operations++;assert(a==b);pair_state();return a;}
 size_t PAIR_handle(uint64_t session,const uint8_t *request,size_t length,uint8_t *response,size_t capacity){
  uint8_t input[8192],output[8192];
  if(request)memcpy(input,request,length<sizeof input?length:sizeof input);
@@ -76,7 +105,7 @@ size_t PAIR_handle(uint64_t session,const uint8_t *request,size_t length,uint8_t
  const uint8_t *candidate_request=request?input:NULL;
  if(request==response&&request){memcpy(output,response,sizeof output);candidate_request=output;}
  size_t a=REF(handle)(session,request,length,response,capacity);
- size_t b=NEW(handle)(session,candidate_request,length,response?output:NULL,capacity);
+ size_t b=NEW(handle)(mapped_token(session),candidate_request,length,response?output:NULL,capacity);
  pair_operations++;
  if(a!=b||(response&&memcmp(response,output,sizeof output))){fprintf(stderr,"wire differs: operation %llu kind %u cap %zu lengths %zu/%zu\n",(unsigned long long)pair_operations,request?request[4]:0,capacity,a,b);abort();}
  pair_state();return a;

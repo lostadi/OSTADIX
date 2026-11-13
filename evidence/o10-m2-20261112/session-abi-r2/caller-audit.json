@@ -1,0 +1,136 @@
+{
+  "scope": "Read-only trusted production namespace-store caller audit; historical test snapshots excluded.",
+  "production_callers": [
+    {
+      "file": "ocore/runtime/aarch64/unified_world.oc",
+      "sha256": "15ec957f871223f246dd342c7cec75a8c3f82a206734332c5168d589f08f594f",
+      "calls": [
+        {
+          "line": 694,
+          "code": "let session: u64 = namespace_session_init(1, epoch);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/runtime/aarch64/plan9_namespace_uart.oc",
+      "sha256": "a535cf15bbc82b195cc7dc0d518503fa18e81c0e716f788bd3c87a9314fb87b9",
+      "calls": [
+        {
+          "line": 82,
+          "code": "SESSION = session_init(GRANT, GENERATION);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/runtime/aarch64/kernel_world_9p.oc",
+      "sha256": "8ecf57c67f472f51b7daf1c504b65db1449797d20c3e42a1edd43bca4118d36e",
+      "calls": [
+        {
+          "line": 110,
+          "code": "SESSION = session_init(LINUX_NAMESPACE_GRANT, SESSION_EPOCH);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/runtime/common/posix_namespace_files.oc",
+      "sha256": "7b6f91418dd7d6ae41e4ec8bee2720e965205e9f92d384afc9157afdf974434e",
+      "calls": [
+        {
+          "line": 300,
+          "code": "let mut session: u64 = session_claim(1, generation, SESSION);"
+        },
+        {
+          "line": 303,
+          "code": "if session == 0 && SESSION != 0 { session = session_claim(1, generation, 0); }"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/runtime/common/u9fs_namespace_peer.oc",
+      "sha256": "784ce1766fa4af2392547be08bd6d17826362dab3289648c92d24020b9efb409",
+      "calls": [
+        {
+          "line": 134,
+          "code": "SESSION = session_init(2, generation);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/runtime/common/namespace_peer.oc",
+      "sha256": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+      "calls": [
+        {
+          "line": 159,
+          "code": "SESSION = session_init(2, generation);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/kernel/native_posix_files/probe.oc",
+      "sha256": "41d215a25bd496ca11e9ea8d19d9ca86fa94802552f3cd6ac3f5b5cf4820d427",
+      "calls": [
+        {
+          "line": 165,
+          "code": "codec_reset(); PRODUCER = session_init(4, 1);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/kernel/native_original_process/probe.oc",
+      "sha256": "a910680339b5efde226952bc32162a5be88878dd790ed1a1e3bbc9faafdbbf59",
+      "calls": [
+        {
+          "line": 252,
+          "code": "codec_reset(); PRODUCER = session_init(4, 1);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/kernel/native_linux_exit/probe.oc",
+      "sha256": "07b97bc90a59b18d47411b607ec53cf54f7c7c719a56bc1c9f387a1d8a23d67c",
+      "calls": [
+        {
+          "line": 238,
+          "code": "codec_reset(); PRODUCER = session_init(4, 1);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/kernel/native_tls/probe.oc",
+      "sha256": "1efff8312ff1550738c87c8a303a763cdcb804b6c28b2b1f3faf741a7d2c3499",
+      "calls": [
+        {
+          "line": 182,
+          "code": "codec_reset(); PRODUCER = session_init(4, 1);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    },
+    {
+      "file": "ocore/kernel/native_idle/probe.oc",
+      "sha256": "8f7ceaa689f111f1f240910a9d5624b840ee5b69ead4ae0ac76415c46eda1b16",
+      "calls": [
+        {
+          "line": 230,
+          "code": "codec_reset(); PRODUCER = session_init(4, 1);"
+        }
+      ],
+      "audit": "Returned opaque session token retained; supplied generation remains a separate lifecycle name."
+    }
+  ],
+  "process_api": "No namespace_store process function exists in this source; production byte dispatch API is handle(session,...).",
+  "plain_adapters": "Plan9 UART, namespace_peer, u9fs_namespace_peer retain session_init return values and request plain9P2000; no raw-epoch forwarding defect found.",
+  "linux_dialect_change": "kernel_world9p adopts trusted session_handle after successful Rversion; no token read from wire.",
+  "claim_semantics": "Expected-current comparison remains full opaque token equality; return value retained by POSIX adapter.",
+  "production_edits_required": false,
+  "remaining_scope": "Optional original-u9fs codec fixture not qualified without pinned manifest; historical differential fixtures compare former token representation and need explicit representation-aware assessment."
+}

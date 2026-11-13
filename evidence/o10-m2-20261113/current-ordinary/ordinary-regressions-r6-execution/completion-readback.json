@@ -1,0 +1,56 @@
+{
+  "command_receipts_checked": 9,
+  "component": {
+    "bytes": 8232,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/component/result.json",
+    "sha256": "90a70ccede827c7df4119d7b04f5e2755d25421b42bf7ece2fba54725943776b"
+  },
+  "controller_command": {
+    "bytes": 5895,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6-execution/controller-command.json",
+    "sha256": "cde742c50277cbfe263155cbd5d1a195e79e4812dabdf863bc87ffedfc2f9133"
+  },
+  "controller_returncode": 0,
+  "controller_unchanged": true,
+  "counts": {
+    "component_tests": 247,
+    "language_sources": 267,
+    "okernel_tests": 292,
+    "targeted_tests": 113,
+    "total_tests": 652
+  },
+  "fixtures_unchanged": true,
+  "managed_exit_code": 0,
+  "managed_job": "job-1960399-1794578286458176260-1-4",
+  "managed_status": {
+    "bytes": 1078,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6-execution/status-final.json",
+    "sha256": "f3fe7db885d83e12e3167d697138c7bd4897bb7d174e37f4cfae2f2b4688e030"
+  },
+  "managed_stderr": {
+    "bytes": 0,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6-execution/managed.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "managed_stdout": {
+    "bytes": 7833,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6-execution/managed.stdout",
+    "sha256": "166bc4d1efffea079bdbb97972942f8299784713b28104f04ed571d8b831d915"
+  },
+  "observed_unix": 1794579109.9140103,
+  "ok": true,
+  "raw_log_references_checked": 9,
+  "schema": "ostadix.o10-m2-ordinary-completion-independent-readback/v1",
+  "scope": "Actual ordinary host/component/source corpus including six synthetic EL2 fixtures; whole-guest acceptance remains separate.",
+  "skips": 0,
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "source_unchanged": true,
+  "timed_out": false,
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "toolchain_provenance_unchanged": true,
+  "unit": {
+    "bytes": 743396,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r6/result.json",
+    "sha256": "d36138add59bed3dcae83ca754068449cdcd7c5fe209ac625c6bdaf01267daf3"
+  }
+}

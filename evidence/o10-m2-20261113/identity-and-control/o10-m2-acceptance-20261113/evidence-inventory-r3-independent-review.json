@@ -1,0 +1,24 @@
+{
+  "schema": "ostadix.o10-m2-evidence-inventory-static-review/v1",
+  "ok": true,
+  "reviewed_script": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/inventory-m2-evidence-r3.py",
+    "bytes": 11851,
+    "sha256": "61449cf25edd0f3da99ea659ff1f2f4f17bf69f8d7181def27a1093a67ea21c4"
+  },
+  "observed_unix": 1794580301.4638004,
+  "scope": "Read-only static review of unexecuted cache evidence inventory. No acceptance, copy, packaging, VM or source mutation performed by reviewer.",
+  "checks": [
+    "Successful full acceptance/revision/seed and ten typed input references are mandatory before inventory",
+    "Six successful gate rows and six unique actually logged EL2 fixture paths are required",
+    "Current and historical evidence groups retain separate labels and recorded source revisions",
+    "Binary/state/payload/compiler target inputs and private bridge/config filenames are excluded; large raw references retained",
+    "Original bytes are only read; before/after identity check brackets each included read",
+    "Output is a new cache artifact outside the frozen source worktree"
+  ],
+  "blocking_findings": [],
+  "limitations": [
+    "Eventual accepted binder and exact included/excluded inventory are not available yet and must be checked after actual execution",
+    "Reference identities preserve original receipts; this static review does not requalify their historical results"
+  ]
+}

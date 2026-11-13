@@ -1,0 +1,10 @@
+pkg-net online; _uw_rc=$?; printf '\nUNIFIED_COMMAND_d585dfa5f1c64cdfbb9579
+ffe34138b2:%s\n' "$_uw_rc"
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+OKERNEL PACKAGE NETWORK ONLINE
+
+UNIFIED_COMMAND_d585dfa5f1c64cdfbb9579ffe34138b2:0
+pkg> [6n

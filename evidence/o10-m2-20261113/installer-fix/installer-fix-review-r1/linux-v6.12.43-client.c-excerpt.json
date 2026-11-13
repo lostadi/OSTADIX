@@ -1,0 +1,16 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Action completed."
+    }
+  ],
+  "structuredContent": {
+    "content": "{\n\treturn clnt->proto_version == p9_proto_2000u;\n}\nEXPORT_SYMBOL(p9_is_proto_dotu);\n\nint p9_show_client_options(struct seq_file *m, struct p9_client *clnt)\n{\n\tif (clnt->msize != DEFAULT_MSIZE)\n\t\tseq_printf(m, \",msize=%u\", clnt->msize);\n\tseq_printf(m, \",trans=%s\", clnt->trans_mod->name);\n\n\tswitch (clnt->proto_version) {\n\tcase p9_proto_legacy:\n\t\tseq_puts(m, \",noextend\");\n\t\tbreak;\n\tcase p9_proto_2000u:\n\t\tseq_puts(m, \",version=9p2000.u\");\n\t\tbreak;\n\tcase p9_proto_2000L:\n\t\t/* Default */\n\t\tbreak;\n\t}\n\n\tif (clnt->trans_mod->show_options)\n\t\treturn clnt->trans_mod->show_options(m, clnt);\n\treturn 0;\n}\nEXPORT_SYMBOL(p9_show_client_options);\n\n/* Some error codes are taken directly from the server replies,\n * make sure they are valid.\n */",
+    "encoding": "utf-8",
+    "sha": "52a5497cfca794f93c200a0e7ce02c623e4c90d5",
+    "display_url": "https://github.com/gregkh/linux/blob/v6.12.43/net/9p/client.c",
+    "display_title": "client.c"
+  },
+  "isError": false
+}

@@ -15,6 +15,18 @@ use runtime::aarch64::kernel_world_virtio::note_guest_consumed;
 use runtime::aarch64::kernel_world_virtio::successes;
 use runtime::aarch64::kernel_world_virtio::ioerrs;
 use runtime::aarch64::kernel_world_virtio::generation;
+use runtime::aarch64::kernel_world_virtio::can_detach as block_can_detach;
+use runtime::aarch64::kernel_world_virtio::detach as block_detach;
+use runtime::aarch64::kernel_world_virtio::can_provision as block_can_provision;
+use runtime::aarch64::kernel_world_net::can_detach as net_can_detach;
+use runtime::aarch64::kernel_world_net::detach as net_detach;
+use runtime::aarch64::kernel_world_net::can_provision as net_can_provision;
+use runtime::aarch64::kernel_world_net::provision as net_provision;
+use runtime::aarch64::kernel_world_9p::can_detach as ns_can_detach;
+use runtime::aarch64::kernel_world_9p::detach as ns_detach;
+use runtime::aarch64::kernel_world_9p::can_provision as ns_can_provision;
+use runtime::aarch64::kernel_world_9p::provision as ns_provision;
+use runtime::aarch64::kernel_world_9p::bound as ns_bound;
 use runtime::aarch64::kernel_world_virtio::configure_backing;
 use runtime::aarch64::kernel_world_virtio_selftest::run as device_selftest;
 use runtime::aarch64::kernel_world_virtio_selftest::run_backing as backing_selftest;
@@ -707,4 +719,44 @@ pub unsafe fn kw_handle_exit_checked(frame_address: usize, esr: u64, far: u64, h
     }
     volatile_store(frame + 31, pc + 4);
     return checked_progress();
+}
+
+
+// Linux-only serialized lifecycle. The unified scheduler must first stop the
+// vCPU and route its interrupts off. None of these calls reinitialize the
+// shared namespace store, independent peer or physical network backend.
+pub unsafe fn kw_linux_detach(block: u64, net: u64, ns: u64) -> u64 {
+    if block_can_detach(block) != 1 { return 0; }
+    if NETWORK == 1 && net_can_detach(net) != 1 { return 0; }
+    if NAMESPACE == 1 && ns_can_detach(ns) != 1 { return 0; }
+    RAM_LIVE = 0;
+    kw_uart_irq_level(0);
+    if NAMESPACE == 1 && ns_detach(ns) != 1 { return 0; }
+    if NETWORK == 1 && net_detach(net) != 1 { return 0; }
+    return block_detach(block);
+}
+pub unsafe fn kw_linux_provision(block: u64, net: u64, ns: u64) -> u64 {
+    if RAM_LIVE != 0 || block_can_provision(block) != 1 { return 0; }
+    if NETWORK == 1 && net_can_provision(net) != 1 { return 0; }
+    if NAMESPACE == 1 && ns_can_provision(ns) != 1 { return 0; }
+    // All fallible generation/state checks precede mutation. These fixed
+    // ranges have already passed cold boot profile admission.
+    if device_init(GUEST_BASE, GUEST_SIZE, block) != 1 { return 0; }
+    if NETWORK == 1 && net_provision(GUEST_BASE, GUEST_SIZE, net) != 1 { return 0; }
+    if NAMESPACE == 1 && ns_provision(GUEST_BASE, GUEST_SIZE, ns) != 1 { return 0; }
+    HEALTH_SEEN = 0; CONSUMED_SEEN = 0; ALIVE_SEEN = 0; WITHDRAWAL = 0;
+    LINE_LENGTH = 0; LINE_OVERFLOW = 0; UART_RX_HEAD = 0; UART_RX_COUNT = 0;
+    let mut index: usize = 0;
+    while index < 64 { UART_REGS[index] = 0; index += 1; }
+    index = 0;
+    while index < 256 { UART_RX[index] = 0; LINE[index] = 0; index += 1; }
+    uart_interrupt();
+    return 1;
+}
+pub unsafe fn kw_linux_activate() -> u64 {
+    if RAM_LIVE != 0 || device_fault_kind() != 0 { return 0; }
+    if NETWORK == 1 && network_fault_kind() != 0 { return 0; }
+    if NAMESPACE == 1 && (namespace_fault_kind() != 0 || ns_bound() != 1) { return 0; }
+    RAM_LIVE = 1;
+    return 1;
 }

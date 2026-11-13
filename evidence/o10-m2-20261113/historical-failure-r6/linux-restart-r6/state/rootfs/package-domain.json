@@ -1,0 +1,13 @@
+{
+  "schema": "ostadix.linux-package-domain/v1",
+  "architecture": "aarch64",
+  "disk_bytes": 1073741824,
+  "artifacts": {
+    "package-domain.ext4": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/state/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+      "bytes": 1073741824,
+      "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+    }
+  },
+  "scope": "derived saved checkpoint; not a fresh upstream root filesystem build"
+}

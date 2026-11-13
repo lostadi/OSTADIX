@@ -1,0 +1,6 @@
+{
+  "source": "python^( exec(\"import subprocess,json,os; results=[]\\nfor cmd in [['python3', '-m', 'unittest', '-v', 'tests.test_o10_linux_reset_native', 'tests.test_kernel_world_virtio_backend', 'tests.test_kernel_world_block_alias', 'tests.test_kernel_world_net', 'tests.test_kernel_world_9p_transport', 'tests.test_language_sources'], ['python3', 'scripts/check_language_sources.py', 'check', '--o-bin', '/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/O', '--ocorec', '/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec', '--jobs', '2', '--json-report', '/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/final-components/language-sources.json']]:\\n p=subprocess.run(cmd,cwd='/home/ustad/OSTADIX-o10-m2-20261112',env=dict(os.environ,OCOREC_BIN='/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec'),capture_output=True,text=True); results.append(dict(argv=cmd,returncode=p.returncode,stdout=p.stdout,stderr=p.stderr))\\nprint(json.dumps(results))\") )_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "background": true,
+  "timeout_secs": 0
+}

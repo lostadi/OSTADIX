@@ -1,0 +1,655 @@
+#!/usr/bin/env python3
+"""Dispatch original Plan 9 programs through the native shared namespace.
+
+Install the unchanged framing companion at /usr/lib/okernel/p9_protocol.py.
+The controller provisions private /run/okernel/p9/current.json with schema
+ostadix.p9.client-session/v1, generation, instance, service_root, linux_mount,
+plan9_mount, recovery_mode (disabled/controller-v1), and optional state
+(ready/recovering) and program_dir (/arm64/bin or /bin). Namespace/console text
+cannot select a session or attest native recovery. Provision one control
+directory per provider, not aliases that could bypass its client.lock.
+
+Controller contract (fixed trusted single operator; no new capability grant):
+the controller validates the complete old snapshot, recycles ONLY Plan9,
+boots a different S under the same coordinator G, and validates fresh ready.
+Its Linux daemon receives bounded records ONLY from the private native Linux
+control channel, and writes recovered/gG-sS-rR.json, then atomically replaces
+current.json LAST. This client never writes current.json or reads that channel.
+ACK schema ostadix.p9.recovered/v1 has generation, old_instance, request_id,
+request_sha256, result_sha256, reset_sha256, done_sha256, new_instance,
+ready_sha256, outcome. Outcome interrupted binds all old completion hashes;
+unknown requires the three completion hashes to be null. ACK/current are
+Linux-private controller records, not guest-writable namespace attestations.
+Shared ready verifies the selected provider's readiness only; shared recovered
+files confer no authority and are ignored. The watcher MUST NOT acquire
+client.lock while publishing recovery: the waiting client holds that lock.
+A new coordinator lifetime requires fresh G and S.
+
+pending.json precedes publication; crash/unknown outcomes never cause replay.
+Recovery of abandoned pending work does not dispatch the new invocation: invoke
+again explicitly. Prefix output is provisional until validated done. Raw status
+is stored separately; generic Linux exit1 is not a numeric Plan9 program status.
+Exit125 is client/recovery failure, not interrupted-program completion.
+"""
+from __future__ import annotations
+
+import argparse
+from contextlib import contextmanager
+from dataclasses import dataclass
+import fcntl
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import math
+import os
+from pathlib import Path, PurePosixPath
+import re
+import secrets
+import signal
+import stat
+import sys
+import time
+
+SESSION_SCHEMA = "ostadix.p9.client-session/v1"
+PENDING_SCHEMA = "ostadix.p9.client-pending/v1"
+RECOVERY_SCHEMA = "ostadix.p9.recovered/v1"
+DEFAULT_CONTROL = Path("/run/okernel/p9")
+DEFAULT_PROTOCOL = Path("/usr/lib/okernel/p9_protocol.py")
+MAX_LOCAL = 3 * 1048576
+
+
+class ClientError(RuntimeError):
+    pass
+
+
+class BusyError(ClientError):
+    pass
+
+
+class RecoveryPending(ClientError):
+    pass
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def checked_hex(value, size, name):
+    if not isinstance(value, str) or re.fullmatch("[0-9a-f]{%d}" % size, value) is None:
+        raise ClientError("invalid " + name)
+    return value
+
+
+def canonical(value, name):
+    if (not isinstance(value, str) or not value.startswith("/") or value.startswith("//")
+            or "\0" in value or str(PurePosixPath(value)) != value or ".." in PurePosixPath(value).parts):
+        raise ClientError(name + " must be a canonical absolute path")
+    return Path(value)
+
+
+def ensure_private_directory(path):
+    if not os.path.lexists(path):
+        ensure_private_directory(path.parent)
+        try:
+            path.mkdir(mode=0o700)
+        except FileExistsError:
+            pass
+    private_path(path, directory=True)
+
+
+def private_path(path, *, directory=False):
+    """Require Linux-local, nonsymlink, mutation-protected control ancestry."""
+    path = canonical(str(Path(path).absolute()), "private path")
+    directories = (path, *path.parents) if directory else tuple(path.parents)
+    for parent in directories:
+        info = parent.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, os.geteuid()):
+            raise ClientError("untrusted private-path ancestor: " + str(parent))
+        # A root/current-user sticky /tmp cannot have our owned child renamed
+        # by another uid. Non-sticky writable ancestry is not protected.
+        if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:
+            raise ClientError("writable private-path ancestor: " + str(parent))
+    folder = path if directory else path.parent
+    fd = os.open(folder, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        match = re.search(r"(?m)^mnt_id:\s*(\d+)$", Path(f"/proc/self/fdinfo/{fd}").read_text())
+        if match is None:
+            raise ClientError("cannot identify active control-filesystem mount")
+        mount_id = match[1]
+        filesystems = []
+        for line in Path("/proc/self/mountinfo").read_text().splitlines():
+            left, right = line.split(" - ", 1)
+            if left.split()[0] == mount_id:
+                filesystems.append(right.split()[0])
+    finally:
+        os.close(fd)
+    if len(filesystems) != 1 or filesystems[0] not in ("ext2", "ext3", "ext4", "tmpfs",
+                                                     "ramfs", "rootfs", "overlay", "btrfs", "xfs", "zfs"):
+        raise ClientError("control records require Linux-private local storage")
+
+
+def read_file(path, limit, *, missing=False, trusted=False):
+    if trusted:
+        try:
+            private_path(path)
+        except FileNotFoundError:
+            if missing:
+                return None
+            raise ClientError("missing private parent: " + str(path))
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        if missing:
+            return None
+        raise ClientError("missing file: " + str(path))
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            raise ClientError("invalid file type or size: " + str(path))
+        if trusted and (info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022):
+            raise ClientError("untrusted local control file: " + str(path))
+        chunks, count = [], 0
+        while True:
+            block = os.read(fd, min(65536, limit + 1 - count))
+            if not block:
+                return b"".join(chunks)
+            chunks.append(block)
+            count += len(block)
+            if count > limit:
+                raise ClientError("file exceeds limit: " + str(path))
+    finally:
+        os.close(fd)
+
+
+def read_json(path, *, missing=False):
+    data = read_file(path, MAX_LOCAL, missing=missing, trusted=True)
+    if data is None:
+        return None
+    try:
+        value = json.loads(data)
+    except (ValueError, UnicodeError) as error:
+        raise ClientError("invalid local JSON: " + str(path)) from error
+    if not isinstance(value, dict):
+        raise ClientError("local record is not an object: " + str(path))
+    return value
+
+
+def write_all(fd, data):
+    view = memoryview(data)
+    while view:
+        count = os.write(fd, view)
+        if count <= 0:
+            raise ClientError("short file write")
+        view = view[count:]
+
+
+def sync_dir(path):
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def local_write(path, value):
+    data = json.dumps(value, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+    pending = path.with_name("." + path.name + "." + secrets.token_hex(8))
+    fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        write_all(fd, data)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(pending, path)  # Linux-local state, not the native shared store.
+    sync_dir(path.parent)
+
+
+def publish(path, data):
+    """Native publication uses same-directory rename to an ABSENT name."""
+    if os.path.lexists(path):
+        raise ClientError("refusing to replace publication: " + str(path))
+    pending = path.with_name("." + path.name + ".pending." + secrets.token_hex(12))
+    fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        write_all(fd, data)
+    finally:
+        os.close(fd)
+    if os.path.lexists(path):
+        raise ClientError("publication already exists: " + str(path))
+    os.rename(pending, path)
+
+
+def load_protocol(path=DEFAULT_PROTOCOL):
+    # Never import a companion from cwd, PYTHONPATH, or a shared discovery file.
+    path = Path(path).absolute()
+    source = read_file(path, 1048576, trusted=True)
+    spec = importlib.util.spec_from_file_location("okernel_p9_protocol", path)
+    if spec is None or spec.loader is None:
+        raise ClientError("cannot load installed protocol companion")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    # Execute the checked source bytes, not a second pathname/bytecode read.
+    exec(compile(source, str(path), "exec"), module.__dict__)
+    return module
+
+
+def preserve_history(control_dir, protocol, path=Path("/usr/local/libexec/p9-history")):
+    """Reuse this interpreter and the verified protocol; never consume stdin."""
+    source = read_file(path, 1048576, missing=True, trusted=True)
+    if source is None:
+        return
+    loader = importlib.machinery.SourceFileLoader("okernel_p9_history", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    # Execute the same checked helper bytes as its standalone CLI, with the
+    # already loaded framing companion. A second Python startup is expensive
+    # on the emulated execution device and adds no isolation or authority.
+    exec(compile(source, str(path), "exec"), module.__dict__)
+    try:
+        module.History(control_dir, protocol).collect()
+    except (KeyError, TypeError) as error:
+        raise ClientError("history preservation did not complete; no command submitted: " + str(error)) from error
+
+
+@dataclass(frozen=True)
+class Completion:
+    request_id: str
+    result: object
+    exit_code: int
+    recovered: bool
+
+
+class Client:
+    def __init__(self, control_dir, protocol, stdout, stderr, *, poll_interval=.05,
+                 watchdog_grace=5.0, recovery_timeout=30.0):
+        self.control = canonical(str(Path(control_dir or DEFAULT_CONTROL).absolute()), "control directory")
+        self.protocol, self.stdout, self.stderr = protocol, stdout, stderr
+        self.poll_interval, self.watchdog_grace = poll_interval, watchdog_grace
+        self.recovery_timeout = recovery_timeout
+        if (not all(math.isfinite(x) and x >= 0 for x in
+                    (poll_interval, watchdog_grace, recovery_timeout)) or poll_interval == 0):
+            raise ClientError("invalid client polling or watchdog duration")
+        self.cancel_requested = False
+        self.active = False
+
+    def _control_check(self):
+        ensure_private_directory(self.control)
+        info = self.control.stat()
+        if info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022:
+            raise ClientError("control directory must be private to the trusted operator")
+
+    @contextmanager
+    def _lock(self):
+        self._control_check()
+        fd = os.open(self.control / "client.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022:
+                raise ClientError("invalid local client lock")
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise BusyError("another p9 invocation is active") from error
+            yield
+        finally:
+            os.close(fd)
+
+    def _session(self):
+        value = read_json(self.control / "current.json")
+        if value.get("schema") != SESSION_SCHEMA:
+            raise ClientError("unsupported controller session")
+        self.protocol.ready_marker(value.get("generation"), value.get("instance"))
+        for key in ("service_root", "linux_mount", "plan9_mount"):
+            canonical(value.get(key), key)
+        root, mount = Path(value["service_root"]), Path(value["linux_mount"])
+        if root == mount or mount not in root.parents:
+            raise ClientError("service root is outside the Linux shared mount")
+        if self.control == mount or mount in self.control.parents:
+            raise ClientError("control directory must not be in the shared namespace")
+        if value.get("recovery_mode") not in ("disabled", "controller-v1"):
+            raise ClientError("unsupported controller recovery mode")
+        if value.get("state", "ready") not in ("ready", "recovering"):
+            raise ClientError("invalid controller admission state")
+        if value.get("program_dir", "/arm64/bin") not in ("/arm64/bin", "/bin"):
+            raise ClientError("invalid Plan9 program directory")
+        return value
+
+    def _instance(self, session):
+        return Path(session["service_root"]) / ("g" + session["generation"]) / ("s" + session["instance"])
+
+    def _ready(self, session):
+        if session.get("state", "ready") != "ready":
+            raise RecoveryPending("controller has stopped Plan9 admission for recovery")
+        root = self._instance(session)
+        if read_file(root / "ready", 256) != self.protocol.ready_marker(session["generation"], session["instance"]):
+            raise ClientError("ready does not match the trusted current instance")
+        if os.path.lexists(root / "reset-required"):
+            raise RecoveryPending("current Plan9 instance requires recovery; refusing reuse")
+
+    def _map(self, path, session):
+        source = Path(os.path.abspath(path))
+        try:
+            relative = source.relative_to(Path(session["linux_mount"]))
+        except ValueError as error:
+            raise ClientError("cwd/executable must be inside " + session["linux_mount"]) from error
+        return str(PurePosixPath(session["plan9_mount"]) / PurePosixPath(str(relative)))
+
+    def _arguments(self, argv, cwd, session):
+        if not argv:
+            raise ClientError("a Plan9 program is required")
+        arguments = list(argv)
+        program = arguments[0]
+        if not program:
+            raise ClientError("program name is empty")
+        if "/" not in program:
+            installed = Path(session["linux_mount"]) / "packages/plan9/bin" / program
+            if not installed.is_symlink() and installed.is_file() and installed.stat().st_mode & 0o111:
+                arguments[0] = self._map(installed, session)
+            else:
+                arguments[0] = session.get("program_dir", "/arm64/bin") + "/" + program
+        elif not program.startswith("/"):
+            arguments[0] = self._map(os.path.join(cwd, program), session)
+        elif Path(session["linux_mount"]) == Path(program) or Path(session["linux_mount"]) in Path(program).parents:
+            arguments[0] = self._map(program, session)
+        return arguments
+
+    def _journal(self, pending):
+        local_write(self.control / "pending.json", pending)
+
+    def _pending(self):
+        pending = read_json(self.control / "pending.json", missing=True)
+        if pending is None:
+            return None
+        if pending.get("schema") != PENDING_SCHEMA:
+            raise ClientError("unrecognized pending request; refusing dispatch")
+        try:
+            wire = bytes.fromhex(pending["request_hex"])
+            request = self.protocol.decode_request(wire)
+        except (KeyError, TypeError, ValueError) as error:
+            raise ClientError("invalid pending request; refusing dispatch") from error
+        expected = (request.generation, request.instance, request.request_id, digest(wire))
+        if tuple(pending.get(k) for k in ("generation", "instance", "request_id", "request_sha256")) != expected:
+            raise ClientError("pending request binding mismatch")
+        canonical(pending.get("service_root"), "pending service root")
+        if pending.get("phase") not in ("prepared", "submitted", "cancelling",
+                                        "awaiting-completion", "unknown", "interrupted"):
+            raise ClientError("invalid pending request phase")
+        return pending
+
+    def _clear(self):
+        (self.control / "pending.json").unlink()
+        sync_dir(self.control)
+
+    def _interrupted_snapshot(self, pending):
+        """Validate retained bytes, including after a crash before phase commit."""
+        wire = bytes.fromhex(pending["request_hex"])
+        request = self.protocol.decode_request(wire)
+        g, s, r = (pending[k] for k in ("generation", "instance", "request_id"))
+        instance = Path(pending["service_root"]) / ("g" + g) / ("s" + s)
+        directory = instance / ("r" + r)
+        if read_file(directory / "request", self.protocol.MAX_REQUEST_BYTES) != wire:
+            raise RecoveryPending("recovery request snapshot differs from local journal")
+        self.protocol.validate_submit(wire, read_file(directory / "submit", 256))
+        result_bytes = read_file(directory / "result", self.protocol.RESULT_HEADER.size + 4096)
+        done = read_file(directory / "done", 512)
+        reset = read_file(instance / "reset-required", 512)
+        self.protocol.validate_result(wire, result_bytes,
+            read_file(directory / "stdout", request.stdout_limit),
+            read_file(directory / "stderr", request.stderr_limit),
+            done=done, started=read_file(directory / "started", 256),
+            status=read_file(directory / "status", 4096))
+        self.protocol.validate_reset(wire, result_bytes, reset)
+        hashes = {"result_sha256": digest(result_bytes), "reset_sha256": digest(reset),
+                  "done_sha256": digest(done)}
+        if pending.get("phase") == "interrupted" and any(pending.get(k) != v for k, v in hashes.items()):
+            raise RecoveryPending("retained interruption changed after local validation")
+        pending.update(phase="interrupted", **hashes)
+        self._journal(pending)
+        return hashes
+
+    def _recover(self, pending, session):
+        if session["recovery_mode"] != "controller-v1":
+            raise RecoveryPending("Plan9 recovery is not coordinated; pending request retained")
+        g, s, r = (pending[k] for k in ("generation", "instance", "request_id"))
+        folder = self.control / "recovered"
+        if folder.exists():
+            info = folder.lstat()
+            if not stat.S_ISDIR(info.st_mode) or info.st_mode & 0o022 or info.st_uid not in (0, os.geteuid()):
+                raise ClientError("invalid controller recovery directory")
+        ack_path = folder / f"g{g}-s{s}-r{r}.json"
+        expected = {"schema": RECOVERY_SCHEMA, "generation": g, "old_instance": s,
+                    "request_id": r, "request_sha256": pending["request_sha256"],
+                    "outcome": "interrupted" if pending.get("phase") == "interrupted" else "unknown"}
+        for key in ("result_sha256", "reset_sha256", "done_sha256"):
+            expected[key] = pending.get(key) if expected["outcome"] == "interrupted" else None
+        deadline = time.monotonic() + self.recovery_timeout
+        while True:
+            ack = read_json(ack_path, missing=True)
+            if ack is not None:
+                if pending.get("phase") != "interrupted" and ack.get("outcome") == "interrupted":
+                    # A crash can precede local recording of an already committed
+                    # interrupted completion. Revalidate the retained snapshot;
+                    # the ACK's unexamined text is never a substitute for it.
+                    hashes = self._interrupted_snapshot(pending)
+                    expected.update(outcome="interrupted", **hashes)
+                if any(key not in ack or ack[key] != value for key, value in expected.items()):
+                    raise RecoveryPending("controller recovery acknowledgement does not bind the pending outcome")
+                new = checked_hex(ack.get("new_instance"), 32, "replacement instance")
+                if new == s:
+                    raise RecoveryPending("recovery reused the old instance")
+                ready = self.protocol.ready_marker(g, new)
+                if ack.get("ready_sha256") != digest(ready):
+                    raise RecoveryPending("recovery ready digest mismatch")
+                current = self._session()
+                if current["generation"] != g or current["service_root"] != pending["service_root"]:
+                    raise RecoveryPending("recovery changed the pending coordinator generation or root")
+                if current["instance"] == new and current.get("state", "ready") == "ready":
+                    for key in ("linux_mount", "plan9_mount", "program_dir"):
+                        if current.get(key) != session.get(key):
+                            raise RecoveryPending("recovery changed namespace mapping")
+                    self._ready(current)
+                    return
+                if current["instance"] not in (s, new):
+                    raise RecoveryPending("current instance is unrelated to recovery")
+            if time.monotonic() >= deadline:
+                raise RecoveryPending("waiting for trusted Plan9 recovery; pending request retained")
+            time.sleep(self.poll_interval)
+
+    def _emit(self, sink, addition):
+        if addition:
+            count = sink.write(addition)
+            if count is not None and count != len(addition):
+                raise ClientError("short output stream write")
+            sink.flush()
+
+    def _stream(self, path, previous, limit, sink):
+        data = read_file(path, limit, missing=True)
+        if data is None:
+            if previous:
+                raise ClientError("captured output disappeared")
+            return previous
+        if not data.startswith(previous):
+            raise ClientError("captured output rewrote or truncated an emitted prefix")
+        self._emit(sink, data[len(previous):])
+        return data
+
+    def _receipt(self, pending, result, result_bytes, recovered):
+        folder = self.control / "results"
+        folder.mkdir(mode=0o700, exist_ok=True)
+        info = folder.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_mode & 0o022 or info.st_uid not in (0, os.geteuid()):
+            raise ClientError("invalid local receipt directory")
+        value = {"schema": "ostadix.p9.client-result/v1", **{k: pending[k] for k in
+                 ("generation", "instance", "request_id", "request_sha256", "service_root")},
+                 "result_sha256": digest(result_bytes), "flags": result.flags,
+                 "status_hex": result.status.hex(), "stdout_bytes": result.stdout_bytes,
+                 "stderr_bytes": result.stderr_bytes, "stdout_sha256": result.stdout_sha256,
+                 "stderr_sha256": result.stderr_sha256, "recovered": recovered}
+        local_write(folder / (pending["request_id"] + ".json"), value)
+
+    def run(self, argv, cwd, stdin, timeout_ms=30000, stdout_limit=1048576, stderr_limit=1048576):
+        try:
+            return self._run(argv, cwd, stdin, timeout_ms, stdout_limit, stderr_limit)
+        except (OSError, ValueError) as error:
+            raise ClientError(str(error)) from error
+
+    def _run(self, argv, cwd, stdin, timeout_ms, stdout_limit, stderr_limit):
+        with self._lock():
+            session = self._session()
+            old = self._pending()
+            if old is not None:
+                # Owning this lock proves the previous client is no longer
+                # active. A killed client cannot journal its unknown outcome;
+                # let the private controller request native recovery now.
+                if old["phase"] not in ("interrupted", "unknown"):
+                    old["phase"] = "unknown"
+                    self._journal(old)
+                self._recover(old, session)
+                self._clear()
+                raise ClientError("prior request recovered; this invocation was not submitted; invoke explicitly again")
+            self._ready(session)
+            if self.cancel_requested:
+                raise ClientError("cancelled before publication; no command submitted")
+            g, s, r = session["generation"], session["instance"], secrets.token_hex(16)
+            arguments = self._arguments(argv, cwd, session)
+            wire = self.protocol.encode_request(g, s, r, arguments, cwd=self._map(cwd, session),
+                stdin=stdin, timeout_ms=timeout_ms, stdout_limit=stdout_limit, stderr_limit=stderr_limit)
+            directory = self._instance(session) / ("r" + r)
+            pending = {"schema": PENDING_SCHEMA, "generation": g, "instance": s,
+                       "request_id": r, "request_sha256": digest(wire), "request_hex": wire.hex(),
+                       "service_root": session["service_root"], "phase": "prepared"}
+            self._journal(pending)
+            self.active = True
+            try:
+                directory.mkdir(mode=0o700)
+                publish(directory / "request", wire)
+                if self._session() != session:
+                    raise ClientError("controller session changed before submit")
+                self._ready(session)
+                precancelled = self.cancel_requested
+                if precancelled:
+                    publish(directory / "cancel", self.protocol.cancel_marker(wire))
+                publish(directory / "submit", self.protocol.submit_marker(wire))
+                pending["phase"] = "submitted"
+                self._journal(pending)
+                deadline = time.monotonic() + timeout_ms / 1000 + self.watchdog_grace
+                stdout = stderr = b""
+                cancelled = precancelled
+                while True:
+                    if self.cancel_requested and not cancelled:
+                        publish(directory / "cancel", self.protocol.cancel_marker(wire))
+                        cancelled = True
+                        pending["phase"] = "cancelling"
+                        self._journal(pending)
+                    started = read_file(directory / "started", 256, missing=True)
+                    if started is not None:
+                        self.protocol.validate_submit(wire, started)
+                        stdout = self._stream(directory / "stdout", stdout, stdout_limit, self.stdout)
+                        stderr = self._stream(directory / "stderr", stderr, stderr_limit, self.stderr)
+                    done = read_file(directory / "done", 512, missing=True)
+                    if done is not None:
+                        if started is None:
+                            raise ClientError("completion lacks a valid admission claim")
+                        result_bytes = read_file(directory / "result", self.protocol.RESULT_HEADER.size + 4096)
+                        final_stdout = read_file(directory / "stdout", stdout_limit)
+                        final_stderr = read_file(directory / "stderr", stderr_limit)
+                        status = read_file(directory / "status", 4096)
+                        result = self.protocol.validate_result(wire, result_bytes, final_stdout, final_stderr,
+                            started=started, done=done, status=status)
+                        if not final_stdout.startswith(stdout) or not final_stderr.startswith(stderr):
+                            raise ClientError("completed output differs from streamed prefixes")
+                        self._emit(self.stdout, final_stdout[len(stdout):])
+                        self._emit(self.stderr, final_stderr[len(stderr):])
+                        interrupted = bool(result.flags & (self.protocol.FLAG_TIMEOUT | self.protocol.FLAG_CANCELLED))
+                        reset = read_file(self._instance(session) / "reset-required", 512, missing=True)
+                        if interrupted:
+                            if reset is None:
+                                raise ClientError("interrupted result lacks reset-required")
+                            self.protocol.validate_reset(wire, result_bytes, reset)
+                            pending.update(phase="interrupted", result_sha256=digest(result_bytes),
+                                           reset_sha256=digest(reset), done_sha256=digest(done))
+                            self._journal(pending)
+                            self._recover(pending, session)
+                        elif reset is not None:
+                            raise ClientError("unexpected reset on normal completion")
+                        self._receipt(pending, result, result_bytes, interrupted)
+                        self._clear()
+                        code = (130 if result.flags & self.protocol.FLAG_CANCELLED else 124) if interrupted else (0 if result.ok else 1)
+                        return Completion(r, result, code, interrupted)
+                    current = self._session()
+                    if any(current[k] != session[k] for k in ("generation", "instance", "service_root")):
+                        raise ClientError("provider changed before a validated completion; outcome unknown")
+                    reset = read_file(self._instance(session) / "reset-required", 512, missing=True)
+                    if reset is not None and pending["phase"] != "awaiting-completion":
+                        # Reset precedes done. It is not alone a completed snapshot.
+                        pending["phase"] = "awaiting-completion"
+                        self._journal(pending)
+                    if time.monotonic() >= deadline:
+                        raise ClientError("Plan9 completion watchdog expired; outcome unknown")
+                    time.sleep(self.poll_interval)
+            except (OSError, ValueError, ClientError) as error:
+                if pending.get("phase") != "interrupted":
+                    pending["phase"] = "unknown"
+                    self._journal(pending)
+                raise ClientError(str(error) + "; pending request retained, no replay") from error
+            finally:
+                self.active = False
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], allow_abbrev=False)
+    parser.add_argument("--control-dir", type=Path, default=DEFAULT_CONTROL,
+                        help="Linux-private controller state directory")
+    parser.add_argument("--protocol", type=Path, default=DEFAULT_PROTOCOL, help="trusted installed framing companion")
+    parser.add_argument("--cwd", help="Linux shared cwd; defaults to the actual cwd")
+    parser.add_argument("--stdin-file", type=Path, help="binary input file; otherwise piped stdin, or empty at a tty")
+    parser.add_argument("--status-file", type=Path, help="write exact raw Plan9 status after validated completion/recovery")
+    parser.add_argument("--timeout-ms", type=int, default=120000,
+                        help="invocation budget in milliseconds (default 120000; original tools run under emulation)")
+    parser.add_argument("--stdout-limit", type=int, default=1048576)
+    parser.add_argument("--stderr-limit", type=int, default=1048576)
+    parser.add_argument("--recovery-timeout", type=float, default=120.0)
+    parser.add_argument("program", nargs=argparse.REMAINDER, help="program and exact arguments")
+    args = parser.parse_args()
+    if args.program[:1] == ["--"]:
+        args.program = args.program[1:]
+    if not args.program:
+        parser.error("a Plan9 program is required")
+    try:
+        protocol = load_protocol(args.protocol)
+        preserve_history(args.control_dir, protocol)
+        client = Client(args.control_dir, protocol, sys.stdout.buffer, sys.stderr.buffer,
+                        recovery_timeout=args.recovery_timeout)
+        if args.stdin_file is not None:
+            with args.stdin_file.open("rb") as incoming:
+                data = incoming.read(protocol.MAX_REQUEST_BYTES + 1)
+        else:
+            data = b"" if sys.stdin.isatty() else sys.stdin.buffer.read(protocol.MAX_REQUEST_BYTES + 1)
+        if len(data) > protocol.MAX_REQUEST_BYTES:
+            raise ClientError("stdin exceeds the bounded request size")
+
+        def interrupted(signum, frame):
+            client.cancel_requested = True
+
+        old_signals = {number: signal.signal(number, interrupted) for number in (signal.SIGINT, signal.SIGTERM)}
+        try:
+            result = client.run(args.program, args.cwd or os.getcwd(), data, args.timeout_ms,
+                                args.stdout_limit, args.stderr_limit)
+            if args.status_file is not None:
+                args.status_file.write_bytes(result.result.status)
+            return result.exit_code
+        finally:
+            for number, handler in old_signals.items():
+                signal.signal(number, handler)
+    except KeyboardInterrupt:
+        print("p9: client interrupted; inspect pending/result records before retrying", file=sys.stderr)
+        return 130
+    except (OSError, ValueError, ClientError) as error:
+        print("p9: " + str(error), file=sys.stderr)
+        return 125
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

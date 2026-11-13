@@ -1,7 +1,7 @@
 """Execute the real O10 mailbox/platform native graph on Linux.
 
 Scope: framing, journal dispatch, domain identity and real namespace fid
-revocation. The legacy test additionally runs the real private-RAM zero/copy
+revocation. The lifecycle test additionally runs the real private-RAM zero/copy
 loop with explicitly modeled architectural reset return/register IO. Other
 architecture/device assembly entry points are fail-closed sentinels;
 this does not qualify EL2 context reset, QEMU boot, or either guest kernel.
@@ -78,6 +78,7 @@ SENTINEL(uw_domain_reset)
 SENTINEL(uw_current_domain)
 SENTINEL(uw_counter_read)
 void uw_memory_barrier(void){__sync_synchronize();}
+void kw_memory_barrier(void){__sync_synchronize();}
 SENTINEL(uw_serial_putc)
 SENTINEL(uw_halt)
 SENTINEL(uw_vgic_lr_read)
@@ -121,7 +122,49 @@ int main(void){
 """
 
 
-LEGACY_HARNESS = HARNESS.split("// Assembly is deliberately", 1)[0] + r"""
+LEGACY_HARNESS = r"""
+
+#define _GNU_SOURCE
+#include <assert.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#define NS(n) _O_runtime__common__namespace_store__##n
+#define UW(n) _O_runtime__aarch64__unified_world__##n
+extern uint64_t NS(init)(uintptr_t,size_t,uint64_t),NS(session_init)(uint64_t,uint64_t);
+extern uint64_t NS(session_handle)(uint64_t),NS(session_fid_count)(uint64_t);
+extern size_t NS(handle)(uint64_t,const uint8_t*,size_t,uint8_t*,size_t);
+extern uint64_t UW(o10_platform_test_init)(void),UW(o10_platform_test_mailbox)(void);
+static unsigned char *request=(void*)0x6d0a0000,*reply=(void*)0x6d0a0200;
+static uint64_t mailbox_seq=0;
+static uint64_t rd(const void *q,unsigned n){const unsigned char*p=q;uint64_t v=0;for(unsigned i=0;i<n;i++)v|=(uint64_t)p[i]<<(8*i);return v;}
+static void st(void*q,uint64_t v,unsigned n){unsigned char*p=q;for(unsigned i=0;i<n;i++)p[i]=(unsigned char)(v>>(8*i));}
+static void frame(unsigned type,size_t len,uint64_t epoch,uint64_t seq){
+ memset(request,0,512);st(request,len,4);st(request+4,type,1);st(request+5,77,2);
+ if(type!=162){st(request+7,epoch,8);st(request+15,seq,8);}
+}
+static uint64_t call(void){
+ st((void*)0x6d000070,++mailbox_seq,8);st((void*)0x6d000078,10,8);
+ uint64_t live=UW(o10_platform_test_mailbox)();
+ assert(rd((void*)0x6d000080,8)==mailbox_seq);
+ assert(rd((void*)0x6d000088,8)==1);
+ return live;
+}
+static void attach(uint64_t session){
+ unsigned char q[64]={0},r[512]={0};
+ st(q,19,4);q[4]=100;st(q+7,512,4);st(q+11,6,2);memcpy(q+13,"9P2000",6);
+ assert(NS(handle)(session,q,19,r,512)==19&&r[4]==101);
+ memset(q,0,sizeof q);st(q,20,4);q[4]=104;st(q+7,1,4);st(q+11,UINT32_MAX,4);
+ st(q+15,1,2);q[17]='u';st(q+18,0,2);
+ assert(NS(handle)(session,q,20,r,512)==20&&r[4]==105);
+}
+static unsigned stat_session(uint64_t session){
+ unsigned char q[11]={11,0,0,0,124,0,0},r[512];st(q+7,1,4);
+ assert(NS(handle)(session,q,11,r,512)!=0);return r[4];
+}
+
 extern uint64_t UW(o10_platform_test_gic_init)(void),UW(o10_platform_test_wire_init)(void);
 extern void UW(o10_platform_test_generations)(uint64_t,uint64_t);
 static uint64_t lrs[2][4],vmcr[2],hcr[2],reset_calls=0,ticks=0;
@@ -131,6 +174,7 @@ uint64_t uw_domain_reset(uint64_t domain,uint64_t pc,uint64_t x0,uint64_t pstate
 }
 uint64_t uw_counter_read(void){return ++ticks;}
 void uw_memory_barrier(void){__sync_synchronize();}
+void kw_memory_barrier(void){__sync_synchronize();}
 uint64_t uw_vgic_lr_count(void){return 4;}
 uint64_t uw_vgic_lr_read(uint64_t domain,uint64_t index){assert(domain<2&&index<4);return lrs[domain][index];}
 void uw_vgic_lr_write(uint64_t domain,uint64_t index,uint64_t value){assert(domain<2&&index<4);lrs[domain][index]=value;}
@@ -157,6 +201,7 @@ static void images(const unsigned char*ram){
  assert(rd(ram,8)==0x01020304edfe0dd0ULL);assert(rd(ram+0x100000,8)==0x1122334455667788ULL);
  zeros(ram+8,0x100000-8);zeros(ram+0x100008,0x20000000-0x100008);
 }
+
 int main(int argc,char**argv){
  assert(argc==2);unsigned scenario=(unsigned)strtoul(argv[1],NULL,10);
  fixed(0x6d000000,0x100000);unsigned char*ram=fixed(0xb0000000,0x20000000);
@@ -170,39 +215,41 @@ int main(int argc,char**argv){
  assert(UW(o10_platform_test_init)()==1&&UW(o10_platform_test_gic_init)()==1);
  assert(UW(o10_platform_test_wire_init)()==1);
  uint64_t plan9=NS(session_handle)(4);assert(plan9);attach(plan9);
+
+ // M2 legacy operations are explicit errors both before and after claiming.
+ assert(legacy(1,9)==3&&legacy(2,9)==3&&reset_calls==0);
+ frame(164,39,0,1);st(request+23,1,8);call();assert(reply[4]==165);
+ assert(legacy(1,9)==3&&legacy(2,9)==3&&reset_calls==0);
  if(scenario==1){
   UW(o10_platform_test_generations)(1,UINT32_MAX);st(ram+0x1000,0xaabbccdd,8);
-  assert(legacy(1,0)==3);assert(rd(ram+0x1000,8)==0xaabbccdd&&reset_calls==0);
-  assert(NS(session_handle)(4)==plan9&&NS(session_fid_count)(4)==1&&stat_session(plan9)==125);
+  frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);
+  assert(call()==3&&reply[4]==161&&rd(reply+7,4)==8);
+  assert(rd(ram+0x1000,8)==0xaabbccdd&&reset_calls==0&&NS(session_handle)(4)==plan9);
  }else if(scenario==2){
   UW(o10_platform_test_generations)(UINT32_MAX,1);st(ram+0x1000,0xaabbccdd,8);
-  assert(legacy(1,1)==1);assert(legacy(2,0)==1);
+  frame(172,36,1,2);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);assert(call()==1&&reply[4]==173);
+  frame(174,63,1,3);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);st(request+47,1,8);st(request+55,2,8);
+  assert(call()==1&&reply[4]==161&&rd(reply+7,4)==8);
   assert(rd(ram+0x1000,8)==0xaabbccdd&&reset_calls==0);
-  frame(178,31,0,0);st(request+23,((uint64_t)UINT32_MAX<<32)|1,8);call();assert(reply[4]==179&&reply[16]==5);
  }else{
-  assert(scenario==0);frame(178,31,0,0);st(request+23,((uint64_t)1<<32)|1,8);call();assert(reply[4]==179);
-  memset(ram,0xa5,0x20000000);assert(legacy(1,1)==1);assert(legacy(2,1)==3);
-  assert(reset_calls==1);images(ram);
-  assert(stat_session(plan9)==107&&NS(session_handle)(4)!=plan9);
-  frame(178,31,0,0);st(request+23,((uint64_t)1<<32)|1,8);call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
-  frame(178,31,0,0);st(request+23,((uint64_t)2<<32)|1,8);call();assert(reply[4]==179);
-  frame(164,39,0,1);st(request+23,1,8);call();assert(reply[4]==165);
-  frame(178,31,1,0);st(request+23,((uint64_t)1<<32)|1,8);call();assert(reply[4]==161&&rd(reply+7,4)==5);
-  frame(184,39,1,2);st(request+23,((uint64_t)1<<32)|4,8);st(request+31,((uint64_t)2<<32),8);
+  assert(scenario==0);
+  frame(172,36,1,2);st(request+23,(1ull<<32)|1,8);assert(call()==1&&reply[4]==173);
+  memset(ram,0x3c,0x20000000);frame(174,63,1,3);st(request+23,(1ull<<32)|1,8);
+  st(request+47,1,8);st(request+55,2,8);assert(call()==3&&reply[4]==175&&rd(reply+7,8)==((2ull<<32)|1));
+  assert(reset_calls==1);images(ram);assert(stat_session(plan9)==107);
+  frame(178,31,1,0);st(request+23,(1ull<<32)|1,8);call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
+  frame(184,39,1,4);st(request+23,(1ull<<32)|4,8);st(request+31,2ull<<32,8);
   call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
-  frame(184,39,1,3);st(request+23,((uint64_t)2<<32)|4,8);st(request+31,((uint64_t)1<<32),8);
+  frame(184,39,1,5);st(request+23,(2ull<<32)|4,8);st(request+31,1ull<<32,8);
   call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
-  frame(172,36,1,4);st(request+23,((uint64_t)2<<32)|1,8);assert(call()==1&&reply[4]==173);
-  memset(ram,0x3c,0x20000000);frame(174,63,1,5);st(request+23,((uint64_t)2<<32)|1,8);
-  st(request+47,1,8);st(request+55,2,8);call();assert(reply[4]==175&&rd(reply+7,8)==(((uint64_t)3<<32)|1));
-  assert(reset_calls==2);images(ram);
-  frame(184,39,1,6);st(request+23,((uint64_t)3<<32)|4,8);st(request+31,((uint64_t)3<<32),8);
+  frame(184,39,1,6);st(request+23,(2ull<<32)|4,8);st(request+31,2ull<<32,8);
   call();assert(reply[4]==185);
  }
  assert(NS(session_handle)(1)==linux&&NS(session_fid_count)(1)==1&&stat_session(linux)==125);
  for(unsigned i=0;i<4096;i++)assert(survivor[i]==0x5a);
- puts("legacy/O10 generation and bounded reset-control-flow PASS");return 0;
+ puts("O10 Plan9 generation/capacity/copy and explicit legacy retirement PASS");return 0;
 }
+
 """
 
 class O10PlatformTests(unittest.TestCase):
@@ -213,7 +260,7 @@ class O10PlatformTests(unittest.TestCase):
 
     @unittest.skipUnless(platform.system() == "Linux" and platform.machine() == "x86_64",
                          "native platform harness requires Linux x86_64")
-    def test_preclaim_legacy_generations_and_capacity_guards(self):
+    def test_o10_restore_and_capacity_after_legacy_retirement(self):
         # These are host models of reset-result/register IO; real EL2 context
         # clearing remains a QEMU/hardware gate. The RAM zero/copy loop is real.
         self.run_native(LEGACY_HARNESS, ["0", "1", "2"])

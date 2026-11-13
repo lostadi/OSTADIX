@@ -1,0 +1,9 @@
+printf %s YSI6Im9zdGFkaXgubzEwLWxpbnV4LWFway1maXh0dXJlL3YxIiwidGFyZ2V0X
+2FwayI6Ii9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMC9hcGtzL3BrZ2NvbmYtMi41L
+jEtcjAuYXBrIiwidmVyc2lvbiI6IjIuNS4xLXIwIn0sIm5vbmNlIjoiNjU2NTYzZTgzZDgwMzFhNDg3N
+zU2MGQwIiwicnVuIjoiL3J1bi9vMTAtbTItNjU2NTYzZTgzZDgwMzFhNDg3NzU2MGQwIn0= >> /run/
+o10-m2-656563e83d8031a4877560d0.json.o10-base64; _uw_rc=$?; printf '\nUNIFIED_CO
+MMAND_5a8fdae64d0542dd8dca2572b608a944:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_5a8fdae64d0542dd8dca2572b608a944:0
+okernel> [6n

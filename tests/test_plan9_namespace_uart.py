@@ -29,6 +29,7 @@ extern uint64_t U(request_byte_count)(void);
 extern uint64_t U(reply_byte_count)(void);
 extern uint64_t S(init)(uintptr_t,uintptr_t,uint64_t);
 extern uint64_t S(session_init)(uint64_t,uint64_t);
+extern uint64_t S(session_handle)(uint64_t);
 extern uintptr_t S(handle)(uint64_t,const uint8_t*,uintptr_t,uint8_t*,uintptr_t);
 static uint8_t request[8192],response[65536],peer_response[8192],pattern[8181];
 static unsigned position,tag,irq,transitions;
@@ -84,6 +85,8 @@ int main(void) {
     assert(volume!=MAP_FAILED && S(init)((uintptr_t)volume,16777216,7)==1);
     assert(U(init)(0)==0 && U(healthy)()==0 && U(mmio_write)(0x30,0)==0);
     assert(U(init)(100)==1 && U(healthy)()==1 && U(mmio_read)(0x18)==0x90);
+    uint64_t uart_token=S(session_handle)(4);
+    assert(uart_token && !(uart_token&1) && uart_token!=100); // trusted init returns an opaque token
     assert(U(mmio_read)(0xfe0)==0x11 && U(mmio_read)(0xffc)==0xb1);
     assert(U(mmio_write)(0x48,1)==0); // No DMA or guest-address mechanism.
     reset_like_original_driver();assert(irq==1 && (U(mmio_read)(0x3c)&0x20));

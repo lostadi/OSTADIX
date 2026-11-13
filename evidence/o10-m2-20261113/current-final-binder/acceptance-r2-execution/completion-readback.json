@@ -1,0 +1,42 @@
+{
+  "acceptance": {
+    "bytes": 165736,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2.json",
+    "sha256": "7781ee645075d700fed24c51ffca0fc95c742a6e75494584d9b2b6cec6fc73d0"
+  },
+  "full_milestone_qualified": true,
+  "guest_gate_ids": [
+    "client",
+    "default_compile",
+    "provider",
+    "recovery",
+    "runtime",
+    "two_domains"
+  ],
+  "language_sources": 267,
+  "managed_job": "job-1960399-1794578286458176260-1-22",
+  "managed_status": {
+    "bytes": 1079,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2-execution/final-status.json",
+    "sha256": "61dc58ec780b3bbe8578c051da49f3f242ff5a1fcee0187db17f8d3967977a5e"
+  },
+  "observed_unix": 1794582491.373088,
+  "ok": true,
+  "schema": "ostadix.o10-m2-qualified-acceptance-completion/v1",
+  "scope": "Original Draft0 M2 live Linux fault/replacement and binding, native old-fid ESTALE, surviving Plan9 counter/fids, controlled signed APK3 pre-commit interruption, fsynced-prefix preservation and post-replay read-only fsck; Linux withdrawal and reset paths also have source-bound component coverage; complete same-build regressions; AArch64 QEMU only",
+  "sessions_checked": 12,
+  "skips": 0,
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41",
+  "source_unchanged": true,
+  "stderr": {
+    "bytes": 0,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2-execution/managed-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stdout": {
+    "bytes": 91,
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2-execution/managed-stdout.log",
+    "sha256": "2be4c5f1b971971e72750b926671406ffba16ad9e8013cd2d7b762c0fbb87f44"
+  },
+  "unit_total_tests": 652
+}

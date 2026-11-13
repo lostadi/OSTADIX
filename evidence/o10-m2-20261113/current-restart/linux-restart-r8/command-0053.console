@@ -1,0 +1,8 @@
+mv /n/okernel/services/plan9/gd19e70958908209d/sfa3e6c3954092ee856a6380
+f30ea3973/r8b045ee984e155a9b6c345ba7159221e/submit.staged /n/okernel/services/pl
+an9/gd19e70958908209d/sfa3e6c3954092ee856a6380f30ea3973/r8b045ee984e155a9b6c345b
+a7159221e/submit; _uw_rc=$?; printf '\nUNIFIED_COMMAND_6a04d222d656463da6e699c38
+acfec2f:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_6a04d222d656463da6e699c38acfec2f:0
+okernel> [6n

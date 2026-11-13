@@ -1,0 +1,2354 @@
+{
+  "schema": "ostadix.o10-linux-restart-gate/v1",
+  "milestone": "M2",
+  "gate_id": "verify_o10_linux_restart",
+  "gate_passed": false,
+  "milestone_qualified": false,
+  "started": 1794566392.7254755,
+  "mcp_release": "76cd75c1add8795055c8a769bee57862948f2912",
+  "skips": [],
+  "scope": "Original Linux/Plan9 AArch64 QEMU component gate only; full aligned M2 regressions remain required",
+  "unknown_work_policy": "Interrupted file/APK work is never automatically replayed",
+  "apk_interruption_scope": "APK3 pre-commit hook before package filesystem changes; not arbitrary transaction crash consistency",
+  "plan9_fid_lifetime_confound": {
+    "source": "ocore/guest/plan9/unified/p9cmdsrv.c",
+    "known_confound": "The cancellation/deadline helper reads the cancel path every50ms; those ordinary lookups can create/clunk transient Plan9 fids.",
+    "success_policy": "Exact full fid-tuple and wire identity checks remain strict; no recapture or retry after a mismatch.",
+    "failure_scope": "A mismatch remains a failed gate and must be classified as isolation damage or ordinary fid lifetime; status/count/index alone may not reconstruct the full changed current set."
+  },
+  "apk_documentation": "https://raw.githubusercontent.com/alpinelinux/apk-tools/v3.0.8/doc/apk.8.scd",
+  "source_revision": "76cd75c1add8795055c8a769bee57862948f2912",
+  "build": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r3/monitor-profile.json",
+    "sha256": "0a7d145b0da3e1e8e11076d6e030154b18f1171d89cbff4eac9ab3a8a4eb7416",
+    "bytes": 28333
+  },
+  "fixture": {
+    "path": "/home/ustad/.cache/o10-m2-offline-apk-fixture-20261113/fixture.json",
+    "sha256": "f7bfe30e875a104f93aca11a325f7c295f9fe6306758f8ce513a7dc63cd714cb",
+    "bytes": 2101
+  },
+  "fsck": {
+    "path": "/usr/sbin/e2fsck",
+    "sha256": "c69c6315f602d389821b3a1dab1308618616259400f2cf5d997243c4a83c284c",
+    "bytes": 373080,
+    "invoked_path": "/usr/sbin/fsck.ext4"
+  },
+  "source_sha256": {
+    "ocore/guest/linux/package-domain/init": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+    "ocore/guest/plan9/unified/p9cmdsrv.c": "e3e85652ce83159882f14b84a72a9cbaf55085d14f228a9c50b2433f5eb143f3",
+    "ocore/guest/plan9/unified/protocol.py": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/unified_world.oc": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/runtime/common/namespace_store.oc": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+    "scripts/fork_okernel_state.py": "67d78c9e49292e1ec46c21719e5482e52bd8a597616a2e8aec1dd1c8a1cfdba0",
+    "scripts/okernel_unified_world.py": "d5644165884fe55b950f318cc2c361c9169d6dc59edc290827af5cf0e0391749",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "scripts/verify_o10_linux_restart.py": "70e57a812a9ed57aa094d96c9ca41004e735259ef1230d2e809a7662d7a0968f",
+    "scripts/verify_okernel_unified_provider.py": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986",
+    "tests/test_o10_linux_restart.py": "66ecfa81362cde4f88c61a6fb7a409e0fe17b633a28457dbb58861a6dde158c3"
+  },
+  "source_artifacts": {
+    "ocore/guest/linux/package-domain/init": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/guest/linux/package-domain/init",
+      "sha256": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+      "bytes": 737
+    },
+    "ocore/guest/plan9/unified/p9cmdsrv.c": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/guest/plan9/unified/p9cmdsrv.c",
+      "sha256": "e3e85652ce83159882f14b84a72a9cbaf55085d14f228a9c50b2433f5eb143f3",
+      "bytes": 20674
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/guest/plan9/unified/protocol.py",
+      "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8",
+      "bytes": 16391
+    },
+    "ocore/kernel/aarch64/kernel_world/guest.dts": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/kernel/aarch64/kernel_world/guest.dts",
+      "sha256": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+      "bytes": 1802
+    },
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/kernel/aarch64/plan9_probe/guest.dts",
+      "sha256": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+      "bytes": 530
+    },
+    "ocore/kernel/aarch64/unified_world/linker.ld": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/kernel/aarch64/unified_world/linker.ld",
+      "sha256": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+      "bytes": 473
+    },
+    "ocore/kernel/aarch64/unified_world/monitor.S": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/kernel/aarch64/unified_world/monitor.S",
+      "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+      "bytes": 76781
+    },
+    "ocore/runtime/aarch64/coordinator_uart.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/coordinator_uart.oc",
+      "sha256": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+      "bytes": 6049
+    },
+    "ocore/runtime/aarch64/kernel_world_9p.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/kernel_world_9p.oc",
+      "sha256": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+      "bytes": 16366
+    },
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/kernel_world_monitor.oc",
+      "sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+      "bytes": 33803
+    },
+    "ocore/runtime/aarch64/kernel_world_net.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/kernel_world_net.oc",
+      "sha256": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+      "bytes": 15647
+    },
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/kernel_world_net_host.oc",
+      "sha256": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+      "bytes": 10758
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/kernel_world_virtio.oc",
+      "sha256": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+      "bytes": 26137
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+      "sha256": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+      "bytes": 11492
+    },
+    "ocore/runtime/aarch64/linux_domain_images.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/linux_domain_images.oc",
+      "sha256": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+      "bytes": 2788
+    },
+    "ocore/runtime/aarch64/linux_restart_witness.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/linux_restart_witness.oc",
+      "sha256": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+      "bytes": 5560
+    },
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/plan9_namespace_uart.oc",
+      "sha256": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+      "bytes": 9552
+    },
+    "ocore/runtime/aarch64/unified_gic.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/unified_gic.oc",
+      "sha256": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+      "bytes": 22622
+    },
+    "ocore/runtime/aarch64/unified_world.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/aarch64/unified_world.oc",
+      "sha256": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+      "bytes": 44693
+    },
+    "ocore/runtime/common/namespace_peer.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/common/namespace_peer.oc",
+      "sha256": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+      "bytes": 6760
+    },
+    "ocore/runtime/common/namespace_store.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/common/namespace_store.oc",
+      "sha256": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+      "bytes": 54661
+    },
+    "ocore/runtime/common/o10_codec.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/common/o10_codec.oc",
+      "sha256": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+      "bytes": 3846
+    },
+    "ocore/runtime/common/o10_executor.oc": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/ocore/runtime/common/o10_executor.oc",
+      "sha256": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+      "bytes": 5586
+    },
+    "scripts/build_okernel_plan9_original.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/build_okernel_plan9_original.py",
+      "sha256": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+      "bytes": 17199
+    },
+    "scripts/build_okernel_plan9_userland.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/build_okernel_plan9_userland.py",
+      "sha256": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+      "bytes": 34032
+    },
+    "scripts/build_okernel_unified_world.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/build_okernel_unified_world.py",
+      "sha256": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+      "bytes": 40681
+    },
+    "scripts/fork_okernel_state.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/fork_okernel_state.py",
+      "sha256": "67d78c9e49292e1ec46c21719e5482e52bd8a597616a2e8aec1dd1c8a1cfdba0",
+      "bytes": 9162
+    },
+    "scripts/okernel_unified_world.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/okernel_unified_world.py",
+      "sha256": "d5644165884fe55b950f318cc2c361c9169d6dc59edc290827af5cf0e0391749",
+      "bytes": 72160
+    },
+    "scripts/plan9_userland_admission.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/plan9_userland_admission.py",
+      "sha256": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9",
+      "bytes": 17555
+    },
+    "scripts/probe_okernel_plan9.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/probe_okernel_plan9.py",
+      "sha256": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+      "bytes": 27804
+    },
+    "scripts/verify_o10_linux_restart.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/verify_o10_linux_restart.py",
+      "sha256": "70e57a812a9ed57aa094d96c9ca41004e735259ef1230d2e809a7662d7a0968f",
+      "bytes": 42854
+    },
+    "scripts/verify_okernel_unified_provider.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/scripts/verify_okernel_unified_provider.py",
+      "sha256": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986",
+      "bytes": 13619
+    },
+    "tests/test_o10_linux_restart.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/sources/tests/test_o10_linux_restart.py",
+      "sha256": "66ecfa81362cde4f88c61a6fb7a409e0fe17b633a28457dbb58861a6dde158c3",
+      "bytes": 31961
+    }
+  },
+  "seed_head_before": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/head.json",
+    "sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8",
+    "bytes": 1423
+  },
+  "fork": {
+    "schema": "ostadix.okernel-state-fork/v1",
+    "ok": true,
+    "source": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "output": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state",
+    "scope": "verified saved generation only; source VM and unsaved memory untouched",
+    "selected_head": {
+      "schema": "ostadix.package-domain-disk-head/v2",
+      "disk": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+        "bytes": 1073741824,
+        "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+      },
+      "previous": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+        "bytes": 1073741824,
+        "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+      },
+      "session": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation",
+      "o10_apk_fixture_preparation": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation/result.json",
+      "namespace": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "previous_namespace": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+        "bytes": 16777216,
+        "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+      },
+      "fork_origin": {
+        "source": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+        "head_sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+      }
+    },
+    "source_head_changed_during_copy": false,
+    "boot_inputs": {
+      "monitor": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/monitor/monitor.elf",
+        "bytes": 471312,
+        "sha256": "312f20864764258ab81ff71e7870a0794e81b0968f76e294fa201eb54d4457c1"
+      },
+      "guest_dtb": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/monitor/guest.dtb",
+        "bytes": 1821,
+        "sha256": "24bff51c93b7f97a81d27c0a641b77fa5209b55f483f874afd0156b88c4e2f32"
+      },
+      "profile": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/monitor/profile.oc",
+        "bytes": 226,
+        "sha256": "6197e670f2bc3f9d02e9e5b60381bfb12df100abcd5c985b3f714f74ccd8b275"
+      },
+      "Image": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/payload/Image",
+        "bytes": 6062088,
+        "sha256": "6fc693976f51551b74327009e6e8c4fb625142257256fd66f3b5492600ab6c76"
+      },
+      "initramfs": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/payload/initramfs.cpio",
+        "bytes": 8725504,
+        "sha256": "9763d598973a5cb12572e8f0c6ad6104a41976cb728049d57a41bdb8049b969d"
+      }
+    }
+  },
+  "guest_session": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww",
+  "qemu_argv": [
+    "/usr/bin/qemu-system-aarch64",
+    "-machine",
+    "virt,virtualization=on,gic-version=3,its=off,memory-backend=unified-ram",
+    "-object",
+    "memory-backend-file,id=unified-ram,size=3G,mem-path=/proc/self/fd/9,share=on",
+    "-accel",
+    "tcg,thread=single",
+    "-cpu",
+    "cortex-a57",
+    "-smp",
+    "1",
+    "-m",
+    "3G",
+    "-nodefaults",
+    "-nic",
+    "none",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-no-reboot",
+    "-no-shutdown",
+    "-qmp",
+    "unix:/tmp/okernel-qmp-1000-504267850f5a4891-rcdv98lr/control.sock,server=on,wait=off",
+    "-kernel",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/monitor.elf",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/linux.Image,addr=0x48000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/linux.dtb,addr=0x4fe00000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/linux.initramfs,addr=0x50000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/plan9.kernel,addr=0xb0100000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/plan9.dtb,addr=0xb0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/linux-recovery.Image,addr=0xd2000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/linux-recovery.dtb,addr=0xe2000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/linux-recovery.initramfs,addr=0xda000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/plan9-recovery.kernel,addr=0xd0000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/inputs/plan9-recovery.dtb,addr=0xd1000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/disk.ext4,addr=0x70000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/namespace.raw,addr=0x6c000000,force-raw=on",
+    "-device",
+    "loader,file=/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/state/unified-session-rxpo8yww/inputs/plan9-bootstrap.bin,addr=0x6d010000,force-raw=on",
+    "-device",
+    "loader,addr=0x6d000000,data=3891294040562925258,data-len=8",
+    "-device",
+    "loader,addr=0x6d000008,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000010,data=1794566402,data-len=8",
+    "-device",
+    "loader,addr=0x6d020000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d040000,data=0,data-len=8",
+    "-device",
+    "loader,addr=0x6d000090,data=6050944,data-len=8",
+    "-device",
+    "loader,addr=0x6d000098,data=503,data-len=8",
+    "-device",
+    "loader,addr=0x6d000100,data=6062088,data-len=8",
+    "-device",
+    "loader,addr=0x6d000108,data=2051,data-len=8",
+    "-device",
+    "loader,addr=0x6d000110,data=8726528,data-len=8",
+    "-global",
+    "virtio-mmio.force-legacy=false",
+    "-netdev",
+    "user,id=unified-net",
+    "-device",
+    "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"
+  ],
+  "guest_commands": [
+    {
+      "command": "pkg-namespace mount",
+      "started": 1794566413.9159074,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566414.8927052,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0001.console",
+        "sha256": "8acfcdd3d4e8ea860d71208fc9a4f399cbb7cb4f3280da283064499deddac4d9",
+        "bytes": 208
+      }
+    },
+    {
+      "command": "awk '$1 == \"okernel\" && $2 == \"/n/okernel\" && $3 == \"9p\" && $4 ~ /(^|,)version=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts",
+      "started": 1794566414.8930092,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566416.2400076,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0002.console",
+        "sha256": "7fd449afe85a99e03fc7fb4cd44a38e2697f34e574e61c1fbd15a63fbb30214c",
+        "bytes": 295
+      }
+    },
+    {
+      "command": "date -u -s @1794566402",
+      "started": 1794566416.2401383,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566416.9322662,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0003.console",
+        "sha256": "6e830a7b26554deac271d99cfd2d7b162be763821ff045f4498a64d8b5df3a24",
+        "bytes": 207
+      }
+    },
+    {
+      "command": "pkg-net online",
+      "started": 1794566416.9325714,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566418.4555798,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0004.console",
+        "sha256": "0ccd23b8072db30850b9b199291ee577257249da54dd751645f5235392d80845",
+        "bytes": 387
+      }
+    },
+    {
+      "command": "if test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_a412c3f9fa06464c98199c1d42f671f5; fi",
+      "started": 1794566418.4557695,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566419.0949574,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0005.console",
+        "sha256": "d6053ed38a11c1e9d8efc5a7f3babb9326efa547569ca28e790974d71428d528",
+        "bytes": 379
+      }
+    },
+    {
+      "command": "mkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /usr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/okernel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :",
+      "started": 1794566419.0951662,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566420.177197,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0006.console",
+        "sha256": "631ac531660baac1d2ff390eeb11066d09b24c3661aac74b0d386b5fd5fdc0d4",
+        "bytes": 714
+      }
+    },
+    {
+      "command": "i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done",
+      "started": 1794566420.177501,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566430.38099,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0007.console",
+        "sha256": "74b99d2ecd565b657b9e7463b578fda151d09a98b4689f319772ab06255c9e56",
+        "bytes": 906
+      }
+    },
+    {
+      "command": "cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\\nLinux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\\n' ",
+      "started": 1794566430.606807,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566431.2931666,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0008.console",
+        "sha256": "f1970cfd55b715e34b247a2b3054ce043fe23c830042ad5c398ff7ba5af0a082",
+        "bytes": 410
+      }
+    },
+    {
+      "command": ": > /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566431.37565,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566431.7330992,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0009.console",
+        "sha256": "0c20fc788e42bf981446f11517c448c807d0b5ba6dc79ab9264147733d4b9e98",
+        "bytes": 213
+      }
+    },
+    {
+      "command": "printf %s CmltcG9ydCBiYXNlNjQsaGFzaGxpYixqc29uLG9zLHBhdGhsaWIsc3VicHJvY2VzcyxzeXMsdGltZQpkZWYgZW1pdCh2KTpwcmludCgiTzEwX00yX0pTT04gIitiYXNlNjQuYjY0ZW5jb2RlKGpzb24uZHVtcHModixzb3J0X2tleXM9VHJ1ZSkuZW5jb2RlKCkpLmRlY29kZSgpLGZsdXNoPVRydWUpCmRlZiBjYXB0dXJlKGFyZ3YpOgogcD1zdWJwcm9jZXNzLnJ1bihhcmd2LGNhcHR1cmVfb3V0cHV0PVRydWUpCiByZXR1cm4gZGljdChhcmd2PWFyZ3YscmV0dXJuY29kZT1wLnJldHVybmNvZGUsc3Rkb3V0X2Jhc2U2ND1iYXNlNjQuYjY0ZW5jb2RlKHAuc3Rkb3V0KS5kZWNvZGUoKSxzdGRlcnJfYmFzZTY0PWJhc2U2NC5iNjRlbmNvZGUocC5zdGRlcnIpLmRlY29kZSgpKQpkZWYg >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566431.7333179,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566432.8065677,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0010.console",
+        "sha256": "e19b329254e1c46fe96f1ebd70c463c040852b54b466a579ec4d0cc02c1b0858",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s cHJvYyhwaWQpOgogcD1wYXRobGliLlBhdGgoIi9wcm9jIikvc3RyKHBpZCk7dj0ocC8ic3RhdCIpLnJlYWRfdGV4dCgpLnJzcGxpdCgiKSIsMSlbMV0uc3BsaXQoKQogcmV0dXJuIGRpY3QocGlkPXBpZCxwcGlkPWludCh2WzFdKSxzdGF0ZT12WzBdLHN0YXJ0PXZbMTldLGNtZGxpbmVfYmFzZTY0PWJhc2U2NC5iNjRlbmNvZGUoKHAvImNtZGxpbmUiKS5yZWFkX2J5dGVzKCkpLmRlY29kZSgpKQpkZWYgbW91bnQoKToKIHI9W2wuc3BsaXQoKSBmb3IgbCBpbiBwYXRobGliLlBhdGgoIi9wcm9jL21vdW50cyIpLnJlYWRfdGV4dCgpLnNwbGl0bGluZXMoKSBpZiBsLnNwbGl0KClbMV09PSIvIl0KIGFzc2VydCBsZW4ocik9PTEgYW5kIHJbMF1bMF09PSIvZGV2L3ZkYSIgYW5kIHJb >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566432.806825,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566434.2852385,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0011.console",
+        "sha256": "12564df3c016bf0509e0e53eb3e74360156718776b46fabc088f3dcc4ef2ab4b",
+        "bytes": 750
+      }
+    },
+    {
+      "command": "printf %s MF1bMl09PSJleHQ0IgogcmV0dXJuIHJbMF0KbW9kZSxjb25maWdfZmlsZT1zeXMuYXJndlsxOjNdO2NvbmZpZ19wYXRoPXBhdGhsaWIuUGF0aChjb25maWdfZmlsZSkKYXNzZXJ0IGNvbmZpZ19wYXRoLmlzX2ZpbGUoKSBhbmQgbm90IGNvbmZpZ19wYXRoLmlzX3N5bWxpbmsoKQpjZmc9anNvbi5sb2Fkcyhjb25maWdfcGF0aC5yZWFkX3RleHQoKSk7YXNzZXJ0IGlzaW5zdGFuY2UoY2ZnLGRpY3QpCnJ1bj1wYXRobGliLlBhdGgoY2ZnWyJydW4iXSk7Zj1jZmdbImZpeHR1cmUiXQppZiBtb2RlPT0icHJlcGFyZSI6CiBhc3NlcnQgbm90IHJ1bi5leGlzdHMoKTtydW4ubWtkaXIobW9kZT0wbzcwMCkKIHY9c3VicHJvY2Vzcy5ydW4oWyJhcGsiLCItLXZlcnNpb24iXSxjYXB0dXJl >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566434.2854664,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566435.7347414,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0012.console",
+        "sha256": "e5e4758bfbc78819bd60eff84b80627ebc2dcb431023599e2e37ce3b6ceaab12",
+        "bytes": 762
+      }
+    },
+    {
+      "command": "printf %s X291dHB1dD1UcnVlLGNoZWNrPVRydWUpO2Fzc2VydCB2LnN0ZG91dC5kZWNvZGUoKT09ZlsiYXBrX3ZlcnNpb25fc3Rkb3V0Il0KIGZvciBncm91cCBpbiAoImFwa3MiLCJrZXlzIik6CiAgZm9yIGl0ZW0gaW4gZltncm91cF06CiAgIHA9cGF0aGxpYi5QYXRoKGl0ZW1bInBhdGgiXSk7YXNzZXJ0IHAuaXNfZmlsZSgpIGFuZCBzdHIocC5yZXNvbHZlKCkpPT1zdHIocCkKICAgYXNzZXJ0IGhhc2hsaWIuc2hhMjU2KHAucmVhZF9ieXRlcygpKS5oZXhkaWdlc3QoKT09aXRlbVsic2hhMjU2Il0KIGFzc2VydCB7c3RyKHApIGZvciBwIGluIHBhdGhsaWIuUGF0aChmWyJrZXlzX2RpcmVjdG9yeSJdKS5pdGVyZGlyKCl9PT17clsicGF0aCJdIGZvciByIGluIGZbImtleXMiXX0KIGFi >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566435.7350526,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566437.0185475,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0013.console",
+        "sha256": "fd7fde2ac78d982b21a640c701bfa855208cfea90ddec952cff5c7f7700a0bf3",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s c2VuY2U9Y2FwdHVyZShbImFwayIsImluZm8iLCItLWluc3RhbGxlZCIsZlsicGFja2FnZSJdXSkKIGFzc2VydCBhYnNlbmNlWyJyZXR1cm5jb2RlIl09PTEKIHZlcmlmaWNhdGlvbj1jYXB0dXJlKFsiYXBrIiwiLS1uby1uZXR3b3JrIiwiLS1rZXlzLWRpciIsZlsia2V5c19kaXJlY3RvcnkiXSwidmVyaWZ5Il0rW3JbInBhdGgiXSBmb3IgciBpbiBmWyJhcGtzIl1dKQogaWYgdmVyaWZpY2F0aW9uWyJyZXR1cm5jb2RlIl0hPTA6CiAgZW1pdChkaWN0KGZpeHR1cmVfdmVyaWZpZWQ9RmFsc2UsdmVyaWZpY2F0aW9uPXZlcmlmaWNhdGlvbikpO3N5cy5leGl0KDApCiBhc3NlcnQgInJ3IiBpbiBtb3VudCgpWzNdLnNwbGl0KCIsIikKIGhvb2s9cGF0aGxpYi5QYXRoKCIvZXRjL2Fw >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566437.0187514,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566438.514711,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0014.console",
+        "sha256": "a6c2ec5033ac0e22a3a6db5ece5bb5d6ae94e12386e380681f999c00ec87e82a",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s ay9jb21taXRfaG9va3MuZCIpLygibzEwLXJlc3RhcnQtIitjZmdbIm5vbmNlIl0pCiBhc3NlcnQgbm90IGhvb2suZXhpc3RzKCk7aG9vay5wYXJlbnQubWtkaXIocGFyZW50cz1UcnVlLGV4aXN0X29rPVRydWUpCiBib2R5PWJhc2U2NC5iNjRkZWNvZGUoY2ZnWyJjb21taXRfaG9va19iYXNlNjQiXSkKIGhvb2sud3JpdGVfYnl0ZXMoYm9keSk7aG9vay5jaG1vZCgwbzc1NSk7b3Muc3luYygpCiBlbWl0KGRpY3QoZml4dHVyZV92ZXJpZmllZD1UcnVlLGFwa192ZXJzaW9uPXYuc3Rkb3V0LmRlY29kZSgpLG1vdW50PW1vdW50KCksdmVyaWZpY2F0aW9uPXZlcmlmaWNhdGlvbixwYWNrYWdlX2Fic2VudD1hYnNlbmNlLAogICAgICAgICAgIGhvb2tfcGF0aD1zdHIoaG9vayksaG9v >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566438.5149097,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566439.7544985,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0015.console",
+        "sha256": "786c3d038e5ef0e4127e29b65814f55cb5b958b191e6cdc7a2b4ec38a08617d3",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s a19zaGEyNTY9aGFzaGxpYi5zaGEyNTYoYm9keSkuaGV4ZGlnZXN0KCkpKQplbGlmIG1vZGU9PSJ3cml0ZXIiOgogcD1wYXRobGliLlBhdGgoY2ZnWyJmaWxlIl0pO3AucGFyZW50Lm1rZGlyKCk7ZHVyYWJsZT1oYXNobGliLnNoYTI1NigpCiB3aXRoIHAub3BlbigieGIiKSBhcyBzdHJlYW06CiAgZm9yIGRpcmVjdG9yeSBpbiAocC5wYXJlbnQucGFyZW50LHAucGFyZW50KToKICAgZmQ9b3Mub3BlbihkaXJlY3Rvcnksb3MuT19SRE9OTFl8b3MuT19ESVJFQ1RPUlkpCiAgIHRyeTpvcy5mc3luYyhmZCkKICAgZmluYWxseTpvcy5jbG9zZShmZCkKICBmb3IgaSBpbiByYW5nZSg2NCk6CiAgIGJsb2NrPWJ5dGVzKFtpKzFdKSoxMDQ4NTc2CiAgIGFzc2VydCBzdHJlYW0ud3JpdGUo >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566439.754716,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566441.3935723,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0016.console",
+        "sha256": "e8fc1ea883595e3e00f298ad5e69cb6d3375fab524b2ce181632af66a9901b92",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s YmxvY2spPT1sZW4oYmxvY2spCiAgIHN0cmVhbS5mbHVzaCgpO29zLmZzeW5jKHN0cmVhbS5maWxlbm8oKSk7ZHVyYWJsZS51cGRhdGUoYmxvY2spCiAgIHByb2dyZXNzPWRpY3QoYnl0ZXM9KGkrMSkqMTA0ODU3NixzaGEyNTY9ZHVyYWJsZS5oZXhkaWdlc3QoKSxmc3luY19jb21wbGV0ZV9tb25vdG9uaWNfc2Vjb25kcz10aW1lLm1vbm90b25pYygpKQogICB0ZW1wb3Jhcnk9cnVuLyJ3cml0ZXItcHJvZ3Jlc3MudG1wIjt0ZW1wb3Jhcnkud3JpdGVfdGV4dChqc29uLmR1bXBzKHByb2dyZXNzKSkKICAgb3MucmVwbGFjZSh0ZW1wb3JhcnkscnVuLyJ3cml0ZXItcHJvZ3Jlc3MuanNvbiIpCiAgIHRpbWUuc2xlZXAoMikKIChydW4vIndyaXRlci1kb25lIikud3JpdGVfdGV4dCgi >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566441.3937526,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566442.647573,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0017.console",
+        "sha256": "ab4dc74e0730daaba20499827e9448160340e53cb794cd6cbd3356ce74871065",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s Y29tcGxldGUiKQplbGlmIG1vZGU9PSJ3b3JrZXIiOgogZW52PWRpY3Qob3MuZW52aXJvbixPMTBfUkVTVEFSVF9ESVI9c3RyKHJ1biksTzEwX1JFU1RBUlRfTk9OQ0U9Y2ZnWyJub25jZSJdLFBZVEhPTkRPTlRXUklURUJZVEVDT0RFPSIxIikKIHdyaXRlcj1zdWJwcm9jZXNzLlBvcGVuKFtzeXMuZXhlY3V0YWJsZSxfX2ZpbGVfXywid3JpdGVyIixzdHIoY29uZmlnX3BhdGgpXSxzdGRvdXQ9KHJ1bi8id3JpdGVyLnN0ZG91dCIpLm9wZW4oIndiIiksc3RkZXJyPShydW4vIndyaXRlci5zdGRlcnIiKS5vcGVuKCJ3YiIpLGVudj1lbnYpCiBhcmd2PVsiYXBrIiwiLS1uby1uZXR3b3JrIiwiLS1yZXBvc2l0b3JpZXMtZmlsZSIsIi9kZXYvbnVsbCIsIi0ta2V5cy1kaXIiLGZbImtl >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566442.6479216,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566444.177637,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0018.console",
+        "sha256": "cd21c4ae6520470728567ed15de44c49c7ed24bed0ee7a2115ffb1e3063180d9",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s eXNfZGlyZWN0b3J5Il0sImFkZCJdK1tyWyJwYXRoIl0gZm9yIHIgaW4gZlsiYXBrcyJdXQogYXBrPXN1YnByb2Nlc3MuUG9wZW4oYXJndixzdGRvdXQ9KHJ1bi8iYXBrLnN0ZG91dCIpLm9wZW4oIndiIiksc3RkZXJyPShydW4vImFway5zdGRlcnIiKS5vcGVuKCJ3YiIpLGVudj1lbnYpCiAocnVuLyJjaGlsZHJlbi5qc29uIikud3JpdGVfdGV4dChqc29uLmR1bXBzKGRpY3Qod3JpdGVyPXByb2Mod3JpdGVyLnBpZCksYXBrPXByb2MoYXBrLnBpZCksYXBrX2FyZ3Y9YXJndikpKQogd2hpbGUgd3JpdGVyLnBvbGwoKSBpcyBOb25lIG9yIGFway5wb2xsKCkgaXMgTm9uZTp0aW1lLnNsZWVwKC4yKQplbGlmIG1vZGU9PSJzdGF0dXMiOgogbG9ncz17fQogZm9yIG5hbWUgaW4gKCJh >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566444.1778321,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566446.095362,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0019.console",
+        "sha256": "b36533238a28f1d0dced7d029e6caa2b824bcd3f481b94c5a5a602406f085644",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s cGsuc3Rkb3V0IiwiYXBrLnN0ZGVyciIsIndyaXRlci5zdGRvdXQiLCJ3cml0ZXIuc3RkZXJyIiwid29ya2VyLnN0ZG91dCIsIndvcmtlci5zdGRlcnIiKToKICBwPXJ1bi9uYW1lO3Jhdz1wLnJlYWRfYnl0ZXMoKSBpZiBwLmV4aXN0cygpIGVsc2UgYiIiO2Fzc2VydCBsZW4ocmF3KTw9MTA0ODU3NgogIGxvZ3NbbmFtZSsiX2Jhc2U2NCJdPWJhc2U2NC5iNjRlbmNvZGUocmF3KS5kZWNvZGUoKQogaWYgbm90IChydW4vImNoaWxkcmVuLmpzb24iKS5leGlzdHMoKToKICBlbWl0KGRpY3QocmVhZHk9RmFsc2UsbG9ncz1sb2dzKSkKIGVsc2U6CiAgY2hpbGRyZW49anNvbi5sb2FkcygocnVuLyJjaGlsZHJlbi5qc29uIikucmVhZF90ZXh0KCkpO2ZhaWxlZD1GYWxzZQogIGZvciBr >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566446.095561,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566447.1200714,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0020.console",
+        "sha256": "3b95c1388fb34839109f3f2ea314f95649e1bf4e6dd61d2d3828fd6d7537a240",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s ZXkgaW4gKCJ3cml0ZXIiLCJhcGsiKToKICAgdHJ5OgogICAgY3VycmVudD1wcm9jKGNoaWxkcmVuW2tleV1bInBpZCJdKQogICAgYXNzZXJ0IGN1cnJlbnRbInN0YXJ0Il09PWNoaWxkcmVuW2tleV1bInN0YXJ0Il0KICAgIGZhaWxlZD1mYWlsZWQgb3IgY3VycmVudFsic3RhdGUiXT09IloiO2NoaWxkcmVuW2tleV09Y3VycmVudAogICBleGNlcHQgRmlsZU5vdEZvdW5kRXJyb3I6ZmFpbGVkPVRydWUKICBpZiBmYWlsZWQ6ZW1pdChkaWN0KHJlYWR5PUZhbHNlLGZhaWxlZD1UcnVlLGNoaWxkcmVuPWNoaWxkcmVuLGxvZ3M9bG9ncykpCiAgZWxpZiBub3QgKHJ1bi8iYXBrLWhvb2siKS5leGlzdHMoKSBvciBub3QgKHJ1bi8id3JpdGVyLXByb2dyZXNzLmpzb24iKS5leGlzdHMo >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566447.1202679,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566448.7733648,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0021.console",
+        "sha256": "b00ae937c8d98c6f2e2ebdb9fb3f8046c5a0ffb0b3ac9fc558f5a8fb33744705",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s KTplbWl0KGRpY3QocmVhZHk9RmFsc2UsbG9ncz1sb2dzKSkKICBlbHNlOgogICBub25jZSxwaWQscGFyZW50LHN0YWdlPShydW4vImFway1ob29rIikucmVhZF90ZXh0KCkuc3BsaXQoKTthc3NlcnQgbm9uY2U9PWNmZ1sibm9uY2UiXSBhbmQgc3RhZ2U9PSJwcmUtY29tbWl0IgogICBjaGFpbj1bXTtjdXJyZW50PXByb2MoaW50KHBpZCkpCiAgIGZvciBpIGluIHJhbmdlKDE2KToKICAgIGNoYWluLmFwcGVuZChjdXJyZW50KQogICAgaWYgY3VycmVudFsicGlkIl09PWNoaWxkcmVuWyJhcGsiXVsicGlkIl06YnJlYWsKICAgIGN1cnJlbnQ9cHJvYyhjdXJyZW50WyJwcGlkIl0pCiAgIGFzc2VydCBjaGFpblstMV1bInBpZCJdPT1jaGlsZHJlblsiYXBrIl1bInBpZCJdCiAgIHBy >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566448.7735863,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566450.0797136,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0022.console",
+        "sha256": "722b37d1ec4ebdc0bbede361241aceea098d6c39d779c2aa3e1d38888e0da514",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s b2dyZXNzPWpzb24ubG9hZHMoKHJ1bi8id3JpdGVyLXByb2dyZXNzLmpzb24iKS5yZWFkX3RleHQoKSkKICAgc2l6ZT1wYXRobGliLlBhdGgoY2ZnWyJmaWxlIl0pLnN0YXQoKS5zdF9zaXplCiAgIGFzc2VydCAwPHByb2dyZXNzWyJieXRlcyJdPD1zaXplPDY3MTA4ODY0IGFuZCBub3QgKHJ1bi8id3JpdGVyLWRvbmUiKS5leGlzdHMoKQogICBjaGlsZHJlbi51cGRhdGUocmVhZHk9VHJ1ZSxmaWxlX2J5dGVzPXNpemUsZHVyYWJsZV9wcmVmaXg9cHJvZ3Jlc3MsaG9va19wcm9jZXNzX2NoYWluPWNoYWluLAogICAgICAgICAgICAgICAgICAgbm9uY2U9bm9uY2UsYXBrX3N0YWdlPXN0YWdlLGxvZ3M9bG9ncyxvYnNlcnZlZF9tb25vdG9uaWNfc2Vjb25kcz10aW1lLm1vbm90b25p >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566450.080008,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566451.6899476,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0023.console",
+        "sha256": "042b86ee6862fe53df5b2db023c3234e349daa06a520dbb1b19ccef050b89972",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s YygpKQogICBlbWl0KGNoaWxkcmVuKQplbGlmIG1vZGU9PSJjbGVhbnVwLWhvb2siOgogaG9vaz1wYXRobGliLlBhdGgoIi9ldGMvYXBrL2NvbW1pdF9ob29rcy5kIikvKCJvMTAtcmVzdGFydC0iK2NmZ1sibm9uY2UiXSkKIGV4aXN0ZWQ9aG9vay5leGlzdHMoKQogaWYgZXhpc3RlZDoKICBhc3NlcnQgaG9vay5yZWFkX2J5dGVzKCk9PWJhc2U2NC5iNjRkZWNvZGUoY2ZnWyJjb21taXRfaG9va19iYXNlNjQiXSkKICBob29rLnVubGluaygpCiBlbWl0KGRpY3QocmVtb3ZlZF9vd25lZF9ob29rPWV4aXN0ZWQsaG9va19wYXRoPXN0cihob29rKSkpCmVsaWYgbW9kZT09ImRhdGFiYXNlIjoKIGVtaXQoZGljdChpbmZvPWNhcHR1cmUoWyJhcGsiLCJpbmZvIiwiLXZ2Il0pLGNoZWNr >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566451.690145,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566452.940266,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0024.console",
+        "sha256": "134b2f1b0f8afe23b7087d903c71ae478ba1b6861870af5c42a7e57ffc704c87",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s PWNhcHR1cmUoWyJhcGsiLCItLW5vLW5ldHdvcmsiLCItLXNpbXVsYXRlIiwiZml4Il0pKSkKZWxpZiBtb2RlPT0icmVjb3ZlcmVkLWZpbGUiOgogcD1wYXRobGliLlBhdGgoY2ZnWyJmaWxlIl0pO3NpemU9cC5zdGF0KCkuc3Rfc2l6ZTtwcmVmaXg9Y2ZnWyJkdXJhYmxlX3ByZWZpeCJdCiBhc3NlcnQgMDxwcmVmaXhbImJ5dGVzIl08PXNpemU8PTY3MTA4ODY0CiBkdXJhYmxlPWhhc2hsaWIuc2hhMjU2KCk7dGFpbD1oYXNobGliLnNoYTI1NigpCiB3aXRoIHAub3BlbigicmIiKSBhcyBzdHJlYW06CiAgb2Zmc2V0PTAKICB3aGlsZSBvZmZzZXQ8cHJlZml4WyJieXRlcyJdOgogICByYXc9c3RyZWFtLnJlYWQobWluKDEwNDg1NzYscHJlZml4WyJieXRlcyJdLW9mZnNldCkpCiAg >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566452.9405026,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566455.630144,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0025.console",
+        "sha256": "df8067aa83980db6622f9ab46af133ce6831382aeada65d0c9251a4588bf576f",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s IGFzc2VydCByYXcgYW5kIHJhdz09Ynl0ZXMoW29mZnNldC8vMTA0ODU3NisxXSkqbGVuKHJhdykKICAgZHVyYWJsZS51cGRhdGUocmF3KTtvZmZzZXQrPWxlbihyYXcpCiAgYXNzZXJ0IGR1cmFibGUuaGV4ZGlnZXN0KCk9PXByZWZpeFsic2hhMjU2Il0KICB3aGlsZSBUcnVlOgogICByYXc9c3RyZWFtLnJlYWQoMTA0ODU3NikKICAgaWYgbm90IHJhdzpicmVhawogICB0YWlsLnVwZGF0ZShyYXcpCiBlbWl0KGRpY3QoYnl0ZXM9c2l6ZSxkdXJhYmxlX3ByZWZpeF9ieXRlcz1wcmVmaXhbImJ5dGVzIl0sZHVyYWJsZV9wcmVmaXhfc2hhMjU2PWR1cmFibGUuaGV4ZGlnZXN0KCksCiAgICAgICAgICAgdW5rbm93bl90YWlsX2J5dGVzPXNpemUtcHJlZml4WyJieXRlcyJdLHVua25v >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566455.630373,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566456.7172935,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0026.console",
+        "sha256": "f6e3e351b89868ad4caa98d6d01ac0513c5a842fcc38fd7e39829b26daf8df2b",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s d25fdGFpbF9zaGEyNTY9dGFpbC5oZXhkaWdlc3QoKSwKICAgICAgICAgICBmaWxlX3NoYTI1Nj1oYXNobGliLnNoYTI1NihwLnJlYWRfYnl0ZXMoKSkuaGV4ZGlnZXN0KCksCiAgICAgICAgICAgY29tcGxldGlvbj0idW5rbm93biBpbnRlcnJ1cHRlZCB0YWlsOyBvbmx5IG9ic2VydmVkIGZzeW5jZWQgcHJlZml4IHZhbGlkYXRlZCIsd29ya19ub3RfcmVwbGF5ZWQ9VHJ1ZSkpCmVsaWYgbW9kZT09InF1aWVzY2UiOgogYmVmb3JlPW1vdW50KCk7YXNzZXJ0ICJydyIgaW4gYmVmb3JlWzNdLnNwbGl0KCIsIik7b3Muc3luYygpCiByZXN1bHQ9Y2FwdHVyZShbIm1vdW50IiwiLW8iLCJyZW1vdW50LHJvIiwiLyJdKTthc3NlcnQgcmVzdWx0WyJyZXR1cm5jb2RlIl09PTAKIGFmdGVy >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566456.717561,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566458.1793802,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0027.console",
+        "sha256": "ad3f7834115f84a9e13c1b9f47ce17463fb7bfce4eff376bda80d6accb6bf96f",
+        "bytes": 756
+      }
+    },
+    {
+      "command": "printf %s PW1vdW50KCk7YXNzZXJ0ICJybyIgaW4gYWZ0ZXJbM10uc3BsaXQoIiwiKSBhbmQgInJ3IiBub3QgaW4gYWZ0ZXJbM10uc3BsaXQoIiwiKQogZW1pdChkaWN0KGJlZm9yZT1iZWZvcmUscmVtb3VudD1yZXN1bHQsYWZ0ZXI9YWZ0ZXIpKQplbHNlOnJhaXNlIFZhbHVlRXJyb3IoInVua25vd24gZml4ZWQgZ2F0ZSBhY3Rpb24iKQo= >> /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64",
+      "started": 1794566458.1795979,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566459.2630224,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0028.console",
+        "sha256": "21f3a978e0b9242441b90bf05dfd72622dd58662dc3c6fe6d850bffc346b30fe",
+        "bytes": 483
+      }
+    },
+    {
+      "command": "base64 -d /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64 > /run/o10-m2-059c345f5d70647e0fb6e24a.py && rm /run/o10-m2-059c345f5d70647e0fb6e24a.py.o10-base64 && test \"$(wc -c < /run/o10-m2-059c345f5d70647e0fb6e24a.py)\" -eq 7097 && test \"$(sha256sum /run/o10-m2-059c345f5d70647e0fb6e24a.py | cut -d ' ' -f1)\" = a836a9ecdda9c500fa2b066ff4a32557beaf747617fbed61f6c24bcf764b27ba",
+      "started": 1794566459.2632701,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566460.3659685,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0029.console",
+        "sha256": "7381c151e1f65504731e7f8173ef0dcf60071de8409b98c79090c4c048ac18ad",
+        "bytes": 547
+      }
+    },
+    {
+      "command": ": > /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566460.3666174,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566460.8332362,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0030.console",
+        "sha256": "145d15ac1ef7b81c5d6192ced24d714dbe34c92e35ba2c08e0a0b123e7798cd9",
+        "bytes": 215
+      }
+    },
+    {
+      "command": "printf %s eyJjb21taXRfaG9va19iYXNlNjQiOiJJeUV2WW1sdUwzTm9Dbk5sZENBdFpYVUtkR1Z6ZENBaUpERWlJRDBnY0hKbExXTnZiVzFwZENCOGZDQmxlR2wwSURBS2NISnBiblJtSUNjbGN5QWxjeUFsY3lBbGMxeHVKeUFuTURVNVl6TTBOV1kxWkRjd05qUTNaVEJtWWpabE1qUmhKeUFpSkNRaUlDSWtVRkJKUkNJZ0lpUXhJaUErSUNjdmNuVnVMMjh4TUMxdE1pMHdOVGxqTXpRMVpqVmtOekEyTkRkbE1HWmlObVV5TkdFdllYQnJMV2h2YjJzbkNuZG9hV3hsSUZzZ0lTQXRaU0FuTDNKMWJpOXZNVEF0YlRJdE1EVTVZek0wTldZMVpEY3dOalEzWlRCbVlqWmxNalJoTDNKbGJHVmhjMlV0WVhCckp5QmRPeUJrYnlCemJHVmxjQ0F4T3lCa2IyNWxDZz09IiwiZmlsZSI6Ii93b3JrL28xMC1t >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566460.8335352,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566462.1274254,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0031.console",
+        "sha256": "680b9f632738c5a3eff306635752e07b0fa4349bcae01c4cacf8fdc95aa55e39",
+        "bytes": 758
+      }
+    },
+    {
+      "command": "printf %s Mi0wNTljMzQ1ZjVkNzA2NDdlMGZiNmUyNGEvZmlsZTY0TWlCIiwiZml4dHVyZSI6eyJhcGtfdmVyc2lvbl9zdGRvdXQiOiJhcGstdG9vbHMgMy4wLjgtcjAsIGNvbXBpbGVkIGZvciBhYXJjaDY0LlxuIiwiYXBrcyI6W3siYnl0ZXMiOjU2Mjc5LCJwYXRoIjoiL29wdC9vMTAtbTItZml4dHVyZS9wa2djb25mLTIuNS4xLXIwL2Fwa3MvcGtnY29uZi0yLjUuMS1yMC5hcGsiLCJzaGEyNTYiOiI2YjcxNjcxOWFjOTQ1N2JkMzVjOGVhNTM3M2RhMWRjMzNhZTg2ODYzYmJiMGY0MTFhZWQwY2I1ZTcxYjljZjJkIiwic291cmNlX3VybCI6Imh0dHBzOi8vZGwtY2RuLmFscGluZWxpbnV4Lm9yZy9hbHBpbmUvdjMuMjQvbWFpbi9hYXJjaDY0L3BrZ2NvbmYtMi41LjEtcjAuYXBrIn1dLCJj >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566462.1276276,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566463.5793898,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0032.console",
+        "sha256": "f23e6e10fdfd541c36ccb4054fd392e2f133c0374c80c5e291ee4d64fc051ba0",
+        "bytes": 758
+      }
+    },
+    {
+      "command": "printf %s b21taXRfaG9va19jb250cmFjdCI6ImFwazMtcHJlLWNvbW1pdC12MSIsImNvbW1pdF9ob29rX3RlbXBsYXRlX3NoYTI1NiI6IjFmMmU3YzM5MGU0ZTY1YmU1YjVlOTIzOTVkZTVlM2I4NTIyMjU5NzUxN2IxZTFjZDY3ZTFmZmM3MjllYjBmMDkiLCJkZXBlbmRlbmN5X2Nsb3N1cmUiOnsiYWxyZWFkeV9pbnN0YWxsZWQiOlt7ImVsZl9ieXRlcyI6NzIzNDgwLCJlbGZfcGF0aCI6Ii9saWIvbGQtbXVzbC1hYXJjaDY0LnNvLjEiLCJlbGZfc2hhMjU2IjoiNTMyODJhY2MyYmU4YTA4YTlmZGNmODgwMzM0YmYzNWJiZmQwYTEzODYyYjdmMzYxNmJlMzkxOWZjZGExMTc5MyIsInBhY2thZ2UiOiJtdXNsIiwicHJvdmlkZXMiOiJzbzpsaWJjLm11c2wtYWFyY2g2NC5zby4xIiwic291cmNl >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566463.5798626,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566464.936946,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0033.console",
+        "sha256": "65371128f385f571d1b6d6d9ce376fae036021acbf365015147e0153821e56db",
+        "bytes": 758
+      }
+    },
+    {
+      "command": "printf %s X2luc3RhbGxlZF9kYXRhYmFzZV9vYnNlcnZhdGlvbl9zaGEyNTYiOiI4MDk3NmMwOWZlODdiMGUzMjQxNDM5MzdkMDliZmIxNTE5Y2U3MWUwNmM1OGRkOTQwZDRmYzNiMDc0MDFhNmViIiwidmVyc2lvbiI6IjEuMi42LXIzIn1dLCJuZXdfZGVwZW5kZW5jeV9hcGtzIjpbXX0sImRpcmVjdG9yeSI6Ii9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMCIsImludGVycnVwdGlvbl9zY29wZSI6IkRvY3VtZW50ZWQgQVBLMyBwcmUtY29tbWl0IGhvb2sgYmVmb3JlIHBhY2thZ2UgZmlsZXN5c3RlbSBjaGFuZ2VzLCB3aGlsZSBpbmRlcGVuZGVudDY0TWlCIHdyaXRlciByZW1haW5zIGFjdGl2ZTsgbm8gYXJiaXRyYXJ5IEFQSyBjcmFzaC1jb25zaXN0ZW5jeSBjbGFpbSIs >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566464.9371781,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566466.4282672,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0034.console",
+        "sha256": "6bfcc78eaf408af005997a28c8e768c4c83023ec16d426449aea53f7432641b2",
+        "bytes": 758
+      }
+    },
+    {
+      "command": "printf %s ImtleXMiOlt7ImJ5dGVzIjo4MDAsInBhdGgiOiIvb3B0L28xMC1tMi1maXh0dXJlL3BrZ2NvbmYtMi41LjEtcjAva2V5cy9hbHBpbmUtZGV2ZWxAbGlzdHMuYWxwaW5lbGludXgub3JnLTYxNmFlMzUwLnJzYS5wdWIiLCJzaGEyNTYiOiJkMTFmNmIyMWM2MWI0Mjc0ZTE4MmViODg4ODgzYThiYThhY2RiZjgyMGRjYzdhNmQ4MmE3ZDlmYzJmZDI4MzZkIiwic291cmNlX3VybCI6Imh0dHBzOi8vYWxwaW5lbGludXgub3JnL2tleXMvYWxwaW5lLWRldmVsQGxpc3RzLmFscGluZWxpbnV4Lm9yZy02MTZhZTM1MC5yc2EucHViIn1dLCJrZXlzX2RpcmVjdG9yeSI6Ii9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMC9rZXlzIiwicGFja2FnZSI6InBrZ2NvbmYiLCJwcm92 >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566466.4285495,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566467.9192684,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0035.console",
+        "sha256": "de5198a3cf6dcfcacb20879ff762988e0eb363dc77bb0cf12afdca655c5c9201",
+        "bytes": 758
+      }
+    },
+    {
+      "command": "printf %s aXNpb25pbmdfc2NvcGUiOiJQYXlsb2FkIGZpbGVzIHByZXBhcmVkIHVuZGVyIHJvb3Rmcy8gb25seS4gT3JpZ2luYWwgc2VlZCB1bmNoYW5nZWQuIENvcHkgaW50byBhIG5ldyBwcml2YXRlIGdhdGUgc2VlZCBiZWZvcmUgYWN0dWFsIGV4ZWN1dGlvbjsgZ2F0ZSByZS12ZXJpZmllcyBldmVyeSBieXRlL2tleS9zaWduYXR1cmUvdmVyc2lvbiBpbiB0aGUgb3JpZ2luYWwgZ3Vlc3QuIiwic2NoZW1hIjoib3N0YWRpeC5vMTAtbGludXgtYXBrLWZpeHR1cmUvdjEiLCJ0YXJnZXRfYXBrIjoiL29wdC9vMTAtbTItZml4dHVyZS9wa2djb25mLTIuNS4xLXIwL2Fwa3MvcGtnY29uZi0yLjUuMS1yMC5hcGsiLCJ2ZXJzaW9uIjoiMi41LjEtcjAifSwibm9uY2UiOiIwNTljMzQ1ZjVkNzA2 >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566467.919537,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566469.3346202,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0036.console",
+        "sha256": "9fc57390bc8f4af7e2408ed8fc95c5e92e3e2896a06b4321cb856d648a5236a8",
+        "bytes": 758
+      }
+    },
+    {
+      "command": "printf %s NDdlMGZiNmUyNGEiLCJydW4iOiIvcnVuL28xMC1tMi0wNTljMzQ1ZjVkNzA2NDdlMGZiNmUyNGEifQ== >> /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64",
+      "started": 1794566469.3349075,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566470.0169666,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0037.console",
+        "sha256": "98d4d776e7c62012d88ff1ef8409098b049211056d38d99483eaafd40e1ca75d",
+        "bytes": 311
+      }
+    },
+    {
+      "command": "base64 -d /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64 > /run/o10-m2-059c345f5d70647e0fb6e24a.json && rm /run/o10-m2-059c345f5d70647e0fb6e24a.json.o10-base64 && test \"$(wc -c < /run/o10-m2-059c345f5d70647e0fb6e24a.json)\" -eq 2362 && test \"$(sha256sum /run/o10-m2-059c345f5d70647e0fb6e24a.json | cut -d ' ' -f1)\" = fa0397b7b64c50cc744d67d4f4f7e8128e67557fe8def8e27bff38ad720b82f9",
+      "started": 1794566470.017255,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566471.1375391,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0038.console",
+        "sha256": "8a46fbc525cde07c78a03a8e5b923eccab46f1661fdefb4c81ac5c0939400145",
+        "bytes": 560
+      }
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-059c345f5d70647e0fb6e24a.py database /run/o10-m2-059c345f5d70647e0fb6e24a.json",
+      "started": 1794566471.1379545,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566489.6150048,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0039.console",
+        "sha256": "6138b295979af85e33e3786cc0bfbf70d11340964ee15240c15089451eb2f753",
+        "bytes": 9156
+      }
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-059c345f5d70647e0fb6e24a.py prepare /run/o10-m2-059c345f5d70647e0fb6e24a.json",
+      "started": 1794566489.6157072,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566493.2312145,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0040.console",
+        "sha256": "af24f884fa4aa8454399a1fd8428c09829e01fe62c4a68210965516d99a10c22",
+        "bytes": 1335
+      }
+    },
+    {
+      "command": "mkdir /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087",
+      "started": 1794566493.2319665,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566493.8720303,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0041.console",
+        "sha256": "0a2c6d38f277ee999d11fb438cbef92c14a25b41026869d53f0bf9a960c44919",
+        "bytes": 279
+      }
+    },
+    {
+      "command": ": > /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64",
+      "started": 1794566493.8722825,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566494.553028,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0042.console",
+        "sha256": "e040da17b37baa296cb695a8f2bbb32a8a20d995bcc49839f97832056f684a1e",
+        "bytes": 237
+      }
+    },
+    {
+      "command": "printf %s T0M5UkVRMDEzNjAwYTc1MDFjNThmZWNhOGY0ZDNhZDBhMzk0ZmFlNWE4MDBiZjcxOGVkYTY1MGVhNGU2YzM5ZTk1MzAxNTI0MzJjMzBjNDk2Y2YwZDA4NwQAAAAHAAAAAAAAAOCTBAAAABAAAAAQAC9uL3dvcmsNAAAAL2FybTY0L2Jpbi9yYwIAAAAtSQIAAAAtY4EEAAB7IGZvcihpIGluIDAgMSAyIDMgNCA1IDYgNyA4IDkgMTAgMTEgMTIgMTMgMTQgMTUgMTYgMTcgMTggMTkgMjAgMjEgMjIgMjMgMjQgMjUgMjYgMjcgMjggMjkgMzAgMzEgMzIgMzMgMzQgMzUgMzYgMzcgMzggMzkgNDAgNDEgNDIgNDMgNDQgNDUgNDYgNDcgNDggNDkgNTAgNTEgNTIgNTMgNTQgNTUgNTYgNTcgNTggNTkgNjAgNjEgNjIgNjMgNjQgNjUgNjYgNjcgNjggNjkgNzAgNzEgNzIgNzMgNzQgNzUgNzYg >> /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64",
+      "started": 1794566494.5532296,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566496.440158,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0043.console",
+        "sha256": "16f5b6e62b0710728c3c5964a3c99e9971a9b7d2c147f08b87551a48af0bc5b6",
+        "bytes": 777
+      }
+    },
+    {
+      "command": "printf %s NzcgNzggNzkgODAgODEgODIgODMgODQgODUgODYgODcgODggODkgOTAgOTEgOTIgOTMgOTQgOTUgOTYgOTcgOTggOTkgMTAwIDEwMSAxMDIgMTAzIDEwNCAxMDUgMTA2IDEwNyAxMDggMTA5IDExMCAxMTEgMTEyIDExMyAxMTQgMTE1IDExNiAxMTcgMTE4IDExOSAxMjAgMTIxIDEyMiAxMjMgMTI0IDEyNSAxMjYgMTI3IDEyOCAxMjkgMTMwIDEzMSAxMzIgMTMzIDEzNCAxMzUgMTM2IDEzNyAxMzggMTM5IDE0MCAxNDEgMTQyIDE0MyAxNDQgMTQ1IDE0NiAxNDcgMTQ4IDE0OSAxNTAgMTUxIDE1MiAxNTMgMTU0IDE1NSAxNTYgMTU3IDE1OCAxNTkgMTYwIDE2MSAxNjIgMTYzIDE2NCAxNjUgMTY2IDE2NyAxNjggMTY5IDE3MCAxNzEgMTcyIDE3MyAxNzQgMTc1IDE3NiAxNzcgMTc4 >> /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64",
+      "started": 1794566496.4403465,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566497.9428005,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0044.console",
+        "sha256": "3fd2fa4abd7151132a59aee4940e4b284d9d3b0a1f19105f035b7f42ba41df8e",
+        "bytes": 777
+      }
+    },
+    {
+      "command": "printf %s IDE3OSAxODAgMTgxIDE4MiAxODMgMTg0IDE4NSAxODYgMTg3IDE4OCAxODkgMTkwIDE5MSAxOTIgMTkzIDE5NCAxOTUgMTk2IDE5NyAxOTggMTk5IDIwMCAyMDEgMjAyIDIwMyAyMDQgMjA1IDIwNiAyMDcgMjA4IDIwOSAyMTAgMjExIDIxMiAyMTMgMjE0IDIxNSAyMTYgMjE3IDIxOCAyMTkgMjIwIDIyMSAyMjIgMjIzIDIyNCAyMjUgMjI2IDIyNyAyMjggMjI5IDIzMCAyMzEgMjMyIDIzMyAyMzQgMjM1IDIzNiAyMzcgMjM4IDIzOSAyNDAgMjQxIDI0MiAyNDMgMjQ0IDI0NSAyNDYgMjQ3IDI0OCAyNDkgMjUwIDI1MSAyNTIgMjUzIDI1NCAyNTUgMjU2IDI1NyAyNTggMjU5IDI2MCAyNjEgMjYyIDI2MyAyNjQgMjY1IDI2NiAyNjcgMjY4IDI2OSAyNzAgMjcxIDI3MiAyNzMgMjc0 >> /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64",
+      "started": 1794566497.9430997,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566499.690024,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0045.console",
+        "sha256": "dfcfc4a98b4a2179ec6fac21c8f1d1d52f6dff7457c04057219028e52865655b",
+        "bytes": 777
+      }
+    },
+    {
+      "command": "printf %s IDI3NSAyNzYgMjc3IDI3OCAyNzkpIHsgZWNobyAkaTsgc2xlZXAgMSB9IH0gPj4gL24vc2VydmljZXMvcGxhbjkvZzM2MDBhNzUwMWM1OGZlY2EvczhmNGQzYWQwYTM5NGZhZTVhODAwYmY3MThlZGE2NTBlL20yLWNvdW50ZXItMDU5YzM0NWY1ZDcwNjQ3ZTBmYjZlMjRh >> /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64",
+      "started": 1794566499.6902237,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566500.810864,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0046.console",
+        "sha256": "3ecb5b8c1ea5b8f08d5240854bca65d11c255bf3322978467a3996ce3410c2a1",
+        "bytes": 457
+      }
+    },
+    {
+      "command": "base64 -d /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64 > /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request && rm /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request.o10-base64 && test \"$(wc -c < /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request)\" -eq 1305 && test \"$(sha256sum /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request | cut -d ' ' -f1)\" = ed35137912a442cbc6997de433f3d9417596d277d97434f04b3eb0d3b3e53292",
+      "started": 1794566500.8111281,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566502.883629,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0047.console",
+        "sha256": "175acf028146ffb3f2350b6b49fe44c5d30551059e0a70de4eef3ca115dbce46",
+        "bytes": 658
+      }
+    },
+    {
+      "command": "cat /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request > /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request && test \"$(wc -c < /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request)\" -eq 1305 && test \"$(sha256sum /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request | cut -d ' ' -f1)\" = ed35137912a442cbc6997de433f3d9417596d277d97434f04b3eb0d3b3e53292",
+      "started": 1794566502.8839517,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566505.4626646,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0048.console",
+        "sha256": "56612ddbcea516d56745b3e67479fd4c99d867ec2869ecdcd1449974d19c7a4b",
+        "bytes": 743
+      }
+    },
+    {
+      "command": ": > /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit.o10-base64",
+      "started": 1794566505.4628973,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566505.9244144,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0049.console",
+        "sha256": "543ee87b58600709c4ca229ce859191141127ee01ee015a0937ccf9ae76721d0",
+        "bytes": 236
+      }
+    },
+    {
+      "command": "printf %s T0M5U1VCMDEgMzYwMGE3NTAxYzU4ZmVjYSA4ZjRkM2FkMGEzOTRmYWU1YTgwMGJmNzE4ZWRhNjUwZSBhNGU2YzM5ZTk1MzAxNTI0MzJjMzBjNDk2Y2YwZDA4NyBlZDM1MTM3OTEyYTQ0MmNiYzY5OTdkZTQzM2YzZDk0MTc1OTZkMjc3ZDk3NDM0ZjA0YjNlYjBkM2IzZTUzMjkyCg== >> /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit.o10-base64",
+      "started": 1794566505.924615,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566506.8169906,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0050.console",
+        "sha256": "9302b0723c124613e210513d48c285b6ee70c6f4d75a3000267d69bfca8608fe",
+        "bytes": 464
+      }
+    },
+    {
+      "command": "base64 -d /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit.o10-base64 > /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit && rm /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit.o10-base64 && test \"$(wc -c < /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit)\" -eq 157 && test \"$(sha256sum /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit | cut -d ' ' -f1)\" = aef604a5fefc000b5e6871fbfa9555d96b836e72f06a8e64372eb25894fe4595",
+      "started": 1794566506.817277,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566508.5825741,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0051.console",
+        "sha256": "83c8b8de9a6c44948b41541c19944eff050dbbd6483d085732a74fec833ae123",
+        "bytes": 652
+      }
+    },
+    {
+      "command": "cat /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit > /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged && test \"$(wc -c < /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged)\" -eq 157 && test \"$(sha256sum /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged | cut -d ' ' -f1)\" = aef604a5fefc000b5e6871fbfa9555d96b836e72f06a8e64372eb25894fe4595",
+      "started": 1794566508.5828724,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566510.9491603,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0052.console",
+        "sha256": "e912cd446d3ca6bbd31c5c9b0a3da3b480895950c30bdad3f3cd5343c588ed83",
+        "bytes": 759
+      }
+    },
+    {
+      "command": "mv /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit",
+      "started": 1794566510.9493883,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566512.1010306,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0053.console",
+        "sha256": "e14a9fca6662c911459c13cd6f9b2f2cef20afd0dd6c077d7f523012bd3fab19",
+        "bytes": 415
+      }
+    },
+    {
+      "command": ": > /n/okernel/work/o10-held-059c345f5d70647e0fb6e24a; exec 9<>/n/okernel/work/o10-held-059c345f5d70647e0fb6e24a; test -e /proc/$$/fd/9",
+      "started": 1794566517.134099,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566518.0116723,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0054.console",
+        "sha256": "477b1b07fe5b45abd83d1dfd1242f547eba8fd462a7b841c7724ae8103c57015",
+        "bytes": 297
+      }
+    },
+    {
+      "command": "{ PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-059c345f5d70647e0fb6e24a.py worker /run/o10-m2-059c345f5d70647e0fb6e24a.json > /run/o10-m2-059c345f5d70647e0fb6e24a/worker.stdout 2> /run/o10-m2-059c345f5d70647e0fb6e24a/worker.stderr & }",
+      "started": 1794566518.0595815,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566519.915371,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0055.console",
+        "sha256": "600ba45f1ec1d7662ce0fd79053d0dda0fcde0fb74367d40c5b1123b08c2b5ed",
+        "bytes": 403
+      }
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-059c345f5d70647e0fb6e24a.py status /run/o10-m2-059c345f5d70647e0fb6e24a.json",
+      "started": 1794566519.9158463,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566528.4344199,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0056.console",
+        "sha256": "110195079493bbe295a3b363dd3e98e75dd7b1b99930c49e7123b208e5517fce",
+        "bytes": 550
+      }
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 /run/o10-m2-059c345f5d70647e0fb6e24a.py status /run/o10-m2-059c345f5d70647e0fb6e24a.json",
+      "started": 1794566528.7052164,
+      "completion": "observed",
+      "returncode": 0,
+      "finished": 1794566537.1522567,
+      "combined_console": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/command-0057.console",
+        "sha256": "d149265f63e82fa1d3793ab13d5413a71b19d0850cf7866b097e56dd6234240a",
+        "bytes": 2642
+      }
+    }
+  ],
+  "o10_exchanges": [
+    {
+      "request_hex": "1f000000b20100000000000000000000000000000000000000000001000000",
+      "started": 1794566405.3998392,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 1,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 1,
+        "switches": 0,
+        "esr": 0,
+        "ipa": 0,
+        "pc": 1073741824,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3010000000000010000000202000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000400000000001000000",
+      "finished": 1794566405.4954588
+    },
+    {
+      "request_hex": "1f000000b20200000000000000000000000000000000000000000001000000",
+      "started": 1794566406.4000716,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 2,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 1545,
+        "switches": 43,
+        "esr": 2466316357,
+        "ipa": 0,
+        "pc": 18446743800981729528,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30200000000000100000002020000000000000000000000000000000009060000000000002b0000000000000045000193000000000000000000000000f8b02780c0ffffff01000000",
+      "finished": 1794566406.4087226
+    },
+    {
+      "request_hex": "1f000000b20300000000000000000000000000000000000000000001000000",
+      "started": 1794566407.4538693,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 3,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 2293,
+        "switches": 96,
+        "esr": 2475229253,
+        "ipa": 0,
+        "pc": 18446743800980031752,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b303000000000001000000020200000000000000000000000000000000f50800000000000060000000000000004500899300000000000000000000000008c90d80c0ffffff01000000",
+      "finished": 1794566407.4702623
+    },
+    {
+      "request_hex": "1f000000b20400000000000000000000000000000000000000000001000000",
+      "started": 1794566408.4566555,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 4,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 2669,
+        "switches": 150,
+        "esr": 2470969413,
+        "ipa": 0,
+        "pc": 547852881140,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3040000000000010000000202000000000000000000000000000000006d0a000000000000960000000000000045004893000000000000000000000000f48c938e7f00000001000000",
+      "finished": 1794566408.476262
+    },
+    {
+      "request_hex": "1f000000b20500000000000000000000000000000000000000000001000000",
+      "started": 1794566409.4802098,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 5,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 2774,
+        "switches": 201,
+        "esr": 2475163717,
+        "ipa": 0,
+        "pc": 18446743800983415880,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b305000000000001000000020200000000000000000000000000000000d60a000000000000c90000000000000045008893000000000000000000000000486c4180c0ffffff01000000",
+      "finished": 1794566409.4956176
+    },
+    {
+      "request_hex": "1f000000b20600000000000000000000000000000000000000000001000000",
+      "started": 1794566410.5491457,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 6,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 2923,
+        "switches": 249,
+        "esr": 2475163717,
+        "ipa": 0,
+        "pc": 547682753544,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3060000000000010000000202000000000000000000000000000000006b0b000000000000f90000000000000045008893000000000000000000000000089c6f847f00000001000000",
+      "finished": 1794566410.5697129
+    },
+    {
+      "request_hex": "1f000000b20700000000000000000000000000000000000000000001000000",
+      "started": 1794566411.6420362,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 7,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 3212,
+        "switches": 308,
+        "esr": 2475229253,
+        "ipa": 0,
+        "pc": 18446743800981593464,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3070000000000010000000202000000000000000000000000000000008c0c000000000000340100000000000045008993000000000000000000000000789d2580c0ffffff01000000",
+      "finished": 1794566411.6574624
+    },
+    {
+      "request_hex": "1f000000b20800000000000000000000000000000000000000000001000000",
+      "started": 1794566412.6431751,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 8,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 3706,
+        "switches": 376,
+        "esr": 2471034949,
+        "ipa": 0,
+        "pc": 18446743800981732344,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3080000000000010000000202000000000000000000000000000000007a0e000000000000780100000000000045004993000000000000000000000000f8bb2780c0ffffff01000000",
+      "finished": 1794566412.676995
+    },
+    {
+      "request_hex": "1f000000b20900000000000000000000000000000000000000000001000000",
+      "started": 1794566413.6547215,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 9,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 4499,
+        "switches": 435,
+        "esr": 2475163717,
+        "ipa": 0,
+        "pc": 366538219248,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3090000000000010000000202000000000000000000000000000000009311000000000000b30100000000000045008893000000000000000000000000f05e61575500000001000000",
+      "finished": 1794566413.670553
+    },
+    {
+      "request_hex": "1f000000b20a00000000000000000000000000000000000000000001000000",
+      "started": 1794566414.6577294,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 10,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 5456,
+        "switches": 508,
+        "esr": 2470969349,
+        "ipa": 0,
+        "pc": 18446743800981732404,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30a0000000000010000000202000000000000000000000000000000005015000000000000fc010000000000000500489300000000000000000000000034bc2780c0ffffff01000000",
+      "finished": 1794566414.6695566
+    },
+    {
+      "request_hex": "1f000000b20b00000000000000000000000000000000000000000001000000",
+      "started": 1794566415.6578221,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 11,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 6661,
+        "switches": 580,
+        "esr": 2470969413,
+        "ipa": 0,
+        "pc": 18446743800981730852,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30b000000000001000000020200000000000000000000000000000000051a00000000000044020000000000004500489300000000000000000000000024b62780c0ffffff01000000",
+      "finished": 1794566415.6805565
+    },
+    {
+      "request_hex": "1f000000b20c00000000000000000000000000000000000000000001000000",
+      "started": 1794566416.7344124,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 12,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 8055,
+        "switches": 702,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30c000000000001000000020200000000000000000000000000000000771f000000000000be020000000000000000e007000000000000000000000000a8bd4280c0ffffff01000000",
+      "finished": 1794566416.7746181
+    },
+    {
+      "request_hex": "1f000000b20d00000000000000000000000000000000000000000001000000",
+      "started": 1794566417.760915,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 13,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 9200,
+        "switches": 821,
+        "esr": 2471034949,
+        "ipa": 0,
+        "pc": 18446743800981732348,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30d000000000001000000020200000000000000000000000000000000f023000000000000350300000000000045004993000000000000000000000000fcbb2780c0ffffff01000000",
+      "finished": 1794566417.7657547
+    },
+    {
+      "request_hex": "1f000000b20e00000000000000000000000000000000000000000001000000",
+      "started": 1794566418.7621448,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 14,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 10956,
+        "switches": 934,
+        "esr": 2470969349,
+        "ipa": 0,
+        "pc": 18446743800981732404,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30e000000000001000000020200000000000000000000000000000000cc2a000000000000a6030000000000000500489300000000000000000000000034bc2780c0ffffff01000000",
+      "finished": 1794566418.7954452
+    },
+    {
+      "request_hex": "1f000000b20f00000000000000000000000000000000000000000001000000",
+      "started": 1794566419.7626324,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 15,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 14254,
+        "switches": 1037,
+        "esr": 2470969413,
+        "ipa": 0,
+        "pc": 18446743800981730852,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b30f000000000001000000020200000000000000000000000000000000ae370000000000000d040000000000004500489300000000000000000000000024b62780c0ffffff01000000",
+      "finished": 1794566419.7889056
+    },
+    {
+      "request_hex": "1f000000b21000000000000000000000000000000000000000000001000000",
+      "started": 1794566420.7627916,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 16,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 15932,
+        "switches": 1121,
+        "esr": 2471034949,
+        "ipa": 0,
+        "pc": 18446743800981732344,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3100000000000010000000202000000000000000000000000000000003c3e000000000000610400000000000045004993000000000000000000000000f8bb2780c0ffffff01000000",
+      "finished": 1794566420.7723203
+    },
+    {
+      "request_hex": "1f000000b21100000000000000000000000000000000000000000001000000",
+      "started": 1794566421.765604,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 17,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 17999,
+        "switches": 1236,
+        "esr": 2470969413,
+        "ipa": 0,
+        "pc": 18446743800983502076,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3110000000000010000000202000000000000000000000000000000004f46000000000000d40400000000000045004893000000000000000000000000fcbc4280c0ffffff01000000",
+      "finished": 1794566421.7866094
+    },
+    {
+      "request_hex": "1f000000b21200000000000000000000000000000000000000000001000000",
+      "started": 1794566422.8766766,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 18,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 18612,
+        "switches": 1356,
+        "esr": 2475229253,
+        "ipa": 0,
+        "pc": 18446743800981593464,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b312000000000001000000020200000000000000000000000000000000b4480000000000004c0500000000000045008993000000000000000000000000789d2580c0ffffff01000000",
+      "finished": 1794566422.9310768
+    },
+    {
+      "request_hex": "1f000000b21300000000000000000000000000000000000000000001000000",
+      "started": 1794566423.919802,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 19,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 18887,
+        "switches": 1467,
+        "esr": 2475229253,
+        "ipa": 0,
+        "pc": 18446743800981593464,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b313000000000001000000020200000000000000000000000000000000c749000000000000bb0500000000000045008993000000000000000000000000789d2580c0ffffff01000000",
+      "finished": 1794566423.9355412
+    },
+    {
+      "request_hex": "1f000000b21400000000000000000000000000000000000000000001000000",
+      "started": 1794566424.981421,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 20,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 19187,
+        "switches": 1601,
+        "esr": 2475098117,
+        "ipa": 0,
+        "pc": 548129438072,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b314000000000001000000020200000000000000000000000000000000f34a00000000000041060000000000000500879300000000000000000000000078790f9f7f00000001000000",
+      "finished": 1794566425.0226357
+    },
+    {
+      "request_hex": "1f000000b21500000000000000000000000000000000000000000001000000",
+      "started": 1794566426.0682526,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 21,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 19640,
+        "switches": 1731,
+        "esr": 2475229253,
+        "ipa": 0,
+        "pc": 18446743800981593464,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b315000000000001000000020200000000000000000000000000000000b84c000000000000c30600000000000045008993000000000000000000000000789d2580c0ffffff01000000",
+      "finished": 1794566426.0891428
+    },
+    {
+      "request_hex": "1f000000b21600000000000000000000000000000000000000000001000000",
+      "started": 1794566427.1063461,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 22,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 19913,
+        "switches": 1842,
+        "esr": 2475163717,
+        "ipa": 0,
+        "pc": 547613142468,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b316000000000001000000020200000000000000000000000000000000c94d000000000000320700000000000045008893000000000000000000000000c46d49807f00000001000000",
+      "finished": 1794566427.1431828
+    },
+    {
+      "request_hex": "1f000000b21700000000000000000000000000000000000000000001000000",
+      "started": 1794566428.177321,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 23,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 20251,
+        "switches": 1965,
+        "esr": 2475098181,
+        "ipa": 0,
+        "pc": 547708831828,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3170000000000010000000202000000000000000000000000000000001b4f000000000000ad07000000000000450087930000000000000000000000005488fd857f00000001000000",
+      "finished": 1794566428.1994402
+    },
+    {
+      "request_hex": "1f000000b21800000000000000000000000000000000000000000001000000",
+      "started": 1794566429.2603004,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 24,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 20427,
+        "switches": 2080,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 547612504864,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b318000000000001000000020200000000000000000000000000000000cb4f00000000000020080000000000000000e00700000000000000000000000020b33f807f00000001000000",
+      "finished": 1794566429.2831926
+    },
+    {
+      "request_hex": "1f000000b21900000000000000000000000000000000000000000001000000",
+      "started": 1794566430.2738037,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 25,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 20571,
+        "switches": 2177,
+        "esr": 2475294725,
+        "ipa": 0,
+        "pc": 547748243112,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b3190000000000010000000202000000000000000000000000000000005b50000000000000810800000000000005008a93000000000000000000000000a8e656887f00000001000000",
+      "finished": 1794566430.2953165
+    },
+    {
+      "request_hex": "1f000000b21a00000000000000000000000000000000000000000001000000",
+      "started": 1794566431.283369,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 26,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 2,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23490,
+        "switches": 2288,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b31a000000000001000000020200000000000000000000000000000000c25b000000000000f0080000000000000000e007000000000000000000000000a8bd4280c0ffffff01000000",
+      "finished": 1794566431.2928517
+    },
+    {
+      "request_hex": "13000000a21b00000200004f31300000000000",
+      "started": 1794566431.2934318,
+      "completion": "observed",
+      "reply": {
+        "type": "Rversion",
+        "tag": 27,
+        "negotiated_msize": 512,
+        "version": {
+          "bytes_hex": "4f31300000000000"
+        },
+        "epoch": 0,
+        "last_seq": 0
+      },
+      "reply_hex": "23000000a31b00000200004f3130000000000000000000000000000000000000000000",
+      "finished": 1794566431.3104484
+    },
+    {
+      "request_hex": "27000000a41c000000000000000000010000000000000001000000000000000000000000000000",
+      "started": 1794566431.3104973,
+      "completion": "observed",
+      "reply": {
+        "type": "Rclaim",
+        "tag": 28,
+        "epoch": 1,
+        "last_seq": 1,
+        "journal_low": 1
+      },
+      "reply_hex": "1f000000a51c00010000000000000001000000000000000100000000000000",
+      "finished": 1794566431.3425508
+    },
+    {
+      "request_hex": "1f000000b21d00010000000000000000000000000000000000000001000000",
+      "started": 1794566431.342593,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 29,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 3,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23498,
+        "switches": 2296,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b31d000000000001000000020300000000000000000000000000000000ca5b000000000000f8080000000000000000e007000000000000000000000000a8bd4280c0ffffff01000000",
+      "finished": 1794566431.360092
+    },
+    {
+      "request_hex": "1f000000b21e00010000000000000000000000000000000100000001000000",
+      "started": 1794566431.3601384,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 30,
+        "dom": 4294967297,
+        "kind": 2,
+        "state": 3,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 23260,
+        "switches": 2300,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446744072637520956,
+        "leases": 1
+      },
+      "reply_hex": "4d000000b31e000100000001000000020300000000000000000000000000000000dc5a000000000000fc080000000000000000e0070000000000000000000000003c1c1ac0ffffffff01000000",
+      "finished": 1794566431.3752038
+    },
+    {
+      "request_hex": "21000000c41f000100000000000000020000000000000000000000010000000100",
+      "started": 1794566537.1549523,
+      "completion": "observed",
+      "reply": {
+        "type": "Rinject",
+        "tag": 31,
+        "dom": 4294967296
+      },
+      "reply_hex": "0f000000c51f000000000001000000",
+      "finished": 1794566537.1943688
+    },
+    {
+      "request_hex": "1f000000b22000010000000000000000000000000000000000000001000000",
+      "started": 1794566537.1944377,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 32,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 222715,
+        "switches": 12501,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "reply_hex": "4d000000b320000000000001000000020400000000000000000000000000000000fb65030000000000d5300000000000000000e007000000000000000000000000a8bd4280c0ffffff00000000",
+      "finished": 1794566537.2303984
+    },
+    {
+      "request_hex": "1f000000b22100010000000000000000000000000000000000000001000000",
+      "started": 1794566538.1819842,
+      "completion": "observed",
+      "reply": {
+        "type": "Rstat",
+        "tag": 33,
+        "dom": 4294967296,
+        "kind": 2,
+        "state": 4,
+        "inst": {
+          "bytes_hex": "00000000000000000000000000000000"
+        },
+        "exits": 222715,
+        "switches": 12501,
+        "esr": 132120576,
+        "ipa": 0,
+        "pc": 18446743800983502248,
+        "leases": 0
+      },
+      "reply_hex": "4d000000b321000000000001000000020400000000000000000000000000000000fb65030000000000d5300000000000000000e007000000000000000000000000a8bd4280c0ffffff00000000",
+      "finished": 1794566538.1975296
+    },
+    {
+      "request_hex": "3f000000ae22000100000000000000030000000000000000000000010000003c0d9d2cd96cd69abcd65632dc33dab603000000000000000400000000000000",
+      "started": 1794566538.197616,
+      "completion": "unknown",
+      "finished": 1794566541.0092933
+    }
+  ],
+  "guest_helper_uploads": [
+    {
+      "path": "/run/o10-m2-059c345f5d70647e0fb6e24a.py",
+      "bytes": 7097,
+      "sha256": "a836a9ecdda9c500fa2b066ff4a32557beaf747617fbed61f6c24bcf764b27ba",
+      "source": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/guest-helper.py",
+        "sha256": "a836a9ecdda9c500fa2b066ff4a32557beaf747617fbed61f6c24bcf764b27ba",
+        "bytes": 7097
+      },
+      "phase": "initial"
+    }
+  ],
+  "guest_helper_sha256": "a836a9ecdda9c500fa2b066ff4a32557beaf747617fbed61f6c24bcf764b27ba",
+  "guest_configuration_uploads": [
+    {
+      "path": "/run/o10-m2-059c345f5d70647e0fb6e24a.json",
+      "bytes": 2362,
+      "sha256": "fa0397b7b64c50cc744d67d4f4f7e8128e67557fe8def8e27bff38ad720b82f9",
+      "source": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r5/guest-config-initial.json",
+        "sha256": "fa0397b7b64c50cc744d67d4f4f7e8128e67557fe8def8e27bff38ad720b82f9",
+        "bytes": 2362
+      }
+    }
+  ],
+  "apk_database_before": {
+    "check": {
+      "argv": [
+        "apk",
+        "--no-network",
+        "--simulate",
+        "fix"
+      ],
+      "returncode": 0,
+      "stderr_base64": "",
+      "stdout_base64": "T0s6IDM1OC4zIE1pQiBpbiA3NSBwYWNrYWdlcwo="
+    },
+    "info": {
+      "argv": [
+        "apk",
+        "info",
+        "-vv"
+      ],
+      "returncode": 0,
+      "stderr_base64": "",
+      "stdout_base64": "YWNsLWxpYnMtMi4zLjItcjEgLSBBY2Nlc3MgY29udHJvbCBsaXN0IHV0aWxpdGllcyAobGlicmFyaWVzKQphbHBpbmUtYmFzZWxheW91dC0zLjcuMi1yMSAtIEFscGluZSBiYXNlIGRpciBzdHJ1Y3R1cmUgYW5kIGluaXQgc2NyaXB0cwphbHBpbmUtYmFzZWxheW91dC1kYXRhLTMuNy4yLXIxIC0gQWxwaW5lIGJhc2UgZGlyIHN0cnVjdHVyZSBhbmQgaW5pdCBzY3JpcHRzCmFscGluZS1rZXlzLTIuNi1yMCAtIFB1YmxpYyBrZXlzIGZvciBBbHBpbmUgTGludXggcGFja2FnZXMKYWxwaW5lLXJlbGVhc2UtMy4yNC4zLXIwIC0gQWxwaW5lIHJlbGVhc2UgZGF0YQphcGstdG9vbHMtMy4wLjgtcjAgLSBBbHBpbmUgUGFja2FnZSBLZWVwZXIgLSBwYWNrYWdlIG1hbmFnZXIgZm9yIGFscGluZQpiaW51dGlscy0yLjQ1LjEtcjEgLSBUb29scyBuZWNlc3NhcnkgdG8gYnVpbGQgcHJvZ3JhbXMKYnJvdGxpLWxpYnMtMS4yLjEtcjAgLSBHZW5lcmljIGxvc3NsZXNzIGNvbXByZXNzb3IgKGxpYnJhcmllcykKYnVpbGQtYmFzZS0wLjUtcjQgLSBNZXRhIHBhY2thZ2UgZm9yIGJ1aWxkIGJhc2UKYnVzeWJveC0xLjM3LjAtcjMxIC0gU2l6ZSBvcHRpbWl6ZWQgdG9vbGJveCBvZiBtYW55IGNvbW1vbiBVTklYIHV0aWxpdGllcwpidXN5Ym94LWJpbnNoLTEuMzcuMC1yMzEgLSBidXN5Ym94IGFzaCAvYmluL3NoCmMtYXJlcy0xLjM0LjktcjAgLSBBc3luY2hyb25vdXMgRE5TL25hbWVzIHJlc29sdmVyIGxpYnJhcnkKY2EtY2VydGlmaWNhdGVzLTIwMjYxMDIwLXIwIC0gQ29tbW9uIENBIGNlcnRpZmljYXRlcyBQRU0gZmlsZXMgZnJvbSBNb3ppbGxhCmNhLWNlcnRpZmljYXRlcy1idW5kbGUtMjAyNjEwMjAtcjAgLSBQcmUgZ2VuZXJhdGVkIGJ1bmRsZSBvZiBNb3ppbGxhIGNlcnRpZmljYXRlcwpjbWFrZS00LjIuMy1yMCAtIENyb3NzLXBsYXRmb3JtLCBvcGVuLXNvdXJjZSBtYWtlIHN5c3RlbQpjdXJsLTguMjMuMC1yMCAtIFVSTCByZXRyaWV2YWwgdXRpbGl0eSBhbmQgbGlicmFyeQpmaWxlLTUuNDctcjIgLSBGaWxlIHR5cGUgaWRlbnRpZmljYXRpb24gdXRpbGl0eQpmb3J0aWZ5LWhlYWRlcnMtMy4wLjEtcjIgLSBzdGFuZGFsb25lIGZvcnRpZnkgc291cmNlIGltcGxlbWVudGF0aW9uCmcrKy0xNS4yLjAtcjUgLSBHTlUgQysrIHN0YW5kYXJkIGxpYnJhcnkgYW5kIGNvbXBpbGVyCmdjYy0xNS4yLjAtcjUgLSBUaGUgR05VIENvbXBpbGVyIENvbGxlY3Rpb24KZ2RibS0xLjI2LXIwIC0gR05VIGRibSBpcyBhIHNldCBvZiBkYXRhYmFzZSByb3V0aW5lcyB0aGF0IHVzZSBleHRlbnNpYmxlIGhhc2hpbmcKZ2l0LTIuNTQuMC1yMCAtIERpc3RyaWJ1dGVkIHZlcnNpb24gY29udHJvbCBzeXN0ZW0KZ2l0LWluaXQtdGVtcGxhdGUtMi41NC4wLXIwIC0gR2l0IGluaXQgdGVtcGxhdGUgZGlyZWN0b3J5CmdtcC02LjMuMC1yNCAtIGZyZWUgbGlicmFyeSBmb3IgYXJiaXRyYXJ5IHByZWNpc2lvbiBhcml0aG1ldGljCmlzbDI2LTAuMjYtcjIgLSBBbiBJbnRlZ2VyIFNldCBMaWJyYXJ5IGZvciB0aGUgUG9seWhlZHJhbCBNb2RlbApqYW5zc29uLTIuMTUuMC1yMCAtIGxpZ2h0d2VpZ2h0IEpTT04gbGlicmFyeQpqcS0xLjguMi1yMCAtIEEgbGlnaHR3ZWlnaHQgYW5kIGZsZXhpYmxlIGNvbW1hbmQtbGluZSBKU09OIHByb2Nlc3NvcgpsaWJhcGstMy4wLjgtcjAgLSBBbHBpbmUgUGFja2FnZSBLZWVwZXIgLSBwYWNrYWdlIG1hbmFnZXIgZm9yIGFscGluZQpsaWJhcmNoaXZlLTMuOC4xMC1yMCAtIGxpYnJhcnkgdGhhdCBjYW4gY3JlYXRlIGFuZCByZWFkIHNldmVyYWwgc3RyZWFtaW5nIGFyY2hpdmUgZm9ybWF0cwpsaWJhdG9taWMtMTUuMi4wLXI1IC0gR0NDIEF0b21pYyBsaWJyYXJ5CmxpYmJ6Mi0xLjAuOC1yNiAtIFNoYXJlZCBsaWJyYXJ5IGZvciBiejIKbGliY3J5cHRvMy0zLjUuOS1yMCAtIENyeXB0byBsaWJyYXJ5IGZyb20gb3BlbnNzbApsaWJjdXJsLTguMjMuMC1yMCAtIFRoZSBtdWx0aXByb3RvY29sIGZpbGUgdHJhbnNmZXIgbGlicmFyeQpsaWJleHBhdC0yLjkuMC1yMCAtIFhNTCBQYXJzZXIgbGlicmFyeSB3cml0dGVuIGluIEMgKGxpYnJhcmllcykKbGliZmZpLTMuNS4yLXIxIC0gcG9ydGFibGUsIGhpZ2ggbGV2ZWwgcHJvZ3JhbW1pbmcgaW50ZXJmYWNlIHRvIHZhcmlvdXMgY2FsbGluZyBjb252ZW50aW9ucy4KbGliZ2NjLTE1LjIuMC1yNSAtIEdOVSBDIGNvbXBpbGVyIHJ1bnRpbWUgbGlicmFyaWVzCmxpYmdjYy1zdGF0aWMtMTUuMi4wLXI1IC0gR05VIEMgY29tcGlsZXIgcnVudGltZSBsaWJyYXJpZXMKbGliZ29tcC0xNS4yLjAtcjUgLSBHQ0Mgc2hhcmVkLW1lbW9yeSBwYXJhbGxlbCBwcm9ncmFtbWluZyBBUEkgbGlicmFyeQpsaWJpZG4yLTIuMy44LXIwIC0gRW5jb2RlL0RlY29kZSBsaWJyYXJ5IGZvciBpbnRlcm5hdGlvbmFsaXplZCBkb21haW4gbmFtZXMKbGlibWFnaWMtNS40Ny1yMiAtIEZpbGUgdHlwZSBpZGVudGlmaWNhdGlvbiBsaWJyYXJ5CmxpYm5jdXJzZXN3LTYuNl9wMjAyNjA1MTYtcjAgLSBDb25zb2xlIGRpc3BsYXkgbGlicmFyeSAobGlibmN1cnNlc3cpCmxpYnBhbmVsdy02LjZfcDIwMjYwNTE2LXIwIC0gQ29uc29sZSBkaXNwbGF5IGxpYnJhcnkgKGxpYnBhbmVsdykKbGlicHNsLTAuMjEuNS1yMyAtIEMgbGlicmFyeSBmb3IgdGhlIFB1YmxpeCBTdWZmaXggTGlzdApsaWJzc2wzLTMuNS45LXIwIC0gU1NMIHNoYXJlZCBsaWJyYXJpZXMKbGlic3RkYysrLTE1LjIuMC1yNSAtIEdOVSBDKysgc3RhbmRhcmQgcnVudGltZSBsaWJyYXJ5CmxpYnN0ZGMrKy1kZXYtMTUuMi4wLXI1IC0gR05VIEMrKyBzdGFuZGFyZCBydW50aW1lIGxpYnJhcnkgKGRldmVsb3BtZW50IGZpbGVzKQpsaWJ1bmlzdHJpbmctMS40LjItcjAgLSBMaWJyYXJ5IGZvciBtYW5pcHVsYXRpbmcgVW5pY29kZSBzdHJpbmdzIGFuZCBDIHN0cmluZ3MKbGlidXYtMS41Mi4xLXIwIC0gQ3Jvc3MtcGxhdGZvcm0gYXN5Y2hyb25vdXMgSS9PCmxpbnV4LWhlYWRlcnMtNy4wLjAtcjEgLSBMaW51eCBzeXN0ZW0gaGVhZGVycwpsejQtbGlicy0xLjEwLjAtcjEgLSBMWjQgaXMgbG9zc2xlc3MgY29tcHJlc3Npb24gYWxnb3JpdGhtIHdpdGggZmFzdCBkZWNvZGVyIEAgbXVsdGlwbGUgR0IvcyBwZXIgY29yZS4gKGxpYnJhcmllcykKbWFrZS00LjQuMS1yNCAtIEdOVSBtYWtlIHV0aWxpdHkgdG8gbWFpbnRhaW4gZ3JvdXBzIG9mIHByb2dyYW1zCm1wYzEtMS4zLjEtcjEgLSBNdWx0aXByZWNpc2lvbiBDIGxpYnJhcnkKbXBkZWNpbWFsLTQuMC4xLXIwIC0gY29tcGxldGUgaW1wbGVtZW50YXRpb24gb2YgdGhlIEdlbmVyYWwgRGVjaW1hbCBBcml0aG1ldGljIFNwZWNpZmljYXRpb24KbXBmcjQtNC4yLjItcjAgLSBtdWx0aXBsZS1wcmVjaXNpb24gZmxvYXRpbmctcG9pbnQgbGlicmFyeQptdXNsLTEuMi42LXIzIC0gdGhlIG11c2wgYyBsaWJyYXJ5IChsaWJjKSBpbXBsZW1lbnRhdGlvbgptdXNsLWRldi0xLjIuNi1yMyAtIHRoZSBtdXNsIGMgbGlicmFyeSAobGliYykgaW1wbGVtZW50YXRpb24gKGRldmVsb3BtZW50IGZpbGVzKQptdXNsLXV0aWxzLTEuMi42LXIzIC0gdGhlIG11c2wgYyBsaWJyYXJ5IChsaWJjKSBpbXBsZW1lbnRhdGlvbgpuY3Vyc2VzLXRlcm1pbmZvLWJhc2UtNi42X3AyMDI2MDUxNi1yMCAtIERlc2NyaXB0aW9ucyBvZiBjb21tb24gdGVybWluYWxzCm5naHR0cDItbGlicy0xLjcwLjAtcjAgLSBIVFRQLzIgQyBjbGllbnQsIHNlcnZlciBhbmQgcHJveHkgKGxpYnJhcmllcykKb25pZ3VydW1hLTYuOS4xMC1yMCAtIGEgcmVndWxhciBleHByZXNzaW9ucyBsaWJyYXJ5CnBhdGNoLTIuOC1yMCAtIFV0aWxpdHkgdG8gYXBwbHkgZGlmZnMgdG8gZmlsZXMKcGNyZTItMTAuNDktcjAgLSBQZXJsLWNvbXBhdGlibGUgcmVndWxhciBleHByZXNzaW9uIGxpYnJhcnkKcHljLTMuMTQuMTAtcjEgLSBNZXRhIHBhY2thZ2UgZm9yIHB1bGxpbmcgaW4gYWxsIC1weWMgcGFja2FnZXMKcHl0aG9uMy0zLjE0LjEwLXIxIC0gSGlnaC1sZXZlbCBzY3JpcHRpbmcgbGFuZ3VhZ2UKcHl0aG9uMy1weWMtMy4xNC4xMC1yMSAtIEhpZ2gtbGV2ZWwgc2NyaXB0aW5nIGxhbmd1YWdlIChpbnN0YWxsIC5weWMgY2FjaGUgZmlsZXMpCnB5dGhvbjMtcHljYWNoZS1weWMwLTMuMTQuMTAtcjEgLSBIaWdoLWxldmVsIHNjcmlwdGluZyBsYW5ndWFnZSAoLnB5YyBweWNhY2hlIGZpbGVzKQpyZWFkbGluZS04LjMuMy1yMSAtIEdOVSByZWFkbGluZSBsaWJyYXJ5CnJoYXNoLWxpYnMtMS40LjYtcjAgLSBVdGlsaXR5IGZvciBjYWxjdWxhdGlvbiBhbmQgdmVyaWZpY2F0aW9uIG9mIGhhc2ggc3VtcyBhbmQgbWFnbmV0IGxpbmtzIChsaWJyYXJpZXMpCnNjYW5lbGYtMS4zLjktcjEgLSBTY2FuIEVMRiBiaW5hcmllcyBmb3Igc3R1ZmYKc3FsaXRlLWxpYnMtMy41My40LXIwIC0gQyBsaWJyYXJ5IHRoYXQgaW1wbGVtZW50cyBhbiBTUUwgZGF0YWJhc2UgZW5naW5lIChsaWJyYXJpZXMpCnNzbF9jbGllbnQtMS4zNy4wLXIzMSAtIEV4dGVybmFsIHNzbF9jbGllbnQgZm9yIGJ1c3lib3ggd2dldAp0cmVlLTIuMy4yLXIwIC0gUmVjdXJzaXZlIGRpcmVjdG9yeSBpbmRlbnRlZCBsaXN0aW5nIG9mIGZpbGVzCnh6LWxpYnMtNS44LjQtcjAgLSBMaWJyYXJ5IGFuZCBDTEkgdG9vbHMgZm9yIFhaIGFuZCBMWk1BIGNvbXByZXNzZWQgZmlsZXMgKGxpYnJhcmllcykKemxpYi0xLjMuMi1yMSAtIEEgY29tcHJlc3Npb24vZGVjb21wcmVzc2lvbiBMaWJyYXJ5CnpzdGQtbGlicy0xLjUuNy1yMiAtIFpzdGFuZGFyZCAtIEZhc3QgcmVhbC10aW1lIGNvbXByZXNzaW9uIGFsZ29yaXRobSAobGlicmFyaWVzKQo="
+    }
+  },
+  "guest_prerequisites": {
+    "apk_version": "apk-tools 3.0.8-r0, compiled for aarch64.\n",
+    "fixture_verified": true,
+    "hook_path": "/etc/apk/commit_hooks.d/o10-restart-059c345f5d70647e0fb6e24a",
+    "hook_sha256": "beb18aabad627ed3c8d598385bda092de098feb29d6cbbb83edba412aa677d62",
+    "mount": [
+      "/dev/vda",
+      "/",
+      "ext4",
+      "rw,relatime",
+      "0",
+      "0"
+    ],
+    "package_absent": {
+      "argv": [
+        "apk",
+        "info",
+        "--installed",
+        "pkgconf"
+      ],
+      "returncode": 1,
+      "stderr_base64": "",
+      "stdout_base64": ""
+    },
+    "verification": {
+      "argv": [
+        "apk",
+        "--no-network",
+        "--keys-dir",
+        "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/keys",
+        "verify",
+        "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/apks/pkgconf-2.5.1-r0.apk"
+      ],
+      "returncode": 0,
+      "stderr_base64": "",
+      "stdout_base64": "L29wdC9vMTAtbTItZml4dHVyZS9wa2djb25mLTIuNS4xLXIwL2Fwa3MvcGtnY29uZi0yLjUuMS1yMC5hcGs6IE9LCg=="
+    }
+  },
+  "plan9_counter_request": {
+    "request": {
+      "bytes_hex": "4f433952455130313336303061373530316335386665636138663464336164306133393466616535613830306266373138656461363530656134653663333965393533303135323433326333306334393663663064303837040000000700000000000000e093040000001000000010002f6e2f776f726b0d0000002f61726d36342f62696e2f7263020000002d49020000002d63810400007b20666f72286920696e203020312032203320342035203620372038203920313020313120313220313320313420313520313620313720313820313920323020323120323220323320323420323520323620323720323820323920333020333120333220333320333420333520333620333720333820333920343020343120343220343320343420343520343620343720343820343920353020353120353220353320353420353520353620353720353820353920363020363120363220363320363420363520363620363720363820363920373020373120373220373320373420373520373620373720373820373920383020383120383220383320383420383520383620383720383820383920393020393120393220393320393420393520393620393720393820393920313030203130312031303220313033203130342031303520313036203130372031303820313039203131302031313120313132203131332031313420313135203131362031313720313138203131392031323020313231203132322031323320313234203132352031323620313237203132382031323920313330203133312031333220313333203133342031333520313336203133372031333820313339203134302031343120313432203134332031343420313435203134362031343720313438203134392031353020313531203135322031353320313534203135352031353620313537203135382031353920313630203136312031363220313633203136342031363520313636203136372031363820313639203137302031373120313732203137332031373420313735203137362031373720313738203137392031383020313831203138322031383320313834203138352031383620313837203138382031383920313930203139312031393220313933203139342031393520313936203139372031393820313939203230302032303120323032203230332032303420323035203230362032303720323038203230392032313020323131203231322032313320323134203231352032313620323137203231382032313920323230203232312032323220323233203232342032323520323236203232372032323820323239203233302032333120323332203233332032333420323335203233362032333720323338203233392032343020323431203234322032343320323434203234352032343620323437203234382032343920323530203235312032353220323533203235342032353520323536203235372032353820323539203236302032363120323632203236332032363420323635203236362032363720323638203236392032373020323731203237322032373320323734203237352032373620323737203237382032373929207b206563686f2024693b20736c6565702031207d207d203e3e202f6e2f73657276696365732f706c616e392f67333630306137353031633538666563612f7338663464336164306133393466616535613830306266373138656461363530652f6d322d636f756e7465722d303539633334356635643730363437653066623665323461"
+    },
+    "submit_marker": {
+      "bytes_hex": "4f43395355423031203336303061373530316335386665636120386634643361643061333934666165356138303062663731386564613635306520613465366333396539353330313532343332633330633439366366306430383720656433353133373931326134343263626336393937646534333366336439343137353936643237376439373433346630346233656230643362336535333239320a"
+    },
+    "paths": {
+      "request": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request",
+      "submit": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit",
+      "started": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/started",
+      "stdout": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/stdout",
+      "stderr": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/stderr",
+      "status": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/status",
+      "result": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/result",
+      "done": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/done"
+    },
+    "service": {
+      "generation": "3600a7501c58feca",
+      "instance": "8f4d3ad0a394fae5a800bf718eda650e"
+    },
+    "id": "a4e6c39e9530152432c30c496cf0d087",
+    "phase": "submitted",
+    "publication": [
+      {
+        "phase": "request",
+        "staging": {
+          "path": "/run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request",
+          "bytes": 1305,
+          "sha256": "ed35137912a442cbc6997de433f3d9417596d277d97434f04b3eb0d3b3e53292"
+        },
+        "destination": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request",
+        "bytes": 1305,
+        "sha256": "ed35137912a442cbc6997de433f3d9417596d277d97434f04b3eb0d3b3e53292",
+        "command": "cat /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.request > /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request && test \"$(wc -c < /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request)\" -eq 1305 && test \"$(sha256sum /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/request | cut -d ' ' -f1)\" = ed35137912a442cbc6997de433f3d9417596d277d97434f04b3eb0d3b3e53292"
+      },
+      {
+        "phase": "submit",
+        "staging": {
+          "path": "/run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit",
+          "bytes": 157,
+          "sha256": "aef604a5fefc000b5e6871fbfa9555d96b836e72f06a8e64372eb25894fe4595"
+        },
+        "destination": "/n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged",
+        "bytes": 157,
+        "sha256": "aef604a5fefc000b5e6871fbfa9555d96b836e72f06a8e64372eb25894fe4595",
+        "command": "cat /run/o10-m2-counter-a4e6c39e9530152432c30c496cf0d087.submit > /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged && test \"$(wc -c < /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged)\" -eq 157 && test \"$(sha256sum /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged | cut -d ' ' -f1)\" = aef604a5fefc000b5e6871fbfa9555d96b836e72f06a8e64372eb25894fe4595"
+      }
+    ],
+    "submit_command": "mv /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit.staged /n/okernel/services/plan9/g3600a7501c58feca/s8f4d3ad0a394fae5a800bf718eda650e/ra4e6c39e9530152432c30c496cf0d087/submit"
+  },
+  "witness_before": {
+    "schema": "ostadix.o10-linux-store-witness/v1",
+    "origin": "running-native-store",
+    "capture_scope": "all-transport-owned-fids",
+    "action": "capture",
+    "sequence": 32,
+    "linux": {
+      "grant": 1,
+      "session": 11,
+      "transport_generation": 3891294040562925258,
+      "fids": [
+        {
+          "fid": 0,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 1,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 2,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 3,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 4,
+          "object_generation": 1,
+          "mode": 2
+        }
+      ],
+      "exchanges": [
+        {
+          "fid": 0,
+          "request_hex": "0b0000007c010000000000",
+          "reply_hex": "580000007d01004f004d0000000000000080020000000100000001000000ed0100804c1ae96a4c1ae96a000000000000000001002f05006f636f726505006f636f726505006f636f72650000000000000000000000000000"
+        },
+        {
+          "fid": 1,
+          "request_hex": "0b0000007c020001000000",
+          "reply_hex": "580000007d02004f004d0000000000000080020000000100000001000000ed0100804c1ae96a4c1ae96a000000000000000001002f05006f636f726505006f636f726505006f636f72650000000000000000000000000000"
+        },
+        {
+          "fid": 2,
+          "request_hex": "0b0000007c030002000000",
+          "reply_hex": "5b0000007d03005200500000000000000080500000000200000001000000ed0100802ae9f66a2ae9f66a00000000000000000400776f726b05006f636f726505006f636f726505006f636f72650000000000000000000000000000"
+        },
+        {
+          "fid": 3,
+          "request_hex": "0b0000007c040003000000",
+          "reply_hex": "780000007d04006f006d0000000000000000010000004001000001000000a401000029e9f66a29e9f66a000000000000000021006f31302d68656c642d30353963333435663564373036343765306662366532346105006f636f726505006f636f726505006f636f72650000000000000000000000000000"
+        },
+        {
+          "fid": 4,
+          "request_hex": "0b0000007c050004000000",
+          "reply_hex": "780000007d05006f006d0000000000000000010000004001000001000000a401000029e9f66a29e9f66a000000000000000021006f31302d68656c642d30353963333435663564373036343765306662366532346105006f636f726505006f636f726505006f636f72650000000000000000000000000000"
+        }
+      ]
+    },
+    "plan9": {
+      "grant": 4,
+      "session": 12,
+      "transport_generation": 3891294040562925259,
+      "fids": [
+        {
+          "fid": 72,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 79,
+          "object_generation": 2,
+          "mode": 1
+        },
+        {
+          "fid": 80,
+          "object_generation": 3,
+          "mode": 0
+        },
+        {
+          "fid": 82,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 94,
+          "object_generation": 2,
+          "mode": 1
+        },
+        {
+          "fid": 96,
+          "object_generation": 1,
+          "mode": 1
+        }
+      ],
+      "exchanges": [
+        {
+          "fid": 72,
+          "request_hex": "0b0000007c060048000000",
+          "reply_hex": "4a0000007d060041003f0000000000000080020000000100000001000000ed0100804c1ae96a4c1ae96a000000000000000001002f05006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 79,
+          "request_hex": "0b0000007c07004f000000",
+          "reply_hex": "4f0000007d07004600440000000000000000010000003d01000002000000a401000022e9f66a22e9f66a000000000000000006007374646f757405006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 80,
+          "request_hex": "0b0000007c080050000000",
+          "reply_hex": "6a0000007d080061005f0000000000000080050000002901000003000000ed01008025e9f66a25e9f66a0000000000000000210073386634643361643061333934666165356138303062663731386564613635306505006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 82,
+          "request_hex": "0b0000007c090052000000",
+          "reply_hex": "4d0000007d09004400420000000000000080500000000200000001000000ed0100802ae9f66a2ae9f66a00000000000000000400776f726b05006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 94,
+          "request_hex": "0b0000007c0a005e000000",
+          "reply_hex": "4f0000007d0a004600440000000000000000010000003c01000002000000a401000020e9f66a20e9f66a0000000000000000060073746465727205006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 96,
+          "request_hex": "0b0000007c0b0060000000",
+          "reply_hex": "6c0000007d0b006300610000000000000000040000003f01000001000000b601000028e9f66a28e9f66a060000000000000023006d322d636f756e7465722d30353963333435663564373036343765306662366532346105006f636f726505006f636f726505006f636f7265"
+        }
+      ]
+    }
+  },
+  "latest_workload_status": {
+    "apk": {
+      "cmdline_base64": "YXBrAC0tbm8tbmV0d29yawAtLXJlcG9zaXRvcmllcy1maWxlAC9kZXYvbnVsbAAtLWtleXMtZGlyAC9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMC9rZXlzAGFkZAAvb3B0L28xMC1tMi1maXh0dXJlL3BrZ2NvbmYtMi41LjEtcjAvYXBrcy9wa2djb25mLTIuNS4xLXIwLmFwawA=",
+      "pid": 270,
+      "ppid": 267,
+      "start": "11772",
+      "state": "S"
+    },
+    "apk_argv": [
+      "apk",
+      "--no-network",
+      "--repositories-file",
+      "/dev/null",
+      "--keys-dir",
+      "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/keys",
+      "add",
+      "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/apks/pkgconf-2.5.1-r0.apk"
+    ],
+    "apk_stage": "pre-commit",
+    "durable_prefix": {
+      "bytes": 1048576,
+      "fsync_complete_monotonic_seconds": 124.943168144,
+      "sha256": "ee78cd29d3a534713b36e6ff6fa3668c8a8f851a542d5eb2401c25ca4e057d02"
+    },
+    "file_bytes": 1048576,
+    "hook_process_chain": [
+      {
+        "cmdline_base64": "L2Jpbi9zaABldGMvYXBrL2NvbW1pdF9ob29rcy5kL28xMC1yZXN0YXJ0LTA1OWMzNDVmNWQ3MDY0N2UwZmI2ZTI0YQBwcmUtY29tbWl0AA==",
+        "pid": 271,
+        "ppid": 270,
+        "start": "11982",
+        "state": "S"
+      },
+      {
+        "cmdline_base64": "YXBrAC0tbm8tbmV0d29yawAtLXJlcG9zaXRvcmllcy1maWxlAC9kZXYvbnVsbAAtLWtleXMtZGlyAC9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMC9rZXlzAGFkZAAvb3B0L28xMC1tMi1maXh0dXJlL3BrZ2NvbmYtMi41LjEtcjAvYXBrcy9wa2djb25mLTIuNS4xLXIwLmFwawA=",
+        "pid": 270,
+        "ppid": 267,
+        "start": "11772",
+        "state": "S"
+      }
+    ],
+    "logs": {
+      "apk.stderr_base64": "",
+      "apk.stdout_base64": "",
+      "worker.stderr_base64": "",
+      "worker.stdout_base64": "",
+      "writer.stderr_base64": "",
+      "writer.stdout_base64": ""
+    },
+    "nonce": "059c345f5d70647e0fb6e24a",
+    "observed_monotonic_seconds": 126.381814512,
+    "ready": true,
+    "writer": {
+      "cmdline_base64": "L3Vzci9iaW4vcHl0aG9uMwAvcnVuL28xMC1tMi0wNTljMzQ1ZjVkNzA2NDdlMGZiNmUyNGEucHkAd3JpdGVyAC9ydW4vbzEwLW0yLTA1OWMzNDVmNWQ3MDY0N2UwZmI2ZTI0YS5qc29uAA==",
+      "pid": 269,
+      "ppid": 267,
+      "start": "11764",
+      "state": "S"
+    }
+  },
+  "interrupted_workload": {
+    "apk": {
+      "cmdline_base64": "YXBrAC0tbm8tbmV0d29yawAtLXJlcG9zaXRvcmllcy1maWxlAC9kZXYvbnVsbAAtLWtleXMtZGlyAC9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMC9rZXlzAGFkZAAvb3B0L28xMC1tMi1maXh0dXJlL3BrZ2NvbmYtMi41LjEtcjAvYXBrcy9wa2djb25mLTIuNS4xLXIwLmFwawA=",
+      "pid": 270,
+      "ppid": 267,
+      "start": "11772",
+      "state": "S"
+    },
+    "apk_argv": [
+      "apk",
+      "--no-network",
+      "--repositories-file",
+      "/dev/null",
+      "--keys-dir",
+      "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/keys",
+      "add",
+      "/opt/o10-m2-fixture/pkgconf-2.5.1-r0/apks/pkgconf-2.5.1-r0.apk"
+    ],
+    "apk_stage": "pre-commit",
+    "durable_prefix": {
+      "bytes": 1048576,
+      "fsync_complete_monotonic_seconds": 124.943168144,
+      "sha256": "ee78cd29d3a534713b36e6ff6fa3668c8a8f851a542d5eb2401c25ca4e057d02"
+    },
+    "file_bytes": 1048576,
+    "hook_process_chain": [
+      {
+        "cmdline_base64": "L2Jpbi9zaABldGMvYXBrL2NvbW1pdF9ob29rcy5kL28xMC1yZXN0YXJ0LTA1OWMzNDVmNWQ3MDY0N2UwZmI2ZTI0YQBwcmUtY29tbWl0AA==",
+        "pid": 271,
+        "ppid": 270,
+        "start": "11982",
+        "state": "S"
+      },
+      {
+        "cmdline_base64": "YXBrAC0tbm8tbmV0d29yawAtLXJlcG9zaXRvcmllcy1maWxlAC9kZXYvbnVsbAAtLWtleXMtZGlyAC9vcHQvbzEwLW0yLWZpeHR1cmUvcGtnY29uZi0yLjUuMS1yMC9rZXlzAGFkZAAvb3B0L28xMC1tMi1maXh0dXJlL3BrZ2NvbmYtMi41LjEtcjAvYXBrcy9wa2djb25mLTIuNS4xLXIwLmFwawA=",
+        "pid": 270,
+        "ppid": 267,
+        "start": "11772",
+        "state": "S"
+      }
+    ],
+    "logs": {
+      "apk.stderr_base64": "",
+      "apk.stdout_base64": "",
+      "worker.stderr_base64": "",
+      "worker.stdout_base64": "",
+      "writer.stderr_base64": "",
+      "writer.stdout_base64": ""
+    },
+    "nonce": "059c345f5d70647e0fb6e24a",
+    "observed_monotonic_seconds": 126.381814512,
+    "ready": true,
+    "writer": {
+      "cmdline_base64": "L3Vzci9iaW4vcHl0aG9uMwAvcnVuL28xMC1tMi0wNTljMzQ1ZjVkNzA2NDdlMGZiNmUyNGEucHkAd3JpdGVyAC9ydW4vbzEwLW0yLTA1OWMzNDVmNWQ3MDY0N2UwZmI2ZTI0YS5qc29uAA==",
+      "pid": 269,
+      "ppid": 267,
+      "start": "11764",
+      "state": "S"
+    }
+  },
+  "linux_fault": {
+    "type": "Rinject",
+    "tag": 31,
+    "dom": 4294967296
+  },
+  "witness_faulted": {
+    "schema": "ostadix.o10-linux-store-witness/v1",
+    "origin": "running-native-store",
+    "capture_scope": "all-transport-owned-fids",
+    "action": "check",
+    "sequence": 35,
+    "linux": {
+      "grant": 1,
+      "session": 11,
+      "transport_generation": 3891294040562925258,
+      "fids": [
+        {
+          "fid": 0,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 1,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 2,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 3,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 4,
+          "object_generation": 1,
+          "mode": 2
+        }
+      ],
+      "exchanges": [
+        {
+          "fid": 0,
+          "request_hex": "0b0000007c010000000000",
+          "reply_hex": "280000006b01001b0066696420756e6b6e6f776e206f72206f7574206f662072616e676574000000"
+        },
+        {
+          "fid": 1,
+          "request_hex": "0b0000007c020001000000",
+          "reply_hex": "280000006b02001b0066696420756e6b6e6f776e206f72206f7574206f662072616e676574000000"
+        },
+        {
+          "fid": 2,
+          "request_hex": "0b0000007c030002000000",
+          "reply_hex": "280000006b03001b0066696420756e6b6e6f776e206f72206f7574206f662072616e676574000000"
+        },
+        {
+          "fid": 3,
+          "request_hex": "0b0000007c040003000000",
+          "reply_hex": "280000006b04001b0066696420756e6b6e6f776e206f72206f7574206f662072616e676574000000"
+        },
+        {
+          "fid": 4,
+          "request_hex": "0b0000007c050004000000",
+          "reply_hex": "280000006b05001b0066696420756e6b6e6f776e206f72206f7574206f662072616e676574000000"
+        }
+      ]
+    },
+    "plan9": {
+      "grant": 4,
+      "session": 12,
+      "transport_generation": 3891294040562925259,
+      "fids": [
+        {
+          "fid": 72,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 79,
+          "object_generation": 2,
+          "mode": 1
+        },
+        {
+          "fid": 80,
+          "object_generation": 3,
+          "mode": 0
+        },
+        {
+          "fid": 82,
+          "object_generation": 1,
+          "mode": 255
+        },
+        {
+          "fid": 94,
+          "object_generation": 2,
+          "mode": 1
+        },
+        {
+          "fid": 96,
+          "object_generation": 1,
+          "mode": 1
+        }
+      ],
+      "exchanges": [
+        {
+          "fid": 72,
+          "request_hex": "0b0000007c060048000000",
+          "reply_hex": "4a0000007d060041003f0000000000000080020000000100000001000000ed0100804c1ae96a4c1ae96a000000000000000001002f05006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 79,
+          "request_hex": "0b0000007c07004f000000",
+          "reply_hex": "4f0000007d07004600440000000000000000010000003d01000002000000a401000022e9f66a22e9f66a000000000000000006007374646f757405006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 80,
+          "request_hex": "0b0000007c080050000000",
+          "reply_hex": "6a0000007d080061005f0000000000000080050000002901000003000000ed01008025e9f66a25e9f66a0000000000000000210073386634643361643061333934666165356138303062663731386564613635306505006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 82,
+          "request_hex": "0b0000007c090052000000",
+          "reply_hex": "4d0000007d09004400420000000000000080500000000200000001000000ed0100802ae9f66a2ae9f66a00000000000000000400776f726b05006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 94,
+          "request_hex": "0b0000007c0a005e000000",
+          "reply_hex": "4f0000007d0a004600440000000000000000010000003c01000002000000a401000020e9f66a20e9f66a0000000000000000060073746465727205006f636f726505006f636f726505006f636f7265"
+        },
+        {
+          "fid": 96,
+          "request_hex": "0b0000007c0b0060000000",
+          "reply_hex": "6c0000007d0b006300610000000000000000140000003f01000001000000b60100003ae9f66a3ae9f66a2f0000000000000023006d322d636f756e7465722d30353963333435663564373036343765306662366532346105006f636f726505006f636f726505006f636f7265"
+        }
+      ]
+    }
+  },
+  "error": "TypeError: Object of type bytes is not JSON serializable",
+  "cleanup_error": "TypeError: Object of type bytes is not JSON serializable",
+  "finished": 1794566541.312669
+}

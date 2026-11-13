@@ -1,0 +1,399 @@
+diff --git a/ci/language-sources.json b/ci/language-sources.json
+index 4daf4d59..de4781fa 100644
+--- a/ci/language-sources.json
++++ b/ci/language-sources.json
+@@ -997,6 +997,21 @@
+         "evidence/o10-m2-20261112/integration-check/profile.oc",
+         "evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc"
+       ]
++    },
++    {
++      "id": "o10-m2-linux-store-witness",
++      "category": "runtime-module",
++      "reason": "Qualification-only native-selected transport/store observations; no host-selected authority and no O10 catalog change.",
++      "coverage": [
++        {
++          "path": "tests/test_o10_linux_witness_native.py",
++          "kind": "runtime",
++          "conditions": "Native host model executes real store/frontend binding and raw Tstat capture/revocation; live gate remains separate."
++        }
++      ],
++      "sources": [
++        "ocore/runtime/aarch64/linux_restart_witness.oc"
++      ]
+     }
+   ],
+   "expected_parse_failures": {
+diff --git a/docs/O10.md b/docs/O10.md
+index 78218b94..46aa281f 100644
+--- a/docs/O10.md
++++ b/docs/O10.md
+@@ -229,3 +229,20 @@ EUNSUPPORTED in M2. Component/native-model results retain their individual
+ scope and do not establish Linux guest restart, interrupted ext4/APK recovery,
+ or the full M2 gate. The native chosen-token/fid qualification witness and live
+ M2 acceptance remain pending.
++
++### Unqualified M2 native store witness
++
++Qualification builds expose a fixed diagnostic mailbox operation11, separate
++from O10. Its action word at0x6d000118 accepts only capture or check; callers
++cannot supply a grant, session, fid or namespace path. Its320KiB output region
++0x6d0b0000..0x6d0fffff lies outside both guest stage-2 RAM maps.
++Production builds return EUNSUPPORTED and clear any diagnostic token/frame data.
++
++Capture obtains opaque sessions from the actual Linux virtio9P and Plan9 UART
++frontends, then retains every fid of those bindings (at most512 combined).
++Check uses the old Linux binding for raw Tstat requests and requires numeric
++9P2000.u ESTALE116; Plan9 retains its session, transport generation and complete
++fid/object-generation/mode tuples. Raw QID identity is checked by the gate;
++file content, sizes and QID versions may advance. This observer is
++qualification evidence only and confers no new guest authority. Native host
++models and source compilation do not qualify the live M2 restart gate.
+diff --git a/ocore/runtime/aarch64/kernel_world_9p.oc b/ocore/runtime/aarch64/kernel_world_9p.oc
+index c389a876..9d512e82 100644
+--- a/ocore/runtime/aarch64/kernel_world_9p.oc
++++ b/ocore/runtime/aarch64/kernel_world_9p.oc
+@@ -408,3 +408,6 @@ pub unsafe fn next_session_epoch() -> u64 {
+     if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return 0; }
+     return SESSION_EPOCH + 1;
+ }
++
++// Read-only native observer: a name, never authority supplied by a guest.
++pub unsafe fn qualification_session() -> u64 { if ACTIVE != 1 || BOUND != 1 || ERROR != 0 || SESSION == 0 || session_handle(LINUX_NAMESPACE_GRANT) != SESSION { return 0; } return SESSION; }
+diff --git a/ocore/runtime/aarch64/plan9_namespace_uart.oc b/ocore/runtime/aarch64/plan9_namespace_uart.oc
+index b3f4fb61..11b73e37 100644
+--- a/ocore/runtime/aarch64/plan9_namespace_uart.oc
++++ b/ocore/runtime/aarch64/plan9_namespace_uart.oc
+@@ -8,6 +8,7 @@ module runtime::aarch64::plan9_namespace_uart;
+ // Component CR reset can clear framing errors; the optional production probe
+ // deliberately halts on a framing/write failure before guest reset can run.
+ use runtime::common::namespace_store::session_init;
++use runtime::common::namespace_store::session_handle;
+ use runtime::common::namespace_store::handle;
+ use runtime::common::namespace_store::revoke as store_revoke;
+ 
+@@ -248,3 +249,8 @@ pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
+ 
+ pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && ERROR == 0) as u64; }
+ pub unsafe fn diagnostic() -> u64 { return ERROR; }
++
++// Read-only native observer: a name, never authority supplied by a guest.
++pub unsafe fn qualification_session() -> u64 { if ACTIVE != 1 || ERROR != 0 || SESSION == 0 || session_handle(4) != SESSION { return 0; } return SESSION; }
++
++pub unsafe fn qualification_generation() -> u64 { return GENERATION; }
+diff --git a/ocore/runtime/aarch64/unified_world.oc b/ocore/runtime/aarch64/unified_world.oc
+index 11d26fd5..dcc70c6e 100644
+--- a/ocore/runtime/aarch64/unified_world.oc
++++ b/ocore/runtime/aarch64/unified_world.oc
+@@ -11,6 +11,7 @@ use runtime::aarch64::kernel_world_9p::bind_current as linux_bind;
+ use runtime::aarch64::kernel_world_9p::next_session_epoch as linux_next_session_epoch;
+ use runtime::aarch64::linux_domain_images::register as linux_images_register;
+ use runtime::aarch64::linux_domain_images::reload as linux_images_reload;
++use runtime::aarch64::linux_restart_witness::execute as linux_restart_observe;
+ use runtime::common::namespace_store::session_init as namespace_session_init;
+ use runtime::aarch64::kernel_world_monitor::kw_handle_exit_checked as linux_exit;
+ use runtime::aarch64::kernel_world_monitor::checked_diagnostic as linux_diagnostic;
+@@ -558,6 +559,9 @@ unsafe fn progress() -> void {
+ // 0x6d0a0200..0x6d0a03ff, private to EL2/host and outside both stage-2 maps.
+ // Internal diagnostic reason/args occupy 0x6d0000d0..0x6d0000ef, also EL2-only.
+ // M2 legacy lifecycle ops1/2 return result9 (EUNSUPPORTED).
++// Qualification sideband op11 action at0x6d000118..11f, output
++// 0x6d0b0000..0x6d0fffff, EL2/host-only outside ALL guest stage-2 maps.
++// No guest receives this region; op11 never accepts caller authority names.
+ // Linux immutable image lengths at0x6d000100..117 are boot-only metadata;
+ // private backup windows d200..da00,da00..e200,e200..e201 are never guest mapped.
+ unsafe fn o10_domain(handle: u64) -> u64 {
+@@ -777,6 +781,10 @@ unsafe fn native_control() -> void {
+     let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
+     let mut result: u64 = 0;
+     if operation == 10 { result = o10_mailbox(); }
++    if operation == 11 {
++        linux_restart_observe(volatile_load(0x6d00_0118 as *const u64), sequence, O10_QUALIFICATION);
++        result = 1;
++    }
+     // M2 retires pre-O10 lifecycle rollback: mailbox result9 is the
+     // documented EUNSUPPORTED error, with no lifecycle/session mutation.
+     if operation == 1 || operation == 2 { result = 9; }
+diff --git a/ocore/runtime/common/namespace_store.oc b/ocore/runtime/common/namespace_store.oc
+index c286bc74..d434ef5a 100644
+--- a/ocore/runtime/common/namespace_store.oc
++++ b/ocore/runtime/common/namespace_store.oc
+@@ -335,6 +335,32 @@ pub unsafe fn session_fid_count(grant: u64) -> u64 {
+     }
+     return count;
+ }
++// Trusted qualification observer. No guest/host request supplies this session.
++// Four u64 words per fid: number, object generation, mode, object index.
++// A stale token/capacity failure publishes no successful partial snapshot.
++pub unsafe fn qualification_fids(grant: u64, session: u64, output: *mut u64, capacity: usize) -> u64 {
++    if session == 0 || session_handle(grant) != session || output as usize == 0 { return 0xffff_ffff_ffff_ffff; }
++    let count: u64 = session_fid_count(grant);
++    if count > capacity as u64 { return 0xffff_ffff_ffff_fffe; }
++    let mut used: usize = 0; let mut i: usize = 0;
++    while i < FID_COUNT {
++        if F_SESSION[i] == session {
++            let mut pos: usize = used;
++            while pos > 0 && volatile_load(output + (pos - 1) * 4) > F_NUMBER[i] {
++                let mut j: usize = 0;
++                while j < 4 { volatile_store(output + pos * 4 + j, volatile_load(output + (pos - 1) * 4 + j)); j += 1; }
++                pos -= 1;
++            }
++            volatile_store(output + pos * 4, F_NUMBER[i]);
++            volatile_store(output + pos * 4 + 1, F_GENERATION[i]);
++            volatile_store(output + pos * 4 + 2, F_MODE[i]);
++            volatile_store(output + pos * 4 + 3, F_OBJECT[i] as u64);
++            used += 1;
++        }
++        i += 1;
++    }
++    return used as u64;
++}
+ pub unsafe fn revoke(grant: u64) -> u64 {
+     if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 { return 0; }
+     let slot: usize = grant as usize; clear_fids(SESSION[slot]); SESSION[slot] = 0; VERSIONED[slot] = 0; return 1;
+diff --git a/scripts/build_okernel_unified_world.py b/scripts/build_okernel_unified_world.py
+index 4420615f..2cb25a27 100644
+--- a/scripts/build_okernel_unified_world.py
++++ b/scripts/build_okernel_unified_world.py
+@@ -20,10 +20,15 @@ import subprocess
+ import sys
+ 
+ ROOT = Path(__file__).resolve().parents[1]
++LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
++                 "address": 0x6d0b0000, "bytes": 0x50000,
++                 "header_bytes": 128, "record_bytes": 576, "max_fids": 512}
++
+ SOURCES = (
+     "ocore/runtime/aarch64/unified_world.oc",
+     "ocore/runtime/aarch64/unified_gic.oc",
+     "ocore/runtime/aarch64/linux_domain_images.oc",
++    "ocore/runtime/aarch64/linux_restart_witness.oc",
+     "ocore/runtime/aarch64/kernel_world_monitor.oc",
+     "ocore/runtime/aarch64/kernel_world_virtio.oc",
+     "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+@@ -625,6 +630,9 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
+     manifest["o10"] = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
+                        "completion": 0x6d0a0200, "msize": 512}
+     manifest["o10_qualification"] = bool(o10_qualification)
++    if o10_qualification:
++        manifest["o10_linux_restart_witness"] = "native-store-v1"
++        manifest["linux_restart_witness"] = dict(LINUX_WITNESS)
+     manifest["linux_recovery"] = linux_recovery
+     manifest["linux_initramfs_derivation"] = initrd_derivation
+     manifest["loader_addresses"].update({"inputs/linux-recovery.Image": linux_recovery["kernel_backup_address"],
+diff --git a/scripts/build_source_release.py b/scripts/build_source_release.py
+index b984434d..eb7c50d5 100755
+--- a/scripts/build_source_release.py
++++ b/scripts/build_source_release.py
+@@ -296,12 +296,12 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
+             for name in ("codec", "live", "m0", "m1", "m1_regressions", "native", "platform",
+                          "regressions", "runner", "resident", "resident_native", "hostile_mmio",
+                          "linux_profile", "linux_reset_native", "linux_restart_native",
+-                         "linux_runner", "linux_restart")
++                         "linux_runner", "linux_restart", "linux_witness", "linux_witness_native")
+         ),
+         *(
+             f"ocore/runtime/aarch64/{name}.oc"
+             for name in (
+-                "unified_world", "unified_gic", "kernel_world_monitor", "linux_domain_images",
++                "unified_world", "unified_gic", "kernel_world_monitor", "linux_domain_images", "linux_restart_witness",
+                 "kernel_world_virtio", "kernel_world_virtio_selftest",
+                 "kernel_world_net_host", "kernel_world_net", "kernel_world_9p",
+                 "plan9_namespace_uart", "coordinator_uart",
+diff --git a/scripts/o-kernel.sh b/scripts/o-kernel.sh
+index 31a653e8..41d4d9d9 100755
+--- a/scripts/o-kernel.sh
++++ b/scripts/o-kernel.sh
+@@ -41,6 +41,7 @@ Commands:
+   doctor-media Check the optional GRUB, FAT, firmware, and O-core media tools
+   build        Build the baseline kernel image
+   unified-build  Build an isolated Linux/Plan9 EL2 profile (arguments forwarded)
++  o10-linux-restart Run the isolated M2 Linux restart gate (arguments forwarded)
+   o10-m1-regressions Run the M1 guest regression driver (arguments forwarded)
+   o10-resident Run the isolated M1 resident-control gate (arguments forwarded)
+   o10-hostile-mmio Run the additional hostile Linux MMIO gate (arguments forwarded)
+@@ -174,6 +175,9 @@ case "$command_name" in
+     unified-build)
+         exec python3 "$ROOT/scripts/build_okernel_unified_world.py" "$@"
+         ;;
++    o10-linux-restart)
++        exec python3 "$ROOT/scripts/verify_o10_linux_restart.py" "$@"
++        ;;
+     o10-m1-regressions)
+         exec python3 "$ROOT/scripts/verify_o10_m1_regressions.py" "$@"
+         ;;
+diff --git a/scripts/okernel_unified_world.py b/scripts/okernel_unified_world.py
+index 690f89f4..312e6949 100644
+--- a/scripts/okernel_unified_world.py
++++ b/scripts/okernel_unified_world.py
+@@ -27,6 +27,10 @@ import time
+ import uuid
+ 
+ ROOT = Path(__file__).resolve().parents[1]
++LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
++                 "address": 0x6d0b0000, "bytes": 0x50000,
++                 "header_bytes": 128, "record_bytes": 576, "max_fids": 512}
++
+ sys.path.insert(0, str(ROOT / "scripts"))
+ from okernel_native_volume import Volume
+ import o10
+@@ -133,6 +137,11 @@ def validate_profile(profile: dict) -> None:
+         required["coordinator_uart"] = COORDINATOR_UART
+     if "o10" in profile:
+         required["o10"] = O10_PROFILE
++    if "o10_linux_restart_witness" in profile or "linux_restart_witness" in profile:
++        if profile.get("o10_qualification") is not True:
++            raise ValueError("store witness requires a qualification build")
++        required["o10_linux_restart_witness"] = "native-store-v1"
++        required["linux_restart_witness"] = LINUX_WITNESS
+     if "idle_scheduler" in profile:
+         required["idle_scheduler"] = IDLE_SCHEDULER
+     if any(profile.get(key) != value for key, value in required.items()):
+@@ -162,6 +171,49 @@ def validate_linux_recovery_inputs(artifacts: dict[str, Path]) -> None:
+             raise ValueError("Linux recovery copy differs from admitted original input")
+ 
+ 
++def decode_linux_restart_witness(raw: bytes, action: str, sequence: int) -> dict:
++    """Decode the fixed native diagnostic contract; no authority inputs."""
++    if action not in ("capture", "check") or len(raw) < 128:
++        raise ValueError("invalid native witness action/header")
++    if raw[:8] != b"O10WIT1\0" or struct.unpack_from("<I", raw, 8)[0] != 1:
++        raise ValueError("unsupported native witness header")
++    status, = struct.unpack_from("<I", raw, 12)
++    detail, native_action, native_seq, ls, lg, ps, pg = struct.unpack_from("<7Q", raw, 16)
++    if native_action != (1 if action == "capture" else 2) or native_seq != sequence:
++        raise ValueError("stale native witness action/sequence")
++    if status:
++        raise RuntimeError(f"native Linux store witness error {status}, detail {detail}")
++    lc, pc, count = struct.unpack_from("<3I", raw, 72)
++    if detail or not ls or not ps or ls == ps or not lg or not pg or not lc or not pc:
++        raise ValueError("inactive native witness binding")
++    if count != lc + pc or count > 512 or len(raw) != 128 + count * 576 or any(raw[84:128]):
++        raise ValueError("invalid native witness bounds")
++    result = {"schema": "ostadix.o10-linux-store-witness/v1", "origin": "running-native-store",
++              "capture_scope": "all-transport-owned-fids", "action": action, "sequence": sequence,
++              "linux": {"grant": 1, "session": ls, "transport_generation": lg, "fids": [], "exchanges": []},
++              "plan9": {"grant": 4, "session": ps, "transport_generation": pg, "fids": [], "exchanges": []}}
++    for index in range(count):
++        row = raw[128 + index*576:128 + (index+1)*576]
++        role, fid, generation, mode, qlen, rlen = struct.unpack_from("<IIQQII", row)
++        if role != int(index >= lc) or not generation or qlen != 11 or not 7 <= rlen <= 512:
++            raise ValueError("invalid native witness record")
++        request, reply = row[32:43], row[48:48+rlen]
++        if (any(row[43:48]) or any(row[48+rlen:]) or
++                struct.unpack_from("<I", request)[0] != 11 or request[4] != 124 or
++                struct.unpack_from("<I", request, 7)[0] != fid or
++                struct.unpack_from("<I", reply)[0] != rlen or request[5:7] != reply[5:7] or
++                reply[4] not in (107, 125)):
++            raise ValueError("malformed raw native store exchange")
++        owner = result["linux" if role == 0 else "plan9"]
++        owner["fids"].append({"fid": fid, "object_generation": generation, "mode": mode})
++        owner["exchanges"].append({"fid": fid, "request_hex": request.hex(), "reply_hex": reply.hex()})
++    for role in ("linux", "plan9"):
++        numbers = [row["fid"] for row in result[role]["fids"]]
++        if numbers != sorted(set(numbers)):
++            raise ValueError("native witness fids are not unique and sorted")
++    return result
++
++
+ class UnifiedDomain:
+     def __init__(self, state: Path, build: Path, qemu: str, *, bootstrap: bytes = DEFAULT_BOOTSTRAP,
+                  live: bool = False, timeout: float = 180, legacy_control: bool = False):
+@@ -237,6 +289,8 @@ class UnifiedDomain:
+             manifest = json.loads(manifest_file.read_text())
+             validate_profile(manifest)
+             self.idle_scheduler = manifest.get("idle_scheduler")
++            self.linux_restart_witness_profile = manifest.get("linux_restart_witness")
++            self.linux_restart_witness_pending = None
+             common.write_json(self.session / "monitor-profile.json", manifest)
+             artifacts = {}
+             snapshots = self.session / "inputs"
+@@ -590,9 +644,57 @@ class UnifiedDomain:
+             self.o10_pending = None
+         return reply
+ 
++    def linux_restart_witness(self, action: str) -> dict:
++        """One fixed qualification observer call; timeouts never resubmit."""
++        if action not in ("capture", "check"):
++            raise ValueError("witness action must be capture or check")
++        if getattr(self, "linux_restart_witness_profile", None) != LINUX_WITNESS:
++            raise RuntimeError("native Linux store witness is unsupported")
++        if getattr(self, "o10_exchange_active", False) or getattr(self, "linux_restart_witness_pending", None):
++            raise RuntimeError("another native mailbox observation is unresolved")
++        self.o10_exchange_active = True
++        self.control_sequence += 1
++        sequence = self.control_sequence
++        self.linux_restart_witness_pending = sequence
++        try:
++            self.stopped()
++            try:
++                self.write_native(LINUX_WITNESS["action_address"], struct.pack("<Q", 1 if action == "capture" else 2))
++                self.write_native(0x6d000070, struct.pack("<QQ", sequence, 11))
++            finally:
++                self.qmp.execute("cont")
++            deadline = time.monotonic() + 60
++            while time.monotonic() < deadline:
++                ack, status = struct.unpack("<QQ", os.pread(self.ram, 16, 0x6d000080 - 0x40000000))
++                if ack == sequence:
++                    self.stopped()
++                    try:
++                        if status != 1:
++                            raise RuntimeError("native witness mailbox rejected observation")
++                        offset = LINUX_WITNESS["address"] - 0x40000000
++                        header = os.pread(self.ram, 128, offset)
++                        if len(header) != 128:
++                            raise RuntimeError("native witness header is incomplete")
++                        count, = struct.unpack_from("<I", header, 80)
++                        if count > 512:
++                            raise ValueError("native witness capacity exceeded")
++                        raw = os.pread(self.ram, 128 + count*576, offset)
++                        self.linux_restart_witness_pending = None
++                        return decode_linux_restart_witness(raw, action, sequence)
++                    finally:
++                        self.qmp.execute("cont")
++                if self.process.poll() is not None:
++                    raise RuntimeError("native supervisor exited during witness")
++                self.pump(0.01)
++            raise TimeoutError("native witness observation unresolved; not resubmitted")
++        finally:
++            self.o10_exchange_active = False
++
+     def write_native(self, address: int, data: bytes):
+         # Called only under stopped(), to these private control/input regions.
+         if not ((0x6d000070 <= address and address + len(data) <= 0x6d000080)
++                or (getattr(self, "linux_restart_witness_profile", None) == LINUX_WITNESS
++                    and 0x6d000118 <= address and address + len(data) <= 0x6d000120)
+                 or (0x6d010000 <= address and address + len(data) <= 0x6d011008)
+                 or (0x6d060000 <= address and address + len(data) <= 0x6d062008)
+                 or (getattr(self, "o10_profile", None) == O10_PROFILE
+diff --git a/tests/test_unified_world_profile.py b/tests/test_unified_world_profile.py
+index 0e43b788..a6e6280d 100644
+--- a/tests/test_unified_world_profile.py
++++ b/tests/test_unified_world_profile.py
+@@ -113,6 +113,26 @@ class UnifiedWorldProfileTests(unittest.TestCase):
+                       (self.qualification_output / "profile.oc").read_text())
+         RUNNER.validate_profile(self.qualification_profile)
+ 
++    def test_store_witness_is_fixed_and_qualification_only(self):
++        self.assertNotIn("o10_linux_restart_witness", self.profile)
++        self.assertNotIn("linux_restart_witness", self.profile)
++        self.assertEqual(self.qualification_profile["o10_linux_restart_witness"], "native-store-v1")
++        self.assertEqual(self.qualification_profile["linux_restart_witness"], RUNNER.LINUX_WITNESS)
++        for key, value in (("address", 0x48000000), ("bytes", 0x60000),
++                           ("action_address", 0x6d000100), ("max_fids", 513)):
++            bad = copy.deepcopy(self.qualification_profile)
++            bad["linux_restart_witness"][key] = value
++            with self.subTest(key=key), self.assertRaises(ValueError):
++                RUNNER.validate_profile(bad)
++        bad = copy.deepcopy(self.qualification_profile)
++        bad["o10_qualification"] = False
++        with self.assertRaises(ValueError):
++            RUNNER.validate_profile(bad)
++        bad = copy.deepcopy(self.qualification_profile)
++        bad.pop("o10_linux_restart_witness")
++        with self.assertRaises(ValueError):
++            RUNNER.validate_profile(bad)
++
+     def test_builder_manifest_is_accepted_and_artifacts_are_bound(self):
+         RUNNER.validate_profile(self.profile)
+         self.assertEqual(json.loads((self.output / "monitor-profile.json").read_text()), self.profile)

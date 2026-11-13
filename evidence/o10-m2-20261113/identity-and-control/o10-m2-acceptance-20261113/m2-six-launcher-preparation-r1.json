@@ -1,0 +1,16 @@
+{
+  "dispatched": false,
+  "prepared_unix": 1794576177.1070483,
+  "required_prelaunch_free_bytes": 34896609280,
+  "schema": "ostadix.o10-m2-six-launcher-preparation/v1",
+  "scope": "Prepared unchanged jobs2 CLI launch with actual source/provenance/process capture; root cleanup readback and release pending.",
+  "script": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/launch-m2-six-r1.py",
+    "sha256": "fdb02177c434e3ffb4e1e8a23cb3750c889fc89f3d02e926d59c3372132a4075"
+  },
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "tool_request_preparation": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/m2-six-gate-preparation-r1.json",
+    "sha256": "2e883e326a230ef98165ba47fc3d99a785b1757d9b93e20cd90a14965f4b2a97"
+  }
+}

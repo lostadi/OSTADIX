@@ -1,6 +1,18 @@
 module runtime::aarch64::unified_world;
 
 use runtime::aarch64::kernel_world_monitor::kw_monitor_init as linux_init;
+use runtime::aarch64::kernel_world_monitor::kw_linux_detach as linux_detach;
+use runtime::aarch64::kernel_world_monitor::kw_linux_provision as linux_provision;
+use runtime::aarch64::kernel_world_monitor::kw_linux_activate as linux_activate;
+use runtime::aarch64::kernel_world_virtio::generation as linux_block_generation;
+use runtime::aarch64::kernel_world_net::generation as linux_net_generation;
+use runtime::aarch64::kernel_world_9p::generation as linux_namespace_generation;
+use runtime::aarch64::kernel_world_9p::bind_current as linux_bind;
+use runtime::aarch64::kernel_world_9p::next_session_epoch as linux_next_session_epoch;
+use runtime::aarch64::linux_domain_images::register as linux_images_register;
+use runtime::aarch64::linux_domain_images::reload as linux_images_reload;
+use runtime::aarch64::linux_restart_witness::execute as linux_restart_observe;
+use runtime::common::namespace_store::session_init as namespace_session_init;
 use runtime::aarch64::kernel_world_monitor::kw_handle_exit_checked as linux_exit;
 use runtime::aarch64::kernel_world_monitor::checked_diagnostic as linux_diagnostic;
 use runtime::aarch64::kernel_world_monitor::checked_detail as linux_detail;
@@ -87,6 +99,11 @@ static mut CONSOLE_MODE: u64 = 0;
 static mut CONSOLE_PREFIX: u64 = 0;
 static mut INPUT_DROPPED: u64 = 0;
 static mut PLAN9_WITHDRAWN: u64 = 0;
+static mut LINUX_WITHDRAWN: u64 = 0;
+static mut LINUX_DETACHED: u64 = 0;
+static mut LINUX_WAIT_BIND: u64 = 0;
+static mut LINUX_LEASE_GENERATION: u64 = 1;
+static mut LINUX_SESSION_GENERATION: u64 = 1;
 static mut O10_DOMAIN_GENERATION: [u64; 2] = [1; 2];
 static mut O10_INSTANCE: [u8; 32] = [0; 32];
 static mut O10_SWITCHES: [u64; 2] = [0; 2];
@@ -167,11 +184,27 @@ unsafe fn hex(value: u64) -> void {
         if shift == 0 { break; } shift -= 4;
     }
 }
+unsafe fn stop_linux(pc: u64) -> void {
+        if LINUX_DETACHED == 0 {
+            if LINUX_LEASE_GENERATION == 0xffff_ffff { uw_internal_failure(0x1106, 0, LINUX_LEASE_GENERATION, 0); }
+            LINUX_LEASE_GENERATION += 1;
+            if linux_detach(linux_block_generation(), linux_net_generation(), linux_namespace_generation()) != 1 {
+                uw_internal_failure(0x1109, 0x1114, 0, pc);
+            }
+            LINUX_DETACHED = 1;
+        }
+        LINUX_WAIT_BIND = 0;
+        LINUX_INPUT_HEAD = 0; LINUX_INPUT_COUNT = 0;
+        let mut input: usize = 0; while input < 4096 { LINUX_INPUT[input] = 0; input += 1; }
+        if session_handle(1) != 0 { namespace_revoke(1); }
+        set_level(0, 27, 0); set_level(0, 30, 0); set_level(0, 33, 0);
+        set_level(0, 48, 0); set_level(0, 49, 0); set_level(0, 50, 0); set_level(0, 34, 0);
+}
 unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
     emit((&FAIL[0]), 27); hex(domain); control_putc(32);
     hex(esr); control_putc(32); hex(ipa); control_putc(32); hex(pc); control_putc(10);
     if domain < 2 { O10_LAST_IPA[domain as usize] = ipa; LIVE[domain as usize] = 0; BLOCKED[domain as usize] = 0; }
-    if domain == 0 && session_handle(1) != 0 { namespace_revoke(1); }
+    if domain == 0 { stop_linux(pc); }
     if domain == 1 {
         if O10_LEASE_GENERATION == 0xffff_ffff { uw_internal_failure(0x1106, domain, O10_LEASE_GENERATION, 0); }
         O10_LEASE_GENERATION += 1;
@@ -211,7 +244,7 @@ pub unsafe fn kw_serial_try_read() -> u64 {
     return value | 256;
 }
 unsafe fn route_byte(value: u8) -> void {
-    if CONSOLE_MODE == 0 && LINUX_INPUT_COUNT < 4096 {
+    if CONSOLE_MODE == 0 && LIVE[0] == 1 && LINUX_WAIT_BIND == 0 && LINUX_INPUT_COUNT < 4096 {
         LINUX_INPUT[(LINUX_INPUT_HEAD + LINUX_INPUT_COUNT) % 4096] = value;
         LINUX_INPUT_COUNT += 1; return;
     }
@@ -329,6 +362,9 @@ pub unsafe fn uw_init() -> u64 {
     if gic_write(1, 0x080a_0014, 4, 0) != 1 { return 0; }
     busy(1);
     if linux_init() != 1 || coordinator_init() != 1 { return 0; }
+    if linux_images_register(0xd200_0000, volatile_load(0x6d00_0100 as *const u64) as usize,
+            0xe200_0000, volatile_load(0x6d00_0108 as *const u64) as usize,
+            0xda00_0000, volatile_load(0x6d00_0110 as *const u64) as usize) != 0 { return 0; }
     busy(1);
     if volatile_load(0xb000_0000 as *const u32) != 0xedfe_0dd0
         || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 { return 0; }
@@ -376,7 +412,7 @@ unsafe fn wake_blocked() -> void {
 }
 
 unsafe fn runnable(domain: u64) -> bool {
-    if domain == 1 && O10_WAIT_BIND == 1 { return false; }
+    if (domain == 1 && O10_WAIT_BIND == 1) || (domain == 0 && LINUX_WAIT_BIND == 1) { return false; }
     return LIVE[domain as usize] == 1 && BLOCKED[domain as usize] == 0;
 }
 
@@ -498,7 +534,7 @@ unsafe fn coordinator_mmio(frame: *mut u64, esr: u64, ipa: u64) -> bool {
 unsafe fn progress() -> void {
     native_control();
     route_input();
-    if LIVE[0] == 1 {
+    if LIVE[0] == 1 && LINUX_WAIT_BIND == 0 {
         busy(1);
         let result: u64 = linux_exit((&mut POLL_FRAME[0]) as usize, 1 << 26, 0, 0);
         if result == 3 { uw_internal_failure(0x1109, linux_diagnostic(), linux_detail(), LAST_PC[0]); }
@@ -522,7 +558,12 @@ unsafe fn progress() -> void {
 // O10 op10 submission 0x6d0a0000..0x6d0a01ff, completion
 // 0x6d0a0200..0x6d0a03ff, private to EL2/host and outside both stage-2 maps.
 // Internal diagnostic reason/args occupy 0x6d0000d0..0x6d0000ef, also EL2-only.
-// Legacy op2 retains its bootstrap/session behavior for the M0 rollback path.
+// M2 legacy lifecycle ops1/2 return result9 (EUNSUPPORTED).
+// Qualification sideband op11 action at0x6d000118..11f, output
+// 0x6d0b0000..0x6d0fffff, EL2/host-only outside ALL guest stage-2 maps.
+// No guest receives this region; op11 never accepts caller authority names.
+// Linux immutable image lengths at0x6d000100..117 are boot-only metadata;
+// private backup windows d200..da00,da00..e200,e200..e201 are never guest mapped.
 unsafe fn o10_domain(handle: u64) -> u64 {
     let index: u64 = handle & 0xffff_ffff;
     if index >= 2 { return MAX; }
@@ -547,7 +588,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         if o10_read(request, 31, 2) != 1 { return o10_error(response, 512, tag, 9, 0); }
         if LIVE[index as usize] != 1 {
             let mut state: u64 = 4;
-            if index == 1 && PLAN9_WITHDRAWN == 1 { state = 5; }
+            if (index == 1 && PLAN9_WITHDRAWN == 1) || (index == 0 && LINUX_WITHDRAWN == 1) { state = 5; }
             return o10_error(response, 512, tag, 12, state);
         }
         contain(index, 0x901, 0, LAST_PC[index as usize]);
@@ -566,8 +607,8 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
             let mut state: u64 = 4;
             if LIVE[index as usize] == 1 {
                 state = 2;
-                if BLOCKED[index as usize] == 1 || (index == 1 && O10_WAIT_BIND == 1) { state = 3; }
-            } else { if index == 1 && PLAN9_WITHDRAWN == 1 { state = 5; } }
+                if BLOCKED[index as usize] == 1 || (index == 1 && O10_WAIT_BIND == 1) || (index == 0 && LINUX_WAIT_BIND == 1) { state = 3; }
+            } else { if (index == 1 && PLAN9_WITHDRAWN == 1) || (index == 0 && LINUX_WITHDRAWN == 1) { state = 5; } }
             o10_write(response, 16, state, 1);
             let mut j: usize = 0;
             while j < 16 { volatile_store(response + 17 + j, O10_INSTANCE[index as usize * 16 + j]); j += 1; }
@@ -580,8 +621,42 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
             o10_write(response, 73, (session_handle(grant) != 0) as u64, 4);
             return 77;
         }
-        // M0 provisions the existing Plan9 image. Linux replacement is M2.
-        if index != 1 { return o10_error(response, 512, tag, 9, 0); }
+        if index == 0 {
+            if kind == 172 {
+                if LINUX_WITHDRAWN == 1 { return o10_error(response, 512, tag, 12, 5); }
+                if o10_read(request, 31, 1) != 0 { return o10_error(response, 512, tag, 9, 0); }
+                if LINUX_DETACHED == 0 && LINUX_LEASE_GENERATION == 0xffff_ffff {
+                    return o10_error(response, 512, tag, 8, 0xffff_ffff);
+                }
+                let sessions: u64 = (session_handle(1) != 0) as u64;
+                let fids: u64 = session_fid_count(1);
+                LIVE[0] = 0; BLOCKED[0] = 0; stop_linux(LAST_PC[0]);
+                LINUX_WITHDRAWN = 1;
+                o10_header(response, 173, tag, 27); o10_write(response, 7, handle, 8);
+                o10_write(response, 15, sessions, 4); o10_write(response, 19, sessions, 4);
+                o10_write(response, 23, fids, 4); return 27;
+            }
+            if LIVE[0] != 0 || LINUX_DETACHED != 1 { return o10_error(response, 512, tag, 12, 2); }
+            // Boot image3 is Linux Image; auxiliary4 binds the immutable
+            // initrd+DTB descriptor captured together by the build manifest.
+            if o10_read(request, 47, 8) != 3 || o10_read(request, 55, 8) != 4 {
+                return o10_error(response, 512, tag, 5, 0);
+            }
+            if O10_DOMAIN_GENERATION[0] == 0xffff_ffff || linux_block_generation() == 0xffff_ffff
+                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == MAX {
+                return o10_error(response, 512, tag, 8, 0xffff_ffff);
+            }
+            if linux_images_reload() != 0 { return o10_error(response, 512, tag, 12, 4); }
+            if uw_domain_reset(0, 0x4000_0000, 0x47e0_0000, 0x3c5) != 1 || gic_reset(0) != 1
+                || linux_provision(linux_block_generation() + 1, linux_net_generation() + 1, linux_namespace_generation() + 1) != 1
+                || coordinator_init() != 1 {
+                uw_internal_failure(0x1109, 0x1115, 0, LAST_PC[0]);
+            }
+            O10_DOMAIN_GENERATION[0] += 1;
+            let mut j: usize = 0; while j < 16 { O10_INSTANCE[j] = volatile_load(request + 31 + j); j += 1; }
+            LINUX_WITHDRAWN = 0; LINUX_WAIT_BIND = 1; BLOCKED[0] = 1; LIVE[0] = 1;
+            o10_header(response, 175, tag, 15); o10_write(response, 7, O10_DOMAIN_GENERATION[0] << 32, 8); return 15;
+        }
         if kind == 172 {
             if PLAN9_WITHDRAWN == 1 { return o10_error(response, 512, tag, 12, 5); }
             if o10_read(request, 31, 1) != 0 { return o10_error(response, 512, tag, 9, 0); }
@@ -613,6 +688,20 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
     if kind == 184 {
         let lease: u64 = o10_read(request, 23, 8);
         let transport: u64 = o10_read(request, 31, 8);
+        if (lease & 0xffff_ffff) == 1 {
+            if (lease >> 32) != LINUX_LEASE_GENERATION { return o10_error(response, 512, tag, 5, LINUX_LEASE_GENERATION); }
+            if (transport >> 32) != O10_DOMAIN_GENERATION[0] { return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[0]); }
+            if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
+            if LIVE[0] != 1 || LINUX_WAIT_BIND != 1 { return o10_error(response, 512, tag, 12, 5); }
+            let epoch: u64 = linux_next_session_epoch();
+            if epoch == 0 || LINUX_SESSION_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+            let session: u64 = namespace_session_init(1, epoch);
+            if session == 0 || linux_bind(linux_namespace_generation(), session, epoch) != 1 || linux_activate() != 1 {
+                uw_internal_failure(0x1109, 0x1116, epoch, LAST_PC[0]);
+            }
+            LINUX_SESSION_GENERATION += 1; LINUX_WAIT_BIND = 0; LINUX_DETACHED = 0; BLOCKED[0] = 0;
+            o10_header(response, 185, tag, 15); o10_write(response, 7, (LINUX_SESSION_GENERATION << 32) | 1, 8); return 15;
+        }
         if (lease & 0xffff_ffff) != 4 { return o10_error(response, 512, tag, 6, 0); }
         if (lease >> 32) != O10_LEASE_GENERATION { return o10_error(response, 512, tag, 5, O10_LEASE_GENERATION); }
         if (transport >> 32) != O10_DOMAIN_GENERATION[1] {
@@ -692,21 +781,13 @@ unsafe fn native_control() -> void {
     let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
     let mut result: u64 = 0;
     if operation == 10 { result = o10_mailbox(); }
-    if operation == 1 && o10_epoch() == 0 && LIVE[0] == 1 && O10_LEASE_GENERATION != 0xffff_ffff {
-        O10_LEASE_GENERATION += 1;
-        LIVE[1] = 0; BLOCKED[1] = 0; PLAN9_WITHDRAWN = 1;
-        plan9_wire_revoke();
-        set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
-        RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
+    if operation == 11 {
+        linux_restart_observe(volatile_load(0x6d00_0118 as *const u64), sequence, O10_QUALIFICATION);
         result = 1;
     }
-    // Both EL1 contexts have been saved before progress enters this mailbox.
-    // A withdrawn Plan9 may still be named by uw_current_domain while Linux
-    // is parked. No old frame writes occur after progress; assembly selects
-    // the freshly reset context from this dispatcher's return value.
-    if operation == 2 && o10_epoch() == 0 && PLAN9_WITHDRAWN == 1 && LIVE[1] == 0 {
-        result = restore_plan9(true);
-    }
+    // M2 retires pre-O10 lifecycle rollback: mailbox result9 is the
+    // documented EUNSUPPORTED error, with no lifecycle/session mutation.
+    if operation == 1 || operation == 2 { result = 9; }
     if operation == 3 && LIVE[0] == 1 {
         let length: u64 = volatile_load(0x6d06_0000 as *const u64);
         if length <= 8192 { result = coordinator_inject(0x6d06_0008 as *const u8, length as usize); }

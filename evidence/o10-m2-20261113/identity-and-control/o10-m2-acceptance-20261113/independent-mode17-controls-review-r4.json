@@ -1,0 +1,19 @@
+{
+  "schema": "ostadix.o10-m2-mode17-controls-independent-readback/v1",
+  "reviewer": "m2_fixture",
+  "ok": true,
+  "receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/integrated-toolchain-guard-controls-r4/result.json",
+    "bytes": 5345,
+    "sha256": "b6807047cfe7f848976dce152aa13097869b8fb0540792435a7e268c28f258af"
+  },
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r4.py",
+    "bytes": 45111,
+    "sha256": "2358bec8931639842d56be8b3a2741597ea6a4dffdcd19e5898a28669a8cc93a"
+  },
+  "cases": 36,
+  "all_cases_passed": true,
+  "source_unchanged": true,
+  "scope": "Actual retained synthetic controls receipt readback paired with independent static controller review; no project tests, build or guest claim."
+}

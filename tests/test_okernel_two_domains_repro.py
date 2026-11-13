@@ -70,6 +70,97 @@ class TwoDomainsReproTests(unittest.TestCase):
     def save(self):
         repro.write_json(self.build / "monitor-profile.json", self.manifest)
 
+    def enable_linux_recovery(self):
+        self.manifest["linux_recovery"] = {
+            "kernel_image": 3, "aux_image": 4, "namespace_version": "9P2000.u",
+            "kernel_backup_address": 0xd2000000, "kernel_max_bytes": 0x7e00000,
+            "dtb_backup_address": 0xe2000000, "dtb_max_bytes": 0x10000,
+            "initrd_backup_address": 0xda000000, "initrd_max_bytes": 0x8000000,
+            "kernel_bytes_address": 0x6d000100, "dtb_bytes_address": 0x6d000108,
+            "initrd_bytes_address": 0x6d000110,
+        }
+        self.manifest["loader_addresses"].update({
+            "inputs/linux-recovery.Image": 0xd2000000,
+            "inputs/linux-recovery.dtb": 0xe2000000,
+            "inputs/linux-recovery.initramfs": 0xda000000,
+        })
+        for target, original in (
+                ("inputs/linux-recovery.Image", "inputs/linux.Image"),
+                ("inputs/linux-recovery.dtb", "linux.dtb"),
+                ("inputs/linux-recovery.initramfs", "inputs/linux.initramfs")):
+            path = self.build / target
+            path.write_bytes((self.build / original).read_bytes())
+            self.manifest["artifacts"][target] = {**repro.identity(path), "path": target}
+        original = self.build / "inputs/linux-original.initramfs"
+        original.write_bytes(b"original initrd before namespace overlay")
+        self.manifest["artifacts"]["inputs/linux-original.initramfs"] = {
+            **repro.identity(original), "path": "inputs/linux-original.initramfs"}
+        self.manifest["linux_initramfs_derivation"] = {
+            "schema": "ostadix.o10-linux-initramfs/v1",
+            "original_sha256": repro.identity(original)["sha256"],
+            "derived_sha256": self.manifest["artifacts"]["inputs/linux.initramfs"]["sha256"],
+            "changed_entries": ["init"], "disk_script_modified": False,
+            "namespace_version": "9P2000.u",
+        }
+        self.save()
+
+    def test_linux_recovery_profile_accepts_only_exact_reserved_loader_contract(self):
+        self.enable_linux_recovery()
+        repro.inspect_build(self.build)
+        original = copy.deepcopy(self.manifest)
+        for address in ("inputs/linux-recovery.Image", "inputs/linux-recovery.dtb",
+                        "inputs/linux-recovery.initramfs"):
+            value = copy.deepcopy(original)
+            value["loader_addresses"][address] = 0x48000000
+            with self.subTest(address=address), self.assertRaisesRegex(ValueError, "exact admitted"):
+                repro.validate_profile(value)
+        for field, replacement in (("namespace_version", "9P2000"), ("kernel_image", True),
+                                   ("initrd_max_bytes", 0x8000001)):
+            value = copy.deepcopy(original)
+            value["linux_recovery"][field] = replacement
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "exact admitted"):
+                repro.validate_profile(value)
+        value = copy.deepcopy(original)
+        del value["linux_recovery"]
+        with self.assertRaisesRegex(ValueError, "exact admitted"):
+            repro.validate_profile(value)
+
+    def test_all_linux_backup_bytes_must_equal_originals_with_updated_hashes(self):
+        self.enable_linux_recovery()
+        original = copy.deepcopy(self.manifest)
+        for name in ("inputs/linux-recovery.Image", "inputs/linux-recovery.dtb",
+                     "inputs/linux-recovery.initramfs"):
+            path = self.build / name
+            previous = path.read_bytes()
+            path.write_bytes(previous + b" changed")
+            self.manifest["artifacts"][name] = {**repro.identity(path), "path": name}
+            self.save()
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "Linux recovery input"):
+                repro.inspect_build(self.build)
+            path.write_bytes(previous)
+            self.manifest = copy.deepcopy(original)
+            self.save()
+
+    def test_linux_backup_missing_from_manifest_is_rejected(self):
+        self.enable_linux_recovery()
+        del self.manifest["artifacts"]["inputs/linux-recovery.initramfs"]
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Linux recovery input"):
+            repro.inspect_build(self.build)
+
+    def test_linux_initrd_derivation_binds_both_payloads_and_only_init_overlay(self):
+        self.enable_linux_recovery()
+        original = copy.deepcopy(self.manifest)
+        for field, value in (
+                ("original_sha256", "a" * 64), ("derived_sha256", "b" * 64),
+                ("changed_entries", ["init", "bin/sh"]), ("disk_script_modified", True),
+                ("disk_script_modified", 0), ("namespace_version", "9P2000")):
+            self.manifest = copy.deepcopy(original)
+            self.manifest["linux_initramfs_derivation"][field] = value
+            self.save()
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(ValueError, "derivation"):
+                repro.inspect_build(self.build)
+
     def test_captured_closure_and_source_order_are_bound(self):
         manifest, files = repro.inspect_build(self.build)
         order, generator, profile = repro.recipe(self.build, manifest)

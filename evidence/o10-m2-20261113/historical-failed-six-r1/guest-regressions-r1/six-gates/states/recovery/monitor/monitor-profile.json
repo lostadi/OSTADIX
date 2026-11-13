@@ -1,0 +1,84 @@
+{
+  "schema": "ostadix.kernel-world-linux-monitor/v1",
+  "profile": "package-domain",
+  "backing_base": 1879048192,
+  "backing_bytes": 1073741824,
+  "network_grant": {
+    "enabled": true,
+    "mac": "52:54:00:12:34:56",
+    "transport": "O-core mediated virtio-mmio Ethernet",
+    "guest_mmio": 167772672,
+    "guest_irq": 49,
+    "host_dma_base": 1845493760,
+    "host_dma_limit": 1847590912
+  },
+  "namespace_grant": {
+    "enabled": true,
+    "transport": "native O-core 9P2000 over virtio-mmio",
+    "guest_mmio": 167773184,
+    "guest_irq": 50,
+    "mount_tag": "okernel",
+    "address": 1811939328,
+    "bytes": 16777216,
+    "epoch_address": 1828716544,
+    "quiescence_address": 1828716552,
+    "clock_address": 1828716560,
+    "linux_grant": 1,
+    "native_peer_grant": 2
+  },
+  "guest_ram_ipa": 1073741824,
+  "guest_ram_pa": 1207959552,
+  "guest_ram_bytes": 536870912,
+  "loader_addresses": {
+    "Image": 1207959552,
+    "guest_dtb": 1340080128,
+    "initramfs": 1342177280
+  },
+  "block_backing": {
+    "address": 1879048192,
+    "bytes": 1073741824
+  },
+  "outer_ram_bytes": 2147483648,
+  "artifacts": {
+    "monitor": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery/monitor/monitor.elf",
+      "bytes": 471312,
+      "sha256": "312f20864764258ab81ff71e7870a0794e81b0968f76e294fa201eb54d4457c1"
+    },
+    "guest_dtb": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery/monitor/guest.dtb",
+      "bytes": 1821,
+      "sha256": "24bff51c93b7f97a81d27c0a641b77fa5209b55f483f874afd0156b88c4e2f32"
+    },
+    "profile": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery/monitor/profile.oc",
+      "bytes": 226,
+      "sha256": "6197e670f2bc3f9d02e9e5b60381bfb12df100abcd5c985b3f714f74ccd8b275"
+    },
+    "Image": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery/payload/Image",
+      "bytes": 6062088,
+      "sha256": "6fc693976f51551b74327009e6e8c4fb625142257256fd66f3b5492600ab6c76"
+    },
+    "initramfs": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/recovery/payload/initramfs.cpio",
+      "bytes": 8725504,
+      "sha256": "9763d598973a5cb12572e8f0c6ad6104a41976cb728049d57a41bdb8049b969d"
+    }
+  },
+  "source_sha256": {
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "a22a32f030feb84e349d4314ca442999672e2c38c81c0466c8a3ae3ffde0d42d",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "ffbf7ecb2394101e94b9f482df7f681852d8bac7dd9267141d4230459bf35081",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "bd7698a0f2ea71eac9cf117dc237403bf170e358450183716b4047c319ec1ea4",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "8aed063c9d1714752401a7d993d86dc934160da037c6b8b63ec7f361559de2b0",
+    "ocore/runtime/common/namespace_store.oc": "a3ea7fa07a5d04ffdb5431535704f523837913d6ea81e11f26d31c22cf35e25f",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/kernel/aarch64/kernel_world/monitor.S": "0102181b2b5fd9c97efc0b44c88adecaf7d7f0534ea874f19d6b378a888958ed",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/kernel_world/linker.ld": "eef6b5fdcf2c7e52f012a48684885fd389cd6d27e3f8feb57de24cf5089f83ed",
+    "ocore/kernel/build-aarch64-kernel-world-linux.sh": "37b066c32d7cc239f4d7fc8c15494e54f385f54c58072430524040caf55b39f8"
+  },
+  "scope": "AArch64 EL2 monitor under QEMU; no physical-hardware qualification"
+}

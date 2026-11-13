@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_namespace_local_backend"
+  ],
+  "exit_code": 1,
+  "scope": "Unmodified historical exact-representation differential fixture; ordinary native only."
+}

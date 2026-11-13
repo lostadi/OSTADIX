@@ -1,0 +1,29 @@
+{
+  "schema": "ostadix.package-domain-disk-head/v2",
+  "disk": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/state/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+    "bytes": 1073741824,
+    "sha256": "969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69"
+  },
+  "previous": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/disk-generations/03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f.ext4",
+    "bytes": 1073741824,
+    "sha256": "03773284f2fc0ef1a8d65b7d9d9d41c386de27ef64d53d14ceebaf70106fd65f"
+  },
+  "session": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation",
+  "o10_apk_fixture_preparation": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed-preparation/result.json",
+  "namespace": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r6/state/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "bytes": 16777216,
+    "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+  },
+  "previous_namespace": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "bytes": 16777216,
+    "sha256": "755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f"
+  },
+  "fork_origin": {
+    "source": "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "head_sha256": "58f0111ea2ab3be8137ef89b8a445ec16055033811b409972d03f0b93ec1f5f8"
+  }
+}

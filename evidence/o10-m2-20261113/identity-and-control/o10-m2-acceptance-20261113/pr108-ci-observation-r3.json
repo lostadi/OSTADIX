@@ -1,0 +1,144 @@
+{
+  "head": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 131885746986,
+      "name": "Contract surfaces",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573190,
+      "name": "Rust MSRV 1.93.1",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573229,
+      "name": "Hosted value/code boundary",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573256,
+      "name": "Rust quality and source closure",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573263,
+      "name": "Docker minimal runtime profile",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573427,
+      "name": "O-core QEMU proof",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573442,
+      "name": "C17 runtime and AOT compiler",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573471,
+      "name": "Python reference runtime",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573496,
+      "name": "Offline kit recipient (macOS x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573539,
+      "name": "Rust semantic and reproducibility tests",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573559,
+      "name": "Offline kit recipient (Linux x86_64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573562,
+      "name": "Release-claim guard",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573596,
+      "name": "Offline kit recipient (Linux aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573617,
+      "name": "Rust hosted lifecycle and placement",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573632,
+      "name": "Ostadix MCP release surface",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573704,
+      "name": "Native Ethernet and real Linux integration",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886573713,
+      "name": "Offline kit recipient (macOS aarch64)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131886890975,
+      "name": "Offline kit recipient matrix",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 131901393292,
+      "name": "Required CI",
+      "status": "completed"
+    },
+    {
+      "conclusion": "skipped",
+      "id": 131901434405,
+      "name": "Release source package",
+      "status": "completed"
+    }
+  ],
+  "mode17_excerpt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/pr108-mode17-ci-a5a-excerpt.log",
+    "scope": "Exact Mode17 gate span and portable26of26 summary extracted from archived job rawlog.",
+    "sha256": "833e024d88c8aad85fea271e8e8d22ff38bf0b03a2000274aa819d7c6673cad7"
+  },
+  "observed_unix": 1794575982.46073,
+  "qemu_log_archive": "https://github.com/lostadi/OSTADIX/actions/runs/43425483901/job/131886573427",
+  "raw_required_log": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/pr108-required-ci-a5a.log",
+    "sha256": "cc9e2dfaef95f6381282d82c1c58b51608d60c5ca375358cf821eaaaa627dc90"
+  },
+  "repository": "lostadi/OSTADIX",
+  "required_aggregate_job": 131901393292,
+  "required_lanes_passed": 14,
+  "run_conclusion": "success",
+  "run_id": 43425483901,
+  "run_status": "completed",
+  "schema": "ostadix.o10-m2-ci-observation/v1",
+  "scope": "Actual GitHub CI outcomes for a5a33;19 successful jobs, conditional PR Release source package omitted by workflow. Required fourteen lanes and aggregate passed. M2 whole-guest qualification remains separate."
+}

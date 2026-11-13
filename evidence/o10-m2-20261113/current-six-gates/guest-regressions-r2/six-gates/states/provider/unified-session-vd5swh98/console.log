@@ -1,0 +1,265 @@
+KW AArch64 EL2 monitor: online
+KW native virtio negative selftests: PASS
+KW native writable block selftests: PASS
+KW native governed network: online
+KW native shared namespace: online
+KW stage2 guest-only RAM: online
+KW Linux package domain: persistent mediated devices online
+KW unified Linux/Plan9 EL2: online
+Booting Linux on physical CPU 0x0000000000 [0x411fd070]
+Linux version 6.12.43-ostadix-kernelworld (ostadi@ostadix) (clang version 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881), LLD 22.1.6 (https://github.com/llvm/llvm-project fc4aad7b5db3fff421df9a9637605b9ca5667881)) #1 SMP 1970-01-01 00:00:00 +0000
+Machine model: ostadix,kernel-world-qemu-virt
+earlycon: pl11 at MMIO 0x0000000009000000 (options '')
+printk: legacy bootconsole [pl11] enabled
+psci: MIGRATE_INFO_TYPE returned unknown type (-2)
+Kernel command line: console=ttyAMA0 earlycon=pl011,0x09000000 rdinit=/init panic=-1 loglevel=6
+cacheinfo: Unable to detect cache hierarchy for CPU 0
+virtio_blk virtio0: [vda] 2097152 512-byte logical blocks (1.07 GB/1.00 GiB)
+OKERNEL NATIVE NAMESPACE MOUNTED
+OKERNEL ORIGINAL 9P BRIDGE READY
+Service: okernel
+Root: /n/okernel
+NAMESPACE=/run/okernel-9p
+OKERNEL PACKAGE DOMAIN READY
+OKernel: install commands by name with pkg install NAME; registered source recipes are preferred.
+Source providers: zlib; plan9port (original rc/mk/9p tools for the Linux ABI).
+Shared workspace: /n/okernel/work. Provider build/cache files remain in /work.
+Type exit or quit to save and leave OKernel. Ctrl+] also saves and exits.
+pkg> [6npkg-namespace mount; _uw_rc=$?; printf '\nUNIFIED_COMMAND_8e22553d4a31473eb
+999c7cb3ad59a65:%s\n' "$_uw_rc"
+OKERNEL NATIVE NAMESPACE MOUNTED
+
+UNIFIED_COMMAND_8e22553d4a31473eb999c7cb3ad59a65:0
+pkg> [6nawk '$1 == "okernel" && $2 == "/n/okernel" && $3 == "9p" && $4 ~ /(^|,)vers
+ion=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_f5fe8a4421e746399ca9c3512c4a0c0f:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_f5fe8a4421e746399ca9c3512c4a0c0f:0
+pkg> [6ndate -u -s @1794581342; _uw_rc=$?; printf '\nUNIFIED_COMMAND_15e9936e708d48
+9a91e8239b24b82b0d:%s\n' "$_uw_rc"
+Fri Nov 13 14:49:02 UTC 2026
+
+UNIFIED_COMMAND_15e9936e708d489a91e8239b24b82b0d:0
+pkg> pkg-net online; _uw_rc=$?; printf '\nUNIFIED_COMMAND_d3ffd6e2d9404177bec557
+88e20782a8:%s\n' "$_uw_rc"
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+OKERNEL PACKAGE NETWORK ONLINE
+
+UNIFIED_COMMAND_d3ffd6e2d9404177bec55788e20782a8:0
+pkg> [6nif test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && 
+test -x /usr/local/bin/p9; then echo P9_CLIENT_PRESENT_ca1f2422069945f79816f1045
+bf1fde6; fi; _uw_rc=$?; printf '\nUNIFIED_COMMAND_f31b26e633b749fbacd3f47b66bbff
+65:%s\n' "$_uw_rc"
+P9_CLIENT_PRESENT_ca1f2422069945f79816f1045bf1fde6
+
+UNIFIED_COMMAND_f31b26e633b749fbacd3f47b66bbff65:0
+pkg> [6nmkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /u
+sr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; rm -f /run/oker
+nel/p9/controller.pid; setsid /bin/sh -c 'echo $$ > /run/okernel/p9/controller.p
+id; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /r
+un/okernel/p9' </dev/null > /run/okernel/p9/controller.log 2>&1 & :; _uw_rc=$?; 
+printf '\nUNIFIED_COMMAND_eb0f4028de8d4c52aece3aa821a02441:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_eb0f4028de8d4c52aece3aa821a02441:0
+[1]+  Done                       setsid /bin/sh -c "echo \$\$ > /run/okernel/p9/controller.pid; exec /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9" 0</dev/null 1>/run/okernel/p9/controller.log 2>&1
+pkg> [6ni=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; d
+o if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/
+controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1
+)); test $i -lt 200 || exit 1; sleep 0.05; done; _uw_rc=$?; printf '\nUNIFIED_CO
+MMAND_394931062194447799ed472c99734f3d:%s\n' "$_uw_rc"
+random: crng init done
+
+UNIFIED_COMMAND_394931062194447799ed472c99734f3d:0
+pkg> [6ncd /n/okernel/work; PS1='okernel> '; export PS1; printf '\nLinux and origin
+al Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\n' ; _
+uw_rc=$?; printf '\nUNIFIED_COMMAND_60f254ede7d548e4afef6cebe7b45890:%s\n' "$_uw
+_rc"
+
+Linux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.
+
+UNIFIED_COMMAND_60f254ede7d548e4afef6cebe7b45890:0
+okernel> [6nprintf %s I2luY2x1ZGUgPHUuaD4KI2luY2x1ZGUgPGxpYmMuaD4Kdm9pZCBtYWluKHZva
+WQpe2NoYXIgYlsyNTZdO2xvbmcgbjtwcmludCgiT1JJR0lOQUxfUExBTjlfQ09NUElMRURcbiIpO2Zwc
+mludCgyLCJPUklHSU5BTF9QTEFOOV9TVERFUlJcbiIpO3doaWxlKChuPXJlYWQoMCxiLHNpemVvZiBiK
+Sk+MClpZih3cml0ZSgxLGIsbikhPW4pZXhpdHMoIndyaXRlIik7ZXhpdHMobjwwPyJyZWFkIjpuaWwpO
+30K | base64 -d > /n/okernel/work/p9-source-9a38321dfe1d9357.c; _uw_rc=$?; print
+f '\nUNIFIED_COMMAND_dac1b86ab8d04b3eafed62eb2f1757fc:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_dac1b86ab8d04b3eafed62eb2f1757fc:0
+okernel> [6nmkdir /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b
+6d37422a50fa/r9488dd0bbb91f3b085e702b481049e0e; _uw_rc=$?; printf '\nUNIFIED_COM
+MAND_1552cdcc9cbc404eb08eb606845d9fa8:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_1552cdcc9cbc404eb08eb606845d9fa8:0
+okernel> [6nprintf %s T0M5UkVRMDFkN2M0ZDlkZWMwNjA4Zjg5MzRlOWZmMzQ0MjNlMDk3N2Y2NGI2Z
+DM3NDIyYTUwZmE5NDg4ZGQwYmJiOTFmM2IwODVlNzAyYjQ4MTA0OWUwZQQAAAAHAAAAOAAAAGDqAAAAA
+BAAAAAQAC9uL3dvcmsNAAAAL2FybTY0L2Jpbi9yYwIAAAAtSQIAAAAtY6AAAAA3YyAtbyBwOS1zb3VyY
+2UtOWEzODMyMWRmZTFkOTM1Ny43IHA5LXNvdXJjZS05YTM4MzIxZGZlMWQ5MzU3LmMgJiYgN2wgLW8gc
+Dktc291cmNlLTlhMzgzMjFkZmUxZDkzNTcgcDktc291cmNlLTlhMzgzMjFkZmUxZDkzNTcuNyAmJiAuL
+3A5LXNvdXJjZS05YTM4MzIxZGZlMWQ5MzU3dW5pZmllZC1vcmlnaW5hbC1zdGRpbgD/CoEiQXysYnNeV
+FY2KAW0yAga18gJUoHCAuBBPtacDU0= | base64 -d > /n/okernel/services/plan9/gd7c4d9d
+ec0608f89/s34e9ff34423e0977f64b6d37422a50fa/r9488dd0bbb91f3b085e702b481049e0e/re
+quest; _uw_rc=$?; printf '\nUNIFIED_COMMAND_86fb2e46dc434c7d838322c4da3a62bd:%s\
+n' "$_uw_rc"
+
+UNIFIED_COMMAND_86fb2e46dc434c7d838322c4da3a62bd:0
+okernel> [6nprintf %s T0M5U1VCMDEgZDdjNGQ5ZGVjMDYwOGY4OSAzNGU5ZmYzNDQyM2UwOTc3ZjY0Y
+jZkMzc0MjJhNTBmYSA5NDg4ZGQwYmJiOTFmM2IwODVlNzAyYjQ4MTA0OWUwZSA3NmQ5MzViODg5Zjg0Y
+ThlYjE0NmMxNWFiZTUzMWMyYzUwMzI1Yzk0NGJmMjFkYzk2NjRhMWUzMjQxYTM4MDk1Cg== | base64
+ -d > /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a5
+0fa/r9488dd0bbb91f3b085e702b481049e0e/submit.staged; _uw_rc=$?; printf '\nUNIFIE
+D_COMMAND_c4d5648492674b87b7c42019b62fb351:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_c4d5648492674b87b7c42019b62fb351:0
+okernel> [6nmv /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d3
+7422a50fa/r9488dd0bbb91f3b085e702b481049e0e/submit.staged /n/okernel/services/pl
+an9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a50fa/r9488dd0bbb91f3b085e702b
+481049e0e/submit; _uw_rc=$?; printf '\nUNIFIED_COMMAND_e87c05381087446ebd64e44be
+bfbafe0:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_e87c05381087446ebd64e44bebfbafe0:0
+okernel> [6nsh -c 'while :; do date +%s > /n/okernel/work/survivor-9a38321dfe1d9357
+; sleep 1; done' & echo $! > /work/unified-survivor-9a38321dfe1d9357; _uw_rc=$?;
+ printf '\nUNIFIED_COMMAND_448b746f12ba426ab411055a67d91971:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_448b746f12ba426ab411055a67d91971:0
+okernel> [6nawk '{print $22}' /proc/$(cat /work/unified-survivor-9a38321dfe1d9357)/
+stat > /work/unified-survivor-9a38321dfe1d9357.start; _uw_rc=$?; printf '\nUNIFI
+ED_COMMAND_a14b3eb225554a3fb1582c3e9118de20:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_a14b3eb225554a3fb1582c3e9118de20:0
+okernel> [6nmkdir /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b
+6d37422a50fa/rd35a4761e2f330361cbe6147ed7bd3fa; _uw_rc=$?; printf '\nUNIFIED_COM
+MAND_c325758309c345b980e5e6c968645601:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_c325758309c345b980e5e6c968645601:0
+okernel> [6nprintf %s T0M5UkVRMDFkN2M0ZDlkZWMwNjA4Zjg5MzRlOWZmMzQ0MjNlMDk3N2Y2NGI2Z
+DM3NDIyYTUwZmFkMzVhNDc2MWUyZjMzMDM2MWNiZTYxNDdlZDdiZDNmYQQAAAAHAAAAAAAAADB1AAAAA
+BAAAAAQAC9uL3dvcmsNAAAAL2FybTY0L2Jpbi9yYwIAAAAtSQIAAAAtYyEBAAB7ZWNobyBDSElMRCA+I
+C9uL3dvcmsvY2hpbGQtcmVhZHktOWEzODMyMWRmZTFkOTM1Nzsgd2hpbGUoISB0ZXN0IC1mIC9uL3dvc
+msvcmVsZWFzZS05YTM4MzIxZGZlMWQ5MzU3KSBzbGVlcCAxOyBlY2hvIEZPUkJJRERFTiA+IC9uL3dvc
+msvZm9yYmlkZGVuLWxhdGUtOWEzODMyMWRmZTFkOTM1N30gJiB3aGlsZSghIHRlc3QgLWYgL24vd29ya
+y9jaGlsZC1yZWFkeS05YTM4MzIxZGZlMWQ5MzU3KSBzbGVlcCAxOyBlY2hvIEFDVElWRSA+IC9uL3dvc
+msvYWN0aXZlLTlhMzgzMjFkZmUxZDkzNTc7IHNsZWVwIDYw | base64 -d > /n/okernel/service
+s/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a50fa/rd35a4761e2f330361cb
+e6147ed7bd3fa/request; _uw_rc=$?; printf '\nUNIFIED_COMMAND_c21c014c41694d9dacee
+af07176b072e:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_c21c014c41694d9daceeaf07176b072e:0
+okernel> [6nprintf %s T0M5U1VCMDEgZDdjNGQ5ZGVjMDYwOGY4OSAzNGU5ZmYzNDQyM2UwOTc3ZjY0Y
+jZkMzc0MjJhNTBmYSBkMzVhNDc2MWUyZjMzMDM2MWNiZTYxNDdlZDdiZDNmYSA1MTZmM2VmNjIxOTA5Z
+jBlYmMxMGMxNjFhNmRjNzA1YWIzYjVkYjI1MmRkOTEyYjljZTZmNjlhYzU0MWJlY2Y3Cg== | base64
+ -d > /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a5
+0fa/rd35a4761e2f330361cbe6147ed7bd3fa/submit.staged; _uw_rc=$?; printf '\nUNIFIE
+D_COMMAND_a4088decfc324ad9842e92893b1581a5:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_a4088decfc324ad9842e92893b1581a5:0
+okernel> [6nmv /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d3
+7422a50fa/rd35a4761e2f330361cbe6147ed7bd3fa/submit.staged /n/okernel/services/pl
+an9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a50fa/rd35a4761e2f330361cbe614
+7ed7bd3fa/submit; _uw_rc=$?; printf '\nUNIFIED_COMMAND_f704dabceb6745bca0bfdbb04
+241d048:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_f704dabceb6745bca0bfdbb04241d048:0
+okernel> [6nprintf %s T0M5Q0FOMDEgZDdjNGQ5ZGVjMDYwOGY4OSAzNGU5ZmYzNDQyM2UwOTc3ZjY0Y
+jZkMzc0MjJhNTBmYSBkMzVhNDc2MWUyZjMzMDM2MWNiZTYxNDdlZDdiZDNmYSA1MTZmM2VmNjIxOTA5Z
+jBlYmMxMGMxNjFhNmRjNzA1YWIzYjVkYjI1MmRkOTEyYjljZTZmNjlhYzU0MWJlY2Y3Cg== | base64
+ -d > /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a5
+0fa/rd35a4761e2f330361cbe6147ed7bd3fa/cancel.staged; _uw_rc=$?; printf '\nUNIFIE
+D_COMMAND_4d0911fcf7d34bf2857f119e301bc7b5:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_4d0911fcf7d34bf2857f119e301bc7b5:0
+okernel> [6nmv /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d3
+7422a50fa/rd35a4761e2f330361cbe6147ed7bd3fa/cancel.staged /n/okernel/services/pl
+an9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a50fa/rd35a4761e2f330361cbe614
+7ed7bd3fa/cancel; _uw_rc=$?; printf '\nUNIFIED_COMMAND_183c9cece02a4b27a42d51736
+c56c3ac:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_183c9cece02a4b27a42d51736c56c3ac:0
+okernel> [6nkill -0 $(cat /work/unified-survivor-9a38321dfe1d9357) && test "$(awk '
+{print $22}' /proc/$(cat /work/unified-survivor-9a38321dfe1d9357)/stat)" = "$(ca
+t /work/unified-survivor-9a38321dfe1d9357.start)"; _uw_rc=$?; printf '\nUNIFIED_
+COMMAND_92467904b8cc4651935ca1e79dfda2dc:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_92467904b8cc4651935ca1e79dfda2dc:0
+okernel> [6nprintf %s UkVMRUFTRQo= | base64 -d > /n/okernel/work/release-9a38321dfe
+1d9357; _uw_rc=$?; printf '\nUNIFIED_COMMAND_e0beeb429ff94cbea22329984da713a0:%s
+\n' "$_uw_rc"
+
+UNIFIED_COMMAND_e0beeb429ff94cbea22329984da713a0:0
+okernel> [6nmkdir /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b
+6d37422a50fa/r13cc145dfcab9b3eb7709c51fe8df980; _uw_rc=$?; printf '\nUNIFIED_COM
+MAND_aa77f5f376ff471198774e3be5e8adb1:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_aa77f5f376ff471198774e3be5e8adb1:0
+okernel> [6nprintf %s T0M5UkVRMDFkN2M0ZDlkZWMwNjA4Zjg5MzRlOWZmMzQ0MjNlMDk3N2Y2NGI2Z
+DM3NDIyYTUwZmExM2NjMTQ1ZGZjYWI5YjNlYjc3MDljNTFmZThkZjk4MAQAAAAHAAAAAAAAAGDqAAAAA
+BAAAAAQAC9uL3dvcmsNAAAAL2FybTY0L2Jpbi9yYwIAAAAtSQIAAAAtYzIAAABlY2hvIFNUQUxFID4gL
+24vd29yay9zdGFsZS1lZmZlY3QtOWEzODMyMWRmZTFkOTM1Nw== | base64 -d > /n/okernel/ser
+vices/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a50fa/r13cc145dfcab9b3
+eb7709c51fe8df980/request; _uw_rc=$?; printf '\nUNIFIED_COMMAND_1f2d0fc8587c49ef
+89783eb45211c757:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_1f2d0fc8587c49ef89783eb45211c757:0
+okernel> [6nprintf %s T0M5U1VCMDEgZDdjNGQ5ZGVjMDYwOGY4OSAzNGU5ZmYzNDQyM2UwOTc3ZjY0Y
+jZkMzc0MjJhNTBmYSAxM2NjMTQ1ZGZjYWI5YjNlYjc3MDljNTFmZThkZjk4MCAyYmI1Y2Q1MmRlOGQ4Y
+TI3NjgyNDIwZjVhMmJjMDA0Y2Y4N2RkNzIwYWI3Yzk0MDhjZDIzYWU5ODIwMTZmOTBkCg== | base64
+ -d > /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a5
+0fa/r13cc145dfcab9b3eb7709c51fe8df980/submit.staged; _uw_rc=$?; printf '\nUNIFIE
+D_COMMAND_d8126c03837a4ef68e3132c182201e90:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_d8126c03837a4ef68e3132c182201e90:0
+okernel> [6nmv /n/okernel/services/plan9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d3
+7422a50fa/r13cc145dfcab9b3eb7709c51fe8df980/submit.staged /n/okernel/services/pl
+an9/gd7c4d9dec0608f89/s34e9ff34423e0977f64b6d37422a50fa/r13cc145dfcab9b3eb7709c5
+1fe8df980/submit; _uw_rc=$?; printf '\nUNIFIED_COMMAND_eb0502869a44454fa2ff693a3
+04b6595:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_eb0502869a44454fa2ff693a304b6595:0
+okernel> [6nmkdir /n/okernel/services/plan9/gd7c4d9dec0608f89/s67eff064184ef272f7b5
+d774184d0cf4/r8eb21aaf8f16c5ef6e691da5ca027781; _uw_rc=$?; printf '\nUNIFIED_COM
+MAND_6589e3afc97d43c8b7d561388261202e:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_6589e3afc97d43c8b7d561388261202e:0
+okernel> [6nprintf %s T0M5UkVRMDFkN2M0ZDlkZWMwNjA4Zjg5NjdlZmYwNjQxODRlZjI3MmY3YjVkN
+zc0MTg0ZDBjZjQ4ZWIyMWFhZjhmMTZjNWVmNmU2OTFkYTVjYTAyNzc4MQIAAAAHAAAAAAAAAGDqAAAAA
+BAAAAAQAC9uL3dvcmsPAAAAL2FybTY0L2Jpbi9lY2hvHwAAAEZSRVNIX1BST1ZJREVSXzlhMzgzMjFkZ
+mUxZDkzNTc= | base64 -d > /n/okernel/services/plan9/gd7c4d9dec0608f89/s67eff0641
+84ef272f7b5d774184d0cf4/r8eb21aaf8f16c5ef6e691da5ca027781/request; _uw_rc=$?; pr
+intf '\nUNIFIED_COMMAND_a9a4060b01e44ebab3bbb40246b4808e:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_a9a4060b01e44ebab3bbb40246b4808e:0
+okernel> [6nprintf %s T0M5U1VCMDEgZDdjNGQ5ZGVjMDYwOGY4OSA2N2VmZjA2NDE4NGVmMjcyZjdiN
+WQ3NzQxODRkMGNmNCA4ZWIyMWFhZjhmMTZjNWVmNmU2OTFkYTVjYTAyNzc4MSAzYjhjN2U3M2U1ZmM5M
+DhjYzU3OTY3OGY4YTNiNjUzMTc1MWRkZDQ4Yjk4MmZhNzYwNzliMzEyMDQwY2RkMTBmCg== | base64
+ -d > /n/okernel/services/plan9/gd7c4d9dec0608f89/s67eff064184ef272f7b5d774184d0
+cf4/r8eb21aaf8f16c5ef6e691da5ca027781/submit.staged; _uw_rc=$?; printf '\nUNIFIE
+D_COMMAND_2472ae427af5455886cc1a35eeeab444:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_2472ae427af5455886cc1a35eeeab444:0
+okernel> [6nmv /n/okernel/services/plan9/gd7c4d9dec0608f89/s67eff064184ef272f7b5d77
+4184d0cf4/r8eb21aaf8f16c5ef6e691da5ca027781/submit.staged /n/okernel/services/pl
+an9/gd7c4d9dec0608f89/s67eff064184ef272f7b5d774184d0cf4/r8eb21aaf8f16c5ef6e691da
+5ca027781/submit; _uw_rc=$?; printf '\nUNIFIED_COMMAND_2700087caf7c4a8d84ad55898
+d88d78c:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_2700087caf7c4a8d84ad55898d88d78c:0
+okernel> [6nkill $(cat /work/unified-survivor-9a38321dfe1d9357); _uw_rc=$?; printf 
+'\nUNIFIED_COMMAND_27f4d0afbd654fe0be1c40a40a5494ea:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_27f4d0afbd654fe0be1c40a40a5494ea:0
+[1]+  Terminated                 sh -c "while :; do date +%s > /n/okernel/work/survivor-9a38321dfe1d9357; sleep 1; done"
+okernel> [6n
+[O-core console: original Plan 9; Ctrl-^ then 0 selects Linux]
+echo PLAN9_SAVE_READY_89c447cecc4b4b24b174d5d6f098b357
+PLAN9_SAVE_READY_89c447cecc4b4b24b174d5d6f098b357
+% 
+[O-core console: Linux; Ctrl-^ then 1 selects original Plan 9]
+sync; _uw_rc=$?; printf '\nUNIFIED_COMMAND_0cead4288c20468abf4fe0bf7e04
+4fc8:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_0cead4288c20468abf4fe0bf7e044fc8:0
+okernel> [6n

@@ -1,0 +1,55 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "scripts/check_language_sources.py",
+    "check",
+    "--root",
+    "/home/ustad/OSTADIX-o10-m2-20261112",
+    "--o-bin",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "--ocorec",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "--jobs",
+    "2",
+    "--json-report",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r5/language.json"
+  ],
+  "command": [
+    "/usr/bin/python3",
+    "scripts/check_language_sources.py",
+    "check",
+    "--root",
+    "/home/ustad/OSTADIX-o10-m2-20261112",
+    "--o-bin",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "--ocorec",
+    "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "--jobs",
+    "2",
+    "--json-report",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r5/language.json"
+  ],
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "started": 1794573443.9299564,
+  "timed_out": false,
+  "returncode": 0,
+  "effective_selected_environment": {
+    "PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OSTADIX_9P_COMPONENT_PLAN9_PREFIX": "/home/ustad/.cache/plan9port-probe-rwtjr2p0/plan9port-1f1396913fb5372408f442ed26933f5ae4b399cd",
+    "OSTADIX_9P_COMPONENT_U9FS_ARCHIVE": "/home/ustad/.cache/okernel-u9fs-research/u9fs-fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9.tar.gz",
+    "OCORE_U9FS_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/x86_64-O1-final/native-codec.json",
+    "OCORE_U9FS_ARM_MANIFEST": "/home/ustad/.cache/okernel-u9fs-native-recipe/runs/aarch64-O1-final/native-codec.json",
+    "OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "O_LANG_OCOREC_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "OLANG": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "O_LANG_EVALUATOR_BIN": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/O",
+    "TMPDIR": null,
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "finished": 1794573450.8609881,
+  "log": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r5/language.log",
+    "sha256": "be3ef6dd4368ceb05f83cadfe0b7892c2ab9269a6aa46dea2409b1f6fd45c9a3"
+  }
+}

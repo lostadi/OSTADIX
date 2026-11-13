@@ -1,0 +1,83 @@
+{
+  "gate_id": "provider",
+  "script": "verify_okernel_unified_provider.py",
+  "state": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider",
+  "fork_argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+    "--source",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+    "--output",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider"
+  ],
+  "argv": [
+    "/usr/bin/python3",
+    "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_provider.py",
+    "--state",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider",
+    "--build",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+  ],
+  "receipt_pattern": "provider-acceptance-*/result.json",
+  "ok": true,
+  "free_bytes_before": 34946916352,
+  "fork": {
+    "argv": [
+      "/usr/bin/python3",
+      "/home/ustad/OSTADIX-o10-m2-20261112/scripts/fork_okernel_state.py",
+      "--source",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/fixture-seed",
+      "--output",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider"
+    ],
+    "started": 1794576351.1361625,
+    "returncode": 0,
+    "timed_out": false,
+    "finished": 1794576359.2685444
+  },
+  "command": {
+    "argv": [
+      "/usr/bin/python3",
+      "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_provider.py",
+      "--state",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider",
+      "--build",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5"
+    ],
+    "started": 1794576359.2689419,
+    "returncode": 0,
+    "timed_out": false,
+    "finished": 1794576558.8813028
+  },
+  "result_candidates": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider/provider-acceptance-26a436fed38a5796/result.json"
+  ],
+  "receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider/provider-acceptance-26a436fed38a5796/result.json",
+    "sha256": "6f7a866714969229e367565e7b99a1a33dec1a4a8fa7e90ec211b1e87144579f",
+    "result": {
+      "schema": "ostadix.unified-original-provider/v1",
+      "ok": true,
+      "scope": "actual original Linux publication and original Plan9 commands/compiler under one O-core EL2 monitor; automated component acceptance",
+      "controller": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_provider.py",
+        "sha256": "f7ffdc1cc25cced3025c4ac8548446e4155f2ceb6ba7fb9a1370de274a07c986"
+      },
+      "started": 1794576359.3670604,
+      "sessions": [
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider/unified-session-j1uiakk5",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/provider/unified-session-j1te2hpn"
+      ],
+      "checks": [
+        "Linux publishes binary request; original PAQ-only 7c/7l compile and execute source with exact binary stdin, stdout, stderr and empty native status",
+        "native Plan9-only withdrawal/replacement preserves the same Linux PID/start time, progress and native files",
+        "cancelled original rc detached descendant cannot respond to a release published only after its owning domain is discarded",
+        "fresh original provider executes new work and ignores a newly published old-instance request",
+        "actual two-kernel restart preserves and re-executes identical original Plan9 executable with fresh provider identities"
+      ],
+      "program_sha256": "e6a03641421b1c458bffdc6a6bde4fd709b2739015c864af147e68ea816a1be2",
+      "finished": 1794576558.4910796
+    }
+  },
+  "status": "passed"
+}

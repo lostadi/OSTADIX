@@ -1,0 +1,20 @@
+import subprocess,unittest,json,base64
+from pathlib import Path
+out=Path('/home/ustad/OSTADIX-o10-m2-20261112/evidence/o10-m2-20261112/pinned-abi-final')
+original=subprocess.run
+records=[]
+def tracked(*args,**kwargs):
+    result=original(*args,**kwargs)
+    number=len(records)
+    record={"argv":args[0] if args else kwargs.get("args"),"cwd":str(kwargs.get("cwd","inherited")),"returncode":result.returncode}
+    for stream in ("stdout","stderr"):
+        value=getattr(result,stream)
+        if value is not None:
+            data=value.encode() if isinstance(value,str) else value
+            path=out/("command-%03d-%s.log"%(number,stream));path.write_bytes(data)
+            record[stream]={"path":str(path),"bytes":len(data)}
+    records.append(record)
+    (out/"commands.json").write_text(json.dumps(records,indent=2)+"\n")
+    return result
+subprocess.run=tracked
+unittest.main(module=None,argv=["ordinary-codec-abi","-v","tests.test_okernel_u9fs_peer","tests.test_posix_namespace_files","tests.test_namespace_local_backend"])

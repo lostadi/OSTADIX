@@ -1,0 +1,37 @@
+{
+  "schema": "ostadix.o10-m2-native-witness-independent-review/v1",
+  "reviewer": "/root/acceptance_audit",
+  "reviewed_utc": "2026-11-13T09:01:36.548443+00:00",
+  "source_revision": "63c91c1150b9c5c640a5a88559786e6a03cee939",
+  "source_sha256": {
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/common/namespace_store.oc": "b6e3abbd49b4bafb9f5a6fc8d1f8ec86cbde53a92393a33a17a82a6e5699fa38",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/unified_world.oc": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "scripts/okernel_unified_world.py": "d5644165884fe55b950f318cc2c361c9169d6dc59edc290827af5cf0e0391749",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+    "scripts/o-kernel.sh": "eac81c4939f65aefa4c9efdce62fe5280d7fc5fd7fd7ac20bac8a17e7d9b6d59",
+    "tests/test_o10_linux_witness.py": "583294fa702d5b4a9c3d02a680ddf5c8f94fec8471e619466d8dd0c4515c4f35",
+    "tests/test_o10_linux_witness_native.py": "6b28abb90c0620a35ffb0748fbc40fc0534aba6d7345f85232c6789f028923fd"
+  },
+  "verdict": "No blocking ABI, authority, bounds or claim-scope mismatch found in read-only source review.",
+  "blockers": [],
+  "findings": [
+    "Only fixed qualification actions and mailbox sequence are supplied; no caller grant/token/fid/path.",
+    "Native real frontend getters choose opaque transport-bound sessions; all actual Linux and Plan9 fids are captured with tuple identity.",
+    "Combined store capacity512 bounds every record;128+512*576=295040 bytes fits327680-byte private region.",
+    "Check reuses retained Linux token for every actual store Tstat and requires numeric.u errno116; Plan9 current binding and exact tuples/object indices remain unchanged.",
+    "Consumer independently compares Plan9 raw qid.type/path while allowing metadata/version changes.",
+    "Error paths clear token/frame output; production rejects with unsupported status and publishes no token/frame data.",
+    "Runner holds one active native mailbox guard, never retries an unknown observation and bounds raw diagnostic snapshots."
+  ],
+  "reviewed_component_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-lineage-integration-20261113/witness-components/result.json",
+    "sha256": "6c0ee2dc7480d6106cb35acdcb1b68aafea98f9e8a4f79efa01d6d3b4247feb2"
+  },
+  "scope": "Source/interface review plus retained component-result observation only; no live guest/store or physical hardware qualification.",
+  "actual_guest_gate_run": false,
+  "milestone_qualified": false
+}

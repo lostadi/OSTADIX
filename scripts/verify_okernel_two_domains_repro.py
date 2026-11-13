@@ -142,6 +142,20 @@ def validate_profile(value):
                              "inputs/plan9.kernel": 0xb0100000, "plan9.dtb": 0xb0000000,
                              "inputs/plan9-recovery.kernel": 0xd0000000, "inputs/plan9-recovery.dtb": 0xd1000000},
     }
+    if "linux_recovery" in value:
+        required["linux_recovery"] = {
+            "kernel_image": 3, "aux_image": 4, "namespace_version": "9P2000.u",
+            "kernel_backup_address": 0xd2000000, "kernel_max_bytes": 0x7e00000,
+            "dtb_backup_address": 0xe2000000, "dtb_max_bytes": 0x10000,
+            "initrd_backup_address": 0xda000000, "initrd_max_bytes": 0x8000000,
+            "kernel_bytes_address": 0x6d000100, "dtb_bytes_address": 0x6d000108,
+            "initrd_bytes_address": 0x6d000110,
+        }
+        required["loader_addresses"].update({
+            "inputs/linux-recovery.Image": 0xd2000000,
+            "inputs/linux-recovery.dtb": 0xe2000000,
+            "inputs/linux-recovery.initramfs": 0xda000000,
+        })
     if any(json.dumps(value.get(key), sort_keys=True) != json.dumps(item, sort_keys=True) for key, item in required.items()):
         raise ValueError("expected the exact admitted two-domain native/coordinator/recovery profile")
 
@@ -175,6 +189,27 @@ def inspect_build(build):
         left, right = paths[backup], paths[original]
         if not 0 < left["bytes"] <= maximum or any(left[key] != right[key] for key in ("bytes", "sha256")):
             raise ValueError("recovery input does not equal admitted original")
+    if "linux_recovery" in manifest:
+        for backup, original, maximum in (
+                ("inputs/linux-recovery.Image", "inputs/linux.Image", 0x7e00000),
+                ("inputs/linux-recovery.dtb", "linux.dtb", 0x10000),
+                ("inputs/linux-recovery.initramfs", "inputs/linux.initramfs", 0x8000000)):
+            left, right = paths.get(backup), paths.get(original)
+            if (not isinstance(left, dict) or not isinstance(right, dict)
+                    or not 0 < left["bytes"] <= maximum
+                    or any(left[key] != right[key] for key in ("bytes", "sha256"))):
+                raise ValueError("Linux recovery input does not equal admitted original")
+        original_initrd = paths.get("inputs/linux-original.initramfs")
+        derived_initrd = paths["inputs/linux.initramfs"]
+        derivation = manifest.get("linux_initramfs_derivation")
+        if (not isinstance(original_initrd, dict) or not isinstance(derivation, dict)
+                or derivation.get("schema") != "ostadix.o10-linux-initramfs/v1"
+                or derivation.get("original_sha256") != original_initrd["sha256"]
+                or derivation.get("derived_sha256") != derived_initrd["sha256"]
+                or derivation.get("changed_entries") != ["init"]
+                or derivation.get("disk_script_modified") is not False
+                or derivation.get("namespace_version") != "9P2000.u"):
+            raise ValueError("Linux initramfs derivation is not bound to captured inputs")
     return manifest, paths
 
 

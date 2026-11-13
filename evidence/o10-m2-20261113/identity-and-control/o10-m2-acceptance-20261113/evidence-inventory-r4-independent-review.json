@@ -1,0 +1,25 @@
+{
+  "schema": "ostadix.o10-m2-evidence-inventory-static-review/v1",
+  "ok": true,
+  "reviewed_script": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/inventory-m2-evidence-r4.py",
+    "bytes": 12580,
+    "sha256": "35980e94aa7775e3c71967e03bbfb7ae4d1484cf5e794b5c39a5a43f0ef10bbd"
+  },
+  "prior_review": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/evidence-inventory-r3-independent-review.json",
+    "sha256": "6c4d1b761ea57301c156955f2b6e8098234c81e72397cafdfef020c1d22dbd24"
+  },
+  "observed_unix": 1794580506.647195,
+  "scope": "Read-only narrow R3-to-R4 delta review; no inventory/copy/acceptance/VM executed.",
+  "checks": [
+    "Adds only current restart/resident preparation roots derived from accepted gate directory suffixes",
+    "Adds hash-bound APK fixture JSON from accepted restart receipt",
+    "Adds controller self identity, final binder launcher source and static review receipts",
+    "Full acceptance/revision/seed guards and original binary/private connection exclusions unchanged"
+  ],
+  "blocking_findings": [],
+  "limitations": [
+    "Actual accepted binder and included/excluded output must still be checked after future execution"
+  ]
+}

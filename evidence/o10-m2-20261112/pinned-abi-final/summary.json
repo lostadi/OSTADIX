@@ -1,0 +1,16 @@
+{
+  "tests": 3,
+  "skipped": 0,
+  "historical_scenarios": 16,
+  "inner_commands_recorded": 58,
+  "source_admission_manifests_revalidated_unchanged": [
+    "x86_64",
+    "aarch64"
+  ],
+  "closure_records_revalidated_unchanged": 34,
+  "historical_source_sha256": "13cffe0c19b455314f23e8a53914b585ba43d19d606c07c3f6706793c5f41c53",
+  "differential_fixture_sha256": "68dac34c7aa944810cae5a4bdca867874622d67d3ec43d27541270962e23e62d",
+  "actual_behavioral_delta": "Protected-root plain Tremove reply cap26: historical returns0 without clunk, corrected current returns26-byte EACCES/Rerror and clunks. Separately recorded, not masked by semantic token associations.",
+  "delta_receipt": "../historical-wire-semantic-r1/capacity-delta.json",
+  "scope": "Ordinary native codec/ABI/source compatibility only; no guest, physical device, VM, live gate or milestone acceptance."
+}

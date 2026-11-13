@@ -1,0 +1,12 @@
+test_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation) ... ok
+test_real_store_wire_authority_persistence_and_capacity (tests.test_namespace_store.NamespaceStoreTests.test_real_store_wire_authority_persistence_and_capacity) ... ok
+test_copy_bounds_and_boot_metadata_are_not_guest_or_survivor_ram (tests.test_o10_linux_profile.LinuxProfileTests.test_copy_bounds_and_boot_metadata_are_not_guest_or_survivor_ram) ... ok
+test_deterministic_overlay_preserves_modes_content_and_source (tests.test_o10_linux_profile.LinuxProfileTests.test_deterministic_overlay_preserves_modes_content_and_source) ... ok
+test_immutable_copies_match_all_three_boot_inputs (tests.test_o10_linux_profile.LinuxProfileTests.test_immutable_copies_match_all_three_boot_inputs) ... ok
+test_malformed_newc_sizes_names_and_trailer_are_rejected (tests.test_o10_linux_profile.LinuxProfileTests.test_malformed_newc_sizes_names_and_trailer_are_rejected) ... ok
+test_unexpected_init_or_archive_is_an_explicit_failure (tests.test_o10_linux_profile.LinuxProfileTests.test_unexpected_init_or_archive_is_an_explicit_failure) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 3.449s
+
+OK

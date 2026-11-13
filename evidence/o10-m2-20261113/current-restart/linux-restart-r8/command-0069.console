@@ -1,0 +1,12 @@
+printf %s MF1bMl09PSJleHQ0IgogcmV0dXJuIHJbMF0KbW9kZSxjb25maWdfZmlsZT1ze
+XMuYXJndlsxOjNdO2NvbmZpZ19wYXRoPXBhdGhsaWIuUGF0aChjb25maWdfZmlsZSkKYXNzZXJ0IGNvb
+mZpZ19wYXRoLmlzX2ZpbGUoKSBhbmQgbm90IGNvbmZpZ19wYXRoLmlzX3N5bWxpbmsoKQpjZmc9anNvb
+i5sb2Fkcyhjb25maWdfcGF0aC5yZWFkX3RleHQoKSk7YXNzZXJ0IGlzaW5zdGFuY2UoY2ZnLGRpY3QpC
+nJ1bj1wYXRobGliLlBhdGgoY2ZnWyJydW4iXSk7Zj1jZmdbImZpeHR1cmUiXQppZiBtb2RlPT0icHJlc
+GFyZSI6CiBhc3NlcnQgbm90IHJ1bi5leGlzdHMoKTtydW4ubWtkaXIobW9kZT0wbzcwMCkKIHY9c3Vic
+HJvY2Vzcy5ydW4oWyJhcGsiLCItLXZlcnNpb24iXSxjYXB0dXJl >> /run/o10-m2-cad55362ec49b
+45f291d1110.py.o10-base64; _uw_rc=$?; printf '\nUNIFIED_COMMAND_1bdd389e010c4a0c
+941c384f5a322cd2:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_1bdd389e010c4a0c941c384f5a322cd2:0
+oke

@@ -1,0 +1,3 @@
+Original u9fs native peer actual calls: encodes=10 decodes=10 request_bytes=261 response_bytes=191
+Measured codec closure calls during peer init/poll: memmove_calls=34 memmove_bytes=668 strlen_calls=46 strlen_bytes=316
+Native shared namespace/original u9fs codec peer production tests: PASS

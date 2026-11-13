@@ -1,0 +1,108 @@
+{
+  "schema": "ostadix.o10-m2-resident-current-validation/v1",
+  "ok": true,
+  "gate_passed": true,
+  "milestone_qualified": false,
+  "scope": "Draft0 resident invariant component on the final M2 QEMU AArch64 build: 60 seconds with zero runnable guests and original provider restore. Native host-model classification and actual EL2 context logs remain separately scoped. No physical-board or full M2 qualification.",
+  "started_unix": 1794573692.0120823,
+  "job_id": "job-1814410-1794572939003916118-1-10",
+  "job_status": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3-validation-r1/managed-status.json",
+    "bytes": 2057,
+    "sha256": "7445664d2741f4e3a6f5cb269de3b679b1ff6969244f3055ffc48627dca5ab91"
+  },
+  "actual_job_state": "completed",
+  "actual_job_exit": 0,
+  "logs": {
+    "stdout": {
+      "identity": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3-validation-r1/stdout.log",
+        "bytes": 5010,
+        "sha256": "c83270fe98d113cea1c9b82192f4b73a99c977c4f6d34733b528cbfc3e47d81d"
+      },
+      "pages": [
+        {
+          "offset": 0,
+          "next_offset": 5010,
+          "eof": true,
+          "total_bytes": 5010
+        }
+      ]
+    },
+    "stderr": {
+      "identity": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3-validation-r1/stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "pages": [
+        {
+          "offset": 0,
+          "next_offset": 0,
+          "eof": true,
+          "total_bytes": 0
+        }
+      ]
+    }
+  },
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "mcp_release": "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "gate_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+    "bytes": 268230,
+    "sha256": "afcc1a4e2aaf49180a9f7ce65d808b4fcb73e6df7e393db4e72d11ae26280650"
+  },
+  "execution_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3-execution/result.json",
+    "bytes": 2776,
+    "sha256": "48f9700a0fbd9eefe6a16d5798a48dc734b1ca81a6d04cbae4b18f0980303c83"
+  },
+  "profile": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+    "bytes": 28349,
+    "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+  },
+  "monitor": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor.elf",
+    "bytes": 1012056,
+    "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+  },
+  "runtime": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "bytes": 243138,
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "zero_runnable_seconds": 60.0902320840396,
+  "samples": 193,
+  "provider": {
+    "path": "/services/plan9/gff45ff0acec8e276/s9762473fe8f75a896447c2b38ea0de7d/ready",
+    "sha256": "b750619869819dca5b54e2d39d2dcf764f08d4a02febd93c1c70e303541b1f20",
+    "service": {
+      "generation": "ff45ff0acec8e276",
+      "instance": "9762473fe8f75a896447c2b38ea0de7d"
+    },
+    "stat": {
+      "type": "Rstat",
+      "tag": 407,
+      "dom": 8589934593,
+      "kind": 2,
+      "state": 2,
+      "inst": {
+        "bytes_hex": "baca2c6f98b8b1280ea93890351989d1"
+      },
+      "exits": 26561,
+      "switches": 1521,
+      "esr": 2474836037,
+      "ipa": 0,
+      "pc": 18446744072636869644,
+      "leases": 1
+    }
+  },
+  "private_sessions": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/state/unified-session-45qr6el3"
+  ],
+  "seed_unchanged": true,
+  "source_unchanged": true,
+  "finished_unix": 1794573693.328156
+}

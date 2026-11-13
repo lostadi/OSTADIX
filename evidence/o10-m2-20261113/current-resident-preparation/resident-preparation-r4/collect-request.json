@@ -1,0 +1,9 @@
+{
+  "source": "python^(\nimport pathlib,subprocess,sys,json,hashlib\nA=pathlib.Path(\"/home/ustad/.cache/o10-m2-acceptance-20261113\");P=A/\"resident-preparation-r4\";f=P/\"collect-resident.py\"\nif hashlib.sha256(f.read_bytes()).hexdigest()!=\"fd0ec4ef1ec15e23a4de2af76ea2563e789317b6a57e31619df99a237357d764\":raise ValueError(\"resident collector changed\")\nargv=[sys.executable,\"-B\",str(f),\"--execution\",str(A/\"resident-r4-execution\"),\"--output\",str(A/\"resident-r4-validation-r1\")]\n(P/\"collect-command.json\").write_text(json.dumps(argv,indent=2)+\"\\n\")\np=subprocess.run(argv,capture_output=True,text=True,timeout=240)\n(P/\"collect.stdout\").write_text(p.stdout);(P/\"collect.stderr\").write_text(p.stderr)\nprint(json.dumps(dict(exit=p.returncode,stdout=p.stdout,stderr=p.stderr)))\nif p.returncode:raise RuntimeError(\"resident collection failed\")\n\n)_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "timeout_secs": 0,
+  "env": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000"
+  }
+}

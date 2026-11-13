@@ -1,0 +1,9 @@
+[
+  "/usr/bin/python3",
+  "-B",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-preparation-r4/collect-resident.py",
+  "--execution",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r4-execution",
+  "--output",
+  "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r4-validation-r1"
+]

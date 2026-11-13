@@ -126,17 +126,18 @@ static void reinitialization(void){
 }
 static void exhaustion(void){
     uint64_t first=S(session_init)(1,1);assert(first);handshake(first);
-    S(SERIAL)=UINT64_MAX-1; // Test-only private counter injection; code is unchanged.
-    uint64_t last=S(session_init)(1,2);assert(last==UINT64_MAX);handshake(last);
+    const uint64_t serial_max=UINT64_MAX>>1; // One low bit encodes dialect.
+    S(SERIAL)=serial_max-1; // Test-only private counter injection; code is unchanged.
+    uint64_t last=S(session_init)(1,2);assert(last==UINT64_MAX-1 && !(last&1));handshake(last);
     uint64_t sessions[5],generations[5],fids[512];uint8_t versions[5];
     snapshot(sessions,S(SESSION),sizeof sessions);snapshot(generations,S(GENERATION),sizeof generations);
     snapshot(fids,S(F_SESSION),sizeof fids);snapshot(versions,S(VERSIONED),sizeof versions);
     uint8_t *before=malloc(BYTES);assert(before);memcpy(before,volume,BYTES);
-    assert(S(session_init)(1,3)==0 && S(session_init)(4,1)==0 && S(SERIAL)==UINT64_MAX);
+    assert(S(session_init)(1,3)==0 && S(session_init)(4,1)==0 && S(SERIAL)==serial_max);
     assert(unchanged(sessions,S(SESSION),sizeof sessions) && unchanged(generations,S(GENERATION),sizeof generations));
     assert(unchanged(fids,S(F_SESSION),sizeof fids) && unchanged(versions,S(VERSIONED),sizeof versions) && !memcmp(before,volume,BYTES));
     assert(stat(last,1)==125);free(before);
-    assert(S(init)((uintptr_t)volume,BYTES,EPOCH+1)==1 && S(SERIAL)==UINT64_MAX && S(session_init)(1,1)==0);
+    assert(S(init)((uintptr_t)volume,BYTES,EPOCH+1)==1 && S(SERIAL)==serial_max && S(session_init)(1,1)==0);
     puts("last token is usable; exhaustion fails before mutation and survives init: PASS");
 }
 static void temporary_files(void){

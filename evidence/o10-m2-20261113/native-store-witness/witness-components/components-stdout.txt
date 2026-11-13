@@ -1,0 +1,3 @@
+Unified O-core profile built: /tmp/unified profile contract v2g4rl15/profile/monitor.elf
+Unified O-core profile built: /tmp/unified profile contract v2g4rl15/recovery profile/monitor.elf
+Unified O-core profile built: /tmp/unified profile contract v2g4rl15/qualification profile/monitor.elf

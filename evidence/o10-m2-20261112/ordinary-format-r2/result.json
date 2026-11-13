@@ -1,0 +1,27 @@
+{
+  "scope": "Ordinary host-native 9P serialization/error-format and deterministic initramfs archive units only; no guest boot or device-access execution.",
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_namespace_store_dotu",
+    "tests.test_namespace_store",
+    "tests.test_o10_linux_profile"
+  ],
+  "source_revision": "5fb254ae13c978ce2e6010bb3080c3d1c32caa5c",
+  "source_dirty": true,
+  "source_sha256": {
+    "ocore/runtime/common/namespace_store.oc": "e1c1e24e02ab7179dca982ff0835e58ba6cabdc2c3a012ff1104209f1577cf3e",
+    "scripts/build_okernel_unified_world.py": "b441aba6c7432fe25941cf985a1ca3efaf937017bb679eab695bd27e9d7d221c",
+    "tests/test_namespace_store_dotu.py": "5b7aba473507280d745675866b2b757ab70aa4ca3188907c4fab454b11b8f4ce",
+    "tests/test_namespace_store.py": "2314c64302c0ae59a8230aabdd89fd45f7cbf8b544a1b7fb64383d09aa8118c2",
+    "tests/test_o10_linux_profile.py": "e78cab9c4e768ab1722c7b218361fa20513d1add818b839d12817d560ff02573",
+    "ocore/guest/linux/package-domain/init": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f"
+  },
+  "compiler": "/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec",
+  "compiler_sha256": "11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42",
+  "exit_code": 0,
+  "source_unchanged": true,
+  "milestone_qualified": false
+}

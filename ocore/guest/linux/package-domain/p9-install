@@ -91,14 +91,18 @@ def open_directory(parent, name):
 
 
 def require_native_mount(mount):
-    # Linux6.12 p9_show_client_options emits "noextend" for9P2000, not the
-    # original mount argument "version=9p2000". .u emits its own version;
-    # .L is the default and emits neither. Only this exact legacy backend has
-    # the same-directory reject-existing Twstat publication contract below.
+    # Linux6.12 renders plain9P2000 as noextend and .u as version=9p2000.u.
+    # Both admitted dialects use the native store's reject-existing Twstat
+    # publication contract. The default .L dialect has a different client
+    # path and remains outside this installer contract.
+    options = mount["options"]
+    versions = {option for option in options if option.startswith("version=")}
+    transports = {option for option in options if option.startswith("trans=")}
+    plain = "noextend" in options and not versions
+    dotu = "noextend" not in options and versions == {"version=9p2000.u"}
     if (mount["path"] != NATIVE_ROOT or mount["filesystem"] != "9p" or mount["source"] != "okernel"
-            or "noextend" not in mount["options"] or "trans=virtio" not in mount["options"]
-            or any(option.startswith("version=") for option in mount["options"])):
-        raise InstallError("the fixed native /n/okernel 9P2000 virtio mount is required")
+            or transports != {"trans=virtio"} or not (plain or dotu)):
+        raise InstallError("the fixed native /n/okernel 9P2000 or9P2000.u virtio mount is required")
     return mount["id"]
 
 
@@ -271,7 +275,7 @@ def save_receipt(directory, document):
 
 
 def publish_native(directory, pending, name):
-    # Precisely scoped to the checked original9P2000/native backend. Linux
+    # Precisely scoped to checked9P2000 and9P2000.u native mounts. Linux
     #6.12 fs/9p/vfs_inode.c:867–959 sends same-directory Twstat directly; it
     # does not remove a positive destination. namespace_store::wstat rejects
     # an existing sibling BEFORE mutation. renameat2(NOREPLACE) is unsupported

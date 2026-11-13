@@ -299,6 +299,8 @@ static void temporary_mode(void) {
         assert(wstatmode(linux,4,0664|TMP|(1u<<bit))==107);
     }
     assert(walk(linux,2,20,NULL)==111 && create(linux,20,"orclose",0664|TMP,2|0x40)==107 && clunk(linux,20)==121);
+    assert(walk(linux,2,20,NULL)==111 && create(linux,20,"append-unsupported",0664,0x82)==107 && clunk(linux,20)==121);
+    assert(walk(linux,2,20,"object.7")==111 && openfid(linux,20,0x82)==107 && clunk(linux,20)==121);
     assert(readfid(linux,4,9000,4)==117 && !memcmp(response+11,tail,4));
     assert(NS(init)((uintptr_t)volume,16777216,0xa23456789abcdef1)==1);
 }

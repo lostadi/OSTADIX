@@ -1,0 +1,766 @@
+
+/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4/monitor.elf:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000000400c0ae0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision>:
+400c0ae0: a9bf7bfd     	stp	x29, x30, [sp, #-0x10]!
+400c0ae4: 910003fd     	mov	x29, sp
+400c0ae8: a9bf7ffc     	stp	x28, xzr, [sp, #-0x10]!
+400c0aec: d10dc3ff     	sub	sp, sp, #0x370
+400c0af0: 910003fc     	mov	x28, sp
+400c0af4: 9100038f     	add	x15, x28, #0x0
+400c0af8: f90001e0     	str	x0, [x15]
+400c0afc: 9100238f     	add	x15, x28, #0x8
+400c0b00: f90001e1     	str	x1, [x15]
+400c0b04: 9100438f     	add	x15, x28, #0x10
+400c0b08: f90001e2     	str	x2, [x15]
+400c0b0c: 14000001     	b	0x400c0b10 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x30>
+400c0b10: 900003ca     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c0b14: 910de14a     	add	x10, x10, #0x378
+400c0b18: f9400149     	ldr	x9, [x10]
+400c0b1c: 9100838f     	add	x15, x28, #0x20
+400c0b20: f90001e9     	str	x9, [x15]
+400c0b24: d2800009     	mov	x9, #0x0                // =0
+400c0b28: 9100a38f     	add	x15, x28, #0x28
+400c0b2c: f90001e9     	str	x9, [x15]
+400c0b30: 9100838f     	add	x15, x28, #0x20
+400c0b34: f94001e9     	ldr	x9, [x15]
+400c0b38: 9100a38f     	add	x15, x28, #0x28
+400c0b3c: f94001ea     	ldr	x10, [x15]
+400c0b40: eb0a013f     	cmp	x9, x10
+400c0b44: 9a9f07e9     	cset	x9, ne
+400c0b48: f100013f     	cmp	x9, #0x0
+400c0b4c: 9a9f07e9     	cset	x9, ne
+400c0b50: 9100c38f     	add	x15, x28, #0x30
+400c0b54: f90001e9     	str	x9, [x15]
+400c0b58: 9100c38f     	add	x15, x28, #0x30
+400c0b5c: f94001e9     	ldr	x9, [x15]
+400c0b60: b5000049     	cbnz	x9, 0x400c0b68 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x88>
+400c0b64: 14000002     	b	0x400c0b6c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x8c>
+400c0b68: 14000020     	b	0x400c0be8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x108>
+400c0b6c: 9100038a     	add	x10, x28, #0x0
+400c0b70: f9400149     	ldr	x9, [x10]
+400c0b74: 9100e38f     	add	x15, x28, #0x38
+400c0b78: f90001e9     	str	x9, [x15]
+400c0b7c: 9100e38f     	add	x15, x28, #0x38
+400c0b80: f94001e0     	ldr	x0, [x15]
+400c0b84: 940042d3     	bl	0x400d16d0 <_O_runtime__aarch64__kernel_world_virtio__can_provision>
+400c0b88: 9101038f     	add	x15, x28, #0x40
+400c0b8c: f90001e0     	str	x0, [x15]
+400c0b90: d2800029     	mov	x9, #0x1                // =1
+400c0b94: 9101238f     	add	x15, x28, #0x48
+400c0b98: f90001e9     	str	x9, [x15]
+400c0b9c: 9101038f     	add	x15, x28, #0x40
+400c0ba0: f94001e9     	ldr	x9, [x15]
+400c0ba4: 9101238f     	add	x15, x28, #0x48
+400c0ba8: f94001ea     	ldr	x10, [x15]
+400c0bac: eb0a013f     	cmp	x9, x10
+400c0bb0: 9a9f07e9     	cset	x9, ne
+400c0bb4: f100013f     	cmp	x9, #0x0
+400c0bb8: 9a9f07e9     	cset	x9, ne
+400c0bbc: 9101438f     	add	x15, x28, #0x50
+400c0bc0: f90001e9     	str	x9, [x15]
+400c0bc4: 9101438f     	add	x15, x28, #0x50
+400c0bc8: f94001e9     	ldr	x9, [x15]
+400c0bcc: 910da38f     	add	x15, x28, #0x368
+400c0bd0: f90001e9     	str	x9, [x15]
+400c0bd4: 910da38f     	add	x15, x28, #0x368
+400c0bd8: f94001e9     	ldr	x9, [x15]
+400c0bdc: 9101838f     	add	x15, x28, #0x60
+400c0be0: f90001e9     	str	x9, [x15]
+400c0be4: 1400000f     	b	0x400c0c20 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x140>
+400c0be8: d2800029     	mov	x9, #0x1                // =1
+400c0bec: f100013f     	cmp	x9, #0x0
+400c0bf0: 9a9f07e9     	cset	x9, ne
+400c0bf4: 9101638f     	add	x15, x28, #0x58
+400c0bf8: f90001e9     	str	x9, [x15]
+400c0bfc: 9101638f     	add	x15, x28, #0x58
+400c0c00: f94001e9     	ldr	x9, [x15]
+400c0c04: 910da38f     	add	x15, x28, #0x368
+400c0c08: f90001e9     	str	x9, [x15]
+400c0c0c: 910da38f     	add	x15, x28, #0x368
+400c0c10: f94001e9     	ldr	x9, [x15]
+400c0c14: 9101838f     	add	x15, x28, #0x60
+400c0c18: f90001e9     	str	x9, [x15]
+400c0c1c: 14000001     	b	0x400c0c20 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x140>
+400c0c20: 9101838f     	add	x15, x28, #0x60
+400c0c24: f94001e9     	ldr	x9, [x15]
+400c0c28: b5000049     	cbnz	x9, 0x400c0c30 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x150>
+400c0c2c: 1400000b     	b	0x400c0c58 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x178>
+400c0c30: 14000001     	b	0x400c0c34 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x154>
+400c0c34: d2800009     	mov	x9, #0x0                // =0
+400c0c38: 9101a38f     	add	x15, x28, #0x68
+400c0c3c: f90001e9     	str	x9, [x15]
+400c0c40: 9101a38f     	add	x15, x28, #0x68
+400c0c44: f94001e0     	ldr	x0, [x15]
+400c0c48: d10043bf     	sub	sp, x29, #0x10
+400c0c4c: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c0c50: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c0c54: d65f03c0     	ret
+400c0c58: 14000001     	b	0x400c0c5c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x17c>
+400c0c5c: d2800029     	mov	x9, #0x1                // =1
+400c0c60: 9101c38f     	add	x15, x28, #0x70
+400c0c64: f90001e9     	str	x9, [x15]
+400c0c68: d2800029     	mov	x9, #0x1                // =1
+400c0c6c: 9101e38f     	add	x15, x28, #0x78
+400c0c70: f90001e9     	str	x9, [x15]
+400c0c74: 9101c38f     	add	x15, x28, #0x70
+400c0c78: f94001e9     	ldr	x9, [x15]
+400c0c7c: 9101e38f     	add	x15, x28, #0x78
+400c0c80: f94001ea     	ldr	x10, [x15]
+400c0c84: eb0a013f     	cmp	x9, x10
+400c0c88: 9a9f17e9     	cset	x9, eq
+400c0c8c: f100013f     	cmp	x9, #0x0
+400c0c90: 9a9f07e9     	cset	x9, ne
+400c0c94: 9102038f     	add	x15, x28, #0x80
+400c0c98: f90001e9     	str	x9, [x15]
+400c0c9c: 9102038f     	add	x15, x28, #0x80
+400c0ca0: f94001e9     	ldr	x9, [x15]
+400c0ca4: b5000049     	cbnz	x9, 0x400c0cac <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x1cc>
+400c0ca8: 14000021     	b	0x400c0d2c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x24c>
+400c0cac: 14000001     	b	0x400c0cb0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x1d0>
+400c0cb0: 9100238a     	add	x10, x28, #0x8
+400c0cb4: f9400149     	ldr	x9, [x10]
+400c0cb8: 9102238f     	add	x15, x28, #0x88
+400c0cbc: f90001e9     	str	x9, [x15]
+400c0cc0: 9102238f     	add	x15, x28, #0x88
+400c0cc4: f94001e0     	ldr	x0, [x15]
+400c0cc8: 9400adee     	bl	0x400ec480 <_O_runtime__aarch64__kernel_world_net__can_provision>
+400c0ccc: 9102438f     	add	x15, x28, #0x90
+400c0cd0: f90001e0     	str	x0, [x15]
+400c0cd4: d2800029     	mov	x9, #0x1                // =1
+400c0cd8: 9102638f     	add	x15, x28, #0x98
+400c0cdc: f90001e9     	str	x9, [x15]
+400c0ce0: 9102438f     	add	x15, x28, #0x90
+400c0ce4: f94001e9     	ldr	x9, [x15]
+400c0ce8: 9102638f     	add	x15, x28, #0x98
+400c0cec: f94001ea     	ldr	x10, [x15]
+400c0cf0: eb0a013f     	cmp	x9, x10
+400c0cf4: 9a9f07e9     	cset	x9, ne
+400c0cf8: f100013f     	cmp	x9, #0x0
+400c0cfc: 9a9f07e9     	cset	x9, ne
+400c0d00: 9102838f     	add	x15, x28, #0xa0
+400c0d04: f90001e9     	str	x9, [x15]
+400c0d08: 9102838f     	add	x15, x28, #0xa0
+400c0d0c: f94001e9     	ldr	x9, [x15]
+400c0d10: 910da38f     	add	x15, x28, #0x368
+400c0d14: f90001e9     	str	x9, [x15]
+400c0d18: 910da38f     	add	x15, x28, #0x368
+400c0d1c: f94001e9     	ldr	x9, [x15]
+400c0d20: 9102c38f     	add	x15, x28, #0xb0
+400c0d24: f90001e9     	str	x9, [x15]
+400c0d28: 1400000f     	b	0x400c0d64 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x284>
+400c0d2c: d2800009     	mov	x9, #0x0                // =0
+400c0d30: f100013f     	cmp	x9, #0x0
+400c0d34: 9a9f07e9     	cset	x9, ne
+400c0d38: 9102a38f     	add	x15, x28, #0xa8
+400c0d3c: f90001e9     	str	x9, [x15]
+400c0d40: 9102a38f     	add	x15, x28, #0xa8
+400c0d44: f94001e9     	ldr	x9, [x15]
+400c0d48: 910da38f     	add	x15, x28, #0x368
+400c0d4c: f90001e9     	str	x9, [x15]
+400c0d50: 910da38f     	add	x15, x28, #0x368
+400c0d54: f94001e9     	ldr	x9, [x15]
+400c0d58: 9102c38f     	add	x15, x28, #0xb0
+400c0d5c: f90001e9     	str	x9, [x15]
+400c0d60: 14000001     	b	0x400c0d64 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x284>
+400c0d64: 9102c38f     	add	x15, x28, #0xb0
+400c0d68: f94001e9     	ldr	x9, [x15]
+400c0d6c: b5000049     	cbnz	x9, 0x400c0d74 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x294>
+400c0d70: 1400000b     	b	0x400c0d9c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x2bc>
+400c0d74: 14000001     	b	0x400c0d78 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x298>
+400c0d78: d2800009     	mov	x9, #0x0                // =0
+400c0d7c: 9102e38f     	add	x15, x28, #0xb8
+400c0d80: f90001e9     	str	x9, [x15]
+400c0d84: 9102e38f     	add	x15, x28, #0xb8
+400c0d88: f94001e0     	ldr	x0, [x15]
+400c0d8c: d10043bf     	sub	sp, x29, #0x10
+400c0d90: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c0d94: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c0d98: d65f03c0     	ret
+400c0d9c: 14000001     	b	0x400c0da0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x2c0>
+400c0da0: d2800029     	mov	x9, #0x1                // =1
+400c0da4: 9103038f     	add	x15, x28, #0xc0
+400c0da8: f90001e9     	str	x9, [x15]
+400c0dac: d2800029     	mov	x9, #0x1                // =1
+400c0db0: 9103238f     	add	x15, x28, #0xc8
+400c0db4: f90001e9     	str	x9, [x15]
+400c0db8: 9103038f     	add	x15, x28, #0xc0
+400c0dbc: f94001e9     	ldr	x9, [x15]
+400c0dc0: 9103238f     	add	x15, x28, #0xc8
+400c0dc4: f94001ea     	ldr	x10, [x15]
+400c0dc8: eb0a013f     	cmp	x9, x10
+400c0dcc: 9a9f17e9     	cset	x9, eq
+400c0dd0: f100013f     	cmp	x9, #0x0
+400c0dd4: 9a9f07e9     	cset	x9, ne
+400c0dd8: 9103438f     	add	x15, x28, #0xd0
+400c0ddc: f90001e9     	str	x9, [x15]
+400c0de0: 9103438f     	add	x15, x28, #0xd0
+400c0de4: f94001e9     	ldr	x9, [x15]
+400c0de8: b5000049     	cbnz	x9, 0x400c0df0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x310>
+400c0dec: 14000021     	b	0x400c0e70 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x390>
+400c0df0: 14000001     	b	0x400c0df4 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x314>
+400c0df4: 9100438a     	add	x10, x28, #0x10
+400c0df8: f9400149     	ldr	x9, [x10]
+400c0dfc: 9103638f     	add	x15, x28, #0xd8
+400c0e00: f90001e9     	str	x9, [x15]
+400c0e04: 9103638f     	add	x15, x28, #0xd8
+400c0e08: f94001e0     	ldr	x0, [x15]
+400c0e0c: 9400d889     	bl	0x400f7030 <_O_runtime__aarch64__kernel_world_9p__can_provision>
+400c0e10: 9103838f     	add	x15, x28, #0xe0
+400c0e14: f90001e0     	str	x0, [x15]
+400c0e18: d2800029     	mov	x9, #0x1                // =1
+400c0e1c: 9103a38f     	add	x15, x28, #0xe8
+400c0e20: f90001e9     	str	x9, [x15]
+400c0e24: 9103838f     	add	x15, x28, #0xe0
+400c0e28: f94001e9     	ldr	x9, [x15]
+400c0e2c: 9103a38f     	add	x15, x28, #0xe8
+400c0e30: f94001ea     	ldr	x10, [x15]
+400c0e34: eb0a013f     	cmp	x9, x10
+400c0e38: 9a9f07e9     	cset	x9, ne
+400c0e3c: f100013f     	cmp	x9, #0x0
+400c0e40: 9a9f07e9     	cset	x9, ne
+400c0e44: 9103c38f     	add	x15, x28, #0xf0
+400c0e48: f90001e9     	str	x9, [x15]
+400c0e4c: 9103c38f     	add	x15, x28, #0xf0
+400c0e50: f94001e9     	ldr	x9, [x15]
+400c0e54: 910da38f     	add	x15, x28, #0x368
+400c0e58: f90001e9     	str	x9, [x15]
+400c0e5c: 910da38f     	add	x15, x28, #0x368
+400c0e60: f94001e9     	ldr	x9, [x15]
+400c0e64: 9104038f     	add	x15, x28, #0x100
+400c0e68: f90001e9     	str	x9, [x15]
+400c0e6c: 1400000f     	b	0x400c0ea8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x3c8>
+400c0e70: d2800009     	mov	x9, #0x0                // =0
+400c0e74: f100013f     	cmp	x9, #0x0
+400c0e78: 9a9f07e9     	cset	x9, ne
+400c0e7c: 9103e38f     	add	x15, x28, #0xf8
+400c0e80: f90001e9     	str	x9, [x15]
+400c0e84: 9103e38f     	add	x15, x28, #0xf8
+400c0e88: f94001e9     	ldr	x9, [x15]
+400c0e8c: 910da38f     	add	x15, x28, #0x368
+400c0e90: f90001e9     	str	x9, [x15]
+400c0e94: 910da38f     	add	x15, x28, #0x368
+400c0e98: f94001e9     	ldr	x9, [x15]
+400c0e9c: 9104038f     	add	x15, x28, #0x100
+400c0ea0: f90001e9     	str	x9, [x15]
+400c0ea4: 14000001     	b	0x400c0ea8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x3c8>
+400c0ea8: 9104038f     	add	x15, x28, #0x100
+400c0eac: f94001e9     	ldr	x9, [x15]
+400c0eb0: b5000049     	cbnz	x9, 0x400c0eb8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x3d8>
+400c0eb4: 1400000b     	b	0x400c0ee0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x400>
+400c0eb8: 14000001     	b	0x400c0ebc <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x3dc>
+400c0ebc: d2800009     	mov	x9, #0x0                // =0
+400c0ec0: 9104238f     	add	x15, x28, #0x108
+400c0ec4: f90001e9     	str	x9, [x15]
+400c0ec8: 9104238f     	add	x15, x28, #0x108
+400c0ecc: f94001e0     	ldr	x0, [x15]
+400c0ed0: d10043bf     	sub	sp, x29, #0x10
+400c0ed4: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c0ed8: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c0edc: d65f03c0     	ret
+400c0ee0: 14000001     	b	0x400c0ee4 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x404>
+400c0ee4: d2800009     	mov	x9, #0x0                // =0
+400c0ee8: f2a80009     	movk	x9, #0x4000, lsl #16
+400c0eec: 9104438f     	add	x15, x28, #0x110
+400c0ef0: f90001e9     	str	x9, [x15]
+400c0ef4: d2800009     	mov	x9, #0x0                // =0
+400c0ef8: f2a40009     	movk	x9, #0x2000, lsl #16
+400c0efc: 9104638f     	add	x15, x28, #0x118
+400c0f00: f90001e9     	str	x9, [x15]
+400c0f04: 9100038a     	add	x10, x28, #0x0
+400c0f08: f9400149     	ldr	x9, [x10]
+400c0f0c: 9104838f     	add	x15, x28, #0x120
+400c0f10: f90001e9     	str	x9, [x15]
+400c0f14: 9104438f     	add	x15, x28, #0x110
+400c0f18: f94001e0     	ldr	x0, [x15]
+400c0f1c: 9104638f     	add	x15, x28, #0x118
+400c0f20: f94001e1     	ldr	x1, [x15]
+400c0f24: 9104838f     	add	x15, x28, #0x120
+400c0f28: f94001e2     	ldr	x2, [x15]
+400c0f2c: 94000ff9     	bl	0x400c4f10 <_O_runtime__aarch64__kernel_world_virtio__init>
+400c0f30: 9104a38f     	add	x15, x28, #0x128
+400c0f34: f90001e0     	str	x0, [x15]
+400c0f38: d2800029     	mov	x9, #0x1                // =1
+400c0f3c: 9104c38f     	add	x15, x28, #0x130
+400c0f40: f90001e9     	str	x9, [x15]
+400c0f44: 9104a38f     	add	x15, x28, #0x128
+400c0f48: f94001e9     	ldr	x9, [x15]
+400c0f4c: 9104c38f     	add	x15, x28, #0x130
+400c0f50: f94001ea     	ldr	x10, [x15]
+400c0f54: eb0a013f     	cmp	x9, x10
+400c0f58: 9a9f07e9     	cset	x9, ne
+400c0f5c: f100013f     	cmp	x9, #0x0
+400c0f60: 9a9f07e9     	cset	x9, ne
+400c0f64: 9104e38f     	add	x15, x28, #0x138
+400c0f68: f90001e9     	str	x9, [x15]
+400c0f6c: 9104e38f     	add	x15, x28, #0x138
+400c0f70: f94001e9     	ldr	x9, [x15]
+400c0f74: b5000049     	cbnz	x9, 0x400c0f7c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x49c>
+400c0f78: 1400000b     	b	0x400c0fa4 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x4c4>
+400c0f7c: 14000001     	b	0x400c0f80 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x4a0>
+400c0f80: d2800009     	mov	x9, #0x0                // =0
+400c0f84: 9105038f     	add	x15, x28, #0x140
+400c0f88: f90001e9     	str	x9, [x15]
+400c0f8c: 9105038f     	add	x15, x28, #0x140
+400c0f90: f94001e0     	ldr	x0, [x15]
+400c0f94: d10043bf     	sub	sp, x29, #0x10
+400c0f98: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c0f9c: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c0fa0: d65f03c0     	ret
+400c0fa4: 14000001     	b	0x400c0fa8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x4c8>
+400c0fa8: d2800029     	mov	x9, #0x1                // =1
+400c0fac: 9105238f     	add	x15, x28, #0x148
+400c0fb0: f90001e9     	str	x9, [x15]
+400c0fb4: d2800029     	mov	x9, #0x1                // =1
+400c0fb8: 9105438f     	add	x15, x28, #0x150
+400c0fbc: f90001e9     	str	x9, [x15]
+400c0fc0: 9105238f     	add	x15, x28, #0x148
+400c0fc4: f94001e9     	ldr	x9, [x15]
+400c0fc8: 9105438f     	add	x15, x28, #0x150
+400c0fcc: f94001ea     	ldr	x10, [x15]
+400c0fd0: eb0a013f     	cmp	x9, x10
+400c0fd4: 9a9f17e9     	cset	x9, eq
+400c0fd8: f100013f     	cmp	x9, #0x0
+400c0fdc: 9a9f07e9     	cset	x9, ne
+400c0fe0: 9105638f     	add	x15, x28, #0x158
+400c0fe4: f90001e9     	str	x9, [x15]
+400c0fe8: 9105638f     	add	x15, x28, #0x158
+400c0fec: f94001e9     	ldr	x9, [x15]
+400c0ff0: b5000049     	cbnz	x9, 0x400c0ff8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x518>
+400c0ff4: 1400002d     	b	0x400c10a8 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x5c8>
+400c0ff8: 14000001     	b	0x400c0ffc <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x51c>
+400c0ffc: d2800009     	mov	x9, #0x0                // =0
+400c1000: f2a80009     	movk	x9, #0x4000, lsl #16
+400c1004: 9105838f     	add	x15, x28, #0x160
+400c1008: f90001e9     	str	x9, [x15]
+400c100c: d2800009     	mov	x9, #0x0                // =0
+400c1010: f2a40009     	movk	x9, #0x2000, lsl #16
+400c1014: 9105a38f     	add	x15, x28, #0x168
+400c1018: f90001e9     	str	x9, [x15]
+400c101c: 9100238a     	add	x10, x28, #0x8
+400c1020: f9400149     	ldr	x9, [x10]
+400c1024: 9105c38f     	add	x15, x28, #0x170
+400c1028: f90001e9     	str	x9, [x15]
+400c102c: 9105838f     	add	x15, x28, #0x160
+400c1030: f94001e0     	ldr	x0, [x15]
+400c1034: 9105a38f     	add	x15, x28, #0x168
+400c1038: f94001e1     	ldr	x1, [x15]
+400c103c: 9105c38f     	add	x15, x28, #0x170
+400c1040: f94001e2     	ldr	x2, [x15]
+400c1044: 9400adbf     	bl	0x400ec740 <_O_runtime__aarch64__kernel_world_net__provision>
+400c1048: 9105e38f     	add	x15, x28, #0x178
+400c104c: f90001e0     	str	x0, [x15]
+400c1050: d2800029     	mov	x9, #0x1                // =1
+400c1054: 9106038f     	add	x15, x28, #0x180
+400c1058: f90001e9     	str	x9, [x15]
+400c105c: 9105e38f     	add	x15, x28, #0x178
+400c1060: f94001e9     	ldr	x9, [x15]
+400c1064: 9106038f     	add	x15, x28, #0x180
+400c1068: f94001ea     	ldr	x10, [x15]
+400c106c: eb0a013f     	cmp	x9, x10
+400c1070: 9a9f07e9     	cset	x9, ne
+400c1074: f100013f     	cmp	x9, #0x0
+400c1078: 9a9f07e9     	cset	x9, ne
+400c107c: 9106238f     	add	x15, x28, #0x188
+400c1080: f90001e9     	str	x9, [x15]
+400c1084: 9106238f     	add	x15, x28, #0x188
+400c1088: f94001e9     	ldr	x9, [x15]
+400c108c: 910da38f     	add	x15, x28, #0x368
+400c1090: f90001e9     	str	x9, [x15]
+400c1094: 910da38f     	add	x15, x28, #0x368
+400c1098: f94001e9     	ldr	x9, [x15]
+400c109c: 9106638f     	add	x15, x28, #0x198
+400c10a0: f90001e9     	str	x9, [x15]
+400c10a4: 1400000f     	b	0x400c10e0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x600>
+400c10a8: d2800009     	mov	x9, #0x0                // =0
+400c10ac: f100013f     	cmp	x9, #0x0
+400c10b0: 9a9f07e9     	cset	x9, ne
+400c10b4: 9106438f     	add	x15, x28, #0x190
+400c10b8: f90001e9     	str	x9, [x15]
+400c10bc: 9106438f     	add	x15, x28, #0x190
+400c10c0: f94001e9     	ldr	x9, [x15]
+400c10c4: 910da38f     	add	x15, x28, #0x368
+400c10c8: f90001e9     	str	x9, [x15]
+400c10cc: 910da38f     	add	x15, x28, #0x368
+400c10d0: f94001e9     	ldr	x9, [x15]
+400c10d4: 9106638f     	add	x15, x28, #0x198
+400c10d8: f90001e9     	str	x9, [x15]
+400c10dc: 14000001     	b	0x400c10e0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x600>
+400c10e0: 9106638f     	add	x15, x28, #0x198
+400c10e4: f94001e9     	ldr	x9, [x15]
+400c10e8: b5000049     	cbnz	x9, 0x400c10f0 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x610>
+400c10ec: 1400000b     	b	0x400c1118 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x638>
+400c10f0: 14000001     	b	0x400c10f4 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x614>
+400c10f4: d2800009     	mov	x9, #0x0                // =0
+400c10f8: 9106838f     	add	x15, x28, #0x1a0
+400c10fc: f90001e9     	str	x9, [x15]
+400c1100: 9106838f     	add	x15, x28, #0x1a0
+400c1104: f94001e0     	ldr	x0, [x15]
+400c1108: d10043bf     	sub	sp, x29, #0x10
+400c110c: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c1110: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c1114: d65f03c0     	ret
+400c1118: 14000001     	b	0x400c111c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x63c>
+400c111c: d2800029     	mov	x9, #0x1                // =1
+400c1120: 9106a38f     	add	x15, x28, #0x1a8
+400c1124: f90001e9     	str	x9, [x15]
+400c1128: d2800029     	mov	x9, #0x1                // =1
+400c112c: 9106c38f     	add	x15, x28, #0x1b0
+400c1130: f90001e9     	str	x9, [x15]
+400c1134: 9106a38f     	add	x15, x28, #0x1a8
+400c1138: f94001e9     	ldr	x9, [x15]
+400c113c: 9106c38f     	add	x15, x28, #0x1b0
+400c1140: f94001ea     	ldr	x10, [x15]
+400c1144: eb0a013f     	cmp	x9, x10
+400c1148: 9a9f17e9     	cset	x9, eq
+400c114c: f100013f     	cmp	x9, #0x0
+400c1150: 9a9f07e9     	cset	x9, ne
+400c1154: 9106e38f     	add	x15, x28, #0x1b8
+400c1158: f90001e9     	str	x9, [x15]
+400c115c: 9106e38f     	add	x15, x28, #0x1b8
+400c1160: f94001e9     	ldr	x9, [x15]
+400c1164: b5000049     	cbnz	x9, 0x400c116c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x68c>
+400c1168: 1400002d     	b	0x400c121c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x73c>
+400c116c: 14000001     	b	0x400c1170 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x690>
+400c1170: d2800009     	mov	x9, #0x0                // =0
+400c1174: f2a80009     	movk	x9, #0x4000, lsl #16
+400c1178: 9107038f     	add	x15, x28, #0x1c0
+400c117c: f90001e9     	str	x9, [x15]
+400c1180: d2800009     	mov	x9, #0x0                // =0
+400c1184: f2a40009     	movk	x9, #0x2000, lsl #16
+400c1188: 9107238f     	add	x15, x28, #0x1c8
+400c118c: f90001e9     	str	x9, [x15]
+400c1190: 9100438a     	add	x10, x28, #0x10
+400c1194: f9400149     	ldr	x9, [x10]
+400c1198: 9107438f     	add	x15, x28, #0x1d0
+400c119c: f90001e9     	str	x9, [x15]
+400c11a0: 9107038f     	add	x15, x28, #0x1c0
+400c11a4: f94001e0     	ldr	x0, [x15]
+400c11a8: 9107238f     	add	x15, x28, #0x1c8
+400c11ac: f94001e1     	ldr	x1, [x15]
+400c11b0: 9107438f     	add	x15, x28, #0x1d0
+400c11b4: f94001e2     	ldr	x2, [x15]
+400c11b8: 9400d4a6     	bl	0x400f6450 <_O_runtime__aarch64__kernel_world_9p__provision>
+400c11bc: 9107638f     	add	x15, x28, #0x1d8
+400c11c0: f90001e0     	str	x0, [x15]
+400c11c4: d2800029     	mov	x9, #0x1                // =1
+400c11c8: 9107838f     	add	x15, x28, #0x1e0
+400c11cc: f90001e9     	str	x9, [x15]
+400c11d0: 9107638f     	add	x15, x28, #0x1d8
+400c11d4: f94001e9     	ldr	x9, [x15]
+400c11d8: 9107838f     	add	x15, x28, #0x1e0
+400c11dc: f94001ea     	ldr	x10, [x15]
+400c11e0: eb0a013f     	cmp	x9, x10
+400c11e4: 9a9f07e9     	cset	x9, ne
+400c11e8: f100013f     	cmp	x9, #0x0
+400c11ec: 9a9f07e9     	cset	x9, ne
+400c11f0: 9107a38f     	add	x15, x28, #0x1e8
+400c11f4: f90001e9     	str	x9, [x15]
+400c11f8: 9107a38f     	add	x15, x28, #0x1e8
+400c11fc: f94001e9     	ldr	x9, [x15]
+400c1200: 910da38f     	add	x15, x28, #0x368
+400c1204: f90001e9     	str	x9, [x15]
+400c1208: 910da38f     	add	x15, x28, #0x368
+400c120c: f94001e9     	ldr	x9, [x15]
+400c1210: 9107e38f     	add	x15, x28, #0x1f8
+400c1214: f90001e9     	str	x9, [x15]
+400c1218: 1400000f     	b	0x400c1254 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x774>
+400c121c: d2800009     	mov	x9, #0x0                // =0
+400c1220: f100013f     	cmp	x9, #0x0
+400c1224: 9a9f07e9     	cset	x9, ne
+400c1228: 9107c38f     	add	x15, x28, #0x1f0
+400c122c: f90001e9     	str	x9, [x15]
+400c1230: 9107c38f     	add	x15, x28, #0x1f0
+400c1234: f94001e9     	ldr	x9, [x15]
+400c1238: 910da38f     	add	x15, x28, #0x368
+400c123c: f90001e9     	str	x9, [x15]
+400c1240: 910da38f     	add	x15, x28, #0x368
+400c1244: f94001e9     	ldr	x9, [x15]
+400c1248: 9107e38f     	add	x15, x28, #0x1f8
+400c124c: f90001e9     	str	x9, [x15]
+400c1250: 14000001     	b	0x400c1254 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x774>
+400c1254: 9107e38f     	add	x15, x28, #0x1f8
+400c1258: f94001e9     	ldr	x9, [x15]
+400c125c: b5000049     	cbnz	x9, 0x400c1264 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x784>
+400c1260: 1400000b     	b	0x400c128c <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x7ac>
+400c1264: 14000001     	b	0x400c1268 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x788>
+400c1268: d2800009     	mov	x9, #0x0                // =0
+400c126c: 9108038f     	add	x15, x28, #0x200
+400c1270: f90001e9     	str	x9, [x15]
+400c1274: 9108038f     	add	x15, x28, #0x200
+400c1278: f94001e0     	ldr	x0, [x15]
+400c127c: d10043bf     	sub	sp, x29, #0x10
+400c1280: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c1284: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c1288: d65f03c0     	ret
+400c128c: 14000001     	b	0x400c1290 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x7b0>
+400c1290: d2800009     	mov	x9, #0x0                // =0
+400c1294: 9108238f     	add	x15, x28, #0x208
+400c1298: f90001e9     	str	x9, [x15]
+400c129c: 9108238f     	add	x15, x28, #0x208
+400c12a0: f94001e9     	ldr	x9, [x15]
+400c12a4: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c12a8: 910e014a     	add	x10, x10, #0x380
+400c12ac: f9000149     	str	x9, [x10]
+400c12b0: d2800009     	mov	x9, #0x0                // =0
+400c12b4: 9108438f     	add	x15, x28, #0x210
+400c12b8: f90001e9     	str	x9, [x15]
+400c12bc: d2800009     	mov	x9, #0x0                // =0
+400c12c0: 9108638f     	add	x15, x28, #0x218
+400c12c4: f90001e9     	str	x9, [x15]
+400c12c8: 9108638f     	add	x15, x28, #0x218
+400c12cc: f94001e9     	ldr	x9, [x15]
+400c12d0: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c12d4: 910e214a     	add	x10, x10, #0x388
+400c12d8: f9000149     	str	x9, [x10]
+400c12dc: d2800009     	mov	x9, #0x0                // =0
+400c12e0: 9108838f     	add	x15, x28, #0x220
+400c12e4: f90001e9     	str	x9, [x15]
+400c12e8: d2800009     	mov	x9, #0x0                // =0
+400c12ec: 9108a38f     	add	x15, x28, #0x228
+400c12f0: f90001e9     	str	x9, [x15]
+400c12f4: 9108a38f     	add	x15, x28, #0x228
+400c12f8: f94001e9     	ldr	x9, [x15]
+400c12fc: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c1300: 910e414a     	add	x10, x10, #0x390
+400c1304: f9000149     	str	x9, [x10]
+400c1308: d2800009     	mov	x9, #0x0                // =0
+400c130c: 9108c38f     	add	x15, x28, #0x230
+400c1310: f90001e9     	str	x9, [x15]
+400c1314: d2800009     	mov	x9, #0x0                // =0
+400c1318: 9108e38f     	add	x15, x28, #0x238
+400c131c: f90001e9     	str	x9, [x15]
+400c1320: 9108e38f     	add	x15, x28, #0x238
+400c1324: f94001e9     	ldr	x9, [x15]
+400c1328: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c132c: 910e614a     	add	x10, x10, #0x398
+400c1330: f9000149     	str	x9, [x10]
+400c1334: d2800009     	mov	x9, #0x0                // =0
+400c1338: 9109038f     	add	x15, x28, #0x240
+400c133c: f90001e9     	str	x9, [x15]
+400c1340: d2800009     	mov	x9, #0x0                // =0
+400c1344: 9109238f     	add	x15, x28, #0x248
+400c1348: f90001e9     	str	x9, [x15]
+400c134c: 9109238f     	add	x15, x28, #0x248
+400c1350: f94001e9     	ldr	x9, [x15]
+400c1354: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c1358: 9112814a     	add	x10, x10, #0x4a0
+400c135c: f9000149     	str	x9, [x10]
+400c1360: d2800009     	mov	x9, #0x0                // =0
+400c1364: 9109438f     	add	x15, x28, #0x250
+400c1368: f90001e9     	str	x9, [x15]
+400c136c: d2800009     	mov	x9, #0x0                // =0
+400c1370: 9109638f     	add	x15, x28, #0x258
+400c1374: f90001e9     	str	x9, [x15]
+400c1378: 9109638f     	add	x15, x28, #0x258
+400c137c: f94001e9     	ldr	x9, [x15]
+400c1380: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c1384: 9112a14a     	add	x10, x10, #0x4a8
+400c1388: f9000149     	str	x9, [x10]
+400c138c: d2800009     	mov	x9, #0x0                // =0
+400c1390: 9109838f     	add	x15, x28, #0x260
+400c1394: f90001e9     	str	x9, [x15]
+400c1398: d2800009     	mov	x9, #0x0                // =0
+400c139c: 9109a38f     	add	x15, x28, #0x268
+400c13a0: f90001e9     	str	x9, [x15]
+400c13a4: 9109a38f     	add	x15, x28, #0x268
+400c13a8: f94001e9     	ldr	x9, [x15]
+400c13ac: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c13b0: 911ac14a     	add	x10, x10, #0x6b0
+400c13b4: f9000149     	str	x9, [x10]
+400c13b8: d2800009     	mov	x9, #0x0                // =0
+400c13bc: 9109c38f     	add	x15, x28, #0x270
+400c13c0: f90001e9     	str	x9, [x15]
+400c13c4: d2800009     	mov	x9, #0x0                // =0
+400c13c8: 9109e38f     	add	x15, x28, #0x278
+400c13cc: f90001e9     	str	x9, [x15]
+400c13d0: 9109e38f     	add	x15, x28, #0x278
+400c13d4: f94001e9     	ldr	x9, [x15]
+400c13d8: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c13dc: 911ae14a     	add	x10, x10, #0x6b8
+400c13e0: f9000149     	str	x9, [x10]
+400c13e4: d2800009     	mov	x9, #0x0                // =0
+400c13e8: 910a038f     	add	x15, x28, #0x280
+400c13ec: f90001e9     	str	x9, [x15]
+400c13f0: d2800009     	mov	x9, #0x0                // =0
+400c13f4: 910a238f     	add	x15, x28, #0x288
+400c13f8: f90001e9     	str	x9, [x15]
+400c13fc: 910a238f     	add	x15, x28, #0x288
+400c1400: f94001e9     	ldr	x9, [x15]
+400c1404: 9100638a     	add	x10, x28, #0x18
+400c1408: f9000149     	str	x9, [x10]
+400c140c: 14000001     	b	0x400c1410 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x930>
+400c1410: 9100638a     	add	x10, x28, #0x18
+400c1414: f9400149     	ldr	x9, [x10]
+400c1418: 910a438f     	add	x15, x28, #0x290
+400c141c: f90001e9     	str	x9, [x15]
+400c1420: d2800809     	mov	x9, #0x40               // =64
+400c1424: 910a638f     	add	x15, x28, #0x298
+400c1428: f90001e9     	str	x9, [x15]
+400c142c: 910a438f     	add	x15, x28, #0x290
+400c1430: f94001e9     	ldr	x9, [x15]
+400c1434: 910a638f     	add	x15, x28, #0x298
+400c1438: f94001ea     	ldr	x10, [x15]
+400c143c: eb0a013f     	cmp	x9, x10
+400c1440: 9a9f27e9     	cset	x9, lo
+400c1444: f100013f     	cmp	x9, #0x0
+400c1448: 9a9f07e9     	cset	x9, ne
+400c144c: 910a838f     	add	x15, x28, #0x2a0
+400c1450: f90001e9     	str	x9, [x15]
+400c1454: 910a838f     	add	x15, x28, #0x2a0
+400c1458: f94001e9     	ldr	x9, [x15]
+400c145c: b5000049     	cbnz	x9, 0x400c1464 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x984>
+400c1460: 1400002d     	b	0x400c1514 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0xa34>
+400c1464: 14000001     	b	0x400c1468 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x988>
+400c1468: 9100638a     	add	x10, x28, #0x18
+400c146c: f9400149     	ldr	x9, [x10]
+400c1470: 910aa38f     	add	x15, x28, #0x2a8
+400c1474: f90001e9     	str	x9, [x15]
+400c1478: d2800009     	mov	x9, #0x0                // =0
+400c147c: 2a0903e9     	mov	w9, w9
+400c1480: 910ac38f     	add	x15, x28, #0x2b0
+400c1484: f90001e9     	str	x9, [x15]
+400c1488: 910ac38f     	add	x15, x28, #0x2b0
+400c148c: f94001e9     	ldr	x9, [x15]
+400c1490: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c1494: 9112c14a     	add	x10, x10, #0x4b0
+400c1498: 910aa38f     	add	x15, x28, #0x2a8
+400c149c: f94001f1     	ldr	x17, [x15]
+400c14a0: d2800090     	mov	x16, #0x4               // =4
+400c14a4: 9b107e31     	mul	x17, x17, x16
+400c14a8: 8b11014a     	add	x10, x10, x17
+400c14ac: b9000149     	str	w9, [x10]
+400c14b0: d2800009     	mov	x9, #0x0                // =0
+400c14b4: 910ae38f     	add	x15, x28, #0x2b8
+400c14b8: f90001e9     	str	x9, [x15]
+400c14bc: 9100638a     	add	x10, x28, #0x18
+400c14c0: f9400149     	ldr	x9, [x10]
+400c14c4: 910b038f     	add	x15, x28, #0x2c0
+400c14c8: f90001e9     	str	x9, [x15]
+400c14cc: d2800029     	mov	x9, #0x1                // =1
+400c14d0: 910b238f     	add	x15, x28, #0x2c8
+400c14d4: f90001e9     	str	x9, [x15]
+400c14d8: 910b038f     	add	x15, x28, #0x2c0
+400c14dc: f94001e9     	ldr	x9, [x15]
+400c14e0: 910b238f     	add	x15, x28, #0x2c8
+400c14e4: f94001ea     	ldr	x10, [x15]
+400c14e8: 8b0a0129     	add	x9, x9, x10
+400c14ec: 910b438f     	add	x15, x28, #0x2d0
+400c14f0: f90001e9     	str	x9, [x15]
+400c14f4: 910b438f     	add	x15, x28, #0x2d0
+400c14f8: f94001e9     	ldr	x9, [x15]
+400c14fc: 9100638a     	add	x10, x28, #0x18
+400c1500: f9000149     	str	x9, [x10]
+400c1504: d2800009     	mov	x9, #0x0                // =0
+400c1508: 910b638f     	add	x15, x28, #0x2d8
+400c150c: f90001e9     	str	x9, [x15]
+400c1510: 17ffffc0     	b	0x400c1410 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0x930>
+400c1514: d2800009     	mov	x9, #0x0                // =0
+400c1518: 910b838f     	add	x15, x28, #0x2e0
+400c151c: f90001e9     	str	x9, [x15]
+400c1520: 910b838f     	add	x15, x28, #0x2e0
+400c1524: f94001e9     	ldr	x9, [x15]
+400c1528: 9100638a     	add	x10, x28, #0x18
+400c152c: f9000149     	str	x9, [x10]
+400c1530: d2800009     	mov	x9, #0x0                // =0
+400c1534: 910ba38f     	add	x15, x28, #0x2e8
+400c1538: f90001e9     	str	x9, [x15]
+400c153c: 14000001     	b	0x400c1540 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0xa60>
+400c1540: 9100638a     	add	x10, x28, #0x18
+400c1544: f9400149     	ldr	x9, [x10]
+400c1548: 910bc38f     	add	x15, x28, #0x2f0
+400c154c: f90001e9     	str	x9, [x15]
+400c1550: d2802009     	mov	x9, #0x100              // =256
+400c1554: 910be38f     	add	x15, x28, #0x2f8
+400c1558: f90001e9     	str	x9, [x15]
+400c155c: 910bc38f     	add	x15, x28, #0x2f0
+400c1560: f94001e9     	ldr	x9, [x15]
+400c1564: 910be38f     	add	x15, x28, #0x2f8
+400c1568: f94001ea     	ldr	x10, [x15]
+400c156c: eb0a013f     	cmp	x9, x10
+400c1570: 9a9f27e9     	cset	x9, lo
+400c1574: f100013f     	cmp	x9, #0x0
+400c1578: 9a9f07e9     	cset	x9, ne
+400c157c: 910c038f     	add	x15, x28, #0x300
+400c1580: f90001e9     	str	x9, [x15]
+400c1584: 910c038f     	add	x15, x28, #0x300
+400c1588: f94001e9     	ldr	x9, [x15]
+400c158c: b5000049     	cbnz	x9, 0x400c1594 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0xab4>
+400c1590: 1400003e     	b	0x400c1688 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0xba8>
+400c1594: 14000001     	b	0x400c1598 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0xab8>
+400c1598: 9100638a     	add	x10, x28, #0x18
+400c159c: f9400149     	ldr	x9, [x10]
+400c15a0: 910c238f     	add	x15, x28, #0x308
+400c15a4: f90001e9     	str	x9, [x15]
+400c15a8: d2800009     	mov	x9, #0x0                // =0
+400c15ac: 53001d29     	uxtb	w9, w9
+400c15b0: 910c438f     	add	x15, x28, #0x310
+400c15b4: f90001e9     	str	x9, [x15]
+400c15b8: 910c438f     	add	x15, x28, #0x310
+400c15bc: f94001e9     	ldr	x9, [x15]
+400c15c0: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c15c4: 9116c14a     	add	x10, x10, #0x5b0
+400c15c8: 910c238f     	add	x15, x28, #0x308
+400c15cc: f94001f1     	ldr	x17, [x15]
+400c15d0: 8b11014a     	add	x10, x10, x17
+400c15d4: 39000149     	strb	w9, [x10]
+400c15d8: d2800009     	mov	x9, #0x0                // =0
+400c15dc: 910c638f     	add	x15, x28, #0x318
+400c15e0: f90001e9     	str	x9, [x15]
+400c15e4: 9100638a     	add	x10, x28, #0x18
+400c15e8: f9400149     	ldr	x9, [x10]
+400c15ec: 910c838f     	add	x15, x28, #0x320
+400c15f0: f90001e9     	str	x9, [x15]
+400c15f4: d2800009     	mov	x9, #0x0                // =0
+400c15f8: 53001d29     	uxtb	w9, w9
+400c15fc: 910ca38f     	add	x15, x28, #0x328
+400c1600: f90001e9     	str	x9, [x15]
+400c1604: 910ca38f     	add	x15, x28, #0x328
+400c1608: f94001e9     	ldr	x9, [x15]
+400c160c: f00003aa     	adrp	x10, 0x40138000 <_O_runtime__aarch64__linux_restart_witness__CURRENT+0x3c88>
+400c1610: 910e814a     	add	x10, x10, #0x3a0
+400c1614: 910c838f     	add	x15, x28, #0x320
+400c1618: f94001f1     	ldr	x17, [x15]
+400c161c: 8b11014a     	add	x10, x10, x17
+400c1620: 39000149     	strb	w9, [x10]
+400c1624: d2800009     	mov	x9, #0x0                // =0
+400c1628: 910cc38f     	add	x15, x28, #0x330
+400c162c: f90001e9     	str	x9, [x15]
+400c1630: 9100638a     	add	x10, x28, #0x18
+400c1634: f9400149     	ldr	x9, [x10]
+400c1638: 910ce38f     	add	x15, x28, #0x338
+400c163c: f90001e9     	str	x9, [x15]
+400c1640: d2800029     	mov	x9, #0x1                // =1
+400c1644: 910d038f     	add	x15, x28, #0x340
+400c1648: f90001e9     	str	x9, [x15]
+400c164c: 910ce38f     	add	x15, x28, #0x338
+400c1650: f94001e9     	ldr	x9, [x15]
+400c1654: 910d038f     	add	x15, x28, #0x340
+400c1658: f94001ea     	ldr	x10, [x15]
+400c165c: 8b0a0129     	add	x9, x9, x10
+400c1660: 910d238f     	add	x15, x28, #0x348
+400c1664: f90001e9     	str	x9, [x15]
+400c1668: 910d238f     	add	x15, x28, #0x348
+400c166c: f94001e9     	ldr	x9, [x15]
+400c1670: 9100638a     	add	x10, x28, #0x18
+400c1674: f9000149     	str	x9, [x10]
+400c1678: d2800009     	mov	x9, #0x0                // =0
+400c167c: 910d438f     	add	x15, x28, #0x350
+400c1680: f90001e9     	str	x9, [x15]
+400c1684: 17ffffaf     	b	0x400c1540 <_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision+0xa60>
+400c1688: 97ffc97e     	bl	0x400b3c80 <_O_runtime__aarch64__kernel_world_monitor__uart_interrupt>
+400c168c: d2800009     	mov	x9, #0x0                // =0
+400c1690: 910d638f     	add	x15, x28, #0x358
+400c1694: f90001e9     	str	x9, [x15]
+400c1698: d2800029     	mov	x9, #0x1                // =1
+400c169c: 910d838f     	add	x15, x28, #0x360
+400c16a0: f90001e9     	str	x9, [x15]
+400c16a4: 910d838f     	add	x15, x28, #0x360
+400c16a8: f94001e0     	ldr	x0, [x15]
+400c16ac: d10043bf     	sub	sp, x29, #0x10
+400c16b0: a8c17ffc     	ldp	x28, xzr, [sp], #0x10
+400c16b4: a8c17bfd     	ldp	x29, x30, [sp], #0x10
+400c16b8: d65f03c0     	ret
+400c16bc: d503201f     	nop

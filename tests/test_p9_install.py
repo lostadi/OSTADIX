@@ -242,14 +242,23 @@ class P9InstallTests(unittest.TestCase):
         self.assertFalse(self.bin.exists())
         self.assertEqual(list(self.private.iterdir()), [])
 
-    def test_actual_linux_mount_rendering_requires_native_legacy_virtio(self):
-        mount = {"id": "native", "path": "/n/okernel", "filesystem": "9p", "source": "okernel", "options": {"noextend", "trans=virtio"}}
-        self.assertEqual(INSTALLER.require_native_mount(mount), "native")
+    def test_actual_linux_mount_rendering_accepts_only_admitted_native_dialects(self):
+        mount = {"id": "native", "path": "/n/okernel", "filesystem": "9p", "source": "okernel",
+                 "options": {"noextend", "trans=virtio"}}
+        for options in ({"noextend", "trans=virtio"},
+                        {"trans=virtio", "version=9p2000.u"},
+                        {"rw", "trans=virtio", "version=9p2000.u", "msize=8192"}):
+            with self.subTest(accepted=options):
+                self.assertEqual(INSTALLER.require_native_mount({**mount, "options": options}), "native")
         for key, value in (("path", "/tmp/okernel"), ("source", "host"), ("filesystem", "ext4"),
                            ("options", {"trans=virtio"}),
-                           ("options", {"trans=virtio", "version=9p2000.u"}),
+                           ("options", {"trans=virtio", "version=9p2000.L"}),
+                           ("options", {"trans=virtio", "version=9p2000"}),
                            ("options", {"trans=tcp", "noextend"}),
-                           ("options", {"trans=virtio", "noextend", "version=9p2000.u"})):
+                           ("options", {"trans=tcp", "version=9p2000.u"}),
+                           ("options", {"trans=virtio", "trans=tcp", "version=9p2000.u"}),
+                           ("options", {"trans=virtio", "noextend", "version=9p2000.u"}),
+                           ("options", {"trans=virtio", "version=9p2000.u", "version=9p2000.L"})):
             with self.subTest(key=key, value=value), self.assertRaises(INSTALLER.InstallError):
                 INSTALLER.require_native_mount({**mount, key: value})
 

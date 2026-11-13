@@ -1,0 +1,367 @@
+diff --git a/ocore/runtime/aarch64/kernel_world_9p.oc b/ocore/runtime/aarch64/kernel_world_9p.oc
+index 9d512e82..b9e24de6 100644
+--- a/ocore/runtime/aarch64/kernel_world_9p.oc
++++ b/ocore/runtime/aarch64/kernel_world_9p.oc
+@@ -382,9 +382,11 @@ pub unsafe fn detach(expected: u64) -> u64 {
+ }
+ 
+ // Replacement allocates mechanism state without minting or binding authority.
++// Transport generations retain the full u64 boot epoch; O10 domain/lease
++// handle generations use their separate bounded vocabulary.
+ pub unsafe fn provision(guest_base: u64, guest_size: u64, next: u64) -> u64 {
+     if ACTIVE != 0 || guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
+-        || next == 0 || next > 0xffff_ffff || next <= GENERATION { return 0; }
++        || next == 0 || next <= GENERATION { return 0; }
+     RAM_BASE = guest_base; RAM_SIZE = guest_size; GENERATION = next;
+     ACTIVE = 1; BOUND = 0; SESSION = 0; DENIED_COUNT = 0; COMPLETED = 0;
+     return reset_transport();
+@@ -399,7 +401,7 @@ pub unsafe fn bind_current(expected: u64, session: u64, epoch: u64) -> u64 {
+ 
+ 
+ pub unsafe fn can_provision(next: u64) -> u64 {
+-    return (ACTIVE == 0 && next != 0 && next <= 0xffff_ffff && next > GENERATION) as u64;
++    return (ACTIVE == 0 && next != 0 && next > GENERATION) as u64;
+ }
+ pub unsafe fn bound() -> u64 { return BOUND; }
+ 
+diff --git a/ocore/runtime/aarch64/unified_world.oc b/ocore/runtime/aarch64/unified_world.oc
+index dcc70c6e..fa2c8e06 100644
+--- a/ocore/runtime/aarch64/unified_world.oc
++++ b/ocore/runtime/aarch64/unified_world.oc
+@@ -643,7 +643,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
+                 return o10_error(response, 512, tag, 5, 0);
+             }
+             if O10_DOMAIN_GENERATION[0] == 0xffff_ffff || linux_block_generation() == 0xffff_ffff
+-                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == 0xffff_ffff {
++                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == MAX {
+                 return o10_error(response, 512, tag, 8, 0xffff_ffff);
+             }
+             if linux_images_reload() != 0 { return o10_error(response, 512, tag, 12, 4); }
+diff --git a/scripts/verify_okernel_unified_client.py b/scripts/verify_okernel_unified_client.py
+index c4f44d18..9ab73880 100755
+--- a/scripts/verify_okernel_unified_client.py
++++ b/scripts/verify_okernel_unified_client.py
+@@ -37,9 +37,9 @@ O10_M0_PROFILE = "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae029
+ O10_M1_R7_MONITOR = "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
+ O10_M1_R7_PROFILE = "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938"
+ # Private M2 candidate admission for live/regression gates only; qualification is pending.
+-# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4
+-O10_M2_MONITOR = "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869"
+-O10_M2_PROFILE = "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d"
++# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5
++O10_M2_MONITOR = "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
++O10_M2_PROFILE = "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+ MONITOR_REVISIONS = {O10_M2_MONITOR: "O10-M2-private-candidate", O10_M1_R7_MONITOR: "O10-M1-R7-resident-candidate", O10_M0_MONITOR: "O10-M0-live", R8_MONITOR: "R8", R9_MONITOR: "R9", R10_MONITOR: "R10-idle-traffic"}
+ MONITOR_PROFILES = {
+     O10_M2_MONITOR: O10_M2_PROFILE,
+diff --git a/scripts/verify_okernel_unified_runtime.py b/scripts/verify_okernel_unified_runtime.py
+index 880e2abc..5ed6b84a 100644
+--- a/scripts/verify_okernel_unified_runtime.py
++++ b/scripts/verify_okernel_unified_runtime.py
+@@ -43,9 +43,9 @@ O10_M0_PROFILE = "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae029
+ O10_M1_R7_MONITOR = "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
+ O10_M1_R7_PROFILE = "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938"
+ # Private M2 candidate admission for live/regression gates only; qualification is pending.
+-# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4
+-O10_M2_MONITOR = "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869"
+-O10_M2_PROFILE = "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d"
++# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5
++O10_M2_MONITOR = "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
++O10_M2_PROFILE = "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+ ADMITTED_RUNTIME_PROFILES = {R9_MONITOR: R9_PROFILE, O10_M0_MONITOR: O10_M0_PROFILE,
+                              O10_M1_R7_MONITOR: O10_M1_R7_PROFILE,
+                              O10_M2_MONITOR: O10_M2_PROFILE}
+diff --git a/tests/test_o10_linux_restart_native.py b/tests/test_o10_linux_restart_native.py
+index d3728f87..70d964ca 100644
+--- a/tests/test_o10_linux_restart_native.py
++++ b/tests/test_o10_linux_restart_native.py
+@@ -34,6 +34,7 @@ extern uint64_t B(generation)(void),N(generation)(void),P(generation)(void);
+ extern uint64_t N(init)(uint64_t,uint64_t,uint64_t),P(init)(uint64_t,uint64_t,uint64_t);
+ extern uint64_t N(mmio_write)(uint64_t,uint64_t),N(poll)(void);
+ extern uint64_t P(mmio_write)(uint64_t,uint64_t),P(poll)(void),P(bound)(void),P(diagnostic)(void),P(bind_current)(uint64_t,uint64_t,uint64_t);
++extern uint64_t P(can_provision)(uint64_t),P(provision)(uint64_t,uint64_t,uint64_t);
+ extern uint64_t M(kw_linux_detach)(uint64_t,uint64_t,uint64_t),M(kw_linux_provision)(uint64_t,uint64_t,uint64_t),M(kw_linux_activate)(void);
+ extern void M(test_admit)(void);
+ extern uintptr_t kw_guest_address(uint64_t,uint64_t);
+@@ -121,7 +122,8 @@ int main(int argc,char**argv){
+  assert(I(register)(0xd2000000,37,0xe2000000,19,0xda000000,73)==0);
+  void*volume=mmap(0,16777216,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);assert(volume!=MAP_FAILED);
+  assert(S(init)((uintptr_t)volume,16777216,1)==1);
+- assert(P(init)(0x40000000,0x20000000,1)==1);linux_session=S(session_handle)(1);attach(linux_session);
++ uint64_t namespace_generation=scenario==3?UINT64_C(0x7bed31e65e6f3ac6):scenario==4?UINT64_MAX-1:scenario==5?UINT64_MAX:scenario==6?UINT32_MAX:1;
++ assert(P(init)(0x40000000,0x20000000,namespace_generation)==1);linux_session=S(session_handle)(1);attach(linux_session);
+  plan9_session=S(session_init)(4,1);attach(plan9_session);
+  assert(B(configure_backing)(0x70000000,4096,1)==1);
+  assert(B(init)(0x40000000,0x20000000,1)==1&&N(init)(0x40000000,0x20000000,1)==1);M(test_admit)();
+@@ -143,15 +145,19 @@ int main(int argc,char**argv){
+  assert(rd(reply+19,4)==(scenario==1?0:1)&&rd(reply+23,4)==(scenario==1?0:1));
+  state(handle,5);assert(S(session_handle)(1)==0&&statfid(linux_session)==107);survivors();
+  assert(W(test_plan9_input)()==1&&W(test_linux_input)()==0&&kw_guest_address(0x40000000,1)==0);
++ assert(P(can_provision)(namespace_generation)==0&&P(can_provision)(0)==0);
++ assert(P(provision)(0x40000000,0x20000000,namespace_generation)==0&&P(generation)()==namespace_generation);
+  frame(174,63,1);st(request+23,handle,8);st(request+47,99,8);st(request+55,4,8);
+  call();assert(reply[4]==161&&rd(reply+7,4)==5&&reset_calls==0&&guest[0]==0xcc);
+  frame(174,63,1);st(request+23,handle,8);memset(request+31,0x77,16);st(request+47,3,8);st(request+55,4,8);
+- if(scenario==2){
+-  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==0&&guest[0]==0xcc);survivors();
++ if(scenario==2||scenario==5){
++  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==0&&guest[0]==0xcc);
++  assert(P(generation)()==namespace_generation&&B(generation)()==1&&N(generation)()==1);survivors();
+   puts("Linux lifecycle generation capacity is nondestructive: PASS");return 0;
+  }
+  unsigned char retransmit[63],saved[15];memcpy(retransmit,request,63);
+  assert(call()==3&&reply[4]==175&&rd(reply+7,8)==(2ull<<32)&&reset_calls==1);memcpy(saved,reply,15);
++ assert(P(generation)()==namespace_generation+1&&B(generation)()==2&&N(generation)()==2);
+  for(size_t i=0;i<0x20000000;i++){
+   unsigned char expected=0;
+   if(i<37)expected=k[i];
+@@ -172,6 +178,15 @@ int main(int argc,char**argv){
+  uint64_t fresh=S(session_handle)(1);assert(fresh&&fresh!=linux_session);attach(fresh);
+  assert(statfid(fresh)==125&&statfid(linux_session)==107);survivors();assert(W(test_plan9_input)()==1);
+  assert(reset_calls==1&&hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);
++ if(scenario==4){
++  // The existing full-u64 transport epoch may reach MAX once; a later restore
++  // must refuse before zeroing RAM, resetting state or wrapping the transport.
++  guest[4096]=0x5a;
++  frame(172,36,1);st(request+23,2ull<<32,8);call();assert(reply[4]==173);
++  frame(174,63,1);st(request+23,2ull<<32,8);st(request+47,3,8);st(request+55,4,8);
++  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==1&&guest[4096]==0x5a);
++  assert(P(generation)()==UINT64_MAX&&B(generation)()==2&&N(generation)()==2);survivors();
++ }
+  puts("O10 Linux withdraw/fault/restore/bind exact-once + survivor preservation: PASS");return 0;
+ }
+ 
+@@ -221,7 +236,7 @@ class LinuxRestartNativeTests(unittest.TestCase):
+             p=subprocess.run([clang,"-O2","-no-pie","-Wl,--gc-sections",str(out/"harness.c"),str(out/"sentinels.c"),
+                               str(out/"native.o"),"-o",str(out/"selftest")],capture_output=True,text=True,timeout=120)
+             self.assertEqual(p.returncode,0,p.stdout+p.stderr)
+-            for scenario in range(3):
++            for scenario in range(7):
+                 p=subprocess.run([str(out/"selftest"),str(scenario)],capture_output=True,text=True,timeout=30)
+                 self.assertEqual(p.returncode,0,f"scenario={scenario}: "+p.stdout+p.stderr)
+                 self.assertIn("PASS",p.stdout)
+diff --git a/tests/test_unified_client_acceptance.py b/tests/test_unified_client_acceptance.py
+index 392a10e2..2112f067 100644
+--- a/tests/test_unified_client_acceptance.py
++++ b/tests/test_unified_client_acceptance.py
+@@ -103,9 +103,9 @@ class ForegroundClientOracleTests(unittest.TestCase):
+ 
+     def test_m2_private_candidate_requires_its_exact_build_profile(self):
+         self.assertEqual(GATE.O10_M2_MONITOR,
+-                         "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869")
++                         "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb")
+         self.assertEqual(GATE.O10_M2_PROFILE,
+-                         "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d")
++                         "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c")
+         self.assertEqual(GATE.admitted_monitor_revision(
+             GATE.O10_M2_MONITOR, GATE.O10_M2_PROFILE), "O10-M2-private-candidate")
+         for monitor, profile in GATE.MONITOR_PROFILES.items():
+diff --git a/tests/test_unified_runtime_acceptance.py b/tests/test_unified_runtime_acceptance.py
+index 0521ba39..1f610ecc 100644
+--- a/tests/test_unified_runtime_acceptance.py
++++ b/tests/test_unified_runtime_acceptance.py
+@@ -57,9 +57,9 @@ class RuntimeOracleTests(unittest.TestCase):
+         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M0_MONITOR], module.O10_M0_PROFILE)
+         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M1_R7_MONITOR], module.O10_M1_R7_PROFILE)
+         self.assertEqual(module.O10_M2_MONITOR,
+-                         "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869")
++                         "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb")
+         self.assertEqual(module.O10_M2_PROFILE,
+-                         "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d")
++                         "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c")
+         self.assertEqual(module.ADMITTED_RUNTIME_PROFILES[module.O10_M2_MONITOR], module.O10_M2_PROFILE)
+         for monitor, profile in module.ADMITTED_RUNTIME_PROFILES.items():
+             self.assertEqual(module.admitted_runtime_profile(monitor, profile), profile)
+diff --git a/tests/test_unified_world_context.py b/tests/test_unified_world_context.py
+index 2cd79f4d..ac4064ac 100644
+--- a/tests/test_unified_world_context.py
++++ b/tests/test_unified_world_context.py
+@@ -19,8 +19,12 @@ CORE = ROOT / "ocore/kernel/aarch64/unified_world"
+ C = r'''
+ #include <stdint.h>
+ #include <stddef.h>
++#ifndef RESET_TARGET
++#define RESET_TARGET 1
++#endif
+ extern uint64_t uw_domain_init(uint64_t,uint64_t,uint64_t,uint64_t);
+ extern uint64_t uw_domain_reset(uint64_t,uint64_t,uint64_t,uint64_t);
++extern uint64_t uw_probe_domain_reset(uint64_t,uint64_t,uint64_t,uint64_t);
+ extern uint64_t uw_current_domain(void),uw_counter_read(void),uw_counter_frequency(void),uw_irq_ack(void);
+ extern void uw_irq_eoi(uint64_t),uw_serial_putc(uint64_t);
+ extern void uw_vgic_hcr_write(uint64_t,uint64_t),uw_vgic_vmcr_write(uint64_t,uint64_t);
+@@ -93,7 +97,7 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
+     (void)hpfar;
+     unsigned d=uw_current_domain();uint64_t marker=d?0x22:0x11;
+ #ifdef RESET_STRESS
+-    if(d && recycled)marker=0x33;
++    if(d==RESET_TARGET && recycled)marker=0x33;
+ #endif
+     // The saved virtual timer deadline is in its offset counter domain;
+     // native idle must convert it back without changing the retained bank.
+@@ -140,25 +144,44 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
+     }
+ #endif
+ #ifdef RESET_STRESS
+-    if(!(f[35]&1) || (f[41]>>48)!=0x2a || f[12]!=(d&&recycled?UINT64_C(0xaaaabbbbccccdddd):UINT64_C(0x1111222233334444))) {
++    if(!(f[35]&1) || (f[41]>>48)!=0x2a || f[12]!=(d==RESET_TARGET&&recycled?UINT64_C(0xaaaabbbbccccdddd):UINT64_C(0x1111222233334444))) {
+         out("UNIFIED_CORE_RESET_TRANSLATION_FAIL ");hex(d);out(" ");hex(f[12]);out(" ");hex(f[41]);out("\n");return 2;
+     }
+-    if(d)target_context=f;else survivor_context=f;
++    if(d==RESET_TARGET)target_context=f;else survivor_context=f;
+ #endif
+     previous[d]=f[10];visits[d]++;
+ #ifdef RESET_STRESS
+ #ifdef SELF_RESET
+-    if(d && !recycled && visits[0]>=5 && visits[1]>=5) {
++    if(d==RESET_TARGET && !recycled && visits[0]>=5 && visits[1]>=5) {
+ #else
+-    if(!d && !recycled && visits[1]>=5) {
++    if(d!=RESET_TARGET && !recycled && visits[RESET_TARGET]>=5) {
+ #endif
+-        // Target1 is not running. Keep its old ASID and TTBR addresses, but
++        // The target is stopped at its complete saved EL2 boundary. Keep its
++        // old ASID and TTBR addresses, but
+         // change an already-used non-global translation before recycling it.
+-        ((uint64_t *)0xb1100000)[256]=0x44000f01;
++        ((uint64_t *)(RESET_TARGET?0xb1100000:0x49100000))[256]=0x44000f01;
+         __asm__ volatile("dsb sy" ::: "memory");
+         memcpy(survivor_copy,survivor_context,4096);memcpy(target_copy,target_context,4096);
+-        if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(1,0x20000000,0x33,0x3c5)!=0
+-           || !same(target_copy,target_context,4096) || uw_domain_reset(1,0x40000000,0x33,0x3c5)!=1) {
++#if RESET_TARGET == 0
++        // Exercise the exact Linux entry/DTB tuple through an ABI canary wrapper
++        // before starting the common synthetic guest with its0x33 marker.
++        if(uw_probe_domain_reset(0,0x40000000,0x47e00000,0x3c5)!=1) {
++            out("UNIFIED_CORE_LINUX_RESET_TUPLE_ABI_FAIL\n");return 2;
++        }
++        for(unsigned n=0;n<512;n++) {
++            uint64_t expected=0;
++            if(n==0)expected=0x47e00000;if(n==31)expected=0x40000000;if(n==32)expected=0x3c5;
++            if(n==35)expected=0x30d00800;if(n==37)expected=0x300000;if(n==64)expected=1;
++            if(target_context[n]!=expected){out("UNIFIED_CORE_LINUX_RESET_TUPLE_BANK_FAIL\n");return 2;}
++        }
++        if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d) {
++            out("UNIFIED_CORE_LINUX_RESET_TUPLE_SURVIVOR_FAIL\n");return 2;
++        }
++        out("UNIFIED_CORE_LINUX_RESET_TUPLE_ABI_PASS\n");
++        memcpy(target_copy,target_context,4096);
++#endif
++        if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(RESET_TARGET,0x20000000,0x33,0x3c5)!=0
++           || !same(target_copy,target_context,4096) || uw_probe_domain_reset(RESET_TARGET,0x40000000,0x33,0x3c5)!=1) {
+             out("UNIFIED_CORE_RESET_ADMISSION_FAIL\n");return 2;
+         }
+         for(unsigned n=0;n<512;n++) {
+@@ -168,11 +191,11 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
+             if(target_context[n]!=expected){out("UNIFIED_CORE_RESET_DIRTY_BANK_FAIL ");hex(n);out("\n");return 2;}
+         }
+         if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d){out("UNIFIED_CORE_RESET_SURVIVOR_FAIL\n");return 2;}
+-        recycled=1;previous[1]=0;visits[1]=0;
+-        uw_vgic_hcr_write(1,1);uw_vgic_vmcr_write(1,(UINT64_C(255)<<24)|2);
+-        uw_timer_write(1,0,0,uw_counter_read()+1000000000);uw_timer_write(1,0,1,3);
+-        uw_timer_write(1,1,0,0x12340001);uw_timer_write(1,1,1,0);
+-        out("UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n");deadline=uw_counter_read()+period;return 1;
++        recycled=1;previous[RESET_TARGET]=0;visits[RESET_TARGET]=0;
++        uw_vgic_hcr_write(RESET_TARGET,1);uw_vgic_vmcr_write(RESET_TARGET,(UINT64_C(255)<<24)|2);
++        uw_timer_write(RESET_TARGET,0,0,uw_counter_read()+1000000000);uw_timer_write(RESET_TARGET,0,1,3);
++        uw_timer_write(RESET_TARGET,1,0,0x12340000+RESET_TARGET);uw_timer_write(RESET_TARGET,1,1,0);
++        out("UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n");deadline=uw_counter_read()+period;return RESET_TARGET;
+     }
+ #endif
+     if(visits[0]>=15 && visits[1]>=15) {
+@@ -184,6 +207,64 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
+     }
+     return 1-d;
+ }
++
++// Return2 makes any callee-saved-register violation an explicit test failure.
++__asm__(
++".text\n"
++".global uw_probe_domain_reset\n"
++"uw_probe_domain_reset:\n"
++"stp x19, x20, [sp, #-96]!\n"
++"stp x21, x22, [sp, #16]\n"
++"stp x23, x24, [sp, #32]\n"
++"stp x25, x26, [sp, #48]\n"
++"stp x27, x28, [sp, #64]\n"
++"stp x29, x30, [sp, #80]\n"
++"mov x19, #0x119\n"
++"mov x20, #0x120\n"
++"mov x21, #0x121\n"
++"mov x22, #0x122\n"
++"mov x23, #0x123\n"
++"mov x24, #0x124\n"
++"mov x25, #0x125\n"
++"mov x26, #0x126\n"
++"mov x27, #0x127\n"
++"mov x28, #0x128\n"
++"mov x29, #0x129\n"
++"bl uw_domain_reset\n"
++"mov x9, x0\n"
++"cmp x19, #0x119\n"
++"b.ne 9f\n"
++"cmp x20, #0x120\n"
++"b.ne 9f\n"
++"cmp x21, #0x121\n"
++"b.ne 9f\n"
++"cmp x22, #0x122\n"
++"b.ne 9f\n"
++"cmp x23, #0x123\n"
++"b.ne 9f\n"
++"cmp x24, #0x124\n"
++"b.ne 9f\n"
++"cmp x25, #0x125\n"
++"b.ne 9f\n"
++"cmp x26, #0x126\n"
++"b.ne 9f\n"
++"cmp x27, #0x127\n"
++"b.ne 9f\n"
++"cmp x28, #0x128\n"
++"b.ne 9f\n"
++"cmp x29, #0x129\n"
++"b.ne 9f\n"
++"mov x0, x9\n"
++"b 8f\n"
++"9: mov x0, #2\n"
++"8: ldp x21, x22, [sp, #16]\n"
++"ldp x23, x24, [sp, #32]\n"
++"ldp x25, x26, [sp, #48]\n"
++"ldp x27, x28, [sp, #64]\n"
++"ldp x29, x30, [sp, #80]\n"
++"ldp x19, x20, [sp], #96\n"
++"ret\n"
++);
+ '''
+ 
+ 
+@@ -234,7 +315,13 @@ class UnifiedContextTests(unittest.TestCase):
+     def test_reset_of_last_current_domain_reselects_fresh_context_after_saved_el2_boundary(self):
+         self.exercise(False, reset=True, self_reset=True)
+ 
+-    def exercise(self, virtual_irq, reset=False, self_reset=False):
++    def test_linux_slot_reset_preserves_survivor_and_callee_saved_registers(self):
++        self.exercise(False, reset=True, reset_target=0)
++
++    def test_reset_of_last_current_linux_slot_reselects_fresh_context(self):
++        self.exercise(False, reset=True, self_reset=True, reset_target=0)
++
++    def exercise(self, virtual_irq, reset=False, self_reset=False, reset_target=1):
+         clang, linker, qemu = map(shutil.which, ("clang", "ld.lld", "qemu-system-aarch64"))
+         if not all((clang, linker, qemu)):
+             self.skipTest("AArch64 clang/lld and QEMU required")
+@@ -243,7 +330,7 @@ class UnifiedContextTests(unittest.TestCase):
+         (output / "guest.S").write_text(guest_source(virtual_irq,reset))
+         commands = [[clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(CORE / "monitor.S"), "-o", str(output / "core.o")],
+                     [clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(output / "guest.S"), "-o", str(output / "guest.o")],
+-                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
++                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), "-DRESET_TARGET="+str(reset_target), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
+                     [linker, "-m", "aarch64elf", "-nostdlib", "--build-id=none", "-T", str(CORE / "linker.ld"), "-o", str(output / "test.elf"), str(output / "core.o"), str(output / "guest.o"), str(output / "fixture.o")]]
+         for command in commands:
+             result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+@@ -264,6 +351,7 @@ class UnifiedContextTests(unittest.TestCase):
+         (output / "console.log").write_bytes(received)
+         passed=b"UNIFIED_CORE_PREEMPTION_PASS\n" in received
+         if reset:passed=passed and b"UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n" in received and b"UNIFIED_CORE_RESET_TRANSLATION_SURVIVOR_PASS\n" in received
++        if reset and reset_target==0:passed=passed and b"UNIFIED_CORE_LINUX_RESET_TUPLE_ABI_PASS\n" in received
+         (output / "result.json").write_text(json.dumps({"passed":passed,"argv":command,"scope":"synthetic actualEL2 context/preemption stress, not foreignOS qualification"},indent=2)+"\n")
+         self.assertTrue(passed,received.decode(errors="replace")+"\nEvidence: "+str(output))
+         print("Actual EL2 context/preemption evidence:",output)

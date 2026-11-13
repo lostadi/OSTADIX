@@ -22,6 +22,7 @@ HARNESS = r'''
 #define PEER(n) _O_runtime__common__namespace_peer__##n
 extern uint64_t STORE(init)(uintptr_t,size_t,uint64_t);
 extern uint64_t STORE(session_init)(uint64_t,uint64_t);
+extern uint64_t STORE(session_handle)(uint64_t);
 extern uint64_t STORE(revoke)(uint64_t);
 extern size_t STORE(handle)(uint64_t,const uint8_t*,size_t,uint8_t*,size_t);
 extern uint64_t PEER(init)(uint64_t);
@@ -83,7 +84,10 @@ int main(void) {
  void *volume=mmap(0,bytes,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);assert(volume!=MAP_FAILED);
  assert(STORE(init)((uintptr_t)volume,bytes,100)==1);
  uint64_t linux_session=STORE(session_init)(1,1);assert(linux_session);version(linux_session);attach(linux_session);
- assert(PEER(init)(42)==1);assert(PEER(poll)()==0);
+ assert(PEER(init)(42)==1);
+ uint64_t peer_token=STORE(session_handle)(2);
+ assert(peer_token && !(peer_token&1) && peer_token!=42); // epoch is not the opaque API token
+ assert(PEER(poll)()==0 && STORE(session_handle)(2)==peer_token);
  linux_input(linux_session,"linux-one\n",0);
  assert(PEER(poll)()==1&&PEER(exchanges)()==1);assert(PEER(poll)()==0);
  linux_output(linux_session,"native-9p-peer generation=000000000000002a\nlinux=linux-one\n");

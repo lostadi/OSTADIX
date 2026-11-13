@@ -1,0 +1,19 @@
+{
+  "schema": "ostadix.o10-private-copy-retired/v1",
+  "state": "retired",
+  "resumable": false,
+  "root": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client",
+  "kind": "private_state",
+  "candidate_paths": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/unified-session-86a0591y/inputs/disk.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/client/unified-session-86a0591y/inputs/namespace.raw"
+  ],
+  "manifest_sha256": "caf1def73cbfe080c975f8294d5982700ef1a73584ab01295a6b6813275bf09a",
+  "retirement_receipt": "/home/ustad/.cache/o10-m2-acceptance-20261113/capacity-retirement-r2/retirement.json",
+  "started_unix": 1794579909.0277357,
+  "reason": "Exact reviewed generated copies retired for authorized space recovery; immutable raw evidence and originals preserved.",
+  "finished_unix": 1794579911.0858197,
+  "removed_count": 4
+}

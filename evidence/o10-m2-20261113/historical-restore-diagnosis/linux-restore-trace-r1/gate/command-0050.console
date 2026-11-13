@@ -1,0 +1,8 @@
+printf %s T0M5U1VCMDEgN2JlZDMxZTY1ZTZmM2FjNiBhMDNlZGJhNjc3NjNmOTM3MWI0N
+jhlNzEzZWQ1YjdkZiBiNjMwYjZiNmM4NTZmZTZmOTNhOTU3Yzg0ZDEwNDRjZSA4NjQ3Mjg5Mzg4NjdjZ
+DhhODUyZmMwZmEzYzNjNjRkODdiMDUxZWE3NDc3MTAxNWJjNzg2ODhlODQwMGNhZjVjCg== >> /run/
+o10-m2-counter-b630b6b6c856fe6f93a957c84d1044ce.submit.o10-base64; _uw_rc=$?; pr
+intf '\nUNIFIED_COMMAND_0bc3c495b62d46cfb12e1dc4414c5d9d:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_0bc3c495b62d46cfb12e1dc4414c5d9d:0
+okernel> [6n

@@ -1,0 +1,15 @@
+{
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "scope": "Authorized narrow full64 namespace transport lifecycle correction; no timeout/policy/authority changes",
+  "before": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+    "ocore/runtime/aarch64/unified_world.oc": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+    "tests/test_o10_linux_restart_native.py": "6630863102495354f2044ca99b310e33d9a82905523e1db417e6ac12a24a76f2"
+  },
+  "after": {
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "9be8f3d72766a1792e6d7af336ea18ed78472cbd6ef782438d05130e3378bbc0",
+    "ocore/runtime/aarch64/unified_world.oc": "8bc96c8e26db2c7bae46645527514841341e07bffde5dcab3b3fe01e447b8afd",
+    "tests/test_o10_linux_restart_native.py": "b2f01e373cbb598daadcb1ec829939b41cbe96fa542b960f0c34e3459458af49"
+  },
+  "edited_unix": 1794571890.066234
+}

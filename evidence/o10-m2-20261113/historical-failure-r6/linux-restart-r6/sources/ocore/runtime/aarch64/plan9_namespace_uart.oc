@@ -1,0 +1,256 @@
+module runtime::aarch64::plan9_namespace_uart;
+
+// Binary 9P2000 over one virtual PL011 port. This optional direct Plan 9
+// component receives fixed native grant 4; no name, byte or MMIO value grants
+// authority. The store/volume must already be initialized by the monitor.
+// CR disable refreshes an ACTIVE device's protocol session. Trusted authority
+// withdrawal must call this module's revoke(), which guest MMIO cannot undo.
+// Component CR reset can clear framing errors; the optional production probe
+// deliberately halts on a framing/write failure before guest reset can run.
+use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::session_handle;
+use runtime::common::namespace_store::handle;
+use runtime::common::namespace_store::revoke as store_revoke;
+
+extern "ocore" fn p9_namespace_irq_level(asserted: u64) -> void;
+
+const FRAME: usize = 8192;
+const FIFO: usize = 65536;
+// Same root RW rights as Linux, with independent fids/generation/revocation.
+const GRANT: u64 = 4;
+const MAX: u64 = 0xffff_ffff_ffff_ffff;
+static mut ACTIVE: u64 = 0;
+static mut ERROR: u64 = 0;
+static mut SESSION: u64 = 0;
+static mut GENERATION: u64 = 0;
+static mut CONTROL: u64 = 0x300;
+static mut MASK: u64 = 0;
+static mut TX_PENDING: u64 = 0;
+static mut RT_PENDING: u64 = 0;
+static mut BAUD_INTEGER: u64 = 0;
+static mut BAUD_FRACTION: u64 = 0;
+static mut LINE: u64 = 0;
+static mut FIFO_LEVEL: u64 = 0x12;
+static mut REQUEST_BYTES: usize = 0;
+static mut EXPECTED: usize = 0;
+static mut HEAD: usize = 0;
+static mut COUNT: usize = 0;
+static mut REQUEST: [u8; 8192] = [0; 8192];
+static mut RESPONSE: [u8; 8192] = [0; 8192];
+static mut OUTPUT: [u8; 65536] = [0; 65536];
+// Monitor-only lifetime observations. Guest resets/revocation do not reset
+// them, and no MMIO offset exposes or changes them. Saturate on exhaustion.
+static mut COMPLETED_REQUESTS: u64 = 0;
+static mut COMPLETED_REQUEST_BYTES: u64 = 0;
+static mut ENQUEUED_REPLY_BYTES: u64 = 0;
+
+fn add_count(value: u64, amount: u64) -> u64 {
+    if amount > MAX - value { return MAX; }
+    return value + amount;
+}
+pub unsafe fn request_count() -> u64 { return COMPLETED_REQUESTS; }
+pub unsafe fn request_byte_count() -> u64 { return COMPLETED_REQUEST_BYTES; }
+pub unsafe fn reply_byte_count() -> u64 { return ENQUEUED_REPLY_BYTES; }
+
+fn little32(bytes: *const u8) -> usize {
+    unsafe {
+        return volatile_load(bytes) as usize | (volatile_load(bytes + 1) as usize << 8)
+            | (volatile_load(bytes + 2) as usize << 16) | (volatile_load(bytes + 3) as usize << 24);
+    }
+}
+unsafe fn transmitting() -> bool { return (CONTROL & 0x101) == 0x101; }
+unsafe fn receiving() -> bool { return (CONTROL & 0x201) == 0x201; }
+unsafe fn room() -> bool { return FIFO - COUNT >= FRAME; }
+unsafe fn raw_interrupts() -> u64 {
+    let mut raw: u64 = 0;
+    if transmitting() && room() && TX_PENDING == 1 { raw |= 0x20; }
+    if receiving() && COUNT != 0 {
+        raw |= 0x10;
+        if RT_PENDING == 1 { raw |= 0x40; }
+    }
+    return raw;
+}
+unsafe fn interrupt() -> void {
+    p9_namespace_irq_level(((raw_interrupts() & MASK) != 0) as u64);
+}
+unsafe fn fail(reason: u64) -> u64 {
+    if ERROR == 0 { ERROR = reason; }
+    return 0;
+}
+unsafe fn fresh_session() -> bool {
+    if GENERATION == MAX { fail(10); return false; }
+    GENERATION += 1;
+    SESSION = session_init(GRANT, GENERATION);
+    if SESSION == 0 { fail(11); return false; }
+    return true;
+}
+unsafe fn reset_stream() -> bool {
+    REQUEST_BYTES = 0;
+    EXPECTED = 0;
+    HEAD = 0;
+    COUNT = 0;
+    TX_PENDING = 0;
+    RT_PENDING = 0;
+    ERROR = 0;
+    let reset: bool = fresh_session();
+    interrupt();
+    return reset;
+}
+
+pub unsafe fn init(epoch: u64) -> u64 {
+    ACTIVE = 0;
+    ERROR = 0;
+    CONTROL = 0x300;
+    MASK = 0;
+    BAUD_INTEGER = 0;
+    BAUD_FRACTION = 0;
+    LINE = 0;
+    FIFO_LEVEL = 0x12;
+    p9_namespace_irq_level(0);
+    if epoch == 0 { return fail(1); }
+    // Preserve monotonic generations even if an existing device is reopened
+    // with the same provisioning epoch. A fresh store epoch revokes all old
+    // sessions independently; the UART never accepts a guest generation.
+    if epoch > GENERATION { GENERATION = epoch - 1; }
+    if !reset_stream() { return 0; }
+    ACTIVE = 1;
+    return 1;
+}
+
+// Trusted monitor API only; no MMIO offset invokes it or reactivates the grant.
+pub unsafe fn revoke() -> u64 {
+    ACTIVE = 0;
+    SESSION = 0;
+    CONTROL = 0;
+    MASK = 0;
+    REQUEST_BYTES = 0;
+    EXPECTED = 0;
+    HEAD = 0;
+    COUNT = 0;
+    TX_PENDING = 0;
+    RT_PENDING = 0;
+    ERROR = 2;
+    p9_namespace_irq_level(0);
+    return store_revoke(GRANT);
+}
+
+unsafe fn transmit(value: u8) -> u64 {
+    if ACTIVE != 1 || ERROR != 0 { return 0; }
+    if !transmitting() { return 1; }
+    // A whole maximum response must fit BEFORE accepting a new request or
+    // calling a mutating store operation. Guest TXFF checks provide credit.
+    if !room() { return 0; }
+    if REQUEST_BYTES >= FRAME { return fail(20); }
+    REQUEST[REQUEST_BYTES] = value;
+    REQUEST_BYTES += 1;
+    TX_PENDING = 1;
+    if REQUEST_BYTES == 4 {
+        EXPECTED = little32((&REQUEST[0]));
+        if EXPECTED < 7 || EXPECTED > FRAME { return fail(21); }
+    }
+    if EXPECTED != 0 && REQUEST_BYTES == EXPECTED {
+        let mut index: usize = 0;
+        while index < FRAME { RESPONSE[index] = 0; index += 1; }
+        let reply: usize = handle(SESSION, (&REQUEST[0]), REQUEST_BYTES, (&mut RESPONSE[0]), FRAME);
+        if reply < 7 || reply > FRAME || little32((&RESPONSE[0])) != reply {
+            return fail(22);
+        }
+        if RESPONSE[5] != REQUEST[5] || RESPONSE[6] != REQUEST[6]
+            || (RESPONSE[4] != 107 && RESPONSE[4] as u64 != REQUEST[4] as u64 + 1) {
+            return fail(23);
+        }
+        COMPLETED_REQUESTS = add_count(COMPLETED_REQUESTS, 1);
+        COMPLETED_REQUEST_BYTES = add_count(COMPLETED_REQUEST_BYTES, REQUEST_BYTES as u64);
+        ENQUEUED_REPLY_BYTES = add_count(ENQUEUED_REPLY_BYTES, reply as u64);
+        index = 0;
+        while index < reply {
+            OUTPUT[(HEAD + COUNT + index) % FIFO] = RESPONSE[index];
+            index += 1;
+        }
+        COUNT += reply;
+        REQUEST_BYTES = 0;
+        EXPECTED = 0;
+        // A completed virtual response burst sets the receive-timeout latch;
+        // RX itself remains level-sensitive until its exact bytes are drained.
+        RT_PENDING = 1;
+    }
+    interrupt();
+    return 1;
+}
+
+pub unsafe fn mmio_read(offset: u64) -> u64 {
+    if offset == 0 {
+        if !receiving() || COUNT == 0 { return 0; }
+        let ready_before: bool = room();
+        let value: u64 = OUTPUT[HEAD] as u64;
+        HEAD = (HEAD + 1) % FIFO;
+        COUNT -= 1;
+        if COUNT == 0 { RT_PENDING = 0; }
+        if !ready_before && room() { TX_PENDING = 1; }
+        interrupt();
+        return value;
+    }
+    if offset == 4 { return 0; } // No physical framing/parity errors.
+    if offset == 0x18 {
+        let mut flags: u64 = 0;
+        if room() { flags |= 0x80; } else { flags |= 0x20; }
+        if COUNT == 0 || !receiving() { flags |= 0x10; }
+        if COUNT == FIFO && receiving() { flags |= 0x40; }
+        return flags; // Synchronous TX: BUSY is clear, including while reset.
+    }
+    if offset == 0x24 { return BAUD_INTEGER; }
+    if offset == 0x28 { return BAUD_FRACTION; }
+    if offset == 0x2c { return LINE; }
+    if offset == 0x30 { return CONTROL; }
+    if offset == 0x34 { return FIFO_LEVEL; }
+    if offset == 0x38 { return MASK; }
+    if offset == 0x3c { return raw_interrupts(); }
+    if offset == 0x40 { return raw_interrupts() & MASK; }
+    if offset == 0xfe0 { return 0x11; }
+    if offset == 0xfe4 { return 0x10; }
+    if offset == 0xfe8 { return 0x14; }
+    if offset == 0xfec { return 0; }
+    if offset == 0xff0 { return 0x0d; }
+    if offset == 0xff4 { return 0xf0; }
+    if offset == 0xff8 { return 0x05; }
+    if offset == 0xffc { return 0xb1; }
+    return 0;
+}
+
+pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
+    if ACTIVE != 1 { return 0; }
+    if offset == 0x30 {
+        CONTROL = value & 0xffff;
+        if (CONTROL & 1) == 0 {
+            if !reset_stream() { return 0; }
+        } else {
+            if transmitting() && room() { TX_PENDING = 1; }
+            interrupt();
+        }
+        return 1;
+    }
+    if offset == 0 { return transmit((value & 255) as u8); }
+    if offset == 4 { return 1; } // Error clear.
+    if offset == 0x24 { BAUD_INTEGER = value & 0xffff; return 1; }
+    if offset == 0x28 { BAUD_FRACTION = value & 0x3f; return 1; }
+    if offset == 0x2c { LINE = value & 0xff; return 1; }
+    if offset == 0x34 { FIFO_LEVEL = value & 0x3f; return 1; }
+    if offset == 0x38 { MASK = value & 0x7ff; interrupt(); return 1; }
+    if offset == 0x44 {
+        if (value & 0x20) != 0 { TX_PENDING = 0; }
+        if (value & 0x40) != 0 { RT_PENDING = 0; }
+        interrupt();
+        return 1;
+    }
+    if offset == 0x20 { return 1; } // IrDA low-power counter has no binary-wire role.
+    if offset == 0x48 && value == 0 { return 1; } // No DMA or guest address API.
+    return 0;
+}
+
+pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && ERROR == 0) as u64; }
+pub unsafe fn diagnostic() -> u64 { return ERROR; }
+
+// Read-only native observer: a name, never authority supplied by a guest.
+pub unsafe fn qualification_session() -> u64 { if ACTIVE != 1 || ERROR != 0 || SESSION == 0 || session_handle(4) != SESSION { return 0; } return SESSION; }
+
+pub unsafe fn qualification_generation() -> u64 { return GENERATION; }

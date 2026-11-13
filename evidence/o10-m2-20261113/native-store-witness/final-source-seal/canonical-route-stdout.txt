@@ -1,0 +1,19 @@
+usage: verify_o10_linux_restart.py [-h] --seed-state SEED_STATE --build BUILD
+                                   --apk-fixture APK_FIXTURE --output OUTPUT
+                                   --mcp-release MCP_RELEASE [--qemu QEMU]
+                                   [--timeout TIMEOUT]
+
+Original Draft 0 M2 gate. Real qualification witness and offline fixture
+required. No component/model result qualifies Linux reboot, the running store,
+APK, or fsck. The gate uses a new private fork and never replays interrupted
+service work.
+
+options:
+  -h, --help            show this help message and exit
+  --seed-state SEED_STATE
+  --build BUILD
+  --apk-fixture APK_FIXTURE
+  --output OUTPUT
+  --mcp-release MCP_RELEASE
+  --qemu QEMU
+  --timeout TIMEOUT

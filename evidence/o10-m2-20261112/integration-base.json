@@ -1,0 +1,14 @@
+{
+  "schema": "ostadix.o10-m2-integration-base/v1",
+  "scope": "Current frozen M1 integration dependencies copied only into M2; final accepted M1 lineage remains pending.",
+  "source_root": "/home/ustad/OSTADIX-o10-m1-20261112",
+  "copied_source_sha256": {
+    "ocore/runtime/aarch64/unified_world.oc": "30b89713094685b45768e10b5f5bda74340cdd6873b06fb3ae8cc1445c73ba13",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "scripts/build_okernel_unified_world.py": "d365673ce59407a80cda7e07e5dc18170523c015ff97dd35f4cfa5f8e9d7d694",
+    "scripts/okernel_unified_world.py": "ce83364c0c1197940f6b0c44db547e1e1053458fff01b2a86f5b267e558d0d46",
+    "tests/test_o10_platform.py": "af0b6c6e533ba11a828ac24308162366de508164cba41fd9ea6aa6fb1fa85224",
+    "tests/test_unified_world_profile.py": "e4a3a9ab9154ceb057a81786f06474bdbafb9474375be4097c383a2b5a0ae928",
+    "docs/O10.md": "1190bf82c64a676c5c66ae5587a3fd0c7b4164ca023cc10cecae54928ce2e67e"
+  }
+}

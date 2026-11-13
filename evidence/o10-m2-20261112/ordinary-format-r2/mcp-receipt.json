@@ -1,0 +1,54 @@
+{
+  "job_id": "job-970229-1794546654681308571-1-76",
+  "status": {
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 1173395,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input_error": null,
+    "job_id": "job-970229-1794546654681308571-1-76",
+    "pid": 1173395,
+    "pty": false,
+    "restart_persistence": false,
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes": 0,
+      "merged_into": null,
+      "path": "/tmp/ostadix-mcp-jobs-970229-1794546654681308571-1/job-970229-1794546654681308571-1-76/stderr.log"
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes": 4553,
+      "path": "/tmp/ostadix-mcp-jobs-970229-1794546654681308571-1/job-970229-1794546654681308571-1-76/stdout.log"
+    },
+    "timeout_secs": 600
+  },
+  "read": {
+    "bytes_read": 4553,
+    "complete": true,
+    "encoding": "utf8_lossy",
+    "eof": true,
+    "job_id": "job-970229-1794546654681308571-1-76",
+    "limit_bytes": 16000,
+    "merged_into": null,
+    "next_offset": 4553,
+    "offset": 0,
+    "path": "/tmp/ostadix-mcp-jobs-970229-1794546654681308571-1/job-970229-1794546654681308571-1-76/stdout.log",
+    "stream": "stdout",
+    "text": "{\"ok\":true,\"value\":{\"t\":\"text\",\"v\":{\"utf8\":\"{\\\"scope\\\": \\\"Ordinary host-native 9P serialization/error-format and deterministic initramfs archive units only; no guest boot or device-access execution.\\\", \\\"command\\\": [\\\"python3\\\", \\\"-m\\\", \\\"unittest\\\", \\\"-v\\\", \\\"tests.test_namespace_store_dotu\\\", \\\"tests.test_namespace_store\\\", \\\"tests.test_o10_linux_profile\\\"], \\\"source_revision\\\": \\\"5fb254ae13c978ce2e6010bb3080c3d1c32caa5c\\\", \\\"source_dirty\\\": true, \\\"source_sha256\\\": {\\\"ocore/runtime/common/namespace_store.oc\\\": \\\"e1c1e24e02ab7179dca982ff0835e58ba6cabdc2c3a012ff1104209f1577cf3e\\\", \\\"scripts/build_okernel_unified_world.py\\\": \\\"b441aba6c7432fe25941cf985a1ca3efaf937017bb679eab695bd27e9d7d221c\\\", \\\"tests/test_namespace_store_dotu.py\\\": \\\"5b7aba473507280d745675866b2b757ab70aa4ca3188907c4fab454b11b8f4ce\\\", \\\"tests/test_namespace_store.py\\\": \\\"2314c64302c0ae59a8230aabdd89fd45f7cbf8b544a1b7fb64383d09aa8118c2\\\", \\\"tests/test_o10_linux_profile.py\\\": \\\"e78cab9c4e768ab1722c7b218361fa20513d1add818b839d12817d560ff02573\\\", \\\"ocore/guest/linux/package-domain/init\\\": \\\"f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f\\\"}, \\\"compiler\\\": \\\"/home/ustad/.local/state/ostadix/o10-toolchain-20261112/bin/ocorec\\\", \\\"compiler_sha256\\\": \\\"11cca4ce2543497423b188d68a20f1701b518992c775244e05591a2c04a32c42\\\", \\\"exit_code\\\": 0, \\\"source_unchanged\\\": true, \\\"milestone_qualified\\\": false}\\ntest_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation) ... ok\\ntest_real_store_wire_authority_persistence_and_capacity (tests.test_namespace_store.NamespaceStoreTests.test_real_store_wire_authority_persistence_and_capacity) ... ok\\ntest_copy_bounds_and_boot_metadata_are_not_guest_or_survivor_ram (tests.test_o10_linux_profile.LinuxProfileTests.test_copy_bounds_and_boot_metadata_are_not_guest_or_survivor_ram) ... ok\\ntest_deterministic_overlay_preserves_modes_content_and_source (tests.test_o10_linux_profile.LinuxProfileTests.test_deterministic_overlay_preserves_modes_content_and_source) ... ok\\ntest_immutable_copies_match_all_three_boot_inputs (tests.test_o10_linux_profile.LinuxProfileTests.test_immutable_copies_match_all_three_boot_inputs) ... ok\\ntest_malformed_newc_sizes_names_and_trailer_are_rejected (tests.test_o10_linux_profile.LinuxProfileTests.test_malformed_newc_sizes_names_and_trailer_are_rejected) ... ok\\ntest_unexpected_init_or_archive_is_an_explicit_failure (tests.test_o10_linux_profile.LinuxProfileTests.test_unexpected_init_or_archive_is_an_explicit_failure) ... ok\\n\\n----------------------------------------------------------------------\\nRan 7 tests in 3.449s\\n\\nOK\\n\\n\",\"encoding\":\"utf-8\"}},\"type\":\"text\",\"elapsed_ms\":3605,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"77c79507c6371521253416461cf02a7482e0f773c96ffa9869050e6748807484\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"77c79507c6371521253416461cf02a7482e0f773c96ffa9869050e6748807484\",\"result_content_identity\":\"165e51f39baf388792e00f0315ebc93fa1213c418e5d8eb0320526d5e519c4d0\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"e38ca70e0691ea0747732f65a39a6ac9fa06122bf140e0f9b6b3e646fc8a62d8\",\"plan_sha256\":\"46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67\",\"analyzed_graph_sha256\":\"bf49ece779e5974cd22f4e61ff243099165c24f38183519edd13814f0cb182e5\",\"evidence_sha256\":\"39d3e74e904ab71162aa6363950aac714580c986922230881b1b3e2b0faa0b30\",\"admitted_graph_sha256\":\"abf5a7cd981ba11b31e47921436f00038a3372c85306766cab5e7c7472414929\",\"admission_sha256\":\"94e2e997759b353260dd727a3b37c7f91b687d2a17a4de3cfb22a25c6b757b0a\",\"executable_manifest_sha256\":\"499a59bf71d9eec67bec619dd0b248f7468994f9b506528c1e12ba356c72d265\"},\"trace\":{\"schema\":\"ostadix.graph-execution-trace/v1\",\"events\":[{\"event\":\"ready\",\"plan_node\":1},{\"event\":\"started\",\"plan_node\":1},{\"event\":\"finished\",\"plan_node\":1,\"value_type\":\"text\",\"fingerprint\":null},{\"event\":\"ready\",\"plan_node\":0},{\"event\":\"started\",\"plan_node\":0},{\"event\":\"finished\",\"plan_node\":0,\"value_type\":\"text\",\"fingerprint\":null}],\"publications\":[{\"plan_node\":0,\"outputs\":[{\"node\":0,\"kind\":\"value\"},{\"node\":2,\"kind\":\"completion\",\"producer\":0},{\"node\":4,\"kind\":\"resource_state\",\"resource\":\"HostWorld\",\"version\":1},{\"node\":6,\"kind\":\"resource_state\",\"resource\":\"EvaluatorState\",\"version\":1}]}],\"publication_scope\":\"actual-successful-semantic-settlement-outputs\"},\"native_leaves\":[]}}\n",
+    "total_bytes": 4553
+  }
+}

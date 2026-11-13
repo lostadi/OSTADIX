@@ -1,0 +1,125 @@
+diff --git a/ocore/guest/linux/package-domain/p9-install b/ocore/guest/linux/package-domain/p9-install
+index 4f5c2d31..2a62686c 100755
+--- a/ocore/guest/linux/package-domain/p9-install
++++ b/ocore/guest/linux/package-domain/p9-install
+@@ -91,14 +91,18 @@ def open_directory(parent, name):
+ 
+ 
+ def require_native_mount(mount):
+-    # Linux6.12 p9_show_client_options emits "noextend" for9P2000, not the
+-    # original mount argument "version=9p2000". .u emits its own version;
+-    # .L is the default and emits neither. Only this exact legacy backend has
+-    # the same-directory reject-existing Twstat publication contract below.
++    # Linux6.12 renders plain9P2000 as noextend and .u as version=9p2000.u.
++    # Both admitted dialects use the native store's reject-existing Twstat
++    # publication contract. The default .L dialect has a different client
++    # path and remains outside this installer contract.
++    options = mount["options"]
++    versions = {option for option in options if option.startswith("version=")}
++    transports = {option for option in options if option.startswith("trans=")}
++    plain = "noextend" in options and not versions
++    dotu = "noextend" not in options and versions == {"version=9p2000.u"}
+     if (mount["path"] != NATIVE_ROOT or mount["filesystem"] != "9p" or mount["source"] != "okernel"
+-            or "noextend" not in mount["options"] or "trans=virtio" not in mount["options"]
+-            or any(option.startswith("version=") for option in mount["options"])):
+-        raise InstallError("the fixed native /n/okernel 9P2000 virtio mount is required")
++            or transports != {"trans=virtio"} or not (plain or dotu)):
++        raise InstallError("the fixed native /n/okernel 9P2000 or9P2000.u virtio mount is required")
+     return mount["id"]
+ 
+ 
+@@ -271,7 +275,7 @@ def save_receipt(directory, document):
+ 
+ 
+ def publish_native(directory, pending, name):
+-    # Precisely scoped to the checked original9P2000/native backend. Linux
++    # Precisely scoped to checked9P2000 and9P2000.u native mounts. Linux
+     #6.12 fs/9p/vfs_inode.c:867–959 sends same-directory Twstat directly; it
+     # does not remove a positive destination. namespace_store::wstat rejects
+     # an existing sibling BEFORE mutation. renameat2(NOREPLACE) is unsupported
+diff --git a/tests/test_namespace_store_dotu.py b/tests/test_namespace_store_dotu.py
+index 699b2135..56900b32 100644
+--- a/tests/test_namespace_store_dotu.py
++++ b/tests/test_namespace_store_dotu.py
+@@ -333,13 +333,16 @@ static unsigned createu(uint64_t s,uint32_t fid,const char*name,unsigned mode,co
+ static unsigned numeric_error(uint64_t s){
+  assert(response[4]==107&&(s&1));return (unsigned)rd(response+received-4,4);
+ }
+-static unsigned renameu(uint64_t s,uint32_t fid,const char*name,uint32_t uid,const char*ext){
++static unsigned wstatu(uint64_t s,uint32_t fid,const char*name,uint32_t mode,uint32_t uid,const char*ext){
+  begin(126);put(fid,4);size_t packed=pos;put(0,2);size_t inner=pos;put(0,2);
+  put(UINT16_MAX,2);put(UINT32_MAX,4);put(UINT8_MAX,1);put(UINT32_MAX,4);put(UINT64_MAX,8);
+- put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT64_MAX,8);
++ put(mode,4);put(UINT32_MAX,4);put(UINT32_MAX,4);put(UINT64_MAX,8);
+  str(name);str("");str("");str("");str(ext);put(uid,4);put(UINT32_MAX,4);put(UINT32_MAX,4);
+  st(request+packed,pos-inner,2);st(request+inner,pos-inner-2,2);return call(s);
+ }
++static unsigned renameu(uint64_t s,uint32_t fid,const char*name,uint32_t uid,const char*ext){
++ return wstatu(s,fid,name,UINT32_MAX,uid,ext);
++}
+ 
+ extern uint64_t NS(qualification_fids)(uint64_t,uint64_t,uint64_t*,size_t);
+ static void fid_mode(uint64_t s,unsigned grant,unsigned fid,unsigned expected){
+@@ -421,6 +424,29 @@ int main(void){
+  handshake(p,1,"/");handshake(peer,1,"/");handshake(ro,1,"/");
+  uint64_t oldplain=l;l=dotu(l,1);attachu(l,1,0);
+  ro=append_corpus(l,p,ro);
++ // Exact installer publication shape on the production .u store: stage
++ // bytes, chmod0555, reject a positive sibling without mutation, then publish.
++ assert(walk(l,1,200,"work")==111&&walk(l,200,201,NULL)==111);
++ assert(createu(l,201,"u-install-pending",0600,"")==115);
++ assert(writefid(l,201,0,"NEW\0\377",5,8192)==119);
++ assert(wstatu(l,201,"",0555,UINT32_MAX,"")==127);
++ assert(statfid(l,201)==125&&rd(response+30,4)==0555);
++ uint64_t staged_qid=rd(response+22,8);
++ assert(walk(l,200,202,NULL)==111&&createu(l,202,"u-install-existing",0555,"")==115);
++ assert(writefid(l,202,0,"OLD",3,8192)==119);
++ assert(statfid(l,202)==125);uint64_t existing_qid=rd(response+22,8);
++ assert(renameu(l,201,"u-install-existing",UINT32_MAX,"")==107&&numeric_error(l)==17);
++ assert(statfid(l,201)==125&&rd(response+22,8)==staged_qid&&rd(response+30,4)==0555);
++ assert(statfid(l,202)==125&&rd(response+22,8)==existing_qid&&rd(response+30,4)==0555);
++ assert(readfid(l,201,0,8)==117&&rd(response+7,4)==5&&!memcmp(response+11,"NEW\0\377",5));
++ assert(readfid(l,202,0,8)==117&&rd(response+7,4)==3&&!memcmp(response+11,"OLD",3));
++ assert(walk(l,200,203,"u-install-pending")==111);
++ assert(renameu(l,201,"u-install-fresh",UINT32_MAX,"")==127);
++ assert(walk(l,200,204,"u-install-pending")==107&&numeric_error(l)==2);
++ assert(walk(l,200,204,"u-install-fresh")==111&&openfid(l,204,0)==113);
++ assert(statfid(l,204)==125&&rd(response+22,8)==staged_qid&&rd(response+30,4)==0555);
++ assert(readfid(l,204,0,8)==117&&rd(response+7,4)==5&&!memcmp(response+11,"NEW\0\377",5));
++ assert(readfid(l,202,0,8)==117&&rd(response+7,4)==3&&!memcmp(response+11,"OLD",3));
+  assert(statfid(oldplain,1)==107&&received==36); // old even stays plain, no authority
+  assert(NS(session_handle)(4)==p&&NS(session_handle)(2)==peer&&NS(session_handle)(3)==ro);
+  assert(statfid(p,1)==125&&received==74); // original root stat remains65 bytes
+diff --git a/tests/test_p9_install.py b/tests/test_p9_install.py
+index b2f73049..46d59655 100644
+--- a/tests/test_p9_install.py
++++ b/tests/test_p9_install.py
+@@ -242,14 +242,23 @@ class P9InstallTests(unittest.TestCase):
+         self.assertFalse(self.bin.exists())
+         self.assertEqual(list(self.private.iterdir()), [])
+ 
+-    def test_actual_linux_mount_rendering_requires_native_legacy_virtio(self):
+-        mount = {"id": "native", "path": "/n/okernel", "filesystem": "9p", "source": "okernel", "options": {"noextend", "trans=virtio"}}
+-        self.assertEqual(INSTALLER.require_native_mount(mount), "native")
++    def test_actual_linux_mount_rendering_accepts_only_admitted_native_dialects(self):
++        mount = {"id": "native", "path": "/n/okernel", "filesystem": "9p", "source": "okernel",
++                 "options": {"noextend", "trans=virtio"}}
++        for options in ({"noextend", "trans=virtio"},
++                        {"trans=virtio", "version=9p2000.u"},
++                        {"rw", "trans=virtio", "version=9p2000.u", "msize=8192"}):
++            with self.subTest(accepted=options):
++                self.assertEqual(INSTALLER.require_native_mount({**mount, "options": options}), "native")
+         for key, value in (("path", "/tmp/okernel"), ("source", "host"), ("filesystem", "ext4"),
+                            ("options", {"trans=virtio"}),
+-                           ("options", {"trans=virtio", "version=9p2000.u"}),
++                           ("options", {"trans=virtio", "version=9p2000.L"}),
++                           ("options", {"trans=virtio", "version=9p2000"}),
+                            ("options", {"trans=tcp", "noextend"}),
+-                           ("options", {"trans=virtio", "noextend", "version=9p2000.u"})):
++                           ("options", {"trans=tcp", "version=9p2000.u"}),
++                           ("options", {"trans=virtio", "trans=tcp", "version=9p2000.u"}),
++                           ("options", {"trans=virtio", "noextend", "version=9p2000.u"}),
++                           ("options", {"trans=virtio", "version=9p2000.u", "version=9p2000.L"})):
+             with self.subTest(key=key, value=value), self.assertRaises(INSTALLER.InstallError):
+                 INSTALLER.require_native_mount({**mount, key: value})
+ 

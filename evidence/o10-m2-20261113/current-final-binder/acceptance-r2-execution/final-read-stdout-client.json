@@ -1,0 +1,12 @@
+{
+  "arguments": {
+    "job_id": "job-1960399-1794578286458176260-1-22",
+    "limit": 262144,
+    "offset": 0,
+    "stream": "stdout"
+  },
+  "returncode": 0,
+  "stderr": "",
+  "stdout": "{\"content\": [{\"type\": \"text\", \"text\": \"{\\\"bytes_read\\\":91,\\\"complete\\\":true,\\\"encoding\\\":\\\"utf8_lossy\\\",\\\"eof\\\":true,\\\"job_id\\\":\\\"job-1960399-1794578286458176260-1-22\\\",\\\"limit_bytes\\\":262144,\\\"merged_into\\\":null,\\\"next_offset\\\":91,\\\"offset\\\":0,\\\"path\\\":\\\"/tmp/ostadix-mcp-jobs-1960399-1794578286458176260-1/job-1960399-1794578286458176260-1-22/stdout.log\\\",\\\"stream\\\":\\\"stdout\\\",\\\"text\\\":\\\"{\\\\\\\"ok\\\\\\\": true, \\\\\\\"result\\\\\\\": \\\\\\\"/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2.json\\\\\\\"}\\\\n\\\",\\\"total_bytes\\\":91}\"}], \"structuredContent\": {\"bytes_read\": 91, \"complete\": true, \"encoding\": \"utf8_lossy\", \"eof\": true, \"job_id\": \"job-1960399-1794578286458176260-1-22\", \"limit_bytes\": 262144, \"merged_into\": null, \"next_offset\": 91, \"offset\": 0, \"path\": \"/tmp/ostadix-mcp-jobs-1960399-1794578286458176260-1/job-1960399-1794578286458176260-1-22/stdout.log\", \"stream\": \"stdout\", \"text\": \"{\\\"ok\\\": true, \\\"result\\\": \\\"/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r2.json\\\"}\\n\", \"total_bytes\": 91}, \"isError\": false}\n",
+  "tool": "o_job_read"
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "ostadix.o10-m2-restore-trace-independent-review/v1",
+  "reviewer": "m2_fixture",
+  "ok": true,
+  "files": {
+    "preparation.json": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/preparation.json",
+      "bytes": 1758,
+      "sha256": "974d89cdb8b04cd56d4c22b938bdaba714b99a542c224e1aa36975f1447b0e4a"
+    },
+    "trace-driver.py": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-driver.py",
+      "bytes": 5185,
+      "sha256": "c49e39201c2202437c4d732cbea0eacaeb59bf62e269634d08b8b1e501d3d488"
+    },
+    "qemu-trace": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/qemu-trace",
+      "bytes": 446,
+      "sha256": "01698845946bbd83f5336ed96cca363ecbd088fee8c141db3a79a6844b366ff4"
+    },
+    "trace-sites.json": {
+      "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restore-trace-r1/trace-sites.json",
+      "bytes": 3307,
+      "sha256": "54d4b18bc35701260280ed1b6ae36a38b77e946665feee1296d94cee93952dd1"
+    }
+  },
+  "actual_elf_callsite_checks": [
+    {
+      "target": "uw_domain_reset",
+      "actual_call_pc": 1074345020,
+      "actual_return_pc": 1074345024
+    },
+    {
+      "target": "_O_runtime__aarch64__unified_gic__reset",
+      "actual_call_pc": 1074345124,
+      "actual_return_pc": 1074345128
+    },
+    {
+      "target": "_O_runtime__aarch64__kernel_world_monitor__kw_linux_provision",
+      "actual_call_pc": 1074345496,
+      "actual_return_pc": 1074345500
+    },
+    {
+      "target": "_O_runtime__aarch64__coordinator_uart__init",
+      "actual_call_pc": 1074345688,
+      "actual_return_pc": 1074345692
+    }
+  ],
+  "checks": [
+    "one new verifier fork/output; no automatic retry; old R6 exact frame SHA explicitly rejected",
+    "exact current source revision and e913 ELF/2a7 profile identities; verifier retains normal artifact/fixture/seed checks",
+    "QEMU wrapper adds only dfilter/log path, no startup CPU log; default verifier and exchange deadlines unchanged",
+    "HMP log enable immediately before the single fresh Linux Trestore; original exception re-raised; disable finally retained",
+    "all four declared actual e913 BL targets verified independently by disassembly",
+    "filter excludes large reload/coordinator-clear loops from output; actual observation retains raw logs and stays diagnostic-only"
+  ],
+  "performance_scope": "QEMU v7.2 cpu-exec.c applies address filtering to CPU-state output, but nochain changes TB chaining globally, including excluded loops. Recorded diagnostic scope already accounts for tracing changing performance; this is not timing or gate qualification.",
+  "primary_source": "https://raw.githubusercontent.com/qemu/qemu/v7.2.0/accel/tcg/cpu-exec.c",
+  "blocking_findings": [],
+  "scope": "Read-only cache/controller/actual-ELF callsite review; reviewer started no VM, edited no source or timeout, and replayed no request."
+}

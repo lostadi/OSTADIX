@@ -24,9 +24,14 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
+                 "address": 0x6d0b0000, "bytes": 0x50000,
+                 "header_bytes": 128, "record_bytes": 576, "max_fids": 512}
+
 sys.path.insert(0, str(ROOT / "scripts"))
 from okernel_native_volume import Volume
 import o10
@@ -47,6 +52,12 @@ RECOVERY = {"control_address": 0x6d000070, "control_bytes": 48,
             "pause": 1, "restart": 2}
 O10_PROFILE = {"version": "O10", "operation": 10, "submission": 0x6d0a0000,
                "completion": 0x6d0a0200, "msize": 512}
+LINUX_RECOVERY = {"kernel_image": 3, "aux_image": 4, "namespace_version": "9P2000.u",
+                  "kernel_backup_address": 0xd2000000, "kernel_max_bytes": 0x7e00000,
+                  "dtb_backup_address": 0xe2000000, "dtb_max_bytes": 0x10000,
+                  "initrd_backup_address": 0xda000000, "initrd_max_bytes": 0x8000000,
+                  "kernel_bytes_address": 0x6d000100, "dtb_bytes_address": 0x6d000108,
+                  "initrd_bytes_address": 0x6d000110}
 COORDINATOR_UART = {"guest_address": 0x09001000, "guest_irq": 51,
                     "input_address": 0x6d060000, "input_bytes": 8192,
                     "output_address": 0x6d080000, "output_bytes": 65536}
@@ -118,10 +129,20 @@ def validate_profile(profile: dict) -> None:
         required["plan9_recovery"] = RECOVERY
         required["loader_addresses"].update({"inputs/plan9-recovery.kernel": 0xd0000000,
                                              "inputs/plan9-recovery.dtb": 0xd1000000})
+    if "linux_recovery" in profile:
+        required["linux_recovery"] = LINUX_RECOVERY
+        required["loader_addresses"].update({"inputs/linux-recovery.Image": 0xd2000000,
+                                             "inputs/linux-recovery.dtb": 0xe2000000,
+                                             "inputs/linux-recovery.initramfs": 0xda000000})
     if "coordinator_uart" in profile:
         required["coordinator_uart"] = COORDINATOR_UART
     if "o10" in profile:
         required["o10"] = O10_PROFILE
+    if "o10_linux_restart_witness" in profile or "linux_restart_witness" in profile:
+        if profile.get("o10_qualification") is not True:
+            raise ValueError("store witness requires a qualification build")
+        required["o10_linux_restart_witness"] = "native-store-v1"
+        required["linux_restart_witness"] = LINUX_WITNESS
     if "idle_scheduler" in profile:
         required["idle_scheduler"] = IDLE_SCHEDULER
     if any(profile.get(key) != value for key, value in required.items()):
@@ -137,6 +158,67 @@ def validate_recovery_inputs(artifacts: dict[str, Path]) -> None:
         if (identity(artifacts[backup])["sha256"] != identity(artifacts[original])["sha256"]
                 or not 0 < artifacts[backup].stat().st_size <= maximum):
             raise ValueError("native recovery copy differs from admitted original input")
+
+
+def validate_linux_recovery_inputs(artifacts: dict[str, Path]) -> None:
+    for backup, original, maximum in (("inputs/linux-recovery.Image", "inputs/linux.Image", 0x7e00000),
+                                      ("inputs/linux-recovery.dtb", "linux.dtb", 0x10000),
+                                      ("inputs/linux-recovery.initramfs", "inputs/linux.initramfs", 0x8000000)):
+        for name in (backup, original):
+            if artifacts[name].is_symlink() or not artifacts[name].is_file():
+                raise ValueError("Linux recovery input must be a captured regular file")
+        if (identity(artifacts[backup])["sha256"] != identity(artifacts[original])["sha256"]
+                or not 0 < artifacts[backup].stat().st_size <= maximum):
+            raise ValueError("Linux recovery copy differs from admitted original input")
+
+
+def decode_linux_restart_witness(raw: bytes, action: str, sequence: int) -> dict:
+    """Decode the fixed native diagnostic contract; no authority inputs."""
+    if action not in ("capture", "check") or len(raw) < 128:
+        raise ValueError("invalid native witness action/header")
+    if raw[:8] != b"O10WIT1\0" or struct.unpack_from("<I", raw, 8)[0] != 1:
+        raise ValueError("unsupported native witness header")
+    status, = struct.unpack_from("<I", raw, 12)
+    detail, native_action, native_seq, ls, lg, ps, pg = struct.unpack_from("<7Q", raw, 16)
+    if native_action != (1 if action == "capture" else 2) or native_seq != sequence:
+        raise ValueError("stale native witness action/sequence")
+    if status:
+        raise RuntimeError(f"native Linux store witness error {status}, detail {detail}")
+    lc, pc, count = struct.unpack_from("<3I", raw, 72)
+    if detail or not ls or not ps or ls == ps or not lg or not pg or not lc or not pc:
+        raise ValueError("inactive native witness binding")
+    if count != lc + pc or count > 512 or len(raw) != 128 + count * 576 or any(raw[84:128]):
+        raise ValueError("invalid native witness bounds")
+    result = {"schema": "ostadix.o10-linux-store-witness/v1", "origin": "running-native-store",
+              "capture_scope": "all-transport-owned-fids", "action": action, "sequence": sequence,
+              "linux": {"grant": 1, "session": ls, "transport_generation": lg, "fids": [], "exchanges": []},
+              "plan9": {"grant": 4, "session": ps, "transport_generation": pg, "fids": [], "exchanges": []}}
+    for index in range(count):
+        row = raw[128 + index*576:128 + (index+1)*576]
+        role, fid, generation, mode, qlen, rlen = struct.unpack_from("<IIQQII", row)
+        if role != int(index >= lc) or not generation or qlen != 11 or not 7 <= rlen <= 512:
+            raise ValueError("invalid native witness record")
+        request, reply = row[32:43], row[48:48+rlen]
+        if (any(row[43:48]) or any(row[48+rlen:]) or
+                struct.unpack_from("<I", request)[0] != 11 or request[4] != 124 or
+                struct.unpack_from("<I", request, 7)[0] != fid or
+                struct.unpack_from("<I", reply)[0] != rlen or request[5:7] != reply[5:7] or
+                reply[4] not in (107, 125)):
+            raise ValueError("malformed raw native store exchange")
+        owner = result["linux" if role == 0 else "plan9"]
+        owner["fids"].append({"fid": fid, "object_generation": generation, "mode": mode})
+        owner["exchanges"].append({"fid": fid, "request_hex": request.hex(), "reply_hex": reply.hex()})
+    for role in ("linux", "plan9"):
+        numbers = [row["fid"] for row in result[role]["fids"]]
+        if numbers != sorted(set(numbers)):
+            raise ValueError("native witness fids are not unique and sorted")
+    return result
+
+
+def o10_observation(reply: dict) -> dict:
+    """Keep fixed binary O10 fields lossless in the host's JSON observations."""
+    return {name: {"bytes_hex": value.hex()} if isinstance(value, bytes) else value
+            for name, value in reply.items()}
 
 
 class UnifiedDomain:
@@ -171,7 +253,12 @@ class UnifiedDomain:
         self.o10_epoch = self.o10_sequence = self.o10_tag = 0
         self.o10_claimed = False
         self.o10_pending = None
+        self.o10_exchange_active = False
         self.o10_plan9 = (1 << 32) | 1
+        self.o10_linux = 1 << 32
+        self.o10_linux_lease_generation = 1
+        self.linux_recovery = None
+        self.last_linux_poll = 0.0
         self.o10_lease_generation = 1
         self.control_active = False
         self.last_provider_poll = 0.0
@@ -209,6 +296,8 @@ class UnifiedDomain:
             manifest = json.loads(manifest_file.read_text())
             validate_profile(manifest)
             self.idle_scheduler = manifest.get("idle_scheduler")
+            self.linux_restart_witness_profile = manifest.get("linux_restart_witness")
+            self.linux_restart_witness_pending = None
             common.write_json(self.session / "monitor-profile.json", manifest)
             artifacts = {}
             snapshots = self.session / "inputs"
@@ -242,6 +331,9 @@ class UnifiedDomain:
             self.epoch = secrets.randbits(64) or 1
             self.clock = int(time.time())
             self.recovery = manifest.get("plan9_recovery")
+            self.linux_recovery = manifest.get("linux_recovery")
+            if self.linux_recovery:
+                validate_linux_recovery_inputs(artifacts)
             self.o10_profile = manifest.get("o10")
             self.coordinator_uart = manifest.get("coordinator_uart")
             if self.recovery:
@@ -280,6 +372,10 @@ class UnifiedDomain:
                 for address, value in ((0x6d000090, artifacts["inputs/plan9.kernel"].stat().st_size),
                                        (0x6d000098, artifacts["plan9.dtb"].stat().st_size)):
                     command += ["-device", f"loader,addr={hex(address)},data={value},data-len=8"]
+            if self.linux_recovery:
+                for address, name in ((0x6d000100, "inputs/linux.Image"),
+                                      (0x6d000108, "linux.dtb"), (0x6d000110, "inputs/linux.initramfs")):
+                    command += ["-device", f"loader,addr={hex(address)},data={artifacts[name].stat().st_size},data-len=8"]
             command += ["-global", "virtio-mmio.force-legacy=false", "-netdev", "user,id=unified-net",
                         "-device", "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"]
             self.record.update(argv=command, inputs={name: identity(path) for name, path in artifacts.items()},
@@ -321,11 +417,20 @@ class UnifiedDomain:
             if b"KW native shared namespace: online\n" in self.capture:
                 self.native_store_ready = True
             common.write_json(self.session / "native-observation.json", self.counters())
-        if not self.live and (b"KW unified domain failure:" in self.capture or b"KW terminal unexpected exit:" in self.capture or b"Kernel panic" in self.capture):
-            raise RuntimeError("unified domain/monitor failure; inspect " + str(self.session))
+        if b"KW unified internal invariant:" in self.capture:
+            raise RuntimeError("native monitor invariant failed; inspect " + str(self.session))
+        if not self.live and not getattr(self, "o10_exchange_active", False) and (b"KW unified domain failure:" in self.capture or b"KW terminal unexpected exit:" in self.capture or b"Kernel panic" in self.capture):
+            if not (self.linux_recovery and (self.control_active
+                    or self.linux_status()["state"] == o10.PROVISIONAL_STATE_FAULTED)):
+                raise RuntimeError("unified domain/monitor failure; inspect " + str(self.session))
         if not self.live and b"panic:" in self.plan9_capture:
             raise RuntimeError("original Plan9 kernel panic; inspect " + str(self.session))
-        if not self.provider_failed and not self.control_active:
+        if not self.control_active and not getattr(self, "o10_exchange_active", False) and self.native_store_ready and self.linux_recovery:
+            if time.monotonic() - self.last_linux_poll > 1:
+                self.last_linux_poll = time.monotonic()
+                if self.linux_status()["state"] == o10.PROVISIONAL_STATE_FAULTED:
+                    self.recover_linux()
+        if not self.provider_failed and not self.control_active and not getattr(self, "o10_exchange_active", False):
             try:
                 if self.service and time.monotonic() - self.last_provider_poll > 1:
                     self.last_provider_poll = time.monotonic()
@@ -437,7 +542,8 @@ class UnifiedDomain:
                 self.stopped()
                 self.qmp.execute("cont")
                 if result != 1:
-                    raise RuntimeError("native Plan9 recovery rejected operation " + str(operation))
+                    raise RuntimeError("native lifecycle operation EUNSUPPORTED" if result == 9
+                                       else "native Plan9 recovery rejected operation " + str(operation))
                 return
             if self.process.poll() is not None:
                 raise RuntimeError("native supervisor exited during recovery")
@@ -445,6 +551,16 @@ class UnifiedDomain:
         raise TimeoutError("native Plan9 recovery acknowledgement missing")
 
     def o10_exchange(self, frame: bytes, *, bootstrap: bytes | None = None) -> dict:
+        """Serialize one mailbox exchange while pump drains ordinary I/O."""
+        if getattr(self, "o10_exchange_active", False):
+            raise RuntimeError("another O10 mailbox exchange is active")
+        self.o10_exchange_active = True
+        try:
+            return self._o10_exchange_once(frame, bootstrap=bootstrap)
+        finally:
+            self.o10_exchange_active = False
+
+    def _o10_exchange_once(self, frame: bytes, *, bootstrap: bytes | None = None) -> dict:
         """Send one exact mechanism frame. Timeouts never resubmit the frame."""
         if getattr(self, "o10_profile", None) != O10_PROFILE:
             raise ValueError("O10 is unavailable for this monitor profile")
@@ -535,9 +651,57 @@ class UnifiedDomain:
             self.o10_pending = None
         return reply
 
+    def linux_restart_witness(self, action: str) -> dict:
+        """One fixed qualification observer call; timeouts never resubmit."""
+        if action not in ("capture", "check"):
+            raise ValueError("witness action must be capture or check")
+        if getattr(self, "linux_restart_witness_profile", None) != LINUX_WITNESS:
+            raise RuntimeError("native Linux store witness is unsupported")
+        if getattr(self, "o10_exchange_active", False) or getattr(self, "linux_restart_witness_pending", None):
+            raise RuntimeError("another native mailbox observation is unresolved")
+        self.o10_exchange_active = True
+        self.control_sequence += 1
+        sequence = self.control_sequence
+        self.linux_restart_witness_pending = sequence
+        try:
+            self.stopped()
+            try:
+                self.write_native(LINUX_WITNESS["action_address"], struct.pack("<Q", 1 if action == "capture" else 2))
+                self.write_native(0x6d000070, struct.pack("<QQ", sequence, 11))
+            finally:
+                self.qmp.execute("cont")
+            deadline = time.monotonic() + 60
+            while time.monotonic() < deadline:
+                ack, status = struct.unpack("<QQ", os.pread(self.ram, 16, 0x6d000080 - 0x40000000))
+                if ack == sequence:
+                    self.stopped()
+                    try:
+                        if status != 1:
+                            raise RuntimeError("native witness mailbox rejected observation")
+                        offset = LINUX_WITNESS["address"] - 0x40000000
+                        header = os.pread(self.ram, 128, offset)
+                        if len(header) != 128:
+                            raise RuntimeError("native witness header is incomplete")
+                        count, = struct.unpack_from("<I", header, 80)
+                        if count > 512:
+                            raise ValueError("native witness capacity exceeded")
+                        raw = os.pread(self.ram, 128 + count*576, offset)
+                        self.linux_restart_witness_pending = None
+                        return decode_linux_restart_witness(raw, action, sequence)
+                    finally:
+                        self.qmp.execute("cont")
+                if self.process.poll() is not None:
+                    raise RuntimeError("native supervisor exited during witness")
+                self.pump(0.01)
+            raise TimeoutError("native witness observation unresolved; not resubmitted")
+        finally:
+            self.o10_exchange_active = False
+
     def write_native(self, address: int, data: bytes):
         # Called only under stopped(), to these private control/input regions.
         if not ((0x6d000070 <= address and address + len(data) <= 0x6d000080)
+                or (getattr(self, "linux_restart_witness_profile", None) == LINUX_WITNESS
+                    and 0x6d000118 <= address and address + len(data) <= 0x6d000120)
                 or (0x6d010000 <= address and address + len(data) <= 0x6d011008)
                 or (0x6d060000 <= address and address + len(data) <= 0x6d062008)
                 or (getattr(self, "o10_profile", None) == O10_PROFILE
@@ -657,6 +821,116 @@ class UnifiedDomain:
         request = self.console_exit_request
         self.console_exit_request = None
         return request
+
+    def linux_control(self, operation: int):
+        """One definite Linux mechanism transition; service work is never replayed."""
+        if not self.linux_recovery or self.legacy_control:
+            raise ValueError("Linux O10 recovery is unavailable")
+        self.o10_claim()
+        if operation == 1:
+            self.o10_call("Twithdraw", dom=self.o10_linux, mode=0, deadline_ms=0)
+            self.o10_linux_lease_generation += 1
+            return
+        if operation != 2:
+            raise ValueError("unsupported Linux lifecycle operation")
+        reply = self.o10_call("Trestore", dom=self.o10_linux, inst=secrets.token_bytes(16),
+                              img_kernel=3, img_aux=4)
+        self.o10_linux = reply["dom"]
+        holder = self.o10_linux
+        transport = holder & ~0xffffffff
+        try:
+            self.o10_call("Tbind", lease=(self.o10_linux_lease_generation << 32) | 1,
+                          transport=transport)
+        except o10.O10Error as error:
+            if (error.code != o10.O10_ESTALE
+                    or not self.o10_linux_lease_generation < error.detail <= 0xffffffff
+                    or self.o10_linux != holder):
+                raise
+            self.o10_linux_lease_generation = error.detail
+            self.o10_call("Tbind", lease=(self.o10_linux_lease_generation << 32) | 1,
+                          transport=transport)
+
+    def linux_status(self):
+        try:
+            return self.o10_call("Tstat", dom=self.o10_linux)
+        except o10.O10Error as error:
+            generation = self.o10_linux >> 32
+            if error.code != o10.O10_ESTALE or not generation < error.detail <= 0xffffffff:
+                raise
+            self.o10_linux = error.detail << 32
+            return self.o10_call("Tstat", dom=self.o10_linux)
+
+    def recover_linux(self):
+        """Host Governor policy for a definite native Linux fault only."""
+        if self.control_active:
+            raise RuntimeError("another lifecycle operation is active")
+        self.control_active = True
+        service_before = dict(self.service) if self.service else None
+        entry = {"time": time.time(), "ok": False, "service_before": service_before,
+                 "unknown_coordinator_events": list(self.coordinator_events),
+                 "service_work": "completion may be unknown; no command replay",
+                 "phase": "observing_fault"}
+        self.record.setdefault("linux_recoveries", []).append(entry)
+        try:
+            observed = self.linux_status()
+            entry["before"] = o10_observation(observed)
+            if observed["state"] != o10.PROVISIONAL_STATE_FAULTED:
+                raise RuntimeError("Linux recovery requires a definite native fault")
+            self.guest_coordinator_online = False
+            self.coordinator_position = 0
+            self.coordinator_capture.clear()
+            self.coordinator_events.clear()
+            self.console_exit_request = None
+            # Historical console remains in linux-console.log. Drop only the
+            # current shell's completion parser, never replay its command.
+            self.capture.clear()
+            entry["phase"] = "restoring_linux"
+            self.linux_control(2)
+            entry["phase"] = "waiting_linux_ready"
+            self.wait(b"OKERNEL PACKAGE DOMAIN READY", line=True)
+            self.wait(b"pkg> ")
+            self.mount_linux_namespace()
+            self.command("date -u -s @" + str(self.clock))
+            self.command("pkg-net online", timeout=120)
+            self.setup_linux_client()
+            if (dict(self.service) if self.service else None) != service_before:
+                raise RuntimeError("Linux recovery changed the surviving Plan9 service identity")
+            entry.update(ok=True, phase="complete",
+                         after=o10_observation(self.linux_status()), service=service_before)
+        except BaseException as error:
+            # Preserve the body failure before the final record flush/close.
+            # The pending exact mechanism frame remains unknown and unreplayed.
+            entry.update(error=type(error).__name__ + ": " + str(error),
+                         traceback=traceback.format_exc())
+            pending = getattr(self, "o10_pending", None)
+            if pending is not None:
+                frame = pending["frame"]
+                entry["pending_mechanism"] = {
+                    "epoch": pending["epoch"], "seq": pending["seq"],
+                    "frame_hex": frame.hex(), "frame_sha256": hashlib.sha256(frame).hexdigest(),
+                    "completion": "unknown"}
+            raise
+        finally:
+            self.control_active = False
+            common.write_json(self.session / "result.json", self.record)
+
+    def mount_linux_namespace(self):
+        self.command("pkg-namespace mount")
+        if self.linux_recovery:
+            self.command("awk '$1 == \"okernel\" && $2 == \"/n/okernel\" && $3 == \"9p\" && $4 ~ /(^|,)version=9p2000[.]u(,|$)/ {found=1} END {exit !found}' /proc/mounts")
+
+    def setup_linux_client(self):
+        if not self.service or not self.coordinator_uart:
+            return
+        token = "P9_CLIENT_PRESENT_" + uuid.uuid4().hex
+        self.command("if test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && test -x /usr/local/bin/p9; then echo " + token + "; fi")
+        if token.encode() in bytes(self.capture).replace(b"\r", b"").split(b"\n"):
+            self.command(COORDINATOR_START)
+            self.command("i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done")
+            self.coordinator_update()
+            self.guest_coordinator_online = True
+            self.record["plan9_client"] = {"ready": True, "control": "/run/okernel/p9", "transport": "native Linux-only PL011"}
+            self.command("cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\\nLinux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\\n' ")
 
     def watch_provider(self):
         # Read a quiescent native snapshot. Guest console text never asks for
@@ -819,7 +1093,7 @@ class UnifiedDomain:
         self.wait(b"KW unified Linux/Plan9 EL2: online", line=True)
         self.wait(b"OKERNEL PACKAGE DOMAIN READY", line=True)
         self.wait(b"pkg> ")
-        self.command("pkg-namespace mount")
+        self.mount_linux_namespace()
         self.command("date -u -s @" + str(self.clock))
         self.command("pkg-net online", timeout=120)
         if self.service:
@@ -828,16 +1102,7 @@ class UnifiedDomain:
                 self.pump()
             if not self.provider_ready:
                 raise TimeoutError("original Plan9 command provider readiness missing")
-            if self.coordinator_uart:
-                token = "P9_CLIENT_PRESENT_" + uuid.uuid4().hex
-                self.command("if test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && test -x /usr/local/bin/p9; then echo " + token + "; fi")
-                if token.encode() in bytes(self.capture).replace(b"\r", b"").split(b"\n"):
-                    self.command(COORDINATOR_START)
-                    self.command("i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do if test -s /run/okernel/p9/controller.pid; then kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; fi; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done")
-                    self.coordinator_update()
-                    self.guest_coordinator_online = True
-                    self.record["plan9_client"] = {"ready": True, "control": "/run/okernel/p9", "transport": "native Linux-only PL011"}
-                    self.command("cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\\nLinux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\\n' ")
+            self.setup_linux_client()
 
     def counters(self) -> dict:
         path = self.session / "native-status.bin"

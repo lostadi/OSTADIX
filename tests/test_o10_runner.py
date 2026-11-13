@@ -22,6 +22,7 @@ def domain():
     value.coordinator_uart = runner.COORDINATOR_UART
     value.o10_profile = runner.O10_PROFILE
     value.legacy_control = False
+    value.linux_recovery = None
     value.o10_epoch = value.o10_sequence = value.o10_tag = 0
     value.control_sequence = 0
     value.o10_claimed = False

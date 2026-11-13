@@ -1,0 +1,9 @@
+{
+  "source": "python^(\nimport hashlib,json,pathlib,subprocess,sys\nA=pathlib.Path(\"/home/ustad/.cache/o10-m2-acceptance-20261113\");P=A/\"resident-preparation-r4\"\nexpected={\"resident-dispatch.py\":\"5614d0ba70ba4f1161dbc5b986db49a8479fef6cbd3a4374d81182b02fc4c8c5\",\"pins.json\":\"1ceafd9d012bcd79657c319dccdaf9d322d6ad8febd876dc9ed52c4e6a3c383c\",\"request.json\":\"a4579cbf1e21c70859b13afc050aac694713981ef0266ba04539c5f39db80e57\"}\nfor n,v in expected.items():\n if hashlib.sha256((P/n).read_bytes()).hexdigest()!=v:raise ValueError(\"reviewed launcher changed \"+n)\nproof=A/\"linux-restart-r8-execution/completion-readback.json\"\nif hashlib.sha256(proof.read_bytes()).hexdigest()!=\"3a8fd573e0d7b93c62acd84aa4febdb0c8808f9d6cc71d2449c0be3dbb744637\":raise ValueError(\"primary cleanup proof changed\")\nclassification=A/\"classification-current-r4/result.json\"\nif hashlib.sha256(classification.read_bytes()).hexdigest()!=\"0fae00de4d025f60afe0110971f80899f8b8af486f2edb9cd12f48eca325785e\":raise ValueError(\"actual classification binding changed\")\nc=json.loads(classification.read_text())\nif not c[\"ok\"] or c[\"source_revision\"]!=\"72e90d76420ff5c331232b5e3fe7c20e30761e41\":raise ValueError(\"actual current classification required\")\np=subprocess.run([sys.executable,\"-B\",str(P/\"resident-dispatch.py\"),\"--record-dir\",str(A/\"resident-r4-execution\"),\"--dispatch\"],capture_output=True,text=True,timeout=240)\n(P/\"dispatch.stdout\").write_text(p.stdout);(P/\"dispatch.stderr\").write_text(p.stderr)\nprint(json.dumps({\"exit\":p.returncode,\"stdout\":p.stdout,\"stderr\":p.stderr}))\nif p.returncode:raise RuntimeError(\"single resident dispatch failed; inspect retained evidence\")\n\n)_python",
+  "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "timeout_secs": 0,
+  "env": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "O_BACKEND_STEP_TIMEOUT_MS": "3600000"
+  }
+}

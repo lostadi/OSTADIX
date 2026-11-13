@@ -1,0 +1,23 @@
+test_actual_uart_transport_and_native_store (tests.test_plan9_namespace_uart.Plan9NamespaceUartTests.test_actual_uart_transport_and_native_store) ... ok
+test_real_wire_bidirectional_files_scoped_grants_and_restart (tests.test_okernel_namespace_peer.NativeNamespacePeerTests.test_real_wire_bidirectional_files_scoped_grants_and_restart) ... ok
+test_actual_uart_revocation_preserves_live_linux_fid (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_actual_uart_revocation_preserves_live_linux_fid) ... ok
+test_actual_uart_version_preserves_live_linux_fid (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_actual_uart_version_preserves_live_linux_fid) ... ok
+test_concurrent_readonly_grant_retains_authority (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_concurrent_readonly_grant_retains_authority) ... ok
+test_concurrent_root_grants_preserve_fids (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_concurrent_root_grants_preserve_fids) ... ok
+test_rejected_generations_preserve_live_sessions (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_rejected_generations_preserve_live_sessions) ... ok
+test_replacement_never_resurrects_stale_session (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_replacement_never_resurrects_stale_session) ... ok
+test_store_reopen_never_resurrects_stale_session (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_store_reopen_never_resurrects_stale_session) ... ok
+test_zero_remapping_does_not_alias_readonly_grant (tests.test_namespace_session_identity.NamespaceSessionIdentityTests.test_zero_remapping_does_not_alias_readonly_grant) ... ok
+test_real_store_tokens_are_unique_until_native_counter_exhaustion (tests.test_namespace_session_tokens.NamespaceSessionTokenTests.test_real_store_tokens_are_unique_until_native_counter_exhaustion) ... ok
+test_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation) ... ok
+test_real_store_wire_authority_persistence_and_capacity (tests.test_namespace_store.NamespaceStoreTests.test_real_store_wire_authority_persistence_and_capacity) ... ok
+test_copy_bounds_and_boot_metadata_are_not_guest_or_survivor_ram (tests.test_o10_linux_profile.LinuxProfileTests.test_copy_bounds_and_boot_metadata_are_not_guest_or_survivor_ram) ... ok
+test_deterministic_overlay_preserves_modes_content_and_source (tests.test_o10_linux_profile.LinuxProfileTests.test_deterministic_overlay_preserves_modes_content_and_source) ... ok
+test_immutable_copies_match_all_three_boot_inputs (tests.test_o10_linux_profile.LinuxProfileTests.test_immutable_copies_match_all_three_boot_inputs) ... ok
+test_malformed_newc_sizes_names_and_trailer_are_rejected (tests.test_o10_linux_profile.LinuxProfileTests.test_malformed_newc_sizes_names_and_trailer_are_rejected) ... ok
+test_unexpected_init_or_archive_is_an_explicit_failure (tests.test_o10_linux_profile.LinuxProfileTests.test_unexpected_init_or_archive_is_an_explicit_failure) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 5.870s
+
+OK

@@ -1,0 +1,7 @@
+module cache::reset_probe;
+extern "ocore" fn uw_probe_domain_reset(domain: u64, pc: u64, arg: u64, pstate: u64) -> u64;
+@export
+@no_mangle
+pub unsafe fn synthetic_reset_call(domain: u64, pc: u64, arg: u64, pstate: u64) -> u64 {
+    return uw_probe_domain_reset(domain, pc, arg, pstate);
+}

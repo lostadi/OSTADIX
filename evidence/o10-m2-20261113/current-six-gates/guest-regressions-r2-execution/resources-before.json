@@ -1,0 +1,8 @@
+{
+  "existing_qemu": [],
+  "free_disk_bytes": 35062337536,
+  "mem_available_bytes": 13087404032,
+  "minimum_prelaunch_bytes": 34896609280,
+  "observed_unix": 1794581328.7221932,
+  "two_vm_ram_reservation_bytes": 8589934592
+}

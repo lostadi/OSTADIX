@@ -1,0 +1,8 @@
+test_original_codec_in_live_native_store_path (tests.test_okernel_u9fs_peer.OriginalU9fsNativePeerTests.test_original_codec_in_live_native_store_path) ... ok
+test_readonly_regular_files_use_original_codec_and_shared_store (tests.test_posix_namespace_files.PosixNamespaceFilesTests.test_readonly_regular_files_use_original_codec_and_shared_store) ... ok
+test_wire_and_authoritative_state_match_previous_store (tests.test_namespace_local_backend.NamespaceTypedCoreTests.test_wire_and_authoritative_state_match_previous_store) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 17.342s
+
+OK

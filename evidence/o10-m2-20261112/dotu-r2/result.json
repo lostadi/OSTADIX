@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "tests.test_namespace_store_dotu",
+    "tests.test_namespace_store",
+    "tests.test_kernel_world_9p_transport",
+    "tests.test_o10_linux_restart_native"
+  ],
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "test_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation) ... FAIL\ntest_real_store_wire_authority_persistence_and_capacity (tests.test_namespace_store.NamespaceStoreTests.test_real_store_wire_authority_persistence_and_capacity) ... ok\ntest_real_transport_and_server_share_authorized_objects (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_and_server_share_authorized_objects) ... ok\ntest_real_transport_memory_and_protocol_boundary (tests.test_kernel_world_9p_transport.KernelWorld9PTransportTests.test_real_transport_memory_and_protocol_boundary) ... ok\ntest_real_linux_o10_lifecycle_and_survivors (tests.test_o10_linux_restart_native.LinuxRestartNativeTests.test_real_linux_o10_lifecycle_and_survivors) ... ok\n\n======================================================================\nFAIL: test_mixed_dialects_estale_and_full_token_validation (tests.test_namespace_store_dotu.NamespaceDotuTests.test_mixed_dialects_estale_and_full_token_validation)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/ustad/OSTADIX-o10-m2-20261112/tests/test_namespace_store_dotu.py\", line 430, in test_mixed_dialects_estale_and_full_token_validation\n    self.assertEqual(p.returncode,0,p.stdout+p.stderr)\nAssertionError: 1 != 0 : /tmp/namespace-dotu-ugm304pw/harness.c:323:17: error: redefinition of 'statfid'\n  323 | static unsigned statfid(uint64_t s,uint32_t fid){\n      |                 ^\n/tmp/namespace-dotu-ugm304pw/harness.c:61:17: note: previous definition is here\n   61 | static unsigned statfid(uint64_t s,uint32_t fid) { begin(124);put(fid,4);return call(s); }\n      |                 ^\n1 error generated.\n\n\n----------------------------------------------------------------------\nRan 5 tests in 7.707s\n\nFAILED (failures=1)\n"
+}

@@ -1,0 +1,154 @@
+{
+  "schema": "ostadix.o10-m2-fuzz-workspace-build-input-audit/v1",
+  "ok": true,
+  "source_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "source_root": "/home/ustad/OSTADIX-o10-m2-20261112",
+  "scope": "Read-only exact one-file overlay and actual root/MCP Cargo metadata/build-identity read audit; no overlay applied and no fuzz execution/check performed by this audit",
+  "fix_commit": "c320fdeea72ae21ec8c92995e52f36809e5f7cf8",
+  "apply_scope": [
+    "fuzz/Cargo.lock"
+  ],
+  "before_sha256": "8eef2e10bce3b414295d51ad15206149434391f12dc574f3723738f29110c469",
+  "after_sha256": "9fcf62f91afb4db613a3d2dd976be907caf1fcfd7e017fd5d06c3430b5ff557f",
+  "package_count": 122,
+  "checksum_count": 120,
+  "dependency_delta": {
+    "('ostadix-api', '0.4.0', None)": {
+      "before": [
+        "anyhow",
+        "base64",
+        "bitflags",
+        "ed25519-dalek",
+        "fs2",
+        "getrandom 0.4.3",
+        "hex",
+        "hkdf 0.13.0",
+        "hmac 0.12.1",
+        "if-addrs",
+        "ignore",
+        "libc",
+        "num-bigint",
+        "num-traits",
+        "rustls",
+        "rustls-pemfile",
+        "semver",
+        "serde",
+        "serde_json",
+        "sha2 0.10.9",
+        "sha2 0.11.0",
+        "socket2",
+        "spake2",
+        "thiserror",
+        "toml",
+        "which",
+        "zeroize"
+      ],
+      "after": [
+        "anyhow",
+        "base64",
+        "bitflags",
+        "ed25519-dalek",
+        "fs2",
+        "getrandom 0.4.3",
+        "hex",
+        "hkdf 0.13.0",
+        "hmac 0.13.0",
+        "if-addrs",
+        "ignore",
+        "libc",
+        "num-bigint",
+        "num-traits",
+        "rustls",
+        "rustls-pemfile",
+        "semver",
+        "serde",
+        "serde_json",
+        "sha2 0.11.0",
+        "socket2",
+        "spake2",
+        "thiserror",
+        "toml",
+        "which",
+        "zeroize"
+      ]
+    }
+  },
+  "workspaces": {
+    "root": {
+      "argv": [
+        "/home/ustad/.cargo/bin/cargo",
+        "metadata",
+        "--locked",
+        "--no-deps",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/home/ustad/OSTADIX-o10-m2-20261112/Cargo.toml"
+      ],
+      "returncode": 0,
+      "workspace_root": "/home/ustad/OSTADIX-o10-m2-20261112",
+      "workspace_members": [
+        "path+file:///home/ustad/OSTADIX-o10-m2-20261112#o-lang@0.4.0",
+        "path+file:///home/ustad/OSTADIX-o10-m2-20261112/crates/ostadix-api#0.4.0",
+        "path+file:///home/ustad/OSTADIX-o10-m2-20261112/ostadix-core#ostadix@0.1.0"
+      ],
+      "packages": [
+        {
+          "name": "o-lang",
+          "manifest_path": "/home/ustad/OSTADIX-o10-m2-20261112/Cargo.toml"
+        },
+        {
+          "name": "ostadix-api",
+          "manifest_path": "/home/ustad/OSTADIX-o10-m2-20261112/crates/ostadix-api/Cargo.toml"
+        },
+        {
+          "name": "ostadix",
+          "manifest_path": "/home/ustad/OSTADIX-o10-m2-20261112/ostadix-core/Cargo.toml"
+        }
+      ]
+    },
+    "mcp": {
+      "argv": [
+        "/home/ustad/.cargo/bin/cargo",
+        "metadata",
+        "--locked",
+        "--no-deps",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/home/ustad/OSTADIX-o10-m2-20261112/mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "returncode": 0,
+      "workspace_root": "/home/ustad/OSTADIX-o10-m2-20261112/mcp/ostadix_lang_mcp_server",
+      "workspace_members": [
+        "path+file:///home/ustad/OSTADIX-o10-m2-20261112/mcp/ostadix_lang_mcp_server#ostadix-mcp-server@0.4.0"
+      ],
+      "packages": [
+        {
+          "name": "ostadix-mcp-server",
+          "manifest_path": "/home/ustad/OSTADIX-o10-m2-20261112/mcp/ostadix_lang_mcp_server/Cargo.toml"
+        }
+      ]
+    }
+  },
+  "dependency_resolution_inputs_changed": false,
+  "build_identity_inputs_changed": true,
+  "build_identity_reason": "Both root and MCP build.rs call capture_build_identity.rs. Its git ls-files loop watches every tracked path, including fuzz/Cargo.lock; its observed commit and dirty state change after cherry-pick. This lock is outside dependency-resolution workspaces, but it is a watched provenance input.",
+  "toolchain_origin_required": "Keep completed toolchain source_revision7c12 and its exact source snapshot truthful. Any reuse at a later head must explicitly distinguish origin binary metadata from unchanged semantic dependency inputs; current MCP process build/runtime stamps must align with the new head.",
+  "source_sha256": {
+    "Cargo.toml": "1eeb28b44de3f4eaea63fc90f2abcbb21216a653ce53b4ed0b7b5f93a423fe95",
+    "Cargo.lock": "31f81ac32e461d1a8bd433f31fa65b3759a1fff73b196ad7a24ce751e345dca8",
+    "mcp/ostadix_lang_mcp_server/Cargo.toml": "b6d1ad91c22729e35243efb93646ad843b75204b7e5b7c8a1adc4799921224ea",
+    "mcp/ostadix_lang_mcp_server/Cargo.lock": "d8411ca4c9b9c5afac3c23af21cc5620ee9e307bdecca4abb96e948a68af8b9b",
+    "fuzz/Cargo.toml": "7f53a8708d2e8b0ce1a25a9b0572025486f9a3bb25b6595843a6e650012d6df6",
+    "build.rs": "37f6a63e5323ef824125cc34d004d9d1e54c8263cca14217e12fce19c0bff32b",
+    "mcp/ostadix_lang_mcp_server/build.rs": "f2f5964bb12cdb9ea13450de8ee0e63151395cf5024d965e9a98e318094d1326",
+    "scripts/capture_build_identity.rs": "b06cf7094152e9e0d3d733902bd0cc3026613fe785e2954cacdec89eaa307569"
+  },
+  "independent_static_review": {
+    "path": "/home/ustad/.cache/o10-m2-fuzz-lock-input-review-20261113/result.json",
+    "sha256": "d4fb874ca3b985072ba45f57d3e994276b0c64eb0f13b14067c99d484a2d9bd5"
+  },
+  "source_unchanged": true,
+  "finished_unix": 1794568850.1157308
+}

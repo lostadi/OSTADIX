@@ -1,0 +1,584 @@
+#!/usr/bin/env python3
+"""Archive p9 protocol history on private Linux storage before native cleanup.
+
+Quiet success; never reads stdin, dispatches a request, or changes private client
+receipts/ACKs. A busy client or any pending.json disables cleanup. Keep at most
+one locally receipted current-instance job: the newest that fits within a 1 MiB
+resident allocation budget. Larger/excess jobs are archived fully on Linux.
+Retired service
+trees are archived as unclassified bytes, including partial/unknown work.
+Archives are content-addressed, byte-checked and fsynced before native removal.
+The fixed archive is /var/lib/okernel/p9-history on private Linux storage.
+Deletion can resume from a published archive after interruption. The fixed
+trusted provider/controller lifecycle owns these protocol paths; ordinary
+concurrent writers must not mutate retired/completed history during cleanup.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import secrets
+import stat
+import sys
+
+
+ARCHIVE = Path("/var/lib/okernel/p9-history")
+MAPPING = {"service_root": "/n/okernel/services/plan9", "linux_mount": "/n/okernel", "plan9_mount": "/n"}
+SCHEMA = "ostadix.p9.history-archive/v1"
+MAX_TREE = 32 * 1048576
+RESIDENT_BYTES = 1048576
+RESIDENT_JOBS = 1
+INTERNAL_FILES = {".interrupted", ".stdout.truncated", ".stderr.truncated"}
+FILES = {"request", "submit", "started", "stdout", "stderr", "status", "result", "done", "cancel", "rejected"} | INTERNAL_FILES
+TOP_FILES = {"ready", "reset-required", "recovered"}
+LOCAL_FS = {"ext2", "ext3", "ext4", "tmpfs", "ramfs", "rootfs", "overlay", "btrfs", "xfs", "zfs"}
+
+
+class HistoryError(ValueError):
+    pass
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def resident_charge(files, directories):
+    # Native store payloads hold 4088 bytes in a 4096-byte block, plus a
+    # conservative 384-byte allowance per file/directory metadata node.
+    return sum((len(data) + 4087) // 4088 * 4096 for data in files.values()) + 384 * (len(files) + len(directories))
+
+
+def encoded(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii") + b"\n"
+
+
+def unique(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise HistoryError("duplicate JSON member")
+        value[key] = item
+    return value
+
+
+def decode(data):
+    value = json.loads(data, object_pairs_hook=unique,
+                       parse_constant=lambda _: (_ for _ in ()).throw(HistoryError("invalid JSON number")))
+    if type(value) is not dict:
+        raise HistoryError("JSON object required")
+    return value
+
+
+def hexid(value, count):
+    return isinstance(value, str) and re.fullmatch("[0-9a-f]{%d}" % count, value) is not None
+
+
+def canonical(path):
+    value = str(path)
+    parsed = PurePosixPath(value)
+    if not parsed.is_absolute() or str(parsed) != value or value.startswith("//") or ".." in parsed.parts:
+        raise HistoryError("absolute canonical path required")
+    return Path(value)
+
+
+def private(path, *, directory=False):
+    path = canonical(path)
+    parents = (path, *path.parents) if directory else path.parents
+    for parent in parents:
+        info = parent.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, os.geteuid())
+                or info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX):
+            raise HistoryError("untrusted private path ancestry: " + str(parent))
+    folder = path if directory else path.parent
+    fd = os.open(folder, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        match = re.search(r"(?m)^mnt_id:\s*(\d+)$", Path("/proc/self/fdinfo/" + str(fd)).read_text())
+        if match is None:
+            raise HistoryError("private filesystem identity unavailable")
+        found = [line.split(" - ", 1)[1].split()[0] for line in Path("/proc/self/mountinfo").read_text().splitlines()
+                 if line.split()[0] == match[1]]
+        if len(found) != 1 or found[0] not in LOCAL_FS:
+            raise HistoryError("history/control requires Linux-private local storage")
+    finally:
+        os.close(fd)
+
+
+def read(path, limit=MAX_TREE, *, trusted=False):
+    if trusted:
+        private(path)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            raise HistoryError("invalid history file type/size: " + str(path))
+        if trusted and (info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022):
+            raise HistoryError("untrusted private history file")
+        data = bytearray()
+        while len(data) <= limit:
+            block = os.read(fd, min(65536, limit + 1 - len(data)))
+            if not block:
+                return bytes(data)
+            data.extend(block)
+        raise HistoryError("history file exceeds bound")
+    finally:
+        os.close(fd)
+
+
+def ensure_private_directory(path):
+    path = canonical(path)
+    if not os.path.lexists(path):
+        ensure_private_directory(path.parent)
+        try:
+            path.mkdir(mode=0o700)
+            sync(path.parent)
+        except FileExistsError:
+            pass
+    private(path, directory=True)
+    if path.stat().st_mode & 0o022:
+        raise HistoryError("history parent/directory must be protected")
+
+
+def sync(path):
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def write(path, data):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        view = memoryview(data)
+        while view:
+            count = os.write(fd, view)
+            if count <= 0:
+                raise HistoryError("short archive write")
+            view = view[count:]
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def load_protocol(path):
+    source = read(path, 1048576, trusted=True)
+    spec = importlib.util.spec_from_file_location("p9_history_protocol", path)
+    if spec is None:
+        raise HistoryError("invalid protocol companion path")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    exec(compile(source, str(path), "exec"), module.__dict__)
+    return module
+
+
+def pending_name(name, names):
+    for item in names:
+        suffix = r"[1-9][0-9]*" if item in INTERNAL_FILES else r"(?:[1-9][0-9]*|[0-9a-f]{24})"
+        if re.fullmatch(r"\." + re.escape(item) + r"\.pending\." + suffix, name):
+            return True
+    return False
+
+
+def owned_shape(relative, kind):
+    parts = PurePosixPath(relative).parts
+    count = {"completed-job": 3, "retired-instance-unclassified": 2, "retired-generation-unclassified": 1}.get(kind)
+    if count is None or len(parts) != count:
+        raise HistoryError("invalid archive source depth")
+    if not re.fullmatch("g[0-9a-f]{16}", parts[0]) or parts[0] == "g" + "0" * 16:
+        raise HistoryError("invalid archived generation")
+    for index, prefix in ((1, "s"), (2, "r")):
+        if len(parts) > index and not re.fullmatch(prefix + "[0-9a-f]{32}", parts[index]):
+            raise HistoryError("invalid archive protocol path")
+    if str(PurePosixPath(relative)) != relative:
+        raise HistoryError("noncanonical archive protocol path")
+    return parts
+
+
+def native_tree(root, relative, kind):
+    """Snapshot only the fixed protocol-owned hierarchy, without following links."""
+    owned_shape(relative, kind)
+    selected = root / relative
+    current = root
+    for part in PurePosixPath(relative).parts:
+        current /= part
+        if not stat.S_ISDIR(current.lstat().st_mode):
+            raise HistoryError("non-directory native protocol ancestry")
+    files, directories, total = {}, [""], 0
+    def visit(directory, local, depth):
+        nonlocal total
+        for entry in sorted(directory.iterdir()):
+            name = entry.name
+            info = entry.lstat()
+            item = name if not local else local + "/" + name
+            if depth < 2:
+                prefix, length = ("s", 32) if depth == 0 else ("r", 32)
+                if re.fullmatch(prefix + "[0-9a-f]{%d}" % length, name):
+                    if not stat.S_ISDIR(info.st_mode):
+                        raise HistoryError("protocol child is not a directory")
+                    directories.append(item)
+                    visit(entry, item, depth + 1)
+                    continue
+                if depth == 0 or name not in TOP_FILES and not pending_name(name, TOP_FILES):
+                    raise HistoryError("unknown protocol-owned path: " + str(entry))
+            elif name not in FILES and not pending_name(name, FILES):
+                raise HistoryError("unknown job path: " + str(entry))
+            if not stat.S_ISREG(info.st_mode):
+                raise HistoryError("nonregular protocol history")
+            data = read(entry)
+            total += len(data)
+            if total > MAX_TREE:
+                raise HistoryError("history snapshot exceeds native-store bound")
+            files[item] = data
+    # generation is level0, instance level1, request directory level2.
+    visit(selected, "", len(PurePosixPath(relative).parts) - 1)
+    return files, sorted(directories)
+
+
+class History:
+    def __init__(self, control, protocol, *, archive=ARCHIVE, mapping=MAPPING):
+        self.control, self.archive = canonical(control), canonical(archive)
+        self.protocol, self.mapping = protocol, mapping
+        self.session = self.root = self.session_bytes = None
+
+    def check_current(self):
+        if read(self.control / "current.json", 8192, trusted=True) != self.session_bytes:
+            raise HistoryError("trusted session changed during history cleanup")
+        if os.path.lexists(self.control / "pending.json"):
+            raise HistoryError("pending request appeared during history cleanup")
+
+    def bind_receipt(self, value, ids, wire, result_wire, request, result):
+        g, s, r = ids
+        p = self.protocol
+        expected = {"schema": "ostadix.p9.client-result/v1", "generation": g, "instance": s, "request_id": r,
+                    "request_sha256": digest(wire), "service_root": str(self.root), "result_sha256": digest(result_wire),
+                    "flags": result.flags, "status_hex": result.status.hex(), "stdout_bytes": result.stdout_bytes,
+                    "stderr_bytes": result.stderr_bytes, "stdout_sha256": result.stdout_sha256, "stderr_sha256": result.stderr_sha256}
+        if (encoded({key: value.get(key) for key in expected}) != encoded(expected) or type(value.get("recovered")) is not bool
+                or (request.generation, request.instance, request.request_id) != (g, s, r)
+                or result.flags & (p.FLAG_TIMEOUT | p.FLAG_CANCELLED)):
+            raise HistoryError("private receipt does not bind completed job")
+        return value
+
+    def receipt(self, path, data):
+        value = decode(data)
+        p = self.protocol
+        wire, result_wire = read(path / "request", p.MAX_REQUEST_BYTES), read(path / "result", p.RESULT_HEADER.size + p.MAX_STATUS_BYTES)
+        request = p.validate_submit(wire, read(path / "submit", 512))
+        result = p.validate_result(wire, result_wire, read(path / "stdout", p.MAX_STREAM_BYTES), read(path / "stderr", p.MAX_STREAM_BYTES),
+                                   done=read(path / "done", 512), started=read(path / "started", 512), status=read(path / "status", p.MAX_STATUS_BYTES))
+        self.bind_receipt(value, (path.parent.parent.name[1:], path.parent.name[1:], path.name[1:]), wire, result_wire, request, result)
+        if (path / "cancel").exists():
+            p.validate_cancel(wire, read(path / "cancel", 512))
+        return value
+
+    def retention_charge(self, path, data):
+        """Private receipt metadata decides KEEP only, never authorizes DELETE.
+
+        Completed provider files are immutable under the trusted lifecycle.
+        Bound capture/status lengths come from the private receipt; one cheap
+        request stat bounds its input. Missing/unknown native paths are kept
+        untouched rather than interpreted as completed work.
+        """
+        value, p = decode(data), self.protocol
+        expected = {"schema": "ostadix.p9.client-result/v1", "generation": self.session["generation"],
+                    "instance": self.session["instance"], "request_id": path.name[1:], "service_root": str(self.root)}
+        if any(value.get(key) != item for key, item in expected.items()) or type(value.get("recovered")) is not bool:
+            raise HistoryError("invalid private retention receipt")
+        if any(not hexid(value.get(key), 64) for key in ("request_sha256", "result_sha256", "stdout_sha256", "stderr_sha256")):
+            raise HistoryError("invalid private retention digest")
+        for key in ("stdout_bytes", "stderr_bytes"):
+            if type(value.get(key)) is not int or not 0 <= value[key] <= p.MAX_STREAM_BYTES:
+                raise HistoryError("invalid private retention stream bound")
+        flags, status = value.get("flags"), value.get("status_hex")
+        if (type(flags) is not int or flags < 0 or flags & ~p.KNOWN_FLAGS or flags & (p.FLAG_TIMEOUT | p.FLAG_CANCELLED)
+                or not isinstance(status, str) or len(status) % 2 or len(status) > 2 * p.MAX_STATUS_BYTES
+                or re.fullmatch("[0-9a-f]*", status) is None):
+            raise HistoryError("invalid private retention completion")
+        if not stat.S_ISDIR(path.lstat().st_mode):
+            raise HistoryError("invalid native retention job")
+        names = {entry.name for entry in path.iterdir()}
+        public = set(p.REQUEST_FILES) | set(p.OPTIONAL_REQUEST_FILES)
+        if (not set(p.REQUEST_FILES) <= names
+                or any(name not in public | INTERNAL_FILES and not pending_name(name, INTERNAL_FILES) for name in names)):
+            raise HistoryError("unclassified native retention paths")
+        request = (path / "request").lstat()
+        if not stat.S_ISREG(request.st_mode) or not 0 < request.st_size <= p.MAX_REQUEST_BYTES:
+            raise HistoryError("invalid native retention input size")
+        sizes = (request.st_size, 512, 512, value["stdout_bytes"], value["stderr_bytes"], len(status) // 2,
+                 p.RESULT_HEADER.size + len(status) // 2, 512, 512, 1, 1, 1, 1, 1, 1)
+        # Include worst-case known optional cancel/internal publication files.
+        return sum((size + 4087) // 4088 * 4096 for size in sizes) + 384 * (len(sizes) + 1)
+
+    def archive_tree(self, relative, kind, receipt_data=None):
+        files, directories = native_tree(self.root, relative, kind)
+        receipts = {}
+        if receipt_data is not None:
+            receipts[PurePosixPath(relative).name[1:] + ".json"] = receipt_data
+        else:
+            folder = self.control / "results"
+            if folder.exists():
+                private(folder, directory=True)
+                for path in folder.iterdir():
+                    if not re.fullmatch("[0-9a-f]{32}\\.json", path.name):
+                        continue
+                    data = read(path, 8192, trusted=True)
+                    value = decode(data)
+                    g, s, r = value.get("generation"), value.get("instance"), value.get("request_id")
+                    if hexid(g, 16) and hexid(s, 32) and hexid(r, 32):
+                        selected = "g" + g + "/s" + s + "/r" + r
+                        if selected == relative or selected.startswith(relative + "/"):
+                            receipts[path.name] = data
+        manifest = {"schema": SCHEMA, "source_relative": relative, "kind": kind, "directories": directories,
+                    "files": {name: {"bytes": len(data), "sha256": digest(data)} for name, data in files.items()},
+                    "receipts": {name: {"bytes": len(data), "sha256": digest(data)} for name, data in receipts.items()}}
+        key = digest(encoded(manifest))
+        final = self.archive / key
+        if not final.exists():
+            pending = self.archive / (".pending-" + secrets.token_hex(12))
+            pending.mkdir(mode=0o700)
+            native = pending / "native"
+            native.mkdir(mode=0o700)
+            for name in directories:
+                if name:
+                    (native / name).mkdir(mode=0o700)
+            for name, data in files.items():
+                write(native / name, data)
+            (pending / "receipts").mkdir(mode=0o700)
+            for name, data in receipts.items():
+                write(pending / "receipts" / name, data)
+            write(pending / "manifest.json", encoded(manifest))
+            for folder in sorted((path for path in pending.rglob("*") if path.is_dir()), key=lambda path: len(path.parts), reverse=True):
+                sync(folder)
+            sync(pending)
+            os.rename(pending, final)
+            sync(self.archive)
+        return final
+
+    def verify_archive(self, folder):
+        private(folder, directory=True)
+        manifest_bytes = read(folder / "manifest.json", 1048576, trusted=True)
+        manifest = decode(manifest_bytes)
+        if (folder.name != digest(encoded(manifest)) or manifest_bytes != encoded(manifest)
+                or manifest.keys() != {"schema", "source_relative", "kind", "directories", "files", "receipts"}
+                or manifest["schema"] != SCHEMA):
+            raise HistoryError("invalid content-addressed history manifest")
+        owned_shape(manifest["source_relative"], manifest["kind"])
+        if type(manifest["directories"]) is not list or "" not in manifest["directories"]:
+            raise HistoryError("invalid archive directory inventory")
+        expected = {"manifest.json", "native", "receipts"}
+        for name in manifest["directories"]:
+            if name:
+                if str(PurePosixPath(name)) != name or PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts:
+                    raise HistoryError("archive directory escaped inventory")
+                expected.add("native/" + name)
+        for group, prefix in (("files", "native"), ("receipts", "receipts")):
+            if type(manifest[group]) is not dict:
+                raise HistoryError("invalid archive file inventory")
+            for name, item in manifest[group].items():
+                parsed = PurePosixPath(name)
+                if not name or str(parsed) != name or parsed.is_absolute() or ".." in parsed.parts:
+                    raise HistoryError("archive file escaped inventory")
+                if group == "receipts" and not re.fullmatch("[0-9a-f]{32}\\.json", name):
+                    raise HistoryError("invalid archived receipt name")
+                path = folder / prefix / name
+                data = read(path, trusted=True)
+                if type(item) is not dict or item != {"bytes": len(data), "sha256": digest(data)}:
+                    raise HistoryError("archived history bytes differ")
+                expected.add(prefix + "/" + name)
+        actual = {str(path.relative_to(folder)) for path in folder.rglob("*")}
+        if actual != expected or any(path.is_symlink() for path in folder.rglob("*")):
+            raise HistoryError("archive has unknown/missing paths")
+        # Validate payload hierarchy independently of self-consistent hashes.
+        relative = manifest["source_relative"]
+        fake_root = folder / "native"
+        depth = len(PurePosixPath(relative).parts) - 1
+        for name in manifest["files"]:
+            parts = PurePosixPath(name).parts
+            level = depth
+            for part in parts[:-1]:
+                prefix = "s" if level == 0 else "r" if level == 1 else None
+                if prefix is None or not re.fullmatch(prefix + "[0-9a-f]{32}", part):
+                    raise HistoryError("archive payload has nonprotocol directories")
+                level += 1
+            allowed = TOP_FILES if level == 1 else FILES if level == 2 else set()
+            if parts[-1] not in allowed and not pending_name(parts[-1], allowed):
+                raise HistoryError("archive payload has nonprotocol file")
+        if manifest["kind"] == "completed-job":
+            # Use a path-shaped view for exact G/S/R result validation; the
+            # payload itself stays in its hash-addressed private archive.
+            receipt_name = PurePosixPath(relative).name[1:] + ".json"
+            if receipt_name not in manifest["receipts"]:
+                raise HistoryError("completed archive has no private receipt")
+            value = decode(read(folder / "receipts" / receipt_name, 8192, trusted=True))
+            p = self.protocol
+            wire, result_wire = read(fake_root / "request"), read(fake_root / "result")
+            request = p.validate_submit(wire, read(fake_root / "submit"))
+            result = p.validate_result(wire, result_wire, read(fake_root / "stdout"), read(fake_root / "stderr"),
+                                       done=read(fake_root / "done"), started=read(fake_root / "started"), status=read(fake_root / "status"))
+            g, s, r = (part[1:] for part in PurePosixPath(relative).parts)
+            self.bind_receipt(value, (g, s, r), wire, result_wire, request, result)
+        return manifest
+
+    def delete_archived(self, folder):
+        # Completed archives need no payload reread once their native tree is
+        # absent. Their immutable manifest still binds the retained bytes.
+        private(folder, directory=True)
+        preview = decode(read(folder / "manifest.json", 1048576, trusted=True))
+        owned_shape(preview["source_relative"], preview["kind"])
+        if preview.get("schema") != SCHEMA or folder.name != digest(encoded(preview)):
+            raise HistoryError("invalid published archive manifest")
+        if not os.path.lexists(self.root / preview["source_relative"]):
+            return preview["source_relative"]
+        manifest = self.verify_archive(folder)
+        self.check_current()
+        relative, kind = manifest["source_relative"], manifest["kind"]
+        parts = owned_shape(relative, kind)
+        current = ("g" + self.session["generation"], "s" + self.session["instance"])
+        if ((kind == "retired-generation-unclassified" and parts[0] == current[0])
+                or kind == "retired-instance-unclassified" and tuple(parts[:2]) == current):
+            raise HistoryError("archive cannot delete current service instance")
+        selected = self.root / relative
+        if not os.path.lexists(selected):
+            return relative
+        existing_files, existing_dirs = native_tree(self.root, relative, kind)
+        if not set(existing_files) <= manifest["files"].keys() or not set(existing_dirs) <= set(manifest["directories"]):
+            raise HistoryError("native history gained unarchived paths; preserving it")
+        for name, data in existing_files.items():
+            if manifest["files"][name] != {"bytes": len(data), "sha256": digest(data)}:
+                raise HistoryError("native history changed after archive; preserving it")
+        for name in sorted(existing_files):
+            self.check_current()
+            data = read(selected / name)
+            if manifest["files"][name] != {"bytes": len(data), "sha256": digest(data)}:
+                raise HistoryError("native history changed before removal")
+            (selected / name).unlink()
+        for name in sorted(existing_dirs, key=lambda item: len(PurePosixPath(item).parts), reverse=True):
+            self.check_current()
+            (selected / name).rmdir()
+        return relative
+
+    def collect(self):
+        private(self.control, directory=True)
+        if self.control.stat().st_mode & 0o022:
+            raise HistoryError("client control directory must be private")
+        lock = os.open(self.control / "client.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        try:
+            info = os.fstat(lock)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022:
+                raise HistoryError("invalid client lock")
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return
+            if os.path.lexists(self.control / "pending.json") or not (self.control / "current.json").exists():
+                return
+            self.session_bytes = read(self.control / "current.json", 8192, trusted=True)
+            self.session = decode(self.session_bytes)
+            if (self.session.get("schema") != "ostadix.p9.client-session/v1"
+                    or not hexid(self.session.get("generation"), 16) or self.session["generation"] == "0" * 16
+                    or not hexid(self.session.get("instance"), 32)
+                    or any(self.session.get(key) != value for key, value in self.mapping.items())
+                    or self.session.get("recovery_mode") not in ("disabled", "controller-v1")
+                    or self.session.get("state", "ready") not in ("ready", "recovering")
+                    or self.session.get("program_dir", "/arm64/bin") not in ("/arm64/bin", "/bin")):
+                raise HistoryError("invalid trusted client session/mapping")
+            if self.session.get("state", "ready") != "ready":
+                return
+            self.root = canonical(self.session["service_root"])
+            if self.root.is_symlink() or not self.root.is_dir():
+                raise HistoryError("native service root is not a directory")
+            for parent in self.root.parents:
+                if parent.is_symlink():
+                    raise HistoryError("symlink in native service ancestry")
+            current = self.root / ("g" + self.session["generation"]) / ("s" + self.session["instance"])
+            for selected in (current.parent, current):
+                if not stat.S_ISDIR(selected.lstat().st_mode):
+                    raise HistoryError("invalid current native service ancestry")
+            if read(current / "ready", 256) != self.protocol.ready_marker(self.session["generation"], self.session["instance"]):
+                raise HistoryError("current readiness differs from trusted selector")
+            ensure_private_directory(self.archive)
+            if self.archive.stat().st_mode & 0o022:
+                raise HistoryError("archive directory must be private")
+            # Resume only archives already fully published on Linux storage.
+            removed = set()
+            for folder in sorted(self.archive.iterdir()):
+                if re.fullmatch("[0-9a-f]{64}", folder.name):
+                    removed.add(self.delete_archived(folder))
+            generation = "g" + self.session["generation"]
+            instance = "s" + self.session["instance"]
+            for gdir in sorted(self.root.iterdir()):
+                if not re.fullmatch("g[0-9a-f]{16}", gdir.name) or gdir.name == "g" + "0" * 16:
+                    continue
+                if not stat.S_ISDIR(gdir.lstat().st_mode):
+                    continue
+                if gdir.name != generation:
+                    candidates = [(gdir.name, "retired-generation-unclassified")]
+                else:
+                    candidates = [(gdir.name + "/" + child.name, "retired-instance-unclassified") for child in sorted(gdir.iterdir())
+                                  if re.fullmatch("s[0-9a-f]{32}", child.name) and child.name != instance]
+                for relative, kind in candidates:
+                    try:
+                        native_tree(self.root, relative, kind)
+                    except (OSError, HistoryError):
+                        continue  # Unknown paths/types remain completely untouched.
+                    archive = self.archive_tree(relative, kind)
+                    self.delete_archived(archive)
+            current = self.root / generation / instance
+            results = self.control / "results"
+            if not current.is_dir() or not results.is_dir() or (current / "reset-required").exists():
+                return
+            private(results, directory=True)
+            eligible = []
+            for path in sorted(results.iterdir()):
+                if not re.fullmatch("[0-9a-f]{32}\\.json", path.name):
+                    continue
+                job = current / ("r" + path.stem)
+                if str(job.relative_to(self.root)) in removed:
+                    continue
+                try:
+                    data = read(path, 8192, trusted=True)
+                    eligible.append((path.stat().st_mtime_ns, path.name, job, data, self.retention_charge(job, data)))
+                except (OSError, ValueError):
+                    continue
+            retained_jobs = retained_bytes = 0
+            for _, _, job, data, charge in sorted(eligible, reverse=True):
+                if retained_jobs < RESIDENT_JOBS and retained_bytes + charge <= RESIDENT_BYTES:
+                    retained_jobs += 1
+                    retained_bytes += charge
+                    continue
+                try:
+                    self.receipt(job, data)
+                    files, _ = native_tree(self.root, str(job.relative_to(self.root)), "completed-job")
+                    public = set(self.protocol.REQUEST_FILES) | set(self.protocol.OPTIONAL_REQUEST_FILES)
+                    if any(name not in public | INTERNAL_FILES and not pending_name(name, INTERNAL_FILES) for name in files):
+                        continue
+                except (OSError, ValueError):
+                    continue
+                archive = self.archive_tree(str(job.relative_to(self.root)), "completed-job", data)
+                self.delete_archived(archive)
+        finally:
+            os.close(lock)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--control-dir", type=Path, default=Path("/run/okernel/p9"))
+    parser.add_argument("--protocol", type=Path, default=Path("/usr/lib/okernel/p9_protocol.py"))
+    args = parser.parse_args()
+    try:
+        protocol = load_protocol(args.protocol)
+        History(args.control_dir, protocol).collect()
+        return 0
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print("p9-history: " + str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

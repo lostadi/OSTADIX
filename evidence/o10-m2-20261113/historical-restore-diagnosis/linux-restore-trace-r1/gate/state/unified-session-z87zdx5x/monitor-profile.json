@@ -1,0 +1,677 @@
+{
+  "schema": "ostadix.unified-world-monitor/v1",
+  "profile": "linux-original-plan9",
+  "scope": "native O-core two-domain EL2 profile for original Linux/9front; build alone is not live acceptance or foreign-engine lowering",
+  "outer_ram_bytes": 3221225472,
+  "domains": [
+    {
+      "id": 0,
+      "name": "linux",
+      "guest_ram_ipa": 1073741824,
+      "guest_ram_pa": 1207959552,
+      "guest_ram_bytes": 536870912,
+      "entry": 1073741824,
+      "x0": 1205862400,
+      "vmid": 1
+    },
+    {
+      "id": 1,
+      "name": "plan9",
+      "guest_ram_ipa": 1073741824,
+      "guest_ram_pa": 2952790016,
+      "guest_ram_bytes": 536870912,
+      "entry": 1074790400,
+      "x0": 1073741824,
+      "vmid": 2
+    }
+  ],
+  "loader_addresses": {
+    "inputs/linux.Image": 1207959552,
+    "linux.dtb": 1340080128,
+    "inputs/linux.initramfs": 1342177280,
+    "inputs/plan9.kernel": 2953838592,
+    "plan9.dtb": 2952790016,
+    "inputs/linux-recovery.Image": 3523215360,
+    "inputs/linux-recovery.dtb": 3791650816,
+    "inputs/linux-recovery.initramfs": 3657433088,
+    "inputs/plan9-recovery.kernel": 3489660928,
+    "inputs/plan9-recovery.dtb": 3506438144
+  },
+  "block_backing": {
+    "address": 1879048192,
+    "bytes": 1073741824
+  },
+  "namespace": {
+    "address": 1811939328,
+    "bytes": 16777216,
+    "epoch_address": 1828716544,
+    "quiescence_address": 1828716552,
+    "clock_address": 1828716560,
+    "linux_grant": 1,
+    "plan9_grant": 4,
+    "native_peer_grant": 2
+  },
+  "plan9_console": {
+    "input_address": 1828782080,
+    "input_bytes": 4096,
+    "output_address": 1828847616,
+    "output_bytes": 65536
+  },
+  "console_mux": {
+    "escape": 30,
+    "linux_select": 48,
+    "plan9_select": 49,
+    "linux_output_address": 1828978688,
+    "output_bytes": 65536
+  },
+  "coordinator_uart": {
+    "guest_address": 150999040,
+    "guest_irq": 51,
+    "input_address": 1829109760,
+    "input_bytes": 8192,
+    "output_address": 1829240832,
+    "output_bytes": 65536
+  },
+  "gic": {
+    "version": 3,
+    "physical_controller": "native monitor only",
+    "distributor": [
+      134217728,
+      134283264
+    ],
+    "redistributor": [
+      134873088,
+      135004160
+    ],
+    "native_quantum_irq": 26,
+    "quantum_counter_divisor": 100,
+    "lpi_authority": false
+  },
+  "idle_scheduler": {
+    "schema": "ostadix.unified-idle-scheduler/v1",
+    "blocked_mask_address": 1828716704,
+    "idle_waits_address": 1828716712,
+    "plan9_9p_requests_address": 1828716720,
+    "plan9_9p_request_bytes_address": 1828716728,
+    "plan9_9p_reply_bytes_address": 1828716736,
+    "native_poll_frequency_divisor": 200,
+    "policy": "park WFI until waking virtual interrupt; WFE remains a hint"
+  },
+  "artifacts": {
+    "monitor.elf": {
+      "path": "monitor.elf",
+      "bytes": 1012056,
+      "sha256": "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869"
+    },
+    "linux.dtb": {
+      "path": "linux.dtb",
+      "bytes": 2051,
+      "sha256": "224a7710dd50f551190045acbdcd35b682628a029e224593d8aec6d72a4aaeeb"
+    },
+    "plan9.dtb": {
+      "path": "plan9.dtb",
+      "bytes": 503,
+      "sha256": "568c3cc7add2f636c8743d8c0fe73519772c5a53116dc0869400ddee73c27301"
+    },
+    "profile.oc": {
+      "path": "profile.oc",
+      "bytes": 267,
+      "sha256": "654a11c2b1210beb5a24c546547bf962af529643ae4609bbc20157731c123ec6"
+    },
+    "inputs/linux.Image": {
+      "path": "inputs/linux.Image",
+      "bytes": 6062088,
+      "sha256": "6fc693976f51551b74327009e6e8c4fb625142257256fd66f3b5492600ab6c76"
+    },
+    "inputs/linux.initramfs": {
+      "path": "inputs/linux.initramfs",
+      "bytes": 8726528,
+      "sha256": "64c333793206c34236dc048619d6f885f09e623b8b45f5e449f1f882e54923da"
+    },
+    "inputs/linux-original.initramfs": {
+      "path": "inputs/linux-original.initramfs",
+      "bytes": 8725504,
+      "sha256": "9763d598973a5cb12572e8f0c6ad6104a41976cb728049d57a41bdb8049b969d"
+    },
+    "inputs/linux.config": {
+      "path": "inputs/linux.config",
+      "bytes": 61313,
+      "sha256": "51e4558c4ee94f627d31f1f8a36a9bfc5b78372e5fb0273ad4758614e732d1a7"
+    },
+    "inputs/linux-payload.json": {
+      "path": "inputs/linux-payload.json",
+      "bytes": 959,
+      "sha256": "076653818b3a238e6c1d8fc4f7a4da8742d9696750ffe87bdcff629393622268"
+    },
+    "inputs/plan9.uimage": {
+      "path": "inputs/plan9.uimage",
+      "bytes": 6051008,
+      "sha256": "a0bbd0d5428fdaca53b5565c0c32a9de9ba3c00a542b159338c24aca0f095c78"
+    },
+    "inputs/plan9.kernel": {
+      "path": "inputs/plan9.kernel",
+      "bytes": 6050944,
+      "sha256": "5ea230907b9fcaa821c427d42d646acb9dddb5527ae383f13d8680cfcc6318f0"
+    },
+    "inputs/plan9-derivation.json": {
+      "path": "inputs/plan9-derivation.json",
+      "bytes": 85564,
+      "sha256": "b128b0df09e80318576282c6c2799a4bdde00980ffaddee37c6ac83d326dbbbf"
+    },
+    "inputs/plan9-userland/FROZEN.json": {
+      "path": "inputs/plan9-userland/FROZEN.json",
+      "bytes": 3211,
+      "sha256": "66fc0080bde1f8a0a17bf2b819320359146e8609c528ba38e5def9dd8eca5f4e"
+    },
+    "inputs/plan9-userland/qualification.json": {
+      "path": "inputs/plan9-userland/qualification.json",
+      "bytes": 3390,
+      "sha256": "0d46c69d9074a8ebc7b04fa0bd2d9c25125310ecbe8e42b077d6480696006d95"
+    },
+    "inputs/plan9-userland/coexistence.json": {
+      "path": "inputs/plan9-userland/coexistence.json",
+      "bytes": 14761,
+      "sha256": "b4d69a906424e7a8842f05f639f49f480062104a9e22a18465f29a5fb4786d7d"
+    },
+    "inputs/plan9-userland/console.log": {
+      "path": "inputs/plan9-userland/console.log",
+      "bytes": 1695,
+      "sha256": "69608521892595a4511dd1b09bac2d0e756753ebef22efb7bb85a9d74c80cbbe"
+    },
+    "inputs/plan9-userland/admission-verifier.py": {
+      "path": "inputs/plan9-userland/admission-verifier.py",
+      "bytes": 17555,
+      "sha256": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+    },
+    "inputs/plan9-userland/behavior/foreground.json": {
+      "path": "inputs/plan9-userland/behavior/foreground.json",
+      "bytes": 48010,
+      "sha256": "db3492dcac36accd5d91786a50e318245bda3c8a7ffaa6d31ac95c0be78b8db3"
+    },
+    "inputs/plan9-userland/behavior/cancel-active.json": {
+      "path": "inputs/plan9-userland/behavior/cancel-active.json",
+      "bytes": 15468,
+      "sha256": "4968c31dad4dcf9e5df3aa0a2dc0fbbccbe5cabfa3d95500c7a72cf09063e7d3"
+    },
+    "inputs/plan9-userland/behavior/cancel-before.json": {
+      "path": "inputs/plan9-userland/behavior/cancel-before.json",
+      "bytes": 15395,
+      "sha256": "b8612fc14dbcc0db9955ede2eb404a51a2273074a2fcb05ae737b0bf1313ab28"
+    },
+    "inputs/plan9-userland/behavior/cancel-truncated.json": {
+      "path": "inputs/plan9-userland/behavior/cancel-truncated.json",
+      "bytes": 15616,
+      "sha256": "c3fc00976ea8b4f9e7640815556d25cdbbbaaf88210716f02cfb585ef2c91a9a"
+    },
+    "inputs/plan9-userland/behavior/timeout.json": {
+      "path": "inputs/plan9-userland/behavior/timeout.json",
+      "bytes": 14400,
+      "sha256": "8cd391fc09f568e2a248ba63be51777c7793b39be54b635c69147977aebf528f"
+    },
+    "inputs/plan9-userland/unit_tests.json": {
+      "path": "inputs/plan9-userland/unit_tests.json",
+      "bytes": 6929,
+      "sha256": "caed6578e09e8d27a3a85f837bbdb8fffe5d65b937ee2883a544d6dd946fdd27"
+    },
+    "inputs/plan9-userland/native_polling_fixture.json": {
+      "path": "inputs/plan9-userland/native_polling_fixture.json",
+      "bytes": 6118,
+      "sha256": "3fe476049513c1fcb294b83b8c106a03505cbc43507359d4113b4d11d8faa4ea"
+    },
+    "inputs/plan9-userland/inputs/entry.S": {
+      "path": "inputs/plan9-userland/inputs/entry.S",
+      "bytes": 395,
+      "sha256": "7d019a8e997dab04da9ae96e3ca20bdb441d0a09173efc3cae54562e9de8352f"
+    },
+    "inputs/plan9-userland/inputs/builder.dts": {
+      "path": "inputs/plan9-userland/inputs/builder.dts",
+      "bytes": 591,
+      "sha256": "3a84895c96e065595a9d87d35bf7f16ff012af08076c77ba6a3b116dbb155930"
+    },
+    "inputs/plan9-userland/inputs/FIXTIME": {
+      "path": "inputs/plan9-userland/inputs/FIXTIME",
+      "bytes": 32,
+      "sha256": "63efaf350333c8fd2472a63d4ec8ef000fff3826ef7ac72223a8e1161c410c7d"
+    },
+    "inputs/plan9-userland/inputs/uart.patch": {
+      "path": "inputs/plan9-userland/inputs/uart.patch",
+      "bytes": 867,
+      "sha256": "9e264301ac0f6311e3790caaefe9996138af63e62bd6c15da3fac8073b0593d3"
+    },
+    "inputs/plan9-userland/inputs/BUILD.RC": {
+      "path": "inputs/plan9-userland/inputs/BUILD.RC",
+      "bytes": 3170,
+      "sha256": "75f7dc680b46ca2dd6793943be91fea0cfa92339d4715edd9db7a12035dee351"
+    },
+    "inputs/plan9-userland/inputs/P9CMDSRV.C": {
+      "path": "inputs/plan9-userland/inputs/P9CMDSRV.C",
+      "bytes": 20674,
+      "sha256": "e3e85652ce83159882f14b84a72a9cbaf55085d14f228a9c50b2433f5eb143f3"
+    },
+    "inputs/plan9-userland/inputs/UART.C": {
+      "path": "inputs/plan9-userland/inputs/UART.C",
+      "bytes": 5207,
+      "sha256": "f3c0ec64beafeae20bb5f3fc859724fb648ae8d0109045ba6ae7f77f9a0a8c8c"
+    },
+    "inputs/plan9-userland/inputs/probe.py": {
+      "path": "inputs/plan9-userland/inputs/probe.py",
+      "bytes": 27804,
+      "sha256": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54"
+    },
+    "inputs/plan9-userland/inputs/builder.py": {
+      "path": "inputs/plan9-userland/inputs/builder.py",
+      "bytes": 34032,
+      "sha256": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7"
+    },
+    "inputs/plan9-userland/inputs/UNIFIED.PRT": {
+      "path": "inputs/plan9-userland/inputs/UNIFIED.PRT",
+      "bytes": 428,
+      "sha256": "914d14534ea020485d7f21b25915e5061a11049c74e589824c26711f6cd37991"
+    },
+    "inputs/plan9-userland/inputs/original-builder.py": {
+      "path": "inputs/plan9-userland/inputs/original-builder.py",
+      "bytes": 17199,
+      "sha256": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b"
+    },
+    "inputs/plan9-userland/inputs/HELLO.C": {
+      "path": "inputs/plan9-userland/inputs/HELLO.C",
+      "bytes": 98,
+      "sha256": "aa394796492d4d1780c385c3c26a40ae3d15951b30309f8a905169c53ce00074"
+    },
+    "inputs/plan9-userland/inputs/START.RC": {
+      "path": "inputs/plan9-userland/inputs/START.RC",
+      "bytes": 1020,
+      "sha256": "f5f77df25eca46543906e49c80ab6e1a2cd937077a123b2b8a2fe88b2bac79f8"
+    },
+    "inputs/plan9-userland/platform_artifacts/builder.dtb": {
+      "path": "inputs/plan9-userland/platform_artifacts/builder.dtb",
+      "bytes": 563,
+      "sha256": "b770a1d5b0a87662fd1401d373650914ea2648970b8f055ba1b4d98c2c81bbf7"
+    },
+    "inputs/plan9-userland/platform_artifacts/entry.bin": {
+      "path": "inputs/plan9-userland/platform_artifacts/entry.bin",
+      "bytes": 48,
+      "sha256": "a645edd91db5a6c49a720bcfcee928b2ead3ed711011dd260f37da05879c6429"
+    },
+    "inputs/plan9-userland/platform_artifacts/kernel.raw": {
+      "path": "inputs/plan9-userland/platform_artifacts/kernel.raw",
+      "bytes": 4291984,
+      "sha256": "d079f9db3841390a0ca823000bc4a10991d73f6ba47a941bc9fd9d6e1df64bee"
+    },
+    "inputs/plan9-userland/artifacts/USER.TAR": {
+      "path": "inputs/plan9-userland/artifacts/USER.TAR",
+      "bytes": 13369344,
+      "sha256": "633ea0fff64820e765e38aa9c6cd58467d2ae6471bf7c1539ac94dc750c17413"
+    },
+    "inputs/plan9-userland/artifacts/USER.PAQ": {
+      "path": "inputs/plan9-userland/artifacts/USER.PAQ",
+      "bytes": 4763716,
+      "sha256": "f808f12a0532048c1e7514178f7d4b10c60be6acc13dc0780b74d3fd252793c6"
+    },
+    "inputs/plan9-userland/artifacts/ORIG.TXT": {
+      "path": "inputs/plan9-userland/artifacts/ORIG.TXT",
+      "bytes": 20128,
+      "sha256": "d9b31de0276ac2f4c918e308113e9b41763c5cf95485db937eb2d628d8189696"
+    },
+    "inputs/plan9-userland/artifacts/SOURCE.TXT": {
+      "path": "inputs/plan9-userland/artifacts/SOURCE.TXT",
+      "bytes": 66290,
+      "sha256": "b1fd809a7237207d1a17b4012d79abeb197519ef9f97aa4c09711b4593c83409"
+    },
+    "inputs/plan9-userland/artifacts/COMMIT.TXT": {
+      "path": "inputs/plan9-userland/artifacts/COMMIT.TXT",
+      "bytes": 41,
+      "sha256": "5725da4871e252251e96264e8ea829c53869d725423a7e0324e30edede0306c4"
+    },
+    "inputs/plan9-userland/artifacts/TOOLS.TXT": {
+      "path": "inputs/plan9-userland/artifacts/TOOLS.TXT",
+      "bytes": 821,
+      "sha256": "68c07339cc6e37129a84d6393d32e204cd7e62d44f076e9ab402cb309ce5e95f"
+    },
+    "inputs/plan9-userland/artifacts/FILES.TXT": {
+      "path": "inputs/plan9-userland/artifacts/FILES.TXT",
+      "bytes": 23254,
+      "sha256": "aa74d5d24dd86eee0f420f4387abf9734c921bd89fda70c410b882c16275ca73"
+    },
+    "inputs/plan9-userland/artifacts/SERVICE": {
+      "path": "inputs/plan9-userland/artifacts/SERVICE",
+      "bytes": 111743,
+      "sha256": "701d9c32373d41f145b4d4b5fb346f626ee65ddd3d06581bace87f2290b79942"
+    },
+    "inputs/plan9-userland/artifacts/BUILD.LOG": {
+      "path": "inputs/plan9-userland/artifacts/BUILD.LOG",
+      "bytes": 5157,
+      "sha256": "186ec088b54cd63ac12009e755ed7413e6324d82d7eecb31248daded459d085e"
+    },
+    "inputs/plan9-userland/artifacts/KERNEL.U": {
+      "path": "inputs/plan9-userland/artifacts/KERNEL.U",
+      "bytes": 6051008,
+      "sha256": "a0bbd0d5428fdaca53b5565c0c32a9de9ba3c00a542b159338c24aca0f095c78"
+    },
+    "inputs/linux-recovery.Image": {
+      "path": "inputs/linux-recovery.Image",
+      "bytes": 6062088,
+      "sha256": "6fc693976f51551b74327009e6e8c4fb625142257256fd66f3b5492600ab6c76"
+    },
+    "inputs/linux-recovery.dtb": {
+      "path": "inputs/linux-recovery.dtb",
+      "bytes": 2051,
+      "sha256": "224a7710dd50f551190045acbdcd35b682628a029e224593d8aec6d72a4aaeeb"
+    },
+    "inputs/linux-recovery.initramfs": {
+      "path": "inputs/linux-recovery.initramfs",
+      "bytes": 8726528,
+      "sha256": "64c333793206c34236dc048619d6f885f09e623b8b45f5e449f1f882e54923da"
+    },
+    "inputs/plan9-recovery.kernel": {
+      "path": "inputs/plan9-recovery.kernel",
+      "bytes": 6050944,
+      "sha256": "5ea230907b9fcaa821c427d42d646acb9dddb5527ae383f13d8680cfcc6318f0"
+    },
+    "inputs/plan9-recovery.dtb": {
+      "path": "inputs/plan9-recovery.dtb",
+      "bytes": 503,
+      "sha256": "568c3cc7add2f636c8743d8c0fe73519772c5a53116dc0869400ddee73c27301"
+    }
+  },
+  "tools": {
+    "ocorec": {
+      "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/pre-mcp-bin/ocorec",
+      "bytes": 3817336,
+      "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+    },
+    "clang": {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "bytes": 140592,
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "lld": {
+      "path": "/usr/lib/llvm-18/bin/lld",
+      "bytes": 5195712,
+      "sha256": "7ad9a0e8fe6d0e79b71172d731e33872c0274e49fceb7b516d774876d5a58ade"
+    },
+    "dtc": {
+      "path": "/home/ustad/ostadix-BM/target/bm-dev-env/bin/dtc",
+      "bytes": 331,
+      "sha256": "e604bf935a682aa9e691a669f6e0ea8e70e86db317893a173040269b38a50c2e"
+    }
+  },
+  "source_sha256": {
+    "ocore/runtime/aarch64/unified_world.oc": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a",
+    "ocore/runtime/aarch64/unified_gic.oc": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7",
+    "ocore/runtime/aarch64/linux_domain_images.oc": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632",
+    "ocore/runtime/aarch64/linux_restart_witness.oc": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971",
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2",
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b",
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5",
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44",
+    "ocore/runtime/aarch64/kernel_world_net.oc": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29",
+    "ocore/runtime/aarch64/kernel_world_9p.oc": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d",
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110",
+    "ocore/runtime/aarch64/coordinator_uart.oc": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a",
+    "ocore/runtime/common/namespace_store.oc": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476",
+    "ocore/runtime/common/o10_codec.oc": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82",
+    "ocore/runtime/common/o10_executor.oc": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9",
+    "ocore/runtime/common/namespace_peer.oc": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11",
+    "ocore/kernel/aarch64/unified_world/monitor.S": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06",
+    "ocore/kernel/aarch64/unified_world/linker.ld": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0",
+    "ocore/kernel/aarch64/kernel_world/guest.dts": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad",
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b",
+    "scripts/build_okernel_unified_world.py": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3",
+    "scripts/probe_okernel_plan9.py": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54",
+    "ocore/guest/linux/package-domain/init": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+    "scripts/build_okernel_plan9_userland.py": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7",
+    "scripts/build_okernel_plan9_original.py": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+    "scripts/plan9_userland_admission.py": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+  },
+  "source_artifacts": {
+    "ocore/runtime/aarch64/unified_world.oc": {
+      "path": "sources/ocore/runtime/aarch64/unified_world.oc",
+      "bytes": 44693,
+      "sha256": "f2873993983f90f29de28a1b59ae95e29b6f44bf76c1470f93026eab8dd9ae6a"
+    },
+    "ocore/runtime/aarch64/unified_gic.oc": {
+      "path": "sources/ocore/runtime/aarch64/unified_gic.oc",
+      "bytes": 22622,
+      "sha256": "176dc2d908c917a4c5548d852ddc8a08e67afa9f25beb7e63d1b592eb653d3f7"
+    },
+    "ocore/runtime/aarch64/linux_domain_images.oc": {
+      "path": "sources/ocore/runtime/aarch64/linux_domain_images.oc",
+      "bytes": 2788,
+      "sha256": "7791fa83c4e58dfcc9e586a51aa3c833ba51511300a9a8485f3fcd6beef9a632"
+    },
+    "ocore/runtime/aarch64/linux_restart_witness.oc": {
+      "path": "sources/ocore/runtime/aarch64/linux_restart_witness.oc",
+      "bytes": 5560,
+      "sha256": "8e70e92213102d2cafe2d3698136360cc509e4114b169d53081d2471f7964971"
+    },
+    "ocore/runtime/aarch64/kernel_world_monitor.oc": {
+      "path": "sources/ocore/runtime/aarch64/kernel_world_monitor.oc",
+      "bytes": 33803,
+      "sha256": "54575954e4a690f76acc13209e5907cfe5da4caec43f32af2bc17d73fe9dfba2"
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio.oc": {
+      "path": "sources/ocore/runtime/aarch64/kernel_world_virtio.oc",
+      "bytes": 26137,
+      "sha256": "4215068e39fa58fec3762e100854a338850748c90d7456a6309c1fde5d1d681b"
+    },
+    "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc": {
+      "path": "sources/ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+      "bytes": 11492,
+      "sha256": "8fba552fa03ff31d95a7cc5680b679440d3129519ec7cbe6dc8071c201c1e7e5"
+    },
+    "ocore/runtime/aarch64/kernel_world_net_host.oc": {
+      "path": "sources/ocore/runtime/aarch64/kernel_world_net_host.oc",
+      "bytes": 10758,
+      "sha256": "414b816becc4f2d19132ba555ad02f989d25f9f1e0600979831a315d49d79b44"
+    },
+    "ocore/runtime/aarch64/kernel_world_net.oc": {
+      "path": "sources/ocore/runtime/aarch64/kernel_world_net.oc",
+      "bytes": 15647,
+      "sha256": "b1db1dcde1e442d329e680f728212721fbf91dbb703f785abf1ff71671c62b29"
+    },
+    "ocore/runtime/aarch64/kernel_world_9p.oc": {
+      "path": "sources/ocore/runtime/aarch64/kernel_world_9p.oc",
+      "bytes": 16366,
+      "sha256": "61038a9d9a5c8e493334c4d217446bfcd22be170d794f32cf419c9ed383ecf4d"
+    },
+    "ocore/runtime/aarch64/plan9_namespace_uart.oc": {
+      "path": "sources/ocore/runtime/aarch64/plan9_namespace_uart.oc",
+      "bytes": 9552,
+      "sha256": "d5f050a7784dde39f3fd56a24a4195c9c706396d784ccc9ae8142eed02d2f110"
+    },
+    "ocore/runtime/aarch64/coordinator_uart.oc": {
+      "path": "sources/ocore/runtime/aarch64/coordinator_uart.oc",
+      "bytes": 6049,
+      "sha256": "36d3a7b8918cf47e06a8b695036be9f3f540d0b26d676d3630aa143a64f96f9a"
+    },
+    "ocore/runtime/common/namespace_store.oc": {
+      "path": "sources/ocore/runtime/common/namespace_store.oc",
+      "bytes": 54661,
+      "sha256": "5c1e3fa2dd716edc4e5d4cb383adc5c1867b7d148f5825c1c906012a1c87a476"
+    },
+    "ocore/runtime/common/o10_codec.oc": {
+      "path": "sources/ocore/runtime/common/o10_codec.oc",
+      "bytes": 3846,
+      "sha256": "f38e385e76c75eff469294b8cc3a41575fd765790ece36748f8a1859ea435e82"
+    },
+    "ocore/runtime/common/o10_executor.oc": {
+      "path": "sources/ocore/runtime/common/o10_executor.oc",
+      "bytes": 5586,
+      "sha256": "fbe6b2d8474a7a7553e45a8381c7c97b36587b00b0ad010cc67b1af3b84dc1d9"
+    },
+    "ocore/runtime/common/namespace_peer.oc": {
+      "path": "sources/ocore/runtime/common/namespace_peer.oc",
+      "bytes": 6760,
+      "sha256": "0d9fbbea5a532ab6b5142c35d0d12ca5edb05c00692168e57aa73f51468aaa11"
+    },
+    "ocore/kernel/aarch64/unified_world/monitor.S": {
+      "path": "sources/ocore/kernel/aarch64/unified_world/monitor.S",
+      "bytes": 76781,
+      "sha256": "fbc8d217b26b76d43e3ceb27a7ea293b677e6f4fa266fe211ae3c8351d6c1b06"
+    },
+    "ocore/kernel/aarch64/unified_world/linker.ld": {
+      "path": "sources/ocore/kernel/aarch64/unified_world/linker.ld",
+      "bytes": 473,
+      "sha256": "88764f67c558de85cebf055a19476048264b5dc072f8239535517bcd6fe70fe0"
+    },
+    "ocore/kernel/aarch64/kernel_world/guest.dts": {
+      "path": "sources/ocore/kernel/aarch64/kernel_world/guest.dts",
+      "bytes": 1802,
+      "sha256": "f4a36921cbf0dc8aa8958a19ece77335925b7ae429314b41856cc3ce99a515ad"
+    },
+    "ocore/kernel/aarch64/plan9_probe/guest.dts": {
+      "path": "sources/ocore/kernel/aarch64/plan9_probe/guest.dts",
+      "bytes": 530,
+      "sha256": "ba83a0cec7fecced98aee63199ae43aac18fad9b6e63afced771c1b5859a267b"
+    },
+    "scripts/build_okernel_unified_world.py": {
+      "path": "sources/scripts/build_okernel_unified_world.py",
+      "bytes": 40681,
+      "sha256": "a9822954194013181143324057f4221f4e7f4b5c11d0ece957f861d4e7acd4f3"
+    },
+    "scripts/probe_okernel_plan9.py": {
+      "path": "sources/scripts/probe_okernel_plan9.py",
+      "bytes": 27804,
+      "sha256": "b789d36f8afe004f175534ede736a1bd0469e5a0d811d9ea8799960f3e67ed54"
+    },
+    "ocore/guest/linux/package-domain/init": {
+      "path": "sources/ocore/guest/linux/package-domain/init",
+      "bytes": 737,
+      "sha256": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f"
+    },
+    "scripts/build_okernel_plan9_userland.py": {
+      "path": "sources/scripts/build_okernel_plan9_userland.py",
+      "bytes": 34032,
+      "sha256": "52cd8b3481338f12c8cc20f882bef1b6d9e6049ef24a22f04a61589fb562d7a7"
+    },
+    "scripts/build_okernel_plan9_original.py": {
+      "path": "sources/scripts/build_okernel_plan9_original.py",
+      "bytes": 17199,
+      "sha256": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b"
+    },
+    "scripts/plan9_userland_admission.py": {
+      "path": "sources/scripts/plan9_userland_admission.py",
+      "bytes": 17555,
+      "sha256": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+    }
+  },
+  "plan9_source_commit": "350266104f1fed81c78c3d05fa44f523bec0ae4d",
+  "plan9_derivation_kind": "qualified-original-userland",
+  "plan9_uimage": {
+    "os": 23,
+    "architecture": 22,
+    "kind": 2,
+    "compression": 0,
+    "load": 1074790400,
+    "entry": 1074790400,
+    "timestamp": 1793431069,
+    "name": "9qemu",
+    "header_crc32": 1486311161,
+    "payload_crc32": 3944278661,
+    "payload_bytes": 6050944
+  },
+  "plan9_command_provider": {
+    "revision": "traffic-20261106-build2",
+    "service": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/SERVICE",
+      "bytes": 111743,
+      "sha256": "701d9c32373d41f145b4d4b5fb346f626ee65ddd3d06581bace87f2290b79942"
+    },
+    "startup": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/inputs/START.RC",
+      "bytes": 1020,
+      "sha256": "f5f77df25eca46543906e49c80ab6e1a2cd937077a123b2b8a2fe88b2bac79f8"
+    },
+    "service_guest_path": "/arm64/bin/p9cmdsrv",
+    "startup_guest_path": "/rc/bin/okernel-start",
+    "kernel": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/KERNEL.U",
+      "bytes": 6051008,
+      "sha256": "a0bbd0d5428fdaca53b5565c0c32a9de9ba3c00a542b159338c24aca0f095c78"
+    },
+    "paq": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/artifacts/USER.PAQ",
+      "bytes": 4763716,
+      "sha256": "f808f12a0532048c1e7514178f7d4b10c60be6acc13dc0780b74d3fd252793c6"
+    },
+    "files": 239,
+    "bytes": 13164572,
+    "frozen": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-build-2/FROZEN.json",
+      "bytes": 3211,
+      "sha256": "66fc0080bde1f8a0a17bf2b819320359146e8609c528ba38e5def9dd8eca5f4e"
+    },
+    "qualification": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-qualification-1/result.json",
+      "bytes": 3390,
+      "sha256": "0d46c69d9074a8ebc7b04fa0bd2d9c25125310ecbe8e42b077d6480696006d95"
+    },
+    "coexistence": {
+      "path": "/home/ustad/.cache/okernel-plan9-traffic-20261106-coexistence-1/result.json",
+      "bytes": 14761,
+      "sha256": "b4d69a906424e7a8842f05f639f49f480062104a9e22a18465f29a5fb4786d7d"
+    },
+    "export_verifier": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/plan9_userland_admission.py",
+      "bytes": 17555,
+      "sha256": "69b8eff5bc2a64d57275955e91916922481e2bed97066cc9309a0e6fa74b82d9"
+    },
+    "interruption_policy": "Owning Plan9 domain must be recycled before exposing interrupted completion or admitting another request"
+  },
+  "o10": {
+    "version": "O10",
+    "operation": 10,
+    "submission": 1829371904,
+    "completion": 1829372416,
+    "msize": 512
+  },
+  "o10_qualification": true,
+  "o10_linux_restart_witness": "native-store-v1",
+  "linux_restart_witness": {
+    "operation": 11,
+    "action_address": 1828716824,
+    "address": 1829437440,
+    "bytes": 327680,
+    "header_bytes": 128,
+    "record_bytes": 576,
+    "max_fids": 512
+  },
+  "linux_recovery": {
+    "kernel_image": 3,
+    "aux_image": 4,
+    "namespace_version": "9P2000.u",
+    "kernel_backup_address": 3523215360,
+    "kernel_max_bytes": 132120576,
+    "dtb_backup_address": 3791650816,
+    "dtb_max_bytes": 65536,
+    "initrd_backup_address": 3657433088,
+    "initrd_max_bytes": 134217728,
+    "kernel_bytes_address": 1828716800,
+    "dtb_bytes_address": 1828716808,
+    "initrd_bytes_address": 1828716816
+  },
+  "linux_initramfs_derivation": {
+    "schema": "ostadix.o10-linux-initramfs/v1",
+    "original_sha256": "9763d598973a5cb12572e8f0c6ad6104a41976cb728049d57a41bdb8049b969d",
+    "derived_sha256": "64c333793206c34236dc048619d6f885f09e623b8b45f5e449f1f882e54923da",
+    "original_init_sha256": "f27a7a1eec8dc1f6d49eab227fc388bde49a408783464d3825ba3702f52a031f",
+    "derived_init_sha256": "26d16f702f14ed9373ada66eccddb769c0ab533ca2e96a6d05864443773468b8",
+    "entries": 517,
+    "changed_entries": [
+      "init"
+    ],
+    "disk_script_modified": false,
+    "namespace_version": "9P2000.u"
+  },
+  "plan9_recovery": {
+    "control_address": 1828716656,
+    "control_bytes": 48,
+    "kernel_backup_address": 3489660928,
+    "kernel_max_bytes": 16777216,
+    "dtb_backup_address": 3506438144,
+    "dtb_max_bytes": 65536,
+    "pause": 1,
+    "restart": 2
+  }
+}

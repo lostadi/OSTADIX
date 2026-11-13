@@ -1,0 +1,25 @@
+{
+  "schema": "ostadix.o10-private-copy-retired/v1",
+  "state": "retired",
+  "resumable": false,
+  "root": "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains",
+  "kind": "private_state",
+  "candidate_paths": [
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/namespace-generations/755b1e555cb118f4e2aed491b0fcddf849619ff487fa6e8680ca027fbad36b6f.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/namespace-generations/bf4e441a734cc36b3c06d69b18e566c67932acd60867133f550b1aafffaa72fa.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/namespace-generations/886f5a2c5fef93bb95d1bf504967f35c6d0b4c9157d87be216486c74c38b0b55.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/disk-generations/969fccd2aea54921261b65fc9fde897ba4a7739bd56f73c01bfffc6342cc2b69.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/disk-generations/9e13b94194b7570c4c1f565ca4e2d7598043dab791dacc6d491d2259569b94ea.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/disk-generations/041e765c4bd164f48a753a179adcbec34c3e7c3497ba7b527c939ed91ca9d2b6.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/unified-session-69a6jits/inputs/namespace.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/unified-session-69a6jits/inputs/disk.ext4",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/unified-session-aireskc_/inputs/namespace.raw",
+    "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/six-gates/states/two_domains/unified-session-aireskc_/inputs/disk.ext4"
+  ],
+  "manifest_sha256": "caf1def73cbfe080c975f8294d5982700ef1a73584ab01295a6b6813275bf09a",
+  "retirement_receipt": "/home/ustad/.cache/o10-m2-acceptance-20261113/capacity-retirement-r2/retirement.json",
+  "started_unix": 1794579897.3804884,
+  "reason": "Exact reviewed generated copies retired for authorized space recovery; immutable raw evidence and originals preserved.",
+  "finished_unix": 1794579903.1622822,
+  "removed_count": 10
+}

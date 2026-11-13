@@ -1,0 +1,49 @@
+{
+  "dispatched": false,
+  "planned_unix": 1794576301.647627,
+  "prerequisites_before_execution": [
+    "guest-regressions-r1/result.json is complete and ok, all six actual exits and receipts pass with zero skips",
+    "guest-regressions-r1 execution managed completion has observed zero exit and drained/reaped state",
+    "HEAD and current sources remain frozen a5a33; current R3 MCP source/inode proof is captured"
+  ],
+  "request": {
+    "arguments": {
+      "args": [
+        "o10-m2-accept",
+        "--build",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5",
+        "--restart-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7/result.json",
+        "--restart-command",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/linux-restart-r7-execution/restart-command.json",
+        "--resident-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/resident-r3/result.json",
+        "--guest-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1/result.json",
+        "--component-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r5/component/result.json",
+        "--unit-result",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-regressions-r5/result.json",
+        "--provenance",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/guest-regressions-r1-execution/current-env.json",
+        "--compiler",
+        "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+        "--expected-revision",
+        "a5a33bed59adb1ae21c6223f28f69e5e2deed757",
+        "--output",
+        "/home/ustad/.cache/o10-m2-acceptance-20261113/acceptance-r1.json"
+      ],
+      "background": true,
+      "command": "kernel",
+      "cwd": "/home/ustad/OSTADIX-o10-m2-20261112",
+      "env": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "timeout_secs": 0
+    },
+    "tool": "o_cli"
+  },
+  "schema": "ostadix.o10-m2-final-binder-plan/v1",
+  "scope": "Prepared read-only final binder command. It hashes/validates retained evidence and writes a new receipt; no guest, recovery or work replay.",
+  "source_revision": "a5a33bed59adb1ae21c6223f28f69e5e2deed757"
+}

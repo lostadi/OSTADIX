@@ -1,0 +1,26 @@
+{
+  "compiler_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "controller": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r6.py",
+    "sha256": "44fd69aedcf6159a428e843ca93820b6d9c1778cfc7f6285d8f0292a435f6423"
+  },
+  "dispatched": false,
+  "installer_review": {
+    "path": "/home/ustad/.cache/o10-m2-independent-acceptance-review-20261113/installer-fix-review-r1/report.json",
+    "sha256": "2053c0346f0861caa269dbb348da81cc728c42532b0fcb6266ee9b0ded5573a2"
+  },
+  "new_exact_allowed_paths": [
+    "ocore/guest/linux/package-domain/p9-install",
+    "tests/test_namespace_store_dotu.py",
+    "tests/test_p9_install.py"
+  ],
+  "new_targeted_module": "tests.test_p9_install",
+  "prepared_unix": 1794578063.165585,
+  "preserved_r5": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/ordinary-unit-orchestration-20261113-r5-r2.py",
+    "sha256": "8fb3a9febff0c77bd9ab188f3d8edada65fb6d308aca008c5e2fc1ca522a2d5a"
+  },
+  "schema": "ostadix.o10-m2-ordinary-controller-r6-preparation/v1",
+  "scope": "Cache-only exact three-path noncompiler overlay and targeted installer corpus preparation. New aligned MCP, helper seed, source freeze and resource admission remain prerequisites. Old revision receipts stay historical.",
+  "source_revision": "72e90d76420ff5c331232b5e3fe7c20e30761e41"
+}

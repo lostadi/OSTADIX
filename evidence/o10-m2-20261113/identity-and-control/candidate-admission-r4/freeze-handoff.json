@@ -1,0 +1,153 @@
+{
+  "schema": "ostadix.o10-m2-admission-runtime-precheckpoint/v2",
+  "ok": true,
+  "scope": "Read-only exact private admission and frozen runtime inventory/source validation through619394 broker against a689 plus authorized eight-file delta; no live gate or milestone qualification",
+  "source_revision": "a6897c58f25159b42f85883323e4092a24f81b8d",
+  "broker_built_revision": "619394bafbe2b3f956ee7ec14bd87b0a9202f026",
+  "broker_source_matches": false,
+  "toolchain_origin_revision": "7c12ac5fed09786e7f932b4b50ffffe4b48a2148",
+  "admission_sources": {
+    "scripts/verify_okernel_unified_client.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_client.py",
+      "bytes": 34890,
+      "sha256": "47fe6eb3d385acd660624b1b718388ca24f5f2285bd2dd1d5146a66e72a2c8d7"
+    },
+    "scripts/verify_okernel_unified_runtime.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/verify_okernel_unified_runtime.py",
+      "bytes": 44662,
+      "sha256": "6b1cee4291d7ffe6307390c4d3e240c3d2ccc2c0163162340063a25fe0d7da2b"
+    },
+    "tests/test_unified_client_acceptance.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_unified_client_acceptance.py",
+      "bytes": 11401,
+      "sha256": "0ad8e67df3954adb3492d082d408e011042f21b7ef08f86fe7ac28308f3041a0"
+    },
+    "tests/test_unified_runtime_acceptance.py": {
+      "path": "/home/ustad/OSTADIX-o10-m2-20261112/tests/test_unified_runtime_acceptance.py",
+      "bytes": 13672,
+      "sha256": "e36b9a6ff182389e3300562c8e71aa863b056598b9377ca24e05938614a65d78"
+    }
+  },
+  "admission_tests": 44,
+  "admission_skips": 0,
+  "admission_job": "job-1782736-1794569572676866183-1-18",
+  "admission_receipt": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/candidate-admission-r4/result.json",
+    "bytes": 1342,
+    "sha256": "6842f614014944a9e3e8838471decfe1a9a326f123fffaaba56d2914e83e9dde"
+  },
+  "admission_log": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/candidate-admission-r4/stderr.log",
+    "bytes": 8706,
+    "sha256": "61f09eee7014224e5bfd98e1930ebc47019f665a0d027ae18b42ac4e5e56e45d"
+  },
+  "freezer_job": "job-1782736-1794569572676866183-1-19",
+  "runtime": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime.json",
+    "bytes": 243138,
+    "sha256": "72a2dd96be602e10320d8a535be2788ca4dc0110b7feb1e5945964d45a68bdcd"
+  },
+  "runtime_inventory_files": 249,
+  "runtime_sources": {
+    "scripts/okernel_unified_world.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_unified_world.py",
+        "bytes": 73391,
+        "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel_unified_world.py",
+        "bytes": 73391,
+        "sha256": "3e6b80bb1658b1fe476056b40e28239d32c57a4dd63ebd43ee183172b8cd4304"
+      }
+    },
+    "scripts/o10.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/o10.py",
+        "bytes": 10971,
+        "sha256": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/o10.py",
+        "bytes": 10971,
+        "sha256": "b881fa4af67dc4c80c32e34550f766ecae87156ae0982abc64af800b1aada22e"
+      }
+    },
+    "scripts/okernel_package_domain.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_package_domain.py",
+        "bytes": 41952,
+        "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel_package_domain.py",
+        "bytes": 41952,
+        "sha256": "3c324ac7e5509aaed56e216b7d04974a22eb30e28725887ec04f9f23861e418f"
+      }
+    },
+    "scripts/okernel_native_volume.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel_native_volume.py",
+        "bytes": 11240,
+        "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel_native_volume.py",
+        "bytes": 11240,
+        "sha256": "aedd391098749a2a5af4f06a13bc061842afbd145a6a031f7562611bd0650bef"
+      }
+    },
+    "scripts/okernel-unified-console.sh": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/scripts/okernel-unified-console.sh",
+        "bytes": 10442,
+        "sha256": "30d6687c92d20e22b90db7eec6fbdc62e6e4294ee31a2d50b325217f15c65bc9"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/scripts/okernel-unified-console.sh",
+        "bytes": 10442,
+        "sha256": "30d6687c92d20e22b90db7eec6fbdc62e6e4294ee31a2d50b325217f15c65bc9"
+      }
+    },
+    "ocore/guest/plan9/unified/protocol.py": {
+      "original": {
+        "path": "/home/ustad/OSTADIX-o10-m2-20261112/ocore/guest/plan9/unified/protocol.py",
+        "bytes": 16391,
+        "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+      },
+      "frozen": {
+        "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/runtime/ocore/guest/plan9/unified/protocol.py",
+        "bytes": 16391,
+        "sha256": "16fb9c64976abf59a3539aa993b238e9b943e76d63a0fcf7748809dc4bde73d8"
+      }
+    }
+  },
+  "runtime_check": {
+    "argv": [
+      "python3",
+      "-B",
+      "/home/ustad/.cache/o10-m2-acceptance-20261113/frozen-runtime-r6/okernel-unified",
+      "check"
+    ],
+    "exit_code": 0,
+    "stdout": "Frozen unified runtime: PASS\nBuild: d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c\nFiles: 249\n",
+    "stderr": ""
+  },
+  "monitor": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor.elf",
+    "bytes": 1012056,
+    "sha256": "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb"
+  },
+  "profile": {
+    "path": "/home/ustad/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r5/monitor-profile.json",
+    "bytes": 28349,
+    "sha256": "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c"
+  },
+  "checked_build_sources": 26,
+  "profile_ocorec": {
+    "path": "/home/ustad/.local/state/ostadix/o10-m2-postmerge-toolchain-r1-20261113/bin/ocorec",
+    "bytes": 3817336,
+    "sha256": "ca56a947e675f713bde6b81595220833799dcd304c415b0737f8703b8eb9eca7"
+  },
+  "checked_unix": 1794572580.6477096
+}

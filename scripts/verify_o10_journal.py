@@ -21,6 +21,8 @@ import unittest
 from build_okernel_unified_world import SOURCES
 
 ROOT = Path(__file__).resolve().parents[1]
+# Standalone execution must expose the same repository packages as module execution.
+sys.path.insert(0, str(ROOT))
 
 def command(argv):
     result = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True, timeout=15)

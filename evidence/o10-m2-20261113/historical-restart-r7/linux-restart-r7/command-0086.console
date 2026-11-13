@@ -1,0 +1,9 @@
+base64 -d /run/o10-m2-656563e83d8031a4877560d0.py.o10-base64 > /run/o10
+-m2-656563e83d8031a4877560d0.py && rm /run/o10-m2-656563e83d8031a4877560d0.py.o1
+0-base64 && test "$(wc -c < /run/o10-m2-656563e83d8031a4877560d0.py)" -eq 7097 &
+& test "$(sha256sum /run/o10-m2-656563e83d8031a4877560d0.py | cut -d ' ' -f1)" =
+ a836a9ecdda9c500fa2b066ff4a32557beaf747617fbed61f6c24bcf764b27ba; _uw_rc=$?; pr
+intf '\nUNIFIED_COMMAND_0fec20cd7a704625a8395bdbc9c0adfe:%s\n' "$_uw_rc"
+
+UNIFIED_COMMAND_0fec20cd7a704625a8395bdbc9c0adfe:0
+okernel> [6n

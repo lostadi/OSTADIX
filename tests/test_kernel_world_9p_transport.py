@@ -13,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 STUBS = r'''
 module runtime::common::namespace_store;
 extern "ocore" fn test_session_init(grant: u64, generation: u64) -> u64;
+extern "ocore" fn test_session_handle(grant: u64) -> u64;
+extern "ocore" fn test_revoke_if_current(grant: u64, expected: u64) -> u64;
+pub unsafe fn session_handle(grant: u64) -> u64 { return test_session_handle(grant); }
+pub unsafe fn revoke_if_current(grant: u64, expected: u64) -> u64 { return test_revoke_if_current(grant, expected); }
 extern "ocore" fn test_handle(session: u64, request: *const u8, length: usize,
     response: *mut u8, maximum: usize) -> usize;
 pub unsafe fn session_init(grant: u64, generation: u64) -> u64 {
@@ -52,6 +56,10 @@ void kw_9p_irq_level(uint64_t asserted) { irq=(unsigned)asserted; }
 uint64_t test_session_init(uint64_t grant,uint64_t epoch) {
     assert(grant==1 && epoch>last_epoch); last_epoch=epoch;
     session=0xa0000000ull+epoch; return session;
+}
+uint64_t test_session_handle(uint64_t grant){assert(grant==1);return session;}
+uint64_t test_revoke_if_current(uint64_t grant,uint64_t expected){
+ assert(grant==1);if(!expected||session!=expected)return 0;session=0;return 1;
 }
 static void set32(uint8_t *p,uint32_t value) { memcpy(p,&value,4); }
 size_t test_handle(uint64_t handle,const uint8_t *request,size_t length,uint8_t *response,size_t maximum) {
@@ -301,6 +309,34 @@ int main(void) {
 '''
 
 
+INTEGRATED_DOTU_HARNESS = INTEGRATED_HARNESS.split("int main(void)", 1)[0] + r"""
+extern uint64_t S(session_handle)(uint64_t);
+int main(void) {
+    memory=mmap((void*)0x48000000ull,65536,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
+    volume=mmap((void*)0x6c000000ull,0x1000000,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
+    assert(memory!=MAP_FAILED&&volume!=MAP_FAILED&&S(init)((uintptr_t)volume,0x1000000,1)==1);
+    uint64_t plan9=S(session_init)(4,1);assert(plan9&&!(plan9&1));
+    version();direct(plan9,101);attach(1);direct(plan9,105);
+    assert(N(init)(GPA,65536,1)==1);setup();
+    uint64_t old=S(session_handle)(1);assert(old&&!(old&1));
+    begin(100);b(4,8192);string("9P2000.u");exchange(101,21);
+    uint64_t current=S(session_handle)(1);assert(current!=old&&(current&1));
+    attach(10);b(4,1234567);exchange(105,20);
+    walk(10,11,"work",0);exchange(111,8192);
+    create(11,"dotu-wire",2);string("");exchange(115,24);
+    write_(11,"wire-u");exchange(119,11);
+    read_(11,6);uint8_t*response=exchange(117,64);assert(get32(response+7)==6&&!memcmp(response+11,"wire-u",6));
+    begin(124);b(4,11);response=exchange(125,8192);
+    unsigned size=get32(response);for(unsigned i=0;i<14;i++)assert(response[size-14+i]==0);
+    begin(124);b(4,1);direct(plan9,125);assert(get32(native_reply)==74);
+    assert(S(revoke)(1)==1);read_(11,1);response=exchange(107,64);
+    assert(get32(response+get32(response)-4)==116); // actual.u wire errno
+    assert(S(session_handle)(4)==plan9);begin(124);b(4,1);direct(plan9,125);
+    puts("production virtio.u adoption, numericESTALE and plain Plan9 survivor: PASS");return 0;
+}
+"""
+
+
 @unittest.skipUnless(platform.system() == "Linux" and platform.machine() == "x86_64",
                      "host queue execution fixture requires Linux x86_64")
 class KernelWorld9PTransportTests(unittest.TestCase):
@@ -328,6 +364,11 @@ class KernelWorld9PTransportTests(unittest.TestCase):
         output = self.compile_and_run(INTEGRATED_HARNESS, [
             "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/kernel_world_9p.oc"])
         self.assertIn("short-replies/restart: PASS", output)
+
+    def test_real_transport_adopts_dotu_token_and_returns_numeric_estale(self):
+        output = self.compile_and_run(INTEGRATED_DOTU_HARNESS, [
+            "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/kernel_world_9p.oc"])
+        self.assertIn("numericESTALE and plain Plan9 survivor: PASS", output)
 
     def test_real_transport_memory_and_protocol_boundary(self):
         compiler = Path(os.environ.get("OCOREC_BIN", str(ROOT / "target/debug/ocorec")))

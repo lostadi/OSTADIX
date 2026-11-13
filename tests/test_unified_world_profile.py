@@ -59,12 +59,14 @@ class UnifiedWorldProfileTests(unittest.TestCase):
         image = payload / "Image"
         image.write_bytes(b"captured Linux image fixture")
         (payload / "linux.config").write_text("CONFIG_ARM_GIC_V3=y\nCONFIG_PROC_CHILDREN=y\n")
-        (payload / "initramfs.cpio").write_bytes(b"captured initramfs fixture")
+        from tests.test_o10_linux_profile import fixture_initramfs
+        (payload / "initramfs.cpio").write_bytes(fixture_initramfs())
         (payload / "linux-payload.json").write_text(json.dumps({
             "schema": "ostadix.real-linux-payload/v1", "profile": "package-domain",
             "linux_version": "6.12.43", "source_modifications": False,
             "source_archive_sha256": "0fcbbbbcd456e87bbbfc8bf37af541fda62ccfcce76903503424fd101ef7bdee",
             "artifacts": {"Image": BUILDER.identity(image),
+                          "initramfs.cpio": BUILDER.identity(payload / "initramfs.cpio"),
                           "linux.config": BUILDER.identity(payload / "linux.config")},
         }))
         plan9, derivation = directory / "plan9.uimage", directory / "derivation.json"
@@ -110,6 +112,26 @@ class UnifiedWorldProfileTests(unittest.TestCase):
         self.assertIn("pub const O10_QUALIFICATION: u64 = 1;",
                       (self.qualification_output / "profile.oc").read_text())
         RUNNER.validate_profile(self.qualification_profile)
+
+    def test_store_witness_is_fixed_and_qualification_only(self):
+        self.assertNotIn("o10_linux_restart_witness", self.profile)
+        self.assertNotIn("linux_restart_witness", self.profile)
+        self.assertEqual(self.qualification_profile["o10_linux_restart_witness"], "native-store-v1")
+        self.assertEqual(self.qualification_profile["linux_restart_witness"], RUNNER.LINUX_WITNESS)
+        for key, value in (("address", 0x48000000), ("bytes", 0x60000),
+                           ("action_address", 0x6d000100), ("max_fids", 513)):
+            bad = copy.deepcopy(self.qualification_profile)
+            bad["linux_restart_witness"][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                RUNNER.validate_profile(bad)
+        bad = copy.deepcopy(self.qualification_profile)
+        bad["o10_qualification"] = False
+        with self.assertRaises(ValueError):
+            RUNNER.validate_profile(bad)
+        bad = copy.deepcopy(self.qualification_profile)
+        bad.pop("o10_linux_restart_witness")
+        with self.assertRaises(ValueError):
+            RUNNER.validate_profile(bad)
 
     def test_builder_manifest_is_accepted_and_artifacts_are_bound(self):
         RUNNER.validate_profile(self.profile)
