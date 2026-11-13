@@ -1,0 +1,116 @@
+#!/usr/bin/env O
+# ===========================================================================
+# iPhone 16 Pro — P0 Recon (OSTADIX polyglot)
+# Read-only. Host facts (bash) + structural evidence (python) + report.
+# ===========================================================================
+
+let hostfacts = bash^(
+echo "macos_product_version=$(sw_vers -productVersion 2>/dev/null || echo unknown)"
+echo "macos_build=$(sw_vers -buildVersion 2>/dev/null || echo unknown)"
+echo "host_arch=$(uname -m)"
+echo "usb_device_block_iphone_mentions=$(/usr/sbin/system_profiler SPUSBDataType 2>/dev/null | grep -ci iphone || true)"
+)_bash
+
+let probe = python^(
+import os
+import shutil
+import subprocess
+
+
+def run(argv, timeout=30):
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        return {"ok": p.returncode == 0, "out": p.stdout.strip(), "err": p.stderr.strip()[:500]}
+    except FileNotFoundError:
+        return {"ok": False, "out": "", "err": "no-such-binary: " + argv[0]}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "out": "", "err": "timeout"}
+
+
+home = os.path.expanduser("~")
+pair_dir = os.path.join(home, "Library", "Preferences", "lockdown")
+pair_records = sorted(os.listdir(pair_dir)) if os.path.isdir(pair_dir) else []
+
+tools = {}
+for name in [
+    "idevice_id", "ideviceinfo", "idevicesyslog", "iproxy", "idevicebackup2",
+    "idevicecrashreport", "idevicepair", "afctool", "idevicedebug",
+    "idevicescreenshot", "ideviceproxy", "nc",
+]:
+    tools[name] = bool(shutil.which(name))
+
+enumeration = run(["idevice_id", "-l"])
+udids = [line for line in enumeration.get("out", "").splitlines() if line.strip()]
+
+devices = {}
+for udid in udids:
+    info = run(["ideviceinfo", "-u", udid, "-p"])
+    props = {}
+    for line in info.get("out", "").splitlines():
+        if "=" in line:
+            key, _, value = line.partition("=")
+            props[key.strip()] = value.strip()
+    devices[udid] = {
+        "name": props.get("DeviceName"),
+        "product_type": props.get("ProductType"),
+        "product_version": props.get("ProductVersion"),
+        "serial_number": props.get("SerialNumber"),
+        "pairing_mode": props.get("PairingMode"),
+        "developer_mode_status": props.get("DeveloperModeStatus"),
+        "connection_type": props.get("ConnectionType"),
+        "build_version": props.get("BuildVersion"),
+    }
+
+__oval_result__ = {
+    "schema": "ostadix.iphone16-pro-recon/v1",
+    "attached_udids": udids,
+    "devices": devices,
+    "pair_records_known_to_mac": pair_records,
+    "pair_record_dir": pair_dir,
+    "host_tools": tools,
+    "enumerate": enumeration,
+}
+)_python
+
+let report = python^(
+data = $probe
+lines = ["# iPhone 16 Pro — P0 Recon report", "", "## Host", ""]
+lines.append($hostfacts)
+lines.append("")
+tools = data.get("host_tools") or {}
+missing = sorted(name for name, ok in tools.items() if not ok)
+lines.append("## Host toolchain")
+lines.append("")
+for name in sorted(tools):
+    lines.append("- {0}: {1}".format(name, "present" if tools[name] else "MISSING"))
+lines.append("")
+if missing:
+    lines.append("Missing (brew: libimobiledevice, usbmuxd): " + ", ".join(missing))
+lines.append("")
+lines.append("## Devices attached over USB")
+lines.append("")
+udids = data.get("attached_udids") or []
+if not udids:
+    lines.append("NONE — connect the iPhone (trust this computer) and re-run.")
+for udid in udids:
+    info = (data.get("devices") or {}).get(udid, {})
+    lines.append("- {0}".format(udid))
+    for key in ["name", "product_type", "product_version", "build_version",
+                "serial_number", "pairing_mode", "developer_mode_status",
+                "connection_type"]:
+        value = info.get(key)
+        if value:
+            lines.append("  - {0} = {1}".format(key, value))
+lines.append("")
+lines.append("## Pair records on this Mac ({0})".format(data.get("pair_record_dir")))
+lines.append("")
+records = data.get("pair_records_known_to_mac") or []
+if records:
+    for record in records:
+        lines.append("- {0}".format(record))
+else:
+    lines.append("none — this Mac has never been paired with a lockdown device")
+lines.append("")
+lines.append("Next: P1 trust & service map (lockdownd StartService probe, RSD reachability).")
+__oval_result__ = "\n".join(lines)
+)_python
