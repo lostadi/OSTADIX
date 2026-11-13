@@ -19,6 +19,133 @@ SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 class SetupScriptTests(unittest.TestCase):
     maxDiff = None
 
+    def test_nix_profile_preflight_dispatch_preserves_read_only_modes(self) -> None:
+        source = SETUP.read_text(encoding="utf-8")
+        body = source.split("\npreflight_nix_profiles() {\n", 1)[1].split("\n}\n", 1)[0]
+        profiles = "/etc/bashrc /etc/profile.d/nix.sh /etc/zshrc /etc/bash.bashrc /etc/zsh/zshrc"
+        self.assertIn(f"for profile in {profiles}; do", body)
+        body = body.replace(f"for profile in {profiles}; do", 'for profile in "$PROFILE_FIXTURE"; do')
+        cases = (
+            # name, enabled, installed, backup, repair, check, dry, plan status,
+            # apply status, exit status, helper argument lists, privileged calls
+            ("disabled", False, False, True, True, False, False, 3, 0, 0, [], 0),
+            ("installed", True, True, True, True, False, False, 3, 0, 0, [], 0),
+            ("no backup", True, False, False, True, False, False, 3, 0, 0, [], 0),
+            ("inspect", True, False, True, False, False, False, 3, 0, 1, [[]], 0),
+            ("check", True, False, True, True, True, False, 3, 0, 1, [[]], 0),
+            ("dry inspect", True, False, True, False, False, True, 3, 0, 1, [[]], 0),
+            ("dry repair", True, False, True, True, False, True, 3, 0, 0, [["--repair", "--dry-run"]], 0),
+            ("repair", True, False, True, True, False, False, 3, 0, 0, [["--plan-repair"], ["--repair"]], 1),
+            ("plan clean", True, False, True, True, False, False, 0, 0, 0, [["--plan-repair"]], 0),
+            ("unsafe", True, False, True, True, False, False, 1, 0, 1, [["--plan-repair"]], 0),
+            ("probe failed", True, False, True, True, False, False, 7, 0, 7, [["--plan-repair"]], 0),
+            ("repair failed", True, False, True, True, False, False, 3, 8, 8, [["--plan-repair"], ["--repair"]], 1),
+        )
+        for name, enabled, installed, backup, repair, check, dry, plan_status, apply_status, status, calls, privileged in cases:
+            with self.subTest(case=name), tempfile.TemporaryDirectory(prefix="nix preflight ") as directory:
+                root = Path(directory)
+                profile = root / "profile with spaces"
+                backup_path = Path(f"{profile}.backup-before-nix")
+                if backup:
+                    backup_path.write_text("untouched backup\n")
+                helper = root / "source with spaces/scripts/nix_profile_recovery.py"
+                python = root / "python with spaces"
+                capture = root / "calls"
+                privilege_capture = root / "privileged"
+                python.write_text(
+                    "#!/bin/bash\n"
+                    'printf "%s\\0" "$@" >> "$CALL_CAPTURE"\n'
+                    'printf "\\n" >> "$CALL_CAPTURE"\n'
+                    'case "${2:-}" in\n'
+                    '  --plan-repair) exit "$PLAN_STATUS" ;;\n'
+                    '  --repair) exit "$APPLY_STATUS" ;;\n'
+                    '  *) exit 1 ;;\n'
+                    "esac\n"
+                )
+                python.chmod(0o755)
+                script = (
+                    "set -euo pipefail\n"
+                    "find_tool_path() {\n"
+                    '  if [[ "$1" == nix ]]; then\n'
+                    '    if $NIX_INSTALLED; then printf "%s\\n" "$EXISTING_NIX"; else return 1; fi\n'
+                    '  else printf "%s\\n" "$PYTHON_FIXTURE"; fi\n'
+                    "}\n"
+                    'run_privileged() { printf "called\\n" >> "$PRIVILEGE_CAPTURE"; "$@"; }\n'
+                    f"preflight_nix_profiles() {{\n{body}\n}}\npreflight_nix_profiles\n"
+                )
+                result = subprocess.run([str(BASH), "-c", script], cwd=root, env={
+                    "PATH": SYSTEM_PATH, "PROJECT_ROOT": str(root / "source with spaces"),
+                    "WITH_NIX": str(enabled).lower(), "NIX_INSTALLED": str(installed).lower(),
+                    "CHECK_ONLY": str(check).lower(), "DRY_RUN": str(dry).lower(),
+                    "REPAIR_NIX_PROFILES": str(repair).lower(), "PROFILE_FIXTURE": str(profile),
+                    "EXISTING_NIX": str(root / "existing nix"), "PYTHON_FIXTURE": str(python),
+                    "CALL_CAPTURE": str(capture), "PRIVILEGE_CAPTURE": str(privilege_capture),
+                    "PLAN_STATUS": str(plan_status), "APPLY_STATUS": str(apply_status),
+                }, text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, status, self.combined_output(result))
+                actual = capture.read_bytes().splitlines() if capture.exists() else []
+                expected = [b"".join(arg.encode() + b"\0" for arg in [str(helper), *args]) for args in calls]
+                self.assertEqual(actual, expected)
+                actual_privileged = len(privilege_capture.read_text().splitlines()) if privilege_capture.exists() else 0
+                self.assertEqual(actual_privileged, privileged)
+                if backup:
+                    self.assertEqual(backup_path.read_text(), "untouched backup\n")
+                self.assertFalse(profile.exists())
+
+    def test_nix_preflight_failure_stops_main_before_package_or_editor_changes(self) -> None:
+        main_flow = SETUP.read_text(encoding="utf-8").split("# --- Main flow ---\n", 1)[1]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            marker = root / "side-effects"
+            script = (
+                "set -euo pipefail\n"
+                "preflight_setup() { return 0; }\n"
+                "preflight_nix_profiles() { return 19; }\n"
+                'install_system_deps() { printf "packages\\n" >> "$MARKER"; exit 98; }\n'
+                'install_editor_support() { printf "editor\\n" >> "$MARKER"; exit 99; }\n'
+                + main_flow
+            )
+            for check in (False, True):
+                with self.subTest(check=check):
+                    result = subprocess.run([str(BASH), "-c", script], cwd=root, env={
+                        "PATH": SYSTEM_PATH, "CHECK_ONLY": str(check).lower(), "MARKER": str(marker),
+                    }, text=True, capture_output=True, timeout=10)
+                    self.assertEqual(result.returncode, 19, self.combined_output(result))
+                    self.assertFalse(marker.exists())
+
+    def test_nix_install_uses_discovered_binary_when_profile_activation_fails(self) -> None:
+        source = SETUP.read_text(encoding="utf-8")
+        body = source.split("\ninstall_nix() {\n", 1)[1].split("\n}\n", 1)[0]
+        for probe, expected_status in (("2", 0), ("unexpected", 1)):
+            with self.subTest(probe=probe), tempfile.TemporaryDirectory(prefix="nix installed ") as directory:
+                root = Path(directory)
+                binary = root / "existing nix"
+                capture = root / "calls"
+                binary.write_text(
+                    "#!/bin/bash\n"
+                    'printf "%s\\0" "$@" >> "$CALL_CAPTURE"\n'
+                    'printf "\\n" >> "$CALL_CAPTURE"\n'
+                    'if [[ "$1" == --version ]]; then printf "nix fixture\\n"; else printf "%s" "$PROBE_OUTPUT"; fi\n'
+                )
+                binary.chmod(0o755)
+                script = (
+                    "set -euo pipefail\n"
+                    "source_nix_profile() { return 1; }\n"
+                    'find_tool_path() { test "$1" = nix; printf "%s\\n" "$NIX_FIXTURE"; }\n'
+                    "curl() { echo 'unexpected installer download' >&2; return 97; }\n"
+                    f"install_nix() {{\n{body}\n}}\ninstall_nix\n"
+                )
+                result = subprocess.run([str(BASH), "-c", script], cwd=root, env={
+                    "PATH": SYSTEM_PATH, "WITH_NIX": "true", "DRY_RUN": "false",
+                    "NIX_FIXTURE": str(binary), "CALL_CAPTURE": str(capture), "PROBE_OUTPUT": probe,
+                }, text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, expected_status, self.combined_output(result))
+                self.assertEqual(capture.read_bytes().splitlines(), [
+                    b"--version\0",
+                    b"--extra-experimental-features\0nix-command\0eval\0--raw\0--expr\0toString (1 + 1)\0",
+                ])
+                self.assertNotIn("unexpected installer download", self.combined_output(result))
+
     def test_python_smoke_is_fixed_exact_and_cleans_up_on_success_and_failure(self) -> None:
         source = SETUP.read_text(encoding="utf-8")
         body = source.split("\nverify_python_smoke() (\n", 1)[1].split("\n)\n", 1)[0]
@@ -503,6 +630,7 @@ class SetupScriptTests(unittest.TestCase):
             "--full",
             "--with-nix",
             "--no-nix",
+            "--repair-nix-profiles",
             "--with-ocore",
             "--with-ocore-media",
             "--with-hosted-runtimes",
