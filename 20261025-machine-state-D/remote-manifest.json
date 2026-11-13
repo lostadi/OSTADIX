@@ -1,0 +1,47 @@
+{
+  "schema": "ostadix-source-D-crash-backup-envelope-v1",
+  "direct_compiler_checkout": false,
+  "compiler_source_commit": "ab079f10a48354298f3af47507d7fb620f5328a0",
+  "compiler_source_tree": "997a7df21ffb266e73e4e5ed9de81556b5e568fa",
+  "prerequisite_compiler_commit": "19368c98abc1c4ffd4d4a560a7068d4d8fddc54e",
+  "prerequisite_envelope_commit": "68b14e811005e89df2ba10db2d4ac978be814a27",
+  "bundle": {
+    "path": "20261025-machine-state-D/source-D-from-C.bundle.b64",
+    "decoded_bytes": 14928,
+    "decoded_sha256": "195368e98ee68fd8c936ef2d96d0f4953a2cafca48e1a817a500f5263ecd3a9a",
+    "encoding": "base64 Git bundle"
+  },
+  "source_map": {
+    "path": "20261025-machine-state-D/source-map.json.gz.b64",
+    "encoding": "base64 gzip with mtime0",
+    "gzip_bytes": 155801,
+    "gzip_sha256": "17150101a852a12701684342d1d100da3541a869798fa58857affe6f127a1f32",
+    "json_bytes": 561200,
+    "json_sha256": "8012a49c2ec1ce7d12a5feb2db4c38cd0a744066f993eae65a514995ca09890f",
+    "source_files": 2927,
+    "source_bytes": 137186009
+  },
+  "scope": "Typed machine-state structural foundation and generated-source inclusion. No parser, assembler importer, native emitter, original-provider or runtime admission is qualified.",
+  "current_source_stage": "frozen_source_reviewed_UNBUILT_UNTESTED",
+  "authored_controls": {
+    "Rust": 26,
+    "Python_source_closure_total": 8,
+    "executed_on_SourceD": 0
+  },
+  "historical_SourceC": {
+    "source": "19368c98abc1c4ffd4d4a560a7068d4d8fddc54e",
+    "original_Lua_whole_units": 34,
+    "original_Lua_independent_inventories": 34,
+    "original_Lua_objects": 34,
+    "original_Lua_admitted": 33,
+    "remaining_Lua_guard": "original returns_twice jump-provider/cross-module control compatibility",
+    "original_CPython_diagnostic_units": 3,
+    "native_diagnostic_stages_passed": 12,
+    "outer_managed_completion_unobserved": true,
+    "independent_CP3_audit": "in progress; no original-runtime qualification"
+  },
+  "recovery": "Restore exact SourceC via prerequisite envelope history. Base64-decode the incremental bundle, git bundle verify/fetch it, verify exact SourceD commit/tree; base64-decode and gunzip the complete map and verify its bytes/hash. This envelope is not a direct compiler source checkout.",
+  "master_changed": false,
+  "installed_tools_changed": false,
+  "all_runtime_provider_artifact_and_ISA_qualification": false
+}
