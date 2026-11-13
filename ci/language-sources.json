@@ -979,6 +979,24 @@
       "sources": [
         "ocore/runtime/aarch64/linux_domain_images.oc"
       ]
+    },
+    {
+      "id": "o10-m2-historical-component-source-captures",
+      "category": "historical-snapshot",
+      "reason": "Preserved original component source/profile captures remain evidence inputs, not new runtime providers.",
+      "coverage": [
+        {
+          "path": "scripts/check_language_sources.py",
+          "kind": "build",
+          "conditions": "AST-only parsing of the exact retained historical source bytes; recorded component execution scope remains in its original receipts, and this check executes no programs."
+        }
+      ],
+      "sources": [
+        "evidence/o10-m2-20261112/historical-wire-before/artifacts/baseline.oc",
+        "evidence/o10-m2-20261112/historical-wire-semantic-r1/artifacts/baseline.oc",
+        "evidence/o10-m2-20261112/integration-check/profile.oc",
+        "evidence/o10-m2-20261112/pinned-abi-final/historical-artifacts/baseline.oc"
+      ]
     }
   ],
   "expected_parse_failures": {
