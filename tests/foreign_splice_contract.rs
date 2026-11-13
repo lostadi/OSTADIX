@@ -24,7 +24,9 @@ fn root() -> &'static Path {
 fn run(source: &str, executor: &str, check: bool) -> (bool, Value, String) {
     let stdout = tempfile::NamedTempFile::new().unwrap();
     let stderr = tempfile::NamedTempFile::new().unwrap();
+    let lifecycle = tempfile::NamedTempFile::new().unwrap();
     let mut command = Command::new(env!("CARGO_BIN_EXE_O"));
+    command.env("O_LIFECYCLE_TRACE", lifecycle.path());
     command.args(["--json", "--executor", executor]);
     if check {
         command.arg("--check");
@@ -44,6 +46,10 @@ fn run(source: &str, executor: &str, check: bool) -> (bool, Value, String) {
     let mut child = command.spawn().expect("launch freshly compiled O");
     let start = Instant::now();
     let mut timed_out = false;
+    #[cfg(target_os = "linux")]
+    let mut timeout_diagnostics = String::new();
+    #[cfg(not(target_os = "linux"))]
+    let timeout_diagnostics = "owned process state requires Linux";
     let status = loop {
         if let Some(status) = child.try_wait().unwrap() {
             break status;
@@ -52,6 +58,15 @@ fn run(source: &str, executor: &str, check: bool) -> (bool, Value, String) {
             timed_out = true;
             #[cfg(target_os = "linux")]
             let descendants = owned_descendants(child.id());
+            // Sample the exact owned processes before cancellation destroys
+            // the evidence. Never inspect unrelated args or environments.
+            #[cfg(target_os = "linux")]
+            {
+                timeout_diagnostics = format!(
+                    "owned_processes_before_kill={}",
+                    owned_process_snapshot(child.id(), &descendants)
+                );
+            }
             #[cfg(unix)]
             unsafe {
                 libc::kill(-(child.id() as i32), libc::SIGKILL);
@@ -82,10 +97,23 @@ fn run(source: &str, executor: &str, check: bool) -> (bool, Value, String) {
     let out = read(&stdout);
     let err = read(&stderr);
     let err = String::from_utf8_lossy(&err).into_owned();
+    let trace = if timed_out {
+        use std::io::{Seek, SeekFrom};
+        let mut file = lifecycle.reopen().unwrap();
+        let size = file.metadata().unwrap().len();
+        file.seek(SeekFrom::Start(size.saturating_sub(64 * 1024)))
+            .unwrap();
+        let mut trace = Vec::new();
+        file.take(64 * 1024).read_to_end(&mut trace).unwrap();
+        trace
+    } else {
+        Vec::new()
+    };
     assert!(
         !timed_out,
-        "guest exceeded 5s ({executor}): {source}\nstdout={}\nstderr={err}",
-        String::from_utf8_lossy(&out)
+        "guest exceeded 5s ({executor}): {source}\nstdout={}\nstderr={err}\n{timeout_diagnostics}\nlifecycle_trace={} ",
+        String::from_utf8_lossy(&out),
+        String::from_utf8_lossy(&trace),
     );
     let json = serde_json::from_slice(&out).unwrap_or(Value::Null);
     (status.success(), json, err)
@@ -127,6 +155,83 @@ fn owned_descendants(parent: u32) -> Vec<(u32, u64)> {
         cursor += 1;
     }
     result
+}
+
+/// Bounded diagnostics for already-observed owned identities. A raced or
+/// reused PID is omitted; data is limited to kernel state and task names.
+#[cfg(target_os = "linux")]
+fn owned_process_snapshot(parent: u32, descendants: &[(u32, u64)]) -> Value {
+    let mut identities = Vec::new();
+    if let Some((_, started)) = process_identity(parent) {
+        identities.push((parent, started));
+    }
+    identities.extend_from_slice(descendants);
+    let total = identities.len();
+    let mut rows = Vec::new();
+    let snapshot_started = Instant::now();
+    let mut sample_limit_reached = false;
+    for (pid, started) in identities.into_iter().take(32) {
+        if snapshot_started.elapsed() >= Duration::from_millis(100) {
+            sample_limit_reached = true;
+            break;
+        }
+        if !process_identity(pid).is_some_and(|(_, actual)| actual == started) {
+            continue;
+        }
+        let directory = Path::new("/proc").join(pid.to_string());
+        let stat = std::fs::read_to_string(directory.join("stat"))
+            .ok()
+            .and_then(|stat| {
+                let open = stat.find('(')?;
+                let close = stat.rfind(')')?;
+                let fields = stat
+                    .get(close + 2..)?
+                    .split_whitespace()
+                    .collect::<Vec<_>>();
+                Some(serde_json::json!({
+                    "comm": stat.get(open + 1..close)?,
+                    "state": fields.first()?,
+                    "ppid": fields.get(1)?.parse::<u32>().ok()?,
+                    "pgrp": fields.get(2)?.parse::<u32>().ok()?,
+                    "utime_ticks": fields.get(11)?.parse::<u64>().ok()?,
+                    "stime_ticks": fields.get(12)?.parse::<u64>().ok()?,
+                    "num_threads": fields.get(17)?.parse::<u32>().ok()?,
+                    "starttime": fields.get(19)?.parse::<u64>().ok()?,
+                }))
+            });
+        let wchan = std::fs::read_to_string(directory.join("wchan")).ok();
+        let mut tasks = Vec::new();
+        let mut tasks_truncated = false;
+        if let Ok(entries) = std::fs::read_dir(directory.join("task")) {
+            for (index, entry) in entries.flatten().enumerate() {
+                if index >= 8 || snapshot_started.elapsed() >= Duration::from_millis(100) {
+                    tasks_truncated = true;
+                    break;
+                }
+                tasks.push(serde_json::json!({
+                    "tid": entry.file_name().to_string_lossy(),
+                    "comm": std::fs::read_to_string(entry.path().join("comm")).ok(),
+                    "wchan": std::fs::read_to_string(entry.path().join("wchan")).ok(),
+                }));
+            }
+        }
+        if process_identity(pid).is_some_and(|(_, actual)| actual == started) {
+            rows.push(serde_json::json!({
+                "pid": pid,
+                "starttime": started,
+                "stat": stat,
+                "wchan": wchan,
+                "tasks_up_to_8": tasks,
+                "tasks_truncated": tasks_truncated,
+            }));
+        }
+    }
+    serde_json::json!({
+        "observed_count": total,
+        "processes_truncated": total > rows.len() || sample_limit_reached,
+        "snapshot_elapsed_ms": snapshot_started.elapsed().as_millis(),
+        "processes_up_to_32": rows,
+    })
 }
 
 fn value(source: &str, executor: &str) -> OValue {
@@ -778,4 +883,126 @@ fn bare_shell_special_parameters_preserve_native_syntax_and_status() {
             OValue::int(1)
         );
     }
+}
+
+#[cfg(target_os = "linux")]
+fn timeout_snapshot(diagnostic: &str) -> Value {
+    let snapshot = diagnostic
+        .split("owned_processes_before_kill=")
+        .nth(1)
+        .and_then(|text| text.split('\n').next())
+        .expect("owned process snapshot before kill");
+    serde_json::from_str(snapshot).expect("structured process snapshot")
+}
+
+/// These controls exercise the same five-second CLI watchdog and prove that
+/// its retained pre-kill evidence distinguishes the two real guest stages.
+#[cfg(target_os = "linux")]
+fn expected_stage_timeout(source: &str) -> String {
+    let panic = std::panic::catch_unwind(|| run(source, "serial", false))
+        .expect_err("deliberately stalled guest must hit the unchanged five-second watchdog");
+    let diagnostic = panic
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| panic.downcast_ref::<&str>().map(|text| text.to_string()))
+        .expect("timeout must retain a textual diagnostic");
+    assert!(
+        diagnostic.contains("guest exceeded 5s (serial)"),
+        "{diagnostic}"
+    );
+    let snapshot = timeout_snapshot(&diagnostic);
+    let rows = snapshot["processes_up_to_32"].as_array().unwrap();
+    assert!(!rows.is_empty(), "{diagnostic}");
+    // SIGKILL delivery and VM teardown of a descendant can complete after
+    // the already-waited root. This separate assertion budget does not alter
+    // the guest's original five-second execution deadline.
+    let cleanup_deadline = Instant::now() + Duration::from_secs(2);
+    for row in rows {
+        let pid = row["pid"].as_u64().unwrap() as u32;
+        let started = row["starttime"].as_u64().unwrap();
+        loop {
+            let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+                break;
+            };
+            let fields = stat
+                .get(stat.rfind(')').unwrap() + 2..)
+                .unwrap()
+                .split_whitespace()
+                .collect::<Vec<_>>();
+            let current = fields[19].parse::<u64>().unwrap();
+            if current != started || matches!(fields[0], "Z" | "X") {
+                break;
+            }
+            assert!(
+                Instant::now() < cleanup_deadline,
+                "owned process {pid} starttime={started} remains active after cleanup: state={}",
+                fields[0]
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+    diagnostic
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn timeout_diagnostics_identify_python_before_javascript_launch() {
+    if !support::require_runtimes(&["python3", "node"]) {
+        return;
+    }
+    let source = "let payload = python^(__import__('time').sleep(6))_python\njavascript^( console.log('unreached') )_javascript";
+    let diagnostic = expected_stage_timeout(source);
+    assert!(
+        diagnostic.contains("event=proxy.shim_spawned language=python"),
+        "{diagnostic}"
+    );
+    assert!(
+        !diagnostic.contains("event=worker.backend_spawned language=javascript"),
+        "{diagnostic}"
+    );
+    assert!(diagnostic.contains("python3"), "{diagnostic}");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn timeout_diagnostics_identify_native_javascript_after_python_retirement() {
+    if !support::require_runtimes(&["python3", "node"]) {
+        return;
+    }
+    let source = producer("O'Brien") + "javascript^( Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6000); console.log(Buffer.from($payload, 'utf8').toString('hex')); )_javascript";
+    let diagnostic = expected_stage_timeout(&source);
+    assert!(
+        diagnostic.contains("event=worker.backend_wait_returned language=python"),
+        "{diagnostic}"
+    );
+    assert!(
+        diagnostic
+            .contains("event=backend.script_spawned language=javascript command=node child_pid="),
+        "{diagnostic}"
+    );
+    assert!(
+        !diagnostic.contains("event=backend.script_output_collected language=javascript"),
+        "{diagnostic}"
+    );
+    // Node versions choose different kernel thread names (for example
+    // `node` or `MainThread`). Bind the observed owned row to the launch
+    // event's PID; this diagnostic comparison grants no process authority.
+    let child_pid = diagnostic
+        .lines()
+        .find_map(|line| {
+            if !line.contains(" event=backend.script_spawned language=javascript command=node ") {
+                return None;
+            }
+            line.split_whitespace()
+                .find_map(|field| field.strip_prefix("child_pid=")?.parse::<u64>().ok())
+        })
+        .expect("native JavaScript launch event retains its child PID");
+    let snapshot = timeout_snapshot(&diagnostic);
+    let row = snapshot["processes_up_to_32"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["pid"].as_u64() == Some(child_pid))
+        .expect("launched Node PID is present in the identity-checked owned snapshot");
+    assert_eq!(row["stat"]["starttime"], row["starttime"], "{diagnostic}");
 }

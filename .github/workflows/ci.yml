@@ -91,7 +91,7 @@ jobs:
           from pathlib import Path
           import re
           root = Path("target/boundary-contract-logs")
-          for filename, expected in (("foreign-splice.log", None), ("sql-regression.log", 1)):
+          for filename, expected in (("foreign-splice.log", 18), ("sql-regression.log", 1)):
               summaries = re.findall(r"(?m)^test result: ok\. ([0-9]+) passed; 0 failed; 0 ignored;", (root / filename).read_text())
               if len(summaries) != 1 or int(summaries[0]) <= 0 or (expected is not None and int(summaries[0]) != expected):
                   raise SystemExit("missing, skipped or zero-case Rust qualification: " + filename)
