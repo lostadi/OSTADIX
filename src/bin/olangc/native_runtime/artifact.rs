@@ -72,6 +72,13 @@ pub(super) struct Artifact {
     symbol_inventory: Value,
 }
 
+pub(super) struct GroupComponent {
+    pub(super) name: String,
+    pub(super) capture_sha256: String,
+    pub(super) modules: Vec<(String, Vec<u8>)>,
+    pub(super) dependencies: Vec<(String, String)>,
+}
+
 pub(super) struct LoadedArtifact {
     pub(super) artifact: Artifact,
     pub(super) sha256: String,
@@ -214,6 +221,92 @@ impl Artifact {
                 "native module-set symbol inventory differs from independently recomputed closure"
             );
         }
+        Ok(artifact)
+    }
+
+    pub(super) fn check_component_dependencies(
+        &self,
+        name: &str,
+        expected: &[(String, String)],
+    ) -> Result<()> {
+        let component = self
+            .components
+            .iter()
+            .find(|c| c.name == name)
+            .context("source component absent")?;
+        let actual: BTreeSet<_> = component
+            .dependencies
+            .iter()
+            .map(|d| (d.name.clone(), d.capture_sha256.clone()))
+            .collect();
+        if actual != expected.iter().cloned().collect() || actual.len() != expected.len() {
+            bail!("source dependency graph differs from original recipe/policy");
+        }
+        Ok(())
+    }
+
+    pub(super) fn check_component(
+        &self,
+        name: &str,
+        capture_sha256: &str,
+        units: &BTreeSet<&str>,
+    ) -> Result<()> {
+        let component = self
+            .components
+            .iter()
+            .find(|c| c.name == name)
+            .context("source group component absent")?;
+        if component.capture_sha256 != capture_sha256
+            || component
+                .unit_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>()
+                != *units
+        {
+            bail!("source group component capture/unit binding differs");
+        }
+        Ok(())
+    }
+
+    pub(super) fn build_group(root: &str, sources: &[GroupComponent]) -> Result<Self> {
+        let first = sources
+            .first()
+            .and_then(|s| s.modules.first())
+            .context("empty source group")?;
+        let first = NativeModule::from_json(&first.1).map_err(|e| anyhow::anyhow!(e.message))?;
+        let mut artifact = Self {
+            format: FORMAT.into(),
+            name: root.into(),
+            target: first.target,
+            components: Vec::new(),
+            modules: Vec::new(),
+            symbol_inventory: Value::Null,
+        };
+        for source in sources {
+            artifact.components.push(Component {
+                name: source.name.clone(),
+                capture_sha256: source.capture_sha256.clone(),
+                unit_ids: source.modules.iter().map(|(id, _)| id.clone()).collect(),
+                dependencies: source
+                    .dependencies
+                    .iter()
+                    .map(|(name, sha)| Dependency {
+                        name: name.clone(),
+                        capture_sha256: sha.clone(),
+                    })
+                    .collect(),
+            });
+            for (id, bytes) in &source.modules {
+                artifact.modules.push(EmbeddedModule {
+                    component: source.name.clone(),
+                    unit_id: id.clone(),
+                    sha256: digest(bytes),
+                    native_ir: String::from_utf8(bytes.clone())?,
+                });
+            }
+        }
+        artifact.symbol_inventory = artifact.inventory()?;
         Ok(artifact)
     }
 

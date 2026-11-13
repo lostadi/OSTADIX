@@ -318,6 +318,11 @@ struct Cli {
     #[arg(long, requires = "native_runtime")]
     native_runtime_source: Option<PathBuf>,
 
+    /// Pinned original source-library group plan. Every component is built and
+    /// verified through olangc; complete runtime/resource gates remain separate.
+    #[arg(long, requires = "native_runtime")]
+    native_runtime_provider_plan: Option<PathBuf>,
+
     /// C frontend used by the source capture (default: clang on PATH).
     #[arg(long, requires = "native_runtime_source")]
     native_runtime_cc: Option<PathBuf>,
@@ -552,6 +557,7 @@ fn run_cli() -> Result<()> {
             },
             native_runtime::NativeSourceOptions {
                 source: cli.native_runtime_source.as_deref(),
+                provider_plan: cli.native_runtime_provider_plan.as_deref(),
                 cc: cli.native_runtime_cc.as_deref(),
                 cxx: cli.native_runtime_cxx.as_deref(),
                 rustc: cli.native_runtime_rustc.as_deref(),

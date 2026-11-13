@@ -17,6 +17,7 @@ const RUST_PAYLOAD: &str =
 #[derive(Default)]
 pub(crate) struct NativeSourceOptions<'a> {
     pub(crate) source: Option<&'a Path>,
+    pub(crate) provider_plan: Option<&'a Path>,
     pub(crate) cc: Option<&'a Path>,
     pub(crate) cxx: Option<&'a Path>,
     pub(crate) rustc: Option<&'a Path>,
@@ -29,7 +30,8 @@ pub(crate) struct NativeSourceOptions<'a> {
 
 impl NativeSourceOptions<'_> {
     pub(super) fn requested(&self) -> bool {
-        self.source.is_some()
+        self.provider_plan.is_some()
+            || self.source.is_some()
             || self.cc.is_some()
             || self.cxx.is_some()
             || self.rustc.is_some()
@@ -43,7 +45,7 @@ impl NativeSourceOptions<'_> {
 
 /// Resolve an as-yet nonexistent output against its real existing parent.
 /// In particular, never create missing ancestors before detecting source aliases.
-fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
+pub(super) fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -136,7 +138,7 @@ fn immutable_driver(
 // Keep source bytes, output contract, both option sets, and compiler identity
 // explicit at the shared native-runtime orchestration boundary.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn compile(
+pub(super) fn compile_impl(
     recipe_input: &Path,
     recipe_bytes: &[u8],
     target: &str,
@@ -145,7 +147,9 @@ pub(super) fn compile(
     import_options: NativeImportOptions<'_>,
     options: NativeSourceOptions<'_>,
     compiler: &Path,
-) -> Result<()> {
+    stage_only: bool,
+    selected_python: Option<&Path>,
+) -> Result<Option<StagedComponent>> {
     // Reject configuration/path mistakes before creating any output or running
     // the user-selected original build. Pins remain the capture worker's check.
     architecture(target)?;
@@ -202,6 +206,7 @@ pub(super) fn compile(
         "native_execution_qualified":false,"runtime_complete":false,
         "scope":"original source build capture followed by independently verified O-core unit lowering; reference build products do not qualify owned native runtime execution"});
     write_receipt(&output, &receipt)?;
+    let mut staged_component = None;
     let result = (|| -> Result<()> {
         fs::create_dir_all(worker.parent().unwrap())?;
         fs::create_dir_all(helper.parent().unwrap())?;
@@ -210,7 +215,8 @@ pub(super) fn compile(
         fs::write(&helper, RUST_PAYLOAD.as_bytes())?;
         let log = output.join("capture.log");
         let log_file = fs::File::create(&log)?;
-        let mut command = Command::new("python3");
+        let python = selected_python.unwrap_or_else(|| Path::new("python3"));
+        let mut command = Command::new(python);
         command
             .arg("-I")
             .arg(&worker)
@@ -245,7 +251,7 @@ pub(super) fn compile(
                     .context("source capture arguments must be UTF-8")
             })
             .collect::<Result<Vec<_>>>()?;
-        receipt["capture_process"] = json!({"program":"python3",
+        receipt["capture_process"] = json!({"program":python,
             "argv":argv,"log":log,
             "exit_code":null,"success":false});
         write_receipt(&output, &receipt)?;
@@ -284,14 +290,30 @@ pub(super) fn compile(
             .context("captured source-build report changed before native lowering")?;
         receipt["stage"] = json!("lowering");
         write_receipt(&output, &receipt)?;
-        let lowering = compile_with_compiler(
-            &report,
-            target,
-            output_kind,
-            &lowered,
-            import_options,
-            compiler,
-        );
+        let lowering = if stage_only {
+            lower_with_compiler(
+                &report,
+                target,
+                output_kind,
+                &lowered,
+                import_options,
+                compiler,
+                true,
+                selected_python,
+            )
+            .map(|component| {
+                staged_component = Some(component);
+            })
+        } else {
+            compile_with_compiler(
+                &report,
+                target,
+                output_kind,
+                &lowered,
+                import_options,
+                compiler,
+            )
+        };
         let coverage = lowered.join("coverage.json");
         if coverage.is_file() {
             receipt["lowering_receipt"] = artifact_record(&coverage)?;
@@ -311,12 +333,24 @@ pub(super) fn compile(
             bail!("captured source-build report changed during native lowering");
         }
         lowering?;
-        if receipt["capture_complete"] != true {
-            bail!("native lowering did not independently verify the source capture");
+        if stage_only {
+            let component = staged_component
+                .as_ref()
+                .context("provider group has no actual staging result")?;
+            receipt["source_units_staged_complete"] =
+                json!(component.source_capture_complete && component.unit_lowering_complete);
+            receipt["provider_group_finalization_deferred"] = json!(true);
+            receipt["stage"] = json!("source_units_staged");
+            // A private stage handoff is not success of the complete source route.
+            // In particular lowering_complete/success remain false here.
+        } else {
+            if receipt["capture_complete"] != true {
+                bail!("native lowering did not independently verify the source capture");
+            }
+            receipt["lowering_complete"] = json!(true);
+            receipt["stage"] = json!("complete");
+            receipt["success"] = json!(true);
         }
-        receipt["lowering_complete"] = json!(true);
-        receipt["stage"] = json!("complete");
-        receipt["success"] = json!(true);
         Ok(())
     })();
     if let Err(error) = &result {
@@ -324,11 +358,65 @@ pub(super) fn compile(
     }
     write_receipt(&output, &receipt)?;
     result?;
-    eprintln!(
-        "olangc: original-source recipe completed verified unit lowering; receipt {}",
-        output.join("source-recipe.json").display()
-    );
+    if !stage_only {
+        eprintln!(
+            "olangc: original-source recipe completed verified unit lowering; receipt {}",
+            output.join("source-recipe.json").display()
+        );
+    }
+    Ok(staged_component)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn compile(
+    recipe_input: &Path,
+    recipe_bytes: &[u8],
+    target: &str,
+    output_kind: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    options: NativeSourceOptions<'_>,
+    compiler: &Path,
+) -> Result<()> {
+    compile_impl(
+        recipe_input,
+        recipe_bytes,
+        target,
+        output_kind,
+        output,
+        import_options,
+        options,
+        compiler,
+        false,
+        None,
+    )?;
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn stage_for_group(
+    recipe_input: &Path,
+    recipe_bytes: &[u8],
+    target: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    options: NativeSourceOptions<'_>,
+    compiler: &Path,
+    python: &Path,
+) -> Result<StagedComponent> {
+    compile_impl(
+        recipe_input,
+        recipe_bytes,
+        target,
+        "ir",
+        output,
+        import_options,
+        options,
+        compiler,
+        true,
+        Some(python),
+    )?
+    .context("provider source recipe returned no actual staged component")
 }
 
 #[cfg(test)]
