@@ -371,13 +371,17 @@ pub(super) fn compile_package(
 // is a subset, never equality with the generated inventory. This does not claim
 // the embedded capture is a fresh checkout/build replay.
 fn check_original_selection(recipe: &Value, finalized: &Value, capture: &Value) -> Result<()> {
-    let mut required = BTreeMap::<String, Value>::new();
-    for rule in array(&recipe["coverage"], "required_units")?
+    // The worker appends finalized requirements to the recipe floor and emits
+    // one bound record for every declaration. Preserve that multiplicity and
+    // order, including compatible repeated IDs; never collapse their evidence.
+    let required: Vec<_> = array(&recipe["coverage"], "required_units")?
         .iter()
         .chain(array(finalized, "units")?)
-    {
+        .collect();
+    let mut definitions = BTreeMap::<String, Value>::new();
+    for rule in &required {
         let id = string(rule, "id")?.to_owned();
-        if let Some(previous) = required.get_mut(&id) {
+        if let Some(previous) = definitions.get_mut(&id) {
             let previous = previous
                 .as_object_mut()
                 .context("source rule must be an object")?;
@@ -388,7 +392,7 @@ fn check_original_selection(recipe: &Value, finalized: &Value, capture: &Value) 
                 previous.insert(key.clone(), value.clone());
             }
         } else {
-            required.insert(id, rule.clone());
+            definitions.insert(id, (*rule).clone());
         }
     }
     if required.is_empty() {
@@ -401,15 +405,15 @@ fn check_original_selection(recipe: &Value, finalized: &Value, capture: &Value) 
     if known.len() != array(capture, "units")?.len() {
         bail!("duplicate captured original unit");
     }
-    let mut actual_rules = BTreeSet::new();
+    let bound_rules = array(capture, "required_units")?;
+    if bound_rules.len() != required.len() {
+        bail!("partial original recipe/finalized unit inventory");
+    }
     let mut lowering = BTreeSet::new();
     let mut assigned = BTreeSet::new();
-    for bound in array(capture, "required_units")? {
-        let id = string(bound, "id")?;
-        let rule = required
-            .get(id)
-            .context("capture added an unfinalized original requirement")?;
-        if !actual_rules.insert(id)
+    for (bound, rule) in bound_rules.iter().zip(required) {
+        let id = string(rule, "id")?;
+        if string(bound, "id")? != id
             || bound["complete"] != true
             || !array(bound, "failed_invocation_ids")?.is_empty()
         {
@@ -440,7 +444,7 @@ fn check_original_selection(recipe: &Value, finalized: &Value, capture: &Value) 
             }
         }
     }
-    if actual_rules != required.keys().map(String::as_str).collect() || assigned != known {
+    if assigned != known {
         bail!("partial original recipe/finalized unit inventory");
     }
     let selected: BTreeSet<_> = array(capture, "lowering_unit_ids")?

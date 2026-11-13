@@ -364,7 +364,8 @@ pub(super) fn compile(
                 compiler,
                 &plan.tools.python.path,
             )?;
-            record["staged"] = json!(true);
+            record["staged"] =
+                json!(component.source_capture_complete && component.unit_lowering_complete);
             record["capture_complete"] = json!(component.source_capture_complete);
             record["unit_lowering_complete"] = json!(component.unit_lowering_complete);
             record["coverage"] = json!(component.coverage_path);
