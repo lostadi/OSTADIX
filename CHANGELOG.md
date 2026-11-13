@@ -258,6 +258,14 @@ Package SemVer is only one of the independent coordinates documented in
   run. Bash error messages say `bash: line N:` with the block's
   own line numbers instead of a session temp path.
 
+- A plain bash block that leaves background jobs, including `setsid`,
+  `nohup`, `disown`, and double-forked ones, no longer fails with "process
+  group still contains an active descendant": each block's bash is
+  pre-spawned by a per-block backend helper that is the subreaper of its
+  jobs (the O process is not), stops them all when the block ends, and prints
+  `bash block left N background job(s); they were stopped`. `bash[N]` jobs
+  are stopped when their session ends.
+
 - A bash block that ends its `bash[N]` session with a failure, for example
   under a persisted `set -e`, now says that the session ended and its state
   was dropped.
