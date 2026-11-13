@@ -1,4 +1,5 @@
 """Adversarial archive/mandatory-prerequisite controls, using inert tiny inputs."""
+import ast
 import copy
 import contextlib
 import hashlib
@@ -330,7 +331,7 @@ class LlvmProfileTests(unittest.TestCase):
 class RequiredFpContractTests(unittest.TestCase):
     def test_actual_workflow_controller_requires_both_complete_suites(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text()
-        self.assertIn("result.testsRun < 27", workflow[:workflow.index("  ocore-constrained-fp:\n")])
+        self.assertIn("result.testsRun < 29", workflow[:workflow.index("  ocore-constrained-fp:\n")])
         start = workflow.index("          import hashlib, json, os, pathlib, unittest\n")
         stop = workflow.index("          PYCODE\n", start)
         controller = compile(textwrap.dedent(workflow[start:stop]), "required-fp-workflow", "exec")
@@ -468,6 +469,136 @@ class RequiredFpContractTests(unittest.TestCase):
             with self.subTest(module=module):
                 suite = unittest.defaultTestLoader.loadTestsFromName(module)
                 self.assertEqual(suite.countTestCases(), 9)
+
+
+    def test_actual_rejected_source_controller_refuses_incomplete_or_mutated_runs(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        marker = "          # Required rejected-source diagnostic controller: distinct from scalar FP reports.\n"
+        start = workflow.index(marker)
+        stop = workflow.index("          PYCODE\n", start)
+        controller = compile(textwrap.dedent(workflow[start:stop]), "required-rejected-source-workflow", "exec")
+        module = "tests.test_ocore_llvm_failure_srcloc_diagnostics"
+        variants = ("complete", "empty", "short", "extra", "skip", "xfail", "unexpected-success",
+                    "failure", "error", "compiler-mutation", "parser-mutation", "bad-initial-parser")
+        for variant in variants:
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory(prefix="rejected-source-controller-") as directory:
+                root = Path(directory)
+                evidence = root / "target/ocore-constrained-fp"
+                (evidence / "setup").mkdir(parents=True)
+                compiler, parser = evidence / "inert-compiler", evidence / "inert-parser"
+                compiler.write_bytes(b"inert compiler: never executed\n")
+                parser.write_bytes(b"inert parser: never loaded\n")
+                (evidence / "compiler-pin.json").write_text(json.dumps({"path": str(compiler), "sha256": hashlib.sha256(compiler.read_bytes()).hexdigest()}))
+                (evidence / "setup/environment.json").write_text(json.dumps({
+                    "OCORE_TEST_LLVM_LIBRARY": str(parser),
+                    "OCORE_TEST_LLVM_SHA256": hashlib.sha256(parser.read_bytes()).hexdigest()}))
+                if variant == "bad-initial-parser":
+                    parser.write_bytes(b"not the declared parser")
+                seen = []
+
+                def load(name):
+                    self.assertEqual(name, module)
+                    seen.append(name)
+                    self.assertEqual(os.environ["OCORE_FAILURE_SRCLOC_REQUIRED"], "1")
+                    self.assertEqual(os.environ["OCORE_LLVM_LIBRARY"], str(parser))
+                    self.assertEqual(os.environ["OCORE_LLVM_SHA256"], hashlib.sha256(parser.read_bytes()).hexdigest())
+                    self.assertEqual(os.environ["OCORE_FAILURE_SRCLOC_OUTPUT"], str(evidence / "failure-srcloc-suite"))
+                    if variant == "empty":
+                        return unittest.TestSuite()
+                    count = 11 if variant == "short" else 13 if variant == "extra" else 12
+                    cases = [unittest.FunctionTestCase(lambda: None) for _ in range(count)]
+                    if variant in ("xfail", "unexpected-success"):
+                        class Expected(unittest.TestCase):
+                            @unittest.expectedFailure
+                            def runTest(self):
+                                if variant == "xfail":
+                                    self.fail("deliberately unmet diagnostic contract")
+                        cases.append(Expected())
+                    else:
+                        def last():
+                            if variant == "skip":
+                                raise unittest.SkipTest("required input absent")
+                            if variant == "failure":
+                                self.fail("declared diagnostic mismatch")
+                            if variant == "error":
+                                raise RuntimeError("diagnostic exception")
+                            if variant == "compiler-mutation":
+                                compiler.write_bytes(b"changed compiler")
+                            if variant == "parser-mutation":
+                                parser.write_bytes(b"changed parser")
+                        cases.append(unittest.FunctionTestCase(last))
+                    return unittest.TestSuite(cases)
+
+                with mock.patch.dict(os.environ, {"GITHUB_WORKSPACE": str(root)}), \
+                        mock.patch.object(unittest.defaultTestLoader, "loadTestsFromName", side_effect=load), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    if variant == "complete":
+                        exec(controller, {"__name__": "__main__"})
+                    else:
+                        with self.assertRaisesRegex(SystemExit, "pin mismatch before tests" if variant == "bad-initial-parser" else "all13 rejected-source diagnostic tests"):
+                            exec(controller, {"__name__": "__main__"})
+                report_path = evidence / "failure-srcloc-tests-result.json"
+                if variant == "bad-initial-parser":
+                    self.assertEqual(seen, [])
+                    self.assertFalse(report_path.exists())
+                    continue
+                self.assertEqual(seen, [module])
+                report = json.loads(report_path.read_text())
+                self.assertEqual(report["passed"], variant == "complete")
+                self.assertEqual(report["test_module"], module)
+                if variant == "compiler-mutation":
+                    self.assertFalse(report["compiler_unchanged"])
+                if variant == "parser-mutation":
+                    self.assertFalse(report["parser_unchanged"])
+                if variant == "empty":
+                    self.assertEqual(report["executed"], 0)
+
+    def test_rejected_source_suite_membership_and_separate_result_contract(self):
+        source = ROOT / "tests/test_ocore_llvm_failure_srcloc_diagnostics.py"
+        parsed = ast.parse(source.read_text(), filename=str(source))
+        methods = [node.name for group in parsed.body if isinstance(group, ast.ClassDef)
+                   for node in group.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                   and node.name.startswith("test_")]
+        self.assertEqual(len(methods), 13)
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text()
+        job = workflow[workflow.index("  ocore-constrained-fp:\n"):workflow.index("\n  boundary-contract:")]
+        self.assertIn("discovered == 13 and result.testsRun == 13", job)
+        self.assertIn("failure-srcloc-tests-result.json", job)
+        self.assertIn('"ocorec_or_olangc_public_flag": False', job)
+        self.assertIn("result.testsRun < 29", workflow[:workflow.index("  ocore-constrained-fp:\n")])
+        # The existing two-suite scalar-FP result has its own unchanged checker.
+        self.assertIn('"schema": "ostadix.ci-required-scalar-fp-suites/v1"', job)
+        self.assertIn('from scripts.prepare_ci_llvm_profile import required_test_report', job)
+        marker = "          # Required embedded-provider source closure controller: no LLVM execution.\n"
+        start = workflow.index(marker)
+        stop = workflow.index("          PYCODE\n", start)
+        controller = compile(textwrap.dedent(workflow[start:stop]), "required-provider-source-closure-workflow", "exec")
+        for variant in ("complete", "empty", "skip", "xfail"):
+            with self.subTest(provider_variant=variant):
+                if variant == "empty":
+                    suite = unittest.TestSuite()
+                else:
+                    cases = [unittest.FunctionTestCase(lambda: None) for _ in range(4)]
+                    if variant == "xfail":
+                        class Expected(unittest.TestCase):
+                            @unittest.expectedFailure
+                            def runTest(self):
+                                self.fail("missing declared source closure")
+                        cases.append(Expected())
+                    else:
+                        def last():
+                            if variant == "skip":
+                                raise unittest.SkipTest("missing required source")
+                        cases.append(unittest.FunctionTestCase(last))
+                    suite = unittest.TestSuite(cases)
+                with mock.patch.object(unittest.defaultTestLoader, "loadTestsFromName", return_value=suite) as loader, \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    if variant == "complete":
+                        exec(controller, {"__name__": "__main__"})
+                    else:
+                        with self.assertRaisesRegex(SystemExit, "all5 embedded-provider source closure tests"):
+                            exec(controller, {"__name__": "__main__"})
+                    loader.assert_called_once_with("tests.test_ocore_provider_group_source_closure")
 
 
 if __name__ == "__main__":

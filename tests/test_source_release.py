@@ -1092,7 +1092,7 @@ class SourceReleaseTests(unittest.TestCase):
         for path in blocked:
             with self.subTest(blocked=path):
                 self.assertFalse(release.is_allowed_release_path(path))
-        for path in allowed | release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS:
+        for path in allowed | release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS | release.FAILURE_SRCLOC_RELEASE_PATHS:
             with self.subTest(retained=path):
                 self.assertTrue(release.is_allowed_release_path(path))
 
@@ -1915,7 +1915,7 @@ class SourceReleaseTests(unittest.TestCase):
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             contents.setdefault(path, b"fixture human and LLM interface source\n")
         contents.update(fixture_setup_sources())
-        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS:
+        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS | release.O10_COMPONENT_RELEASE_PATHS | release.CONSTRAINED_FP_RELEASE_PATHS | release.FAILURE_SRCLOC_RELEASE_PATHS:
             contents[path] = (PROJECT_ROOT / path).read_bytes()
         if files:
             contents.update(files)
@@ -2666,6 +2666,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
             included.update(release.NATIVE_FOUNDATION_RELEASE_PATHS)
             included.update(release.CONSTRAINED_FP_RELEASE_PATHS)
+            included.update(release.FAILURE_SRCLOC_RELEASE_PATHS)
             included.update(release.O10_COMPONENT_RELEASE_PATHS)
             included.update(fixture_setup_sources())
             excluded = {
@@ -4277,6 +4278,29 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("rm", path)
         self._git("commit", "-q", "-m", "remove required register-barrier suite only")
         self._assert_missing_required_paths("missing-register-barrier.zip", [path])
+
+    def test_failure_srcloc_diagnostic_source_closure_is_required(self) -> None:
+        paths = sorted(release.FAILURE_SRCLOC_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", *paths)
+        self._git("commit", "-q", "-m", "remove rejected-source diagnostic closure")
+        self._assert_missing_required_paths("missing-failure-srcloc-closure.zip", paths)
+
+    def test_failure_srcloc_suite_cannot_be_omitted_with_other_inputs_present(self) -> None:
+        path = "tests/test_ocore_llvm_failure_srcloc_diagnostics.py"
+        self.assertIn(path, release.FAILURE_SRCLOC_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", path)
+        self._git("commit", "-q", "-m", "remove rejected-source diagnostic suite only")
+        self._assert_missing_required_paths("missing-failure-srcloc-suite.zip", [path])
+
+    def test_failure_srcloc_provider_lexer_dependency_is_required(self) -> None:
+        path = "tests/test_ocore_aot_native_source_closure.py"
+        self.assertIn(path, release.FAILURE_SRCLOC_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", path)
+        self._git("commit", "-q", "-m", "remove required provider source lexer only")
+        self._assert_missing_required_paths("missing-failure-srcloc-lexer.zip", [path])
 
     def test_o10_component_source_closure_is_required(self) -> None:
         paths = sorted(release.O10_COMPONENT_RELEASE_PATHS)

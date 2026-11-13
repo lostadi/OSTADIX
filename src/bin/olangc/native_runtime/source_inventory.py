@@ -2200,3 +2200,189 @@ def check_inventory(source, module):
 
 def audit_native_module(llvm_path, module, library, expected_sha256):
     return check_inventory(Reader(library, expected_sha256).read(llvm_path), module)
+
+
+def failure_srcloc_inventory(reader, context, original_module, original_bytes):
+    """Independently survey a caller-owned, original LLVM-verified module.
+
+    This does not parse, normalize, translate or admit anything. The caller must
+    retain the actual original input bytes and verified context/module lifetime.
+    Existing Reader.read and its bounded Linux/FP witnesses are not used here.
+    """
+    pointer, size = c.c_void_p, c.c_size_t
+    copy_metadata = reader.dll.LLVMGlobalCopyAllMetadata
+    copy_metadata.restype, copy_metadata.argtypes = pointer, [pointer, c.POINTER(size)]
+    print_type = reader.dll.LLVMPrintTypeToString
+    print_type.restype, print_type.argtypes = pointer, [pointer]
+    can_fmf = reader.dll.LLVMCanValueUseFastMathFlags
+    can_fmf.restype, can_fmf.argtypes = c.c_int, [pointer]
+
+    def octets(getter, value):
+        number = size()
+        address = getter(value, c.byref(number))
+        if number.value and not address:
+            raise InventoryMismatch("independent diagnostic byte getter returned null")
+        return list(c.string_at(address, number.value)) if number.value else []
+
+    def printed(getter, value):
+        address = getter(value)
+        if not address:
+            raise InventoryMismatch("independent diagnostic printer returned null")
+        try:
+            return list(c.string_at(address))
+        finally:
+            reader.DisposeMessage(address)
+
+    globals_ = list(reader.sequence(reader.GetFirstGlobal, reader.GetNextGlobal, original_module))
+    functions = list(reader.sequence(reader.GetFirstFunction, reader.GetNextFunction, original_module))
+    visited = [(value, {"kind":"global", "global_index":index,
+                       "name":octets(reader.GetValueName2,value)}, None)
+               for index,value in enumerate(globals_)]
+    blocks_count = instructions_count = 0
+    for index,function in enumerate(functions):
+        name = octets(reader.GetValueName2,function)
+        function_text = bytes(printed(reader.PrintValueToString,function))
+        function_source = {"bytes":len(function_text),"sha256":hashlib.sha256(function_text).hexdigest()}
+        visited.append((function,{"kind":"function","function_index":index,"name":name},None))
+        blocks = list(reader.sequence(reader.GetFirstBasicBlock,reader.GetNextBasicBlock,function))
+        blocks_count += len(blocks)
+        for block_index,block in enumerate(blocks):
+            instructions = list(reader.sequence(reader.GetFirstInstruction,reader.GetNextInstruction,block))
+            instructions_count += len(instructions)
+            visited.extend((instruction,{"kind":"instruction","function_index":index,"name":name,
+                                         "block":block_index,"source_instruction":ordinal,
+                                         "function_source_llvm":function_source},
+                            reader.GetInstructionOpcode(instruction))
+                           for ordinal,instruction in enumerate(instructions))
+    expected = {"scan_complete":True,"typed_custody_complete":True,"status":"complete",
+                "globals":len(globals_),"functions":len(functions),"blocks":blocks_count,
+                "instructions":instructions_count,"attachments":0,"other_attachments":0,
+                "roots":[],"nodes":[],"errors":[]}
+    original_tuple_ids = {}
+    srcloc_name_id = reader.GetMDKindIDInContext(context,b"srcloc",6)
+
+    def tuple_record(metadata):
+        if not metadata:
+            return None,"null_metadata"
+        if reader.GetMetadataKind(metadata) != 4:
+            return None,"not_original_mdtuple"
+        if metadata in original_tuple_ids:
+            return original_tuple_ids[metadata],None
+        # The original class gate precedes every operand getter. Do not infer
+        # class/storage from the compatibility wrapper or require its identity.
+        wrapper = reader.MetadataAsValue(context,metadata)
+        if not wrapper or not reader.IsAMDNode(wrapper):
+            return None,"no_tuple_operand_adapter"
+        n = reader.GetMDNodeNumOperands(wrapper)
+        if n == 0:
+            return None,"empty_tuple"
+        members = (pointer*n)()
+        reader.GetMDNodeOperands(wrapper,members)
+        values = []
+        for member in members:
+            if not member or not reader.IsAConstantInt(member):
+                return None,"not_constant_integer"
+            bits = reader.GetIntTypeWidth(reader.TypeOf(member))
+            if bits < 1 or bits > 64:
+                return None,"integer_width_outside_1_64"
+            values.append({"width":bits,"bits":str(reader.ConstIntGetZExtValue(member))})
+        constant_members = (pointer*n)()
+        for i,member in enumerate(members):
+            constant_members[i] = reader.ValueAsMetadata(member)
+        unique = reader.MDNodeInContext2(context,constant_members,n)
+        if not unique:
+            return None,"no_storage_identity_witness"
+        number = len(expected["nodes"])
+        original_tuple_ids[metadata] = number
+        expected["nodes"].append({"id":number,"storage":"uniqued" if unique==metadata else "distinct",
+                                  "operands":values})
+        return number,None
+
+    for value,site,opcode in visited:
+        n = size()
+        entries = copy_metadata(value,c.byref(n))
+        try:
+            if n.value and not entries:
+                raise InventoryMismatch("independent diagnostic metadata array returned null")
+            expected["attachments"] += n.value
+            for position in range(n.value):
+                if reader.ValueMetadataEntriesGetKind(entries,position) != srcloc_name_id:
+                    expected["other_attachments"] += 1
+                    continue
+                metadata = reader.ValueMetadataEntriesGetMetadata(entries,position)
+                root = {"site":site,"name":"srcloc","owner":None,"opcode":opcode,
+                        "owner_source_llvm":printed(reader.PrintValueToString,value),
+                        "original_metadata_kind":reader.GetMetadataKind(metadata) if metadata else None,
+                        "node":None,"status":"rejected","error":None}
+                expected["roots"].append(root)
+                if site["kind"] != "instruction" or opcode != 45:
+                    root["error"] = "owner_not_ordinary_inline_asm_call"
+                    continue
+                callee = reader.GetCalledValue(value)
+                if not callee or not reader.IsAInlineAsm(callee):
+                    root["error"] = "owner_not_ordinary_inline_asm_call"
+                    continue
+                argument_count = reader.GetNumArgOperands(value)
+                arguments = [reader.GetOperand(value,i) for i in range(argument_count)]
+                root["owner"] = {
+                    "opcode":opcode,"source_llvm":printed(reader.PrintValueToString,value),
+                    "assembly":octets(reader.GetInlineAsmAsmString,callee),
+                    "constraints":octets(reader.GetInlineAsmConstraintString,callee),
+                    "signature_llvm":printed(print_type,reader.GetCalledFunctionType(value)),
+                    "result_type_llvm":printed(print_type,reader.TypeOf(value)),
+                    "argument_types_llvm":[printed(print_type,reader.TypeOf(arg)) for arg in arguments],
+                    "arguments_llvm":[printed(reader.PrintValueToString,arg) for arg in arguments],
+                    "side_effects":bool(reader.GetInlineAsmHasSideEffects(callee)),
+                    "align_stack":bool(reader.GetInlineAsmNeedsAlignedStack(callee)),
+                    "dialect":reader.GetInlineAsmDialect(callee),
+                    "can_unwind":bool(reader.GetInlineAsmCanUnwind(callee)),
+                    "calling_convention":reader.GetInstructionCallConv(value),
+                    "tail_kind":reader.GetTailCallKind(value),
+                    "operand_bundles":reader.GetNumOperandBundles(value),
+                    "fast_math":reader.GetFastMathFlags(value) if can_fmf(value) else None}
+                root["node"],root["error"] = tuple_record(metadata)
+                if root["error"] is None:
+                    root["status"] = "typed_diagnostic_only"
+        finally:
+            if entries:
+                reader.DisposeValueMetadataEntries(entries)
+    if any(root["error"] is not None for root in expected["roots"]):
+        expected["typed_custody_complete"] = False
+        expected["status"] = "complete_with_rejections"
+    version = [c.c_uint() for _ in range(3)]
+    reader.GetVersion(*(c.byref(v) for v in version))
+    return {"schema":"ocore.llvm.srcloc-failure-inventory/v1",
+            "input_sha256":hashlib.sha256(original_bytes).hexdigest(),"input_bytes":len(original_bytes),
+            "parser":{"version":[v.value for v in version],"sha256":reader.library["sha256"]},
+            "target_triple":(reader.GetTarget(original_module) or b"").decode(),
+            "data_layout":(reader.GetDataLayoutStr(original_module) or b"").decode(),"scan":expected}
+
+
+def check_failure_srcloc_diagnostics(original, diagnostics, primary_import_error):
+    """Compare a complete independent original-site survey, never admit code.
+
+    The primary error comes from the actual refused import, not the diagnostic
+    packet's own claim. Callers retain/verify their original source lifetimes.
+    """
+    def encode(value):
+        try:
+            return json.dumps(value,sort_keys=True,separators=(",",":"),allow_nan=False)
+        except (TypeError,ValueError) as error:
+            raise InventoryMismatch("failure diagnostics are not strict JSON data") from error
+    if not isinstance(original,dict) or original.get("schema") != "ocore.llvm.srcloc-failure-inventory/v1":
+        raise InventoryMismatch("independent failure srcloc inventory schema mismatch")
+    expected = {"schema":"ocore.llvm.srcloc-failure-diagnostics/v1",
+                **{key:original[key] for key in ("input_sha256","input_bytes","parser","target_triple","data_layout","scan")},
+                "status":"rejected_valid_source","import_complete":False,
+                "parse_status":"accepted","verification_status":"accepted",
+                "diagnostic_parse_status":"accepted","diagnostic_verification_status":"accepted",
+                "primary_import_error":primary_import_error,
+                "authority":{"native_module":False,"source_authentication":False,
+                             "operation_realization":False,"provider":False,"pure_leaf":False}}
+    if not original["scan"]["scan_complete"] or original["scan"]["status"] not in {"complete","complete_with_rejections"}:
+        raise InventoryMismatch("independent failure srcloc survey is incomplete")
+    if encode(diagnostics) != encode(expected):
+        raise InventoryMismatch("failure srcloc source/header/site/node/owner/primary error mismatch")
+    return {"schema":"ocore.llvm.srcloc-failure-comparison/v1","complete_original_site_comparison":True,
+            "native_module":False,"source_authentication":False,"operation_realization":False,
+            "provider":False,"pure_leaf":False}

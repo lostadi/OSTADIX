@@ -302,6 +302,22 @@ CONSTRAINED_FP_RELEASE_PATHS = frozenset(
         "tests/test_prepare_ci_llvm_profile.py",
     }
 )
+# Separate rejected-source diagnostic custody, not additional admitted FP/codegen.
+FAILURE_SRCLOC_RELEASE_PATHS = frozenset(
+    {
+        ".github/workflows/ci.yml",
+        "ci/test-suites.toml",
+        "docs/CI_POSTURE.md",
+        "docs/OCORE.md",
+        "scripts/ocore_llvm_import.py",
+        "src/bin/olangc/native_runtime/source_inventory.py",
+        "tests/ocore_llvm_source_inventory.py",
+        "tests/test_ocore_llvm_failure_srcloc_diagnostics.py",
+        "tests/test_ocore_aot_native_source_closure.py",
+        "tests/test_ocore_provider_group_source_closure.py",
+        "tests/test_prepare_ci_llvm_profile.py",
+    }
+)
 NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
     {
         "scripts/ocore_runtime_capture.py",
@@ -1329,6 +1345,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
     | REAL_WORLD_BENCHMARK_RELEASE_PATHS
     | NATIVE_FOUNDATION_RELEASE_PATHS
     | CONSTRAINED_FP_RELEASE_PATHS
+    | FAILURE_SRCLOC_RELEASE_PATHS
     | O10_COMPONENT_RELEASE_PATHS
     | PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS
     | OSTADIX_API_RELEASE_PATHS
