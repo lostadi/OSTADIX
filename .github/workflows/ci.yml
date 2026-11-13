@@ -688,6 +688,10 @@ jobs:
           PY
       - name: Build the O-core compiler for native equivalence
         run: cargo build --locked --bin ocorec --bin olangc
+      - name: Verify native evidence freshness and artifact maps
+        run: |
+          python3 -m unittest discover -s tests -p test_ocore_native_equivalence.py -v
+          python3 -m unittest discover -s tests -p test_ocore_native_map.py -v
       - name: Verify imported IR contracts and complete capture inventories
         env:
           OCORE_TEST_POINTER_CONSTANTS_OUTPUT_DIR: target/ocore-pointer-initializers
