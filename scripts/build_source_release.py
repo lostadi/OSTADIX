@@ -235,6 +235,7 @@ REAL_WORLD_BENCHMARK_RELEASE_PATHS = REAL_WORLD_BENCHMARK_PATHS | frozenset(
 NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
     {
         "scripts/ocore_runtime_capture.py",
+        "scripts/ocore_native_copy.py",
         "scripts/ocore_producer_registry.json",
         "tools/ocore-runtime/libc/README.md",
         "tools/ocore-runtime/libc/build_inventory.py",
@@ -246,6 +247,7 @@ NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
         "tools/ocore-runtime/libc/test_inventory_recipe_worker_contract.py",
         "tests/test_process_current_identity.py",
         "tests/test_thread_frame_contents.py",
+        "tests/test_ocore_native_copy.py",
         *(
             f"ocore/runtime/x86_64/{name}.oc"
             for name in (

@@ -708,6 +708,27 @@ jobs:
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_build_inventory.py -v
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_stage_roles.py -v
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_observe_cargo.py -v
+      - name: Verify original-copy observation without source admission
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/native-copy-observations"
+          evidence.mkdir(parents=True, exist_ok=True)
+          os.environ["NATIVE_COPY_TEST_OUTPUT"] = str(evidence)
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_native_copy")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun < 43 or result.skipped:
+              raise SystemExit("original-copy observations must execute without skips; output ownership remains disabled")
+          PY
+      - name: Retain bounded original-copy observation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-copy-observations-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/native-copy-observations/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Test runtime admission and ELF selection with an installed exact LLVM SDK
         run: |
           python3 - <<'PY'
