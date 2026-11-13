@@ -238,6 +238,7 @@ class Importer:
     # Exact selected LLVM22 provider IDs, not recognition by a name prefix.
     INTEGER_UNARY_INTRINSICS = {f"llvm.{kind}.i{bits}": (kind, bits)
                                 for kind in ("ctlz", "abs") for bits in (32, 64)}
+    INTEGER_POPULATION_COUNT_INTRINSICS = {f"llvm.ctpop.i{bits}": bits for bits in (32, 64)}
     FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
@@ -246,7 +247,7 @@ class Importer:
     POINTER_MASK_INTRINSIC = "llvm.ptrmask.p0.i64"
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
@@ -508,6 +509,26 @@ class Importer:
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} attribute index {index}: erased TLS intrinsic pointer promise align={payload}; original current-thread address operation, global identity, source storage alignment and all memory operations retained; no memory alignment/effect, provider binding or optimization inferred")
                 self.refinements.add("TLS intrinsic pointer alignment promises validated after pinned LLVM parsing and attribute normalization; input_sha256 binds the original bytes; no declaration-to-callsite inheritance")
+            elif intrinsic == "llvm.ptrmask.p0.i64" and name == "align":
+                if (not a.IsEnumAttribute(attribute) or not call or index != 0
+                        or attribute_type is None or a.GetTypeKind(attribute_type) != 12
+                        or a.GetPointerAddressSpace(attribute_type) != 0):
+                    self.reject("ptrmask alignment currently requires its call-result integral AS0 pointer; input/declaration alignment promises need separate proof or constraint transport")
+                payload = a.GetEnumAttributeValue(attribute)
+                if not payload or payload > 1 << 32 or payload & (payload - 1):
+                    self.reject("ptrmask pointer alignment must be a positive power of two, at most 2^32")
+                if a.GetNumArgOperands(value) != 2:
+                    self.reject("ptrmask alignment proof requires the exact two original arguments")
+                mask = a.GetOperand(value, 1)
+                if a.GetTypeKind(a.TypeOf(mask)) != 8 or a.GetIntTypeWidth(a.TypeOf(mask)) != 64:
+                    self.reject("ptrmask alignment proof requires the exact original i64 mask")
+                if payload > 1:
+                    if not a.IsAConstantInt(mask):
+                        self.reject("ptrmask return alignment is unproved for a variable mask; general constraint transport is unsupported")
+                    if self.bounded_integer(mask) & (payload - 1):
+                        self.reject("ptrmask constant mask does not prove the original return alignment")
+                self.refinements.add(f"{self.symbol}: callsite attribute index 0: retained ptrmask return_alignment={payload}; proved cleared low address bits by literal i64 mask & (alignment-1)==0, or vacuous alignment1; exact original pointer, mask, result and underlying object/provenance retained; independently checked typed constraint, no storage/byval alignment, stronger memory access, callee inheritance or runtime guard inferred")
+                self.refinements.add("original LLVM ptrmask call-return alignment is explicit NativeModule constraint transport, not unconditional promise erasure; pinned LLVM22 parsing/normalization and input_sha256 retain original source identity; unproved masks and input pointer promises remain unsupported")
             elif (intrinsic in self.MEMORY_INTRINSICS and index in pointer_indices
                     and name in {"align", "dereferenceable", "dereferenceable_or_null"}
                     and a.IsEnumAttribute(attribute)):
@@ -809,6 +830,16 @@ class Importer:
                 self.refinements.add(f"{self.symbol}: retained metadata-only personality declaration i32(...) with exact C convention and no ABI extension attributes; original declaration, personality references and dependency identity retained; explicit included five-argument C unwinder callback adaptation required; no ordinary variadic call admission")
         return signature
 
+    def integer_population_count_identity(self, value, name):
+        a = self.a
+        expected = a.LookupIntrinsicID(b"llvm.ctpop", len(b"llvm.ctpop"))
+        if (name not in self.INTEGER_POPULATION_COUNT_INTRINSICS or not expected
+                or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM population-count declaration identity")
+        self.refinements.add(f"{name}: exact intrinsic declaration validated after pinned LLVM22.1.6 UpgradeIntrinsicFunction attribute normalization; input_sha256 binds original unit bytes; call-site ABI attributes are checked independently")
+
     def integer_unary_identity(self, value, name):
         a = self.a
         kind, _ = self.INTEGER_UNARY_INTRINSICS[name]
@@ -863,6 +894,15 @@ class Importer:
     def intrinsic_signature(self, name, signature):
         pointer = {"kind": "pointer", "address_space": 0}
         integer = lambda bits: {"kind": "int", "bits": bits}
+        if name in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+            width = self.INTEGER_POPULATION_COUNT_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width}) C signature without ABI extension attributes")
+            return
         if name in self.INTEGER_UNARY_INTRINSICS:
             _, width = self.INTEGER_UNARY_INTRINSICS[name]
             if (self.types[signature["result"]] != integer(width)
@@ -1883,6 +1923,8 @@ class Importer:
                 intrinsic = a.name(callee)
                 if intrinsic not in self.INTRINSICS:
                     self.reject(f"intrinsic {intrinsic} requires explicit call lowering")
+                if intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+                    self.integer_population_count_identity(callee, intrinsic)
                 if intrinsic in self.INTEGER_UNARY_INTRINSICS:
                     self.integer_unary_identity(callee, intrinsic)
                 if intrinsic in self.MINMAX_INTRINSICS:
@@ -1910,7 +1952,16 @@ class Importer:
                 self.refinements.add("scoped alias metadata graph uses actual parsed metadata identity and deterministic module-local traversal IDs; trusted LLVM printer records attest post-parse storage only; raw pointer fallback labels remain provenance bytes, never graph IDs; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
             elif intrinsic == self.POINTER_MASK_INTRINSIC:
                 operation = {"op": "ptr_mask", "pointer": args[0], "mask": args[1]}
+                alignments = [a.GetEnumAttributeValue(attr) for attr in self.attribute_records(value, 0, True)
+                              if a.IsEnumAttribute(attr) and self.attribute_names.get(a.GetEnumAttributeKind(attr)) == "align"]
+                if alignments:
+                    if len(alignments) != 1:
+                        self.reject("ptrmask requires an unambiguous original return-alignment constraint")
+                    operation["return_alignment"] = alignments[0]
                 self.refinements.add("llvm.ptrmask.p0.i64 retained as explicit typed pointer-base and mask operands with same AS0 pointer result; exact integral64-bit pointer/index address masking preserves the original underlying object/provenance per llvmorg-22.1.6 LangRef; no ptrtoint/inttoptr reconstruction, fresh allocation, alias optimization or unresolved intrinsic provider")
+            elif intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+                operation = {"op": "integer_population_count", "value": args[0]}
+                self.refinements.add(f"{intrinsic}: original same-width single scalar operand/result retained as owned population count; zero is defined as zero and no poison-control flag, helper dependency, vector operation or optional target instruction is introduced")
             elif intrinsic in self.INTEGER_UNARY_INTRINSICS:
                 control = a.GetOperand(value, 1)
                 if (not a.IsAConstantInt(control) or a.GetTypeKind(a.TypeOf(control)) != 8
@@ -2092,6 +2143,8 @@ class Importer:
             if self.symbol not in self.INTRINSICS or not a.GetIntrinsicID(value):
                 self.reject(f"intrinsic {self.symbol} requires explicit lowering")
             intrinsic = self.symbol
+            if intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
+                self.integer_population_count_identity(value, intrinsic)
             if intrinsic in self.INTEGER_UNARY_INTRINSICS:
                 self.integer_unary_identity(value, intrinsic)
             if intrinsic in self.MINMAX_INTRINSICS:

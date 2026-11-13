@@ -296,6 +296,7 @@ impl<'a> Prepared<'a> {
                 !matches!(name, "llvm.assume" | "llvm.trap" | NOALIAS_SCOPE_DECL)
                     && super::native_verify::integer_minmax_intrinsic(name).is_none()
                     && super::native_verify::integer_unary_intrinsic(name).is_none()
+                    && super::native_verify::integer_population_count_intrinsic(name).is_none()
             }) || function.blocks.iter().any(|block| {
                 block.instructions.iter().any(|instruction| {
                     matches!(
@@ -393,7 +394,8 @@ impl<'a> Prepared<'a> {
                                 prepared.scalar_operand(function_id, operand)?;
                             }
                         }
-                        Operation::IntegerCountLeadingZeros { value, .. }
+                        Operation::IntegerPopulationCount { value }
+                        | Operation::IntegerCountLeadingZeros { value, .. }
                         | Operation::IntegerAbs { value, .. }
                         | Operation::Freeze { value } => {
                             prepared.scalar_operand(function_id, value)?;
@@ -612,6 +614,11 @@ impl<'a> Prepared<'a> {
                 } else {
                     rhs
                 }
+            }
+            Operation::IntegerPopulationCount { value } => {
+                let input = self.operand(frame, value)? & mask(width);
+                let count = (0..u64::from(width)).filter(|bit| input.bit(*bit)).count();
+                BigUint::from(count as u64)
             }
             Operation::IntegerCountLeadingZeros { value, .. } => {
                 let input = self.operand(frame, value)? & mask(width);

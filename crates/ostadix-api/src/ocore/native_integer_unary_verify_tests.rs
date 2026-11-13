@@ -267,3 +267,139 @@ fn integer_unary_owned_emission_covers_all_three_realizations_without_helpers() 
         }
     }
 }
+
+fn population_fixture(bits: u16) -> NativeModule {
+    let mut module = fixture(bits, false, false);
+    module.functions[0].blocks[0].instructions[0].operation = Operation::IntegerPopulationCount {
+        value: Operand::Value { id: 0 },
+    };
+    let declaration = &mut module.functions[1];
+    declaration.name = format!("llvm.ctpop.i{bits}");
+    declaration.intrinsic = Some(declaration.name.clone());
+    declaration.signature.params.truncate(1);
+    declaration.params.truncate(1);
+    module
+}
+
+#[test]
+fn integer_population_count_has_one_operand_no_poison_flag_and_exact_overloads() {
+    for bits in [32, 64] {
+        let module = population_fixture(bits);
+        verify(&module).unwrap();
+        assert_eq!(
+            integer_population_count_intrinsic(&module.functions[1].name),
+            Some(bits)
+        );
+        assert!(is_builtin_intrinsic(&module.functions[1].name));
+        let wire = serde_json::to_value(&module).unwrap();
+        let op = wire["functions"][0]["blocks"][0]["instructions"][0]["operation"]
+            .as_object()
+            .unwrap();
+        assert_eq!(op.len(), 2);
+        assert_eq!(op["op"], "integer_population_count");
+        assert!(op.contains_key("value"));
+    }
+    for name in [
+        "llvm.ctpop.i032",
+        "llvm.ctpop.i16",
+        "llvm.ctpop.i128",
+        "llvm.ctpop.v2i32",
+    ] {
+        assert_eq!(integer_population_count_intrinsic(name), None);
+        assert!(!is_builtin_intrinsic(name));
+    }
+}
+
+#[test]
+fn integer_population_count_reference_matches_independent_bit_counts() {
+    for bits in [32u16, 64] {
+        let module = population_fixture(bits);
+        let mask = if bits == 64 {
+            u64::MAX
+        } else {
+            (1u64 << bits) - 1
+        };
+        let mut values = vec![0, 1, mask, mask >> 1, 1u64 << (bits - 1)];
+        for shift in 0..bits {
+            values.extend([1u64 << shift, (1u64 << shift).wrapping_sub(1)]);
+        }
+        let mut seed = 0x91d3_4652_8abc_ef07u64;
+        for _ in 0..256 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            values.push(seed & mask);
+        }
+        for value in values {
+            let actual = native_interpret::evaluate(&module, "calculate", &[BigUint::from(value)])
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                actual,
+                BigUint::from(u64::from(value.count_ones())),
+                "i{bits} value={value}"
+            );
+        }
+    }
+}
+
+#[test]
+fn integer_population_count_rejects_wrong_shapes_and_dead_unsupported_uses() {
+    for bits in [16, 33, 128] {
+        assert!(verify(&population_fixture(bits)).is_err());
+    }
+    let mut module = population_fixture(64);
+    module.functions[0].blocks[0].instructions[0]
+        .result
+        .as_mut()
+        .unwrap()
+        .ty = 1;
+    assert!(verify(&module).is_err());
+    let mut module = population_fixture(64);
+    module.functions[0].blocks[0].instructions[0].operation = Operation::IntegerPopulationCount {
+        value: Operand::Value { id: 99 },
+    };
+    assert!(verify(&module).is_err());
+    let mut module = population_fixture(64);
+    let ty = module.types.len();
+    module.types.push(Type::Int { bits: 16 });
+    module.functions[0].blocks.push(Block {
+        id: 7,
+        instructions: vec![Instruction {
+            result: Some(Value { id: 99, ty }),
+            operation: Operation::IntegerPopulationCount {
+                value: Operand::Int {
+                    ty,
+                    bits: "0".into(),
+                },
+            },
+        }],
+        terminator: Terminator::Return {
+            value: Some(Operand::Int {
+                ty: 2,
+                bits: "0".into(),
+            }),
+        },
+    });
+    assert!(verify(&module)
+        .unwrap_err()
+        .message
+        .contains("population count"));
+}
+
+#[test]
+fn integer_population_count_declarations_preserve_arity_abi_and_result_contracts() {
+    let module = population_fixture(32);
+    for (field, value) in [
+        ("abi", json!("fastcc")),
+        ("result", json!(1)),
+        ("result_attributes", json!(["signext"])),
+    ] {
+        let mut wire = serde_json::to_value(&module).unwrap();
+        wire["functions"][1]["signature"][field] = value;
+        let wrong: NativeModule = serde_json::from_value(wire).unwrap();
+        assert!(verify(&wrong).is_err());
+    }
+    let mut module = population_fixture(64);
+    module.functions[1].signature.params.push(1);
+    module.functions[1].params.push(Value { id: 1, ty: 1 });
+    assert!(verify(&module).is_err());
+}

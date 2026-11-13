@@ -59,6 +59,11 @@ class Reader:
             "HasPersonalityFn": (c.c_int, [P]), "GetPersonalityFn": (P, [P]),
             "CountParams": (U, [P]), "GetParams": (None, [P, c.POINTER(P)]),
             "GetNumArgOperands": (U, [P]), "GetFastMathFlags": (U, [P]),
+            "GetCallSiteAttributeCount": (U, [P, U]),
+            "GetCallSiteAttributes": (None, [P, U, c.POINTER(P)]),
+            "IsEnumAttribute": (c.c_int, [P]), "GetEnumAttributeKind": (U, [P]),
+            "GetEnumAttributeValue": (Q, [P]),
+            "GetEnumAttributeKindForName": (U, [c.c_char_p, Z]),
             "GetLinkage": (c.c_int, [P]), "GetVisibility": (c.c_int, [P]),
             "GetThreadLocalMode": (c.c_int, [P]),
             "GetAlignment": (U, [P]), "IsGlobalConstant": (c.c_int, [P]),
@@ -101,6 +106,17 @@ class Reader:
     def integer(self, value):
         text = self.printed(value).split(None, 1)[1]
         return {"true": 1, "false": 0}[text] if text in ("true", "false") else int(text)
+
+    def call_return_alignment(self, instruction):
+        count = self.GetCallSiteAttributeCount(instruction, 0)
+        attributes = (c.c_void_p * count)()
+        self.GetCallSiteAttributes(instruction, 0, attributes)
+        kind = self.GetEnumAttributeKindForName(b"align", 5)
+        alignments = [self.GetEnumAttributeValue(attribute) for attribute in attributes
+                      if self.IsEnumAttribute(attribute) and self.GetEnumAttributeKind(attribute) == kind]
+        if len(alignments) > 1:
+            raise InventoryMismatch("ambiguous original intrinsic return alignment")
+        return alignments[0] if alignments else None
 
     def operand(self, value, values):
         ty = self.shape(self.TypeOf(value))
@@ -296,6 +312,8 @@ class Reader:
                                     "args": [self.operand(self.GetOperand(instruction, index), values)
                                              for index in range(self.GetNumArgOperands(instruction))],
                                     "fast_math": self.GetFastMathFlags(instruction) if intrinsic_name.startswith("llvm.fabs.") else 0})
+                                if intrinsic_name == "llvm.ptrmask.p0.i64":
+                                    sites[-1]["return_alignment"] = self.call_return_alignment(instruction)
                 output["functions"][name] = {"type": self.shape(self.GlobalGetValueType(function)),
                     "defined": bool(self.GetFirstBasicBlock(function)), "calling_convention": self.GetFunctionCallConv(function),
                     "intrinsic_id": self.GetIntrinsicID(function), "intrinsic_uses": dict(uses),
@@ -374,12 +392,32 @@ def intrinsic_mapping(site, function, types):
         same = lambda field, index: native_operand(operation[field], types) == args[index]
         if name == "llvm.ptrmask.p0.i64":
             pointer, integer = {"kind": "pointer", "address_space": 0}, {"kind": "int", "bits": 64}
+            if "return_alignment" not in site:
+                raise InventoryMismatch("original ptrmask return-alignment accounting is missing")
+            alignment = site["return_alignment"]
+            actual_alignment = operation.get("return_alignment")
+            if (actual_alignment is not None and type(actual_alignment) is not int) or actual_alignment != alignment:
+                return False
+            if alignment is not None:
+                if type(alignment) is not int or alignment < 1 or alignment > 1 << 32 or alignment & (alignment - 1):
+                    return False
+                if alignment > 1 and (len(args) != 2 or args[1].get("kind") != "int"
+                                      or args[1].get("type") != integer
+                                      or int(args[1]["bits"]) & (alignment - 1)):
+                    return False
             return (len(args) == 2 and site.get("arg_types") == [pointer, integer]
                     and site.get("result_type") == pointer
                     and result is not None and native_shape(types, result["ty"]) == pointer
                     and op == "ptr_mask" and same("pointer", 0) and same("mask", 1)
                     and operand_type(operation["pointer"]) == pointer
                     and operand_type(operation["mask"]) == integer)
+        if name in ("llvm.ctpop.i32", "llvm.ctpop.i64"):
+            integer = {"kind": "int", "bits": int(name.rsplit("i", 1)[1])}
+            return (len(args) == 1 and site.get("arg_types") == [integer]
+                    and site.get("result_type") == integer
+                    and result is not None and native_shape(types, result["ty"]) == integer
+                    and op == "integer_population_count" and set(operation) == {"op", "value"}
+                    and same("value", 0) and operand_type(operation["value"]) == integer)
         if name in ("llvm.ctlz.i32", "llvm.ctlz.i64", "llvm.abs.i32", "llvm.abs.i64"):
             integer = {"kind": "int", "bits": int(name.rsplit("i", 1)[1])}
             boolean = {"kind": "int", "bits": 1}
@@ -518,7 +556,7 @@ def check_inventory(source, module):
                 for block in translated["blocks"]:
                     for index, instruction in enumerate(block["instructions"]):
                         if instruction["operation"]["op"] in {
-                                "ptr_mask", "integer_count_leading_zeros", "integer_abs"}:
+                                "ptr_mask", "integer_count_leading_zeros", "integer_abs", "integer_population_count"}:
                             require((block["id"], index) in consumed,
                                     f"unaccounted scalar intrinsic operation: {name}")
                 intrinsic_names = {symbol for symbol, item in source["functions"].items() if item["intrinsic_id"]}

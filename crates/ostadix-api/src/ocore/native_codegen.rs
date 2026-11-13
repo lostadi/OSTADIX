@@ -1905,6 +1905,9 @@ impl<'a> Emitter<'a> {
             Operation::IntegerMinMax { kind, lhs, rhs } => {
                 self.integer_min_max(out, *kind, lhs, rhs)
             }
+            Operation::IntegerPopulationCount { value } => {
+                self.integer_population_count(out, value)
+            }
             Operation::IntegerCountLeadingZeros { value, .. } => {
                 self.integer_count_leading_zeros(out, value)
             }
@@ -2027,7 +2030,7 @@ impl<'a> Emitter<'a> {
                     }
                 }
             }
-            Operation::PtrMask { pointer, mask } => {
+            Operation::PtrMask { pointer, mask, .. } => {
                 // Verified integral64/64 AS0: retain source provenance in IR;
                 // target address bits are the base pointer AND the exact mask.
                 self.operand(out, 0, pointer);
@@ -2196,6 +2199,38 @@ impl<'a> Emitter<'a> {
             writeln!(out, "  {operation} {a}, {b}").unwrap();
         } else {
             writeln!(out, "  {operation} {a}, {a}, {b}").unwrap();
+        }
+    }
+
+    fn integer_population_count(&mut self, out: &mut String, value: &Operand) {
+        // Each iteration removes exactly one set bit. RV64GC needs no Zbb,
+        // x86-64 needs no POPCNT, and no vector/FP register bank is touched.
+        self.operand(out, 0, value);
+        let bits = self.bits(value);
+        let again = self.label();
+        let done = self.label();
+        match self.target {
+            Target::X86_64UnknownNone => {
+                if bits == 32 {
+                    out.push_str("  mov eax, eax\n");
+                }
+                out.push_str("  xor ecx, ecx\n");
+                writeln!(out, "{again}:\n  test rax, rax\n  jz {done}\n  mov rdx, rax\n  sub rdx, 1\n  and rax, rdx\n  add rcx, 1\n  jmp {again}\n{done}:\n  mov rax, rcx").unwrap();
+            }
+            Target::Aarch64UnknownNone => {
+                if bits == 32 {
+                    out.push_str("  mov w9, w9\n");
+                }
+                out.push_str("  mov x10, #0\n");
+                writeln!(out, "{again}:\n  cbz x9, {done}\n  sub x11, x9, #1\n  and x9, x9, x11\n  add x10, x10, #1\n  b {again}\n{done}:\n  mov x9, x10").unwrap();
+            }
+            Target::Riscv64UnknownNone => {
+                if bits == 32 {
+                    out.push_str("  slli t0, t0, 32\n  srli t0, t0, 32\n");
+                }
+                out.push_str("  li t1, 0\n");
+                writeln!(out, "{again}:\n  beqz t0, {done}\n  addi t2, t0, -1\n  and t0, t0, t2\n  addi t1, t1, 1\n  j {again}\n{done}:\n  mv t0, t1").unwrap();
+            }
         }
     }
 

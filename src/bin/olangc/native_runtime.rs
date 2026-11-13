@@ -825,6 +825,7 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                 Operation::Cast { value, .. }
                 | Operation::FloatNeg { value, .. }
                 | Operation::FloatAbs { value, .. }
+                | Operation::IntegerPopulationCount { value }
                 | Operation::IntegerCountLeadingZeros { value, .. }
                 | Operation::IntegerAbs { value, .. }
                 | Operation::Freeze { value } => operand(value),
@@ -851,7 +852,7 @@ fn function_references(function: &o_lang::ocore::native_ir::Function) -> BTreeSe
                 Operation::ThreadLocalAddress { global } => {
                     tls_references.insert(global.clone());
                 }
-                Operation::PtrMask { pointer, mask } => {
+                Operation::PtrMask { pointer, mask, .. } => {
                     operand(pointer);
                     operand(mask);
                 }
@@ -2189,6 +2190,9 @@ fn compile_with_compiler(
     } else {
         None
     };
+    // Capture admission is independent of compiler availability and provider
+    // closure. Missing source libraries must not suppress admitted source units.
+    let mut source_capture_complete = preflight_ok;
     let compiler_digest = if preflight_ok {
         match fs::read(compiler) {
             Ok(bytes) => Some(digest(&bytes)),
@@ -2201,12 +2205,20 @@ fn compile_with_compiler(
     } else {
         None
     };
+    let mut provider_admission_complete = false;
+    let mut provider_admission_issue = None;
     let dependencies = if preflight_ok {
         match artifact::load_dependencies(&capture, dependency_paths) {
-            Ok(dependencies) => dependencies,
+            Ok(dependencies) => {
+                provider_admission_complete = true;
+                dependencies
+            }
             Err(error) => {
-                issues.push(error.to_string());
-                preflight_ok = false;
+                let diagnostic = error.to_string();
+                issues.push(diagnostic.clone());
+                provider_admission_issue = Some(diagnostic);
+                // Retain incomplete providers as an explicit closure failure,
+                // while importing/verifying every genuinely admitted source unit.
                 Vec::new()
             }
         }
@@ -2220,7 +2232,11 @@ fn compile_with_compiler(
             .unwrap_or("<invalid-unit>");
         let mut record = json!({"id":id,"input":unit.get("ir"),"verified":false,"lowered":false});
         if !preflight_ok {
-            record["failure"] = json!("capture admission failed; unit not attempted");
+            record["failure"] = json!(if source_capture_complete {
+                "actual O-core compiler unavailable; admitted unit not attempted"
+            } else {
+                "capture admission failed; unit not attempted"
+            });
             records.push(record);
             continue;
         }
@@ -2449,6 +2465,7 @@ fn compile_with_compiler(
         .as_ref()
         != Some(&digest(&bytes))
     {
+        source_capture_complete = false;
         issues.push("source capture report changed during lowering".into());
     }
     let (mut closure, closure_issues) = resolve_symbols(&collected_symbols);
@@ -2462,11 +2479,16 @@ fn compile_with_compiler(
             .iter()
             .filter(|record| record["required_for_lowering"] == true)
             .all(|record| record["lowered"] == true);
-    closure["inventory_complete"] = json!(unit_complete);
-    if !unit_complete {
+    closure["source_inventory_complete"] = json!(unit_complete);
+    closure["inventory_complete"] = json!(unit_complete && provider_admission_complete);
+    if !unit_complete || !provider_admission_complete {
         closure["closed"] = json!(false);
     }
-    let mut complete = unit_complete && issues.is_empty();
+    let mut complete = source_capture_complete
+        && preflight_ok
+        && provider_admission_complete
+        && unit_complete
+        && issues.is_empty();
     let module_set_artifact = if complete {
         let result = (|| -> Result<Value> {
             let artifact = artifact::Artifact::build(
@@ -2507,13 +2529,16 @@ fn compile_with_compiler(
         "name":capture["name"],"requested_target":target,"architecture":arch,"output_kind":output_kind,
         "compiler":compiler,"compiler_sha256":compiler_digest,"source":capture["source"],"manifest":capture["manifest"],
         "capture_reverification":capture_reverification,
-        "capture_complete":preflight_ok,"captured_unit_count":units.len(),"lowered_unit_count":unit_ids.len(),
+        "capture_complete":source_capture_complete,"source_lowering_preflight_complete":preflight_ok,
+        "provider_admission_complete":provider_admission_complete,"provider_admission_issue":provider_admission_issue,
+        "declared_dependencies":capture["dependencies"],
+        "captured_unit_count":units.len(),"lowered_unit_count":unit_ids.len(),
         "required_lowering_unit_count":selected.len(),"non_lowering_units":capture["non_lowering_units"],
         "units":records,"symbol_inventory":closure,"issues":issues,
         "dependencies":dependency_records,"dependency_modules":dependency_module_records,
         "module_set_artifact":module_set_artifact,"native_module_dependency_closure_complete":complete,
         "unit_lowering_complete":unit_complete,"lowering_complete":complete,
-        "symbol_closure_complete":unit_complete && symbol_closure_complete,"dependency_closure_complete":false,
+        "symbol_closure_complete":unit_complete && provider_admission_complete && symbol_closure_complete,"dependency_closure_complete":false,
         "module_set_complete":complete,"artifact_complete":false,"link_performed":false,"native_execution_qualified":false,"runtime_complete":false,
         "remaining_runtime_requirements":capture["remaining_runtime_requirements"],
         "scope":"self-contained verified native module-set and own-emitter relocatable objects; no script/runtime orchestration or native qualification"});
