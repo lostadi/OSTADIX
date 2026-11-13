@@ -20,7 +20,9 @@ use crate::execution_contract::Policy;
 use crate::ir::{
     ExecutionPlan, ExecutionPlanIndex, InvokeMode, OIr, PlanEdgeKind, PlanNodeId, PlanNodeKind,
 };
-use crate::value::{fingerprint_preview, DecimalSpecial, FloatFormat, ONumber, OValue, SeqKind};
+use crate::value::{
+    fingerprint_preview, DecimalSpecial, FloatFormat, GroupMode, ONumber, OValue, SeqKind,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecutionTrace {
@@ -333,7 +335,7 @@ pub(crate) trait GraphEvaluationHost {
         &mut self,
         src: &str,
         caller_scope: &HashMap<String, OValue>,
-        deadline: Instant,
+        deadline: Option<Instant>,
     ) -> Result<OValue>;
 
     fn execute_ready_plan_node(
@@ -374,15 +376,6 @@ pub(crate) fn data_predecessors(
     sources
 }
 
-/// Whether `error` is a member execution error that a `batch(...)` may
-/// settle as an error value.
-pub(crate) fn batch_member_error_is_absorbable(error: &anyhow::Error) -> bool {
-    !(crate::process::is_infrastructure_error(error)
-        || crate::cancellation::is_request_cancellation(error)
-        || crate::project::runtime::is_cancellation_error(error)
-        || error.chain().any(|cause| cause.is::<StrictCacheMiss>()))
-}
-
 /// Settle a failed node as a `batch(...)` member error, if it is one: the
 /// record for the trace, and the error value the member slot holds. `None`
 /// means the failure stays fatal.
@@ -391,8 +384,10 @@ pub(crate) fn settle_batch_member_failure(
     frame: &mut GraphEvalFrame,
     node_id: PlanNodeId,
     error: &anyhow::Error,
+    absorbable: bool,
 ) -> Option<(BatchMemberFailure, OValue)> {
-    if !batch_member_error_is_absorbable(error) {
+    // the caller classifies the error: process errors are not visible here.
+    if !absorbable {
         return None;
     }
     let member = batch_member_index(plan, &frame.plan_index, node_id)?;
@@ -423,7 +418,7 @@ pub(crate) fn batch_member_index(
             && matches!(
                 plan.nodes[edge.to.0].kind,
                 PlanNodeKind::Group {
-                    mode: crate::value::GroupMode::Batch,
+                    mode: GroupMode::Batch,
                     ..
                 }
             )

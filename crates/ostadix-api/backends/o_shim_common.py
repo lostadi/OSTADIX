@@ -288,12 +288,112 @@ def read_wire_message(stream=None):
     return cbor_decode(payload)
 
 
+# why a lock: the heartbeat thread and the step itself (eval_request, the
+# answer) write frames to the same pipe; a frame must never interleave.
+import threading as _threading
+_WIRE_LOCK = _threading.Lock()
+
+
 def write_wire_message(message, stream=None):
     stream = _stream_or_default(stream, "stdout")
     payload = cbor_encode(message)
-    stream.write(len(payload).to_bytes(4, "big"))
-    stream.write(payload)
-    stream.flush()
+    with _WIRE_LOCK:
+        stream.write(len(payload).to_bytes(4, "big"))
+        stream.write(payload)
+        stream.flush()
+
+
+# a shim that drives a child process (bash) sets this to a callable that
+# returns the child's pid or None; the heartbeat then reports its state.
+heartbeat_child_pid = None
+
+
+def _heartbeat_child():
+    pid = heartbeat_child_pid() if heartbeat_child_pid is not None else None
+    if not pid:
+        return None
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            fields = f.read().rsplit(")", 1)[1].split()
+        state = fields[0]
+        ticks = int(fields[11]) + int(fields[12])
+        if state in ("Z", "X"):
+            state, ticks = "gone", 0
+    except (OSError, IndexError, ValueError):
+        state, ticks = "gone", 0
+    return {"pid": int(pid), "state": state, "cpu_ticks": ticks}
+
+
+HEARTBEAT_CAPABILITY = "heartbeat_v1"
+
+
+def heartbeat_interval():
+    """Seconds between heartbeats, or None when the host did not ask.
+
+    why opt-in: only a host that sets O_BACKEND_HEARTBEAT_INTERVAL_MS knows
+    the hello_v1 and heartbeat_v1 frames; any other reader of this pipe sees
+    exactly the frames it always did.
+    """
+    raw = os.environ.get("O_BACKEND_HEARTBEAT_INTERVAL_MS")
+    if raw is None:
+        return None
+    try:
+        millis = int(raw)
+    except ValueError:
+        return None
+    if millis <= 0:
+        return None
+    return millis / 1000.0
+
+
+def send_hello():
+    if heartbeat_interval() is not None:
+        write_wire_message({"status": "hello_v1", "capabilities": [HEARTBEAT_CAPABILITY]})
+
+
+class _Heartbeat:
+    """Send heartbeat_v1 frames while a step runs.
+
+    The tick runs on a python thread, so it needs the GIL: a step that holds
+    the GIL (a long C call) stops the heartbeat, which is exactly the hang
+    signal the host watches for. time.sleep releases the GIL and keeps it.
+    """
+
+    def __init__(self, stream):
+        self.interval = heartbeat_interval()
+        self.stream = stream
+        self.stop = _threading.Event()
+        self.thread = None
+
+    def __enter__(self):
+        if self.interval is None:
+            return self
+        self.thread = _threading.Thread(target=self._run, name="o-heartbeat", daemon=True)
+        self.thread.start()
+        return self
+
+    def _run(self):
+        while not self.stop.wait(self.interval):
+            message = {"status": "heartbeat_v1"}
+            child = _heartbeat_child()
+            if child is not None:
+                message["child"] = child
+            try:
+                write_wire_message(message, self.stream)
+            except Exception:
+                return
+
+    def __exit__(self, *exc):
+        # stopped and joined before the answer is written, so no heartbeat
+        # ever follows it.
+        self.stop.set()
+        if self.thread is not None:
+            self.thread.join()
+        return False
+
+
+def heartbeat():
+    return _Heartbeat(_stream_or_default(None, "stdout"))
 
 
 def send_ok(value=None):
@@ -508,6 +608,7 @@ def command_loop(handle_exec, handle_cleanup=None, handle_ping=None,
                  handle_restore=None, state_backend=None,
                  handle_exec_morphism=None, handle_native_operation=None):
     state_backend = state_backend or backend_name_from_argv()
+    send_hello()
     while True:
         try:
             cmd = read_wire_message()
@@ -515,7 +616,8 @@ def command_loop(handle_exec, handle_cleanup=None, handle_ping=None,
                 break
             tag = cmd.get("cmd")
             if tag == "exec":
-                handle_exec(cmd)
+                with heartbeat():
+                    handle_exec(cmd)
             elif tag == "native_operation_v1":
                 if handle_native_operation is None:
                     send_err("native.unsupported-owner: adapter has no native operation protocol")
@@ -525,7 +627,8 @@ def command_loop(handle_exec, handle_cleanup=None, handle_ping=None,
                 if handle_exec_morphism is None:
                     send_err("morphism.unsupported-backend: adapter has no executable crossing contract")
                 else:
-                    handle_exec_morphism(cmd)
+                    with heartbeat():
+                        handle_exec_morphism(cmd)
             elif tag == "cleanup":
                 if handle_cleanup is not None:
                     handle_cleanup()
@@ -667,3 +770,36 @@ def stdout_to_oval(output):
 
 def stdout_result(output):
     return stdout_to_oval(output)
+
+
+# ############################################################################
+# opt-in step limit
+# ############################################################################
+
+STEP_TIMEOUT_ENV = "O_BACKEND_STEP_TIMEOUT_MS"
+_MAXIMUM_STEP_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000
+
+
+def step_timeout():
+    """Seconds one shim subprocess may run, or None for no limit.
+
+    the limit is opt-in through O_BACKEND_STEP_TIMEOUT_MS, parsed like the
+    native runtime does: unset means no limit, and a malformed, zero, or
+    oversized value is a hard error, never a silent default.
+    """
+    raw = os.environ.get(STEP_TIMEOUT_ENV)
+    if raw is None:
+        return None
+    try:
+        millis = int(raw.strip())
+    except ValueError:
+        raise ValueError(
+            f"{STEP_TIMEOUT_ENV}={raw!r} is not a whole number of milliseconds"
+        ) from None
+    if millis <= 0:
+        raise ValueError(f"{STEP_TIMEOUT_ENV}={raw!r} is invalid: the limit must be at least 1 ms")
+    if millis > _MAXIMUM_STEP_TIMEOUT_MS:
+        raise ValueError(
+            f"{STEP_TIMEOUT_ENV}={millis} exceeds the maximum of {_MAXIMUM_STEP_TIMEOUT_MS} ms"
+        )
+    return millis / 1000
