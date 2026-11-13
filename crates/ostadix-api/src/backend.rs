@@ -384,6 +384,16 @@ impl RustBackend {
                     if let Some(mut ended) = self.bash.take() {
                         ended.shutdown();
                     }
+                    // a failing block that ends the session, for example
+                    // under a persisted `set -e`, also drops every variable,
+                    // function, and option; say so instead of resetting
+                    // silently.
+                    return output_to_value(
+                        "bash session ended during this block, dropping its \
+                         variables, functions, and options; the next block starts \
+                         a fresh session. bash",
+                        output,
+                    );
                 }
                 output_to_value("bash", output)
             }
