@@ -347,6 +347,17 @@ impl ImmediateExecutor {
 // Evaluator
 // ═════════════════════════════════════════════════════════════════════════════
 
+/// The record of an ordinary member failure in a `batch(...)` forced with
+/// `now(...)`, or the error itself when it must stay fatal: cancellation,
+/// deadlines, infrastructure failures and the Strict cache miss.
+fn forced_batch_member_failure(error: anyhow::Error) -> Result<String> {
+    if crate::executor::coordinator::batch_member_error_is_absorbable(&error) {
+        Ok(format!("{error:#}"))
+    } else {
+        Err(error)
+    }
+}
+
 pub struct Evaluator {
     registry: ProcessRegistry,
     /// Directory containing one backend shim executable per language.
@@ -423,6 +434,9 @@ pub struct Evaluator {
 
     /// Deterministic lifecycle trace for the most recent OIR execution.
     last_execution_trace: Option<ExecutionTrace>,
+    /// Member failures of a `batch(...)` forced at runtime by `now(...)`,
+    /// as (member index, message), waiting for the plan node that forced it.
+    forced_batch_failures: Vec<(usize, String)>,
     crossing_observations: bool,
 
     /// Digest-bound pre-execution decision that authorized the most recent
@@ -826,6 +840,7 @@ impl Evaluator {
             autonomous_buffer: Vec::new(),
             last_execution_plan: None,
             last_execution_trace: None,
+            forced_batch_failures: Vec::new(),
             crossing_observations: false,
             last_execution_admission: None,
             last_hgraph_schedule: None,
@@ -1733,11 +1748,14 @@ impl Evaluator {
                     // autonomous scheduler failed to materialize a buffered
                     // request, so it remains a hard invariant error.
                     let mut out = Vec::with_capacity(members.len());
-                    for m in members {
+                    let mut failures = Vec::new();
+                    for (index, m) in members.iter().enumerate() {
                         match self.resolve_member(m, cache_mode) {
                             Ok(v) => out.push(v),
                             Err(e) if cache_mode == CacheMode::Fresh => {
-                                out.push(OValue::error(e.to_string()))
+                                let slot = OValue::error(e.to_string());
+                                failures.push((index, forced_batch_member_failure(e)?));
+                                out.push(slot)
                             }
                             Err(e) => {
                                 return Err(e)
@@ -1745,6 +1763,9 @@ impl Evaluator {
                             }
                         }
                     }
+                    // recorded only once every member settled, so a nested
+                    // plan run by a later member cannot claim them.
+                    self.forced_batch_failures.extend(failures);
                     Ok(OValue::list(out))
                 } else {
                     // All: hard all-or-nothing barrier — fail on first error.
@@ -1866,14 +1887,21 @@ impl Evaluator {
 
         // Phase 4 — assemble result list with mode-specific failure semantics.
         let mut out = Vec::with_capacity(members.len());
+        let mut failures = Vec::new();
         for (i, slot) in results.into_iter().enumerate() {
             let member_result = slot.expect("every member slot must be filled after phases 1-3");
             match mode {
                 GroupMode::Batch => {
-                    // Batch: collect every outcome; failures become OError values.
+                    // Batch: ordinary failures become OError values and are
+                    // recorded; cancellation, deadlines and infrastructure
+                    // failures stay fatal.
                     match member_result {
                         Ok(v) => out.push(v),
-                        Err(e) => out.push(OValue::error(format!("member {}: {}", i, e))),
+                        Err(e) => {
+                            let slot = OValue::error(format!("member {}: {}", i, e));
+                            failures.push((i, forced_batch_member_failure(e)?));
+                            out.push(slot)
+                        }
                     }
                 }
                 _ => {
@@ -1885,6 +1913,7 @@ impl Evaluator {
                 }
             }
         }
+        self.forced_batch_failures.extend(failures);
         Ok(OValue::list(out))
     }
 
@@ -2974,6 +3003,7 @@ impl Evaluator {
             node_policy,
             trace: ExecutionTrace::new(),
             failed_batch_members: HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
 
         let execution_order = frame.plan_index.topological_order().to_vec();
@@ -3014,6 +3044,8 @@ impl Evaluator {
 
             match value {
                 Ok(value) => {
+                    let forced = std::mem::take(&mut frame.forced_batch_failures);
+                    frame.trace.failed_batch_members.extend(forced);
                     frame.trace.events.push(TraceEvent::NodeFinished {
                         id,
                         value_type: value.type_name().to_string(),
@@ -3080,7 +3112,34 @@ impl Evaluator {
     // Executable OIR dispatch
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// Run one ready plan node. Member failures of a `batch(...)` the node
+    /// forced with `now(...)` land in `frame.forced_batch_failures`, attributed
+    /// to this node, for the caller's trace.
     pub(crate) fn execute_ready_plan_node(
+        &mut self,
+        node_id: PlanNodeId,
+        node: &OIr,
+        plan: &ExecutionPlan,
+        frame: &mut GraphEvalFrame,
+    ) -> Result<OValue> {
+        let pending = std::mem::take(&mut self.forced_batch_failures);
+        let outcome = self.execute_ready_plan_node_inner(node_id, node, plan, frame);
+        let forced = std::mem::replace(&mut self.forced_batch_failures, pending);
+        if outcome.is_ok() {
+            frame
+                .forced_batch_failures
+                .extend(forced.into_iter().map(|(member, message)| {
+                    crate::eval_core::BatchMemberFailure {
+                        node: node_id,
+                        member,
+                        message,
+                    }
+                }));
+        }
+        outcome
+    }
+
+    fn execute_ready_plan_node_inner(
         &mut self,
         node_id: PlanNodeId,
         node: &OIr,
@@ -6398,6 +6457,83 @@ mod tests {
         );
     }
 
+    fn run_python_document(source: &str) -> Option<Result<OValue>> {
+        if which::which("python3").is_err() {
+            return None;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        Some(evaluator.eval_document(nodes))
+    }
+
+    const FORCED_BATCH: &str = "let g = lazy(batch(\n\
+         python^(__oval_result__ = 42)_python,\n\
+         python^(raise KeyError('missing'))_python\n\
+         ))\n\
+         now($g)\n";
+
+    #[test]
+    fn now_batch_keeps_a_member_error_in_its_own_slot() {
+        let Some(result) = run_python_document(FORCED_BATCH) else {
+            return;
+        };
+        let error = result.unwrap_err();
+        let partial = error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("{error:#}"));
+        let OValue::List { v: slots } = &partial.value else {
+            panic!("now(batch) did not yield its list: {:?}", partial.value);
+        };
+        assert_eq!(slots.len(), 2);
+        assert_eq!(slots[0], OValue::int(42), "the other member kept its value");
+        assert!(
+            matches!(&slots[1], OValue::Error { msg } if msg.contains("missing")),
+            "{:?}",
+            slots[1]
+        );
+    }
+
+    #[test]
+    fn now_batch_with_a_failed_member_fails_the_run() {
+        let Some(result) = run_python_document(FORCED_BATCH) else {
+            return;
+        };
+        let error = result.expect_err("a forced batch with a failed member reported success");
+        let partial = error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("{error:#}"));
+        assert_eq!(partial.failures.len(), 1, "{error:#}");
+        assert_eq!(partial.failures[0].member, 1);
+        assert!(partial.failures[0].message.contains("missing"));
+        assert!(format!("{error}").contains("batch member 1 failed"), "{error}");
+    }
+
+    #[test]
+    fn now_batch_lets_cancellation_deadline_infrastructure_and_strict_miss_out() {
+        use crate::cancellation::{RequestCancellationObserved, RequestDeadlineExpired};
+        let fatal = [
+            anyhow::Error::new(RequestCancellationObserved("cancelled".into())),
+            anyhow::Error::new(RequestDeadlineExpired("during execution")),
+            crate::process::infrastructure_error(anyhow::anyhow!("backend vanished")),
+            anyhow::Error::new(crate::eval_core::StrictCacheMiss {
+                fingerprint: "abc".into(),
+            }),
+        ];
+        for error in fatal {
+            let text = format!("{error:#}");
+            let out = forced_batch_member_failure(error.context("member 1"))
+                .expect_err("a request-fatal error was absorbed into a slot");
+            assert!(format!("{out:#}").contains(&text), "{out:#}");
+            assert!(!crate::executor::coordinator::batch_member_error_is_absorbable(&out));
+        }
+        assert_eq!(
+            forced_batch_member_failure(anyhow::anyhow!("KeyError: missing")).unwrap(),
+            "KeyError: missing"
+        );
+    }
+
     #[test]
     fn failing_batch_member_reports_its_own_error() {
         if which::which("python3").is_err() {
@@ -6535,6 +6671,7 @@ mod tests {
             node_policy: vec![Policy::Eager; plan.nodes.len()],
             trace: ExecutionTrace::new(),
             failed_batch_members: HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
         assert!(
             crate::eval_core::settle_batch_member_failure(
