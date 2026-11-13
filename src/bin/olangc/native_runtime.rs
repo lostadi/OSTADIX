@@ -2315,16 +2315,20 @@ fn compile_with_compiler(
             }
             module_target = Some(current_target);
             let verification = directory.join("verification.json");
+            let verification_arguments = vec![
+                imported.display().to_string(),
+                "--input-kind".into(),
+                "native-ir".into(),
+                "--verify-native".into(),
+                "--receipt".into(),
+                verification.display().to_string(),
+            ];
+            // Retain attempted arguments even when the subprocess fails.
+            record["verification_mode"] = json!("subprocess");
+            record["verify_argv"] = json!(verification_arguments);
             invoke(
                 compiler,
-                &[
-                    imported.display().to_string(),
-                    "--input-kind".into(),
-                    "native-ir".into(),
-                    "--verify-native".into(),
-                    "--receipt".into(),
-                    verification.display().to_string(),
-                ],
+                &verification_arguments,
                 &directory.join("verify.log"),
             )?;
             let receipt: Value = serde_json::from_slice(&fs::read(&verification)?)?;
@@ -2345,21 +2349,19 @@ fn compile_with_compiler(
             record["verification_sha256"] = json!(digest(&fs::read(&verification)?));
             if output_kind == "obj" {
                 let object = directory.join("module.o");
-                invoke(
-                    compiler,
-                    &[
-                        imported.display().to_string(),
-                        "--input-kind".into(),
-                        "native-ir".into(),
-                        "--emit".into(),
-                        "obj".into(),
-                        "--target".into(),
-                        format!("{arch}-unknown-none"),
-                        "-o".into(),
-                        object.display().to_string(),
-                    ],
-                    &directory.join("emit.log"),
-                )?;
+                let emission_arguments = vec![
+                    imported.display().to_string(),
+                    "--input-kind".into(),
+                    "native-ir".into(),
+                    "--emit".into(),
+                    "obj".into(),
+                    "--target".into(),
+                    format!("{arch}-unknown-none"),
+                    "-o".into(),
+                    object.display().to_string(),
+                ];
+                record["emit_argv"] = json!(emission_arguments);
+                invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let object_bytes = fs::read(&object)?;
                 record["object_inventory"] = object_inventory(&object_bytes, arch, &module)?;
                 record["object"] = json!({"path":object,"sha256":digest(&object_bytes),"bytes":object_bytes.len()});
@@ -2408,6 +2410,7 @@ fn compile_with_compiler(
         let mut record = json!({"id":identity,"component":embedded.component,
             "unit_id":embedded.unit_id,"sha256":embedded.sha256,"lowered":false});
         let result = (|| -> Result<()> {
+            record["verification_mode"] = json!("in_process");
             let module = embedded.verify()?;
             record["generated_floating_helper_requirements"] =
                 json!(floating_requirements(&module)?);
@@ -2421,21 +2424,19 @@ fn compile_with_compiler(
             record["module"] = json!({"path":imported,"sha256":embedded.sha256});
             if output_kind == "obj" {
                 let object = directory.join("module.o");
-                invoke(
-                    compiler,
-                    &[
-                        imported.display().to_string(),
-                        "--input-kind".into(),
-                        "native-ir".into(),
-                        "--emit".into(),
-                        "obj".into(),
-                        "--target".into(),
-                        format!("{arch}-unknown-none"),
-                        "-o".into(),
-                        object.display().to_string(),
-                    ],
-                    &directory.join("emit.log"),
-                )?;
+                let emission_arguments = vec![
+                    imported.display().to_string(),
+                    "--input-kind".into(),
+                    "native-ir".into(),
+                    "--emit".into(),
+                    "obj".into(),
+                    "--target".into(),
+                    format!("{arch}-unknown-none"),
+                    "-o".into(),
+                    object.display().to_string(),
+                ];
+                record["emit_argv"] = json!(emission_arguments);
+                invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let bytes = fs::read(&object)?;
                 record["object_inventory"] = object_inventory(&bytes, arch, &module)?;
                 record["object"] =

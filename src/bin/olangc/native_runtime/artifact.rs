@@ -339,7 +339,8 @@ pub(super) fn compile_package(
     let mut issues = Vec::new();
     for (index, embedded) in artifact.modules.iter().enumerate() {
         let mut record = json!({"id":embedded.identity(),"component":embedded.component,
-            "unit_id":embedded.unit_id,"verified":true,"lowered":false});
+            "unit_id":embedded.unit_id,"verified":true,"lowered":false,
+            "verification_mode":"in_process"});
         let result = (|| -> Result<()> {
             let module = embedded.verify()?;
             let directory = output.join(format!("unit-{index:06}"));
@@ -351,21 +352,19 @@ pub(super) fn compile_package(
                 json!(floating_requirements(&module)?);
             if output_kind == "obj" {
                 let object = directory.join("module.o");
-                invoke(
-                    compiler,
-                    &[
-                        imported.display().to_string(),
-                        "--input-kind".into(),
-                        "native-ir".into(),
-                        "--emit".into(),
-                        "obj".into(),
-                        "--target".into(),
-                        format!("{arch}-unknown-none"),
-                        "-o".into(),
-                        object.display().to_string(),
-                    ],
-                    &directory.join("emit.log"),
-                )?;
+                let emission_arguments = vec![
+                    imported.display().to_string(),
+                    "--input-kind".into(),
+                    "native-ir".into(),
+                    "--emit".into(),
+                    "obj".into(),
+                    "--target".into(),
+                    format!("{arch}-unknown-none"),
+                    "-o".into(),
+                    object.display().to_string(),
+                ];
+                record["emit_argv"] = json!(emission_arguments);
+                invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let object_bytes = fs::read(&object)?;
                 record["object_inventory"] = object_inventory(&object_bytes, arch, &module)?;
                 record["object"] = json!({"path":object,"sha256":digest(&object_bytes),"bytes":object_bytes.len()});
@@ -393,7 +392,8 @@ pub(super) fn compile_package(
     let complete = issues.is_empty();
     let receipt = json!({"schema":RECEIPT_FORMAT,"input_kind":"native_module_set",
         "input_sha256":digest(bytes),"name":artifact.name,"requested_target":target,"architecture":arch,
-        "output_kind":output_kind,"compiler_sha256":compiler_sha256,
+        "output_kind":output_kind,"compiler":(output_kind == "obj").then_some(compiler),
+        "compiler_sha256":compiler_sha256,
         "source_capture_reverification_performed":false,"units":records,"issues":issues,
         "module_set_artifact":{"path":package_path,"sha256":digest(bytes),"bytes":bytes.len(),
             "format":FORMAT,"module_count":artifact.modules.len()},
@@ -711,6 +711,13 @@ mod tests {
         assert_eq!(receipt["source_capture_reverification_performed"], false);
         assert_eq!(receipt["runtime_complete"], false);
         assert_eq!(receipt["native_execution_qualified"], false);
+        assert!(receipt["compiler"].is_null());
+        for unit in receipt["units"].as_array().unwrap() {
+            assert_eq!(unit["verification_mode"], "in_process");
+            for field in ["import_argv", "verify_argv", "emit_argv"] {
+                assert!(unit.get(field).is_none(), "unattempted command {field}");
+            }
+        }
         let module = fs::read(output.join("unit-000000/module.native-ir.json")).unwrap();
         assert!(NativeModule::from_json(&module).is_ok());
     }

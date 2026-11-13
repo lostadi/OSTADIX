@@ -127,7 +127,9 @@ class Reader:
         if self.IsAConstantPointerNull(value):
             return {"kind": "null", "type": ty}
         if self.IsAUndefValue(value) or self.IsAPoisonValue(value):
-            return {"kind": "undef" if self.IsAUndefValue(value) else "poison", "type": ty}
+            # LLVM PoisonValue is also an UndefValue subclass: test the more
+            # specific predicate first, preserving the original distinction.
+            return {"kind": "poison" if self.IsAPoisonValue(value) else "undef", "type": ty}
         if self.IsAGlobalVariable(value) or self.IsAFunction(value) or self.IsAGlobalAlias(value):
             return {"kind": "symbol", "name": self.name(value), "type": ty}
         if self.IsAConstantExpr(value) and self.GetConstOpcode(value) in (29, 41):
@@ -452,6 +454,65 @@ def intrinsic_mapping(site, function, types):
             flags = {flag: bool(site["fast_math"] & (1 << bit))
                      for bit, flag in enumerate(("reassoc", "nnan", "ninf", "nsz", "arcp", "contract", "afn"))}
             return op == "float_abs" and same("value", 0) and operation["flags"] == flags
+        if re.fullmatch(r"llvm\.fs(?:hl|hr)\.i(?:1|2|4|8|16|32|64|128)", name):
+            width = int(name.rsplit(".i", 1)[1])
+            integer = {"kind": "int", "bits": width}
+            if (site.get("arg_types") != [integer] * 3 or site.get("result_type") != integer
+                    or result is None or native_shape(types, result["ty"]) != integer):
+                return False
+            definitions = {item["result"]["id"]: item for item in block["instructions"]
+                           if item.get("result")}
+            source = lambda index: {"source": args[index]}
+            literal = lambda value: {"literal": value}
+            binary = lambda kind, lhs, rhs: {"op": "binary", "kind": kind,
+                                             "lhs": lhs, "rhs": rhs, "flags": []}
+            high, low, count = [{"op": "freeze", "value": source(index)} for index in range(3)]
+            shift = binary("and", count, literal(width - 1))
+            reverse = binary("and", binary("sub", literal(0), shift), literal(width - 1))
+            leftward = name.startswith("llvm.fshl.")
+            expected = {"op": "select",
+                        "condition": {"op": "i_cmp", "predicate": "eq", "lhs": shift, "rhs": literal(0)},
+                        "on_true": high if leftward else low,
+                        "on_false": binary("or", binary("shl", high, shift if leftward else reverse),
+                                           binary("l_shr", low, reverse if leftward else shift))}
+            # Repeated graph nodes must reference the SAME frozen SSA value.
+            # In-range shifts and the correct zero-count source operand are
+            # checked even when the source input happens to be a constant.
+            bindings = {}
+
+            def node(actual, wanted):
+                if set(actual) != set(wanted):
+                    return False
+                for field, expected_value in wanted.items():
+                    value = actual[field]
+                    if isinstance(expected_value, dict):
+                        bits = 1 if field == "condition" else width
+                        if not edge(value, expected_value, bits):
+                            return False
+                    elif value != expected_value:
+                        return False
+                return True
+
+            def edge(value, wanted, bits):
+                if "source" in wanted:
+                    return native_operand(value, types) == wanted["source"]
+                if "literal" in wanted:
+                    return native_operand(value, types) == {
+                        "kind": "int", "type": {"kind": "int", "bits": bits},
+                        "bits": str(wanted["literal"])}
+                if value.get("kind") != "value":
+                    return False
+                identity = id(wanted)
+                if identity in bindings:
+                    return bindings[identity] == value["id"]
+                instruction = definitions.get(value["id"])
+                if (not instruction or native_shape(types, instruction["result"]["ty"])
+                        != {"kind": "int", "bits": bits}):
+                    return False
+                bindings[identity] = value["id"]
+                return node(instruction["operation"], wanted)
+
+            return node(operation, expected)
         if ".with.overflow." in name:
             family = name.split(".")[1]
             return (op == "integer_overflow" and operation["kind"] == family[1:]

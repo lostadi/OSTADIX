@@ -1035,6 +1035,7 @@ pub fn is_builtin_intrinsic(name: &str) -> bool {
         || float_abs_intrinsic(name).is_some()
         || integer_unary_intrinsic(name).is_some()
         || integer_population_count_intrinsic(name).is_some()
+        || integer_funnel_intrinsic(name).is_some()
 }
 
 /// Compiler-only declarations have no ordinary native ABI or executable
@@ -1094,6 +1095,18 @@ pub fn integer_unary_intrinsic(name: &str) -> Option<(bool, u16)> {
         "llvm.abs.i64" => Some((false, 64)),
         _ => None,
     }
+}
+
+/// Exact scalar power-of-two funnel overloads expanded into existing integer
+/// operations by the importer. A declaration never authorizes a native call.
+pub fn integer_funnel_intrinsic(name: &str) -> Option<u16> {
+    let (operation, width) = name.strip_prefix("llvm.")?.split_once(".i")?;
+    if !matches!(operation, "fshl" | "fshr") {
+        return None;
+    }
+    let bits = width.parse::<u16>().ok()?;
+    (matches!(bits, 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128) && width == bits.to_string())
+        .then_some(bits)
 }
 
 pub fn integer_minmax_intrinsic(name: &str) -> Option<(IntegerMinMaxKind, u16)> {
@@ -2093,6 +2106,12 @@ impl<'a> Verifier<'a> {
             } else if let Some(bits) = integer_population_count_intrinsic(&function.name) {
                 sig.params.len() == 1
                     && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
+            } else if let Some(bits) = integer_funnel_intrinsic(&function.name) {
+                sig.params.len() == 3
+                    && sig.params.iter().all(|ty| {
+                        matches!(self.module.types.get(*ty), Some(Type::Int { bits: actual }) if *actual == bits)
+                    })
                     && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
             } else if let Some((_, bits)) = integer_unary_intrinsic(&function.name) {
                 sig.params.len() == 2
@@ -3271,6 +3290,9 @@ impl<'a> Verifier<'a> {
     ) -> Result<()> {
         if matches!(callee, Operand::Symbol { name, .. } if name == POINTER_MASK_INTRINSIC) {
             return Err(fail(context, "pointer-mask intrinsic requires the explicit typed PtrMask operation, never an ordinary call or invoke"));
+        }
+        if matches!(callee, Operand::Symbol { name, .. } if integer_funnel_intrinsic(name).is_some()) {
+            return Err(fail(context, "funnel-shift intrinsic requires its lowered integer operation graph, never an ordinary call or invoke"));
         }
         let fixed_signature = if signature.variadic {
             if signature.param_attributes.len() != args.len() {
@@ -5536,6 +5558,67 @@ mod tests {
             "entry":null,"blocks":[]
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn funnel_declarations_require_exact_owned_scalar_contract_and_cannot_be_calls() {
+        for bits in [1, 2, 4, 8, 16, 32, 64, 128] {
+            for direction in ["fshl", "fshr"] {
+                let name = format!("llvm.{direction}.i{bits}");
+                assert_eq!(integer_funnel_intrinsic(&name), Some(bits));
+                assert!(is_builtin_intrinsic(&name));
+                let mut m = module();
+                let ty = m.types.len();
+                m.types.push(Type::Int { bits });
+                let mut declaration = builtin(&name, &[ty, ty, ty]);
+                declaration.signature.result = ty;
+                m.functions.push(declaration);
+                m.provenance.source_function_count += 1;
+                verify(&m).unwrap();
+                for change in 0..9 {
+                    let mut invalid = m.clone();
+                    let function = invalid.functions.last_mut().unwrap();
+                    match change {
+                        0 => function.intrinsic = None,
+                        1 => function.signature.params.pop().map(|_| ()).unwrap(),
+                        2 => function.signature.result = 0,
+                        3 => function.signature.abi = "fastcc".into(),
+                        4 => function.visibility = Visibility::Hidden,
+                        5 => function.signature.variadic = true,
+                        6 => function.signature.result_attributes = vec!["zeroext".into()],
+                        7 => function.signature.params[1] = 3,
+                        8 => {
+                            function.entry = Some(10);
+                            function.blocks = vec![Block {
+                                id: 10,
+                                instructions: vec![],
+                                terminator: Terminator::Return {
+                                    value: Some(integer(ty, 0)),
+                                },
+                            }];
+                        }
+                        _ => unreachable!(),
+                    }
+                    assert!(verify(&invalid).is_err(), "forged funnel contract {change}");
+                }
+                let mut invalid = m.clone();
+                let declaration = invalid.functions.last().unwrap().clone();
+                invalid.functions[0].blocks[0].instructions[0] = Instruction {
+                    result: Some(Value { id: 8, ty }),
+                    operation: Operation::Call {
+                        callee: Operand::Symbol { ty: 3, name },
+                        signature: declaration.signature,
+                        args: vec![integer(ty, 0); 3],
+                    },
+                };
+                rejects(&invalid, "funnel-shift intrinsic requires its lowered integer operation graph");
+            }
+        }
+        for name in ["llvm.fshl.i0", "llvm.fshl.i3", "llvm.fshl.i65", "llvm.fshl.i256",
+                     "llvm.fshr.i0128", "llvm.fshr.v2i64", "llvm.fshr.i128.extra"] {
+            assert_eq!(integer_funnel_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
     }
 
     fn overflow_module(bits: u16, kind: BinaryOp, signed: bool) -> NativeModule {
