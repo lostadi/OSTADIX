@@ -55,9 +55,10 @@ pub fn spinner_enabled() -> bool {
     static ENVIRONMENT_ALLOWS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let environment_allows = *ENVIRONMENT_ALLOWS.get_or_init(|| {
         let set = |name: &str| std::env::var_os(name).is_some_and(|value| !value.is_empty());
-        !set("O_QUIET") && !set("CI") && !set("NO_COLOR")
+        // checked once: stderr does not become a terminal mid-run.
+        !set("O_QUIET") && !set("CI") && !set("NO_COLOR") && std::io::stderr().is_terminal()
     });
-    !QUIET.load(Ordering::Relaxed) && environment_allows && std::io::stderr().is_terminal()
+    !QUIET.load(Ordering::Relaxed) && environment_allows
 }
 
 /// Write one complete status line (a newline is added).

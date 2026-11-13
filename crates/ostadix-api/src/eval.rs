@@ -3475,6 +3475,8 @@ impl Evaluator {
             self.registry
                 .set_request_cancellation(self.active_request_cancellation.clone());
             self.registry
+                .set_plain_bash_next(frame.plain_bash_block_ahead(plan, node_id));
+            self.registry
                 .send_exec(
                     runtime_lang,
                     runtime_env_id,
