@@ -43,9 +43,9 @@ O10_M0_PROFILE = "0093b2889160814778975bed6084543bebab3a9cf30ea7c8a408ca756ae029
 O10_M1_R7_MONITOR = "d8163b97dd9b7c165d7daa761756bb11fa164338598efd899c8b3c0f82927d32"
 O10_M1_R7_PROFILE = "4ed18d420aa3f0348d324f4e0d8f38854222eb7faa67b0dce338322313701938"
 # Private M2 candidate admission for live/regression gates only; qualification is pending.
-# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r3
+# Build: ~/.cache/o10-m2-acceptance-20261113/unified-build-qualification-r4
 O10_M2_MONITOR = "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869"
-O10_M2_PROFILE = "0a7d145b0da3e1e8e11076d6e030154b18f1171d89cbff4eac9ab3a8a4eb7416"
+O10_M2_PROFILE = "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d"
 ADMITTED_RUNTIME_PROFILES = {R9_MONITOR: R9_PROFILE, O10_M0_MONITOR: O10_M0_PROFILE,
                              O10_M1_R7_MONITOR: O10_M1_R7_PROFILE,
                              O10_M2_MONITOR: O10_M2_PROFILE}
