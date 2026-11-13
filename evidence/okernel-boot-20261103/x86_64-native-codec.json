@@ -1,0 +1,190 @@
+{
+  "abi": {
+    "Fcall_alignment": 8,
+    "Fcall_bytes": 712,
+    "Qid_bytes": 24,
+    "pointer_bits": 64
+  },
+  "commands": {
+    "bytes": 26033,
+    "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/commands.json",
+    "sha256": "07f3900f9e5360974d8850ebe1cd73dc47562371f3f1641de0ec619e2fe4f09e"
+  },
+  "coverage_receipts": [
+    {
+      "bytes": 34918,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/memory/lowered/coverage.json",
+      "sha256": "dee5871a1b8ace698c44f2204e49f2092e397b6ee871a8a6b55da3930938c535"
+    },
+    {
+      "bytes": 93481,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/lowered/coverage.json",
+      "sha256": "2af89fc8d282ad43541490bb8d21031512f4b6ebba3dd77c21d587e9eafe80db"
+    }
+  ],
+  "header_source": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl",
+  "include_roots": [
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/u9fs",
+    "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/build/include",
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/arch/x86_64",
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/arch/generic",
+    "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/include"
+  ],
+  "isa": "x86_64",
+  "limitations": [
+    "Original Rauth decode rejection retained",
+    "No kernel integration or performance claim",
+    "Dependency source_pin is unsupported by module-set schema; selected original sources remain bound in both source recipe receipts"
+  ],
+  "linked_closure": {
+    "bytes": 80528,
+    "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codec-closure.o",
+    "sha256": "5d5c50b8b8a2626b2722ef4f8ae5a0960b77032b40c70e2ad9f016c3a8d423b1"
+  },
+  "native_module_sets": [
+    {
+      "bytes": 352601,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/memory/lowered/runtime.native-ir.json",
+      "sha256": "c41753f24e1c05a1a613d2e666c7a337480d32a7d696f4006dce502355fc1eae"
+    },
+    {
+      "bytes": 1712602,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/lowered/runtime.native-ir.json",
+      "sha256": "1a38bb957d48a42a2f92fdc6050a84875f255c4fc38fc6a0f76ffa098b5f283a"
+    }
+  ],
+  "objects": [
+    {
+      "bytes": 7760,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/lowered/unit-000000/module.o",
+      "sha256": "135862081e6e9df99c2e70c7a8540d071d522864ece88e15496e33ae5367f1af"
+    },
+    {
+      "bytes": 8024,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/lowered/unit-000001/module.o",
+      "sha256": "05e6460e1acd47cc6416c62263d2f97cd6cd5865246931215a682a269d9cd534"
+    },
+    {
+      "bytes": 24824,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/lowered/unit-000002/module.o",
+      "sha256": "86f578e6849caef9260c4a5d9b19e0f7f628310337a251b50071a1c9e18607f6"
+    },
+    {
+      "bytes": 24256,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/lowered/unit-000003/module.o",
+      "sha256": "5130f65d05c5cc97977b66f3eda4d82f215b0b5541440fd2a9749e986ea02b75"
+    },
+    {
+      "bytes": 4440,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/memory/lowered/unit-000000/module.o",
+      "sha256": "49da035e7d23475f44da6cfafb19fa0de15b1d4ea4ba3e129e3d257368036fb7"
+    },
+    {
+      "bytes": 13632,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/memory/lowered/unit-000001/module.o",
+      "sha256": "f183549dcccffe6468ddec700d9ac535f5085108fefd61a7a06a6cca00634748"
+    },
+    {
+      "bytes": 1680,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/memory/lowered/unit-000002/module.o",
+      "sha256": "e95d410f0baade35480b757b497ff3a0b29a2a2c1c30f18da88b9c528f6498d2"
+    }
+  ],
+  "original_headers": [
+    {
+      "bytes": 6038,
+      "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/u9fs/plan9.h",
+      "sha256": "d447e7a3dc37c31442d8de3e8d00085c4984ccff342bad3195e9d5f2d3a2d3e8"
+    },
+    {
+      "bytes": 2733,
+      "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/u9fs/fcall.h",
+      "sha256": "57a626d34ad7ba08689227d127d44edbaa4974db8ca686c79e4a6b0de89822ae"
+    }
+  ],
+  "schema": "ostadix.native-u9fs-codec/v1",
+  "scope": "four unchanged original u9fs 9P codec units plus original musl memcpy/memmove/strlen, compiler-owned source capture and O-core native closure; not full server/kernel",
+  "semantic_test": {
+    "binary": {
+      "bytes": 92952,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/verify",
+      "sha256": "962b178ce6e21f4cc1dbade49e5061cde9f55ef178114c40b2e9da1e9b614e01"
+    },
+    "carrier": {
+      "bytes": 358,
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tools/ocore-runtime/u9fs/carrier-x86_64.S",
+      "sha256": "ad3315e7928c192950fa90f7ea6809d4f34ab08beb00b37757473cc99c1f5923"
+    },
+    "execution": "native host Linux syscall test carrier",
+    "harness": {
+      "bytes": 6858,
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tools/ocore-runtime/u9fs/verify_component.c",
+      "sha256": "67c2b083df8f92f397d2f006f7a3608102cedaa335bbfecb429113cc04acf906"
+    },
+    "ok": true,
+    "reference_objects": [
+      {
+        "bytes": 3400,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_convM2S.o",
+        "sha256": "ce33e2f8d9e6eae4b9af7ce4e53ea3ba0de5283cd79ca2273d194542ac9c094b"
+      },
+      {
+        "bytes": 5840,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_convS2M.o",
+        "sha256": "4650af912c2e741fc96f574df7f2b0919c39c1090fc890cdb3a8a0cf0f79bdf0"
+      },
+      {
+        "bytes": 1544,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_convM2D.o",
+        "sha256": "fb758a76ff20afaf5f8dac7b8feeb9716201cd84bbeda84b202b8ebb3f386f9b"
+      },
+      {
+        "bytes": 1664,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_convD2M.o",
+        "sha256": "2f5f34cba684ffc94a8b3269429c6716f4a09a9122e48bd5e8d03361c3e4f781"
+      },
+      {
+        "bytes": 1656,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_memcpy.o",
+        "sha256": "409cad8a6ef7fd133bf9de1b15bd5919a14c8e9af4de75aba0674c9b8ad3bf9f"
+      },
+      {
+        "bytes": 1248,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_memmove.o",
+        "sha256": "0b496227cf06bbc450cefc7c7dfd61daf3b1ac7c7d4fc318b7af0d9b065d9819"
+      },
+      {
+        "bytes": 928,
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/semantic-test/ref_strlen.o",
+        "sha256": "092a0f869a732e1d7653672679bfec6c333aeae2e0e5dbdd51cdea2cee1ab2b5"
+      }
+    ],
+    "scope": "original codec and memory dependency semantics; no kernel or hardware qualification",
+    "stdout": "Original u9fs and musl via O-core: PASS; checks=114573\n"
+  },
+  "source_dir": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/u9fs",
+  "source_recipe_receipts": [
+    {
+      "bytes": 4030,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/memory/source-recipe.json",
+      "sha256": "3898f76af7a6f34bf7d56d4f07e6551f3e2552fd5ccf2610aedc4aaac2ee734b"
+    },
+    {
+      "bytes": 4031,
+      "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/codecs/source-recipe.json",
+      "sha256": "5f5133e0d160a452efcd09f5db6454477141456f58b3b99a6f7153acbc8a77d4"
+    }
+  ],
+  "symbols": [
+    "convD2M",
+    "convM2D",
+    "convM2S",
+    "convS2M",
+    "memcpy",
+    "memmove",
+    "sizeD2M",
+    "statcheck",
+    "strlen"
+  ],
+  "unresolved_symbols": []
+}

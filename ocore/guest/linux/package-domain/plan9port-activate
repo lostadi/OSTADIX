@@ -1,0 +1,101 @@
+#!/bin/sh
+# Atomically select an owned runtime, qualify its bridge, and roll back errors.
+set -eu
+if [ "$#" -ne 6 ]; then
+    echo 'Usage: plan9port-activate PREFIX RUNTIME BIN RECEIPT NAMESPACE_HELPER BRIDGE_HELPER' >&2
+    exit 2
+fi
+prefix="$1"; runtime="$2"; bin="$3"; receipt="$4"; namespace_helper="$5"; bridge_helper="$6"
+[ -d "$runtime" ] && [ ! -L "$runtime" ] && [ "${runtime%/*}" = "$prefix.generations" ] || {
+    echo 'Candidate must be a private generation of this package prefix.' >&2; exit 1;
+}
+previous=
+if [ -L "$prefix" ]; then
+    previous="$(readlink "$prefix")"
+    [ "${previous%/*}" = "$prefix.generations" ] || { echo 'Preserving an unrelated package prefix.' >&2; exit 1; }
+elif [ -e "$prefix" ]; then
+    echo 'Preserving an unrelated package prefix.' >&2; exit 1
+fi
+for command in rc mk 9p 9; do
+    if [ -e "$bin/$command" ] || [ -L "$bin/$command" ]; then
+        [ -L "$bin/$command" ] && [ "$(readlink "$bin/$command")" = "$prefix/bin/$command" ] || {
+            echo "Preserving unrelated command: $bin/$command" >&2; exit 1;
+        }
+    fi
+done
+printf '%s\n' "${previous:-none}" > "$receipt/activation-prior-prefix"
+: > "$receipt/activation-created-links"
+native=0; prior_service=0; switched=0
+if [ -x "$namespace_helper" ] && "$namespace_helper" status >/dev/null 2>&1; then native=1; fi
+if [ "$native" -eq 0 ] && [ "${OSTADIX_PKG_NAMESPACE_REQUIRED:-0}" = 1 ]; then
+    echo 'Required native namespace is unavailable; preserving the active package.' >&2
+    exit 3
+fi
+if [ "$native" -eq 1 ] && PLAN9="$prefix" "$bridge_helper" status > "$receipt/bridge-before.txt" 2>&1; then
+    prior_service=1
+fi
+rollback() {
+    result=$?
+    trap - EXIT HUP INT TERM
+    set +e
+    if [ "$switched" -eq 1 ]; then
+        if [ ! -L "$prefix" ] || [ "$(readlink "$prefix")" != "$runtime" ]; then
+            echo 'Activation prefix changed concurrently; preserving its new owner.' >&2
+            printf '%s\n' 'failed: concurrent prefix owner preserved' > "$receipt/activation-result"
+            exit "$result"
+        fi
+        if [ "$native" -eq 1 ]; then PLAN9="$prefix" "$bridge_helper" stop >> "$receipt/bridge-rollback.txt" 2>&1; fi
+        if [ -n "$previous" ]; then
+            restore="$prefix.rollback.$$"
+            if ln -s "$previous" "$restore" && mv -T "$restore" "$prefix"; then
+                printf '%s\n' 'failed: prior prefix restored' > "$receipt/activation-result"
+            else
+                echo 'Failed to restore the prior owned runtime; inspect activation receipt.' >&2
+                exit "$result"
+            fi
+        else
+            rm -- "$prefix"
+            printf '%s\n' 'failed: first-install owned prefix removed' > "$receipt/activation-result"
+        fi
+        while IFS= read -r command; do
+            if [ -L "$bin/$command" ] && [ "$(readlink "$bin/$command")" = "$prefix/bin/$command" ]; then rm -- "$bin/$command"; fi
+        done < "$receipt/activation-created-links"
+    fi
+    if [ "$prior_service" -eq 1 ]; then
+        if ! PLAN9="$prefix" "$bridge_helper" start >> "$receipt/bridge-rollback.txt" 2>&1; then
+            echo 'Prior runtime restored, but its bridge restart failed; inspect bridge-rollback.txt.' >&2
+        fi
+    fi
+    exit "$result"
+}
+trap rollback EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+if [ "$native" -eq 1 ]; then PLAN9="$prefix" "$bridge_helper" stop; fi
+next="$prefix.next.$$"
+ln -s "$runtime" "$next"
+mv -T "$next" "$prefix"
+switched=1
+for command in rc mk 9p 9; do
+    if [ ! -e "$bin/$command" ] && [ ! -L "$bin/$command" ]; then
+        ln -s "$prefix/bin/$command" "$bin/$command"
+        printf '%s\n' "$command" >> "$receipt/activation-created-links"
+    fi
+done
+if [ "$native" -eq 1 ]; then
+    printf 'command=pkg-9p test (original wire roundtrip over granted native mount)\n' >> "$receipt/commands.txt"
+    if PLAN9="$prefix" "$bridge_helper" test > "$receipt/bridge-test.txt" 2>&1; then
+        cat "$receipt/bridge-test.txt"
+    else
+        result=$?
+        cat "$receipt/bridge-test.txt" >&2
+        echo 'New bridge health failed; restoring the prior active package generation.' >&2
+        exit "$result"
+    fi
+else
+    printf '%s\n' 'not-run: no granted native mount; host feasibility is not native service qualification' > "$receipt/bridge-test.txt"
+fi
+[ -L "$prefix" ] && [ "$(readlink "$prefix")" = "$runtime" ] || { echo 'Activation prefix changed concurrently.' >&2; exit 1; }
+printf '%s\n' 'healthy: candidate active' > "$receipt/activation-result"
+trap - EXIT HUP INT TERM

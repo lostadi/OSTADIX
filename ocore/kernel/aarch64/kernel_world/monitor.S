@@ -117,7 +117,13 @@ kw_stage2_install:
     isb
     // RW=1, VM=1, TSC=1. Physical GIC interrupts go directly to guest EL1;
     // this lane assigns one emulated controller to one guest, not an IRQ VMM.
+#if KW_PACKAGE_PROFILE
+    // Trap idle WFI so the monitor can poll and mediate host console RX.
+    // Other interrupts retain the existing single-guest GIC routing.
+    movz x0, #0x2001
+#else
     movz x0, #1
+#endif
     movk x0, #0x8008, lsl #16
     msr hcr_el2, x0
     isb
@@ -148,6 +154,20 @@ kw_memory_barrier:
     ret
 .size kw_memory_barrier, . - kw_memory_barrier
 
+.global kw_uart_irq_level
+.type kw_uart_irq_level, %function
+kw_uart_irq_level:
+    movz x1, #0x0204
+    movk x1, #0x0800, lsl #16
+    cbnz x0, 1f
+    add x1, x1, #0x80
+1:
+    mov w2, #2
+    str w2, [x1]
+    dsb sy
+    ret
+.size kw_uart_irq_level, . - kw_uart_irq_level
+
 .global kw_irq_level
 .type kw_irq_level, %function
 kw_irq_level:
@@ -161,6 +181,34 @@ kw_irq_level:
     dsb sy
     ret
 .size kw_irq_level, . - kw_irq_level
+
+.global kw_net_irq_level
+.type kw_net_irq_level, %function
+kw_net_irq_level:
+    movz x1, #0x0204
+    movk x1, #0x0800, lsl #16
+    cbnz x0, 1f
+    add x1, x1, #0x80
+1:
+    mov w2, #0x20000 // Guest virtual-network IRQ49, independent of block IRQ48.
+    str w2, [x1]
+    dsb sy
+    ret
+.size kw_net_irq_level, . - kw_net_irq_level
+
+.global kw_9p_irq_level
+.type kw_9p_irq_level, %function
+kw_9p_irq_level:
+    movz x1, #0x0204
+    movk x1, #0x0800, lsl #16
+    cbnz x0, 1f
+    add x1, x1, #0x80
+1:
+    mov w2, #0x40000 // Shared namespace IRQ50, separate from network/block.
+    str w2, [x1]
+    dsb sy
+    ret
+.size kw_9p_irq_level, . - kw_9p_irq_level
 
 .global kw_counter_read
 .type kw_counter_read, %function
@@ -186,6 +234,40 @@ kw_serial_putc:
     str w0, [x1]
     ret
 .size kw_serial_putc, . - kw_serial_putc
+
+.global kw_serial_console_init
+.type kw_serial_console_init, %function
+kw_serial_console_init:
+    mov x1, #0x09000000
+    str wzr, [x1, #0x38] // Mask physical UART IRQs; guest IRQs are mediated.
+    mov w2, #0x7ff
+    str w2, [x1, #0x44]
+    str wzr, [x1, #0x30]
+    mov w2, #1
+    str w2, [x1, #0x24]
+    str wzr, [x1, #0x28]
+    mov w2, #0x70
+    str w2, [x1, #0x2c]
+    mov w2, #0x301
+    str w2, [x1, #0x30]
+    dsb sy
+    ret
+.size kw_serial_console_init, . - kw_serial_console_init
+
+.global kw_serial_try_read
+.type kw_serial_try_read, %function
+kw_serial_try_read:
+    mov x1, #0x09000000
+    ldr w2, [x1, #0x18]
+    tbnz w2, #4, 1f
+    ldr w0, [x1]
+    and x0, x0, #0xff
+    orr x0, x0, #0x100 // Valid bit preserves an ordinary received NUL.
+    ret
+1:
+    mov x0, #0
+    ret
+.size kw_serial_try_read, . - kw_serial_try_read
 
 .global kw_halt
 .type kw_halt, %function
