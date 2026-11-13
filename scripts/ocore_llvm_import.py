@@ -699,6 +699,11 @@ class Importer:
                     and index == 0xffffffff and a.IsEnumAttribute(attribute)
                     and a.GetEnumAttributeValue(attribute) == 0):
                 self.refinements.add(f"{self.symbol}: exact scalar funnel-shift nocreateundeforpoison=0 promise realized by normalized in-range shifts for defined inputs; no ordinary-function promise or attribute erasure inferred")
+            elif (intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar population-count operation; defined i32/i64 bits yield a defined same-width count from zero through the operand width; original poison/undef operands remain represented; no input noundef, ordinary-function purity or optimization inferred")
             elif (intrinsic in self.FLOAT_ABS_INTRINSICS and name == "nocreateundeforpoison"
                     and index == 0xffffffff and a.IsEnumAttribute(attribute)
                     and a.GetEnumAttributeValue(attribute) == 0):
