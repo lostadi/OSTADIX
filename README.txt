@@ -1,1 +1,0 @@
-Crash-recovery envelope, not a qualified compiler release. The Git bundle preserves the frozen5cb source history relative to verified canonical ancestor e39. The separate archive preserves all11 unbuilt vector working files and their source checkpoints. See manifest.json for exact hashes, scope, recovery and unmet gates. No master branch update is intended.

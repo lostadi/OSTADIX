@@ -1,0 +1,45 @@
+{
+  "schema": "ostadix-source-crash-backup-envelope-v1",
+  "direct_compiler_checkout": false,
+  "compiler_commit": "19368c98abc1c4ffd4d4a560a7068d4d8fddc54e",
+  "compiler_tree": "20517ae1715c9410cfaadd339818e7c78fc1554a",
+  "prerequisite_commit": "b30a3dac6677ec3b23cf6afe4b6ba0d5dbf9dad7",
+  "prerequisite_envelope_commit": "9b470a26ba8ddfcb2c47514f459af074c69cae18",
+  "bundle": {
+    "path": "20261025-control-requirements/source-from-b30.bundle",
+    "bytes": 7764,
+    "sha256": "0dbf5cb840f055dddb7b124dd95b310973f6d67d3f879e035abf44cc42644b7c",
+    "encoding": "git-bundle"
+  },
+  "full_source_map": {
+    "files": 2925,
+    "source_bytes": 137133115,
+    "bytes": 560812,
+    "sha256": "2f1be61907828d1200c524a533358305fbbb3a6be74113488af47a5df9713a26"
+  },
+  "current_source_stage": "frozen_unbuilt",
+  "new_diagnostic_tests": {
+    "authored": 11,
+    "state": "UNRUN"
+  },
+  "prior_b30_evidence": {
+    "build": "fresh five-bin Cargo0/wrapper0",
+    "consumer_tests": {
+      "selected_passed": 3,
+      "listed": 207,
+      "unrun": 204
+    },
+    "original_Lua": {
+      "captured": 34,
+      "imports": 34,
+      "verification": 34,
+      "independent_inventories": 34,
+      "objects": 34,
+      "admitted": 33,
+      "unresolved": "ldo.c original returns_twice provider and cross-module control effects"
+    }
+  },
+  "diagnostic_guard": "Existing original-provider, cross-module and Rust/OValue guards remain closed. Diagnostic inventories are requirements, not provider qualification.",
+  "recovery": "Restore b30 prerequisite via parent envelope commit, verify/import this exact incremental Git bundle, verify C tree and source map. This envelope is not a compiler checkout.",
+  "compiler_runtime_provider_artifact_ISA_qualified": false
+}
