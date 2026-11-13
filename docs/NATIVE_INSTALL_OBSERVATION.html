@@ -1,0 +1,75 @@
+<h1>Native INSTALL observations</h1>
+<p>The x86 thread registry records a private software observation while its real
+<code>install</code> and <code>install_loaded</code> paths validate, retain, fill, enqueue or roll back
+a TCB. This is a prerequisite for later lifecycle integration. It does not
+enable FP, introduce a ledger ticket, publish an execution capability, or change
+which ordinary installations succeed.</p>
+<p>The read-only query checks the actual generation, parent identities, initial
+frame, queue shape and reference transition. Management absence uses raw thread
+state and <code>current_process_matches(0)</code>, rather than interpreting a lossy getter&#39;s
+zero as proof. A filled EMPTY/ref1 slot is accepted only by the private
+phase-specific check; ordinary frame and queue validators continue to refuse it.
+The existing boot function supplies four allowed kernel-stack tops. Hosted tests
+model that geometry without establishing physical guard pages or CPU context.</p>
+<p>Its output has a distinct observation magic and a private monotonic
+<code>observation_serial</code>. Neither is the FP ledger ABI or a ledger ticket. Closing
+an observation prevents replay; exhaustion disables further observations while
+ordinary installation remains available. The production checkpoint is inert.
+Only a copied test source adds an observer and a reversible check-failure
+injection; positive capsules still come from the real entrypoint&#39;s validated
+arguments and registry operations. No public stage setter accepts a caller&#39;s
+identity packet.</p>
+<p>The source-bound reference fixture contains the exact thread implementation from
+commit <code>6390bf2d2d725d477cfa1c1f087fcec426b15315</code>. Its SHA-256 is
+<code>eb53d1fd6d748970e3afa5bc3510aba77e1af74f2ef5b9cd8637f76de7aa86d8</code>.
+Tests compile it without needing Git history and compare ordinary results,
+references and queues with the candidate. They check all 18 PCB fields and all
+43 thread/observation fields around private queries, keep the 36 common thread
+fields distinct from the seven added observation fields, and require exact
+semantic diagnostics from six deliberately incorrect guards.</p>
+<h2>Mandatory CI and local consumer checks</h2>
+<p>The mandatory Linux x86 CI lane executes all five INSTALL tests without skips,
+beside the existing four current-process and three frame tests. It retains
+<code>target/ocore-install-observation/</code> even after failure. Its <code>ci-status.json</code>
+explicitly marks the TLS consumer <strong>not executed and unqualified in CI</strong>: this
+job does not provision its independently verified seven-object original-codec
+manifest. A passing INSTALL lane is not evidence that TLS ran there.</p>
+<p>Run the mandatory INSTALL test locally with a built <code>ocorec</code>, Clang, <code>nm</code> and
+<code>objcopy</code>. The output directory must not exist:</p>
+<pre><code class="language-sh">OCOREC_BIN=/absolute/path/to/ocorec \
+OCORE_INSTALL_OBSERVATION_REQUIRED=1 \
+OCORE_INSTALL_OBSERVATION_OUTPUT=/absolute/path/to/new-output \
+python3 -m unittest -v tests.test_install_observation
+</code></pre>
+<p><code>OCOREC_BIN_SHA256</code> optionally requires the selected compiler&#39;s exact digest.
+The fixture records source and tool identities and retains its native commands.
+It uses Linux x86-64 host execution, ambient host C headers and libraries, and
+declared architecture/image-delivery models; it is not a hermetic bootstrap.</p>
+<p>The existing TLS carrier remains a separate required local consumer gate for
+this change. First build and verify the original u9fs/musl seven-object component
+using its <a href="../tools/ocore-runtime/u9fs/README.md">compiler-owned recipes</a>. Supply
+that complete <code>native-codec.json</code> and a built compiler. This command refuses a
+missing manifest or a skipped test rather than treating either as a pass:</p>
+<pre><code class="language-sh">export OCOREC_BIN=/absolute/path/to/ocorec
+export OCORE_U9FS_MANIFEST=/absolute/path/to/native-codec.json
+python3 - &lt;&lt;&#39;PY&#39;
+import os, unittest
+if not os.environ.get(&quot;OCORE_U9FS_MANIFEST&quot;):
+    raise SystemExit(&quot;a verified original-codec manifest is required&quot;)
+suite = unittest.defaultTestLoader.loadTestsFromName(&quot;tests.test_linux_tls&quot;)
+result = unittest.TextTestRunner(verbosity=2).run(suite)
+if not result.wasSuccessful() or result.testsRun != 1 or result.skipped:
+    raise SystemExit(&quot;the real TLS consumer must execute without skips&quot;)
+PY
+</code></pre>
+<p>That test validates and links the original seven objects and headers. The added
+stack-geometry model restores the carrier&#39;s declared architecture interface; it
+does not replace original codec code. Source releases require the baseline,
+test/import/helper files and all 17 x86 plus three common runtime modules used by
+these carriers. An omission regression rejects missing inputs.</p>
+<p>Actual FP ledger preflight, image management, ticket consumption, callbacks,
+invariant-fatal rollback and CPU readiness/save/restore remain unfinished. The
+query does not prove complete resource authority, SMP consistency, all-ISA
+semantics, user-mode application execution, physical boot, drivers or efficiency.
+Complete AArch64/RV64 objects currently reject the existing x86 <code>sysv64</code> interface;
+hosted x86 tests do not qualify those targets or the full native-system objective.</p>

@@ -2748,7 +2748,11 @@ class SourceReleaseTests(unittest.TestCase):
                 "docs/browser-chat-pdf.html",
             }
         )
-        allowed = browser_allowed | release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS
+        allowed = (
+            browser_allowed
+            | release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS
+            | {"docs/NATIVE_INSTALL_OBSERVATION.html"}
+        )
         self.assertEqual(release.ALLOWED_HTML_PATHS, allowed)
         for path in allowed:
             self.assertTrue(release.is_allowed_release_path(path), path)
@@ -4115,6 +4119,24 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("rm", *paths)
         self._git("commit", "-q", "-m", "remove native registry and source inventory closure")
         self._assert_missing_required_paths("missing-native-foundation.zip", paths)
+
+    def test_install_observation_and_tls_consumer_inputs_are_required(self) -> None:
+        paths = (
+            "tests/test_install_observation.py",
+            "tests/fixtures/thread-6390-before-install-observation.oc.txt",
+            "tests/test_linux_tls.py",
+            "scripts/okernel_native_codec.py",
+            "tools/ocore-runtime/u9fs/build_component.py",
+        )
+        self.assertTrue(set(paths) <= release.NATIVE_INSTALL_OBSERVATION_RELEASE_PATHS)
+        self.assertTrue(
+            release.NATIVE_INSTALL_OBSERVATION_RELEASE_PATHS
+            <= release.NATIVE_FOUNDATION_RELEASE_PATHS
+        )
+        self._commit()
+        self._git("rm", *paths)
+        self._git("commit", "-q", "-m", "remove install observation and TLS carrier inputs")
+        self._assert_missing_required_paths("missing-install-observation.zip", paths)
 
     def test_o10_component_source_closure_is_required(self) -> None:
         paths = sorted(release.O10_COMPONENT_RELEASE_PATHS)
