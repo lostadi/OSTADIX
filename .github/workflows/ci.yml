@@ -37,6 +37,15 @@ jobs:
           python3 scripts/contract_surfaces.py validate
           python3 scripts/check_architecture_boundaries.py
           python3 -m unittest -v tests.test_contract_surfaces tests.test_local_ci_posture tests.test_commit_authors tests.test_architecture_boundaries tests.test_governance_surfaces tests.test_ci_nix_profile
+      - name: Verify complete-source inventory worker and recipe bindings
+        run: |
+          python3 - <<'PY'
+          import sys, unittest
+          suite = unittest.defaultTestLoader.discover("tools/ocore-runtime/libc", pattern="test_*.py")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun < 17 or result.skipped:
+              raise SystemExit("complete-source inventory regressions must execute without skips")
+          PY
 
   boundary-contract:
     name: Hosted value/code boundary
@@ -958,6 +967,29 @@ jobs:
         run: ocore/kernel/smoke-x86_64-uefi-iso-qemu.sh
       - name: Verify compact native payloads and generated OVFS admission bindings
         run: python3 -m unittest -v tests.test_ocore_payload_layout tests.test_kernel_image_binding tests.test_ocore_ovfs_pins tests.test_ocore_kernel_build_profiles
+      - name: Verify serialized x86 process registry current identity
+        env:
+          OCORE_PROCESS_IDENTITY_REQUIRED: "1"
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          os.environ["OCOREC_BIN"] = str(root / "target/debug/ocorec")
+          os.environ["OCORE_PROCESS_IDENTITY_TEST_OUTPUT"] = str(root / "target/ocore-process-current-identity")
+          os.environ["OCORE_PROCESS_IDENTITY_COMPILER_SCOPE"] = "Fresh compiler from this job's checked-out source " + os.environ["GITHUB_SHA"]
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_process_current_identity")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun < 4 or result.skipped:
+              raise SystemExit("native process identity regressions must execute without skips")
+          PY
+      - name: Retain bounded native process identity evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-process-current-identity-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/ocore-process-current-identity/
+          if-no-files-found: warn
+          retention-days: 14
       # BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_CI
       - name: Validate central release-evidence manifest
         run: python3 scripts/release_evidence.py validate

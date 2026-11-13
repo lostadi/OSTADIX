@@ -1762,6 +1762,8 @@ class SourceReleaseTests(unittest.TestCase):
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             contents.setdefault(path, b"fixture human and LLM interface source\n")
         contents.update(fixture_setup_sources())
+        for path in release.NATIVE_FOUNDATION_RELEASE_PATHS:
+            contents[path] = (PROJECT_ROOT / path).read_bytes()
         if files:
             contents.update(files)
         for index in range(FIXTURE_EVIDENCE_GATE_COUNT):
@@ -2509,6 +2511,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS)
             included.update(release.OKERNEL_PACKAGE_BOOT_RELEASE_PATHS)
             included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
+            included.update(release.NATIVE_FOUNDATION_RELEASE_PATHS)
             included.update(fixture_setup_sources())
             excluded = {
                 ".DS_Store",
@@ -4075,6 +4078,13 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("rm", *paths)
         self._git("commit", "-q", "-m", "remove native scalar receipt surface")
         self._assert_missing_required_paths("missing-native-scalar.zip", paths)
+
+    def test_native_registry_and_inventory_source_closure_is_required(self) -> None:
+        paths = sorted(release.NATIVE_FOUNDATION_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", *paths)
+        self._git("commit", "-q", "-m", "remove native registry and source inventory closure")
+        self._assert_missing_required_paths("missing-native-foundation.zip", paths)
 
     def test_world_normative_bytes_are_sealed_before_packaging(self) -> None:
         for path, data in WORLD_NORMATIVE_BYTES.items():

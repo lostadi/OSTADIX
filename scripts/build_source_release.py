@@ -232,6 +232,28 @@ REAL_WORLD_BENCHMARK_RELEASE_PATHS = REAL_WORLD_BENCHMARK_PATHS | frozenset(
         "tests/test_benchmark_concurrent_baseline.py",
     }
 )
+NATIVE_FOUNDATION_RELEASE_PATHS = frozenset(
+    {
+        "scripts/ocore_runtime_capture.py",
+        "scripts/ocore_producer_registry.json",
+        "tools/ocore-runtime/libc/README.md",
+        "tools/ocore-runtime/libc/build_inventory.py",
+        "tools/ocore-runtime/libc/x86_64.static.recipe.json",
+        "tools/ocore-runtime/libc/aarch64.static.recipe.json",
+        "tools/ocore-runtime/libc/riscv64.static.recipe.json",
+        "tools/ocore-runtime/libc/test_build_inventory.py",
+        "tools/ocore-runtime/libc/test_inventory_worker_identity.py",
+        "tools/ocore-runtime/libc/test_inventory_recipe_worker_contract.py",
+        "tests/test_process_current_identity.py",
+        *(
+            f"ocore/runtime/x86_64/{name}.oc"
+            for name in (
+                "native_abi", "personality", "domain", "capability", "pages",
+                "memory_object", "mapping", "elf_loader", "address_space", "process",
+            )
+        ),
+    }
+)
 PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS = frozenset(
     {
         "ci/workflow-reviews.toml",
@@ -1155,6 +1177,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
 ) | (
     HOSTED_HGRAPH_BENCHMARK_RELEASE_PATHS
     | REAL_WORLD_BENCHMARK_RELEASE_PATHS
+    | NATIVE_FOUNDATION_RELEASE_PATHS
     | PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS
     | OSTADIX_API_RELEASE_PATHS
     | frozenset(OSTADIX_API_ROOT_MODULE_PATHS.values())

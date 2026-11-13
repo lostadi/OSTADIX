@@ -552,6 +552,32 @@ pub unsafe fn current_slot() -> usize {
     return slot;
 }
 
+// Read-only identity check for serialized lifecycle observations. The caller
+// must keep the existing single-CPU registry stable (normally with interrupts
+// masked); this does not provide an SMP snapshot or validate PCB resources.
+// In particular, the lossy getter below cannot authenticate absence: it also
+// returns zero for a malformed, stale or non-RUNNING raw current handle.
+pub unsafe fn current_process_matches(expected_handle: u64) -> bool {
+    if INITIALIZED != 1 || CURRENT_PROCESS != expected_handle {
+        return false;
+    }
+    let mut current: usize = MAX_PROCESSES;
+    if expected_handle != 0 {
+        current = checked_process(expected_handle);
+        if current >= MAX_PROCESSES || STATES[current] != PROCESS_RUNNING {
+            return false;
+        }
+    }
+    let mut slot: usize = 0;
+    while slot < MAX_PROCESSES {
+        if STATES[slot] == PROCESS_RUNNING && slot != current {
+            return false;
+        }
+        slot += 1;
+    }
+    return true;
+}
+
 pub unsafe fn current_process_handle() -> u64 {
     if current_slot() >= MAX_PROCESSES {
         return 0;
