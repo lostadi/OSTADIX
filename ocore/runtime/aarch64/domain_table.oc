@@ -94,8 +94,8 @@ pub unsafe fn owner(which: u64) -> u64 {
 
 // Trusted boot metadata admission only. The caller must already have validated
 // the immutable images and installed the exact stage-2 mapping. This function
-// allocates no RAM, copies no image and grants no authority; O10 provisioning
-// stays unsupported until its independent image/allocator backend is present.
+// allocates no RAM, copies no image and grants no authority. The O10 executor
+// supplies the independent immutable-image and RAM-allocation admission.
 pub unsafe fn boot(slot: u64, personality: u64, driver: u64, base: u64, bytes: u64,
                    kernel: u64, auxiliary: u64) -> u64 {
     if slot >= CAPACITY || STATE[slot as usize] != EMPTY || RETIRED[slot as usize] != 0
@@ -187,4 +187,34 @@ pub unsafe fn live_mask() -> u64 {
 pub unsafe fn blocked_mask() -> u64 {
     let mut mask: u64 = 0; let mut slot: u64 = 0;
     while slot < CAPACITY { if STATE[slot as usize] == BLOCKED { mask |= 1 << slot; } slot += 1; } return mask;
+}
+
+// The O10 executor performs image/RAM/architectural admission first. These
+// transitions publish only metadata and names; they mint no namespace lease.
+pub unsafe fn empty_slot() -> u64 {
+    let mut slot:u64=0;while slot<CAPACITY {
+        if STATE[slot as usize]==EMPTY && RETIRED[slot as usize]==0 { return slot; }slot+=1;
+    }return NONE;
+}
+pub unsafe fn set_entry(name:u64,pc:u64,x0:u64) -> u64 {
+    let slot:u64=lookup(name);
+    if slot==NONE || STATE[slot as usize]!=PROVISIONED || pc<0x4000_0000
+        || pc>=0x4000_0000+RAM_BYTES[slot as usize] || (pc&3)!=0 { return 0; }
+    ENTRY_PC[slot as usize]=pc;ENTRY_X0[slot as usize]=x0;return 1;
+}
+pub unsafe fn start(name:u64,instance:*const u8) -> u64 {
+    let slot:u64=lookup(name);
+    if slot==NONE || STATE[slot as usize]!=PROVISIONED || ENTRY_PC[slot as usize]==0 { return 0; }
+    let mut i:usize=0;while i<16 { INSTANCE[slot as usize*16+i]=volatile_load(instance+i);i+=1; }
+    WAIT_BIND[slot as usize]=0;STATE[slot as usize]=RUNNING;return 1;
+}
+// Called only after transport/IRQ revocation, private-RAM zero and stage2/VMID
+// teardown. Invalidate the old identity before exposing an EMPTY reusable row.
+pub unsafe fn destroy(name:u64) -> u64 {
+    let slot:u64=lookup(name);if slot==NONE { return 0; }let i:usize=slot as usize;
+    if GENERATION[i]==GENERATION_MAX { RETIRED[i]=1; }else { GENERATION[i]+=1; }
+    KIND[i]=0;BACKEND[i]=0;RAM_BASE[i]=0;RAM_BYTES[i]=0;KERNEL_IMAGE[i]=0;AUX_IMAGE[i]=0;
+    ENTRY_PC[i]=0;ENTRY_X0[i]=0;WAIT_BIND[i]=0;
+    let mut j:usize=0;while j<16 { INSTANCE[i*16+j]=0;j+=1; }
+    STATE[i]=EMPTY;return 1;
 }

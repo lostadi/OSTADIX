@@ -1,0 +1,119 @@
+module runtime::aarch64::domain_images;
+
+// Boot-registered immutable images. O10 carries names, never physical pointers.
+use runtime::aarch64::linux_domain_images::reload as linux_reload;
+const MAX: u64 = 0xffff_ffff_ffff_ffff;
+const NATIVE_AUX: usize = 0xe250_0000;
+static MAGIC: [u8; 8] = b"O10M3N1\0";
+static NAME: [u8; 14] = b"o10-m3-witness";
+static DATA: [u8; 24] = b"O10_M3_NATIVE_NAMESPACE\n";
+static mut READY: u64 = 0;
+static mut P9_KERNEL: usize = 0;
+static mut P9_AUX: usize = 0;
+static mut LINUX_KERNEL: usize = 0;
+static mut NATIVE_KERNEL: usize = 0;
+static mut NATIVE_AUX_BYTES: usize = 0;
+
+unsafe fn native_aux_valid() -> bool {
+    let mut i: usize = 0;
+    while i < 8 { if volatile_load((NATIVE_AUX+i) as *const u8) != MAGIC[i] { return false; } i+=1; }
+    if volatile_load((NATIVE_AUX+8) as *const u32) != 1 || volatile_load((NATIVE_AUX+12) as *const u32) != 128
+        || volatile_load((NATIVE_AUX+16) as *const u64) != 0x401f_0000
+        || volatile_load((NATIVE_AUX+24) as *const u64) != 0x0900_1000
+        || volatile_load((NATIVE_AUX+32) as *const u32) != 14 || volatile_load((NATIVE_AUX+36) as *const u32) != 24
+        || volatile_load((NATIVE_AUX+120) as *const u64) != 0 { return false; }
+    i=0; while i<32 {
+        let mut expected:u8=0; if i<14 { expected=NAME[i]; }
+        if volatile_load((NATIVE_AUX+40+i) as *const u8)!=expected { return false; } i+=1;
+    }
+    i=0; while i<48 {
+        let mut expected:u8=0; if i<24 { expected=DATA[i]; }
+        if volatile_load((NATIVE_AUX+72+i) as *const u8)!=expected { return false; } i+=1;
+    }
+    return true;
+}
+// Optional absent pairs are zero/zero. A partial pair is an error, not a
+// silently disabled backend. Existing Linux's DTB/initrd registration remains
+// its independent native reload contract.
+pub unsafe fn register(p9_kernel:usize,p9_aux:usize,linux_kernel:usize,linux_dtb:usize,
+                       linux_initrd:usize,native_kernel:usize,native_aux:usize) -> u64 {
+    if READY!=0 { return 12; }
+    if (p9_kernel!=0 || p9_aux!=0) && (p9_kernel==0 || p9_aux==0 || p9_kernel>0x0100_0000 || p9_aux>0x0001_0000) { return 8; }
+    if (linux_kernel!=0 || linux_dtb!=0 || linux_initrd!=0)
+        && (linux_kernel==0 || linux_dtb==0 || linux_initrd==0 || linux_kernel>0x07e0_0000
+            || linux_dtb>0x0001_0000 || linux_initrd>0x0800_0000) { return 8; }
+    if (native_kernel!=0 || native_aux!=0) && (native_kernel==0 || native_kernel>0x0010_0000 || native_aux!=128) { return 8; }
+    if native_kernel!=0 && !native_aux_valid() { return 6; }
+    P9_KERNEL=p9_kernel; P9_AUX=p9_aux; LINUX_KERNEL=linux_kernel;
+    NATIVE_KERNEL=native_kernel; NATIVE_AUX_BYTES=native_aux; READY=1;
+    return 0;
+}
+pub unsafe fn backend(kernel:u64,aux:u64) -> u64 {
+    if READY!=1 { return 0; }
+    if kernel==1 && aux==2 && P9_KERNEL!=0 { return 2; }
+    if kernel==3 && aux==4 && LINUX_KERNEL!=0 { return 1; }
+    if kernel==5 && aux==6 && NATIVE_KERNEL!=0 { return 3; }
+    return 0;
+}
+pub unsafe fn kind(kernel:u64,aux:u64) -> u64 {
+    let selected:u64=backend(kernel,aux); if selected==0 { return 0; }
+    if selected==3 { return 3; } return 2;
+}
+pub unsafe fn bytes(kernel:u64,aux:u64) -> u64 {
+    let selected:u64=backend(kernel,aux); if selected==0 { return 0; }
+    if selected==3 { return 0x20_0000; } return 0x2000_0000;
+}
+pub unsafe fn entry_pc(kernel:u64,aux:u64) -> u64 {
+    let selected:u64=backend(kernel,aux); if selected==0 { return 0; }
+    if selected==2 { return 0x4010_0000; } return 0x4000_0000;
+}
+pub unsafe fn entry_x0(kernel:u64,aux:u64) -> u64 {
+    let selected:u64=backend(kernel,aux); if selected==1 { return 0x47e0_0000; }
+    if selected==2 { return 0x4000_0000; } if selected==3 { return 0x4010_0000; } return 0;
+}
+fn private_range(base:u64,count:u64) -> bool {
+    if count==0 || count>0x2000_0000 || (base&0x1f_ffff)!=0 || (count&0x1f_ffff)!=0 || base>MAX-count { return false; }
+    let end:u64=base+count;
+    return (base>=0x4800_0000 && end<=0x6800_0000)
+        || (base>=0xb000_0000 && end<=0xd000_0000)
+        || (base>=0xe220_0000 && end<=0xe240_0000)
+        || (base>=0xe260_0000 && end<=0x1_0000_0000);
+}
+pub unsafe fn zero(base:u64,count:u64) -> u64 {
+    if !private_range(base,count) { return 6; }
+    let mut address:usize=base as usize; let end:usize=(base+count) as usize;
+    while address<end { volatile_store(address as *mut u64,0); address+=8; }
+    return 0;
+}
+unsafe fn copy(destination:usize,source:usize,count:usize) -> void {
+    let mut offset:usize=0;
+    while count-offset>=8 {
+        volatile_store((destination+offset) as *mut u64,volatile_load((source+offset) as *const u64)); offset+=8;
+    }
+    while offset<count {
+        volatile_store((destination+offset) as *mut u8,volatile_load((source+offset) as *const u8)); offset+=1;
+    }
+}
+// Caller owns the stopped private range and has revoked every frontend. The
+// immutable e2400000..e2600000 window is never accepted as a guest target.
+pub unsafe fn load(kernel:u64,aux:u64,base:u64,count:u64) -> u64 {
+    let selected:u64=backend(kernel,aux);
+    if selected==0 { return 5; }
+    if count!=bytes(kernel,aux) || !private_range(base,count) { return 6; }
+    if selected==1 {
+        if base!=0x4800_0000 { return 6; } return linux_reload();
+    }
+    if selected==2 {
+        if base!=0xb000_0000 || volatile_load(0xd100_0000 as *const u32)!=0xedfe_0dd0 { return 6; }
+    }
+    if selected==3 && (base<0xe220_0000 || !native_aux_valid()) { return 6; }
+    let result:u64=zero(base,count); if result!=0 { return result; }
+    if selected==2 {
+        copy((base+0x0010_0000) as usize,0xd000_0000,P9_KERNEL);
+        copy(base as usize,0xd100_0000,P9_AUX);
+    } else {
+        copy(base as usize,0xe240_0000,NATIVE_KERNEL);
+        copy((base+0x0010_0000) as usize,NATIVE_AUX,NATIVE_AUX_BYTES);
+    }
+    return 0;
+}

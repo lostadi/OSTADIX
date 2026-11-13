@@ -35,6 +35,7 @@ LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
 sys.path.insert(0, str(ROOT / "scripts"))
 from okernel_native_volume import Volume
 import o10
+from o10_native_fixture import CONTRACT as NATIVE_FIXTURE, auxiliary_image as native_auxiliary_image
 
 PROTOCOL_SPEC = importlib.util.spec_from_file_location("original_plan9_protocol", ROOT / "ocore/guest/plan9/unified/protocol.py")
 protocol = importlib.util.module_from_spec(PROTOCOL_SPEC)
@@ -134,6 +135,15 @@ def validate_profile(profile: dict) -> None:
         required["loader_addresses"].update({"inputs/linux-recovery.Image": 0xd2000000,
                                              "inputs/linux-recovery.dtb": 0xe2000000,
                                              "inputs/linux-recovery.initramfs": 0xda000000})
+    if "domain_capacity" in profile:
+        required["domain_capacity"] = 8
+    if "native_fixture" in profile:
+        if profile.get("o10_qualification") is not True:
+            raise ValueError("native fixture requires a qualification build")
+        required["native_fixture"] = NATIVE_FIXTURE
+        required["loader_addresses"].update({
+            "inputs/native-fixture.kernel": NATIVE_FIXTURE["kernel_backup_pa"],
+            "inputs/native-fixture.aux": NATIVE_FIXTURE["aux_backup_pa"]})
     if "coordinator_uart" in profile:
         required["coordinator_uart"] = COORDINATOR_UART
     if "o10" in profile:
@@ -254,8 +264,8 @@ class UnifiedDomain:
         self.o10_claimed = False
         self.o10_pending = None
         self.o10_exchange_active = False
-        self.o10_plan9 = (1 << 32) | 1
-        self.o10_linux = 1 << 32
+        self.o10_plan9 = self.o10_linux = 0
+        self.domain_capacity = 2
         self.o10_linux_lease_generation = 1
         self.linux_recovery = None
         self.last_linux_poll = 0.0
@@ -295,6 +305,10 @@ class UnifiedDomain:
             manifest_file = self.build / "monitor-profile.json"
             manifest = json.loads(manifest_file.read_text())
             validate_profile(manifest)
+            self.domain_capacity = manifest.get("domain_capacity", 2)
+            boot = {row["name"]: row for row in manifest["domains"]}
+            self.o10_linux = (1 << 32) | boot["linux"]["id"]
+            self.o10_plan9 = (1 << 32) | boot["plan9"]["id"]
             self.idle_scheduler = manifest.get("idle_scheduler")
             self.linux_restart_witness_profile = manifest.get("linux_restart_witness")
             self.linux_restart_witness_pending = None
@@ -371,6 +385,15 @@ class UnifiedDomain:
             if self.recovery:
                 for address, value in ((0x6d000090, artifacts["inputs/plan9.kernel"].stat().st_size),
                                        (0x6d000098, artifacts["plan9.dtb"].stat().st_size)):
+                    command += ["-device", f"loader,addr={hex(address)},data={value},data-len=8"]
+            if "native_fixture" in manifest:
+                kernel = artifacts["inputs/native-fixture.kernel"]
+                aux = artifacts["inputs/native-fixture.aux"]
+                if (not 0 < kernel.stat().st_size <= NATIVE_FIXTURE["kernel_max_bytes"]
+                        or aux.read_bytes() != native_auxiliary_image()):
+                    raise ValueError("native fixture image exceeds its fixed boot contract")
+                for address, value in ((NATIVE_FIXTURE["kernel_bytes_address"], kernel.stat().st_size),
+                                       (NATIVE_FIXTURE["aux_bytes_address"], aux.stat().st_size)):
                     command += ["-device", f"loader,addr={hex(address)},data={value},data-len=8"]
             if self.linux_recovery:
                 for address, name in ((0x6d000100, "inputs/linux.Image"),
@@ -452,7 +475,7 @@ class UnifiedDomain:
                 self.record["provider_failure"] = {"error": str(error), "time": time.time(),
                                                     "counters": counters}
                 common.write_json(self.session / "result.json", self.record)
-                survivor = "Linux remains available." if counters["live_domains"] & 1 else "Linux is stopped."
+                survivor = "Linux remains available." if counters["live_domains"] & (1 << (self.o10_linux & 0xffffffff)) else "Linux is stopped."
                 os.write(sys.stdout.fileno(), ("\r\nPlan 9 provider withdrawn: " + str(error) +
                          "\r\n" + survivor + " Save and restart to restore Plan 9; pending work is not replayed.\r\n").encode())
 
@@ -857,7 +880,7 @@ class UnifiedDomain:
             generation = self.o10_linux >> 32
             if error.code != o10.O10_ESTALE or not generation < error.detail <= 0xffffffff:
                 raise
-            self.o10_linux = error.detail << 32
+            self.o10_linux = (error.detail << 32) | (self.o10_linux & 0xffffffff)
             return self.o10_call("Tstat", dom=self.o10_linux)
 
     def recover_linux(self):
@@ -938,7 +961,7 @@ class UnifiedDomain:
         # bound to exact current-generation requests and completed captures.
         if not self.native_store_ready:
             return
-        if self.provider_ready and not (self.counters()["live_domains"] & 2):
+        if self.provider_ready and not (self.counters()["live_domains"] & (1 << (self.o10_plan9 & 0xffffffff))):
             raise RuntimeError("the original Plan9 domain was withdrawn")
         volume = self.native_volume()
         service = self.service
@@ -979,10 +1002,11 @@ class UnifiedDomain:
         try:
             if self.guest_coordinator_online:
                 self.coordinator_update(state="recovering")
+            survivors = self.counters()["live_domains"] & ~(1 << (self.o10_plan9 & 0xffffffff))
             self.native_control(1)
             withdrawn = self.counters()
-            if withdrawn["live_domains"] != 1:
-                raise RuntimeError("Plan9 withdrawal did not preserve only the Linux domain")
+            if withdrawn["live_domains"] != survivors:
+                raise RuntimeError("Plan9 withdrawal changed a surviving domain")
             # Preserve the exact common objects at withdrawal, so lifecycle
             # tests can distinguish preexisting effects from later effects.
             captured = self.native_volume()
@@ -1108,6 +1132,9 @@ class UnifiedDomain:
         path = self.session / "native-status.bin"
         self.qmp.execute("pmemsave", {"val": 0x6d000020, "size": 80, "filename": str(path)})
         live, switches, linux, plan9, linux_pc, plan9_pc, linux_esr, plan9_esr, console, dropped = struct.unpack("<10Q", path.read_bytes())
+        allowed = (1 << getattr(self, "domain_capacity", 2)) - 1
+        if live & ~allowed:
+            raise RuntimeError("invalid native domain table state")
         result = {"live_domains": live, "switches": switches, "linux_exits": linux, "plan9_exits": plan9,
                 "linux_pc": hex(linux_pc), "plan9_pc": hex(plan9_pc), "linux_esr": hex(linux_esr), "plan9_esr": hex(plan9_esr),
                 "console": console, "input_dropped": dropped}
@@ -1115,7 +1142,7 @@ class UnifiedDomain:
             self.qmp.execute("pmemsave", {"val": IDLE_SCHEDULER["blocked_mask_address"], "size": 40,
                                          "filename": str(path)})
             blocked, waits, requests, sent, received = struct.unpack("<5Q", path.read_bytes())
-            if blocked & ~3:
+            if blocked & ~allowed:
                 raise RuntimeError("invalid native idle scheduler state")
             result.update(blocked_domains=blocked, native_idle_waits=waits,
                           plan9_9p_requests=requests, plan9_9p_request_bytes=sent,
@@ -1127,10 +1154,12 @@ class UnifiedDomain:
         # its original console interrupt key; the host does not substitute an
         # original engine or mistake echoed input for a completed command.
         live = self.counters()["live_domains"]
-        if live == 1 and self.provider_failed:
+        linux_mask = 1 << (self.o10_linux & 0xffffffff)
+        plan9_mask = 1 << (self.o10_plan9 & 0xffffffff)
+        if live & linux_mask and not live & plan9_mask and self.provider_failed:
             self.record["plan9_save_state"] = "native authority withdrawn; no Plan9 operations remain"
         else:
-            if live != 3:
+            if live & (linux_mask | plan9_mask) != linux_mask | plan9_mask:
                 raise RuntimeError("save requires both live shells or verified Plan9 withdrawal")
             for attempt in range(2):
                 token = "PLAN9_SAVE_READY_" + uuid.uuid4().hex

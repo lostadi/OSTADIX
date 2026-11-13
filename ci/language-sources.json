@@ -835,10 +835,12 @@
       ],
       "sources": [
         "ocore/runtime/aarch64/coordinator_uart.oc",
+        "ocore/runtime/aarch64/domain_images.oc",
         "ocore/runtime/aarch64/domain_table.oc",
         "ocore/runtime/aarch64/kernel_world_9p.oc",
         "ocore/runtime/aarch64/kernel_world_net.oc",
         "ocore/runtime/aarch64/kernel_world_net_host.oc",
+        "ocore/runtime/aarch64/native_namespace_uart.oc",
         "ocore/runtime/aarch64/plan9_namespace_uart.oc",
         "ocore/runtime/aarch64/unified_gic.oc",
         "ocore/runtime/aarch64/unified_world.oc"

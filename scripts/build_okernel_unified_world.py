@@ -20,6 +20,9 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import build_o10_native_fixture as native_fixture_builder
+from o10_native_fixture import CONTRACT as NATIVE_FIXTURE
 LINUX_WITNESS = {"operation": 11, "action_address": 0x6d000118,
                  "address": 0x6d0b0000, "bytes": 0x50000,
                  "header_bytes": 128, "record_bytes": 576, "max_fids": 512}
@@ -28,6 +31,8 @@ SOURCES = (
     "ocore/runtime/aarch64/unified_world.oc",
     "ocore/runtime/aarch64/unified_gic.oc",
     "ocore/runtime/aarch64/domain_table.oc",
+    "ocore/runtime/aarch64/domain_images.oc",
+    "ocore/runtime/aarch64/native_namespace_uart.oc",
     "ocore/runtime/aarch64/linux_domain_images.oc",
     "ocore/runtime/aarch64/linux_restart_witness.oc",
     "ocore/runtime/aarch64/kernel_world_monitor.oc",
@@ -447,7 +452,9 @@ def linux_recovery_contract(kernel_bytes: int, dtb_bytes: int, initrd_bytes: int
 
 def build(payload: Path, plan9: Path, derivation: Path, output: Path, compiler: Path,
           clang: str, lld: str, dtc: str, *, plan9_recovery: bool = False,
-          o10_qualification: bool = False) -> dict:
+          o10_qualification: bool = False, o10_native_fixture: bool = False) -> dict:
+    if o10_native_fixture and not o10_qualification:
+        raise ValueError("native test image requires an explicit O10 qualification build")
     if output.exists() or output.is_symlink():
         raise ValueError("unified output must be a new isolated directory")
     metadata = json.loads((payload / "linux-payload.json").read_text())
@@ -551,12 +558,19 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
     if admitted["admission_kind"] == "qualified-original-userland":
         tracked += ["scripts/build_okernel_plan9_userland.py", "scripts/build_okernel_plan9_original.py",
                     "scripts/plan9_userland_admission.py"]
+    if o10_native_fixture:
+        tracked += [*native_fixture_builder.SOURCES, "scripts/build_o10_native_fixture.py",
+                    "scripts/o10_native_fixture.py"]
     before = {name: fingerprint(ROOT / name) for name in tracked}
     if before["ocore/guest/linux/package-domain/init"] != initrd_derivation["original_init_sha256"]:
         raise ValueError("original Linux init template changed during derivation")
     if (admitted["admission_kind"] == "qualified-original-userland"
             and before["scripts/plan9_userland_admission.py"] != admitted["provider_admission"]["export_verifier"]["sha256"]):
         raise ValueError("read-only Plan9 verifier changed before build capture")
+    if o10_native_fixture:
+        native_fixture_builder.build(output / "native-fixture", str(tools["clang"]), str(tools["lld"]))
+        capture(output / "native-fixture/fixture.bin", inputs / "native-fixture.kernel")
+        capture(output / "native-fixture/fixture.aux", inputs / "native-fixture.aux")
     for command in commands:
         subprocess.run(command, check=True)
     linux_recovery = linux_recovery_contract((inputs / "linux.Image").stat().st_size,
@@ -588,6 +602,10 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
                   "inputs/linux-payload.json", "inputs/plan9.uimage", "inputs/plan9.kernel",
                   "inputs/plan9-derivation.json")}
     artifacts.update(userland_captures)
+    if o10_native_fixture:
+        for name in ("inputs/native-fixture.kernel", "inputs/native-fixture.aux",
+                     "native-fixture/build.json", "native-fixture/fixture.elf", "native-fixture/fixture.su"):
+            artifacts[name] = identity(output / name, output)
     for name in ("inputs/linux-recovery.Image", "inputs/linux-recovery.dtb", "inputs/linux-recovery.initramfs"):
         artifacts[name] = identity(output / name, output)
     if recovery is not None:
@@ -597,6 +615,7 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
         "schema": "ostadix.unified-world-monitor/v1", "profile": "linux-original-plan9",
         "scope": "native O-core two-domain EL2 profile for original Linux/9front; build alone is not live acceptance or foreign-engine lowering",
         "outer_ram_bytes": 0xc0000000,
+        "domain_capacity": 8,
         "domains": [
             {"id": 0, "name": "linux", "guest_ram_ipa": 0x40000000, "guest_ram_pa": 0x48000000,
              "guest_ram_bytes": 0x20000000, "entry": 0x40000000, "x0": 0x47e00000, "vmid": 1},
@@ -643,6 +662,11 @@ pub const O10_QUALIFICATION: u64 = {1 if o10_qualification else 0};
         manifest["plan9_recovery"] = recovery
         manifest["loader_addresses"].update({"inputs/plan9-recovery.kernel": recovery["kernel_backup_address"],
                                              "inputs/plan9-recovery.dtb": recovery["dtb_backup_address"]})
+    if o10_native_fixture:
+        manifest["native_fixture"] = dict(NATIVE_FIXTURE)
+        manifest["loader_addresses"].update({
+            "inputs/native-fixture.kernel": NATIVE_FIXTURE["kernel_backup_pa"],
+            "inputs/native-fixture.aux": NATIVE_FIXTURE["aux_backup_pa"]})
     (output / "monitor-profile.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print("Unified O-core profile built: " + str(output / "monitor.elf"))
     return manifest
@@ -660,11 +684,14 @@ def main() -> int:
     parser.add_argument("--dtc", default="dtc")
     parser.add_argument("--plan9-recovery", action="store_true", help="provision private native Plan9 pause/restart backup windows")
     parser.add_argument("--o10-qualification", action="store_true", help="admit host-private O10 fault injection; production defaults off")
+    parser.add_argument("--o10-native-fixture", action="store_true",
+                        help="include the immutable native EL1 third-domain qualification image")
     args = parser.parse_args()
     try:
         build(args.payload.resolve(), args.plan9_kernel.resolve(), args.derivation_receipt.resolve(),
               args.output.absolute(), args.ocorec.resolve(), args.clang, args.lld, args.dtc,
-              plan9_recovery=args.plan9_recovery, o10_qualification=args.o10_qualification)
+              plan9_recovery=args.plan9_recovery, o10_qualification=args.o10_qualification,
+              o10_native_fixture=args.o10_native_fixture)
         return 0
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print("Unified profile build failed: " + str(error), file=sys.stderr)

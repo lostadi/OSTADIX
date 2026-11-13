@@ -26,6 +26,7 @@ extern _Bool T(live)(uint64_t),T(runnable)(uint64_t);
 extern uint64_t T(block)(uint64_t),T(wake)(uint64_t),T(fault)(uint64_t),T(withdraw)(uint64_t);
 extern uint64_t T(next_generation)(uint64_t),T(restored)(uint64_t,uint64_t,const unsigned char*),T(bound)(uint64_t);
 extern void T(test_generation)(uint64_t,uint64_t);
+extern uint64_t T(empty_slot)(void),T(set_entry)(uint64_t,uint64_t,uint64_t),T(start)(uint64_t,const unsigned char*),T(destroy)(uint64_t);
 static void admit(unsigned slot,unsigned kind,unsigned backend){
  uint64_t pa=UINT64_C(0xe2600000)+slot*UINT64_C(0x200000);
  assert(T(boot)(slot,kind,backend,pa,0x200000,5+slot,0)==1);
@@ -95,8 +96,28 @@ static void replacement_identity_and_retirement(void){
  assert(!T(boot)(2,2,2,0xe2a00000,0x200000,7,0));
  assert(!T(state)(8)&&!T(generation)(8)&&T(retired)(8)&&T(lookup)(UINT64_MAX)==8);
 }
+static void provisioning_and_destruction(void){
+ unsigned char instance[16];memset(instance,0x5b,16);
+ uint64_t old=T(handle)(0);
+ assert(T(destroy)(old)&&!T(handle)(0)&&T(lookup)(old)==8&&T(empty_slot)()==0);
+ assert(T(generation)(0)==2&&!T(kind)(0)&&!T(ram_base)(0));
+ for(unsigned i=0;i<16;i++)assert(!T(instance_byte)(0,i));
+ assert(!T(destroy)(old)&&!T(set_entry)(old,0x40000000,0)&&!T(start)(old,instance));
+ assert(T(boot)(0,3,3,0xe2600000,0x200000,5,6));
+ uint64_t fresh=T(handle)(0);assert(fresh==((2ull<<32)|0)&&T(state)(0)==1);
+ assert(!T(start)(fresh,instance)&&!T(set_entry)(fresh,0x40200000,0));
+ assert(!T(set_entry)(fresh,0x40000001,0)&&T(state)(0)==1);
+ assert(T(set_entry)(fresh,0x40000000,0x40100000)&&T(state)(0)==1);
+ assert(T(start)(fresh,instance)&&T(state)(0)==2&&!T(start)(fresh,instance));
+ for(unsigned i=0;i<16;i++)assert(T(instance_byte)(0,i)==0x5b);
+ assert(T(destroy)(fresh)&&T(generation)(0)==3);
+ assert(T(boot)(0,3,3,0xe2600000,0x200000,5,6));
+ T(test_generation)(0,0xffffffff);assert(T(destroy)(T(handle)(0)));
+ assert(T(retired)(0)&&!T(handle)(0)&&T(empty_slot)()==8);
+ assert(!T(boot)(0,3,3,0xe2600000,0x200000,5,6));
+}
 int main(void){
- invalid_and_closed();ownership_and_round_robin();replacement_identity_and_retirement();
+ invalid_and_closed();ownership_and_round_robin();replacement_identity_and_retirement();provisioning_and_destruction();
  puts("eight-row checked state, ownership, scheduler, replacement and exhaustion: PASS");
  return 0;
 }

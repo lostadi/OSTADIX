@@ -1,5 +1,28 @@
 module runtime::aarch64::unified_world;
 
+use runtime::aarch64::domain_table::empty_slot as d_empty_slot;
+use runtime::aarch64::domain_table::set_entry as d_set_entry;
+use runtime::aarch64::domain_table::start as d_start;
+use runtime::aarch64::domain_table::destroy as d_destroy;
+use runtime::aarch64::domain_images::register as images_register;
+use runtime::aarch64::domain_images::backend as images_backend;
+use runtime::aarch64::domain_images::kind as images_kind;
+use runtime::aarch64::domain_images::bytes as images_bytes;
+use runtime::aarch64::domain_images::entry_pc as images_entry_pc;
+use runtime::aarch64::domain_images::entry_x0 as images_entry_x0;
+use runtime::aarch64::domain_images::load as images_load;
+use runtime::aarch64::domain_images::zero as images_zero;
+use runtime::aarch64::native_namespace_uart::provision as native_wire_provision;
+use runtime::aarch64::native_namespace_uart::replace as native_wire_replace;
+use runtime::aarch64::native_namespace_uart::bind as native_wire_bind;
+use runtime::aarch64::native_namespace_uart::revoke as native_wire_revoke;
+use runtime::aarch64::native_namespace_uart::retire as native_wire_retire;
+use runtime::aarch64::native_namespace_uart::session as native_wire_session;
+use runtime::aarch64::native_namespace_uart::healthy as native_wire_healthy;
+use runtime::aarch64::native_namespace_uart::diagnostic as native_wire_diagnostic;
+use runtime::aarch64::native_namespace_uart::mmio_read as native_wire_mmio_read;
+use runtime::aarch64::native_namespace_uart::mmio_write as native_wire_mmio_write;
+
 use runtime::aarch64::domain_table::boot as d_boot;
 use runtime::aarch64::domain_table::boot_start as d_boot_start;
 use runtime::aarch64::domain_table::state as d_state;
@@ -38,6 +61,7 @@ use runtime::aarch64::kernel_world_virtio::generation as linux_block_generation;
 use runtime::aarch64::kernel_world_net::generation as linux_net_generation;
 use runtime::aarch64::kernel_world_9p::generation as linux_namespace_generation;
 use runtime::aarch64::kernel_world_9p::bind_current as linux_bind;
+use runtime::aarch64::kernel_world_9p::bound as linux_namespace_bound;
 use runtime::aarch64::kernel_world_9p::next_session_epoch as linux_next_session_epoch;
 use runtime::aarch64::linux_domain_images::register as linux_images_register;
 use runtime::aarch64::linux_domain_images::reload as linux_images_reload;
@@ -84,6 +108,9 @@ use runtime::common::namespace_store::session_fid_count;
 use runtime::common::namespace_store::revoke as namespace_revoke;
 use runtime::aarch64::kernel_world_profile::O10_QUALIFICATION;
 
+extern "ocore" fn uw_domain_configure(domain:u64,base:u64,bytes:u64) -> u64;
+extern "ocore" fn uw_domain_unconfigure(domain:u64) -> u64;
+extern "ocore" fn uw_domain_configured(domain:u64) -> u64;
 extern "ocore" fn uw_domain_init(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
 extern "ocore" fn uw_domain_reset(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
 extern "ocore" fn uw_current_domain() -> u64;
@@ -104,6 +131,7 @@ extern "ocore" fn uw_halt() -> never;
 const DOMAINS: u64 = 8;
 const BACKEND_LINUX: u64 = 1;
 const BACKEND_PLAN9: u64 = 2;
+const BACKEND_NATIVE: u64 = 3;
 const MAX: u64 = 0xffff_ffff_ffff_ffff;
 static ONLINE: [u8; 35] = b"KW unified Linux/Plan9 EL2: online\n";
 static FAIL: [u8; 27] = b"KW unified domain failure: ";
@@ -135,6 +163,9 @@ static mut INPUT_DROPPED: u64 = 0;
 static mut LINUX_DETACHED: u64 = 0;
 static mut LINUX_LEASE_RETIRED: u64 = 0;
 static mut PLAN9_LEASE_RETIRED: u64 = 0;
+static mut NATIVE_GRANT_HOLDER:u64=0;
+static mut NATIVE_LEASE_GENERATION:u64=1;
+static mut NATIVE_LEASE_RETIRED:u64=0;
 static mut LINUX_LEASE_GENERATION: u64 = 1;
 static mut LINUX_SESSION_GENERATION: u64 = 1;
 static mut O10_SWITCHES: [u64; 8] = [0; 8];
@@ -173,6 +204,7 @@ unsafe fn configure_irqs(domain: u64, generation: u64) -> u64 {
     if d_backend(domain) == BACKEND_PLAN9 {
         return gic_configure(domain, generation, 1 << 50, 1 << 33, 0, 0);
     }
+    if d_backend(domain)==BACKEND_NATIVE { return gic_configure(domain,generation,1<<50,0,0,0); }
     return 0;
 }
 // A WFI-blocked holder can receive input and wake. A replacement waiting for
@@ -204,6 +236,7 @@ unsafe fn backend_irq(which: u64, transport: u64, irq: u64, asserted: u64) -> vo
 unsafe fn grant_for(domain: u64) -> u64 {
     if d_backend(domain) == BACKEND_LINUX { return 1; }
     if d_backend(domain) == BACKEND_PLAN9 { return 4; }
+    if d_backend(domain) == BACKEND_NATIVE && NATIVE_GRANT_HOLDER==d_handle(domain) { return 3; }
     return 0;
 }
 
@@ -272,6 +305,120 @@ unsafe fn hex(value: u64) -> void {
         if shift == 0 { break; } shift -= 4;
     }
 }
+unsafe fn advance_native_lease() -> void {
+    if NATIVE_LEASE_GENERATION==0xffff_ffff { NATIVE_LEASE_RETIRED=1; }
+    else { NATIVE_LEASE_GENERATION+=1; }
+}
+@export
+@no_mangle
+pub unsafe fn native_namespace_irq_level(holder:u64,asserted:u64) -> void {
+    let domain:u64=d_lookup(holder);
+    if domain>=DOMAINS || !d_live(domain) {
+        if asserted!=0 { uw_internal_failure(0x1109,0x1121,BACKEND_NATIVE,50); }return;
+    }
+    if d_backend(domain)!=BACKEND_NATIVE || NATIVE_GRANT_HOLDER!=holder
+        || set_transport_level(domain,d_generation(domain),0,50,asserted)!=1 {
+        uw_internal_failure(0x1109,0x1122,domain,50);
+    }
+}
+unsafe fn free_range(base:u64,bytes:u64) -> bool {
+    let mut slot:u64=0;
+    while slot<DOMAINS {
+        if d_state(slot)!=0 && base<d_ram_base(slot)+d_ram_bytes(slot) && d_ram_base(slot)<base+bytes { return false; }
+        slot+=1;
+    }return true;
+}
+unsafe fn allocation(backend:u64,bytes:u64) -> u64 {
+    if backend==BACKEND_LINUX { if free_range(0x4800_0000,bytes) { return 0x4800_0000; }return 0; }
+    if backend==BACKEND_PLAN9 { if free_range(0xb000_0000,bytes) { return 0xb000_0000; }return 0; }
+    if backend!=BACKEND_NATIVE { return 0; }
+    let mut region:u64=0;
+    while region<DOMAINS {
+        let mut base:u64=0xe220_0000;
+        if region!=0 { base=0xe240_0000+region*0x20_0000; }
+        if free_range(base,bytes) { return base; }region+=1;
+    }return 0;
+}
+unsafe fn create_domain(request:*const u8,response:*mut u8,tag:u64) -> usize {
+    let kind:u64=o10_read(request,23,1);
+    let kernel:u64=o10_read(request,24,8);let auxiliary:u64=o10_read(request,32,8);
+    let bytes:u64=o10_read(request,40,8);let cpus:u64=o10_read(request,48,2);
+    if kind!=2 && kind!=3 { return o10_error(response,512,tag,9,0); }
+    if cpus!=1 { return o10_error(response,512,tag,9,0); }
+    let selected:u64=images_backend(kernel,auxiliary);
+    if selected==0 { return o10_error(response,512,tag,5,0); }
+    if images_kind(kernel,auxiliary)!=kind { return o10_error(response,512,tag,6,0); }
+    let required:u64=images_bytes(kernel,auxiliary);
+    if bytes!=required { return o10_error(response,512,tag,8,required); }
+    if (selected==BACKEND_LINUX && d_owner(BACKEND_LINUX)!=0)
+        || (selected==BACKEND_PLAN9 && d_owner(BACKEND_PLAN9)!=0)
+        || (selected==BACKEND_NATIVE && NATIVE_GRANT_HOLDER!=0) {
+        return o10_error(response,512,tag,7,0);
+    }
+    if selected==BACKEND_LINUX && (linux_block_generation()==0xffff_ffff
+        || linux_net_generation()==0xffff_ffff || linux_namespace_generation()==MAX) {
+        return o10_error(response,512,tag,8,0xffff_ffff);
+    }
+    if (selected==BACKEND_NATIVE && NATIVE_LEASE_RETIRED!=0)
+        || (selected==BACKEND_LINUX && LINUX_LEASE_RETIRED!=0)
+        || (selected==BACKEND_PLAN9 && PLAN9_LEASE_RETIRED!=0) {
+        return o10_error(response,512,tag,8,0xffff_ffff);
+    }
+    let slot:u64=d_empty_slot();if slot==DOMAINS { return o10_error(response,512,tag,8,DOMAINS); }
+    let base:u64=allocation(selected,bytes);if base==0 { return o10_error(response,512,tag,8,DOMAINS); }
+    if uw_domain_configured(slot)!=0 || uw_domain_configure(slot,base,bytes)!=1 {
+        uw_internal_failure(0x1109,0x1130,slot,base);
+    }
+    let loaded:u64=images_load(kernel,auxiliary,base,bytes);
+    if loaded!=0 {
+        if uw_domain_unconfigure(slot)!=1 { uw_internal_failure(0x1109,0x1131,slot,loaded); }
+        return o10_error(response,512,tag,loaded,0);
+    }
+    if d_boot(slot,kind,selected,base,bytes,kernel,auxiliary)!=1 {
+        uw_internal_failure(0x1109,0x1132,slot,selected);
+    }
+    let holder:u64=d_handle(slot);let pc:u64=images_entry_pc(kernel,auxiliary);let x0:u64=images_entry_x0(kernel,auxiliary);
+    if d_set_entry(holder,pc,x0)!=1 || uw_domain_init(slot,pc,x0,0x3c5)!=1
+        || configure_irqs(slot,d_generation(slot))!=1 { uw_internal_failure(0x1109,0x1133,slot,holder); }
+    if selected==BACKEND_LINUX {
+        if linux_provision(linux_block_generation()+1,linux_net_generation()+1,linux_namespace_generation()+1)!=1
+            || coordinator_init()!=1 { uw_internal_failure(0x1109,0x1134,slot,holder); }
+        LINUX_DETACHED=0;
+    }
+    if selected==BACKEND_PLAN9 && gic_write(slot,0x080a_0014,4,0)!=1 {
+        uw_internal_failure(0x1109,0x1135,slot,holder);
+    }
+    if selected==BACKEND_NATIVE {
+        if native_wire_provision(holder)!=1 { uw_internal_failure(0x1109,0x1136,slot,holder); }
+        NATIVE_GRANT_HOLDER=holder;
+    }
+    EXITS[slot as usize]=0;LAST_PC[slot as usize]=0;LAST_ESR[slot as usize]=0;
+    O10_SWITCHES[slot as usize]=0;O10_LAST_IPA[slot as usize]=0;
+    o10_header(response,169,tag,15);o10_write(response,7,holder,8);return 15;
+}
+unsafe fn destroy_domain(holder:u64,response:*mut u8,tag:u64) -> usize {
+    let slot:u64=d_lookup(holder);
+    if slot==DOMAINS { return o10_error(response,512,tag,5,d_generation(holder&0xffff_ffff)); }
+    let old_state:u64=d_state(slot);let selected:u64=d_backend(slot);
+    if d_live(slot) && d_withdraw(slot)!=1 { uw_internal_failure(0x1109,0x1137,slot,old_state); }
+    if selected==BACKEND_LINUX { stop_linux(LAST_PC[slot as usize]); }
+    if selected==BACKEND_PLAN9 {
+        if old_state==1 || old_state==2 || old_state==3 {
+            if O10_LEASE_GENERATION==0xffff_ffff { PLAN9_LEASE_RETIRED=1; }else { O10_LEASE_GENERATION+=1; }
+        }
+        stop_plan9_input();plan9_wire_revoke();
+    }
+    if selected==BACKEND_NATIVE && NATIVE_GRANT_HOLDER==holder {
+        if old_state==1 || old_state==2 || old_state==3 { advance_native_lease(); }
+        if native_wire_retire(holder)!=1 { uw_internal_failure(0x1109,0x1138,slot,holder); }
+        NATIVE_GRANT_HOLDER=0;
+    }
+    close_irqs(slot);
+    if images_zero(d_ram_base(slot),d_ram_bytes(slot))!=0 || uw_domain_unconfigure(slot)!=1
+        || d_destroy(holder)!=1 { uw_internal_failure(0x1109,0x1139,slot,holder); }
+    o10_header(response,177,tag,15);o10_write(response,7,holder,8);return 15;
+}
+
 unsafe fn stop_linux(pc: u64) -> void {
         if LINUX_DETACHED == 0 {
             if LINUX_LEASE_GENERATION < 0xffff_ffff { LINUX_LEASE_GENERATION += 1; }
@@ -299,6 +446,10 @@ unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
         if O10_LEASE_GENERATION < 0xffff_ffff { O10_LEASE_GENERATION += 1; }
         else { PLAN9_LEASE_RETIRED = 1; }
         plan9_wire_revoke();
+    }
+    if d_backend(domain)==BACKEND_NATIVE && NATIVE_GRANT_HOLDER==d_handle(domain) {
+        advance_native_lease();
+        if native_wire_revoke(d_handle(domain))!=1 { uw_internal_failure(0x1109,0x113a,domain,0); }
     }
     close_irqs(domain);
 }
@@ -467,6 +618,10 @@ pub unsafe fn uw_init() -> u64 {
     if linux_images_register(0xd200_0000, volatile_load(0x6d00_0100 as *const u64) as usize,
             0xe200_0000, volatile_load(0x6d00_0108 as *const u64) as usize,
             0xda00_0000, volatile_load(0x6d00_0110 as *const u64) as usize) != 0 { return 0; }
+    if images_register(volatile_load(0x6d00_0090 as *const u64) as usize,volatile_load(0x6d00_0098 as *const u64) as usize,
+        volatile_load(0x6d00_0100 as *const u64) as usize,volatile_load(0x6d00_0108 as *const u64) as usize,
+        volatile_load(0x6d00_0110 as *const u64) as usize,volatile_load(0x6d00_0120 as *const u64) as usize,
+        volatile_load(0x6d00_0128 as *const u64) as usize)!=0 { return 0; }
     busy(1);
     if volatile_load(0xb000_0000 as *const u32) != 0xedfe_0dd0
         || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 { return 0; }
@@ -586,6 +741,25 @@ unsafe fn plan9_mmio(frame: *mut u64, esr: u64, ipa: u64) -> bool {
     }
     volatile_store(frame + 31, volatile_load(frame + 31) + 4); return true;
 }
+unsafe fn native_mmio(domain:u64,frame:*mut u64,esr:u64,ipa:u64) -> bool {
+    if (esr&(1<<24))==0 || (esr&(1<<25))==0 || (esr&(1<<10))!=0 || (esr&(1<<7))!=0 { return false; }
+    let width:u64=1<<(((esr>>22)&3) as usize);
+    if width!=4 || (ipa&3)!=0 || ipa<0x0900_1000 || ipa+width>0x0900_2000 { return false; }
+    let reg:usize=((esr>>16)&31) as usize;let holder:u64=d_handle(domain);
+    if (esr&64)!=0 {
+        let mut value:u64=0;if reg!=31 { value=volatile_load(frame+reg); }
+        if native_wire_mmio_write(holder,ipa-0x0900_1000,value&0xffff_ffff)!=1 { return false; }
+    }else {
+        let mut value:u64=native_wire_mmio_read(holder,ipa-0x0900_1000);
+        if value==MAX { return false; }value&=0xffff_ffff;
+        if (esr&(1<<21))!=0 && (value&(1<<31))!=0 { value|=0xffff_ffff_0000_0000; }
+        if (esr&(1<<15))==0 { value&=0xffff_ffff; }
+        if reg!=31 { volatile_store(frame+reg,value); }
+    }
+    if native_wire_healthy(holder)!=1 { return false; }
+    volatile_store(frame+31,volatile_load(frame+31)+4);return true;
+}
+
 unsafe fn controller_mmio(domain: u64, frame: *mut u64, esr: u64, ipa: u64) -> bool {
     if (esr & (1 << 24)) == 0 || (esr & (1 << 25)) == 0
         || (esr & (1 << 10)) != 0 || (esr & (1 << 7)) != 0 { return false; }
@@ -661,6 +835,8 @@ unsafe fn progress() -> void {
 // Qualification sideband op11 action at0x6d000118..11f, output
 // 0x6d0b0000..0x6d0fffff, EL2/host-only outside ALL guest stage-2 maps.
 // No guest receives this region; op11 never accepts caller authority names.
+// Native image5/aux6 lengths at0x6d000120..12f are boot-only metadata;
+// immutable e2400000..e2600000 is excluded from every guest RAM allocator.
 // Linux immutable image lengths at0x6d000100..117 are boot-only metadata;
 // private backup windows d200..da00,da00..e200,e200..e201 are never guest mapped.
 unsafe fn o10_domain(handle: u64) -> u64 {
@@ -669,6 +845,15 @@ unsafe fn o10_domain(handle: u64) -> u64 {
 unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
     let message: u64 = o10_read(request, 4, 1);
     let tag: u64 = o10_read(request, 5, 2);
+    if message==168 { return create_domain(request,response,tag); }
+    if message==176 { return destroy_domain(o10_read(request,23,8),response,tag); }
+    if message==170 {
+        let holder:u64=o10_read(request,23,8);let slot:u64=d_lookup(holder);
+        if slot==DOMAINS { return o10_error(response,512,tag,5,d_generation(holder&0xffff_ffff)); }
+        if d_state(slot)!=1 { return o10_error(response,512,tag,12,d_state(slot)); }
+        if d_start(holder,request+31)!=1 { uw_internal_failure(0x1109,0x113b,slot,holder); }
+        o10_header(response,171,tag,15);o10_write(response,7,holder,8);return 15;
+    }
     if message == 196 {
         if O10_QUALIFICATION != 1 { return o10_error(response, 512, tag, 9, 0); }
         let handle: u64 = o10_read(request, 23, 8);
@@ -715,22 +900,39 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
                 if was_live { O10_LEASE_GENERATION += 1; plan9_wire_revoke(); }
                 stop_plan9_input();
             }
+            if backend==BACKEND_NATIVE && NATIVE_GRANT_HOLDER==handle {
+                if was_live { advance_native_lease(); }
+                if native_wire_revoke(handle)!=1 { uw_internal_failure(0x1109,0x113c,index,handle); }
+            }
             close_irqs(index);
             o10_header(response, 173, tag, 27); o10_write(response, 7, handle, 8);
             o10_write(response, 15, sessions, 4); o10_write(response, 19, sessions, 4);
             o10_write(response, 23, fids, 4); return 27;
         }
         if d_state(index) != 4 && d_state(index) != 5 { return o10_error(response, 512, tag, 12, d_state(index)); }
-        // Until the independently admitted image/backend registry exists, only
-        // these two immutable boot backends are restorable. Every other row
-        // fails before RAM, IRQs or identity changes.
-        if backend != BACKEND_LINUX && backend != BACKEND_PLAN9 { return o10_error(response, 512, tag, 9, 0); }
+        // Existing whole-kernel backends and the explicitly held native fixture
+        // use their registered immutable images. Unowned native rows fail
+        // before RAM, IRQs or identity changes.
+        if backend!=BACKEND_LINUX && backend!=BACKEND_PLAN9
+            && (backend!=BACKEND_NATIVE || NATIVE_GRANT_HOLDER!=handle) { return o10_error(response,512,tag,9,0); }
         if o10_read(request, 47, 8) != d_kernel_image(index) || o10_read(request, 55, 8) != d_aux_image(index) {
             return o10_error(response, 512, tag, 5, 0);
         }
         let fresh: u64 = d_next_generation(index);
         if fresh == 0 { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
-        if backend == BACKEND_LINUX {
+        if backend==BACKEND_NATIVE {
+            if NATIVE_LEASE_RETIRED!=0 { return o10_error(response,512,tag,8,0xffff_ffff); }
+            let loaded:u64=images_load(d_kernel_image(index),d_aux_image(index),d_ram_base(index),d_ram_bytes(index));
+            if loaded!=0 { return o10_error(response,512,tag,loaded,0); }
+            let new_holder:u64=(fresh<<32)|index;
+            if uw_domain_reset(index,d_entry_pc(index),d_entry_x0(index),0x3c5)!=1
+                || native_wire_replace(handle,new_holder)!=1 { uw_internal_failure(0x1109,0x113d,index,new_holder); }
+            close_irqs(index);
+            if configure_irqs(index,fresh)!=1 || d_restored(index,d_generation(index),request+31)!=1 {
+                uw_internal_failure(0x1109,0x113e,index,new_holder);
+            }
+            NATIVE_GRANT_HOLDER=new_holder;
+        }else { if backend == BACKEND_LINUX {
             if LINUX_DETACHED != 1 { return o10_error(response, 512, tag, 12, d_state(index)); }
             if LINUX_LEASE_RETIRED != 0 || linux_block_generation() == 0xffff_ffff
                 || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == MAX {
@@ -740,6 +942,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
             if uw_domain_reset(index, d_entry_pc(index), d_entry_x0(index), 0x3c5) != 1
                 || linux_provision(linux_block_generation() + 1, linux_net_generation() + 1, linux_namespace_generation() + 1) != 1
                 || coordinator_init() != 1 { uw_internal_failure(0x1109, 0x1115, index, LAST_PC[index as usize]); }
+            LINUX_DETACHED=0;
             close_irqs(index);
             if configure_irqs(index, fresh) != 1
                 || d_restored(index, d_generation(index), request + 31) != 1 {
@@ -748,6 +951,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         } else {
             if PLAN9_LEASE_RETIRED != 0 { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
             if restore_plan9(index, request + 31) != 1 { return o10_error(response, 512, tag, 12, 4); }
+        }
         }
         o10_header(response, 175, tag, 15); o10_write(response, 7, d_handle(index), 8); return 15;
     }
@@ -759,13 +963,27 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         let mut generation: u64 = 0;
         if grant == 1 { index = linux_slot(); generation = LINUX_LEASE_GENERATION; }
         if grant == 4 { index = plan9_slot(); generation = O10_LEASE_GENERATION; }
+        if grant == 3 { index=d_lookup(NATIVE_GRANT_HOLDER);generation=NATIVE_LEASE_GENERATION; }
         if index >= DOMAINS { return o10_error(response, 512, tag, 6, 0); }
         if (lease >> 32) != generation { return o10_error(response, 512, tag, 5, generation); }
         if (transport >> 32) != d_generation(index) { return o10_error(response, 512, tag, 5, d_generation(index)); }
         if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
-        if !d_live(index) { return o10_error(response, 512, tag, 12, d_state(index)); }
+        if !d_live(index) && d_state(index)!=1 { return o10_error(response,512,tag,12,d_state(index)); }
+        if grant==3 {
+            if NATIVE_LEASE_RETIRED!=0 { return o10_error(response,512,tag,8,0xffff_ffff); }
+            let result:u64=native_wire_bind(d_handle(index));
+            if result!=0 { return o10_error(response,512,tag,result,0); }
+            if d_waiting(index)==1 && d_bound(index)!=1 { uw_internal_failure(0x1109,0x113f,index,0); }
+            o10_header(response,185,tag,15);o10_write(response,7,native_wire_session(d_handle(index)),8);return 15;
+        }
         if grant == 1 {
-            if d_waiting(index) != 1 { return o10_error(response, 512, tag, 12, d_state(index)); }
+            // Reject before session_init can invalidate the current fids.
+            // A provisioned domain stays PROVISIONED after its first bind;
+            // its frontend binding is the authoritative one-bind preflight.
+            if linux_namespace_bound()!=0
+                || (LINUX_DETACHED!=1 && d_state(index)!=1 && d_waiting(index)!=1) {
+                return o10_error(response,512,tag,12,d_state(index));
+            }
             let epoch: u64 = linux_next_session_epoch();
             if LINUX_LEASE_RETIRED != 0 || epoch == 0 || LINUX_SESSION_GENERATION == 0xffff_ffff {
                 return o10_error(response, 512, tag, 8, 0xffff_ffff);
@@ -775,7 +993,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
                 uw_internal_failure(0x1109, 0x1116, epoch, LAST_PC[index as usize]);
             }
             LINUX_SESSION_GENERATION += 1; LINUX_DETACHED = 0;
-            if d_bound(index) != 1 { uw_internal_failure(0x1109, 0x1126, index, 0); }
+            if d_waiting(index)==1 && d_bound(index)!=1 { uw_internal_failure(0x1109,0x1126,index,0); }
             o10_header(response, 185, tag, 15); o10_write(response, 7, (LINUX_SESSION_GENERATION << 32) | 1, 8); return 15;
         }
         if PLAN9_LEASE_RETIRED != 0 || O10_SESSION_GENERATION == 0xffff_ffff {
@@ -898,7 +1116,8 @@ pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u
                         accepted = result == 0;
                     }
                 }
-                else { if d_backend(domain) == BACKEND_PLAN9 { accepted = plan9_mmio(frame, esr, ipa); } }
+                else { if d_backend(domain) == BACKEND_PLAN9 { accepted = plan9_mmio(frame, esr, ipa); }
+                    else { if d_backend(domain)==BACKEND_NATIVE { accepted=native_mmio(domain,frame,esr,ipa); } } }
             }
         } } } }
         if !accepted { contain(domain, esr, ipa, pc); }

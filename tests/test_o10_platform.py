@@ -90,6 +90,10 @@ static unsigned stat_session(uint64_t session){
 #define SENTINEL(name) uint64_t name(void){fprintf(stderr,"off-corpus assembly: "#name"\n");abort();}
 SENTINEL(uw_domain_reset)
 SENTINEL(uw_current_domain)
+SENTINEL(uw_domain_configured)
+SENTINEL(uw_domain_configure)
+SENTINEL(uw_domain_unconfigure)
+SENTINEL(uw_domain_init)
 SENTINEL(uw_counter_read)
 void uw_memory_barrier(void){__sync_synchronize();}
 void kw_memory_barrier(void){__sync_synchronize();}
@@ -202,6 +206,10 @@ void uw_vgic_hcr_write(uint64_t domain,uint64_t value){assert(domain<2);hcr[doma
 uint64_t uw_vgic_running_priority(uint64_t domain){assert(domain<2);return 0xff;}
 #define SENTINEL(name) uint64_t name(void){fprintf(stderr,"off-corpus architecture: "#name"\n");abort();}
 SENTINEL(uw_current_domain)
+SENTINEL(uw_domain_configured)
+SENTINEL(uw_domain_configure)
+SENTINEL(uw_domain_unconfigure)
+SENTINEL(uw_domain_init)
 SENTINEL(uw_serial_putc)
 SENTINEL(uw_halt)
 static uint64_t legacy(unsigned operation,uint64_t expected){
