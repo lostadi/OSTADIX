@@ -705,6 +705,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             library_path: &Option<std::ffi::OsString>,
             cwd: &std::path::Path,
             build: &std::path::Path,
+            invocation: &std::path::Path,
         ) -> Result<()> {
             use std::os::unix::process::CommandExt;
             tool_environment(&mut command, library_path);
@@ -727,7 +728,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             if !status.success() {
                 bail!(
                     "trusted native assembly/link failed ({status}): {}",
-                    scrub_build_path(&stderr, build)
+                    scrub_tool_text(&stderr, build, invocation, cwd)
                 );
             }
             Ok(())
@@ -774,6 +775,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             &tool_library_path,
             &tool_working_directory,
             &directory.0,
+            &assembler.invocation,
         )?;
         let mut link = linker_image.command()?;
         let linker_flags = vec![
@@ -793,6 +795,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             &tool_library_path,
             &tool_working_directory,
             &directory.0,
+            &linker.invocation,
         )?;
         let bytes = fs::read(&executable)?;
         if !bytes.starts_with(b"\x7fELF") {
@@ -839,10 +842,23 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
 /// Tool stderr with the private build directory replaced by a fixed name:
 /// errors never carry temp paths, and the text stays the same across runs.
 #[cfg(target_os = "linux")]
-fn scrub_build_path(stderr: &[u8], build: &std::path::Path) -> String {
-    let text = String::from_utf8_lossy(stderr);
-    let build = build.to_string_lossy();
-    text.replace(&*build, "<native build directory>")
+fn scrub_tool_text(
+    stderr: &[u8],
+    build: &std::path::Path,
+    invocation: &std::path::Path,
+    cwd: &std::path::Path,
+) -> String {
+    let mut text = String::from_utf8_lossy(stderr).into_owned();
+    text = text.replace(&*build.to_string_lossy(), "<native build directory>");
+    // GNU ld prefixes its messages with argv0, the tool's absolute path.
+    if let Some(name) = invocation.file_name() {
+        text = text.replace(&*invocation.to_string_lossy(), &name.to_string_lossy());
+    }
+    let cwd = cwd.to_string_lossy();
+    if cwd.len() > 1 {
+        text = text.replace(&*cwd, "<tool working directory>");
+    }
+    text
 }
 
 #[cfg(target_os = "linux")]
@@ -932,11 +948,19 @@ mod tests {
     use super::*;
     #[cfg(target_os = "linux")]
     #[test]
-    fn tool_stderr_never_carries_the_private_build_directory() {
+    fn tool_stderr_never_carries_local_paths() {
         let build = std::path::Path::new("/tmp/ostadix-native-i64-0123abcd");
-        let stderr = b"/tmp/ostadix-native-i64-0123abcd/leaf.s:3:1: error: bad\n";
-        let text = scrub_build_path(stderr, build);
-        assert_eq!(text, "<native build directory>/leaf.s:3:1: error: bad\n");
+        let ld = std::path::Path::new("/home/someone/.nix-profile/bin/ld");
+        let cwd = std::path::Path::new("/home/someone/project");
+        let stderr = b"/tmp/ostadix-native-i64-0123abcd/leaf.s:3:1: error: bad\n\
+            /home/someone/.nix-profile/bin/ld: cannot open /home/someone/project/x\n";
+        let text = scrub_tool_text(stderr, build, ld, cwd);
+        assert_eq!(
+            text,
+            "<native build directory>/leaf.s:3:1: error: bad\n\
+             ld: cannot open <tool working directory>/x\n"
+        );
+        assert!(!text.contains("/home/someone"), "{text}");
     }
     #[test]
     fn native_leaf_audits_every_function_and_rejects_cycles_and_supplied_code() {

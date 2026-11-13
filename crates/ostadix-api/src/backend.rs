@@ -434,14 +434,27 @@ impl BashSession {
         };
         // bash names the sourced file in its messages; the session's temp
         // path is an implementation detail, so it reads as `bash` instead.
-        let stderr = fs::read(&err_path).unwrap_or_default();
+        // the shell created the capture files before the block ran, so once
+        // it has answered, a missing or unreadable one means the output is
+        // unknown, never empty. a shell that died before answering already
+        // fails the block, and may have died before creating them.
+        let capture = |path: &Path, stream: &str| -> Result<Vec<u8>> {
+            match fs::read(path) {
+                Ok(bytes) => Ok(bytes),
+                Err(_) if !alive => Ok(Vec::new()),
+                Err(error) => Err(error).with_context(|| {
+                    format!("bash block {stream} capture is missing or unreadable")
+                }),
+            }
+        };
+        let stderr = capture(&err_path, "stderr")?;
         let stderr = String::from_utf8_lossy(&stderr)
             .replace(&*code_path.to_string_lossy(), "bash")
             .replace(&*self.dir.path().to_string_lossy(), "<bash session>")
             .into_bytes();
         let output = Output {
             status,
-            stdout: fs::read(&out_path).unwrap_or_default(),
+            stdout: capture(&out_path, "stdout")?,
             stderr,
         };
         for path in [&code_path, &out_path, &err_path] {

@@ -630,24 +630,71 @@ pub(crate) fn write_all_polled(
     outcome
 }
 
+const BACKEND_SHUTDOWN_TIMEOUT_ENV: &str = "O_BACKEND_SHUTDOWN_TIMEOUT_MS";
+const MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60);
+const MAX_OPEN_SESSIONS_ENV: &str = "O_BACKEND_MAX_OPEN_SESSIONS";
+const MAX_OPEN_SESSIONS_PER_BACKEND_ENV: &str = "O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND";
+
 pub(crate) fn backend_shutdown_timeout() -> Duration {
     duration_from_env(
-        "O_BACKEND_SHUTDOWN_TIMEOUT_MS",
+        BACKEND_SHUTDOWN_TIMEOUT_ENV,
         DEFAULT_BACKEND_SHUTDOWN_TIMEOUT,
-        Duration::from_secs(60),
+        MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT,
     )
 }
 
 fn duration_from_env(name: &str, default: Duration, maximum: Duration) -> Duration {
-    let Ok(raw) = std::env::var(name) else {
-        return default;
-    };
-    raw.parse::<u64>()
+    // a malformed value already failed every spawn (`check_process_knobs`),
+    // so the default here is only reached when the knob is unset.
+    checked_duration_from_env(name, maximum)
         .ok()
-        .filter(|millis| *millis > 0)
-        .map(Duration::from_millis)
-        .map(|duration| duration.min(maximum))
+        .flatten()
         .unwrap_or(default)
+}
+
+/// The knob's value, None when unset, or an error naming the bad value.
+fn checked_duration_from_env(name: &str, maximum: Duration) -> Result<Option<Duration>> {
+    let Some(raw) = std::env::var_os(name) else {
+        return Ok(None);
+    };
+    duration_knob(name, &raw, maximum).map(Some)
+}
+
+fn duration_knob(name: &str, raw: &std::ffi::OsStr, maximum: Duration) -> Result<Duration> {
+    let millis = positive_integer_knob(name, raw)?;
+    let duration = Duration::from_millis(millis as u64);
+    if duration > maximum {
+        bail!(
+            "{name}={millis} exceeds the maximum of {} ms",
+            maximum.as_millis()
+        );
+    }
+    Ok(duration)
+}
+
+fn positive_integer_knob(name: &str, raw: &std::ffi::OsStr) -> Result<usize> {
+    let text = raw
+        .to_str()
+        .ok_or_else(|| anyhow!("{name} is not valid UTF-8"))?;
+    let value = text
+        .parse::<usize>()
+        .map_err(|_| anyhow!("{name}={text:?} is not a positive whole number"))?;
+    if value == 0 {
+        bail!("{name}={text:?} is invalid: it must be at least 1");
+    }
+    Ok(value)
+}
+
+/// Validate the teardown budget and the session caps, so a malformed value
+/// fails the spawn instead of silently becoming the default.
+fn check_process_knobs() -> Result<()> {
+    checked_duration_from_env(BACKEND_SHUTDOWN_TIMEOUT_ENV, MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT)?;
+    for name in [MAX_OPEN_SESSIONS_ENV, MAX_OPEN_SESSIONS_PER_BACKEND_ENV] {
+        if let Some(raw) = std::env::var_os(name) {
+            positive_integer_knob(name, &raw)?;
+        }
+    }
+    Ok(())
 }
 
 fn bounded_deadline(timeout: Duration, subject: &str) -> Result<Instant> {
@@ -1108,6 +1155,7 @@ impl BackendProcess {
         let heartbeat = heartbeat_interval()?;
         // checked here so a bad warning knob fails the spawn, not a later wait.
         heartbeat_warning()?;
+        check_process_knobs()?;
         command
             .env("O_BACKEND_SESSION_ID", session_id)
             .env("O_BACKEND_LAUNCH_GENERATION", launch_generation)
@@ -2237,11 +2285,11 @@ pub(crate) struct BackendSessionLimits {
 impl BackendSessionLimits {
     fn from_env() -> Self {
         let total = positive_usize_from_env(
-            "O_BACKEND_MAX_OPEN_SESSIONS",
+            MAX_OPEN_SESSIONS_ENV,
             DEFAULT_MAX_OPEN_BACKEND_SESSIONS,
         );
         let per_backend = positive_usize_from_env(
-            "O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND",
+            MAX_OPEN_SESSIONS_PER_BACKEND_ENV,
             DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND,
         )
         .min(total);
@@ -2250,10 +2298,9 @@ impl BackendSessionLimits {
 }
 
 fn positive_usize_from_env(name: &str, default: usize) -> usize {
-    std::env::var(name)
-        .ok()
-        .and_then(|raw| raw.parse::<usize>().ok())
-        .filter(|value| *value > 0)
+    // a malformed value already failed every spawn (`check_process_knobs`).
+    std::env::var_os(name)
+        .and_then(|raw| positive_integer_knob(name, &raw).ok())
         .unwrap_or(default)
 }
 
@@ -3522,6 +3569,22 @@ impl Drop for ProcessRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn malformed_teardown_and_session_knobs_are_errors_not_defaults() {
+        use std::ffi::OsStr;
+        let max = MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT;
+        assert_eq!(
+            duration_knob("K", OsStr::new("2500"), max).unwrap(),
+            Duration::from_millis(2500)
+        );
+        for bad in ["", "abc", "0", "-1", "1.5", " 5"] {
+            assert!(duration_knob("K", OsStr::new(bad), max).is_err(), "{bad:?}");
+            assert!(positive_integer_knob("K", OsStr::new(bad)).is_err(), "{bad:?}");
+        }
+        assert!(duration_knob("K", OsStr::new("60001"), max).is_err());
+        assert_eq!(positive_integer_knob("K", OsStr::new("8")).unwrap(), 8);
+    }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     #[test]
