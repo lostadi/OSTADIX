@@ -1,0 +1,417 @@
+{
+  "schema_version": 1,
+  "kind": "ostadix-all-mechanism-isa-expansion-requirements",
+  "purpose": "Require architecture expansion across every applicable mechanism, retaining separate evidence for actual target profiles. This is an acceptance contract, not an implementation or execution-support report.",
+  "assessment_status": "pending_evidence_review",
+  "scope": {
+    "parent_contract": "expansion.requirements.json",
+    "mandatory_primary_profiles": [
+      "x86_64",
+      "aarch64",
+      "rv64gc"
+    ],
+    "additional_required_expansion_profiles": [
+      "i686",
+      "armv7"
+    ],
+    "applies_to": "Every selected original implementation, provider, compiler, runtime, artifact form, native graph operation, and applicable mechanism in the parent expansion contract.",
+    "mechanism_list_is_exhaustive": false,
+    "additional_profile_rule": "i686 and ARMv7 are required expansion work with foundations pending audit. Neither their presence here nor successful x86_64/AArch64 work establishes 32-bit support. Missing foundations remain explicit unfinished work.",
+    "architecture_realization_rule": "Require an explicit corresponding realization on each applicable ISA. Equivalent mechanisms need not use identical instructions or opcodes. An architecture-specific primitive requires an audited corresponding realization or an explicit measured missing-support status.",
+    "applicability_rule": "All matrix cells begin pending review. A mechanism may be marked inapplicable only with a retained implementation/profile-specific justification and independent review. Missing foundations, unsupported constructs, and unavailable execution environments are unfinished work, not reasons to declare inapplicability.",
+    "qualification_rule": "Qualify original-source capture, import, artifacts, and execution as separate milestones for the actual implementation, ISA, CPU features, OS, ABI, data layout, toolchain, and execution profile. Cross-ISA equivalence requires separately retained observable-behavior evidence for each claimed profile. Functional identity is additionally required across every implemented O-core ISA under matched declared profiles; use the dynamic inventory and original-reference/pairwise evidence contract below, never a fixed ISA whitelist.",
+    "explicit_required_runtime_family_additions": [
+      "common_lisp",
+      "chez_scheme",
+      "go",
+      "ocaml"
+    ],
+    "profile_list_is_minimum_not_exhaustive": true
+  },
+  "target_profiles": [
+    {
+      "id": "x86_64",
+      "label": "x86-64",
+      "role": "mandatory_primary",
+      "assessment_status": "pending_evidence_review",
+      "foundation_status": "pending_evidence_review"
+    },
+    {
+      "id": "aarch64",
+      "label": "AArch64",
+      "role": "mandatory_primary",
+      "assessment_status": "pending_evidence_review",
+      "foundation_status": "pending_evidence_review"
+    },
+    {
+      "id": "rv64gc",
+      "label": "RV64GC",
+      "role": "mandatory_primary",
+      "assessment_status": "pending_evidence_review",
+      "foundation_status": "pending_evidence_review"
+    },
+    {
+      "id": "i686",
+      "label": "i686",
+      "role": "additional_required_expansion",
+      "assessment_status": "pending_evidence_review",
+      "foundation_status": "pending_evidence_review"
+    },
+    {
+      "id": "armv7",
+      "label": "ARMv7",
+      "role": "additional_required_expansion",
+      "assessment_status": "pending_evidence_review",
+      "foundation_status": "pending_evidence_review"
+    }
+  ],
+  "foundation_inventory_requirements": [
+    "Existing installed command capabilities verified by actual supported help and measured invocation, without inventing native CLI flags",
+    "Registered frontend producer and original build recipe for the exact target",
+    "Importer types, instruction semantics, data layout, endianness, pointer widths, alignment, and target attributes",
+    "Target ABI and calling conventions including required scalar, floating-point, aggregate, and varargs behavior",
+    "Object format, relocation kinds, linker realization, initializer/finalizer behavior, and complete source-built providers",
+    "Native code generation or complete verified native IR/OIR artifact path, reported separately from execution",
+    "Actual execution environment and upstream semantic oracle, including missing hardware/emulator/system-image foundations"
+  ],
+  "mechanism_matrix": [
+    {
+      "id": "original_source_build_target_capture",
+      "requirement": "Capture the original implementation's complete required and generated sources using its real per-target build configuration, frontend invocation, headers, bootstrap tools, and target-specific units. Do not reuse a host capture as target capture without demonstrated semantic and ABI validity.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "registered_producers_import_types_instructions_data_layout",
+      "requirement": "Use registered, verified implementation-language producers and preserve target-specific types, instructions, intrinsics, attributes, address spaces, alignment, endianness, pointer widths, and data layout. Record unsupported constructs explicitly. Blindly changing a target triple or retargeting foreign IR is not qualification.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "abi_scalar_fp_aggregate_varargs_calling_conventions",
+      "requirement": "Qualify all used scalar, floating-point, aggregate, vector, variadic, return-value, register/stack, alignment, and calling-convention behavior against the actual target ABI, including required hard-float/soft-float and instruction-set-state variants. A successful 64-bit ABI probe does not qualify a 32-bit profile.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "objects_relocations_linking_initializers",
+      "requirement": "Qualify object generation/import, every required relocation, symbol visibility, linkage, section, initializer/finalizer, and target linker behavior, with resolved final linkage and no omitted required units or host-library substitutions.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "floating_point_environment_rounding_nans_subnormals_exceptions",
+      "requirement": "Preserve the upstream implementation's required dynamic floating-point environment, rounding modes, precision, signed zeros, NaN behavior, subnormals, exception flags/traps, and contraction behavior. Record target FP features and modes. Do not silently replace dynamic rounding with fixed nearest, flush subnormals, discard required FP effects, or assume one ISA's FP environment maps identically to another.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "atomics_memory_models",
+      "requirement": "Realize every used atomic width, alignment, read-modify-write operation, fence, and memory ordering under the target memory model, with required compiler/runtime helpers and thread-visible behavior. Record target-specific instruction and fallback choices; stronger host ordering cannot stand in for another target's qualification.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "tls_threads",
+      "requirement": "Qualify TLS models, storage and destructor lifetime, thread creation/join, synchronization, signals where required, and target OS/ABI interfaces with complete providers. Single-threaded success does not establish a required threaded profile.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "unwind_exceptions_compiler_runtime",
+      "requirement": "Qualify exception propagation, personalities, unwind metadata, stack/register restoration, cleanup behavior, and compiler helper/runtime calls for the real target ABI and selected execution profile. Include the complete original-source provider closure and preserve measured unsupported cases.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "complete_source_built_ocore_provider_closure",
+      "requirement": "Build, import, independently verify, link, and include every required implementation provider through O-core for the exact target. Resolve all native module, function, global, initializer, relocation, ABI helper, library, and resource references; declare platform interfaces explicitly. Supplied executables and prebuilt host libraries cannot establish source-built closure.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "complete_binary_verified_native_ir_oir_artifacts",
+      "requirement": "Have olangc construct complete native binaries, complete verified native O-core IR artifacts, or complete OIR programs with verified native modules, explicit linkage/realization bindings, compiled original engines, .O programs, foreign scripts, resources, dependency closure, execution profiles, and provenance. Preserve OIR versus O-core invariants. Report artifact construction separately from native lowering and actual execution.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "generated_runtime_source_snapshot_aot_packaging",
+      "requirement": "Include the complete required generated-runtime source snapshot, producer inputs, target-specific sources, providers, and build metadata in olangc's AOT packaging path. Verify snapshot completeness and content hashes against the runtime actually compiled; prevent stale snapshots, host-only generated sources, omitted modules, and ambient source-tree dependencies.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "native_graph_ovalue_crossings",
+      "requirement": "Qualify registered native graph operations, OValue representation and crossings, ownership/lifetime, numeric and aggregate conversion, serialization, error behavior, operation/realization bindings, and effect boundaries under each target's data layout and runtime ABI. Execute actual .O/native-module crossings and preserve original observable semantics.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "compiler_implementation_body",
+      "requirement": "Compile the selected original compiler body and complete required build/runtime closure through O-core for the target, using its actual implementation-language producer. Record bootstrap versus final compiler identities; probes, small crates, or historical different implementations cannot substitute for the selected compiler.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "compiler_generated_program_output",
+      "requirement": "Separately qualify olangc-owned routing of programs produced by the original compiler through registered capture, O-core import, independent verification, target ABI adaptation, complete linking, artifacts, and execution. Qualifying a compiler body does not qualify its generated programs or every compiler-output target.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "jit_capture_deoptimization_publication_wx_icache_invalidation",
+      "requirement": "For JIT profiles, qualify generated-code capture, O-core lowering and verification, relocations, safepoints, deoptimization metadata and behavior, code publication ordering, write/execute permission transitions, instruction-cache synchronization, and invalidation on the actual target/platform. Use target-specific realizations where needed. Interpreter execution cannot establish this path or remove required JIT scope.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "explicit_platform_os_interfaces",
+      "requirement": "Declare and qualify the exact required OS/platform interfaces, syscalls, memory mapping/protection, signals, filesystem/network effects, loaders, graphics/font interfaces, and environment behavior per target profile. Distinguish explicit platform boundaries from bundled implementation dependencies; ISA name alone does not determine an OS or ABI.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "actual_execution_oracles_negative_controls",
+      "requirement": "Run the actual complete artifact and unchanged upstream reference under the declared per-target environment with meaningful upstream and end-to-end workloads, expected-versus-actual observable comparisons, and negative controls that detect incorrect lowering, unresolved closure, wrong profiles, or invalid semantics. Retain actual commands, statuses, and logs. Record native and emulated execution separately and do not treat static inspection as execution.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    },
+    {
+      "id": "managed_stacks_continuations_tail_calls_and_gc_roots",
+      "requirement": "Preserve original managed-stack and control-flow mechanisms used by selected runtimes: proper tail calls, continuations and reentry, dynamic-wind/non-local exits, goroutine scheduling/stack growth, precise stack/GC root maps, safepoints and barriers, including target-specific assembly/register/stack interfaces. Qualify their actual implementations and observable behavior on every required ISA; omitting these mechanisms, substituting a scheduler/collector or rejecting their workloads does not complete a runtime profile.",
+      "status_by_isa": {
+        "x86_64": "pending_evidence_review",
+        "aarch64": "pending_evidence_review",
+        "rv64gc": "pending_evidence_review",
+        "i686": "pending_evidence_review",
+        "armv7": "pending_evidence_review"
+      }
+    }
+  ],
+  "per_isa_evidence_contract": {
+    "hash_algorithm": "sha256",
+    "required_identity_fields": [
+      "mechanism_id",
+      "implementation_identity",
+      "source_revision",
+      "target_isa",
+      "target_triple",
+      "cpu_features",
+      "os_and_version",
+      "abi",
+      "data_layout",
+      "endianness",
+      "pointer_width",
+      "execution_profile",
+      "artifact_kind",
+      "Frozen dynamically enumerated implemented-ISA/backend inventory identity and complete expected mechanism/profile/case set",
+      "Predeclared shared semantic profile and FP/memory/concurrency/nondeterminism comparison model"
+    ],
+    "required_exact_hashes": [
+      "original_sources",
+      "generated_sources",
+      "build_and_capture_recipe",
+      "frontend_and_other_producer_tools",
+      "importer_verifier_codegen_linker_tools",
+      "execution_harness_emulator_and_comparator_tools",
+      "provider_sources_and_modules",
+      "all_workload_inputs_and_resources",
+      "produced_modules_and_objects",
+      "final_artifact_and_manifest",
+      "reference_implementation_and_oracle_inputs"
+    ],
+    "required_command_evidence": [
+      "Actual source/build/capture/import/verify/link/artifact commands",
+      "Exact native or QEMU/emulator execution command and complete effective arguments",
+      "Working directory and declared environment",
+      "Actual exit status or signal",
+      "Retained stdout, stderr, and complete execution log paths with hashes",
+      "Native hardware identity or emulator version/configuration plus target system image identity and hash",
+      "Actual unchanged-upstream reference command and result",
+      "Negative-control commands and their expected versus actual failures"
+    ],
+    "required_comparison_evidence": [
+      "Expected behavior and actual behavior recorded independently",
+      "Comparator implementation identity and hash",
+      "Observed stdout/stderr, exit status, files/resources, effects, exceptions, and other profile-required outputs",
+      "Numeric comparison rules preserving required FP environment and semantics",
+      "Explicit handling of nondeterminism and environment dependence",
+      "Per-target complete dependency/provider closure and resolved linkage",
+      "Every unsupported construct, missing foundation, failure, and remaining blocker",
+      "Unchanged original-reference versus owned results on every actual ISA/profile plus pairwise matched owned executions across every implemented O-core ISA",
+      "Raw deterministic/FP/memory/concurrency/nondeterministic observations, comparator identity and exact unmet/mismatch classifications; no post-hoc normalization or silent omission"
+    ],
+    "negative_control_rule": "Use controls that would expose a plausible defect: for example a deliberately invalid import/ABI profile rejected, a deliberately missing required provider detected, or an altered observable result rejected by the oracle. Retain expected and actual outcomes. Passing controls do not replace original upstream workloads.",
+    "independent_review_rule": "Before qualifying a milestone, obtain independent review of the changed lowering/code generation, complete source inventory, generated-runtime snapshot, provider closure, target assumptions, and oracle quality. Retain findings and resolution; code review is separate from actual execution evidence."
+  },
+  "status_policy": {
+    "initial_status": "pending_evidence_review",
+    "allowed_subsequent_statuses": [
+      "in_progress",
+      "blocked_by_measured_failure",
+      "qualified_for_declared_scope",
+      "inapplicable_with_reviewed_profile_justification"
+    ],
+    "missing_foundation_rule": "Record exact missing producer/importer/data-layout/ABI/object/provider/codegen/execution foundations and measured failures per ISA. A task's difficulty, absence of hardware, or lack of current support cannot silently remove the required expansion lane.",
+    "completion_rule": "No all-mechanism or architecture-expansion completion claim while an applicable required cell is pending, blocked, incomplete, or without its exact evidence. Primary-profile milestones and additional i686/ARMv7 expansion progress remain separately named. Complete IR/OIR construction may be reported before execution is qualified, without converting it into an execution-support claim."
+  },
+  "insufficient_qualification_evidence": [
+    "QEMU or another emulator is present or advertises the target",
+    "A target object or assembly file was emitted",
+    "An imported module passed only static verification",
+    "Only the unchanged reference implementation executed",
+    "An x86_64 result was used as proof for i686",
+    "An AArch64 result was used as proof for ARMv7",
+    "A host IR target triple or data layout was blindly rewritten",
+    "A successful scalar or fixed-rounding probe was generalized to all required ABI or FP behavior",
+    "A required architecture-specific primitive lacks an actual corresponding realization",
+    "Host-installed libraries or supplied engine executables hide missing source-built provider closure",
+    "One passing compiler or interpreter execution was used as proof for compiler output routing or JIT publication",
+    "Static reference execution, catalog presence, path existence, or a recipe name was presented as execution of the O-core-compiled artifact",
+    "Only a fixed ISA list was checked while another implemented O-core backend was omitted",
+    "Compilation or artifact provenance was treated as functional identity without actual reference and pairwise executions",
+    "Cross-ISA observable mismatches, FP differences or concurrency/nondeterministic outcomes were normalized away without the required original semantic contract"
+  ],
+  "all_implemented_isa_semantic_equivalence": {
+    "explicit_user_requirement": true,
+    "assessment_status": "pending_evidence_review",
+    "applies_to": "Every original runtime/compiler/provider family, complete artifact form, native graph/OValue/AOT path and every applicable mechanism, including all eighteen current matrix mechanisms; language and mechanism lists remain open-ended.",
+    "required_isa_set": {
+      "rule": "Union of every actually implemented O-core ISA/backend and every minimum required target profile. Re-enumerate after backend additions/changes; fixed arrays are minimum tracking obligations, not the full equivalence scope.",
+      "minimum_mandatory_primary_profiles": [
+        "x86_64",
+        "aarch64",
+        "rv64gc"
+      ],
+      "minimum_additional_required_expansion_profiles": [
+        "i686",
+        "armv7"
+      ],
+      "implemented_backend_inventory_status": "pending_source_build_and_runtime_evidence_review",
+      "inventory_evidence": [
+        "Exact source/build pins and locations of target definitions, frontend/ABI mappings, verifiers, emitters/lowerers, runtime/AOT and registered execution realizations",
+        "Corroborating actual command/tool/artifact evidence for each discovered backend; distinguish source declaration, emitted object, working execution and qualified semantics",
+        "Canonical ISA aliases, CPU feature sets, data layouts, ABIs, OS/platform profiles and actual native/emulated environments",
+        "Expected-versus-observed complete mechanism/profile/case matrix, with explicit missing foundations, unavailable environments, unsupported constructs, failures and next actions"
+      ],
+      "expansion_rule": "Every newly discovered implemented ISA enters applicable equivalence tests and pending matrix cells before any all-ISA claim. Preserve all five minimum profile columns; i686/ARMv7 are unfinished required expansion until actual foundations and executions qualify them.",
+      "ci_and_acceptance_coverage_gate": {
+        "required": true,
+        "status": "pending_implementation_and_execution_evidence",
+        "catalog_source": "Dynamically compare canonical O-core target definitions/names/aliases and actual compiler/driver/runtime dispatch against test-profile coverage. Corroborate with pinned actual tool evidence; artifact/delivery labels alone do not prove an additional implemented ISA.",
+        "fail_closed_rule": "A newly implemented or discovered ISA/backend with missing applicable mechanism cases, target/frontend/ABI configuration, guarded actual execution runner, original-reference oracle or pairwise comparison coverage must fail the all-ISA coverage/acceptance gate. Do not silently shrink the expected set or turn missing required functionality into inapplicability.",
+        "required_controls": [
+          "Inject an additional canonical ISA/backend without target/runner/oracle coverage and require a retained gate failure",
+          "Remove one required mechanism/case or one ISA execution/comparison record and require failure; zero cases or required skips/ignored/filtered tests cannot qualify the lane",
+          "Keep explicit RED/unmet results for unsupported features, unavailable execution environments and pending i686/ARMv7 foundations while preserving bounded results for completed lanes"
+        ],
+        "inventory_refresh": "Re-enumerate and bind the canonical implemented set and coverage matrix to each source/tool/profile snapshot and backend change; a previously passing hardcoded three-target loop is insufficient."
+      }
+    },
+    "functional_identity": {
+      "requirement": "Preserve observable program functionality on every implemented ISA. Execute unchanged original references and complete O-core-owned artifacts per actual target, then compare matched owned executions pairwise across the full implemented set under the same declared semantic/execution profile.",
+      "profile_binding": "Bind source/configuration, workload/input, initial state, language semantics, numeric/FP environment, memory/concurrency model, resource/provider closure, external-effect interfaces and comparison rules before execution. Capture each ISA using its actual target/frontend/ABI; no blind IR retargeting.",
+      "deterministic_observations": "Compare actual outputs/serialized results, observable state/effects, exit statuses and exceptions, required ordering and termination according to the original semantic contract. ABI/register/instruction differences do not excuse changed program behavior. Defined deterministic output bytes/values, state, errors/exceptions and resource/effect behavior must match exactly wherever the original contract defines them; unrelated internal representation changes cannot excuse a mismatch.",
+      "floating_point": "Declare and preserve rounding/dynamic FP environment, signed zero, NaNs and payload/signaling behavior where observable, infinities, subnormals and exceptions/status. Retain raw values/bits and environment evidence; masking NaNs, rounding results or applying tolerances after seeing a mismatch cannot establish identity.",
+      "memory_and_concurrency": "Preserve aliasing/identity, value/tag/layout contracts, allocation/GC roots/barriers/safepoints, atomics/memory ordering, TLS/threads/domains/goroutines, races and synchronization under the selected original language/runtime model. Track target-specific legal behavior explicitly without weakening the requested common semantics. Functional identity requires the same defined allowed-trace and observable-outcome semantics. A few matching concurrent schedules or stress samples are bounded evidence, not proof of all-trace equivalence; retain the unqualified semantic obligation and review of the original memory/runtime model.",
+      "nondeterminism": "Predeclare admissible outcome/effect/ordering models and controlled seeds/schedules where applicable. Preserve raw observations and compare their required semantic constraints or outcome sets; do not demand accidental identical scheduling or erase failures through unreviewed normalization. Unresolved nondeterministic equivalence remains RED/unmet. Comparison models must express the original defined allowed-trace/outcome semantics, not broaden admissible behavior until observed results pass. Sampling cannot establish equality of all permitted trace/outcome sets.",
+      "profile_conflicts": "If original target behavior differs by word width, representation, platform or other observable property, retain that conflict and its raw reference results. Do not silently relabel profiles or normalize it away; functional identity requires an explicitly specified, upstream-valid matched profile with actual evidence, otherwise the affected equivalence gate remains RED/unmet. Declare and justify profile differences before results are observed; never invent a new profile or exclusion after a mismatch. ISA-specific implementations/representations may differ internally, but defined observable functionality must remain the same and unsupported features remain RED/unmet.",
+      "architecture_realizations": "Architecture-specific primitives may use different instructions but require explicitly reviewed corresponding realizations and semantic tests on each applicable ISA."
+    },
+    "required_evidence": [
+      "Immutable implemented-ISA inventory and expected complete mechanism/profile/case set, plus commands/environments/hashes for all original references and owned artifacts",
+      "Per-ISA expected-versus-actual comparisons and pairwise matched owned-execution comparison records covering every implemented ISA; preserve inputs, raw outputs/states/effects, logs and comparator identity",
+      "Negative controls for an omitted implemented ISA/case, wrong target/ABI, changed observable/FP bit pattern, missing provider/resource/GC metadata and invalid comparison-model handling",
+      "Independent review of changed lowering/codegen, source closure, complete original units and comparison/oracle semantics before qualification",
+      "Fail-closed CI/acceptance comparison of the current canonical implemented-ISA catalog against applicable mechanism, target/frontend/ABI, guarded runner and independent oracle coverage, including an added-backend omission negative control"
+    ],
+    "qualification_rule": "An all-ISA identity claim requires every applicable expected lane to execute and satisfy both original-reference and pairwise semantic checks. Missing/unavailable/unsupported/mismatching lanes stay RED/unmet. Compilation, object emission, verifier success, one passing host, installed emulators and zero-case/skipped suites do not qualify functionality.",
+    "receipt_rule": "Publish bounded per-profile milestones honestly; compiler/artifact provenance and source inclusion remain distinct from executable semantic equivalence. Never generalize a reduced profile to universal original-runtime or all-ISA support."
+  }
+}
