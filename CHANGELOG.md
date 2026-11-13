@@ -479,6 +479,11 @@ Package SemVer is only one of the independent coordinates documented in
 - `ocorec` now rejects `.O` orchestration files and `lang^(...)_lang` blocks
   up front with a message pointing to `olangc` and `O`, instead of failing in
   the `.oc` lexer or with a bare `expected module declaration` error.
+- `ocore_i64` calls now lower to a dedicated `OIr::NativeLeaf` node with
+  explicit kind, interface, and provenance metadata instead of being matched by
+  callee name on a generic `OIr::Invoke`. The parser rejects a missing or
+  non-literal first descriptor argument at parse time (`ocore_i64 requires a
+  static literal text descriptor`).
 
 - When the native leaf `clang` or `ld` is missing, the error now lists the
   `PATH` directories that were searched and the empty or relative entries
