@@ -733,7 +733,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         if backend == BACKEND_LINUX {
             if LINUX_DETACHED != 1 { return o10_error(response, 512, tag, 12, d_state(index)); }
             if LINUX_LEASE_RETIRED != 0 || linux_block_generation() == 0xffff_ffff
-                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == 0xffff_ffff {
+                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == MAX {
                 return o10_error(response, 512, tag, 8, 0xffff_ffff);
             }
             if linux_images_reload() != 0 { return o10_error(response, 512, tag, 12, 4); }

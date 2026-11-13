@@ -36,6 +36,7 @@ extern uint64_t B(generation)(void),N(generation)(void),P(generation)(void);
 extern uint64_t N(init)(uint64_t,uint64_t,uint64_t),P(init)(uint64_t,uint64_t,uint64_t);
 extern uint64_t N(mmio_write)(uint64_t,uint64_t),N(poll)(void);
 extern uint64_t P(mmio_write)(uint64_t,uint64_t),P(poll)(void),P(bound)(void),P(diagnostic)(void),P(bind_current)(uint64_t,uint64_t,uint64_t);
+extern uint64_t P(can_provision)(uint64_t),P(provision)(uint64_t,uint64_t,uint64_t);
 extern uint64_t M(kw_linux_detach)(uint64_t,uint64_t,uint64_t),M(kw_linux_provision)(uint64_t,uint64_t,uint64_t),M(kw_linux_activate)(void);
 extern void M(test_admit)(void);
 extern uintptr_t kw_guest_address(uint64_t,uint64_t);
@@ -126,7 +127,8 @@ int main(int argc,char**argv){
  assert(I(register)(0xd2000000,37,0xe2000000,19,0xda000000,73)==0);
  void*volume=mmap(0,16777216,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);assert(volume!=MAP_FAILED);
  assert(S(init)((uintptr_t)volume,16777216,1)==1);
- assert(P(init)(0x40000000,0x20000000,1)==1);linux_session=S(session_handle)(1);attach(linux_session);
+ uint64_t namespace_generation=scenario==3?UINT64_C(0x7bed31e65e6f3ac6):scenario==4?UINT64_MAX-1:scenario==5?UINT64_MAX:scenario==6?UINT32_MAX:1;
+ assert(P(init)(0x40000000,0x20000000,namespace_generation)==1);linux_session=S(session_handle)(1);attach(linux_session);
  plan9_session=S(session_init)(4,1);attach(plan9_session);
  assert(B(configure_backing)(0x70000000,4096,1)==1);
  assert(B(init)(0x40000000,0x20000000,1)==1&&N(init)(0x40000000,0x20000000,1)==1);M(test_admit)();
@@ -148,15 +150,19 @@ int main(int argc,char**argv){
  assert(rd(reply+19,4)==(scenario==1?0:1)&&rd(reply+23,4)==(scenario==1?0:1));
  state(handle,5);assert(S(session_handle)(1)==0&&statfid(linux_session)==107);survivors();
  assert(W(test_plan9_input)()==1&&W(test_linux_input)()==0&&kw_guest_address(0x40000000,1)==0);
+ assert(P(can_provision)(namespace_generation)==0&&P(can_provision)(0)==0);
+ assert(P(provision)(0x40000000,0x20000000,namespace_generation)==0&&P(generation)()==namespace_generation);
  frame(174,63,1);st(request+23,handle,8);st(request+47,99,8);st(request+55,4,8);
  call();assert(reply[4]==161&&rd(reply+7,4)==5&&reset_calls==0&&guest[0]==0xcc);
  frame(174,63,1);st(request+23,handle,8);memset(request+31,0x77,16);st(request+47,3,8);st(request+55,4,8);
- if(scenario==2){
-  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==0&&guest[0]==0xcc);survivors();
+ if(scenario==2||scenario==5){
+  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==0&&guest[0]==0xcc);
+  assert(P(generation)()==namespace_generation&&B(generation)()==1&&N(generation)()==1);survivors();
   puts("Linux lifecycle generation capacity is nondestructive: PASS");return 0;
  }
  unsigned char retransmit[63],saved[15];memcpy(retransmit,request,63);
  assert(call()==3&&reply[4]==175&&rd(reply+7,8)==(2ull<<32)&&reset_calls==1);memcpy(saved,reply,15);
+ assert(P(generation)()==namespace_generation+1&&B(generation)()==2&&N(generation)()==2);
  for(size_t i=0;i<0x20000000;i++){
   unsigned char expected=0;
   if(i<37)expected=k[i];
@@ -180,6 +186,15 @@ int main(int argc,char**argv){
  uint64_t fresh=S(session_handle)(1);assert(fresh&&fresh!=linux_session);attach(fresh);
  assert(statfid(fresh)==125&&statfid(linux_session)==107);survivors();assert(W(test_plan9_input)()==1);
  assert(reset_calls==1&&hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);
+ if(scenario==4){
+  // The existing full-u64 transport epoch may reach MAX once; a later restore
+  // must refuse before zeroing RAM, resetting state or wrapping the transport.
+  guest[4096]=0x5a;
+  frame(172,36,1);st(request+23,2ull<<32,8);call();assert(reply[4]==173);
+  frame(174,63,1);st(request+23,2ull<<32,8);st(request+47,3,8);st(request+55,4,8);
+  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==1&&guest[4096]==0x5a);
+  assert(P(generation)()==UINT64_MAX&&B(generation)()==2&&N(generation)()==2);survivors();
+ }
  puts("O10 Linux withdraw/fault/restore/bind exact-once + survivor preservation: PASS");return 0;
 }
 
@@ -237,7 +252,7 @@ class LinuxRestartNativeTests(unittest.TestCase):
             p=subprocess.run([clang,"-O2","-no-pie","-Wl,--gc-sections",str(out/"harness.c"),str(out/"sentinels.c"),
                               str(out/"native.o"),"-o",str(out/"selftest")],capture_output=True,text=True,timeout=120)
             self.assertEqual(p.returncode,0,p.stdout+p.stderr)
-            for scenario in range(3):
+            for scenario in range(7):
                 p=subprocess.run([str(out/"selftest"),str(scenario)],capture_output=True,text=True,timeout=30)
                 self.assertEqual(p.returncode,0,f"scenario={scenario}: "+p.stdout+p.stderr)
                 self.assertIn("PASS",p.stdout)

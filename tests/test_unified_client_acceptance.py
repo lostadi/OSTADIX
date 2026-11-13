@@ -103,9 +103,9 @@ class ForegroundClientOracleTests(unittest.TestCase):
 
     def test_m2_private_candidate_requires_its_exact_build_profile(self):
         self.assertEqual(GATE.O10_M2_MONITOR,
-                         "e913b8d54f378f706b8ca5d09891e17d4307ce88ee613c8b3fd9479606469869")
+                         "30a91b43bb78e9202c983417e39609991554914ff0deb76998b69e19ea01dddb")
         self.assertEqual(GATE.O10_M2_PROFILE,
-                         "2a7d781ebf005cd32cfd8ddd79b74806ddf48574e0fa5842cce055cfbdcf210d")
+                         "d5a5207a7b0e85963c98e7cefb378a69a32d77c70702aaa8cf783dcc909f964c")
         self.assertEqual(GATE.admitted_monitor_revision(
             GATE.O10_M2_MONITOR, GATE.O10_M2_PROFILE), "O10-M2-private-candidate")
         for monitor, profile in GATE.MONITOR_PROFILES.items():

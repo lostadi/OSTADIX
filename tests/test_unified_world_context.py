@@ -21,6 +21,7 @@ C = r'''
 #include <stddef.h>
 extern uint64_t uw_domain_init(uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t uw_domain_reset(uint64_t,uint64_t,uint64_t,uint64_t);
+extern uint64_t uw_probe_domain_reset(uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t uw_domain_configure(uint64_t,uint64_t,uint64_t),uw_domain_unconfigure(uint64_t);
 extern uint64_t uw_domain_configured(uint64_t),uw_domain_ram_base(uint64_t),uw_domain_ram_bytes(uint64_t);
 extern uint64_t uw_domain_root(uint64_t),uw_domain_vmid(uint64_t);
@@ -37,6 +38,9 @@ void *memset(void *,int,size_t);
 void *memcpy(void *,const void *,size_t);
 #ifndef SECOND_DOMAIN
 #define SECOND_DOMAIN 1
+#endif
+#ifndef RESET_TARGET
+#define RESET_TARGET SECOND_DOMAIN
 #endif
 #define BANKS 8
 static uint64_t deadline,period,visits[BANKS],previous[BANKS];
@@ -178,7 +182,7 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
     (void)hpfar;
     unsigned d=uw_current_domain();uint64_t marker=d?0x22:0x11;
 #ifdef RESET_STRESS
-    if(d && recycled)marker=0x33;
+    if(d==RESET_TARGET && recycled)marker=0x33;
 #endif
     // The saved virtual timer deadline is in its offset counter domain;
     // native idle must convert it back without changing the retained bank.
@@ -225,25 +229,44 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
     }
 #endif
 #ifdef RESET_STRESS
-    if(!(f[35]&1) || (f[41]>>48)!=0x2a || f[12]!=(d&&recycled?UINT64_C(0xaaaabbbbccccdddd):UINT64_C(0x1111222233334444))) {
+    if(!(f[35]&1) || (f[41]>>48)!=0x2a || f[12]!=(d==RESET_TARGET&&recycled?UINT64_C(0xaaaabbbbccccdddd):UINT64_C(0x1111222233334444))) {
         out("UNIFIED_CORE_RESET_TRANSLATION_FAIL ");hex(d);out(" ");hex(f[12]);out(" ");hex(f[41]);out("\n");return BANKS;
     }
-    if(d)target_context=f;else survivor_context=f;
+    if(d==RESET_TARGET)target_context=f;else survivor_context=f;
 #endif
     previous[d]=f[10];visits[d]++;
 #ifdef RESET_STRESS
 #ifdef SELF_RESET
-    if(d && !recycled && visits[0]>=5 && visits[SECOND_DOMAIN]>=5) {
+    if(d==RESET_TARGET && !recycled && visits[0]>=5 && visits[SECOND_DOMAIN]>=5) {
 #else
-    if(!d && !recycled && visits[SECOND_DOMAIN]>=5) {
+    if(d!=RESET_TARGET && !recycled && visits[RESET_TARGET]>=5) {
 #endif
-        // Target1 is not running. Keep its old ASID and TTBR addresses, but
+        // The target is stopped at its complete saved EL2 boundary. Keep its
+        // old ASID and TTBR addresses, but
         // change an already-used non-global translation before recycling it.
-        ((uint64_t *)0xb1100000)[256]=0x44000f01;
+        ((uint64_t *)(RESET_TARGET?0xb1100000:0x49100000))[256]=0x44000f01;
         __asm__ volatile("dsb sy" ::: "memory");
         memcpy(survivor_copy,survivor_context,4096);memcpy(target_copy,target_context,4096);
-        if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(SECOND_DOMAIN,0x20000000,0x33,0x3c5)!=0
-           || !same(target_copy,target_context,4096) || uw_domain_reset(SECOND_DOMAIN,0x40000000,0x33,0x3c5)!=1) {
+#if RESET_TARGET == 0
+        // Exercise the exact Linux entry/DTB tuple through an ABI canary wrapper
+        // before starting the common synthetic guest with its0x33 marker.
+        if(uw_probe_domain_reset(0,0x40000000,0x47e00000,0x3c5)!=1) {
+            out("UNIFIED_CORE_LINUX_RESET_TUPLE_ABI_FAIL\n");return BANKS;
+        }
+        for(unsigned n=0;n<512;n++) {
+            uint64_t expected=0;
+            if(n==0)expected=0x47e00000;if(n==31)expected=0x40000000;if(n==32)expected=0x3c5;
+            if(n==35)expected=0x30d00800;if(n==37)expected=0x300000;if(n==64)expected=1;
+            if(target_context[n]!=expected){out("UNIFIED_CORE_LINUX_RESET_TUPLE_BANK_FAIL\n");return BANKS;}
+        }
+        if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d) {
+            out("UNIFIED_CORE_LINUX_RESET_TUPLE_SURVIVOR_FAIL\n");return BANKS;
+        }
+        out("UNIFIED_CORE_LINUX_RESET_TUPLE_ABI_PASS\n");
+        memcpy(target_copy,target_context,4096);
+#endif
+        if(uw_domain_reset(2,0x40000000,0x33,0x3c5)!=0 || uw_domain_reset(RESET_TARGET,0x20000000,0x33,0x3c5)!=0
+           || !same(target_copy,target_context,4096) || uw_probe_domain_reset(RESET_TARGET,0x40000000,0x33,0x3c5)!=1) {
             out("UNIFIED_CORE_RESET_ADMISSION_FAIL\n");return BANKS;
         }
         for(unsigned n=0;n<512;n++) {
@@ -253,11 +276,11 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
             if(target_context[n]!=expected){out("UNIFIED_CORE_RESET_DIRTY_BANK_FAIL ");hex(n);out("\n");return BANKS;}
         }
         if(!same(survivor_copy,survivor_context,4096) || uw_current_domain()!=d){out("UNIFIED_CORE_RESET_SURVIVOR_FAIL\n");return BANKS;}
-        recycled=1;previous[SECOND_DOMAIN]=0;visits[SECOND_DOMAIN]=0;
-        uw_vgic_hcr_write(SECOND_DOMAIN,1);uw_vgic_vmcr_write(SECOND_DOMAIN,(UINT64_C(255)<<24)|2);
-        uw_timer_write(SECOND_DOMAIN,0,0,uw_counter_read()+1000000000);uw_timer_write(SECOND_DOMAIN,0,1,3);
-        uw_timer_write(SECOND_DOMAIN,1,0,0x12340000+SECOND_DOMAIN);uw_timer_write(SECOND_DOMAIN,1,1,0);
-        out("UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n");deadline=uw_counter_read()+period;return SECOND_DOMAIN;
+        recycled=1;previous[RESET_TARGET]=0;visits[RESET_TARGET]=0;
+        uw_vgic_hcr_write(RESET_TARGET,1);uw_vgic_vmcr_write(RESET_TARGET,(UINT64_C(255)<<24)|2);
+        uw_timer_write(RESET_TARGET,0,0,uw_counter_read()+1000000000);uw_timer_write(RESET_TARGET,0,1,3);
+        uw_timer_write(RESET_TARGET,1,0,0x12340000+RESET_TARGET);uw_timer_write(RESET_TARGET,1,1,0);
+        out("UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n");deadline=uw_counter_read()+period;return RESET_TARGET;
     }
 #endif
     if(visits[0]>=15 && visits[SECOND_DOMAIN]>=15) {
@@ -269,6 +292,64 @@ uint64_t uw_handle_exit(uint64_t *f,uint64_t reason,uint64_t esr,uint64_t far,ui
     }
     return d?0:SECOND_DOMAIN;
 }
+
+// Return BANKS(8) makes a callee-saved-register violation an explicit failure.
+__asm__(
+".text\n"
+".global uw_probe_domain_reset\n"
+"uw_probe_domain_reset:\n"
+"stp x19, x20, [sp, #-96]!\n"
+"stp x21, x22, [sp, #16]\n"
+"stp x23, x24, [sp, #32]\n"
+"stp x25, x26, [sp, #48]\n"
+"stp x27, x28, [sp, #64]\n"
+"stp x29, x30, [sp, #80]\n"
+"mov x19, #0x119\n"
+"mov x20, #0x120\n"
+"mov x21, #0x121\n"
+"mov x22, #0x122\n"
+"mov x23, #0x123\n"
+"mov x24, #0x124\n"
+"mov x25, #0x125\n"
+"mov x26, #0x126\n"
+"mov x27, #0x127\n"
+"mov x28, #0x128\n"
+"mov x29, #0x129\n"
+"bl uw_domain_reset\n"
+"mov x9, x0\n"
+"cmp x19, #0x119\n"
+"b.ne 9f\n"
+"cmp x20, #0x120\n"
+"b.ne 9f\n"
+"cmp x21, #0x121\n"
+"b.ne 9f\n"
+"cmp x22, #0x122\n"
+"b.ne 9f\n"
+"cmp x23, #0x123\n"
+"b.ne 9f\n"
+"cmp x24, #0x124\n"
+"b.ne 9f\n"
+"cmp x25, #0x125\n"
+"b.ne 9f\n"
+"cmp x26, #0x126\n"
+"b.ne 9f\n"
+"cmp x27, #0x127\n"
+"b.ne 9f\n"
+"cmp x28, #0x128\n"
+"b.ne 9f\n"
+"cmp x29, #0x129\n"
+"b.ne 9f\n"
+"mov x0, x9\n"
+"b 8f\n"
+"9: mov x0, #8\n"
+"8: ldp x21, x22, [sp, #16]\n"
+"ldp x23, x24, [sp, #32]\n"
+"ldp x25, x26, [sp, #48]\n"
+"ldp x27, x28, [sp, #64]\n"
+"ldp x29, x30, [sp, #80]\n"
+"ldp x19, x20, [sp], #96\n"
+"ret\n"
+);
 '''
 
 
@@ -325,7 +406,25 @@ class UnifiedContextTests(unittest.TestCase):
     def test_highest_bank_reset_preserves_survivor_and_target_vmid_translation(self):
         self.exercise(False, reset=True, second_domain=7)
 
-    def exercise(self, virtual_irq, reset=False, self_reset=False, second_domain=1, bank_admission=False):
+    def test_linux_slot_reset_preserves_survivor_and_callee_saved_registers(self):
+        self.exercise(False, reset=True, reset_target=0)
+
+    def test_reset_of_last_current_linux_slot_reselects_fresh_context(self):
+        self.exercise(False, reset=True, self_reset=True, reset_target=0)
+
+    def test_highest_bank_self_reset_reselects_fresh_context_and_preserves_callee_saved_registers(self):
+        self.exercise(False, reset=True, self_reset=True, second_domain=7)
+
+    def test_linux_slot_reset_preserves_highest_bank_survivor_and_callee_saved_registers(self):
+        self.exercise(False, reset=True, second_domain=7, reset_target=0)
+
+    def test_linux_self_reset_preserves_highest_bank_survivor_and_callee_saved_registers(self):
+        self.exercise(False, reset=True, self_reset=True, second_domain=7, reset_target=0)
+
+    def exercise(self, virtual_irq, reset=False, self_reset=False, second_domain=1, bank_admission=False, reset_target=None):
+        self.assertIn(second_domain, (1, 7))
+        reset_target = second_domain if reset_target is None else reset_target
+        self.assertIn(reset_target, (0, second_domain))
         clang, linker, qemu = map(shutil.which, ("clang", "ld.lld", "qemu-system-aarch64"))
         if not all((clang, linker, qemu)):
             self.skipTest("AArch64 clang/lld and QEMU required")
@@ -334,7 +433,7 @@ class UnifiedContextTests(unittest.TestCase):
         (output / "guest.S").write_text(guest_source(virtual_irq,reset))
         commands = [[clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(CORE / "monitor.S"), "-o", str(output / "core.o")],
                     [clang, "--target=aarch64-none-elf", "-march=armv8-a", "-c", str(output / "guest.S"), "-o", str(output / "guest.o")],
-                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), f"-DSECOND_DOMAIN={second_domain}", *( ["-DBANK_ADMISSION"] if bank_admission else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
+                    [clang, "--target=aarch64-none-elf", "-O2", "-ffreestanding", "-mstrict-align", "-fno-stack-protector", *( ["-DVIRTUAL_IRQ_STRESS"] if virtual_irq else [] ), *( ["-DRESET_STRESS"] if reset else [] ), *( ["-DSELF_RESET"] if self_reset else [] ), f"-DSECOND_DOMAIN={second_domain}", f"-DRESET_TARGET={reset_target}", *( ["-DBANK_ADMISSION"] if bank_admission else [] ), "-c", str(output / "fixture.c"), "-o", str(output / "fixture.o")],
                     [linker, "-m", "aarch64elf", "-nostdlib", "--build-id=none", "-T", str(CORE / "linker.ld"), "-o", str(output / "test.elf"), str(output / "core.o"), str(output / "guest.o"), str(output / "fixture.o")]]
         for command in commands:
             result = subprocess.run(command, capture_output=True, text=True, timeout=30)
@@ -356,7 +455,8 @@ class UnifiedContextTests(unittest.TestCase):
         passed=b"UNIFIED_CORE_PREEMPTION_PASS\n" in received
         if reset:passed=passed and b"UNIFIED_CORE_RESET_BANK_CLEAR_PASS\n" in received and b"UNIFIED_CORE_RESET_TRANSLATION_SURVIVOR_PASS\n" in received
         if bank_admission:passed=passed and b"UNIFIED_CORE_EIGHT_BANK_ADMISSION_PASS\n" in received
-        (output / "result.json").write_text(json.dumps({"passed":passed,"argv":command,"scope":"synthetic actualEL2 context/preemption stress, not foreignOS qualification"},indent=2)+"\n")
+        if reset and reset_target==0:passed=passed and b"UNIFIED_CORE_LINUX_RESET_TUPLE_ABI_PASS\n" in received
+        (output / "result.json").write_text(json.dumps({"passed":passed,"argv":command,"second_domain":second_domain,"reset_target":reset_target,"self_reset":self_reset,"bank_admission":bank_admission,"scope":"synthetic actualEL2 context/preemption stress, not foreignOS qualification"},indent=2)+"\n")
         self.assertTrue(passed,received.decode(errors="replace")+"\nEvidence: "+str(output))
         print("Actual EL2 context/preemption evidence:",output)
 

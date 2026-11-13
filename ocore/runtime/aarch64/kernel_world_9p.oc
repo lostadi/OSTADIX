@@ -382,9 +382,11 @@ pub unsafe fn detach(expected: u64) -> u64 {
 }
 
 // Replacement allocates mechanism state without minting or binding authority.
+// Transport generations retain the full u64 boot epoch; O10 domain/lease
+// handle generations use their separate bounded vocabulary.
 pub unsafe fn provision(guest_base: u64, guest_size: u64, next: u64) -> u64 {
     if ACTIVE != 0 || guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
-        || next == 0 || next > 0xffff_ffff || next <= GENERATION { return 0; }
+        || next == 0 || next <= GENERATION { return 0; }
     RAM_BASE = guest_base; RAM_SIZE = guest_size; GENERATION = next;
     ACTIVE = 1; BOUND = 0; SESSION = 0; DENIED_COUNT = 0; COMPLETED = 0;
     return reset_transport();
@@ -399,7 +401,7 @@ pub unsafe fn bind_current(expected: u64, session: u64, epoch: u64) -> u64 {
 
 
 pub unsafe fn can_provision(next: u64) -> u64 {
-    return (ACTIVE == 0 && next != 0 && next <= 0xffff_ffff && next > GENERATION) as u64;
+    return (ACTIVE == 0 && next != 0 && next > GENERATION) as u64;
 }
 pub unsafe fn bound() -> u64 { return BOUND; }
 

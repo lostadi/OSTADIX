@@ -34,7 +34,7 @@ if "-o" in sys.argv:
 
 
 class KernelBuildProfileTests(unittest.TestCase):
-    def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:
+    def _assert_sections_preserve_sources_and_fixed_linker(self, mode: int) -> None:
         compiler_inputs = []
         for linker_name in ("rust-lld", "ld.lld"):
             with self.subTest(linker=linker_name), tempfile.TemporaryDirectory(
@@ -52,7 +52,7 @@ class KernelBuildProfileTests(unittest.TestCase):
                 calls_path = directory / "calls.jsonl"
                 environment = os.environ.copy()
                 environment.update(
-                    OCORE_PROBE_MODE="35",
+                    OCORE_PROBE_MODE=str(mode),
                     OCORE_BOOT_INFO_ENABLED="0",
                     OCORE_BUILD_DIR=str(build),
                     OCOREC_BIN=str(tools / "ocorec"),
@@ -84,7 +84,7 @@ class KernelBuildProfileTests(unittest.TestCase):
                 self.assertEqual(compiler[compiler.index("--emit") + 1], "obj")
                 self.assertEqual(compiler[compiler.index("-o") + 1], str(build / "kernel.o"))
                 self.assertEqual(len(sources), len(set(sources)))
-                for required in (
+                required_sources = (
                     "ocore/world/identity.oc",
                     "ocore/world/protocol.oc",
                     "ocore/world/value.oc",
@@ -95,10 +95,25 @@ class KernelBuildProfileTests(unittest.TestCase):
                     "ocore/world/native_scalar.oc",
                     "ocore/kernel/world_native_scalar_semantics.oc",
                     "ocore/kernel/main.oc",
-                ):
+                ) if mode == 35 else (
+                    "ocore/kernel/m5_selftest.oc",
+                    "ocore/kernel/m5_semantics.oc",
+                    "ocore/kernel/m1.oc",
+                    "ocore/kernel/m2.oc",
+                    "ocore/kernel/m3.oc",
+                    "ocore/kernel/m3_live.oc",
+                    "ocore/kernel/m4.oc",
+                    "ocore/runtime/x86_64/thread.oc",
+                    "ocore/kernel/main.oc",
+                )
+                for required in required_sources:
                     self.assertIn(required, sources)
-                self.assertNotIn("ocore/kernel/world_native_scalar_semantics_stub.oc", sources)
-                self.assertIn("-DOCORE_PROBE_MODE=35", assembler)
+                if mode == 35:
+                    self.assertNotIn("ocore/kernel/world_native_scalar_semantics_stub.oc", sources)
+                else:
+                    self.assertNotIn("ocore/kernel/m5_selftest_stub.oc", sources)
+                    self.assertNotIn("ocore/kernel/m5_semantics_stub.oc", sources)
+                self.assertIn(f"-DOCORE_PROBE_MODE={mode}", assembler)
                 self.assertIn(str(ROOT / "ocore/kernel/boot.S"), assembler)
                 self.assertEqual(linker.count("--gc-sections"), 1)
                 self.assertEqual(linker[linker.index("-T") + 1], str(ROOT / "ocore/kernel/linker.ld"))
@@ -107,6 +122,12 @@ class KernelBuildProfileTests(unittest.TestCase):
                 self.assertEqual("-flavor" in linker, linker_name == "rust-lld")
                 self.assertFalse(any(arg.startswith("--defsym") for arg in linker))
         self.assertEqual(compiler_inputs[0], compiler_inputs[1])
+
+    def test_mode35_sections_preserve_scalar_sources_and_fixed_linker(self) -> None:
+        self._assert_sections_preserve_sources_and_fixed_linker(35)
+
+    def test_mode17_sections_preserve_semantics_sources_and_fixed_linker(self) -> None:
+        self._assert_sections_preserve_sources_and_fixed_linker(17)
 
 
 if __name__ == "__main__":
