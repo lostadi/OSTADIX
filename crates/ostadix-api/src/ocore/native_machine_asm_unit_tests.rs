@@ -217,13 +217,13 @@ pub(crate) fn fixture(body_lines: &[&str]) -> Fixture {
     }
 }
 impl Fixture {
-    fn construct(&self) -> Result<ConstructedUnit, ConstructionFailure> {
+    fn construct(&self) -> Result<ConstructedUnit, Box<ConstructionFailure>> {
         self.with(&[BodyFloor {
             body: 0,
             inventory_json: &self.body_raw,
         }])
     }
-    fn with(&self, floors: &[BodyFloor<'_>]) -> Result<ConstructedUnit, ConstructionFailure> {
+    fn with(&self, floors: &[BodyFloor<'_>]) -> Result<ConstructedUnit, Box<ConstructionFailure>> {
         construct_configured_unit(ConstructInput {
             configured_assembly: &self.raw,
             syntax_selection: &self.syntax,
@@ -388,4 +388,27 @@ fn configured_source_trailing_zero_op_cannot_borrow_fallthrough_coverage() {
         b"nop"
     );
     assert!(e.issues.iter().any(|i|i.stage=="body"&&i.record==Some(4)&&i.reason=="zero-operation instruction needs an explicit inventory-preserving machine operation"),"{:?}",e.issues);
+}
+
+#[test]
+fn configured_source_reachable_zero_op_cannot_hide_in_lifted_operations() {
+    let f = fixture(&["nop", "addi a0,a0,1", "ret"]);
+    let e = f.construct().unwrap_err();
+    assert_eq!(e.records.len(), 8);
+    assert_eq!(e.bodies.len(), 1);
+    assert!(!e.bodies[0].constructed);
+    let parsed = e.parsed.as_ref().unwrap();
+    let p = &parsed.records[4];
+    assert_eq!(
+        &f.raw[p.required.span.start as usize..p.required.span.end as usize],
+        b"nop"
+    );
+    assert!(!e.records[4].represented);
+    assert!(
+        e.issues.iter().any(|i| i.stage == "body"
+            && i.record == Some(4)
+            && i.reason == "zero-operation instruction needs an explicit inventory-preserving machine operation"),
+        "{:?}",
+        e.issues
+    );
 }

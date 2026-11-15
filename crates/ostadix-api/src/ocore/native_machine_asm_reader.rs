@@ -1565,7 +1565,7 @@ fn kind(text: &str) -> SyntaxKind {
         SyntaxKind::Symbol
     } else if [
         ".quad", ".8byte", ".long", ".4byte", ".short", ".2byte", ".byte", ".zero", ".space",
-        ".ascii", ".asciz", ".string",
+        ".ascii", ".asciz", ".string", ".word",
     ]
     .contains(&m)
     {

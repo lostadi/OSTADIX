@@ -163,9 +163,9 @@ fn dispositions(
         .collect()
 }
 fn with_parsed(
-    mut failure: ConstructionFailure,
+    mut failure: Box<ConstructionFailure>,
     parsed: asm::ParsedAssembly,
-) -> ConstructionFailure {
+) -> Box<ConstructionFailure> {
     let owners = failure
         .bodies
         .iter()
@@ -540,7 +540,14 @@ impl Declarations {
         let mut effects = vec![];
         match &p.syntax {
             asm::Syntax::Unsupported => {
-                return Err("parser retained unsupported source record".into())
+                return Err(
+                    if body.is_some() && p.required.kind == asm::SyntaxKind::Data {
+                        "inline body data has no implemented machine directive semantics"
+                    } else {
+                        "parser retained unsupported source record"
+                    }
+                    .into(),
+                )
             }
             asm::Syntax::Instruction { .. } => {
                 require(
@@ -1255,7 +1262,19 @@ fn build_body(
                     }
                     match flow {
                         LiftFlow::Continue => {
-                            if instructions.len() == before {
+                            // A synthetic constant is not an inventory-preserving nop.
+                            let explicit_nop = matches!(
+                                &p.syntax,
+                                asm::Syntax::Instruction {
+                                    opcode: asm::Opcode::X86 {
+                                        operation: asm::X86Opcode::Nop,
+                                        ..
+                                    } | asm::Opcode::Aarch64(asm::Aarch64Opcode::Nop)
+                                        | asm::Opcode::Riscv(asm::RiscvOpcode::Nop),
+                                    ..
+                                }
+                            );
+                            if instructions.len() == before || explicit_nop {
                                 issues.push(error(Some(p.required.id),"zero-operation instruction needs an explicit inventory-preserving machine operation".into()));
                             }
                         }
@@ -1368,7 +1387,7 @@ fn build_body(
 /// This function performs no acquisition, external opening, execution or admission.
 pub fn construct_configured_unit(
     input: ConstructInput<'_>,
-) -> std::result::Result<ConstructedUnit, ConstructionFailure> {
+) -> std::result::Result<ConstructedUnit, Box<ConstructionFailure>> {
     let consumed = ConsumedInputs {
         configured: artifact(input.configured_assembly),
         syntax_floor: artifact(input.syntax_inventory_json),
@@ -1381,14 +1400,14 @@ pub fn construct_configured_unit(
             .map(|b| (b.body, artifact(b.inventory_json)))
             .collect(),
     };
-    let mut failure = ConstructionFailure {
+    let mut failure = Box::new(ConstructionFailure {
         configured_identity: artifact(input.configured_assembly),
         inputs: consumed.clone(),
         parsed: None,
         records: vec![],
         bodies: vec![],
         issues: vec![],
-    };
+    });
     if artifact(input.syntax_inventory_json) != input.syntax_selection.inventory {
         failure.issues.push(issue(
             None,
@@ -1608,13 +1627,16 @@ pub fn construct_configured_unit(
             return Err(with_parsed(failure, parsed));
         }
     };
+    let ConstructionFailure {
+        records, bodies, ..
+    } = *failure;
     Ok(ConstructedUnit {
         inputs: consumed,
         parsed,
         unit,
         report,
-        records: failure.records,
-        bodies: failure.bodies,
+        records,
+        bodies,
     })
 }
 

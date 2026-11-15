@@ -527,7 +527,7 @@ mod native {
             let constructed=construction::construct_configured_unit(construction::ConstructInput{
                 configured_assembly:&held.inputs[ci].raw,syntax_selection:&syntax_selection,syntax_inventory_json:&held.inputs[si].raw,
                 unit_selection:&unit_selection,unit_inventory_json:&held.inputs[ui].raw,body_floors:&floors,target,
-            }).map_err(|f|serde_json::json!({"format":"ocore-configured-machine-unit-construction-failure-v1","qualification":false,"inputs":f.inputs,"records":f.records,"bodies":f.bodies,"issues":f.issues}).to_string())?;
+            }).map_err(|failure|{let f=*failure;serde_json::json!({"format":"ocore-configured-machine-unit-construction-failure-v1","qualification":false,"inputs":f.inputs,"records":f.records,"bodies":f.bodies,"issues":f.issues}).to_string()})?;
             let consumed:Vec<_>=held.inputs.iter().map(|r|serde_json::json!({"path":r.path,"native":r.before,"identity":identity(&r.raw)})).collect();
             let value = serde_json::json!({"format":OUTPUT_FORMAT,"qualification":false,"original_inventory_authenticated":false,"source_or_native_admission":false,"complete_runtime_or_provider":false,"target":target.name(),"selection":selected,"consumed_files":consumed,"configured_assembly_bytes":held.inputs[ci].raw,"syntax_inventory_bytes":held.inputs[si].raw,"unit_inventory_bytes":held.inputs[ui].raw,"inputs":constructed.inputs,"unit":constructed.unit,"verification":constructed.report,"records":constructed.records,"bodies":constructed.bodies});
             let mut raw = serde_json::to_vec_pretty(&value).map_err(err)?;
