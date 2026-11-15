@@ -62,6 +62,8 @@ impl EvidencePolicy {
 enum SelectorProfile {
     #[serde(rename = "replay-source-command-v1")]
     ReplaySourceCommand,
+    #[serde(rename = "rust-replay-emitted-module-name-v1")]
+    RustReplayEmittedModuleName,
     #[serde(rename = "native-container-member-name-v1")]
     NativeContainerMemberName,
 }
@@ -116,6 +118,14 @@ impl ProducerSelection {
             }
             for (policy, selector) in policies {
                 let expected = match policy {
+                    EvidencePolicy::FrontendReplay if producer["adapter"] == "rustc" => {
+                        if producer["unit_kind"] != "rustc" {
+                            bail!(
+                                "Rust replay order policy requires actual registered rustc adapter"
+                            );
+                        }
+                        SelectorProfile::RustReplayEmittedModuleName
+                    }
                     EvidencePolicy::FrontendReplay => SelectorProfile::ReplaySourceCommand,
                     EvidencePolicy::RustEmbedded => SelectorProfile::NativeContainerMemberName,
                 };

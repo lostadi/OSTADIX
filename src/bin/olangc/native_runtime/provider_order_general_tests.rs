@@ -365,3 +365,261 @@ fn general_binding_does_not_supply_external_policy_authority() {
         "{error:#}"
     );
 }
+
+// These remain metadata/consistency controls. They do not admit capture, native
+// object bytes, source ownership, Cargo parent semantics or runtime behavior.
+fn registered_selection(
+    producer: &str,
+    policy: EvidencePolicy,
+    selector: SelectorProfile,
+) -> ProducerSelection {
+    ProducerSelection {
+        schema: "ocore-order-producer-selection-v2".into(),
+        registry: ContentIdentity::of(source_recipe::order_producer_registry()),
+        selected_profiles: [(
+            producer.to_owned(),
+            [(policy, selector)].into_iter().collect(),
+        )]
+        .into_iter()
+        .collect(),
+    }
+}
+
+#[test]
+fn general_registered_selectors_match_rust_replay_clang_and_native_contracts() {
+    for (producer, policy, selector, name) in [
+        (
+            "rustc-llvm-v1",
+            EvidencePolicy::FrontendReplay,
+            SelectorProfile::RustReplayEmittedModuleName,
+            "rust-replay-emitted-module-name-v1",
+        ),
+        (
+            "clang-llvm-v1",
+            EvidencePolicy::FrontendReplay,
+            SelectorProfile::ReplaySourceCommand,
+            "replay-source-command-v1",
+        ),
+        (
+            "rustc-llvm-v1",
+            EvidencePolicy::RustEmbedded,
+            SelectorProfile::NativeContainerMemberName,
+            "native-container-member-name-v1",
+        ),
+    ] {
+        assert_eq!(serde_json::to_value(selector).unwrap(), json!(name));
+        registered_selection(producer, policy, selector)
+            .check()
+            .unwrap();
+    }
+}
+
+#[test]
+fn general_rust_replay_refuses_clang_source_command_selector() {
+    let selected = registered_selection(
+        "rustc-llvm-v1",
+        EvidencePolicy::FrontendReplay,
+        SelectorProfile::ReplaySourceCommand,
+    );
+    let error = selected.check().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("order evidence policy or selector profile is not registered"),
+        "{error:#}"
+    );
+}
+
+#[test]
+fn general_clang_replay_refuses_rust_emitted_module_selector() {
+    let selected = registered_selection(
+        "clang-llvm-v1",
+        EvidencePolicy::FrontendReplay,
+        SelectorProfile::RustReplayEmittedModuleName,
+    );
+    let error = selected.check().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("order evidence policy or selector profile is not registered"),
+        "{error:#}"
+    );
+}
+
+#[test]
+fn general_native_edges_refuse_both_replay_selectors() {
+    for selector in [
+        SelectorProfile::ReplaySourceCommand,
+        SelectorProfile::RustReplayEmittedModuleName,
+    ] {
+        let selected =
+            registered_selection("rustc-llvm-v1", EvidencePolicy::RustEmbedded, selector);
+        let error = selected.check().unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("order evidence policy or selector profile is not registered"),
+            "{error:#}"
+        );
+    }
+}
+
+fn rust_replay_capture(fresh: bool) -> Vec<u8> {
+    let root = if fresh { "/fresh" } else { "/old" };
+    let directory = format!("{root}/capture/rust-replay");
+    let mut capture = checked_json(&native_capture(fresh)).unwrap();
+    let event = &mut capture["invocations"][0];
+    for field in [
+        "executed_argv",
+        "rust_capture",
+        "rust_cgu_gaps",
+        "rust_native_resources",
+        "saved_cgus",
+    ] {
+        assert!(event.as_object_mut().unwrap().remove(field).is_some());
+    }
+    event["replay_argv"] = json!([
+        "/tool/rustc",
+        "--crate-name",
+        "engine",
+        format!("{root}/source/lib.rs"),
+        "--emit=llvm-ir,dep-info",
+        "--out-dir",
+        directory
+    ]);
+    event["replay_exit_code"] = json!(0);
+    for unit in event["units"].as_array_mut().unwrap() {
+        let name = match unit["id"].as_str().unwrap() {
+            "old-0" | "fresh-1" => "engine.main.ll",
+            "old-1" | "fresh-0" => "engine.cold.ll",
+            other => panic!("unexpected authored unit {other}"),
+        };
+        for field in [
+            "saved_cgu_index",
+            "capture_policy",
+            "source_production_ownership_verified",
+            "native_machine_equivalence_verified",
+            "post_lto_equivalence_verified",
+        ] {
+            assert!(unit.as_object_mut().unwrap().remove(field).is_some());
+        }
+        unit["producer"] = json!("rustc-llvm-v1");
+        unit["ir"]["path"] = json!(format!("{directory}/{name}"));
+        unit["ir"]["format"] = json!("llvm-text");
+        assert!(unit.get("replay_argv").is_none());
+        assert!(unit.get("replay_exit_code").is_none());
+    }
+    let units = event["units"].clone();
+    capture["units"] = units;
+    capture["name"] = json!("authored-Rust-replay-DATA");
+    serde_json::to_vec(&capture).unwrap()
+}
+
+#[test]
+fn general_rust_replay_selector_joins_actual_python_multi_output_contract() {
+    let directory = tempfile::tempdir().unwrap();
+    let original = rust_replay_capture(false);
+    let original_path = directory.path().join("original.json");
+    fs::write(&original_path, &original).unwrap();
+    let selection = registered_selection(
+        "rustc-llvm-v1",
+        EvidencePolicy::FrontendReplay,
+        SelectorProfile::RustReplayEmittedModuleName,
+    );
+    selection.check().unwrap();
+    let policy_raw = serde_json::to_vec(&json!({
+        "schema":POLICY,
+        "components":[{
+            "component":"engine", "original_capture":pin(&original_path,&original),
+            "required_unit_ids":["old-0","old-1"],
+            "original_roots":{"source":"/old/source","build":"/old/build","capture":"/old/capture"},
+            "fresh_roots":{"source":"/fresh/source","build":"/fresh/build","capture":"/fresh/capture"},
+            "producer_selection":{
+                "schema":selection.schema,"registry":selection.registry,
+                "selected_profiles":selection.selected_profiles
+            }
+        }],
+        "module_occurrences":[
+            {"component":"engine","unit_id":"old-1"},
+            {"component":"engine","unit_id":"old-0"},
+            {"component":"engine","unit_id":"old-1"}
+        ]
+    })).unwrap();
+    let policy_path = directory.path().join("policy.json");
+    fs::write(&policy_path, &policy_raw).unwrap();
+    let policy_pin = pin(&policy_path, &policy_raw);
+    let seal = SealedOrder::read(&policy_pin, &["engine".into()]).unwrap();
+    let component = &seal.policy.components[0];
+    let mut req = request(&seal.raw, &seal.policy, component, &original).unwrap();
+    assert_eq!(req["schema"], "Main-source-order-helper-request/v2");
+    assert_eq!(
+        req["selected_profiles"]["rustc-llvm-v1"]["frontend-replay-v1"],
+        "rust-replay-emitted-module-name-v1"
+    );
+    let tool = python();
+    let committed = bridge(&tool, &req, &directory.path().join("commit")).unwrap();
+    let commitment = string(&committed, "commitment").unwrap().to_owned();
+    let data = checked_json(commitment.as_bytes()).unwrap();
+    let outputs = data["actions"][0]["units"].as_array().unwrap();
+    assert_eq!(outputs.len(), 2);
+    for output in outputs {
+        assert_eq!(
+            output["selector"]["profile"],
+            "rust-replay-emitted-module-name-v1"
+        );
+        assert_eq!(
+            output["selector"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
+            ["profile".into(), "emitted_filename".into()]
+                .into_iter()
+                .collect()
+        );
+    }
+    let fresh = rust_replay_capture(true);
+    let selected = ["fresh-0".into(), "fresh-1".into()].into_iter().collect();
+    req["operation"] = json!("resolve");
+    req["commitment"] = json!(commitment);
+    req["fresh_events"] = json!(events(&fresh, &selected).unwrap());
+    req["fresh_roots"] = json!(component.fresh_roots);
+    let resolution = bridge(&tool, &req, &directory.path().join("resolve")).unwrap();
+    assert_eq!(
+        resolution["unit_mapping"],
+        json!({"old-0":"fresh-1","old-1":"fresh-0"})
+    );
+    assert_eq!(resolution["capture_admitted"], false);
+    assert_eq!(resolution["runtime_qualified"], false);
+    let mut package = PackagedOrder {
+        schema: PACKAGE_GENERAL.into(),
+        policy_pin,
+        policy_json: String::from_utf8(policy_raw).unwrap(),
+        helper_sha256: digest(JOIN.as_bytes()),
+        general_helper: general_binding(&seal.policy),
+        components: vec![ComponentEvidence {
+            component: "engine".into(),
+            original_capture_json: String::from_utf8(original).unwrap(),
+            commitment_json: commitment,
+            resolution: Some(resolution),
+        }],
+        resolved_occurrences: Vec::new(),
+    };
+    let inputs = [CaptureInput {
+        component: "engine",
+        raw: &fresh,
+        selected: &selected,
+    }];
+    package.resolved_occurrences = package.expected_occurrences(&inputs).unwrap();
+    package.check_internal(&inputs).unwrap();
+    package.check_external(&seal).unwrap();
+    assert_eq!(
+        package.fresh_module_order(&inputs).unwrap(),
+        vec![
+            ("engine".into(), "fresh-0".into()),
+            ("engine".into(), "fresh-1".into()),
+            ("engine".into(), "fresh-0".into()),
+        ]
+    );
+}
