@@ -33,6 +33,15 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- An experimental configured-assembly machine-unit route preserves selected
+  source/configuration and rejects unsupported RV64 bodies or profiles. It is
+  not a linked runtime artifact; see
+  [configured assembly source units](docs/CONFIGURED_ASSEMBLY_SOURCE_UNITS.md).
+- Native-runtime source joins preserve original action/provider-order
+  distinctions and validate Rust Cargo-parent metadata. Browser WASI descriptor
+  regressions cover namespace, global and table mismatches. Complete original
+  runtime/provider and cross-ISA qualification remain separate.
+
 - A required public boundary-contract CI lane and a standalone reproduction
   runner preserve all seven reported splice witnesses and corrected data
   cases. The concurrent CI-shard benchmark compares identical work against a

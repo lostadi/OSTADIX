@@ -30,6 +30,16 @@ retained under <code>audits/</code> with byte identities.</li>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p>An experimental configured-assembly machine-unit route preserves selected
+source/configuration and rejects unsupported RV64 bodies or profiles. It is
+not a linked runtime artifact; see
+<a href="docs/CONFIGURED_ASSEMBLY_SOURCE_UNITS.md">configured assembly source units</a>.</p>
+</li>
+<li><p>Native-runtime source joins preserve original action/provider-order
+distinctions and validate Rust Cargo-parent metadata. Browser WASI descriptor
+regressions cover namespace, global and table mismatches. Complete original
+runtime/provider and cross-ISA qualification remain separate.</p>
+</li>
 <li><p>A required public boundary-contract CI lane and a standalone reproduction
 runner preserve all seven reported splice witnesses and corrected data
 cases. The concurrent CI-shard benchmark compares identical work against a

@@ -11,3 +11,13 @@ Review and validation must be stated per artifact. Distinguish a suggested patch
 For research communication, label proposed arguments, completed mathematical proofs, implementation assumptions and empirical observations separately. The [focused boundary note](research/fidelity-boundaries.md) and [current public contract](CURRENT_CONTRACT.md) follow that rule: the fidelity algebra has a stated proof domain; a conditional confinement argument depends on explicit renderer/grammar assumptions; neither establishes all backend semantics or a complete native operating system.
 
 The project makes no blanket claim here that every historical line has received human review or that all current acceptance gates pass. Corrections should preserve the prior evidence and explain the narrower result supported by the current source and validation.
+
+## Native compiler source integration
+
+The configured-assembly source-unit route and producer/action-order integration
+were developed with OpenAI Codex and reviewed by a separate Codex source-review
+agent. Lee Daghlar Ostadi remains the maintainer publication identity; this does
+not imply sole manual implementation or a human source-review sign-off.
+Validation distinguishes source review, authored tests, actual fixture/compiler
+runs and complete original-runtime/ISA acceptance. See
+[configured assembly source units](CONFIGURED_ASSEMBLY_SOURCE_UNITS.md).
