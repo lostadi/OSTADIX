@@ -24,6 +24,7 @@ WORKER_SHAS = frozenset({
     "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059",
     "758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36",
     "303aac632cac6caff5179372811d98081e57eb98bfae34b43db9e1ecf90033b0",
+    "a5bc3f7987b6c6349f0cc7d46b01deac9aa0d7975cce5ea4d5d990ba14c2e0c8",
 })
 PROFILES = {
     "x86_64": {"triple": "x86_64-unknown-linux-musl", "flags": []},
