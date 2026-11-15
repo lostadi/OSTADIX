@@ -37,7 +37,7 @@ pub struct AssemblySelection {
 fn identity(bytes: &[u8]) -> ArtifactIdentity {
     ArtifactIdentity {
         bytes: bytes.len() as u64,
-        sha256: format!("{:x}", Sha256::digest(bytes)),
+        sha256: hex::encode(Sha256::digest(bytes)),
     }
 }
 fn digest(value: &str) -> bool {

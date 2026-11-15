@@ -90,7 +90,7 @@ type Check<T> = std::result::Result<T, String>;
 fn artifact(raw: &[u8]) -> ArtifactIdentity {
     ArtifactIdentity {
         bytes: raw.len() as u64,
-        sha256: format!("{:x}", Sha256::digest(raw)),
+        sha256: hex::encode(Sha256::digest(raw)),
     }
 }
 fn require(ok: bool, why: &str) -> Check<()> {
