@@ -60,9 +60,15 @@ original selected resource notices remain unchanged.
 The job checks out clean original musl at
 `0784374d561435f7c787a555aeab8ede699ed298`, builds `ocorec` from the CI source
 commit with Rust 1.97.1 and the locked dependency graph, freezes its bytes,
-and executes all nine `tests.test_ocore_native_constrained_fmul` tests with
-`OCORE_CONSTRAINED_FP_REQUIRED=1`. Discovery, execution counts, skipped tests
-and compiler mutation are mandatory checks. The artifact is uploaded with
+and executes two required nine-test suites with that same compiler:
+`tests.test_ocore_native_constrained_fmul` with
+`OCORE_CONSTRAINED_FP_REQUIRED=1`, and
+`tests.test_ocore_native_fp_register_barrier` with
+`OCORE_FP_REGISTER_BARRIER_REQUIRED=1`. Each suite must independently discover
+and execute all nine tests without skips, expected failures or compiler
+mutation. Both result files and the combined `required-suites-result.json`
+are retained; a failed suite cannot be offset by another suite passing.
+The artifact is uploaded with
 `always()` and includes setup/refusal records, actual tool/compiler/source
 identities, configure/build commands, original LLVM IR, native modules,
 objects and raw oracle outputs, even when a later stage fails. The artifact
@@ -83,15 +89,20 @@ python3 -B scripts/prepare_ci_llvm_profile.py \
 The setup's `environment.json` provides exact test tool/library inputs. Set
 `OCOREC_BIN` and `OCOREC_BIN_SHA256` to the newly built, frozen compiler,
 `OCORE_MUSL_SOURCE` to that clean musl checkout and
-`OCORE_CONSTRAINED_FP_OUTPUT` to a new evidence directory. Prefix the test
+`OCORE_CONSTRAINED_FP_OUTPUT` and `OCORE_FP_REGISTER_BARRIER_OUTPUT` to separate
+new evidence directories. Prefix the test
 child PATH with the subset's `bin` for original configure/link tools. The
 workflow contains the complete invocation and zero-skip result guard.
 
-This is a bounded scalar dynamic-multiply source/verification and actual
-x86-64 host execution gate. Original AArch64 ordered FP-register barriers,
-long-double profiles, cross-ISA raw NaN identity, full musl lowering, native
-kernel FP lifecycle and whole-system/driver/efficiency acceptance remain
-unmet. Preserved exception bits under `fpexcept.ignore` are observations for
+This is a bounded scalar dynamic-multiply/register-barrier source and
+verification gate with actual x86-64 host execution. The new closed
+`scalar_dynamic_mul_register_barrier_v1` profile admits the original AArch64
+ordered scalar register barrier; CI checks its AArch64 object, while the
+x86-64 reference uses the original header's volatile-memory path. CI does not
+execute the AArch64 object or qualify an x86/RV realization of that new
+operation. Long-double profiles, cross-ISA raw NaN identity, full musl
+lowering, native kernel FP lifecycle and whole-system/driver/efficiency
+acceptance remain unmet. Preserved exception bits under `fpexcept.ignore` are observations for
 the pinned reference cases, not a universal exception-flag or trap guarantee.
 
 ### Native runtime release contract

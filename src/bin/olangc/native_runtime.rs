@@ -1159,6 +1159,7 @@ fn function_dependencies(
                     operand(rhs);
                 }
                 Operation::Cast { value, .. }
+                | Operation::FpRegisterBarrier { value, .. }
                 | Operation::FloatNeg { value, .. }
                 | Operation::FloatAbs { value, .. }
                 | Operation::IntegerPopulationCount { value }

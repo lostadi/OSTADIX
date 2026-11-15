@@ -125,6 +125,16 @@ pub fn operation_requirement(
         )
     };
     let requirement = match &instruction.operation {
+        Operation::FpRegisterBarrier { value, .. } => {
+            let numeric = operand_type(module, value, value_types)?;
+            if !matches!(numeric, Float { bits: 32 | 64 }) || numeric != result_type()? {
+                return Err(fail(
+                    "register barrier requires identical scalar32/64 types",
+                ));
+            }
+            target_profile(module, target)?;
+            None
+        }
         Operation::ConstrainedFloatBinary { lhs, rhs, .. } => {
             let numeric = operand_type(module, lhs, value_types)?;
             if !matches!(numeric, Float { bits: 32 | 64 })

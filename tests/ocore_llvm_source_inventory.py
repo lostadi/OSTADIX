@@ -94,7 +94,7 @@ class Reader:
             "GetStringAttributeValue": (P, [P, c.POINTER(U)]),
             "HasPersonalityFn": (c.c_int, [P]), "GetPersonalityFn": (P, [P]),
             "CountParams": (U, [P]), "GetParams": (None, [P, c.POINTER(P)]),
-            "GetNumArgOperands": (U, [P]), "GetFastMathFlags": (U, [P]),
+            "GetNumArgOperands": (U, [P]), "GetNumOperandBundles": (U, [P]), "GetFastMathFlags": (U, [P]),
             "GetICmpPredicate": (U, [P]), "GetNUW": (c.c_int, [P]),
             "GetNSW": (c.c_int, [P]), "GetExact": (c.c_int, [P]),
             "GetIsDisjoint": (c.c_int, [P]), "GetVolatile": (c.c_int, [P]),
@@ -810,6 +810,25 @@ class Reader:
                 "args":[self.operand(self.GetOperand(instruction,index),values) for index in range(count)],
                 "result_id":values[instruction],"result_type":self.shape(self.TypeOf(instruction))}
 
+    def fp_register_barrier_site(self, instruction, callee, function, block, ordinal, values):
+        # Read genuine LLVM objects independently; no production shape predicate.
+        number = c.c_size_t()
+        attachments = self.InstructionGetAllMetadataOtherThanDebugLoc(instruction, c.byref(number))
+        kind = self.GetMDKindIDInContext(self.context, b"srcloc", 6)
+        try:
+            for index in range(number.value):
+                if self.ValueMetadataEntriesGetKind(attachments, index) == kind:
+                    if self.GetMetadataKind(self.ValueMetadataEntriesGetMetadata(attachments, index)) != 4:
+                        raise InventoryMismatch("FP register barrier srcloc is not an actual MDTuple")
+        finally:
+            if attachments: self.DisposeValueMetadataEntries(attachments)
+        site = self.linux_syscall_site(instruction, callee, function, block, ordinal, values)
+        site.update(original_target=self.source_target,
+                    fast_math=self.GetFastMathFlags(instruction),
+                    operand_bundles=self.GetNumOperandBundles(instruction),
+                    call_opcode=self.GetInstructionOpcode(instruction))
+        return site
+
     def linux_constant_range(self, instruction, slot, original):
         """Independent actual-slot identity proof, not a production decoder."""
         count = self.GetNumArgOperands(instruction)
@@ -887,6 +906,7 @@ class Reader:
                 raise InventoryMismatch("independent LLVM parse failed")
             if self.VerifyModule(module, 2, c.byref(error)):
                 raise InventoryMismatch("independent LLVM verifier rejected source")
+            self.source_target = (self.GetTarget(module) or b"").decode()
             self.source_data_layout = self.GetDataLayoutStr(module).decode()
             self.layout = self.CreateTargetData(self.GetDataLayoutStr(module))
             output = {"source": source, "llvm_library": self.library, "data_layout": self.GetDataLayoutStr(module).decode(),
@@ -908,7 +928,7 @@ class Reader:
                             values[instruction] = len(values)
                 sites, direct_calls, references, indirect, phis, code_sites, control_calls = [], [], set(), [], [], [], []
                 primitive_counts, gep_counts = Counter(), Counter()
-                ssa_calls, vector_sites, linux_syscalls, pointer_integer_sites = [], [], [], []
+                ssa_calls, vector_sites, linux_syscalls, pointer_integer_sites, fp_register_barriers = [], [], [], [], []
                 if self.HasPersonalityFn(function):
                     references.add(self.address(self.GetPersonalityFn(function))[0])
                 for block_id, block in enumerate(blocks):
@@ -991,7 +1011,11 @@ class Reader:
                             output["strict_fp_required"] |= self.strict_fp(instruction, call=True)
                             callee = self.GetCalledValue(instruction)
                             if self.IsAInlineAsm(callee):
-                                linux_syscalls.append(self.linux_syscall_site(instruction, callee, name, block_id, ordinal, values))
+                                shape = self.shape(self.TypeOf(instruction))
+                                if shape.get("kind") == "float":
+                                    fp_register_barriers.append(self.fp_register_barrier_site(instruction, callee, name, block_id, ordinal, values))
+                                else:
+                                    linux_syscalls.append(self.linux_syscall_site(instruction, callee, name, block_id, ordinal, values))
                             if self.IsAFunction(callee) and not self.GetIntrinsicID(callee):
                                 args = [self.GetOperand(instruction, index) for index in range(self.GetNumArgOperands(instruction))]
                                 witnesses = {}
@@ -1085,7 +1109,7 @@ class Reader:
                     "gep_offset_graph_counts": dict(gep_counts), "symbol_references": sorted(references),
                     "control_effects": self.control_effects(function), "control_call_sites": control_calls,
                     "block_ids": list(range(len(blocks))), "indirect_branches": indirect, "phis": phis,
-                    "block_address_sites": code_sites, "constant_pointer_integer_sites": pointer_integer_sites, "ssa_indirect_calls": ssa_calls, "vector_sites": vector_sites, "linux_syscalls": linux_syscalls,
+                    "block_address_sites": code_sites, "constant_pointer_integer_sites": pointer_integer_sites, "ssa_indirect_calls": ssa_calls, "vector_sites": vector_sites, "linux_syscalls": linux_syscalls, "fp_register_barriers": fp_register_barriers,
                     **self.contract(function)}
             opaque_groups = {}
             for global_ in self.sequence(self.GetFirstGlobal, self.GetNextGlobal, module):
@@ -1851,6 +1875,34 @@ def check_linux_syscall_sites(original, translated, types):
     return proofs
 
 
+def check_fp_register_barrier_sites(original, translated, types):
+    sites = original.get("fp_register_barriers", [])
+    operations = [(block["id"], item) for block in translated["blocks"]
+                  for item in block["instructions"] if item["operation"]["op"] == "fp_register_barrier"]
+    if len(sites) != len(operations):
+        raise InventoryMismatch("FP register barrier source site inventory changed")
+    proofs = []
+    for site, (block, item) in zip(sites, operations):
+        operation = item["operation"]; witness = dict(operation["source"])
+        if witness.pop("schema", None) != "ocore.llvm-fp-register-barrier-source/v1":
+            raise InventoryMismatch("FP register barrier source schema changed")
+        signature = witness.pop("signature")
+        shape = {"kind":"function", "params":[native_shape(types,x) for x in signature["params"]],
+                 "result":native_shape(types,signature["result"]),"variadic":signature["variadic"]}
+        expected = {key:value for key,value in site.items()
+                    if key not in {"signature","extension_attributes","args","result_id","result_type"}}
+        if (witness != expected or shape != site["signature"] or signature["abi"] != "c"
+                or site["call_opcode"] != 45 or site["fast_math"] != 0 or site["operand_bundles"] != 0
+                or native_extension_vectors(signature) != site["extension_attributes"]
+                or block != site["site"]["block"] or item.get("result") is None
+                or item["result"]["id"] != site["result_id"]
+                or native_shape(types,item["result"]["ty"]) != site["result_type"]
+                or [native_operand(operation["value"],types)] != site["args"]):
+            raise InventoryMismatch("FP register barrier original source contract/operand/site changed")
+        proofs.append({"site":site["site"],"source_witness_complete":True,"ordered":True})
+    return proofs
+
+
 def check_inventory(source, module):
     """Fail closed on a missing or changed source interface/static datum.
 
@@ -1861,10 +1913,11 @@ def check_inventory(source, module):
     def require(condition, message):
         if not condition:
             raise InventoryMismatch(message)
-    if source.get("strict_fp_required"):
+    barriers = any(function.get("fp_register_barriers") for function in source["functions"].values())
+    if source.get("strict_fp_required") or barriers:
         constrained_mul = any(site["name"] in {"llvm.experimental.constrained.fmul.f32", "llvm.experimental.constrained.fmul.f64"}
                               for function in source["functions"].values() for site in function["intrinsic_sites"])
-        expected_strict = ("scalar_dynamic_mul_v1" if constrained_mul else "integer_linux_syscall_v1" if module["target"].get("linux_syscall_profile") == "linux_user_raw_v1" else "integer_only_v1")
+        expected_strict = ("scalar_dynamic_mul_register_barrier_v1" if barriers else "scalar_dynamic_mul_v1" if constrained_mul else "integer_linux_syscall_v1" if module["target"].get("linux_syscall_profile") == "linux_user_raw_v1" else "integer_only_v1")
         require(module["target"].get("strict_fp_profile") == expected_strict,
                 "original strictfp requires its independently verified realization profile")
     types = module["types"]
@@ -1909,6 +1962,7 @@ def check_inventory(source, module):
                         f"function integer extension attributes changed: {name}")
                 mappings["declaration_extension_vectors"].append({"function": name, "extensions": original["extension_attributes"]})
                 check_linux_syscall_sites(original, translated, types)
+                check_fp_register_barrier_sites(original, translated, types)
                 check_vector_sites(original, translated, types)
                 calls, consumed_calls, candidates = check_direct_call_extensions(original, translated, types)
                 ordinary_names = {symbol for symbol, item in source["functions"].items() if not item["intrinsic_id"]}

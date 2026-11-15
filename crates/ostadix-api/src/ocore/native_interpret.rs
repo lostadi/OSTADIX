@@ -258,6 +258,15 @@ type SwitchDispatch = HashMap<BlockId, HashMap<BigUint, BlockId>>;
 impl<'a> Prepared<'a> {
     fn new(module: &'a NativeModule) -> Result<Self> {
         super::native_verify::verify(module)?;
+        if module
+            .functions
+            .iter()
+            .flat_map(|function| &function.blocks)
+            .flat_map(|block| &block.instructions)
+            .any(|instruction| matches!(instruction.operation, Operation::FpRegisterBarrier { .. }))
+        {
+            return Err(fail("ordered FP register barrier execution is not implemented by the integer reference interpreter"));
+        }
         if module.has_nonlocal_control_effects() {
             return Err(fail(
                 "returns_twice nonlocal execution is not implemented by the reference interpreter",
@@ -436,6 +445,7 @@ impl<'a> Prepared<'a> {
                         }
                         Operation::FloatBinary { .. }
                         | Operation::ConstrainedFloatBinary { .. }
+                        | Operation::FpRegisterBarrier { .. }
                         | Operation::FloatNeg { .. }
                         | Operation::FloatAbs { .. }
                         | Operation::FCmp { .. } => {

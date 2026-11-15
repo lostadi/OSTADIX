@@ -2517,12 +2517,13 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
         Some(
             StrictFpProfile::IntegerOnlyV1
             | StrictFpProfile::IntegerLinuxSyscallV1
-            | StrictFpProfile::ScalarDynamicMulV1,
+            | StrictFpProfile::ScalarDynamicMulV1
+            | StrictFpProfile::ScalarDynamicMulRegisterBarrierV1,
         ) => {}
     }
     fn value_type(module: &NativeModule, ty: TypeId) -> Result<()> {
         match module.types.get(ty) {
-            Some(Type::Float { bits: 32 | 64 }) if module.target.strict_fp_profile == Some(StrictFpProfile::ScalarDynamicMulV1) => Ok(()),
+            Some(Type::Float { bits: 32 | 64 }) if matches!(module.target.strict_fp_profile, Some(StrictFpProfile::ScalarDynamicMulV1 | StrictFpProfile::ScalarDynamicMulRegisterBarrierV1)) => Ok(()),
             Some(Type::Void | Type::Metadata {} | Type::Int { .. } | Type::Pointer { .. }) => Ok(()),
             Some(Type::Struct { fields, .. }) => {
                 for ty in fields { value_type(module, *ty)?; }
@@ -2587,6 +2588,8 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
             | BinaryOp::Xor => {}
         }
     }
+    let mut barrier_sites = HashSet::new();
+    let mut barrier_locations: BTreeMap<usize, &FpRegisterBarrierSourceLocation> = BTreeMap::new();
     for function in &module.functions {
         signature(module, &function.signature)?;
         for parameter in &function.params {
@@ -2623,15 +2626,55 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
                             ))
                         }
                     },
+                    Operation::FpRegisterBarrier { source, .. } => {
+                        if module.target.strict_fp_profile
+                            != Some(StrictFpProfile::ScalarDynamicMulRegisterBarrierV1)
+                            || !barrier_sites.insert((
+                                source.site.function.as_str(),
+                                source.site.block,
+                                source.site.source_instruction,
+                            ))
+                        {
+                            return Err(fail("strict_fp_profile", "register barrier requires its distinct ordered profile and unique source site"));
+                        }
+                        if let Some(location) = &source.srcloc {
+                            if let Some(old) = barrier_locations.get(&location.node) {
+                                if *old != location {
+                                    return Err(fail(
+                                        "register barrier",
+                                        "contextual srcloc node identity changed",
+                                    ));
+                                }
+                            } else {
+                                if location.node != barrier_locations.len()
+                                    || location.storage == NoAliasNodeStorage::Uniqued
+                                        && barrier_locations.values().any(|old| {
+                                            old.storage == NoAliasNodeStorage::Uniqued
+                                                && old.operands == location.operands
+                                        })
+                                {
+                                    return Err(fail(
+                                        "register barrier",
+                                        "srcloc node order or uniqued tuple identity changed",
+                                    ));
+                                }
+                                barrier_locations.insert(location.node, location);
+                            }
+                        }
+                    }
                     Operation::ConstrainedFloatBinary {
                         kind,
                         rounding,
                         exceptions,
                         ..
                     } => {
-                        if module.target.strict_fp_profile
-                            != Some(StrictFpProfile::ScalarDynamicMulV1)
-                            || *kind != FloatBinaryOp::Mul
+                        if !matches!(
+                            module.target.strict_fp_profile,
+                            Some(
+                                StrictFpProfile::ScalarDynamicMulV1
+                                    | StrictFpProfile::ScalarDynamicMulRegisterBarrierV1
+                            )
+                        ) || *kind != FloatBinaryOp::Mul
                             || *rounding != ConstrainedFpRounding::Dynamic
                             || *exceptions != ConstrainedFpExceptions::Ignore
                         {
@@ -2642,9 +2685,13 @@ pub(crate) fn verify_strict_fp_profile(module: &NativeModule) -> Result<()> {
                         }
                     }
                     Operation::FloatNeg { flags, .. } | Operation::FloatAbs { flags, .. }
-                        if module.target.strict_fp_profile
-                            == Some(StrictFpProfile::ScalarDynamicMulV1)
-                            && *flags == FastMathFlags::default() => {}
+                        if matches!(
+                            module.target.strict_fp_profile,
+                            Some(
+                                StrictFpProfile::ScalarDynamicMulV1
+                                    | StrictFpProfile::ScalarDynamicMulRegisterBarrierV1
+                            )
+                        ) && *flags == FastMathFlags::default() => {}
                     Operation::FloatBinary { .. }
                     | Operation::FloatNeg { .. }
                     | Operation::FloatAbs { .. }
@@ -3577,6 +3624,11 @@ impl<'a> Verifier<'a> {
         for (index, block) in function.blocks.iter().enumerate() {
             let here = format!("{context}, block {}", block.id);
             for (position, instruction) in block.instructions.iter().enumerate() {
+                if let Operation::FpRegisterBarrier { source, .. } = &instruction.operation {
+                    if source.site.function != function.name || source.site.block != block.id {
+                        return Err(fail(&here, "register barrier source owner mismatch"));
+                    }
+                }
                 self.instruction(instruction, &definitions, &here)?;
                 if let Operation::Phi { incoming } = &instruction.operation {
                     let mut actual = BTreeSet::new();
@@ -4040,6 +4092,96 @@ impl<'a> Verifier<'a> {
                     }
                 }
             }
+            Operation::FpRegisterBarrier { value, source } => {
+                let ty = operand(value)?;
+                let bits = self.floating_width(ty, context)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(bits, 32 | 64)
+                    || self.module.target.strict_fp_profile
+                        != Some(StrictFpProfile::ScalarDynamicMulRegisterBarrierV1)
+                    || source.schema != "ocore.llvm-fp-register-barrier-source/v1"
+                    || source.original_target != self.module.target.triple
+                    || source.original_target.split('-').next() != Some("aarch64")
+                    || !self.module.target.little_endian
+                    || self.module.target.pointer_bits != 64
+                    || self.module.target.abi.is_some()
+                    || !source.assembly.is_empty()
+                    || source.constraints != b"=w,0"
+                    || !source.side_effects
+                    || source.align_stack
+                    || source.dialect != 0
+                    || source.can_unwind
+                    || source.calling_convention != 0
+                    || !matches!(source.tail_kind, 0 | 1 | 3)
+                    || source.fast_math != 0
+                    || source.operand_bundles != 0
+                    || source.call_opcode != 45
+                    || source.signature.abi != "c"
+                    || source.signature.variadic
+                    || source.signature.return_storage.is_some()
+                    || !source.signature.result_attributes.is_empty()
+                    || !source.signature.param_attributes.is_empty()
+                        && source.signature.param_attributes.len() != 1
+                    || source
+                        .signature
+                        .param_attributes
+                        .iter()
+                        .any(|attrs| !attrs.is_empty())
+                    || source.signature.params.len() != 1
+                {
+                    return Err(fail(
+                        context,
+                        "unsupported exact ordered FP register barrier source/profile",
+                    ));
+                }
+                self.same_type(ty, source.signature.result, context)?;
+                self.same_type(ty, source.signature.params[0], context)?;
+                let mut previous = None;
+                for attribute in &source.attributes {
+                    let key = (attribute.index, attribute.name.as_str());
+                    if attribute.value != 0
+                        || previous.is_some_and(|old| old >= key)
+                        || match attribute.index {
+                            u32::MAX => !matches!(attribute.name.as_str(), "nounwind" | "strictfp"),
+                            0 | 1 => attribute.name != "noundef",
+                            _ => true,
+                        }
+                    {
+                        return Err(fail(
+                            context,
+                            "unsupported register barrier call attribute witness",
+                        ));
+                    }
+                    previous = Some(key);
+                }
+                if let Some(location) = &source.srcloc {
+                    if location.operands.is_empty()
+                        || !matches!(
+                            location.storage,
+                            NoAliasNodeStorage::Uniqued | NoAliasNodeStorage::Distinct
+                        )
+                    {
+                        return Err(fail(
+                            context,
+                            "invalid register barrier contextual srcloc tuple",
+                        ));
+                    }
+                    for integer in &location.operands {
+                        let width = integer.width;
+                        if !(1..=64).contains(&width)
+                            || integer.bits.parse::<u64>().ok().is_none_or(|bits| {
+                                bits.to_string() != integer.bits
+                                    || width < 64 && bits >= (1_u64 << width)
+                            })
+                        {
+                            return Err(fail(
+                                context,
+                                "invalid register barrier typed srcloc integer",
+                            ));
+                        }
+                    }
+                }
+            }
             Operation::ConstrainedFloatBinary {
                 kind,
                 lhs,
@@ -4055,8 +4197,13 @@ impl<'a> Verifier<'a> {
                     || *kind != FloatBinaryOp::Mul
                     || *rounding != ConstrainedFpRounding::Dynamic
                     || *exceptions != ConstrainedFpExceptions::Ignore
-                    || self.module.target.strict_fp_profile
-                        != Some(StrictFpProfile::ScalarDynamicMulV1)
+                    || !matches!(
+                        self.module.target.strict_fp_profile,
+                        Some(
+                            StrictFpProfile::ScalarDynamicMulV1
+                                | StrictFpProfile::ScalarDynamicMulRegisterBarrierV1
+                        )
+                    )
                 {
                     return Err(fail(
                         context,
@@ -4873,6 +5020,7 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
         | Operation::IntegerMinMax { lhs, rhs, .. }
         | Operation::ICmp { lhs, rhs, .. } => vec![lhs, rhs],
         Operation::Cast { value, .. }
+        | Operation::FpRegisterBarrier { value, .. }
         | Operation::FloatNeg { value, .. }
         | Operation::FloatAbs { value, .. }
         | Operation::IntegerPopulationCount { value }
@@ -13587,4 +13735,43 @@ mod tests {
         value["functions"][1]["control_effects"] = json!({"returns_twice":"true"});
         assert!(NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).is_err());
     }
+}
+
+#[cfg(test)]
+#[test]
+fn ordered_fp_register_barrier_never_enters_pure_scalar_leaf() {
+    use serde_json::json;
+
+    let source = json!({
+            "schema":"ocore.llvm-fp-register-barrier-source/v1",
+            "site":{"function":"native_add","block":0,"source_instruction":1},
+            "original_target":"aarch64-unknown-linux-gnu","assembly":[],"constraints":[61,119,44,48],
+            "side_effects":true,"align_stack":false,"dialect":0,"can_unwind":false,"calling_convention":0,
+            "tail_kind":0,"fast_math":0,"operand_bundles":0,"call_opcode":45,
+            "signature":{"params":[3],"result":3,"abi":"c","variadic":false},"attributes":[],"srcloc":null});
+    // An authored structural fixture with an integer public signature prevents
+    // a signature-only refusal from standing in for the body/effect audit.
+    let mut descriptor: serde_json::Value =
+        serde_json::from_str(&crate::native_leaf::test_descriptor(1, false)).unwrap();
+    let module = &mut descriptor["module"];
+    module["target"]["triple"] = json!("aarch64-unknown-linux-gnu");
+    module["target"]["strict_fp_profile"] = json!("scalar_dynamic_mul_register_barrier_v1");
+    module["types"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"kind":"float","bits":64}));
+    let block = &mut module["functions"][0]["blocks"][0];
+    block["instructions"] = json!([
+        {"result":{"id":1,"ty":3},"operation":{"op":"cast","kind":"bitcast","value":{"kind":"value","id":0}}},
+        {"result":{"id":2,"ty":3},"operation":{"op":"fp_register_barrier","value":{"kind":"value","id":1},"source":source}},
+        {"result":{"id":3,"ty":1},"operation":{"op":"cast","kind":"bitcast","value":{"kind":"value","id":2}}}
+    ]);
+    block["terminator"] = json!({"op":"return","value":{"kind":"value","id":3}});
+    let parsed: NativeModule = serde_json::from_value(descriptor["module"].clone()).unwrap();
+    verify(&parsed).unwrap();
+    let error = crate::native_leaf::validate_descriptor(&descriptor.to_string(), 1).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("SSA values must be i1 or i64"),
+        "{error:#}"
+    );
 }

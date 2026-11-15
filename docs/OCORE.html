@@ -578,8 +578,24 @@ musl 1.2.5 units (<code>scalbn</code>, <code>scalbnf</code>, <code>__math_xflow<
 <code>0784374d561435f7c787a555aeab8ede699ed298</code> using Clang 22.1.6 and its configured
 headers/build commands. Its x86-64 comparison covers 10,368 raw result and
 floating-environment pairs, and its target checks preserve explicit refusals.
-Original AArch64 <code>__math_xflow{,f}</code> still contain unsupported ordered inline
-assembly; long-double and complete musl dependency closure remain unqualified.
+The separate <code>scalar_dynamic_mul_register_barrier_v1</code> profile also admits
+the original AArch64 empty, side-effecting scalar <code>=w,0</code> inline assembly as an
+ordered bit-preserving operation. It requires the exact f32/f64 operand and
+result contract, strict-FP scope and source metadata; unsupported assembly
+shapes, fast-math flags and foreign-target realizations are rejected.
+It preserves the evaluation of its input even when the result is unused;
+arithmetic copying is not a substitute for bit identity. The existing
+<code>scalar_dynamic_mul_v1</code> profile is unchanged.</p>
+<p><code>tests/test_ocore_native_fp_register_barrier.py</code> independently inventories the
+original LLVM assembly, checks malformed contracts and source substitution,
+and tests wrappers around the original force/barrier helpers with signed zero, NaNs,
+rounding modes and accrued flags. Its native-host run uses that host&#39;s actual
+upstream headers. On x86-64 and RV64, those headers use volatile memory;
+their passing wrapper tests do not qualify a realization of the new
+AArch64-only operation. AArch64 object emission likewise does not establish
+execution on that ISA. The interpreter and pure <code>ocore_i64</code> graph leaf
+explicitly refuse the ordered floating-point operation.
+Long-double and complete musl dependency closure remain unqualified.
 Target-local equality does not establish identical NaN payloads across ISAs:
 RV arithmetic canonicalizes NaNs in cases where the x86-64 and AArch64 reference
 profiles retain payloads. The exact cross-ISA raw-bit comparison therefore

@@ -4270,6 +4270,14 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("commit", "-q", "-m", "remove mandatory exact-LLVM scalar FP source closure")
         self._assert_missing_required_paths("missing-constrained-fp.zip", paths)
 
+    def test_register_barrier_suite_is_required_even_with_other_fp_inputs_present(self) -> None:
+        path = "tests/test_ocore_native_fp_register_barrier.py"
+        self.assertIn(path, release.CONSTRAINED_FP_RELEASE_PATHS)
+        self._commit()
+        self._git("rm", path)
+        self._git("commit", "-q", "-m", "remove required register-barrier suite only")
+        self._assert_missing_required_paths("missing-register-barrier.zip", [path])
+
     def test_o10_component_source_closure_is_required(self) -> None:
         paths = sorted(release.O10_COMPONENT_RELEASE_PATHS)
         self._commit()

@@ -870,6 +870,9 @@ fn production_python_backend_proxy_shutdown_reaps_shim() {
     command
         .arg("--o-backend")
         .arg("python")
+        // This reader implements the legacy response protocol. Optional
+        // heartbeat negotiation belongs to its caller, not this private proxy.
+        .env_remove("O_BACKEND_HEARTBEAT_INTERVAL_MS")
         .env(
             "O_BACKEND_LEGACY_SHIM",
             root.join("backends/python_shim.py"),
@@ -977,5 +980,66 @@ fn production_python_backend_proxy_shutdown_reaps_shim() {
     assert!(
         !process_or_group_exists(proxy_pid),
         "backend proxy process group {proxy_pid} remained after shutdown"
+    );
+}
+
+#[test]
+fn production_python_backend_proxy_shutdown_with_inherited_heartbeat() {
+    const CHILD_ENV: &str = "OSTADIX_TEST_PROXY_HEARTBEAT_CHILD";
+    if std::env::var_os(CHILD_ENV).as_deref() == Some(std::ffi::OsStr::new("1")) {
+        assert_eq!(
+            std::env::var("O_BACKEND_HEARTBEAT_INTERVAL_MS").as_deref(),
+            Ok("5000"),
+            "the test caller must retain its heartbeat setting"
+        );
+        production_python_backend_proxy_shutdown_reaps_shim();
+        return;
+    }
+    if !support::require_runtime("python3") {
+        return;
+    }
+
+    // A child harness exercises the actual inherited environment without a
+    // process-wide environment mutation racing other integration tests.
+    let workdir = tempfile::tempdir().expect("create heartbeat inheritance directory");
+    let stdout_path = workdir.path().join("stdout.log");
+    let stderr_path = workdir.path().join("stderr.log");
+    let mut command =
+        Command::new(std::env::current_exe().expect("locate current test executable"));
+    command
+        .args([
+            "--exact",
+            "production_python_backend_proxy_shutdown_with_inherited_heartbeat",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(CHILD_ENV, "1")
+        .env("O_BACKEND_HEARTBEAT_INTERVAL_MS", "5000")
+        .env("OSTADIX_TEST_RUNTIME_POLICY", "required")
+        .env("O_LIFECYCLE_TRACE", workdir.path().join("lifecycle.log"))
+        .env("RUST_BACKTRACE", "0")
+        .stdin(Stdio::null())
+        .stdout(fs::File::create(&stdout_path).expect("create child stdout"))
+        .stderr(fs::File::create(&stderr_path).expect("create child stderr"));
+    #[cfg(unix)]
+    command.process_group(0);
+    let mut child =
+        support::spawn_private_executable(&mut command).expect("spawn heartbeat caller");
+    let status = wait_for_child(&mut child, Duration::from_secs(20));
+    for path in [&stdout_path, &stderr_path] {
+        assert!(
+            fs::metadata(path).expect("stat child output").len() <= 64 * 1024,
+            "child diagnostic output exceeded the test bound"
+        );
+    }
+    let stdout = fs::read_to_string(stdout_path).expect("read child stdout");
+    let stderr = fs::read_to_string(stderr_path).expect("read child stderr");
+    assert!(
+        status.success(),
+        "inherited heartbeat lifecycle failed with {status}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    assert!(
+        stdout.contains("test result: ok. 1 passed; 0 failed; 0 ignored;"),
+        "the nested lifecycle case did not execute: {stdout}"
     );
 }

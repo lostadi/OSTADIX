@@ -9,6 +9,7 @@ impl Emitter<'_> {
         let relevant = match &instruction.operation {
             Operation::FloatBinary { .. }
             | Operation::ConstrainedFloatBinary { .. }
+            | Operation::FpRegisterBarrier { .. }
             | Operation::FloatNeg { .. }
             | Operation::FloatAbs { .. }
             | Operation::FCmp { .. } => true,
@@ -89,6 +90,14 @@ impl Emitter<'_> {
                     }
                     self.spill_chunk(out, result, 0, 64);
                 }
+            }
+            Operation::FpRegisterBarrier { value, .. } => {
+                // Always materialize in block order, even with no SSA users.
+                // Only bit transfers: arithmetic identities can quiet sNaNs.
+                let bits = self.bits(value);
+                self.floating_load(out, value, None, bits)?;
+                self.floating_read_result(out, bits);
+                self.spill_chunk(out, result, 0, 0);
             }
             Operation::ConstrainedFloatBinary { lhs, rhs, .. } => {
                 let bits = self.bits(lhs);

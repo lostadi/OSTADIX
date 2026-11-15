@@ -181,3 +181,50 @@ fn module_packages_recompute_generated_helper_closure_and_reject_inventory_forge
         .to_string()
         .contains("independently recomputed closure"));
 }
+
+#[test]
+fn ordered_fp_register_barrier_artifact_has_no_fake_provider_or_pure_profile() {
+    let source = json!({"schema":"ocore.llvm-fp-register-barrier-source/v1",
+                    "site":{"function":"barrier","block":0,"source_instruction":0},
+                    "original_target":"aarch64-unknown-linux-musl","assembly":[],"constraints":[61,119,44,48],
+                    "side_effects":true,"align_stack":false,"dialect":0,"can_unwind":false,
+                    "calling_convention":0,"tail_kind":1,"fast_math":0,"operand_bundles":0,"call_opcode":45,
+                    "signature":{"params":[1],"result":1,"abi":"c","variadic":false},
+                    "attributes":[],"srcloc":null});
+
+    // Authored MIR structural fixture, distinct from original-source admission.
+    let mut value = json!({
+        "format":"ocore-native-module-v1", "name":"ordered-barrier-artifact",
+        "target":{"triple":"aarch64-unknown-linux-musl", "data_layout":"e-p:64:64-i64:64-f64:64",
+            "pointer_bits":64,"little_endian":true,"strict_fp_profile":"scalar_dynamic_mul_register_barrier_v1"},
+        "semantics":"llvm_defined_behavior_v1", "types":[{"kind":"void"},{"kind":"float","bits":64}],
+        "globals":[],"functions":[{"name":"barrier","linkage":"external",
+            "signature":{"params":[1],"result":1,"abi":"c","variadic":false},
+            "params":[{"id":0,"ty":1}],"entry":0,
+            "blocks":[{"id":0,"instructions":[{"result":{"id":1,"ty":1},"operation":{
+                "op":"fp_register_barrier","value":{"kind":"value","id":0},
+                "source":source}}],
+                "terminator":{"op":"return","value":{"kind":"value","id":1}}}]}],
+        "provenance":{"input_sha256":"0".repeat(64),"frontend":"authored-test","frontend_version":"1",
+            "importer":"authored-test","importer_version":"1","source_function_count":1,"source_global_count":0,"refinements":[]}
+    });
+    let module = NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let error = o_lang::ocore::native_interpret::evaluate(&module, "barrier", &[]).unwrap_err();
+    assert!(error
+        .message
+        .contains("ordered FP register barrier execution is not implemented by the integer reference interpreter"));
+    let inventory = symbols("barrier", &module).unwrap();
+    assert!(inventory.iter().all(|symbol| symbol.definition));
+    let (_, issues) = resolve_symbols(&inventory);
+    assert!(issues.is_empty(), "{issues:?}");
+    let package = artifact::Artifact::build(
+        "barrier",
+        &"0".repeat(64),
+        &[("barrier".into(), module.to_json().unwrap())],
+        &[],
+    )
+    .unwrap();
+    artifact::Artifact::from_bytes(&serde_json::to_vec(&package).unwrap()).unwrap();
+    value["target"]["strict_fp_profile"] = json!("scalar_dynamic_mul_v1");
+    assert!(NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).is_err());
+}

@@ -402,6 +402,8 @@ class Importer:
         self.symbol = ""
         self.strict_fp_sites = set()
         self.constrained_mul_seen = False
+        self.fp_register_barrier_seen = False
+        self.fp_locations, self.fp_srcloc = {}, {}
         self.attribute_names = {}
         for name in self.ERASED | self.ERASED_RESTRICTIONS | {"returns_twice",
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
@@ -414,8 +416,7 @@ class Importer:
         self.metadata_names = {api.GetMDKindIDInContext(context, name.encode(), len(name)): name for name in self.METADATA}
         self.noundef_metadata_kind = api.GetMDKindIDInContext(context, b"noundef", 7)
         self.callees_metadata_kind = api.GetMDKindIDInContext(context, b"callees", 7)
-        if self.linux_syscall_profile is not None:
-            self.srcloc_metadata_kind = api.GetMDKindIDInContext(context, b"srcloc", 6)
+        self.srcloc_metadata_kind = api.GetMDKindIDInContext(context, b"srcloc", 6)
         self.call_target_constraints = []
 
     def reject(self, message):
@@ -1531,6 +1532,85 @@ class Importer:
             self.reject("noalias scope declaration requires a list containing exactly one scope")
         return node["id"]
 
+    def fp_source_location(self, metadata):
+        a = self.a
+        value = a.MetadataAsValue(self.context, metadata) if metadata else None
+        if not value or a.GetMetadataKind(metadata) != 4 or not a.IsAMDNode(value):
+            self.reject("FP register barrier srcloc requires an actual MDTuple")
+        count = a.GetMDNodeNumOperands(value)
+        if not count:
+            self.reject("FP register barrier srcloc requires a nonempty constant-integer tuple")
+        operands = (P * count)()
+        a.GetMDNodeOperands(value, operands)
+        integers = []
+        for operand in operands:
+            if not operand or not a.IsAConstantInt(operand):
+                self.reject("FP register barrier srcloc only admits typed constant integers")
+            width = a.GetIntTypeWidth(a.TypeOf(operand))
+            if not 1 <= width <= 64:
+                self.reject("FP register barrier srcloc integer width must be 1..64")
+            integers.append({"width": width, "bits": str(a.ConstIntGetZExtValue(operand))})
+        # Reconstruct only an interned tuple in the same context, without
+        # changing any module attachment. Identity against this uniqued node
+        # distinguishes original distinct storage; parsed verified source has
+        # no temporary nodes. Single-constant MetadataAsValue printers unwrap
+        # tuples, so no printer text or context numeric kind is used here.
+        members = (P * count)(*(a.ValueAsMetadata(operand) for operand in operands))
+        interned = a.MDNodeInContext2(self.context, members, count)
+        storage = "uniqued" if interned == metadata else "distinct"
+        if metadata not in self.fp_locations:
+            self.fp_locations[metadata] = len(self.fp_locations)
+        return {"node": self.fp_locations[metadata], "storage": storage, "operands": integers}
+
+    def fp_register_barrier_shape(self, value, callee):
+        a = self.a
+        triple = a.GetTarget(self.module).decode()
+        size, constraints_size = S(), S()
+        asm = a.GetInlineAsmAsmString(callee, C.byref(size))
+        constraints = a.GetInlineAsmConstraintString(callee, C.byref(constraints_size))
+        return (a.GetInstructionOpcode(value) == 45 and a.GetTypeKind(a.TypeOf(value)) in {2, 3}
+                and triple.split("-")[0] == "aarch64"
+                and size.value == 0 and C.string_at(constraints, constraints_size.value) == b"=w,0")
+
+    def fp_register_barrier(self, value, callee, signature, args):
+        a = self.a
+        source_type = a.GetInlineAsmFunctionType(callee)
+        if (not self.fp_register_barrier_shape(value, callee)
+                or self.linux_syscall_profile is not None
+                or not a.GetInlineAsmHasSideEffects(callee)
+                or a.GetInlineAsmNeedsAlignedStack(callee) or a.GetInlineAsmDialect(callee) != 0
+                or a.GetInlineAsmCanUnwind(callee) or a.GetInstructionCallConv(value) != 0
+                or a.GetTailCallKind(value) not in {0, 1, 3} or a.GetNumOperandBundles(value)
+                or a.GetFastMathFlags(value) != 0 or source_type != a.GetCalledFunctionType(value)
+                or a.IsFunctionVarArg(source_type) or signature["abi"] != "c" or signature["variadic"]
+                or len(args) != 1 or signature["params"] != [signature["result"]]
+                or self.types[signature["result"]] not in [{"kind":"float","bits":32},{"kind":"float","bits":64}]
+                or signature.get("return_storage") is not None or signature.get("result_attributes")
+                or any(signature.get("param_attributes", []))):
+            self.reject("unsupported exact ordered FP register barrier InlineAsm/source contract")
+        attributes = []
+        for index in [0, 1, 0xffffffff]:
+            for attribute in self.attribute_records(value, index, True):
+                if not a.IsEnumAttribute(attribute):
+                    self.reject("FP register barrier requires enum-zero source attributes")
+                name = self.attribute_names.get(a.GetEnumAttributeKind(attribute))
+                if (a.GetEnumAttributeValue(attribute) != 0
+                        or index == 0xffffffff and name not in {"nounwind", "strictfp"}
+                        or index != 0xffffffff and name != "noundef"):
+                    self.reject("unsupported FP register barrier call attribute")
+                attributes.append({"index":index,"name":name,"value":0})
+        attributes.sort(key=lambda item:(item["index"],item["name"]))
+        source = {"schema":"ocore.llvm-fp-register-barrier-source/v1",
+                  "site":{key:self.source_sites[value][key] for key in ("function","block","source_instruction")},
+                  "original_target":a.GetTarget(self.module).decode(),
+                  "assembly":[],"constraints":list(b"=w,0"),"side_effects":True,"align_stack":False,
+                  "dialect":0,"can_unwind":False,"calling_convention":0,"tail_kind":a.GetTailCallKind(value),
+                  "fast_math":0,"operand_bundles":0,"call_opcode":45,"signature":signature,"attributes":attributes,
+                  "srcloc":self.fp_srcloc.get(value)}
+        self.fp_register_barrier_seen = True
+        self.refinements.add("ordered scalar FP register barrier/v1: exact original AArch64 empty sideeffect tied =w,0 scalar32/64 contract; genuine call attributes/FMF/effects/typed contextual srcloc retained; ordered bit materialization including unused operand computation, not arithmetic, platform authority, a pure leaf, universal flags/traps or a provider")
+        return {"op":"fp_register_barrier","value":args[0],"source":source}
+
     def linux_source_location(self, metadata):
         a = self.a
         value = a.MetadataAsValue(self.context, metadata) if metadata else None
@@ -1683,6 +1763,12 @@ class Importer:
                             or not a.IsAInlineAsm(a.GetCalledValue(value))):
                         self.reject("srcloc realization is limited to the exact supported InlineAsm call")
                     self.linux_srcloc[value] = self.linux_source_location(a.ValueMetadataEntriesGetMetadata(entries, i))
+                    continue
+                if (kind == self.srcloc_metadata_kind and not global_value
+                        and a.GetInstructionOpcode(value) == 45
+                        and a.IsAInlineAsm(a.GetCalledValue(value))
+                        and self.fp_register_barrier_shape(value, a.GetCalledValue(value))):
+                    self.fp_srcloc[value] = self.fp_source_location(a.ValueMetadataEntriesGetMetadata(entries, i))
                     continue
                 if kind == self.noundef_metadata_kind:
                     if global_value or a.GetInstructionOpcode(value) != 27:
@@ -2812,6 +2898,8 @@ class Importer:
                 self.intrinsic_signature(intrinsic, signature)
             if a.IsAInlineAsm(callee) and self.linux_syscall_profile is not None:
                 operation = self.linux_syscall(value, callee, signature, args)
+            elif a.IsAInlineAsm(callee):
+                operation = self.fp_register_barrier(value, callee, signature, args)
             elif intrinsic in self.CONSTRAINED_MUL_INTRINSICS:
                 if (not self.current_strict_fp or not (self.has_strict_fp(value, True) or self.has_strict_fp(callee))
                         or any(self.fast_math(value).values())):
@@ -3387,7 +3475,7 @@ class Importer:
             if frontend_version == "producer version not declared" and self.producer_ident:
                 frontend_version = "self-reported !llvm.ident: " + "; ".join(self.producer_ident)
             self.refinements.add("LLVM poison/undef may be refined deterministically; dropped assumptions are never used for optimization")
-            if self.strict_fp_sites:
+            if self.strict_fp_sites or self.fp_register_barrier_seen:
                 self.audit_strict_fp_integer_operations(functions)
             if self.constrained_mul_seen:
                 if self.linux_syscall_profile is not None:
@@ -3396,7 +3484,9 @@ class Importer:
                 for symbol, site, index in self.strict_fp_sites:
                     self.refinements.add(f"{symbol}: strictfp-scalar-dynamic-mul-v1 {site} attribute index {index}: audited scalar32/64 transport, bit/sign operations and ordered dynamic-rounding multiplication; ambient controls retained, exception-ignore not strict flags/traps; required original calls/providers remain separate obligations")
             target = {"triple": triple, "data_layout": layout, "pointer_bits": 64, "little_endian": True}
-            if self.strict_fp_sites:
+            if self.fp_register_barrier_seen:
+                target["strict_fp_profile"] = "scalar_dynamic_mul_register_barrier_v1"
+            elif self.strict_fp_sites:
                 target["strict_fp_profile"] = ("scalar_dynamic_mul_v1" if self.constrained_mul_seen else "integer_linux_syscall_v1" if self.linux_syscall_profile else "integer_only_v1")
             if self.linux_syscall_profile is not None:
                 target["linux_syscall_profile"] = "linux_user_raw_v1"
@@ -3440,7 +3530,7 @@ class Importer:
         """Bound the strictfp realization independently of future IR expansion."""
         def value_type(ident):
             record = self.types[ident]
-            if record["kind"] == "float" and self.constrained_mul_seen and record["bits"] in {32, 64}:
+            if record["kind"] == "float" and (self.constrained_mul_seen or self.fp_register_barrier_seen) and record["bits"] in {32, 64}:
                 return
             if record["kind"] in {"void", "int", "pointer", "metadata"}:
                 return
@@ -3484,7 +3574,9 @@ class Importer:
                     name = operation["op"]
                     if name == "linux_syscall" and self.linux_syscall_profile == "linux-user-raw-v1":
                         continue
-                    if name in {"constrained_float_binary", "float_neg", "float_abs"} and self.constrained_mul_seen:
+                    if name == "fp_register_barrier" and self.fp_register_barrier_seen:
+                        continue
+                    if name in {"constrained_float_binary", "float_neg", "float_abs"} and (self.constrained_mul_seen or self.fp_register_barrier_seen):
                         if name == "constrained_float_binary" and (operation["kind"] != "mul" or operation["rounding"] != "dynamic" or operation["exceptions"] != "ignore"):
                             self.reject("unsupported constrained scalar operation")
                         if name in {"float_neg", "float_abs"} and any(operation["flags"].values()):
