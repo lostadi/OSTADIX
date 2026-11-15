@@ -3177,6 +3177,8 @@ pub(super) struct StagedComponent {
     pub(super) capture_bytes: Vec<u8>,
     pub(super) capture: Value,
     pub(super) selected: BTreeSet<String>,
+    // Retain the actual admission owner, not just its serializable receipt.
+    admitted_capture: Option<source_action::AdmittedCapture>,
     pub(super) modules: Vec<(String, Vec<u8>)>,
     pub(super) original_inputs: BTreeMap<String, (Value, Vec<u8>)>,
     pub(super) source_capture_complete: bool,
@@ -3187,6 +3189,30 @@ pub(super) struct StagedComponent {
     )]
     pub(super) compiler_sha256: Option<String>,
     pub(super) coverage_path: PathBuf,
+}
+
+impl StagedComponent {
+    fn admitted_order_capture(&self) -> Result<source_action::AdmittedCaptureView<'_>> {
+        let module_ids: BTreeSet<_> = self.modules.iter().map(|(id, _)| id.clone()).collect();
+        if !self.source_capture_complete
+            || !self.unit_lowering_complete
+            || self.modules.len() != self.selected.len()
+            || module_ids != self.selected
+            || self
+                .original_inputs
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>()
+                != self.selected
+            || serde_json::from_slice::<Value>(&self.capture_bytes)? != self.capture
+        {
+            bail!("live order requires the complete bound staged capture");
+        }
+        self.admitted_capture
+            .as_ref()
+            .context("live order requires the actual staged capture admission owner")?
+            .checked_view(&self.capture_path, &self.capture_bytes, &self.selected)
+    }
 }
 
 fn compile_with_compiler(
@@ -3951,6 +3977,7 @@ fn lower_held_capture_with_compiler(
         capture_bytes: bytes,
         capture,
         selected,
+        admitted_capture,
         modules: imported_modules,
         original_inputs,
         source_capture_complete,

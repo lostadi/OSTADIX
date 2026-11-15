@@ -199,6 +199,7 @@ pub(super) struct SealedOrder {
 pub(super) struct PreparedOrder {
     sealed: SealedOrder,
     evidence: Vec<ComponentEvidence>,
+    original_captures: Vec<source_action::AdmittedCapture>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -224,6 +225,109 @@ pub(super) struct CaptureInput<'a> {
     pub(super) component: &'a str,
     pub(super) raw: &'a [u8],
     pub(super) selected: &'a BTreeSet<String>,
+}
+
+// Only live production resolution takes these owner-backed views. CaptureInput
+// remains the raw, detached/internal consistency representation.
+pub(super) struct LiveCaptureInput<'a> {
+    pub(super) component: &'a str,
+    pub(super) capture: source_action::AdmittedCaptureView<'a>,
+}
+impl<'a> LiveCaptureInput<'a> {
+    fn consistency_input(&self) -> CaptureInput<'a> {
+        CaptureInput {
+            component: self.component,
+            raw: self.capture.raw(),
+            selected: self.capture.selected(),
+        }
+    }
+}
+
+// Both production finalization and its inert filesystem controls use this
+// complete walk. A failed owner never short-circuits the remaining owners.
+pub(super) fn check_order_capture_views<'a, F>(
+    captures: &[(String, source_action::AdmittedCaptureView<'a>)],
+    mut check: F,
+) -> Result<()>
+where
+    F: FnMut(usize, &source_action::AdmittedCaptureView<'a>) -> Result<()>,
+{
+    let mut errors = Vec::new();
+    for (index, (label, capture)) in captures.iter().enumerate() {
+        if let Err(error) = check(index, capture) {
+            errors.push(format!("{label}: {error:#}"));
+        }
+    }
+    if !errors.is_empty() {
+        bail!("{}", errors.join("; "));
+    }
+    Ok(())
+}
+
+// Always execute finalization even when the helper/core failed, and retain
+// both causes instead of replacing a helper failure with a custody failure.
+pub(super) fn finalize_order_resolution<T>(
+    resolution: Result<T>,
+    finalize: impl FnOnce() -> Result<()>,
+) -> Result<T> {
+    match (resolution, finalize()) {
+        (Ok(value), Ok(())) => Ok(value),
+        (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+        (Err(error), Err(custody)) => Err(error.context(format!(
+            "order capture finalization also failed: {custody:#}"
+        ))),
+    }
+}
+
+fn postguard_order_views(
+    captures: &[(String, source_action::AdmittedCaptureView<'_>)],
+    python: &provider_group::Pin,
+    output: &Path,
+    phase: &str,
+) -> Result<()> {
+    let tool_before = python.checked().map(|_| ());
+    let tool_ready = tool_before.is_ok();
+    let sweep = check_order_capture_views(captures, |index, capture| {
+        // Even an unavailable interpreter must not suppress the remaining held
+        // report byte checks. It cannot authorize a verification subprocess.
+        capture.check_report_bytes()?;
+        if !tool_ready {
+            bail!("Python pin prevents full capture readmission");
+        }
+        let directory = output.join(format!("{phase}-owner-{index:06}"));
+        fs::create_dir(&directory)?;
+        capture.postguard(&directory, &python.path).map(|_| ())
+    });
+    let mut errors = Vec::new();
+    for (label, checked) in [
+        ("Python before", tool_before),
+        ("owner sweep", sweep),
+        ("Python after", python.checked().map(|_| ())),
+    ] {
+        if let Err(error) = checked {
+            errors.push(format!("{phase} {label}: {error:#}"));
+        }
+    }
+    if !errors.is_empty() {
+        bail!("{}", errors.join("; "));
+    }
+    Ok(())
+}
+
+fn postguard_order_captures(
+    original: &source_action::AdmittedCaptureView<'_>,
+    fresh: &source_action::AdmittedCaptureView<'_>,
+    python: &provider_group::Pin,
+    output: &Path,
+    phase: &str,
+    index: usize,
+) -> Result<()> {
+    postguard_order_views(
+        &[("original".into(), *original), ("fresh".into(), *fresh)],
+        python,
+        output,
+        &format!("{phase}-component-{index:06}"),
+    )
 }
 
 fn identity(value: &str) -> Result<()> {
@@ -578,6 +682,7 @@ impl SealedOrder {
         self.check_unchanged()?;
         fs::create_dir(output)?;
         let mut evidence = Vec::new();
+        let mut original_captures = Vec::new();
         for (index, c) in self.policy.components.iter().enumerate() {
             let raw = read_pin(&c.original_capture)?;
             let capture = checked_json(&raw)?;
@@ -612,11 +717,13 @@ impl SealedOrder {
                 commitment_json: commitment,
                 resolution: None,
             });
+            original_captures.push(admitted);
         }
         self.check_unchanged()?;
         Ok(PreparedOrder {
             sealed: self,
             evidence,
+            original_captures,
         })
     }
 }
@@ -624,65 +731,115 @@ impl PreparedOrder {
     pub(super) fn check_unchanged(&self) -> Result<()> {
         self.sealed.check_unchanged()
     }
-    pub(super) fn resolve(
+    pub(super) fn resolve_live(
         self,
-        inputs: &[CaptureInput<'_>],
+        inputs: &[LiveCaptureInput<'_>],
         python: &provider_group::Pin,
         output: &Path,
     ) -> Result<PackagedOrder> {
         self.check_unchanged()?;
         fs::create_dir(output)?;
         let mut evidence = self.evidence;
-        if inputs.len() != evidence.len() {
+        if inputs.len() != evidence.len() || self.original_captures.len() != evidence.len() {
             bail!("fresh order component count differs");
         }
-        for (index, ((c, e), fresh)) in self
+        let originals = self
             .sealed
             .policy
             .components
             .iter()
-            .zip(&mut evidence)
+            .zip(&self.original_captures)
+            .zip(&evidence)
+            .map(|((component, owner), record)| {
+                let required = component.required_unit_ids.iter().cloned().collect();
+                owner.checked_view(
+                    &component.original_capture.path,
+                    record.original_capture_json.as_bytes(),
+                    &required,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let all_captures = originals
+            .iter()
             .zip(inputs)
             .enumerate()
-        {
-            if fresh.component != c.component {
-                bail!("fresh order component sequence differs");
+            .flat_map(|(index, (original, fresh))| {
+                [
+                    (format!("original-component-{index:06}"), *original),
+                    (format!("fresh-component-{index:06}"), fresh.capture),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let resolution = (|| -> Result<PackagedOrder> {
+            for (index, (((c, e), fresh), original)) in self
+                .sealed
+                .policy
+                .components
+                .iter()
+                .zip(&mut evidence)
+                .zip(inputs)
+                .zip(&originals)
+                .enumerate()
+            {
+                if fresh.component != c.component {
+                    bail!("fresh order component sequence differs");
+                }
+                let capture = checked_json(fresh.capture.raw())?;
+                if selected(&capture)? != *fresh.capture.selected() {
+                    bail!("fresh order selected capture differs from actual stage");
+                }
+                postguard_order_captures(
+                    original,
+                    &fresh.capture,
+                    python,
+                    output,
+                    "before",
+                    index,
+                )?;
+                let mut req = request(&self.sealed.raw, &self.sealed.policy, c, original.raw())?;
+                req["operation"] = json!("resolve");
+                req["commitment"] = json!(e.commitment_json);
+                req["fresh_events"] = json!(events(fresh.capture.raw(), fresh.capture.selected())?);
+                req["fresh_roots"] = json!(c.fresh_roots);
+                let helper = bridge(python, &req, &output.join(format!("resolve-{index:06}")));
+                e.resolution = Some(finalize_order_resolution(helper, || {
+                    postguard_order_captures(
+                        original,
+                        &fresh.capture,
+                        python,
+                        output,
+                        "after",
+                        index,
+                    )
+                })?);
             }
-            let capture = checked_json(fresh.raw)?;
-            if selected(&capture)? != *fresh.selected {
-                bail!("fresh order selected capture differs from actual stage");
-            }
-            let mut req = request(
-                &self.sealed.raw,
-                &self.sealed.policy,
-                c,
-                e.original_capture_json.as_bytes(),
-            )?;
-            req["operation"] = json!("resolve");
-            req["commitment"] = json!(e.commitment_json);
-            req["fresh_events"] = json!(events(fresh.raw, fresh.selected)?);
-            req["fresh_roots"] = json!(c.fresh_roots);
-            e.resolution = Some(bridge(
-                python,
-                &req,
-                &output.join(format!("resolve-{index:06}")),
-            )?);
-        }
-        let mut package = PackagedOrder {
-            schema: package_schema(&self.sealed.policy).into(),
-            policy_pin: self.sealed.pin.clone(),
-            policy_json: String::from_utf8(self.sealed.raw.clone())?,
-            helper_sha256: digest(JOIN.as_bytes()),
-            general_helper: general_binding(&self.sealed.policy),
-            components: evidence,
-            resolved_occurrences: Vec::new(),
-        };
-        package.resolved_occurrences = package.expected_occurrences(inputs)?;
-        package.check_internal(inputs)?;
-        self.sealed.check_unchanged()?;
-        Ok(package)
+            let consistency_inputs = inputs
+                .iter()
+                .map(LiveCaptureInput::consistency_input)
+                .collect::<Vec<_>>();
+            let mut package = PackagedOrder {
+                schema: package_schema(&self.sealed.policy).into(),
+                policy_pin: self.sealed.pin.clone(),
+                policy_json: String::from_utf8(self.sealed.raw.clone())?,
+                helper_sha256: digest(JOIN.as_bytes()),
+                general_helper: general_binding(&self.sealed.policy),
+                components: evidence,
+                resolved_occurrences: Vec::new(),
+            };
+            package.resolved_occurrences = package.expected_occurrences(&consistency_inputs)?;
+            package.check_internal(&consistency_inputs)?;
+            Ok(package)
+        })();
+        // This runs on BOTH success and failure, including a later helper's
+        // failure. Earlier and not-yet-processed owners must not disappear.
+        // These are readmission points, never a global quiescence claim.
+        finalize_order_resolution(resolution, || {
+            let custody = postguard_order_views(&all_captures, python, output, "final");
+            finalize_order_resolution(custody, || self.sealed.check_unchanged())
+        })
     }
 }
+
 impl PackagedOrder {
     fn expected_occurrences(&self, inputs: &[CaptureInput<'_>]) -> Result<Vec<Occurrence>> {
         let policy = parse_policy(self.policy_json.as_bytes())?;

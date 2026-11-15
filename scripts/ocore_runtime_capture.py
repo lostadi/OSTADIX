@@ -36,7 +36,7 @@ INVENTORY_SCHEMA = "ocore-runtime-unit-inventory-v1"
 CARGO_PARENT_VARIABLE = "OCORE_CAPTURE_CARGO_PARENT"
 # Filled only from the independently registered observer implementation. Neither
 # a supplied parent record nor its session may choose the production worker.
-REGISTERED_CARGO_OBSERVER_SHA256 = "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+REGISTERED_CARGO_OBSERVER_SHA256 = "518ad7b62e4e3735919cf43f5e048b53dde0723a52eb7f7bc51c90efd321df9d"
 RUST_EMBEDDED_POLICY = "rust-embedded-bc-v1"
 REGISTERED_RUST_PAYLOAD_SHA256 = "0190404305ffa887b60d5f23e9af64029c1fe770ce6c705d19a65ee3a89d6767"
 PRODUCER_REGISTRY_FILE = "ocore_producer_registry.json"

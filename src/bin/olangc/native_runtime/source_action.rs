@@ -90,7 +90,44 @@ pub(super) struct AdmittedCapture {
     units: BTreeMap<String, UnitOwner>,
 }
 
+// Borrowed only from the private, actually reverified owner. In particular this
+// has no Deserialize implementation and cannot be made from packaged JSON.
+#[derive(Clone, Copy)]
+pub(super) struct AdmittedCaptureView<'a> {
+    owner: &'a AdmittedCapture,
+}
+impl<'a> AdmittedCaptureView<'a> {
+    pub(super) fn raw(&self) -> &'a [u8] {
+        &self.owner.raw
+    }
+    pub(super) fn selected(&self) -> &'a BTreeSet<String> {
+        &self.owner.selected
+    }
+    pub(super) fn check_report_bytes(&self) -> Result<()> {
+        if fs::read(&self.owner.path)? != self.owner.raw {
+            bail!("held admitted order capture changed");
+        }
+        Ok(())
+    }
+    pub(super) fn postguard(&self, output: &Path, python: &Path) -> Result<Value> {
+        self.check_report_bytes()?;
+        self.owner.postguard(output, python)
+    }
+}
+
 impl AdmittedCapture {
+    pub(super) fn checked_view<'a>(
+        &'a self,
+        path: &Path,
+        raw: &[u8],
+        selected: &BTreeSet<String>,
+    ) -> Result<AdmittedCaptureView<'a>> {
+        if path != self.path || raw != self.raw || selected != &self.selected {
+            bail!("staged order capture differs from its admitted owner");
+        }
+        Ok(AdmittedCaptureView { owner: self })
+    }
+
     pub(super) fn reverify(
         path: &Path,
         raw: &[u8],
@@ -481,6 +518,213 @@ mod tests {
             Ok(_) => panic!("mutated fixture unexpectedly admitted"),
             Err(e) => assert!(e.to_string().contains(why), "{e}"),
         }
+    }
+    // Authored private binding fixtures only: no actual capture verifier,
+    // compiler, provider or native execution is established by these controls.
+    fn order_stage_fixture() -> StagedComponent {
+        let (capture, selected) = fixture();
+        let raw = serde_json::to_vec(&capture).unwrap();
+        let admitted = bind(&capture, &selected).unwrap();
+        StagedComponent {
+            capture_path: PathBuf::from("/capture/report.json"),
+            capture_bytes: raw,
+            capture: capture.clone(),
+            selected,
+            admitted_capture: Some(admitted),
+            modules: vec![("action-1:0".into(), b"authored MIR DATA".to_vec())],
+            original_inputs: BTreeMap::from([(
+                "action-1:0".into(),
+                (capture["units"][0]["ir"].clone(), b"original LLVM".to_vec()),
+            )]),
+            source_capture_complete: true,
+            unit_lowering_complete: true,
+            compiler_sha256: None,
+            coverage_path: PathBuf::from("/capture/coverage.json"),
+        }
+    }
+    #[test]
+    fn admitted_order_view_borrows_exact_capture_and_required_floor() {
+        let stage = order_stage_fixture();
+        let view = stage.admitted_order_capture().unwrap();
+        assert_eq!(view.raw(), stage.capture_bytes);
+        assert_eq!(view.selected(), &stage.selected);
+        assert!(std::ptr::eq(
+            view.raw().as_ptr(),
+            stage.admitted_capture.as_ref().unwrap().raw.as_ptr()
+        ));
+        let decoded: Value = serde_json::from_slice(view.raw()).unwrap();
+        assert_eq!(decoded["invocations"], stage.capture["invocations"]);
+    }
+    #[test]
+    fn admitted_order_view_rejects_substituted_path_bytes_and_floor() {
+        let (capture, selected) = fixture();
+        let owner = bind(&capture, &selected).unwrap();
+        let raw = serde_json::to_vec(&capture).unwrap();
+        let other_path = Path::new("/different/report.json");
+        assert_ne!(other_path, owner.path);
+        let mut changed_raw = raw.clone();
+        changed_raw.push(b' ');
+        assert_ne!(changed_raw, raw);
+        let mut changed_floor = selected.clone();
+        assert!(changed_floor.insert("not-the-admitted-unit".into()));
+        for result in [
+            owner.checked_view(other_path, &raw, &selected),
+            owner.checked_view(&owner.path, &changed_raw, &selected),
+            owner.checked_view(&owner.path, &raw, &changed_floor),
+        ] {
+            let error = result.err().expect("changed owner binding was accepted");
+            assert!(
+                error
+                    .to_string()
+                    .contains("differs from its admitted owner"),
+                "{error:#}"
+            );
+        }
+    }
+    #[test]
+    fn staged_order_view_rejects_completion_flags_without_private_owner() {
+        let mut stage = order_stage_fixture();
+        assert!(stage.source_capture_complete && stage.unit_lowering_complete);
+        assert!(stage.admitted_capture.take().is_some());
+        assert!(stage.admitted_capture.is_none());
+        let error = stage
+            .admitted_order_capture()
+            .err()
+            .expect("claimed flags created an owner");
+        assert!(
+            error
+                .to_string()
+                .contains("actual staged capture admission owner"),
+            "{error:#}"
+        );
+    }
+    #[test]
+    fn staged_order_view_rejects_incomplete_or_unbound_stage_inventory() {
+        for mutation in ["unit_flag", "module_id", "original_input", "parsed_capture"] {
+            let mut stage = order_stage_fixture();
+            match mutation {
+                "unit_flag" => {
+                    stage.unit_lowering_complete = false;
+                    assert!(!stage.unit_lowering_complete);
+                }
+                "module_id" => {
+                    stage.modules[0].0 = "different-lowered-unit".into();
+                    assert!(!stage.selected.contains(&stage.modules[0].0));
+                }
+                "original_input" => {
+                    assert!(stage.original_inputs.remove("action-1:0").is_some());
+                    assert!(stage.original_inputs.is_empty());
+                }
+                "parsed_capture" => {
+                    stage.capture["name"] = json!("changed-after-admission");
+                    let held: Value = serde_json::from_slice(&stage.capture_bytes).unwrap();
+                    assert_ne!(held, stage.capture);
+                }
+                _ => unreachable!(),
+            }
+            let error = stage
+                .admitted_order_capture()
+                .err()
+                .expect("unbound stage accepted");
+            assert!(
+                error.to_string().contains("complete bound staged capture"),
+                "{mutation}: {error:#}"
+            );
+        }
+    }
+    #[test]
+    fn admitted_order_report_byte_guard_observes_and_rejects_changed_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("report.json");
+        let (capture, selected) = fixture();
+        let raw = serde_json::to_vec(&capture).unwrap();
+        fs::write(&path, &raw).unwrap();
+        let mut proof = receipt(&raw, &capture);
+        proof["admitted_report"]["path"] = json!(path);
+        let owner = AdmittedCapture::bind_reverified(&path, &raw, &selected, proof).unwrap();
+        let view = owner.checked_view(&path, &raw, &selected).unwrap();
+        view.check_report_bytes().unwrap();
+        let mut changed = raw.clone();
+        changed.push(b' ');
+        fs::write(&path, &changed).unwrap();
+        let observed = fs::read(&path).unwrap();
+        assert_eq!(observed, changed);
+        assert_ne!(digest(&observed), digest(&raw));
+        let error = view.check_report_bytes().unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("held admitted order capture changed"),
+            "{error:#}"
+        );
+    }
+    #[test]
+    fn order_finalization_rechecks_all_owners_after_later_helper_failure() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut owners = Vec::new();
+        let mut raws = Vec::new();
+        for name in ["earlier", "later"] {
+            let path = directory.path().join(format!("{name}.json"));
+            let (capture, selected) = fixture();
+            let raw = serde_json::to_vec(&capture).unwrap();
+            fs::write(&path, &raw).unwrap();
+            let mut proof = receipt(&raw, &capture);
+            proof["admitted_report"]["path"] = json!(path);
+            owners.push(AdmittedCapture::bind_reverified(&path, &raw, &selected, proof).unwrap());
+            raws.push(raw);
+        }
+        let captures = owners
+            .iter()
+            .enumerate()
+            .map(|(index, owner)| {
+                (
+                    format!("component-{index}"),
+                    owner
+                        .checked_view(&owner.path, &owner.raw, &owner.selected)
+                        .unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut baseline = Vec::new();
+        let value = provider_order::finalize_order_resolution(Ok(17usize), || {
+            provider_order::check_order_capture_views(&captures, |index, capture| {
+                baseline.push(index);
+                capture.check_report_bytes()
+            })
+        })
+        .unwrap();
+        assert_eq!(value, 17);
+        assert_eq!(baseline, vec![0, 1]);
+        let mut later_helper_entered = false;
+        let mut changed = raws[0].clone();
+        changed.push(b' ');
+        let helper: Result<()> = (|| {
+            later_helper_entered = true;
+            fs::write(&owners[0].path, &changed)?;
+            Err(anyhow::anyhow!("authored later helper failure"))
+        })();
+        assert!(later_helper_entered);
+        assert!(helper.is_err());
+        let observed = fs::read(&owners[0].path).unwrap();
+        assert_eq!(observed, changed);
+        assert_ne!(digest(&observed), digest(&raws[0]));
+        assert_eq!(fs::read(&owners[1].path).unwrap(), raws[1]);
+        let mut final_checked = Vec::new();
+        let error = provider_order::finalize_order_resolution(helper, || {
+            provider_order::check_order_capture_views(&captures, |index, capture| {
+                final_checked.push(index);
+                capture.check_report_bytes()
+            })
+        })
+        .unwrap_err();
+        assert_eq!(final_checked, vec![0, 1]);
+        let causes = format!("{error:#}");
+        assert!(causes.contains("authored later helper failure"), "{causes}");
+        assert!(causes.contains("component-0"), "{causes}");
+        assert!(
+            causes.contains("held admitted order capture changed"),
+            "{causes}"
+        );
     }
     fn lineage() -> UnitLineage {
         let (capture, _) = fixture();

@@ -9,6 +9,7 @@ enum InputKind {
     Ocore,
     NativeIr,
     LlvmIr,
+    ConfiguredAssembly,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -18,6 +19,7 @@ enum Emit {
     Mir,
     Asm,
     Obj,
+    MachineUnit,
 }
 
 #[derive(Debug, Parser)]
@@ -33,12 +35,20 @@ struct Cli {
 
     /// Print the canonical target catalog as JSON without compiling or executing.
     /// Catalog membership alone does not qualify target health or semantics.
-    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "linux_syscall_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "llvm_metadata_diagnostics", "check"])]
+    #[arg(long, conflicts_with_all = ["inputs", "input_kind", "assembly_selection", "assembly_selection_sha256", "llvm_library", "llvm_sha256", "tls_profile", "atomic_profile", "wide_volatile_profile", "linux_syscall_profile", "verify_native", "receipt", "emit", "target", "output", "keep_asm", "native_map", "verify_native_map", "map_assembly", "map_artifact", "function_sections", "data_sections", "llvm_metadata_diagnostics", "check"])]
     list_targets: bool,
 
     /// Input representation. Imported IR is verified before all output.
     #[arg(long, value_enum, default_value_t = InputKind::Ocore)]
     input_kind: InputKind,
+
+    /// Pinned configured-assembly floor descriptor; its inventories remain unadmitted.
+    #[arg(long, requires = "assembly_selection_sha256")]
+    assembly_selection: Option<PathBuf>,
+
+    /// Exact lowercase SHA-256 of the consumed configured-assembly descriptor.
+    #[arg(long, requires = "assembly_selection")]
+    assembly_selection_sha256: Option<String>,
 
     /// Matching, digest-pinned LLVM parser shared library for LLVM import.
     #[arg(long)]
@@ -153,6 +163,32 @@ fn target_catalog() -> serde_json::Value {
     })
 }
 
+/// A separate typed artifact route; never feed its output to NativeModule/MIR.
+fn configured_arguments(cli: &Cli) -> Result<(), &'static str> {
+    if cli.input_kind != InputKind::ConfiguredAssembly {
+        if cli.assembly_selection.is_some() || cli.assembly_selection_sha256.is_some()
+            || matches!(cli.emit, Emit::MachineUnit) {
+            return Err("machine-unit emission and assembly selection require --input-kind configured-assembly");
+        }
+        return Ok(());
+    }
+    if cli.inputs.len()!=1 || !matches!(cli.emit, Emit::MachineUnit)
+        || cli.output.is_none() || cli.output.as_deref()==Some(std::path::Path::new("-"))
+        || cli.assembly_selection.is_none() || cli.assembly_selection_sha256.is_none() {
+        return Err("configured assembly requires one text input, both selection pins, --emit machine-unit and a new explicit output file");
+    }
+    if cli.llvm_library.is_some() || cli.llvm_sha256.is_some()
+        || cli.llvm_metadata_diagnostics.is_some() || cli.tls_profile.is_some()
+        || cli.atomic_profile.is_some() || cli.wide_volatile_profile.is_some()
+        || cli.linux_syscall_profile.is_some() || cli.verify_native || cli.receipt.is_some()
+        || cli.keep_asm || cli.native_map.is_some() || cli.verify_native_map.is_some()
+        || cli.map_assembly.is_some() || cli.map_artifact.is_some()
+        || cli.function_sections || cli.data_sections || cli.check {
+        return Err("configured machine-unit construction conflicts with ordinary native/LLVM/check/emission options");
+    }
+    Ok(())
+}
+
 fn main() {
     let cli = Cli::parse();
     if cli.list_targets {
@@ -161,6 +197,26 @@ fn main() {
             serde_json::to_string_pretty(&target_catalog())
                 .expect("target catalog is serializable")
         );
+        return;
+    }
+    if let Err(error) = configured_arguments(&cli) {
+        eprintln!("ocorec: {error}");
+        std::process::exit(2);
+    }
+    if cli.input_kind == InputKind::ConfiguredAssembly {
+        let Some(target) = Target::parse(&cli.target) else {
+            eprintln!("ocorec: unsupported configured-assembly target {}", cli.target);
+            std::process::exit(2);
+        };
+        if let Err(error) = o_lang::ocore::driver::construct_configured_assembly(
+            &cli.inputs[0], cli.assembly_selection.as_deref().unwrap(),
+            cli.assembly_selection_sha256.as_deref().unwrap(), target,
+            cli.output.as_deref().unwrap(),
+        ) {
+            eprintln!("{}", render_diagnostic(&error, None, "configured assembly construction"));
+            std::process::exit(1);
+        }
+        println!("{}", cli.output.as_ref().unwrap().display());
         return;
     }
     if cli.llvm_metadata_diagnostics.is_some()
@@ -284,6 +340,7 @@ fn main() {
         Emit::Mir => EmitKind::Mir,
         Emit::Asm => EmitKind::Assembly,
         Emit::Obj => EmitKind::Object,
+        Emit::MachineUnit => unreachable!("configured argument validation precedes ordinary compilation"),
     };
     let output = cli
         .output
@@ -755,5 +812,32 @@ mod tests {
         drop(imported);
         assert!(!imported_path.exists());
         std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod configured_assembly_cli_tests {
+    use super::*;
+    fn selected(extra: &[&str]) -> Cli {
+        let mut args=vec!["ocorec","configured.s","--input-kind","configured-assembly",
+            "--assembly-selection","selection.json","--assembly-selection-sha256",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "--emit","machine-unit","-o","unit.machine.json"];
+        args.extend_from_slice(extra); Cli::try_parse_from(args).unwrap()
+    }
+    #[test]
+    fn configured_cli_has_a_reachable_separate_typed_artifact_route() {
+        let cli=selected(&[]); assert_eq!(cli.input_kind,InputKind::ConfiguredAssembly);
+        assert!(matches!(cli.emit,Emit::MachineUnit)); assert!(configured_arguments(&cli).is_ok());
+    }
+    #[test]
+    fn configured_cli_refuses_ordinary_native_options_before_driver_entry() {
+        for flags in [vec!["--keep-asm"],vec!["--verify-native"],vec!["--llvm-library","library.so"]] {
+            let cli=selected(&flags); assert!(configured_arguments(&cli).unwrap_err().contains("conflicts"));
+        }
+        let mut cli=selected(&[]);cli.emit=Emit::Obj;
+        assert!(configured_arguments(&cli).unwrap_err().contains("--emit machine-unit"));
+        let ordinary=Cli::try_parse_from(["ocorec","x.oc","--emit","machine-unit"]).unwrap();
+        assert!(configured_arguments(&ordinary).is_err());
     }
 }

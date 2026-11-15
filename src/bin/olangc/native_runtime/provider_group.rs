@@ -659,14 +659,13 @@ pub(super) fn compile(
                         .iter()
                         .map(|node| {
                             let component = &staged[&node.id];
-                            provider_order::CaptureInput {
+                            Ok(provider_order::LiveCaptureInput {
                                 component: &node.id,
-                                raw: &component.capture_bytes,
-                                selected: &component.selected,
-                            }
+                                capture: component.admitted_order_capture()?,
+                            })
                         })
-                        .collect::<Vec<_>>();
-                    order.resolve(
+                        .collect::<Result<Vec<_>>>()?;
+                    order.resolve_live(
                         &inputs,
                         &plan.tools.python,
                         &output.join("source-order-resolution"),
@@ -741,13 +740,14 @@ pub(super) fn compile(
                         .iter()
                         .map(|node| {
                             let component = &staged[&node.id];
-                            provider_order::CaptureInput {
+                            let admitted = component.admitted_order_capture()?;
+                            Ok(provider_order::CaptureInput {
                                 component: &node.id,
-                                raw: &component.capture_bytes,
-                                selected: &component.selected,
-                            }
+                                raw: admitted.raw(),
+                                selected: admitted.selected(),
+                            })
                         })
-                        .collect::<Vec<_>>();
+                        .collect::<Result<Vec<_>>>()?;
                     artifact::Artifact::build_group_ordered(
                         &plan.root,
                         &components,

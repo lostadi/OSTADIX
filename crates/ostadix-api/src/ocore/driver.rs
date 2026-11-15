@@ -12,6 +12,10 @@ use super::{mir, parser, typeck, Diagnostic, Span};
 
 pub use super::Target;
 
+#[path = "native_machine_source_driver.rs"]
+pub mod configured_assembly;
+pub use configured_assembly::construct_configured_assembly;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmitKind {
     Ast,

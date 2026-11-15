@@ -11,7 +11,7 @@
     "rustc_release": "1.97.1",
     "cargo_release": "1.97.1",
     "rustc_commit": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
-    "cargo_observer_worker_sha256": "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+    "cargo_observer_worker_sha256": "518ad7b62e4e3735919cf43f5e048b53dde0723a52eb7f7bc51c90efd321df9d"
   },
   "capture_profile": "hosted-source-bootstrap",
   "intended_execution_profile": "ostadix-kernel",
@@ -26,7 +26,7 @@
       "argv": [
         "python3",
         "-c",
-        "import hashlib,pathlib,sys; p=pathlib.Path(sys.argv.pop(1)); s=p.read_bytes(); assert hashlib.sha256(s).hexdigest()=='9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993', 'pinned Cargo observer helper changed'; sys.argv[0]=str(p); exec(compile(s,str(p),'exec'),dict(__name__='__main__',__file__=str(p)))",
+        "import hashlib,pathlib,sys; p=pathlib.Path(sys.argv.pop(1)); s=p.read_bytes(); assert hashlib.sha256(s).hexdigest()=='518ad7b62e4e3735919cf43f5e048b53dde0723a52eb7f7bc51c90efd321df9d', 'pinned Cargo observer helper changed'; sys.argv[0]=str(p); exec(compile(s,str(p),'exec'),dict(__name__='__main__',__file__=str(p)))",
         "{recipe_dir}/observe_cargo.py",
         "--directory",
         "{build}/cargo-observer",
@@ -35,7 +35,7 @@
         "--capture",
         "{output}",
         "--expected-worker-sha256",
-        "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+        "518ad7b62e4e3735919cf43f5e048b53dde0723a52eb7f7bc51c90efd321df9d"
       ],
       "cwd": "{build}"
     },
@@ -98,7 +98,7 @@
       "argv": [
         "python3",
         "-c",
-        "import hashlib,json,pathlib,sys; p=pathlib.Path(sys.argv[1]); s=p.read_bytes(); expected='9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993'; assert hashlib.sha256(s).hexdigest()==expected, 'pinned Cargo observer helper changed'; ns=dict(__name__='ocore_cargo_observer_verifier',__file__=str(p)); exec(compile(s,str(p),'exec'),ns); result=ns['verify'](pathlib.Path(sys.argv[2]),expected_worker_sha256=expected); output=pathlib.Path(sys.argv[3]); stream=output.open('x'); json.dump(result,stream,indent=2); stream.write(chr(10)); stream.close(); print(json.dumps(dict(output=str(output),parent_invocations=len(result['events']),observer_errors=len(result['observer_errors']),runtime_complete=False)))",
+        "import hashlib,json,pathlib,sys; p=pathlib.Path(sys.argv[1]); s=p.read_bytes(); expected='518ad7b62e4e3735919cf43f5e048b53dde0723a52eb7f7bc51c90efd321df9d'; assert hashlib.sha256(s).hexdigest()==expected, 'pinned Cargo observer helper changed'; ns=dict(__name__='ocore_cargo_observer_verifier',__file__=str(p)); exec(compile(s,str(p),'exec'),ns); result=ns['verify'](pathlib.Path(sys.argv[2]),expected_worker_sha256=expected); output=pathlib.Path(sys.argv[3]); stream=output.open('x'); json.dump(result,stream,indent=2); stream.write(chr(10)); stream.close(); print(json.dumps(dict(output=str(output),parent_invocations=len(result['events']),observer_errors=len(result['observer_errors']),runtime_complete=False)))",
         "{recipe_dir}/observe_cargo.py",
         "{build}/cargo-observer",
         "{build}/cargo-parent-observer-verification.json"

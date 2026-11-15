@@ -8,12 +8,15 @@ native-member/CGU edges, dependency closure, or O-core/native execution.
 from __future__ import annotations
 
 import copy
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -22,7 +25,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = Path(os.environ.get("OCORE_TEST_CAPTURE_WORKER", ROOT / "scripts/ocore_runtime_capture.py")).resolve()
 OBSERVER = Path(os.environ.get("OCORE_TEST_CARGO_OBSERVER", ROOT / "tools/ocore-runtime/rust/observe_cargo.py")).resolve()
-OBSERVER_SHA256 = "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+OBSERVER_SHA256 = "518ad7b62e4e3735919cf43f5e048b53dde0723a52eb7f7bc51c90efd321df9d"
 
 
 def load_worker(path: Path):
@@ -183,6 +186,9 @@ class CaptureCargoParentTests(unittest.TestCase):
         self.records.append({"child_receipt": self.worker.file_info(path), "receipt": receipt})
 
     def test_known_registered_observer_binds_actual_frozen_source_worker(self):
+        observed = self.worker.file_info(Path(self.observer_worker["path"]))
+        self.assertEqual(observed, self.observer_worker)
+        self.assertEqual(observed["sha256"], OBSERVER_SHA256)
         self.assertEqual(self.validate(), self.binding)
         self.assertEqual(self.worker.verify_worker(self.session, self.source), self.worker_record)
         self.assertEqual(set(self.binding), {"id", "observer_session", "observer_worker", "source_capture_worker"})
@@ -202,13 +208,87 @@ class CaptureCargoParentTests(unittest.TestCase):
                 self.validate(binding)
 
     def test_self_consistent_arbitrary_observer_is_rejected_by_registered_pin(self):
-        self.observer_worker = self.write("observer/worker.py", b"unregistered supplied observer source\n")
+        injected = b"unregistered supplied observer source\n"
+        self.observer_worker = self.write("observer/worker.py", injected)
         self.observer_session["observer_worker"] = self.observer_worker
         self.bind_session()
-        with self.assertRaisesRegex(self.worker.CaptureError, "independently registered worker"):
+        observed = Path(self.observer_worker["path"]).read_bytes()
+        self.assertEqual(observed, injected)
+        self.assertEqual(self.binding["observer_worker"]["sha256"], hashlib.sha256(observed).hexdigest())
+        self.assertNotEqual(self.binding["observer_worker"]["sha256"], OBSERVER_SHA256)
+        with self.assertRaisesRegex(self.worker.CaptureError, "independently registered worker") as caught:
             self.validate()
+        self.records.append({"injected_observer": self.observer_worker,
+            "observed_sha256": hashlib.sha256(observed).hexdigest(), "rejection": str(caught.exception)})
         # The explicit internal seam supports inert hermetic fixtures only.
         self.assertEqual(self.validate(expected=self.observer_worker["sha256"]), self.binding)
+
+
+    def recipe_argv(self, name, build, observer=OBSERVER):
+        recipe = json.loads((ROOT / "tools/ocore-runtime/rust/full.recipe.json").read_bytes())
+        self.assertEqual(recipe["toolchain"]["cargo_observer_worker_sha256"], OBSERVER_SHA256)
+        command = next(item for item in recipe["commands"] if item["name"] == name)
+        values = {"recipe_dir": str(observer.parent), "build": str(build),
+                  "output": str(self.source), "cargo": self.compiler_identity["path"]}
+        argv = [argument.format_map(values) for argument in command["argv"]]
+        self.assertEqual(argv[:2], ["python3", "-c"])
+        return argv
+
+    def run_recipe_python(self, argv):
+        output = io.StringIO()
+        with mock.patch.object(sys, "argv", ["-c", *argv[3:]]), contextlib.redirect_stdout(output):
+            exec(compile(argv[2], "<actual-recipe-command>", "exec"), {})
+        return output.getvalue()
+
+    def test_recipe_prepare_and_verify_commands_bind_selected_worker(self):
+        build = self.directory / "recipe-build"
+        prepare = self.recipe_argv("prepare-pinned-cargo-parent-observer", build)
+        with self.assertRaises(SystemExit) as stopped:
+            self.run_recipe_python(prepare)
+        self.assertEqual(stopped.exception.code, 0)
+        observer = build / "cargo-observer"
+        session = json.loads((observer / "session.json").read_bytes())
+        self.assertEqual(session["observer_worker"]["sha256"], OBSERVER_SHA256)
+        self.assertEqual(session["source_capture_worker"], self.worker_record)
+        self.assertEqual(session["parent_metadata_schema"], "ocore-cargo-parent-metadata-observation-v2")
+        verify = self.recipe_argv("verify-pinned-cargo-parent-observations", build)
+        self.run_recipe_python(verify)
+        result = json.loads((build / "cargo-parent-observer-verification.json").read_bytes())
+        self.assertEqual(result["trusted_worker_sha256"], OBSERVER_SHA256)
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["observer_errors"], [])
+        for field in ("complete", "source_production_inventory_complete", "dependency_closure_complete",
+                      "ocore_lowering_complete", "native_execution_qualified", "runtime_complete"):
+            self.assertIs(result[field], False)
+        self.records.append({"actual_recipe_prepare_argv": prepare, "actual_recipe_verify_argv": verify,
+            "observer_session": session, "verification": result,
+            "scope": "actual recipe Python wrappers with inert Cargo identity; no Cargo or compiler execution"})
+
+    def test_recipe_rejects_changed_observer_before_prepare_namespace(self):
+        injected = OBSERVER.read_bytes() + b"\n# unregistered observer mutation\n"
+        changed = self.directory / "changed-recipe" / "observe_cargo.py"
+        changed.parent.mkdir()
+        changed.write_bytes(injected)
+        observed_sha = hashlib.sha256(changed.read_bytes()).hexdigest()
+        self.assertNotEqual(observed_sha, OBSERVER_SHA256)
+        build = self.directory / "rejected-recipe-build"
+        argv = self.recipe_argv("prepare-pinned-cargo-parent-observer", build, changed)
+        reads = []
+        original_read = Path.read_bytes
+
+        def observe_read(selected):
+            raw = original_read(selected)
+            reads.append({"path": str(selected), "sha256": hashlib.sha256(raw).hexdigest()})
+            return raw
+
+        with mock.patch.object(Path, "read_bytes", observe_read):
+            with self.assertRaisesRegex(AssertionError, "pinned Cargo observer helper changed") as caught:
+                self.run_recipe_python(argv)
+        self.assertIn({"path": str(changed), "sha256": observed_sha}, reads)
+        self.assertFalse((build / "cargo-observer").exists())
+        self.records.append({"actual_recipe_prepare_argv": argv, "injected_observer": str(changed),
+            "observed_sha256": observed_sha, "consumed_reads": reads, "rejection": str(caught.exception),
+            "observer_namespace_created": False})
 
     def test_changed_observer_session_or_worker_bytes_reject_without_new_digest(self):
         for field in ("observer_session", "observer_worker"):

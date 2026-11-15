@@ -48,3 +48,6 @@ pub mod native_verify;
 pub mod native_machine_emit;
 #[path = "native_machine_emit_rv64.rs"]
 mod native_machine_emit_rv64;
+
+#[path = "native_machine_asm_unit.rs"]
+pub mod native_machine_asm_unit;
