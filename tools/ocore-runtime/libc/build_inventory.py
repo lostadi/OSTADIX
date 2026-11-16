@@ -19,12 +19,16 @@ MUSL_COMMIT = "0784374d561435f7c787a555aeab8ede699ed298"
 # faithful C-family stdin capture, and typed rejection of malformed/unbound
 # capture claims. Session metadata alone never selects
 # arbitrary executable Python source or admits a different worker revision.
+# The current worker adds non-admitting assembly-action evidence; its required
+# assembly importer refusal and incomplete-capture status remain unchanged.
 WORKER_SHAS = frozenset({
     "a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779",
     "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059",
     "758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36",
     "303aac632cac6caff5179372811d98081e57eb98bfae34b43db9e1ecf90033b0",
     "a5bc3f7987b6c6349f0cc7d46b01deac9aa0d7975cce5ea4d5d990ba14c2e0c8",
+    "bbc91baf0a81c526f6c8773532b0c908e0cd68dc30b89d5e3810eef17b4020d3",
+    "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540",
 })
 PROFILES = {
     "x86_64": {"triple": "x86_64-unknown-linux-musl", "flags": []},

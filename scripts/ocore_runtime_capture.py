@@ -471,6 +471,8 @@ def validate_recipe(recipe: dict, registry: dict | None = None) -> None:
     source = recipe.get("source", {})
     if source_origin_kind(source) == DEBIAN_ORIGIN:
         validate_debian_source(source)
+    elif source_origin_kind(source) == ARCHIVE_ORIGIN:
+        validate_archive_source(source)
     else:
         if not re.fullmatch(r"[0-9a-f]{40}", source.get("revision", "")):
             raise CaptureError("source.revision must pin a full 40-digit Git commit")
@@ -548,9 +550,9 @@ def _debian_selected(pin, file_key="file"):
 def source_origin_kind(source):
     _debian_need(isinstance(source,dict), "source descriptor is not an object")
     if "kind" in source:
-        _debian_need(source["kind"] == DEBIAN_ORIGIN, "unsupported source origin tag")
-        return DEBIAN_ORIGIN
-    decisive={"dsc","archives","extractor","expected_tree_sha256"}
+        _debian_need(source["kind"] in (DEBIAN_ORIGIN, ARCHIVE_ORIGIN), "unsupported source origin tag")
+        return source["kind"]
+    decisive={"dsc","archives","extractor","expected_tree_sha256","archive","extraction","source_date_epoch"}
     _debian_need(not (decisive & set(source)), "legacy Git source cannot carry Debian origin fields")
     return "legacy-git"
 
@@ -838,18 +840,583 @@ def _debian_revalidate(recipe,source,context):
     _debian_need(context.get("authentication")=={"mode":"caller-pinned","signed_metadata_verified":False} and context.get("source_ownership_qualified") is False and context.get("interpreter_helper_closure_qualified") is False,"source authentication/qualification claim differs")
     return context
 
+# Generic caller-selected archive materialization. This is not capture admission.
+ARCHIVE_ORIGIN = "original-archive-v1"
+ARCHIVE_TREE_SCHEMA = "ocore-original-archive-logical-source-tree-v1"
+
+
+def _archive_need(condition, message):
+    if not condition:
+        raise CaptureError("Original archive origin: " + message)
+
+
+def validate_archive_source(source):
+    required = {"kind", "name", "version", "url", "archive", "extractor", "extraction",
+                "expected_tree_sha256", "source_date_epoch", "authentication"}
+    _archive_need(type(source) is dict and set(source) == required, "source descriptor fields differ")
+    _archive_need(source["kind"] == ARCHIVE_ORIGIN, "source descriptor tag differs")
+    for key in ("name", "version", "url"):
+        _archive_need(type(source[key]) is str and bool(source[key])
+                      and not any(ord(c) < 32 or ord(c) == 127 for c in source[key]),
+                      "invalid source identity field: " + key)
+    _debian_selected(source["archive"])
+    _debian_selected(source["extractor"], "path")
+    _archive_need(type(source["extraction"]) is dict
+                  and set(source["extraction"]) == {"profile", "strip_components"}
+                  and source["extraction"]["profile"] == "gnu-tar-strip-v1"
+                  and type(source["extraction"]["strip_components"]) is int
+                  and source["extraction"]["strip_components"] in (0, 1),
+                  "unsupported extraction profile or strip count")
+    _archive_need(type(source["source_date_epoch"]) is int and source["source_date_epoch"] >= 0,
+                  "source_date_epoch must be an explicit nonnegative integer")
+    _archive_need(type(source["expected_tree_sha256"]) is str
+                  and re.fullmatch(r"[0-9a-f]{64}", source["expected_tree_sha256"]) is not None,
+                  "independently selected logical tree digest is absent or malformed")
+    _archive_need(type(source["authentication"]) is dict and source["authentication"] == {"mode": "caller-pinned"},
+                  "unsupported authentication policy; caller pinning is not authenticity verification")
+
+
+def _archive_pin(path, expected=None, *, contents=False):
+    path = Path(path)
+    _archive_need(path.is_absolute() and path.resolve() == path, "input path is not canonical physical")
+    descriptor = None
+    failures = []
+    result = raw = None
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        before = _debian_identity(os.fstat(descriptor))
+        _archive_need(stat.S_ISREG(before["mode"]) and before["nlink"] == 1,
+                      "input must be a regular singleton")
+        _archive_need(_debian_identity(path.lstat()) == before, "input held/named identity differs")
+        if expected is not None and "device" in expected:
+            _archive_need(set(expected) == {"path", "sha256", *before}
+                          and all(type(expected[key]) is int for key in before),
+                          "selected physical input field names/types differ")
+            _archive_need(expected.get("path") == str(path)
+                          and {key: expected.get(key) for key in before} == before,
+                          "selected physical input identity differs before reading")
+        hasher, size, pieces = hashlib.sha256(), 0, []
+        while True:
+            part = os.read(descriptor, 1024 * 1024)
+            if not part:
+                break
+            hasher.update(part)
+            size += len(part)
+            if contents:
+                pieces.append(part)
+        _archive_need(size == before["bytes"], "input full-read length differs")
+        _archive_need(_debian_identity(os.fstat(descriptor)) == before
+                      and _debian_identity(path.lstat()) == before, "input changed while reading")
+        result = {"path": str(path), **before, "sha256": hasher.hexdigest()}
+        if expected is not None:
+            _archive_need(result["bytes"] == expected["bytes"] and result["sha256"] == expected["sha256"],
+                          "selected input bytes/SHA256 differ")
+            if "device" in expected:
+                _archive_need(result == expected, "selected physical input pin differs")
+        if contents:
+            raw = b"".join(pieces)
+    except BaseException as error:
+        failures.append(str(error))
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except BaseException as error:
+                failures.append("input close: " + str(error))
+    _archive_need(not failures, "; ".join(failures))
+    return (result, raw) if contents else result
+
+
+def _archive_held_pin(descriptor, path):
+    before = _debian_identity(os.fstat(descriptor))
+    _archive_need(stat.S_ISREG(before["mode"]) and before["nlink"] == 1
+                  and _debian_identity(Path(path).lstat()) == before, "held file/named native identity differs")
+    hasher, size = hashlib.sha256(), 0
+    while True:
+        part = os.pread(descriptor, 1024 * 1024, size)
+        if not part:
+            break
+        hasher.update(part)
+        size += len(part)
+    _archive_need(size == before["bytes"] and _debian_identity(os.fstat(descriptor)) == before
+                  and _debian_identity(Path(path).lstat()) == before, "held full-byte/post-native identity differs")
+    return {"path": str(path), **before, "sha256": hasher.hexdigest()}
+
+
+def _archive_snapshot(source, directory, directory_fd, selected):
+    original = _archive_pin(source, selected)
+    incoming = outgoing = None
+    failures = []
+    saved = None
+    destination = directory / selected["file"]
+    try:
+        incoming = os.open(source, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        _archive_need(_debian_identity(os.fstat(incoming)) == {k: original[k] for k in _debian_identity(os.fstat(incoming))},
+                      "original changed before snapshot")
+        outgoing = os.open(selected["file"], os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                           0o600, dir_fd=directory_fd)
+        hasher, size = hashlib.sha256(), 0
+        while True:
+            part = os.read(incoming, 1024 * 1024)
+            if not part:
+                break
+            hasher.update(part)
+            size += len(part)
+            pending = memoryview(part)
+            while pending:
+                count = os.write(outgoing, pending)
+                _archive_need(count > 0, "snapshot write made no progress")
+                pending = pending[count:]
+        _archive_need(size == selected["bytes"] and hasher.hexdigest() == selected["sha256"],
+                      "selected archive changed during snapshot")
+        _archive_need(_archive_pin(source, original) == original, "original archive snapshot postguard differs")
+        os.fchmod(outgoing, 0o400)
+        os.fsync(outgoing)
+        native = _debian_identity(os.fstat(outgoing))
+        os.lseek(outgoing, 0, os.SEEK_SET)
+        check, count = hashlib.sha256(), 0
+        while True:
+            part = os.read(outgoing, 1024 * 1024)
+            if not part:
+                break
+            check.update(part)
+            count += len(part)
+        _archive_need(count == size and check.hexdigest() == hasher.hexdigest()
+                      and _debian_identity(os.fstat(outgoing)) == native
+                      and _debian_identity(destination.lstat()) == native,
+                      "snapshot same-FD/named full readback differs")
+        saved = {"path": str(destination), **native, "sha256": check.hexdigest()}
+        os.fsync(directory_fd)
+    except BaseException as error:
+        failures.append(str(error))
+    finally:
+        for descriptor in (outgoing, incoming):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except BaseException as error:
+                    failures.append("snapshot close: " + str(error))
+    _archive_need(not failures, "; ".join(failures))
+    _archive_need(_archive_pin(destination, saved) == saved, "snapshot final physical pin differs")
+    return {"selected": selected, "original": original, "snapshot": saved}
+
+
+def _archive_tar_inventory(path, selected, strip_components):
+    _archive_pin(path, selected)
+    descriptor = None
+    failures = []
+    rows, by_path, links = [], {}, {}
+    roots = set()
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+        native = _debian_identity(os.fstat(descriptor))
+        _archive_need(native == {key: selected[key] for key in native}, "archive changed before tar parsing")
+        with os.fdopen(os.dup(descriptor), "rb") as stream, tarfile.open(fileobj=stream, mode="r:*") as archive:
+            for member in archive:
+                raw = member.name
+                _archive_need(type(raw) is str and raw and not raw.startswith("/") and "\\" not in raw
+                              and not any(ord(c) < 32 or ord(c) == 127 for c in raw), "unsafe archive member path")
+                parts = [part for part in raw.split("/") if part not in ("", ".")]
+                _archive_need(".." not in parts, "archive traversal member")
+                _archive_need(member.isfile() or member.isdir() or member.issym(),
+                              "unsupported special or hardlink archive member")
+                _archive_need(not (member.mode & 0o7000), "unsupported special archive mode")
+                _archive_need(not (set(member.pax_headers) - {"path", "linkpath", "mtime", "atime", "ctime"}),
+                              "unsupported extended tar attributes")
+                if not parts:
+                    _archive_need(False, "explicit dot-root archive entries are unsupported; select a single-prefix strip profile")
+                else:
+                    roots.add(parts[0])
+                if strip_components and len(parts) == 1:
+                    _archive_need(member.isdir(), "stripping would discard a source file")
+                logical = "/".join(parts[strip_components:])
+                _archive_need(logical not in by_path, "duplicate normalized archive member")
+                row = {"archive_path": raw, "path": logical, "mode": member.mode & 0o777}
+                if member.isdir():
+                    row["kind"] = "directory"
+                elif member.issym():
+                    target = member.linkname
+                    _archive_need(type(target) is str and target and not target.startswith("/") and "\\" not in target
+                                  and not any(ord(c) < 32 or ord(c) == 127 for c in target), "unsafe archive symlink target")
+                    row.update(kind="symlink", target=target)
+                    links[logical] = target
+                else:
+                    hasher, size = hashlib.sha256(), 0
+                    file = archive.extractfile(member)
+                    _archive_need(file is not None, "regular archive member body is unavailable")
+                    with file:
+                        while True:
+                            part = file.read(1024 * 1024)
+                            if not part:
+                                break
+                            hasher.update(part)
+                            size += len(part)
+                    _archive_need(size == member.size, "truncated archive member body")
+                    row.update(kind="file", bytes=size, sha256=hasher.hexdigest())
+                rows.append(row)
+                by_path[logical] = row
+        _archive_need(rows and (strip_components == 0 or len(roots) == 1),
+                      "archive has no members or lacks a unique stripped root")
+        for name in by_path:
+            parts = name.split("/") if name else []
+            for index in range(1, len(parts)):
+                parent = "/".join(parts[:index])
+                _archive_need(parent not in by_path or by_path[parent]["kind"] == "directory",
+                              "archive member has a non-directory or symlink ancestor")
+        def resolve(parts):
+            pending, stack, active = list(parts), [], set()
+            while pending:
+                part = pending.pop(0)
+                if isinstance(part, tuple):
+                    active.remove(part[1])
+                    continue
+                if part in ("", "."):
+                    continue
+                if part == "..":
+                    _archive_need(bool(stack), "escaping archive symlink")
+                    stack.pop()
+                    continue
+                stack.append(part)
+                name = "/".join(stack)
+                if name in links:
+                    _archive_need(name not in active, "cyclic archive symlink")
+                    active.add(name)
+                    stack.pop()
+                    pending = links[name].split("/") + [("end-link", name)] + pending
+            return stack
+        resolved = {name: "/".join(resolve(name.split("/"))) for name in by_path}
+        directory_names = {""}
+        for name, row in by_path.items():
+            parts = name.split("/") if name else []
+            directory_names.update("/".join(parts[:index]) for index in range(1, len(parts)))
+            if row["kind"] == "directory":
+                directory_names.add(name)
+        edges = {name: set() for name in directory_names}
+        for name in directory_names - {""}:
+            edges[name.rpartition("/")[0]].add(name)
+        for name in links:
+            if resolved[name] in directory_names:
+                edges[name.rpartition("/")[0]].add(resolved[name])
+        indegree = {name: 0 for name in directory_names}
+        for targets in edges.values():
+            for target in targets:
+                indegree[target] += 1
+        ready = [name for name, degree in indegree.items() if degree == 0]
+        visited = 0
+        while ready:
+            name = ready.pop()
+            visited += 1
+            for target in edges[name]:
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    ready.append(target)
+        _archive_need(visited == len(directory_names), "cyclic archive directory symlink graph")
+        _archive_need(_debian_identity(os.fstat(descriptor)) == native
+                      and _debian_identity(Path(path).lstat()) == native, "archive changed while parsing")
+    except BaseException as error:
+        failures.append(str(error))
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except BaseException as error:
+                failures.append("archive parser close: " + str(error))
+    _archive_need(not failures, "; ".join(failures))
+    _archive_need(_archive_pin(path, selected) == selected, "archive parser final pin differs")
+    manifest = {"schema": "ocore-original-archive-member-inventory-v1", "strip_components": strip_components,
+                "entries": sorted(rows, key=lambda row: row["path"])}
+    raw = json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    return {"manifest": manifest, "sha256": hashlib.sha256(raw).hexdigest(),
+            "members": len(rows), "all_regular_member_bytes_hashed": True,
+            "hardlinks_special_files_symlink_ancestors_allowed": False}
+
+
+def _archive_source_tree(root):
+    observed = debian_source_tree(root)
+    observed["manifest"] = {"schema": ARCHIVE_TREE_SCHEMA, "entries": observed["manifest"]["entries"]}
+    raw = json.dumps(observed["manifest"], sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    observed["sha256"] = hashlib.sha256(raw).hexdigest()
+    return observed
+
+
+def _archive_record(owner, owner_fd, name, value):
+    raw = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    descriptor = None
+    failures = []
+    result = None
+    try:
+        descriptor = os.open(name, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=owner_fd)
+        pending = memoryview(raw)
+        while pending:
+            count = os.write(descriptor, pending)
+            _archive_need(count > 0, "record write made no progress")
+            pending = pending[count:]
+        os.fchmod(descriptor, 0o400)
+        os.fsync(descriptor)
+        native = _debian_identity(os.fstat(descriptor))
+        _archive_need(os.pread(descriptor, len(raw) + 1, 0) == raw
+                      and _debian_identity((owner / name).lstat()) == native, "record held/named readback differs")
+        result = {"path": str(owner / name), **native, "sha256": hashlib.sha256(raw).hexdigest()}
+        os.fsync(owner_fd)
+    except BaseException as error:
+        failures.append(str(error))
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except BaseException as error:
+                failures.append("record close: " + str(error))
+    _archive_need(not failures, "; ".join(failures))
+    _archive_need(_archive_pin(owner / name, result) == result, "record final pin differs")
+    return result
+
+
+def _archive_materialize(recipe, input_root, directory):
+    source = recipe["source"]
+    validate_archive_source(source)
+    input_root, directory = Path(input_root), Path(directory)
+    for path in (input_root, directory):
+        _archive_need(path.is_absolute() and path.resolve() == path and path.is_dir(), "input/output root is not physical")
+    owner = directory / "source-origin"
+    _archive_need(not os.path.lexists(owner) and not owner.is_relative_to(input_root)
+                  and not input_root.is_relative_to(owner), "new materialization owner overlaps inputs or exists")
+    directories, files, close_rows, post_rows, errors = [], [], [], [], []
+    owner_fd = None
+    item = tool = safety = observed = log_pin = final_pin = None
+    native_code = None
+    receipt = {"schema": "ocore-original-archive-materialization-v1", "provisional": True,
+               "requires_returned_finalization": True, "input_root": str(input_root), "source_root": str(owner / "source"),
+               "selected": source, "caller_expected_tree_sha256": source["expected_tree_sha256"],
+               "source_date_epoch": source["source_date_epoch"], "constructor_entered": False,
+               "native_terminal_known": False, "exit_code": None, "materialization_observed": False,
+               "authenticated": False, "source_ownership_qualified": False, "runtime_qualified": False,
+               "extractor_interpreter_children_libraries_qualified": False, "errors": errors}
+    def hold_directory(path, descriptor):
+        row = {"path": str(path), "fd": descriptor, "identity": None}
+        directories.append(row)
+        row["identity"] = _debian_identity(os.fstat(descriptor))
+        _archive_need(_debian_identity(path.lstat()) == row["identity"], "directory held/named differs")
+        return descriptor
+    def hold_file(path, descriptor, expected):
+        files.append({"path": str(path), "fd": descriptor, "pin": expected})
+        before = _debian_identity(os.fstat(descriptor))
+        _archive_need(before == {key: expected[key] for key in before}, "held input file identity differs")
+        return descriptor
+    try:
+        parent_fd = hold_directory(directory, os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW))
+        os.mkdir("source-origin", 0o700, dir_fd=parent_fd)
+        owner_fd = hold_directory(owner, os.open("source-origin", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd))
+        children = {}
+        for name in ("inputs", "tmp", "source"):
+            os.mkdir(name, 0o700, dir_fd=owner_fd)
+            children[name] = hold_directory(owner / name, os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=owner_fd))
+        _archive_record(owner, owner_fd, "materialization-intent.json", receipt)
+        item = _archive_snapshot(input_root / source["archive"]["file"], owner / "inputs", children["inputs"], source["archive"])
+        safety = _archive_tar_inventory(Path(item["snapshot"]["path"]), item["snapshot"], source["extraction"]["strip_components"])
+        tool = _archive_pin(Path(source["extractor"]["path"]), source["extractor"])
+        _archive_need(bool(tool["mode"] & 0o111), "selected extractor is not executable")
+        tool_fd = hold_file(Path(tool["path"]), os.open(tool["path"], os.O_RDONLY | os.O_NOFOLLOW), tool)
+        archive_fd = hold_file(Path(item["snapshot"]["path"]), os.open(source["archive"]["file"], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=children["inputs"]), item["snapshot"])
+        log_fd = os.open("extract.log", os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=owner_fd)
+        files.append({"path": str(owner / "extract.log"), "fd": log_fd, "pin": None, "generated_log": True})
+        argv = [f"/proc/self/fd/{tool_fd}", "--extract", "--file", f"/proc/self/fd/{archive_fd}",
+                "--directory", f"/proc/self/fd/{children['source']}",
+                "--strip-components=" + str(source["extraction"]["strip_components"]),
+                "--no-same-owner", "--same-permissions", "--delay-directory-restore"]
+        environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "TZ": "UTC",
+                       "HOME": str(owner), "TMPDIR": str(owner / "tmp"),
+                       "SOURCE_DATE_EPOCH": str(source["source_date_epoch"])}
+        receipt.update(inputs=[item], extractor=tool, archive_safety=safety, argv=argv, environment=environment)
+        receipt["native_dispatch_may_follow_this_intent"] = True
+        _archive_record(owner, owner_fd, "extractor-dispatch-intent.json", receipt)
+        receipt["constructor_entered"] = True
+        result = subprocess.run(argv, cwd=owner, env=environment, stdout=log_fd, stderr=log_fd,
+                                pass_fds=(tool_fd, archive_fd, children["source"]))
+        _archive_need(type(result.returncode) is int, "extractor terminal is not an exact integer")
+        native_code = result.returncode
+        receipt.update(native_terminal_known=True, exit_code=native_code)
+        os.fsync(log_fd)
+        log_pin = _archive_held_pin(log_fd, owner / "extract.log")
+        _archive_need(_debian_identity(os.fstat(log_fd)) == {key: log_pin[key] for key in _debian_identity(os.fstat(log_fd))},
+                      "known-terminal log held/named differs")
+        files[-1]["pin"] = log_pin
+        receipt["log"] = log_pin
+        _archive_record(owner, owner_fd, "extractor-terminal.json", receipt)
+        _archive_need(native_code == 0, "selected extractor failed; partial source remains unadmitted")
+        observed = _archive_source_tree(owner / "source")
+        _archive_need(observed["sha256"] == source["expected_tree_sha256"], "materialized complete logical tree differs from prior selection")
+        receipt.update(materialization_observed=True, actual_tree_sha256=observed["sha256"])
+    except BaseException as error:
+        errors.append(str(error))
+    finally:
+        for expected in [item["original"], item["snapshot"], tool] if item is not None and tool is not None else ([item["original"], item["snapshot"]] if item is not None else []):
+            row = {"path": expected["path"], "passed": False}
+            try:
+                _archive_need(_archive_pin(Path(expected["path"]), expected) == expected, "input/snapshot/extractor postguard differs")
+                row["passed"] = True
+            except BaseException as error:
+                row["error"] = str(error)
+                errors.append(str(error))
+            post_rows.append(row)
+        for row in files:
+            guarded = {"path": row["path"], "passed": False, "consumption_skipped_unknown": False}
+            try:
+                if row.get("generated_log") and type(native_code) is not int:
+                    guarded["consumption_skipped_unknown"] = True
+                    continue
+                _archive_need(row["pin"] is not None, "held file pin is absent")
+                before = _debian_identity(os.fstat(row["fd"]))
+                _archive_need(before == {key: row["pin"][key] for key in before}, "held input/log identity postguard differs")
+                _archive_need(_archive_pin(Path(row["path"]), row["pin"]) == row["pin"], "named input/log postguard differs")
+                guarded["passed"] = True
+            except BaseException as error:
+                guarded["error"] = str(error)
+                errors.append(str(error))
+            finally:
+                post_rows.append(guarded)
+        for row in directories:
+            try:
+                for status in (os.fstat(row["fd"]), Path(row["path"]).lstat()):
+                    actual = _debian_identity(status)
+                    _archive_need(all(actual[key] == row["identity"][key] for key in ("device", "inode", "mode", "uid", "gid")),
+                                  "materialization directory physical core changed")
+                os.fsync(row["fd"])
+            except BaseException as error:
+                errors.append(str(error))
+        for row in files:
+            descriptor, row["fd"] = row["fd"], None
+            close = {"path": row["path"], "known": False}
+            try:
+                os.close(descriptor)
+                close["known"] = True
+            except BaseException as error:
+                close["error"] = str(error)
+                errors.append(str(error))
+            close_rows.append(close)
+        receipt.update(postguards=post_rows, file_closes=close_rows, errors=list(errors),
+                       generated_tree_and_log_consumption_skipped_unknown=type(native_code) is not int)
+        if owner_fd is not None:
+            try:
+                final_pin = _archive_record(owner, owner_fd, "materialization.json", receipt)
+            except BaseException as error:
+                errors.append("final receipt publication: " + str(error))
+        for row in reversed(directories):
+            descriptor, row["fd"] = row["fd"], None
+            close = {"path": row["path"], "known": False}
+            try:
+                os.close(descriptor)
+                close["known"] = True
+            except BaseException as error:
+                close["error"] = str(error)
+                errors.append(str(error))
+            close_rows.append(close)
+    _archive_need(not errors and native_code == 0 and type(native_code) is int and observed is not None and final_pin is not None,
+                  "materialization incomplete (native_terminal_known=" + repr(type(native_code) is int)
+                  + ", native_exit=" + repr(native_code) + "): " + repr(errors))
+    return {"kind": ARCHIVE_ORIGIN, "path": str(owner / "source"), "input_root": str(input_root),
+            "name": source["name"], "version": source["version"], "url": source["url"],
+            "source_date_epoch": source["source_date_epoch"], "inputs": [item], "extractor": tool,
+            "archive_safety": safety, "tree": observed, "materialization": final_pin, "log": log_pin,
+            "finalization": {"all_closes_known": True, "expected_close_count": len(files) + len(directories),
+                             "known_close_count": sum(row["known"] is True for row in close_rows),
+                             "scope": "held operational files/directories; pin/snapshot/record close failures independently raise",
+                             "closes": close_rows},
+            "authentication": {"policy": source["authentication"], "authenticated": False, "signed_metadata_verified": False},
+            "extractor_interpreter_children_libraries_qualified": False, "source_ownership_qualified": False,
+            "capture_admitted": False, "runtime_qualified": False}
+
+
+def _archive_revalidate(recipe, source, context):
+    selected = recipe["source"]
+    validate_archive_source(selected)
+    _archive_need(type(context) is dict and context.get("kind") == ARCHIVE_ORIGIN, "typed materialized source context is absent")
+    _archive_need(context.get("path") == str(source) and Path(source).resolve() == Path(source), "materialized source path differs")
+    owner = Path(source).parent
+    _archive_need(Path(source).name == "source" and owner.name == "source-origin", "materialized source namespace differs")
+    for key in ("name", "version", "url", "source_date_epoch"):
+        _archive_need(context.get(key) == selected[key] and type(context.get(key)) is type(selected[key]), "source identity/epoch differs")
+    final = context.get("finalization")
+    _archive_need(type(final) is dict and final.get("all_closes_known") is True
+                  and type(final.get("closes")) is list and bool(final["closes"])
+                  and type(final.get("expected_close_count")) is int and final["expected_close_count"] == 8
+                  and type(final.get("known_close_count")) is int and final["known_close_count"] == 8
+                  and len(final["closes"]) == 8
+                  and all(type(row) is dict and row.get("known") is True for row in final["closes"]), "materialization closes are not known")
+    _archive_need(type(context.get("inputs")) is list and len(context["inputs"]) == 1, "complete archive input list differs")
+    item = context["inputs"][0]
+    _archive_need(item.get("selected") == selected["archive"]
+                  and item["original"]["path"] == str(Path(context["input_root"]) / selected["archive"]["file"])
+                  and item["snapshot"]["path"] == str(owner / "inputs" / selected["archive"]["file"]), "archive selection/input root differs")
+    for key in ("original", "snapshot"):
+        _archive_need(item[key].get("bytes") == selected["archive"]["bytes"]
+                      and item[key].get("sha256") == selected["archive"]["sha256"], "selected archive byte/SHA relation differs")
+        _archive_pin(Path(item[key]["path"]), item[key])
+    tool = _archive_pin(Path(selected["extractor"]["path"]), context["extractor"])
+    _archive_need(tool["bytes"] == selected["extractor"]["bytes"] and tool["sha256"] == selected["extractor"]["sha256"], "selected extractor differs")
+    _archive_need(context["materialization"]["path"] == str(owner / "materialization.json")
+                  and context["log"]["path"] == str(owner / "extract.log"), "materialization receipt/log namespace differs")
+    _, raw = _archive_pin(Path(context["materialization"]["path"]), context["materialization"], contents=True)
+    receipt = json.loads(raw)
+    _archive_need(receipt.get("schema") == "ocore-original-archive-materialization-v1"
+                  and receipt.get("provisional") is True and receipt.get("requires_returned_finalization") is True,
+                  "materialization receipt schema/scope differs")
+    _archive_need(receipt.get("native_terminal_known") is True and type(receipt.get("exit_code")) is int
+                  and receipt["exit_code"] == 0 and receipt.get("materialization_observed") is True
+                  and receipt.get("constructor_entered") is True,
+                  "materialization did not observe exact native zero")
+    _archive_need(type(receipt.get("errors")) is list and receipt["errors"] == [], "materialization errors are not an empty list")
+    _archive_need(receipt.get("selected") == selected and receipt.get("inputs") == context["inputs"]
+                  and receipt.get("extractor") == tool and receipt.get("source_root") == str(source), "receipt/input/tool/source join differs")
+    expected_post_paths = sorted([item["original"]["path"], item["snapshot"]["path"], tool["path"],
+                                  tool["path"], item["snapshot"]["path"], context["log"]["path"]])
+    _archive_need(type(receipt.get("postguards")) is list and len(receipt["postguards"]) == 6
+                  and all(type(row) is dict and row.get("passed") is True for row in receipt["postguards"])
+                  and sorted(row.get("path", "") for row in receipt["postguards"]) == expected_post_paths,
+                  "materialization postguards are incomplete")
+    expected_close_paths = [tool["path"], item["snapshot"]["path"], str(owner / "extract.log"),
+                            str(owner / "source"), str(owner / "tmp"), str(owner / "inputs"),
+                            str(owner), str(owner.parent)]
+    _archive_need([row.get("path") for row in final["closes"]] == expected_close_paths
+                  and receipt.get("file_closes") == final["closes"][:3], "materialization close inventory differs")
+    _archive_pin(Path(context["log"]["path"]), context["log"])
+    _archive_need(receipt.get("log") == context["log"], "extractor log receipt differs")
+    safety = _archive_tar_inventory(Path(item["snapshot"]["path"]), item["snapshot"], selected["extraction"]["strip_components"])
+    _archive_need(safety == context["archive_safety"] and receipt.get("archive_safety") == safety, "complete archive member inventory differs")
+    actual = _archive_source_tree(source)
+    _archive_need(actual == context["tree"] and actual["sha256"] == selected["expected_tree_sha256"]
+                  and receipt.get("actual_tree_sha256") == actual["sha256"], "complete source tree bytes/modes/native identities changed")
+    _archive_need(context.get("authentication") == {"policy": selected["authentication"], "authenticated": False, "signed_metadata_verified": False}
+                  and all(context.get(key) is False for key in ("extractor_interpreter_children_libraries_qualified",
+                           "source_ownership_qualified", "capture_admitted", "runtime_qualified")), "source authenticity/admission claims differ")
+    _archive_need(all(receipt.get(key) is False for key in ("authenticated", "source_ownership_qualified",
+                         "runtime_qualified", "extractor_interpreter_children_libraries_qualified")),
+                  "materialization receipt authenticity/qualification claims differ")
+    return context
+
+
 def verify_source_origin(recipe, source, *, directory=None, context=None):
-    if source_origin_kind(recipe.get("source",{})) != DEBIAN_ORIGIN:
+    kind = source_origin_kind(recipe.get("source",{}))
+    if kind == ARCHIVE_ORIGIN:
+        if directory is not None:
+            _archive_need(context is None, "ambiguous materialization/readmission request")
+            return _archive_materialize(recipe, source, directory)
+        return _archive_revalidate(recipe, source, context)
+    if kind != DEBIAN_ORIGIN:
         _debian_need(not isinstance(context,dict) or "kind" not in context,"legacy Git recipe/source origin tag differs")
         return verify_source(recipe,source)
     if directory is not None:
         _debian_need(context is None,"ambiguous materialization/readmission request")
         return _debian_materialize(recipe,source,directory)
     return _debian_revalidate(recipe,source,context)
-
 def source_default_epoch(environment, source):
     if source.get("kind")==DEBIAN_ORIGIN:
         environment.pop("SOURCE_DATE_EPOCH",None)
+    elif source.get("kind") == ARCHIVE_ORIGIN:
+        epoch = source.get("source_date_epoch")
+        _archive_need(type(epoch) is int and epoch >= 0, "explicit archive source epoch is absent")
+        _archive_need("SOURCE_DATE_EPOCH" not in environment or environment["SOURCE_DATE_EPOCH"] == str(epoch),
+                      "source epoch conflicts with selected original archive")
+        environment["SOURCE_DATE_EPOCH"] = str(epoch)
     else:
         environment.setdefault("SOURCE_DATE_EPOCH",source["commit_timestamp"])
 
@@ -1906,6 +2473,275 @@ def driver_link_plan(program: str, args: list[str], directory: Path, environment
             "exit_code": result.returncode, "artifact": file_info(path), "commands": commands}
 
 
+
+# Retain evidence around the original action; never replay or admit assembly.
+def _assembly_capture_identity(status):
+    return {key: str(getattr(status, value)) for key, value in (
+        ("dev", "st_dev"), ("ino", "st_ino"), ("mode", "st_mode"),
+        ("uid", "st_uid"), ("gid", "st_gid"), ("nlink", "st_nlink"),
+        ("size", "st_size"), ("mtime_ns", "st_mtime_ns"), ("ctime_ns", "st_ctime_ns"))}
+
+
+def _assembly_capture_hash_fd(descriptor):
+    digest, offset = hashlib.sha256(), 0
+    while True:
+        data = os.pread(descriptor, 1024 * 1024, offset)
+        if not data:
+            return offset, digest.hexdigest()
+        digest.update(data)
+        offset += len(data)
+
+
+def _assembly_capture_problem(context, code, detail):
+    context["record"]["problems"].append({"code": code, "detail": str(detail)})
+
+
+def _assembly_capture_required(kind, args, inputs, header_compile):
+    # Same predicates as compiler()'s existing post-native classification.
+    if type(header_compile) is not bool:
+        raise CaptureError("assembly capture-only header classification is not a bool")
+    query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV", "-###"}
+                or arg.startswith(("--print", "-print", "-dump")) for arg in args)
+    metadata_only = (kind == "rustc" and option_value(args, "--emit") is not None
+                     and not any(item.split("=", 1)[0] in {"link", "obj", "asm", "llvm-ir", "llvm-bc"}
+                                 for item in option_value(args, "--emit").split(",")))
+    return bool(inputs) and not query and not metadata_only and not header_compile
+
+
+def _assembly_capture_copy(context, source, name, role):
+    import stat
+    source = Path(source)
+    if os.path.realpath(source) != os.path.abspath(source):
+        raise CaptureError("capture-only source path contains a symlink")
+    descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+    row = {"fd": descriptor, "path": str(source), "role": role,
+           "identity": None, "bytes": None, "sha256": None}
+    context["files"].append(row)
+    status = os.fstat(descriptor)
+    row["identity"] = _assembly_capture_identity(status)
+    if (not stat.S_ISREG(status.st_mode) or status.st_nlink != 1
+            or _assembly_capture_identity(os.lstat(source)) != row["identity"]):
+        raise CaptureError("capture-only input is not a held/named singleton regular file")
+    destination = context["directory"] / name
+    target = os.open(name, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                     0o600, dir_fd=context["directory_fd"])
+    saved = {"fd": target, "path": str(destination), "role": "retained-" + role,
+             "identity": None, "bytes": None, "sha256": None}
+    context["files"].append(saved)
+    digest, offset = hashlib.sha256(), 0
+    while True:
+        data = os.pread(descriptor, 1024 * 1024, offset)
+        if not data:
+            break
+        digest.update(data)
+        written = 0
+        while written < len(data):
+            count = os.write(target, data[written:])
+            if count <= 0:
+                raise CaptureError("capture-only retained write made no progress")
+            written += count
+        offset += len(data)
+    row.update(bytes=offset, sha256=digest.hexdigest())
+    if (_assembly_capture_identity(os.fstat(descriptor)) != row["identity"]
+            or _assembly_capture_identity(os.lstat(source)) != row["identity"]
+            or offset != status.st_size):
+        raise CaptureError("capture-only source changed while retained")
+    os.fchmod(target, 0o400)
+    os.fsync(target)
+    saved.update(identity=_assembly_capture_identity(os.fstat(target)),
+                 bytes=offset, sha256=digest.hexdigest())
+    if (_assembly_capture_hash_fd(target) != (offset, digest.hexdigest())
+            or _assembly_capture_identity(os.lstat(destination)) != saved["identity"]):
+        raise CaptureError("capture-only retained bytes/native identity differ")
+    os.fsync(context["directory_fd"])
+    return {"source_path": str(source), "identity": row["identity"],
+            "bytes": offset, "sha256": digest.hexdigest(),
+            "retained": {key: saved[key] for key in ("path", "identity", "bytes", "sha256")}}
+
+
+def _assembly_capture_only_before(session_path, event, args, inputs, cwd, kind, header_compile):
+    try:
+        if kind != "clang" or not _assembly_capture_required(kind, args, inputs, header_compile):
+            return None
+        assembly = [Path(value) for value in inputs if Path(value).suffix in ASM_SUFFIXES]
+        if not assembly:
+            return None
+    except Exception as error:
+        event["capture_errors"].append("assembly capture-only classification failed: " + str(error))
+        return None
+    record = {
+        "schema": "ocore-original-assembly-action-capture-only-v1",
+        "original_event_id": event["id"], "original_argv": list(event["argv"]),
+        "expanded_argv": list(args), "cwd": str(cwd),
+        "response_files": event.get("response_files", []),
+        "compiler": event.get("compiler"), "frontend": event.get("frontend"),
+        "declared_build_environment_subset": dict(event.get("build_environment", {})),
+        "full_native_environment_captured": False, "original_command_replayed": False,
+        "additional_frontend_invocations": 0, "compiler_source_consumption_proven": False,
+        "include_incbin_generated_header_toolchild_closure_complete": False,
+        "target_abi_profile_admitted": False, "capture_complete": False,
+        "import_available": False, "admission": False, "qualification": False,
+        "sources": [], "problems": [], "custody": [], "closes": [],
+        "original_action_terminal_known": False, "native_exit_code": None}
+    event.setdefault("assembly_capture_only", []).append(record)
+    context = {"record": record, "files": [], "directories": [],
+               "directory": None, "directory_fd": None}
+    try:
+        import uuid
+        session_path = Path(session_path)
+        if os.path.realpath(session_path) != os.path.abspath(session_path):
+            raise CaptureError("capture-only session path contains a symlink")
+        root = os.open(session_path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        context["directories"].append({"fd": root, "path": str(session_path),
+                                      "identity": _assembly_capture_identity(os.fstat(root))})
+        try:
+            os.mkdir("assembly-capture-only", 0o700, dir_fd=root)
+        except FileExistsError:
+            pass
+        common = os.open("assembly-capture-only", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                         dir_fd=root)
+        common_path = session_path / "assembly-capture-only"
+        context["directories"].append({"fd": common, "path": str(common_path),
+                                      "identity": _assembly_capture_identity(os.fstat(common))})
+        name = uuid.uuid4().hex
+        os.mkdir(name, 0o700, dir_fd=common)
+        directory = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=common)
+        context["directory"], context["directory_fd"] = common_path / name, directory
+        context["directories"].append({"fd": directory, "path": str(context["directory"]),
+                                      "identity": _assembly_capture_identity(os.fstat(directory))})
+        for row in context["directories"]:
+            for status in (os.fstat(row["fd"]), os.lstat(row["path"])):
+                actual = _assembly_capture_identity(status)
+                if any(actual[key] != row["identity"][key] for key in ("dev", "ino", "mode", "uid", "gid")):
+                    raise CaptureError("capture-only directory held/named core differs")
+        os.fsync(common)
+        os.fsync(root)
+        positions = [i for i, value in enumerate(args) if value == "-o"]
+        saves = [value for value in args if value == "-save-temps" or value.startswith("-save-temps=")]
+        naming_supported = (saves == ["-save-temps=obj"] and "-c" in args and len(inputs) == 1
+                            and len(positions) == 1 and positions[0] + 1 < len(args)
+                            and args[positions[0] + 1] != "-"
+                            and not any(value.startswith(("-dumpbase", "-dumpdir", "-auxbase"))
+                                        for value in args))
+        output = None
+        if naming_supported:
+            output = Path(args[positions[0] + 1])
+            if not output.is_absolute():
+                output = Path(cwd) / output
+            output = output.with_suffix(".s")
+        for index, source in enumerate(assembly):
+            if not source.is_absolute():
+                source = Path(cwd) / source
+            row = {"source_path": str(source), "suffix": source.suffix,
+                   "source_retention": None, "stage_candidate": None}
+            record["sources"].append(row)
+            try:
+                row["source_retention"] = _assembly_capture_copy(
+                    context, source, f"source-{index:06d}{source.suffix}", "original-source")
+            except Exception as error:
+                _assembly_capture_problem(context, "SOURCE_RETENTION_FAILED", error)
+            if source.suffix == ".s":
+                row["stage_candidate"] = {"selection": "plain-assembly-source-bytes-only",
+                                          "configured_stage_output_proven": False,
+                                          "include_incbin_closure_complete": False}
+            elif output is None:
+                row["stage_candidate"] = {"selection": "unsupported-or-ambiguous-save-temps-layout",
+                                          "retained": None, "producer_attribution_proven": False}
+                _assembly_capture_problem(context, "CONFIGURED_ASSEMBLY_OUTPUT_MISSING",
+                    "requires one source, -c, one separate non-stdout -o and exactly -save-temps=obj; "
+                    "other naming profiles are unsupported; no separate -E action is run")
+            else:
+                stage = {"path": str(output), "selection": "save-temps=obj-location-candidate",
+                         "producer_attribution_proven": False, "retained": None}
+                row["stage_candidate"] = stage
+                if os.path.abspath(source) == os.path.abspath(output):
+                    stage["eligible"] = False
+                    _assembly_capture_problem(context, "STAGE_ALIASES_SOURCE", output)
+                else:
+                    try:
+                        stage["before_identity"] = _assembly_capture_identity(os.lstat(output))
+                        stage["eligible"] = False
+                        _assembly_capture_problem(context, "PREEXISTING_STAGE_NOT_ATTRIBUTED", output)
+                    except FileNotFoundError:
+                        stage["before_identity"], stage["eligible"] = None, True
+    except Exception as error:
+        _assembly_capture_problem(context, "PRE_ACTION_RETENTION_FAILED", error)
+    return context
+
+
+def _assembly_capture_only_after(context, native_status, event):
+    if context is None:
+        return
+    record = context["record"]
+    record["original_action_terminal_known"] = type(native_status) is int
+    record["native_exit_code"] = native_status
+    try:
+        if type(native_status) is not int or native_status != 0:
+            _assembly_capture_problem(context, "ORIGINAL_ACTION_FAILED_OR_UNKNOWN", native_status)
+        for index, row in enumerate(record["sources"]):
+            stage = row["stage_candidate"]
+            if stage is None or not stage.get("eligible"):
+                continue
+            if type(native_status) is not int:
+                stage["consumption_skipped_reason"] = "ORIGINAL_ACTION_TERMINAL_UNKNOWN"
+                stage["fresh_named_file_after_original_action"] = False
+                _assembly_capture_problem(context, "STAGE_OUTPUT_CONSUMPTION_SKIPPED_UNKNOWN", stage["path"])
+                continue
+            try:
+                stage["retained"] = _assembly_capture_copy(context, Path(stage["path"]),
+                    f"stage-{index:06d}.s", "stage-output-candidate")
+                stage["fresh_named_file_after_original_action"] = True
+            except Exception as error:
+                stage["fresh_named_file_after_original_action"] = False
+                _assembly_capture_problem(context, "STAGE_RETENTION_FAILED", error)
+    except Exception as error:
+        _assembly_capture_problem(context, "POST_ACTION_RETENTION_FAILED", error)
+    finally:
+        for item in context["files"]:
+            observed = {"path": item["path"], "role": item["role"],
+                        "full_hash_attempted": item["sha256"] is not None, "passed": False}
+            try:
+                if item["identity"] is None:
+                    raise CaptureError("capture-only file baseline unavailable")
+                if (_assembly_capture_identity(os.fstat(item["fd"])) != item["identity"]
+                        or _assembly_capture_identity(os.lstat(item["path"])) != item["identity"]):
+                    raise CaptureError("capture-only file held/named native identity changed")
+                if (item["sha256"] is None
+                        or _assembly_capture_hash_fd(item["fd"]) != (item["bytes"], item["sha256"])):
+                    raise CaptureError("capture-only full-byte baseline unavailable or changed")
+                if (_assembly_capture_identity(os.fstat(item["fd"])) != item["identity"]
+                        or _assembly_capture_identity(os.lstat(item["path"])) != item["identity"]):
+                    raise CaptureError("capture-only posthash native identity changed")
+                observed["passed"] = True
+            except Exception as error:
+                observed["error"] = str(error)
+                _assembly_capture_problem(context, "FILE_CUSTODY_FAILED", error)
+            record["custody"].append(observed)
+        for item in reversed(context["directories"]):
+            try:
+                for status in (os.fstat(item["fd"]), os.lstat(item["path"])):
+                    actual = _assembly_capture_identity(status)
+                    if any(actual[key] != item["identity"][key] for key in ("dev", "ino", "mode", "uid", "gid")):
+                        raise CaptureError("capture-only directory core changed")
+                os.fsync(item["fd"])
+            except Exception as error:
+                _assembly_capture_problem(context, "DIRECTORY_CUSTODY_FAILED", error)
+        for item in [*context["files"], *reversed(context["directories"])]:
+            descriptor, item["fd"] = item["fd"], None
+            close = {"path": item["path"], "known": False}
+            try:
+                os.close(descriptor)
+                close["known"] = True
+            except Exception as error:
+                close["error"] = str(error)
+                _assembly_capture_problem(context, "CLOSE_FAILED", error)
+            record["closes"].append(close)
+        record["retention_passed"] = not record["problems"]
+        record["capture_complete"], record["admission"] = False, False
+        for problem in record["problems"]:
+            event["capture_errors"].append("assembly capture-only " + problem["code"] + ": " + problem["detail"])
+
+
 def compiler(session_path: Path, kind: str, original_args: list[str], *,
              expected_cargo_observer_sha256: str | None = None) -> int:
     session = read_json(session_path / "session.json")
@@ -2065,8 +2901,14 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                 event["selected_linker"] = tool_info(links[0][0], "native-tool")
                 native_environment["OCORE_CAPTURE_LINKER_IDENTITY"] = json.dumps(event["selected_linker"])
                 write_json(event_path, event)
-        native_code = subprocess.run([program, *executed_args], env=native_environment,
-                                     **({"input": stdin_bytes} if stdin_source is not None else {})).returncode
+        _assembly_action_capture = _assembly_capture_only_before(session_path, event, args, inputs, cwd, kind, header_compile)
+        _assembly_native_status = None
+        try:
+            native_code = subprocess.run([program, *executed_args], env=native_environment,
+                                         **({"input": stdin_bytes} if stdin_source is not None else {})).returncode
+            _assembly_native_status = native_code
+        finally:
+            _assembly_capture_only_after(_assembly_action_capture, _assembly_native_status, event)
         event["exit_code"] = native_code
         query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV", "-###"}
                     or arg.startswith(("--print", "-print", "-dump")) for arg in args)
@@ -2926,7 +3768,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     try:
         if file_info(Path(session["manifest"]["path"]))["sha256"] != session["manifest"]["sha256"]:
             issues.append("recipe bytes changed during capture")
-        if source_origin_kind(recipe.get("source",{})) == DEBIAN_ORIGIN:
+        if source_origin_kind(recipe.get("source",{})) in (DEBIAN_ORIGIN, ARCHIVE_ORIGIN):
             verify_source_origin(recipe, source, context=session["source"])
         elif "kind" in session["source"]:
             raise CaptureError("legacy Git recipe/source origin tag differs")
@@ -3089,7 +3931,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                                "observed_files": list(dependency_files_by_path.values()),
                                "unresolved_symbols": sorted(undefined - defined), "closed": False},
               "remaining_runtime_requirements": recipe.get("blockers", [])}
-    if recipe.get("source",{}).get("kind") == DEBIAN_ORIGIN:
+    if recipe.get("source",{}).get("kind") in (DEBIAN_ORIGIN, ARCHIVE_ORIGIN):
         attempt=directory / "source-origin/materialization.json"
         report["source_origin_attempt"] = file_info(attempt) if attempt.is_file() else None
     if persist:

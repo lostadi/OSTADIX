@@ -7,7 +7,8 @@ import argparse, ast, contextlib, hashlib, io, json, os
 from pathlib import Path
 import stat, subprocess, tarfile, tempfile, types, unittest
 from unittest import mock
-WORKER_SHA='758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36'
+HISTORICAL_WORKER_SHA = '758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36'  # Original Debian25 provenance; never a current-worker fallback.
+WORKER_SHA = '26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540'
 # Parse the frozen legacy source with the selected Python so optional AST
 # dump-field formatting differences across recipient Python versions are harmless.
 GIT_VERIFY_SOURCE = r'''def verify_source(recipe: dict, source: Path) -> dict:

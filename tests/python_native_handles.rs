@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use o_lang::eval::migration::migrate_persistent_actors;
 use o_lang::eval::{Evaluator, PreparedPlacementFragmentV2};
 use o_lang::parser::Parser;
@@ -26,8 +26,8 @@ impl Fixture {
         for (name, bytes) in o_lang::shims::read_shims(None)? {
             fs::write(shims.join(name), bytes)?;
         }
-        let runtime = root.path().join("O-native-test");
-        fs::copy(env!("CARGO_BIN_EXE_O"), &runtime)?;
+        // Cargo owns this executable; each fixture owns only its shim state.
+        let runtime = PathBuf::from(env!("CARGO_BIN_EXE_O"));
         Ok(Self {
             _root: root,
             shims,
@@ -348,7 +348,13 @@ native_call($handle, python[8]^([])_python[8])
         .arg(&fixture.shims)
         .env("O_BACKEND_OPERATION_TIMEOUT_MS", "100")
         .env("O_BACKEND_SHUTDOWN_TIMEOUT_MS", "1000")
-        .output()?;
+        .output()
+        .with_context(|| {
+            format!(
+                "spawn Cargo-provided runtime {} for native-operation timeout regression",
+                fixture.runtime.display()
+            )
+        })?;
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(

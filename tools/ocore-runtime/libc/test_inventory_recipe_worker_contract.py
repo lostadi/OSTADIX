@@ -16,8 +16,10 @@ SPEC = importlib.util.spec_from_file_location("musl_recipe_worker_contract", DIR
 inventory = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(inventory)
 
-CURRENT_WORKER = "a5bc3f7987b6c6349f0cc7d46b01deac9aa0d7975cce5ea4d5d990ba14c2e0c8"
+CURRENT_WORKER = "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540"
 HISTORICAL_WORKERS = {
+    "bbc91baf0a81c526f6c8773532b0c908e0cd68dc30b89d5e3810eef17b4020d3",
+    "a5bc3f7987b6c6349f0cc7d46b01deac9aa0d7975cce5ea4d5d990ba14c2e0c8",
     "a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779",
     "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059",
     "758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36",
@@ -55,7 +57,7 @@ class RecipeWorkerContractTests(unittest.TestCase):
             source, build, capture = (root / name for name in ("source", "build", "capture"))
             for directory in (source, build, capture):
                 directory.mkdir()
-            for stale in (PREVIOUS_HELPER, "1e2fe1217fe1164cb7cf1f41a98b45220d0cfaa60290818f79e3623d70a4dd72", "0" * 64):
+            for stale in (PREVIOUS_HELPER, "1e2fe1217fe1164cb7cf1f41a98b45220d0cfaa60290818f79e3623d70a4dd72", "85991149c42f8a4132e7b2439ffaa80a0b9ced1ece86c12a4fcad57e783350bd", "7299f5932bbbb65f69ec126f870fbdd964e3b3401df8b6c15b527f4fb452b668", "0" * 64):
                 with self.subTest(expected=stale):
                     result = subprocess.run(
                         [sys.executable, str(DIRECTORY / "build_inventory.py"), "configure",

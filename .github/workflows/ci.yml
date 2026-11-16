@@ -56,6 +56,30 @@ jobs:
               raise SystemExit("complete-source inventory regressions must execute without skips")
           PY
 
+      - name: Verify capture-only original assembly action evidence
+        run: |
+          python3 -B - <<'PYCONTROLS'
+          import unittest
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_runtime_capture_assembly_action")
+          if suite.countTestCases() != 14:
+              raise SystemExit("all14 capture-only assembly action controls are required")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun != 14 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
+              raise SystemExit("capture-only assembly action controls must all execute without skips")
+          PYCONTROLS
+
+      - name: Verify generic original archive source origin fixtures
+        run: |
+          python3 -B - <<'PYARCHIVE'
+          import unittest
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_original_archive_origin")
+          if suite.countTestCases() != 16:
+              raise SystemExit("all16 original archive origin controls are required")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if not result.wasSuccessful() or result.testsRun != 16 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
+              raise SystemExit("original archive origin controls must all execute without skips")
+          PYARCHIVE
+
   ocore-constrained-fp:
     name: Required original-source constrained FP
     needs: contracts
@@ -798,7 +822,7 @@ jobs:
             fi
           done
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends clang lld llvm binutils qemu-user qemu-system-x86 qemu-system-arm qemu-system-riscv opensbi default-jdk-headless grub-efi-amd64-bin mtools ovmf xorriso
+          sudo apt-get install --yes --no-install-recommends clang lld llvm binutils qemu-user qemu-system-x86 qemu-system-arm qemu-system-riscv opensbi default-jdk-headless grub-efi-amd64-bin mtools ovmf xorriso dpkg-dev
           qemu-system-x86_64 --version
       - name: Verify declared O-core prerequisites
         run: python3 scripts/contract_surfaces.py probe-runtimes --suite ocore-qemu
@@ -847,6 +871,395 @@ jobs:
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_build_inventory.py -v
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_stage_roles.py -v
           python3 -m unittest discover -s tools/ocore-runtime/rust -p test_observe_cargo.py -v
+      - name: Verify complete native link stdin and Debian capture fixtures
+        run: |
+          python3 -I -B - <<'PYNATIVE54'
+          import base64
+          import hashlib, importlib, json, os, pathlib, platform, shutil, stat, subprocess, sys, unittest
+          if sys.platform != "linux" or platform.machine() != "x86_64":
+              raise SystemExit("capture54 requires genuine Linux x86-64; no skipped substitute")
+          EXPECTED_IDS = ['tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_exclusive_snapshot_does_not_replace_or_remove_an_existing_artifact', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_existing_capture_flags_are_not_overwritten', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_failed_link_cannot_claim_a_stale_map', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_failed_links_preserve_exit_diagnostics_and_original_map', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_gnu_directory_and_percent_maps_are_not_reinterpreted', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_gnu_stdout_map_remains_visible_and_capture_incomplete', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_lld_stdout_map_retains_independent_archive_trace', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_no_original_map_keeps_existing_owned_trace', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_observed_map_mutation_rejects_and_removes_partial_snapshot', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_original_maps_coexist_with_real_clang_linker_traces', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_original_verbose_and_map_flags_preserve_upstream_output', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_output_and_map_paths_with_spaces_remain_exact', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_response_file_map_is_observed_without_rewriting_it', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_sequential_reuse_preserves_prior_map_snapshot', 'tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests.test_snapshot_requires_the_actual_producer_output', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_assembly_stdin_preserves_native_result_but_rejects_llvm_capture', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_busybox_joined_language_probe_preserves_original_command', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_cpp_response_file_and_empty_stdin', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_dash_output_does_not_consume_stdin_as_source', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_default_stdin_llvm_text_output_is_bound', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_default_stdin_object_is_bound_to_actual_output', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_driver_query_does_not_wait_for_stdin_eof', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_language_switches_do_not_silently_change_stdin_abi', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_mixed_sources_forward_native_build_but_reject_ambiguous_replay', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_native_failure_keeps_status_and_source_without_successful_ir', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_option_values_are_not_stdin_sources', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_original_bytes_macros_local_include_and_ir_replay', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_preprocessing_is_query_and_preserves_stdout', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests.test_repeated_stdin_is_not_qualified_as_one_translation_unit', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_actual_capture_dispatch_retains_realized_tree_before_frontend_stop', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_archive_byte_mismatch_fails_before_fresh_extractor', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_boolean_input_length_is_rejected_before_tools', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_escaping_symlink_fails_before_tool', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_git_verifier_ast_and_epoch_behavior_are_preserved', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_legacy_git_actual_checkout_revision_and_dirty_guards', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_legacy_git_keeps_version_metadata_but_rejects_debian_fields_and_tags', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_make_report_missing_tag_cannot_bypass_via_clean_at_start', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_malformed_dsc_checksum_row_is_reached_after_valid_pin', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_missing_archive_row_fails_before_fresh_extractor', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_missing_or_malformed_expected_tree_digest_refuses_before_tools', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_parent_traversal_archive_member_fails_before_tool', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_postbuild_content_mode_and_membership_mutations_fail', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_primary_orig_root_symlink_is_rejected_before_prefix_stripping', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_readmission_coherent_input_record_forgery_cannot_replace_recipe_pins', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_real_quilt_materialization_matches_preheld_tree_and_rechecks', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_recorded_errors_require_actual_empty_list_after_coherent_pin_update', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_recorded_exit_requires_exact_integer_zero_after_coherent_pin_update', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_recorded_materialization_schema_is_exact_after_coherent_pin_update', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_reordered_complete_archive_rows_fail_before_fresh_extractor', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_special_archive_member_fails_before_tool', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_unknown_and_mixed_origin_tags_refuse_before_git_or_extractor', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_unsupported_source_format_is_explicit_before_fresh_extractor', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_verify_report_rechecks_tagged_source_before_reconstruction', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests.test_wrong_expected_tree_rejects_after_real_extraction_before_build']
+          SOURCE_SHA256 = {'tests/test_ocore_runtime_capture_link_maps.py': '7558a1a8eae0ba5797a7013335e510857de9175fb7e4f8277732d1a12f2e5c3c', 'tests/test_ocore_runtime_capture_stdin.py': '15a89afc54a4fe4006b53acf93dadc2c9f92739493be13bed9d0bf322a9458a9', 'tests/test_ocore_debian_source_origin.py': 'a51e0c75405d49a44ff0bbf8d33b45960be9ae5b243565e6d9045c21d50f20ea', 'scripts/ocore_runtime_capture.py': '26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540', 'scripts/ocore_producer_registry.json': '62d74350f9b97db882f96ccb04fb985ff519e45d648b2f977664c2e631ff4052'}
+          report = {"schema":"ostadix.capture-native54-ci/v1", "scope":"original native fixtures and capture evidence only", "expected_ids":EXPECTED_IDS, "sources":{}, "tools":{}, "errors":[], "testsRun":0, "qualification":False}
+          result = None
+
+          # Retain one private namespace per real CI attempt before any selected import.
+          import ast, contextlib, importlib.machinery, io, tarfile, tempfile, traceback, types
+          root = pathlib.Path.cwd().resolve()
+          output = (root / "target/ci-capture-native54").resolve()
+          if not output.is_relative_to(root): raise RuntimeError("retained output escaped source workspace")
+          output.mkdir(parents=True, exist_ok=True)
+          run_id = os.environ["GITHUB_RUN_ID"]; attempt = os.environ["GITHUB_RUN_ATTEMPT"]
+          if not run_id.isdecimal() or not attempt.isdecimal():
+              raise RuntimeError("explicit numeric GitHub run identity is required")
+          owner = output / ("run-" + run_id + "-" + attempt)
+          owner.mkdir(mode=0o700)
+          delivery = output / ("delivery-" + run_id + "-" + attempt); delivery.mkdir(mode=0o700)
+          for name in ["tmp", "link-map", "stdin", "pycache", "inputs", "commands"]:
+              (owner / name).mkdir(mode=0o700)
+          if owner.resolve() != owner or not owner.is_dir():
+              raise RuntimeError("retained fixture owner must be physical")
+          os.environ["TMPDIR"] = str(owner / "tmp")
+          os.environ["OCORE_LINK_MAP_EVIDENCE"] = str(owner / "link-map")
+          os.environ["OCORE_STDIN_EVIDENCE"] = str(owner / "stdin")
+          tempfile.tempdir = None
+          if pathlib.Path(tempfile.gettempdir()) != owner / "tmp":
+              raise RuntimeError("tempfile did not select retained physical scratch")
+          sys.dont_write_bytecode = True
+          sys.pycache_prefix = str(owner / "pycache")
+          if any((owner / "pycache").iterdir()):
+              raise RuntimeError("selected PYC namespace must start empty")
+          report.update(retained_root=str(owner), complete_tool_closure_proven=False,
+                        scratch_scope="private physical fixture paths; ordinary test path operations are not universally FD-confined",
+                        retained_environment={key:os.environ[key] for key in ["TMPDIR", "OCORE_LINK_MAP_EVIDENCE", "OCORE_STDIN_EVIDENCE"]},
+                        source_loading="verified source buffers; no selected test/worker PYC consumption",
+                        command_observation_scope="direct Python Popen API only; child-worker journals and complete fixture files are also retained; dynamic libraries and all descendants are not exhaustively traced")
+          source_bytes = {}; source_loads = []; command_rows = []; command_sequence = 0
+          report["python"]={"version":sys.version,"executable":sys.executable}
+          active_test = None; observed_events = []; retention_errors = []
+          def save_bytes(path, raw):
+              fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+              try:
+                  offset = 0
+                  while offset < len(raw):
+                      offset += os.write(fd, raw[offset:])
+                  os.fsync(fd)
+              finally:
+                  os.close(fd)
+              return {"path":str(path), "bytes":len(raw), "sha256":hashlib.sha256(raw).hexdigest()}
+          def save_json(path, value):
+              return save_bytes(path, (json.dumps(value, sort_keys=True, indent=2) + "\n").encode())
+          def stream_record(value, stem):
+              if value is None: return {"observed":False}
+              if type(value) is bytes: raw=value; encoding="original Python bytes"
+              elif type(value) is str: raw=value.encode("utf-8"); encoding="UTF-8 representation of returned Python text"
+              else: raise RuntimeError("unexpected observed stream type")
+              pin=save_bytes(owner / "commands" / stem, raw)
+              return {**pin, "observed":True, "encoding":encoding}
+          def remember(row, phase, **values):
+              try:
+                  row.update(values); row["observation"] += 1
+                  save_json(owner / "commands" / (row["id"] + "-" + str(row["observation"]) + "-" + phase + ".json"), row)
+              except BaseException as error:
+                  retention_errors.append({"stage":"command retention", "error":repr(error), "command":row.get("id")})
+          OriginalPopen = subprocess.Popen
+          class RetainedPopen(OriginalPopen):
+              def __init__(self, *args, **kwargs):
+                  global command_sequence
+                  command_sequence += 1
+                  argv=kwargs.get("args", args[0] if args else None)
+                  row={"id":"command-" + str(command_sequence), "observation":0, "test":active_test,
+                       "argv":[str(x) for x in argv] if isinstance(argv,(list,tuple)) else str(argv),
+                       "cwd":str(kwargs.get("cwd", pathlib.Path.cwd())), "constructor_entered":True,
+                       "native_terminal_known":False, "returncode":None}
+                  self._retained_row=row; command_rows.append(row)
+                  remember(row, "intent")
+                  try: super().__init__(*args, **kwargs)
+                  except BaseException as error:
+                      remember(row, "constructor-error", error=repr(error)); raise
+                  remember(row, "constructed", pid=self.pid, constructor_returned=True)
+              def _terminal(self, phase):
+                  code=self.returncode
+                  remember(self._retained_row, phase, native_terminal_known=type(code) is int, returncode=code)
+              def wait(self, *args, **kwargs):
+                  try: value=super().wait(*args, **kwargs)
+                  except BaseException as error:
+                      remember(self._retained_row, "wait-error", wait_error=repr(error)); raise
+                  self._terminal("wait"); return value
+              def communicate(self, *args, **kwargs):
+                  row=self._retained_row
+                  supplied=kwargs.get("input", args[0] if args else None)
+                  try:
+                      row["communicate_calls"]=row.get("communicate_calls",0)+1
+                      serial=str(row["communicate_calls"])
+                      if supplied is not None:
+                          remember(row,"stdin",stdin=stream_record(supplied,row["id"]+"-"+serial+"-stdin.bin"))
+                  except BaseException as error:
+                      retention_errors.append({"stage":"stdin retention","error":repr(error)})
+                  try: value=super().communicate(*args, **kwargs)
+                  except subprocess.TimeoutExpired as error:
+                      try:
+                          remember(row,"communicate-timeout",native_terminal_known=False,returncode=None,
+                                   observed_stdout=stream_record(error.output,row["id"]+"-"+serial+"-timeout-stdout.bin"),
+                                   observed_stderr=stream_record(error.stderr,row["id"]+"-"+serial+"-timeout-stderr.bin"),
+                                   timeout_error=repr(error))
+                      except BaseException as retained_error: retention_errors.append({"stage":"timeout stream retention","error":repr(retained_error)})
+                      raise
+                  except BaseException as error:
+                      remember(row,"communicate-error",communicate_error=repr(error)); raise
+                  try:
+                      remember(row,"streams",stdout=stream_record(value[0],row["id"]+"-"+serial+"-stdout.bin"),
+                               stderr=stream_record(value[1],row["id"]+"-"+serial+"-stderr.bin"))
+                  except BaseException as error: retention_errors.append({"stage":"stream retention","error":repr(error)})
+                  self._terminal("communicated"); return value
+          def read_verified_source(name, record):
+              fd=os.open(record["path"],os.O_RDONLY|os.O_NOFOLLOW)
+              try:
+                  before=os.fstat(fd)
+                  chunks=[]
+                  while True:
+                      part=os.read(fd,1048576)
+                      if not part: break
+                      chunks.append(part)
+                  raw=b"".join(chunks)
+                  after=os.fstat(fd)
+                  fields=lambda s:tuple(getattr(s,k) for k in ["st_dev","st_ino","st_mode","st_uid","st_gid","st_nlink","st_size","st_mtime_ns","st_ctime_ns"])
+                  if fields(before)!=fields(after) or fields(after)!=fields(pathlib.Path(record["path"]).lstat()):
+                      raise RuntimeError("consumed source native identity changed: "+name)
+                  if len(raw)!=record["bytes"] or hashlib.sha256(raw).hexdigest()!=SOURCE_SHA256[name]:
+                      raise RuntimeError("consumed source bytes differ: "+name)
+                  if file_pin(name)!=record: raise RuntimeError("consumed source changed: "+name)
+              finally: os.close(fd)
+              save_bytes(owner/"inputs"/name.replace("/","__"),raw)
+              return raw
+          original_get_code = importlib.machinery.SourceFileLoader.get_code
+          def verified_get_code(loader, fullname):
+              path=pathlib.Path(loader.path).resolve()
+              try: relative=path.relative_to(root).as_posix()
+              except ValueError: return original_get_code(loader,fullname)
+              if relative not in source_bytes:
+                  raise RuntimeError("unselected repository Python import: "+relative)
+              raw=source_bytes[relative]
+              source_loads.append({"module":fullname,"path":str(path),"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"pyc_consumed":False})
+              return compile(raw,str(path),"exec",dont_inherit=True)
+          class ObservedResult(unittest.TextTestResult):
+              def startTest(self, test):
+                  global active_test
+                  active_test=test.id(); observed_events.append({"id":active_test,"event":"start"}); super().startTest(test)
+              def stopTest(self, test):
+                  global active_test
+                  super().stopTest(test); active_test=None
+              def addSuccess(self,test): observed_events.append({"id":test.id(),"event":"ok"}); super().addSuccess(test)
+              def addFailure(self,test,error): observed_events.append({"id":test.id(),"event":"failure"}); super().addFailure(test,error)
+              def addError(self,test,error): observed_events.append({"id":test.id(),"event":"error"}); super().addError(test,error)
+              def addSkip(self,test,reason): observed_events.append({"id":test.id(),"event":"skip","reason":reason}); super().addSkip(test,reason)
+              def addExpectedFailure(self,test,error): observed_events.append({"id":test.id(),"event":"expected-failure"}); super().addExpectedFailure(test,error)
+              def addUnexpectedSuccess(self,test): observed_events.append({"id":test.id(),"event":"unexpected-success"}); super().addUnexpectedSuccess(test)
+          class Tee:
+              def __init__(self, original, retained): self.original=original; self.retained=retained
+              def write(self,text):
+                  self.original.write(text); self.retained.write(text); return len(text)
+              def flush(self): self.original.flush(); self.retained.flush()
+              def __getattr__(self,name): return getattr(self.original,name)
+          def retained_capsule():
+              inventory=[]
+              for directory, subdirs, filenames in os.walk(owner,followlinks=False):
+                  for name in sorted(subdirs+filenames):
+                      path=pathlib.Path(directory)/name; status=path.lstat()
+                      relative=path.relative_to(owner).as_posix()
+                      row={"relative":relative,"mode":stat.S_IMODE(status.st_mode)}
+                      if stat.S_ISLNK(status.st_mode): row.update(kind="symlink",target=os.readlink(path))
+                      elif stat.S_ISDIR(status.st_mode): row.update(kind="directory")
+                      elif stat.S_ISREG(status.st_mode): row.update(kind="file",**file_pin(path))
+                      else: raise RuntimeError("unsupported retained evidence file kind: "+relative)
+                      inventory.append(row)
+              save_json(owner/"fixture-inventory.json",inventory)
+              inventory.append({"relative":"fixture-inventory.json","kind":"file",**file_pin(owner/"fixture-inventory.json")})
+              capsule=delivery/"evidence.tar.gz"
+              # Explicit no-follow construction retains unsafe-link negative fixtures as data.
+              with tarfile.open(capsule,"w:gz",dereference=False) as archive:
+                  for row in inventory:
+                      path=owner/row["relative"]; status=path.lstat()
+                      info=tarfile.TarInfo("run/"+row["relative"]);info.mode=stat.S_IMODE(status.st_mode)
+                      info.uid=status.st_uid;info.gid=status.st_gid;info.mtime=int(status.st_mtime)
+                      if row["kind"]=="directory": info.type=tarfile.DIRTYPE;archive.addfile(info)
+                      elif row["kind"]=="symlink":info.type=tarfile.SYMTYPE;info.linkname=row["target"];archive.addfile(info)
+                      else:
+                          info.type=tarfile.REGTYPE;info.size=row["bytes"]
+                          fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+                          with os.fdopen(fd,"rb") as source: archive.addfile(info,source)
+                          if file_pin(path)!= {key:row[key] for key in ["path","bytes","sha256","identity"]}:
+                              raise RuntimeError("retained file changed while archiving: "+row["relative"])
+              expected={"run/"+row["relative"]:row for row in inventory};seen=set()
+              with tarfile.open(capsule,"r:gz") as archive:
+                  for member in archive:
+                      if member.name not in expected or member.name in seen:raise RuntimeError("capsule membership differs")
+                      seen.add(member.name);row=expected[member.name]
+                      if row["kind"]=="file":
+                          with archive.extractfile(member) as source: raw=source.read()
+                          if len(raw)!=row["bytes"] or hashlib.sha256(raw).hexdigest()!=row["sha256"]:raise RuntimeError("capsule file bytes differ")
+                      elif row["kind"]=="symlink":
+                          if not member.issym() or member.linkname!=row["target"]:raise RuntimeError("capsule symlink differs")
+                      elif not member.isdir():raise RuntimeError("capsule directory differs")
+              if seen!=set(expected):raise RuntimeError("capsule is incomplete")
+              fd=os.open(capsule,os.O_RDONLY|os.O_NOFOLLOW)
+              try:os.fsync(fd)
+              finally:os.close(fd)
+              return file_pin(capsule)
+
+          def file_pin(path):
+              path = pathlib.Path(path).resolve(strict=True)
+              fd = None; failures = []; value = None
+              try:
+                  fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+                  def native(s):
+                      return {key:str(getattr(s, attr)) for key,attr in [("dev","st_dev"),("ino","st_ino"),("mode","st_mode"),("uid","st_uid"),("gid","st_gid"),("nlink","st_nlink"),("size","st_size"),("mtimeNs","st_mtime_ns"),("ctimeNs","st_ctime_ns")]}
+                  before = native(os.fstat(fd)); h = hashlib.sha256(); length = 0
+                  if not stat.S_ISREG(os.fstat(fd).st_mode): raise RuntimeError("selected input is not regular")
+                  while True:
+                      raw = os.read(fd, 1048576)
+                      if not raw: break
+                      h.update(raw); length += len(raw)
+                  if before != native(os.fstat(fd)) or before != native(path.lstat()): raise RuntimeError("selected file native identity changed")
+                  value = {"path":str(path), "bytes":length, "sha256":h.hexdigest(), "identity":before}
+              except BaseException as error: failures.append(repr(error))
+              finally:
+                  if fd is not None:
+                      try: os.close(fd)
+                      except BaseException as error: failures.append("close: " + repr(error))
+              if failures: raise RuntimeError("; ".join(failures))
+              return value
+
+          def _version_output_bytes(value):
+              if value is None:
+                  return {"observed": False, "bytes": None, "sha256": None, "base64": None, "utf8": None}
+              if type(value) is not bytes:
+                  raise RuntimeError("version capture did not return bytes")
+              return {"observed": True, "bytes": len(value), "sha256": hashlib.sha256(value).hexdigest(),
+                      "base64": base64.b64encode(value).decode("ascii"), "utf8": value.decode("utf-8", "backslashreplace")}
+
+          try:
+              for name, expected in SOURCE_SHA256.items():
+                  record = file_pin(name)
+                  if record["sha256"] != expected: raise RuntimeError("selected fixture/worker bytes differ: " + name)
+                  report["sources"][name] = record
+                  source_bytes[name]=read_verified_source(name,record)
+              for name in ["clang", "ar", "nm", "ld.bfd", "ld.lld", "dpkg-source", "perl", "git"]:
+                  selected = shutil.which(name)
+                  if selected is None:
+                      raise RuntimeError("required native fixture tool unavailable: " + name)
+                  invoked_path = os.path.abspath(selected)
+                  record = file_pin(invoked_path)
+                  record.update(invoked_path=invoked_path, argv=[invoked_path, "--version"],
+                                constructor_entered=False, native_terminal_known=False, exit_code=None,
+                                version_outcome="not-entered", timeout=False, stdout=None, stderr=None,
+                                stdout_bytes=_version_output_bytes(None), stderr_bytes=_version_output_bytes(None))
+                  # Enroll before construction so all handled outcomes receive the existing late guards.
+                  report["tools"][name] = record
+                  record["constructor_entered"] = True
+                  record["version_outcome"] = "entered-terminal-unobserved"
+                  try:
+                      native = subprocess.run(record["argv"], capture_output=True, timeout=30)
+                  except subprocess.TimeoutExpired as error:
+                      record["timeout"] = True
+                      record["version_outcome"] = "timeout-terminal-unobserved"
+                      record["stdout_bytes"] = _version_output_bytes(error.output)
+                      record["stderr_bytes"] = _version_output_bytes(error.stderr)
+                      record["stdout"] = record["stdout_bytes"]["utf8"]
+                      record["stderr"] = record["stderr_bytes"]["utf8"]
+                      record["version_error"] = repr(error)
+                      raise
+                  except Exception as error:
+                      record["version_outcome"] = "constructor-or-observation-error"
+                      record["version_error"] = repr(error)
+                      raise
+                  record["stdout_bytes"] = _version_output_bytes(native.stdout)
+                  record["stderr_bytes"] = _version_output_bytes(native.stderr)
+                  record["stdout"] = record["stdout_bytes"]["utf8"]
+                  record["stderr"] = record["stderr_bytes"]["utf8"]
+                  if type(native.returncode) is not int:
+                      raise RuntimeError("version returncode is not an exact integer: " + name)
+                  record["native_terminal_known"] = True
+                  record["exit_code"] = native.returncode
+                  record["version_outcome"] = "known-zero" if native.returncode == 0 else "known-nonzero"
+                  if native.returncode != 0:
+                      raise RuntimeError("tool version diagnostic failed: " + name)
+              selected = report["tools"]["dpkg-source"]
+              os.environ["OSTADIX_DEBIAN_ORIGIN_TEST_DPKG_SOURCE"] = selected["path"]
+              os.environ["OSTADIX_DEBIAN_ORIGIN_TEST_DPKG_SHA256"] = selected["sha256"]
+              report["dpkg_source_env"] = {key:os.environ[key] for key in ["OSTADIX_DEBIAN_ORIGIN_TEST_DPKG_SOURCE", "OSTADIX_DEBIAN_ORIGIN_TEST_DPKG_SHA256"]}
+              # Compile these exact verified buffers; do not consult test or worker PYC.
+              importlib.machinery.SourceFileLoader.get_code = verified_get_code
+              selected_classes = ['tests.test_ocore_runtime_capture_link_maps.NativeLinkMapTests', 'tests.test_ocore_runtime_capture_stdin.StdinCaptureTests', 'tests.test_ocore_debian_source_origin.DebianSourceOriginTests']
+              for full_name in selected_classes:
+                  module, _, class_name = full_name.rpartition(".")
+                  relative=module.replace(".", "/")+".py"
+                  value=types.ModuleType(module);value.__file__=str(root/relative);value.__package__=module.rpartition(".")[0]
+                  sys.modules[module]=value
+                  raw=source_bytes[relative]
+                  source_loads.append({"module":module,"path":value.__file__,"bytes":len(raw),"sha256":hashlib.sha256(raw).hexdigest(),"pyc_consumed":False})
+                  exec(compile(raw,value.__file__,"exec",dont_inherit=True),value.__dict__)
+              suite=unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(
+                  getattr(sys.modules[name.rpartition(".")[0]],name.rpartition(".")[2])) for name in selected_classes)
+              def cases(suite):
+                  for case in suite:
+                      if isinstance(case, unittest.TestSuite): yield from cases(case)
+                      else: yield case
+              actual = sorted(case.id() for case in cases(suite))
+              if actual != sorted(EXPECTED_IDS) or suite.countTestCases() != 54: raise RuntimeError("complete54 fixture inventory differs")
+              for module in ['tests.test_ocore_runtime_capture_link_maps', 'tests.test_ocore_runtime_capture_stdin', 'tests.test_ocore_debian_source_origin']:
+                  if pathlib.Path(sys.modules[module].__file__).resolve() != pathlib.Path(module.replace(".", "/") + ".py").resolve(): raise RuntimeError("fixture import resolved outside selected source")
+              subprocess.Popen = RetainedPopen
+              stdout_log=open(owner/"unittest.stdout.log","x",encoding="utf-8")
+              stderr_log=open(owner/"unittest.stderr.log","x",encoding="utf-8")
+              try:
+                  with contextlib.redirect_stdout(Tee(sys.stdout,stdout_log)), contextlib.redirect_stderr(Tee(sys.stderr,stderr_log)):
+                      result=unittest.TextTestRunner(verbosity=2,resultclass=ObservedResult).run(suite)
+              finally:
+                  for label,stream in [("stdout",stdout_log),("stderr",stderr_log)]:
+                      try:stream.flush();os.fsync(stream.fileno())
+                      except BaseException as error:retention_errors.append({"stage":"unittest "+label+" flush","error":repr(error)})
+                      try:stream.close()
+                      except BaseException as error:retention_errors.append({"stage":"unittest "+label+" close","error":repr(error)})
+              report.update(testsRun=result.testsRun, failures=[(case.id(),text) for case,text in result.failures], errors_from_cases=[(case.id(),text) for case,text in result.errors], skipped=[(case.id(),why) for case,why in result.skipped], expectedFailures=[(case.id(),text) for case,text in result.expectedFailures], unexpectedSuccesses=[case.id() for case in result.unexpectedSuccesses])
+          except BaseException as error:
+              report["errors"].append(repr(error))
+          finally:
+              for name, before in report["sources"].items():
+                  try:
+                      if file_pin(name) != before: raise RuntimeError("fixture/source changed during run")
+                  except BaseException as error: report["errors"].append(name + ": " + repr(error))
+              for name, before in report["tools"].items():
+                  try:
+                      after = file_pin(before["invoked_path"])
+                      if any(after[key] != before[key] for key in ["path","bytes","sha256","identity"]): raise RuntimeError("selected tool changed")
+                  except BaseException as error: report["errors"].append(name + ": " + repr(error))
+          report.update(observed_events=observed_events, compiled_source_loads=source_loads,
+                        direct_command_observations=command_rows, retention_errors=retention_errors,
+                        provisional=True, passed=False)
+          started=[row["id"] for row in observed_events if row["event"]=="start"]
+          succeeded=[row["id"] for row in observed_events if row["event"]=="ok"]
+          test_rows_passed=(result is not None and type(result.testsRun) is int and result.testsRun==54
+              and result.wasSuccessful() and not result.skipped and not result.expectedFailures
+              and not result.unexpectedSuccesses and sorted(started)==sorted(EXPECTED_IDS)
+              and sorted(succeeded)==sorted(EXPECTED_IDS) and len(started)==len(set(started))==54
+              and len(succeeded)==len(set(succeeded))==54)
+          report["test_rows_passed"]=test_rows_passed
+          capsule_pin=None
+          try:
+              save_json(owner/"profile-and-outcomes-provisional.json",report)
+              capsule_pin=retained_capsule()
+          except BaseException as error:report["errors"].append("retained publication: "+repr(error))
+          # Recheck selected inputs after evidence publication; stale profile never makes this green.
+          for name,before in report["sources"].items():
+              try:
+                  if file_pin(name)!=before or hashlib.sha256(source_bytes[name]).hexdigest()!=SOURCE_SHA256[name]:
+                      raise RuntimeError("late source/buffer changed")
+              except BaseException as error:report["errors"].append(name+": "+repr(error))
+          for name,before in report["tools"].items():
+              try:
+                  after=file_pin(before["invoked_path"])
+                  if any(after[key]!=before[key] for key in ["path","bytes","sha256","identity"]):
+                      raise RuntimeError("late selected tool changed")
+              except BaseException as error:report["errors"].append(name+": "+repr(error))
+          passed=test_rows_passed and capsule_pin is not None and not report["errors"] and not retention_errors
+          summary={"schema":"ostadix.capture-native54-delivery/v1","passed":passed,"testsRun":report["testsRun"],
+                   "expected_ids":EXPECTED_IDS,"started_ids":started,"success_ids":succeeded,
+                   "capsule":capsule_pin,"profile_is_provisional":True,"retained_root":str(owner),
+                   "errors":report["errors"],"retention_errors":retention_errors,"qualification":False,
+                   "complete_tool_closure_proven":False,"scratch_path_operations_universally_fd_confined":False}
+          save_json(delivery/"summary.json",summary)
+          print(json.dumps(summary,sort_keys=True))
+          if not passed:raise SystemExit("all54 capture fixtures and retained evidence must pass without skips")
+          PYNATIVE54
+      - name: Retain complete native capture54 fixture evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capture-native54-evidence
+          path: target/ci-capture-native54/delivery-*/
+          if-no-files-found: error
+          include-hidden-files: true
       - name: Verify original-copy observation without source admission
         run: |
           python3 - <<'PY'

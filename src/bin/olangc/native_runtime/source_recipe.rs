@@ -147,6 +147,14 @@ fn immutable_driver(
     Ok(())
 }
 
+// Explicit materialized origin tags route receipts, never authenticity or admission.
+fn materialized_source_origin_kind(source: &Value) -> Option<&str> {
+    match source.get("kind").and_then(Value::as_str) {
+        Some(kind @ ("debian-source-v1" | "original-archive-v1")) => Some(kind),
+        _ => None,
+    }
+}
+
 // Keep source bytes, output contract, both option sets, and compiler identity
 // explicit at the shared native-runtime orchestration boundary.
 #[allow(clippy::too_many_arguments)]
@@ -217,9 +225,10 @@ pub(super) fn compile_impl(
         "dependency_closure_complete":false,"artifact_complete":false,"link_performed":false,
         "native_execution_qualified":false,"runtime_complete":false,
         "scope":"original source build capture followed by independently verified O-core unit lowering; reference build products do not qualify owned native runtime execution"});
-    if serde_json::from_slice::<Value>(recipe_bytes)?["source"]["kind"] == "debian-source-v1" {
+    let source_recipe: Value = serde_json::from_slice(recipe_bytes)?;
+    if let Some(kind) = materialized_source_origin_kind(&source_recipe["source"]) {
         receipt["source_input_root"] = json!(source);
-        receipt["source_origin_kind"] = json!("debian-source-v1");
+        receipt["source_origin_kind"] = json!(kind);
         receipt["source"] = Value::Null;
     }
     write_receipt(&output, &receipt)?;
@@ -284,7 +293,7 @@ pub(super) fn compile_impl(
             receipt["capture_report"] = artifact_record(&report)?;
             let captured: Value = serde_json::from_slice(&fs::read(&report)?)?;
             receipt["worker_capture_complete"] = json!(captured["capture_complete"] == true);
-            if captured["source"]["kind"] == "debian-source-v1" {
+            if materialized_source_origin_kind(&captured["source"]).is_some() {
                 receipt["source"] = captured["source"]["path"].clone();
                 receipt["source_input_root"] = captured["source"]["input_root"].clone();
                 receipt["source_origin"] = captured["source"].clone();
@@ -445,6 +454,25 @@ pub(super) fn stage_for_group(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn materialized_origin_receipt_tags_are_explicit_and_typed() {
+        for kind in ["debian-source-v1", "original-archive-v1"] {
+            assert_eq!(
+                materialized_source_origin_kind(&json!({"kind": kind})),
+                Some(kind)
+            );
+        }
+        for source in [
+            json!({}),
+            json!({"kind": false}),
+            json!({"kind": null}),
+            json!({"kind": "legacy-git"}),
+            json!({"kind": "unregistered-origin"}),
+        ] {
+            assert_eq!(materialized_source_origin_kind(&source), None);
+        }
+    }
 
     #[test]
     fn immutable_driver_rejects_changed_recipe_and_embedded_implementations() {
