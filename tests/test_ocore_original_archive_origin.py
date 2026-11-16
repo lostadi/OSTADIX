@@ -14,8 +14,10 @@ import unittest
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_WORKER_SHA = "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540"
-EXPECTED_WORKER_BYTES = 252440
+# Historical provenance only; never a current-loader fallback.
+PAX_PREDECESSOR_WORKER_SHA = "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540"
+EXPECTED_WORKER_SHA = "9d39df4e18aae07ee7a869b6c8c1539c6a47bf8e72c3fe6201d8e1f0ad94d20b"
+EXPECTED_WORKER_BYTES = 253120
 
 
 def load_selected_worker():

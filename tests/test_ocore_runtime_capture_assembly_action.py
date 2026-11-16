@@ -2,8 +2,10 @@ import ast, hashlib, os, stat, sys, tempfile, types, unittest, uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540"
-EXPECTED_BYTES = 252440
+# Historical provenance only; never a current-loader fallback.
+PAX_PREDECESSOR_WORKER_SHA = "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540"
+EXPECTED = "9d39df4e18aae07ee7a869b6c8c1539c6a47bf8e72c3fe6201d8e1f0ad94d20b"
+EXPECTED_BYTES = 253120
 WORKER = None
 
 def _native_identity(status):

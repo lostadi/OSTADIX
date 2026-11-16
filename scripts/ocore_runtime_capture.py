@@ -1021,8 +1021,16 @@ def _archive_tar_inventory(path, selected, strip_components):
                 _archive_need(member.isfile() or member.isdir() or member.issym(),
                               "unsupported special or hardlink archive member")
                 _archive_need(not (member.mode & 0o7000), "unsupported special archive mode")
-                _archive_need(not (set(member.pax_headers) - {"path", "linkpath", "mtime", "atime", "ctime"}),
+                _archive_need(not (set(member.pax_headers) - {"path", "linkpath", "mtime", "atime", "ctime", "comment"}),
                               "unsupported extended tar attributes")
+                if "comment" in member.pax_headers:
+                    comment = member.pax_headers["comment"]
+                    # Supported metadata profile: retain text exactly; never interpret it as source identity.
+                    _archive_need(type(comment) is str and "\x00" not in comment, "unsupported PAX comment text")
+                    try:
+                        comment.encode("utf-8", "strict")
+                    except UnicodeEncodeError:
+                        _archive_need(False, "PAX comment is not strict UTF-8")
                 if not parts:
                     _archive_need(False, "explicit dot-root archive entries are unsupported; select a single-prefix strip profile")
                 else:
@@ -1032,6 +1040,8 @@ def _archive_tar_inventory(path, selected, strip_components):
                 logical = "/".join(parts[strip_components:])
                 _archive_need(logical not in by_path, "duplicate normalized archive member")
                 row = {"archive_path": raw, "path": logical, "mode": member.mode & 0o777}
+                if "comment" in member.pax_headers:
+                    row["pax_comment"] = member.pax_headers["comment"]
                 if member.isdir():
                     row["kind"] = "directory"
                 elif member.issym():
