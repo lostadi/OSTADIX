@@ -1384,6 +1384,28 @@ under OpenSBI, without Linux services. It is a native compiler proof with an
 independent oracle and corruption controls; it does not qualify Rust std,
 rustc, CPython, or OpenJDK as complete native runtimes.
 
+### Rejected-source metadata diagnostics
+
+The Python importer worker has a separate opt-in
+`--failure-srcloc-diagnostics PATH` diagnostic channel. It does not add an
+`ocorec` or `olangc` flag. Python callers may instead pass an empty dictionary
+as `import_module(..., failure_srcloc_diagnostics=diagnostics)`.
+
+On a rejected import, this versioned record distinguishes input/parser
+availability, LLVM parsing and verification, and the original-site diagnostic
+survey. Valid rejected input is reparsed from its exact original bytes in a
+disposable context so importer normalization cannot hide original symbols.
+The survey resolves `srcloc` by context name, preserves typed integer tuple
+order, sharing and storage, and records unsupported owners or payloads as
+rejections. The independent source reader checks this diagnostic contract.
+
+Successful imports report `not_applicable_success` without a diagnostic
+survey; their NativeModule and existing raw metadata sidecar remain unchanged.
+A secondary diagnostic error preserves the primary import error. This channel
+publishes no partial native module, grants no assembly/provider authority and
+does not implement another source unit, ABI or runtime. Existing whole-unit
+refusals remain refusals. Only the direct Python worker exposes this option.
+
 ### Imported execution profiles and cross-ISA equivalence
 
 The following requirements describe the intended import design; they are not

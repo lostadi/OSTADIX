@@ -42,6 +42,240 @@ class ImportFailure(Exception):
         super().__init__(message)
 
 
+FAILURE_SRCLOC_SCHEMA = "ocore.llvm.srcloc-failure-diagnostics/v1"
+
+
+def _failure_srcloc_initial(data):
+    """A distinct, opt-in failure channel; never a NativeModule or raw-v1 packet."""
+    return {"schema": FAILURE_SRCLOC_SCHEMA,
+            "input_sha256": hashlib.sha256(data).hexdigest() if data is not None else None,
+            "input_bytes": len(data) if data is not None else None,
+            "parser": None, "status": "not_started", "import_complete": False,
+            "parse_status": "not_started", "verification_status": "not_started",
+            "diagnostic_parse_status": "not_started", "diagnostic_verification_status": "not_started",
+            "primary_import_error": None, "target_triple": None, "data_layout": None,
+            "scan": None,
+            "authority": {"native_module": False, "source_authentication": False,
+                          "operation_realization": False, "provider": False, "pure_leaf": False}}
+
+
+def _failure_srcloc_scan(a, context, module):
+    """Survey original attachments without invoking any operation recognizer.
+
+    The caller owns an independently parsed, verified, unnormalized module.
+    Only the ORIGINAL MetadataRef determines node class, sharing and storage.
+    MetadataAsValue may unwrap singleton tuples and is only an operand adapter.
+    """
+    scan = {"scan_complete": False, "typed_custody_complete": False,
+            "status": "scanning", "globals": 0, "functions": 0, "blocks": 0,
+            "instructions": 0, "attachments": 0, "other_attachments": 0,
+            "roots": [], "nodes": [], "errors": []}
+    identities = {}
+    srcloc = a.GetMDKindIDInContext(context, b"srcloc", 6)
+    print_type = a.lib.LLVMPrintTypeToString
+    print_type.restype, print_type.argtypes = P, [P]
+
+    def text(printer, value):
+        pointer = printer(value)
+        if not pointer:
+            raise ValueError("LLVM diagnostic printer returned null")
+        try:
+            return list(C.string_at(pointer))
+        finally:
+            a.DisposeMessage(pointer)
+
+    def bytes_(getter, value):
+        length = S()
+        pointer = getter(value, C.byref(length))
+        if length.value and not pointer:
+            raise ValueError("LLVM diagnostic byte getter returned null")
+        return list(C.string_at(pointer, length.value)) if length.value else []
+
+    def node(original):
+        if not original:
+            return None, "null_metadata"
+        if a.GetMetadataKind(original) != 4:  # actual LLVMMDTupleMetadataKind
+            return None, "not_original_mdtuple"
+        if original in identities:
+            return identities[original], None
+        adapter = a.MetadataAsValue(context, original)
+        if not adapter or not a.IsAMDNode(adapter):
+            return None, "no_tuple_operand_adapter"
+        count = a.GetMDNodeNumOperands(adapter)
+        if not count:
+            return None, "empty_tuple"
+        operands = (P * count)()
+        a.GetMDNodeOperands(adapter, operands)
+        integers = []
+        for operand in operands:
+            if not operand or not a.IsAConstantInt(operand):
+                return None, "not_constant_integer"
+            width = a.GetIntTypeWidth(a.TypeOf(operand))
+            if not 1 <= width <= 64:
+                return None, "integer_width_outside_1_64"
+            integers.append({"width": width, "bits": str(a.ConstIntGetZExtValue(operand))})
+        members = (P * count)(*(a.ValueAsMetadata(value) for value in operands))
+        interned = a.MDNodeInContext2(context, members, count)
+        if not interned:
+            return None, "no_storage_identity_witness"
+        identity = len(scan["nodes"])
+        identities[original] = identity
+        scan["nodes"].append({"id": identity,
+                              "storage": "uniqued" if original == interned else "distinct",
+                              "operands": integers})
+        return identity, None
+
+    def owner(value, opcode):
+        # All getters below require the already established ordinary CallInst
+        # and actual InlineAsm callee. Wrong owners never reach CallInst APIs.
+        callee = a.GetCalledValue(value)
+        if not callee or not a.IsAInlineAsm(callee):
+            return None
+        return {"opcode": opcode, "source_llvm": text(a.PrintValueToString, value),
+                "assembly": bytes_(a.GetInlineAsmAsmString, callee),
+                "constraints": bytes_(a.GetInlineAsmConstraintString, callee),
+                "signature_llvm": text(print_type, a.GetCalledFunctionType(value)),
+                "result_type_llvm": text(print_type, a.TypeOf(value)),
+                "argument_types_llvm": [text(print_type, a.TypeOf(a.GetOperand(value, i)))
+                                        for i in range(a.GetNumArgOperands(value))],
+                "arguments_llvm": [text(a.PrintValueToString, a.GetOperand(value, i))
+                                   for i in range(a.GetNumArgOperands(value))],
+                "side_effects": bool(a.GetInlineAsmHasSideEffects(callee)),
+                "align_stack": bool(a.GetInlineAsmNeedsAlignedStack(callee)),
+                "dialect": a.GetInlineAsmDialect(callee),
+                "can_unwind": bool(a.GetInlineAsmCanUnwind(callee)),
+                "calling_convention": a.GetInstructionCallConv(value),
+                "tail_kind": a.GetTailCallKind(value),
+                "operand_bundles": a.GetNumOperandBundles(value),
+                "fast_math": (a.GetFastMathFlags(value)
+                              if a.CanValueUseFastMathFlags(value) else None)}
+
+    def attachments(value, site, opcode=None):
+        number = S()
+        # Pinned LLVM22 Core.cpp explicitly supports both Instruction and
+        # GlobalObject here. Unlike the other instruction getter, it includes
+        # debug locations, so the complete attachment count is not truncated.
+        entries = a.GlobalCopyAllMetadata(value, C.byref(number))
+        try:
+            if number.value and not entries:
+                raise ValueError("LLVM metadata entry array returned null")
+            for index in range(number.value):
+                scan["attachments"] += 1
+                if a.ValueMetadataEntriesGetKind(entries, index) != srcloc:
+                    scan["other_attachments"] += 1
+                    continue
+                original = a.ValueMetadataEntriesGetMetadata(entries, index)
+                root = {"site": site, "name": "srcloc", "owner": None,
+                        "opcode": opcode, "owner_source_llvm": text(a.PrintValueToString, value),
+                        "original_metadata_kind": a.GetMetadataKind(original) if original else None,
+                        "node": None, "status": "rejected", "error": None}
+                scan["roots"].append(root)
+                if site["kind"] != "instruction" or opcode != 45:
+                    root["error"] = "owner_not_ordinary_inline_asm_call"
+                    continue
+                root["owner"] = owner(value, opcode)
+                if root["owner"] is None:
+                    root["error"] = "owner_not_ordinary_inline_asm_call"
+                    continue
+                root["node"], root["error"] = node(original)
+                if root["error"] is None:
+                    root["status"] = "typed_diagnostic_only"
+        finally:
+            if entries:
+                a.DisposeValueMetadataEntries(entries)
+
+    try:
+        for ordinal, value in enumerate(a.sequence(a.GetFirstGlobal, a.GetNextGlobal, module)):
+            scan["globals"] += 1
+            attachments(value, {"kind": "global", "global_index": ordinal,
+                                "name": bytes_(a.GetValueName2, value)})
+        for ordinal, function in enumerate(a.sequence(a.GetFirstFunction, a.GetNextFunction, module)):
+            scan["functions"] += 1
+            name = bytes_(a.GetValueName2, function)
+            function_text = bytes(text(a.PrintValueToString, function))
+            function_source = {"bytes": len(function_text),
+                               "sha256": hashlib.sha256(function_text).hexdigest()}
+            attachments(function, {"kind": "function", "function_index": ordinal, "name": name})
+            for block_id, block in enumerate(a.sequence(a.GetFirstBasicBlock, a.GetNextBasicBlock, function)):
+                scan["blocks"] += 1
+                for instruction_id, value in enumerate(a.sequence(a.GetFirstInstruction, a.GetNextInstruction, block)):
+                    scan["instructions"] += 1
+                    attachments(value, {"kind": "instruction", "function_index": ordinal,
+                                        "name": name, "block": block_id,
+                                        "source_instruction": instruction_id,
+                                        "function_source_llvm": function_source}, a.GetInstructionOpcode(value))
+        scan["scan_complete"] = True
+        scan["typed_custody_complete"] = all(root["error"] is None for root in scan["roots"])
+        scan["status"] = "complete" if scan["typed_custody_complete"] else "complete_with_rejections"
+    except Exception as error:
+        # Keep the actual original import error primary even on an unexpected
+        # diagnostic failure. Partial survey facts are explicitly incomplete.
+        scan["status"] = "internal_error"
+        scan["errors"].append({"class": type(error).__name__, "message": str(error)})
+    return scan
+
+
+def _failure_srcloc_collect(a, data, primary_error, verified, diagnostics):
+    diagnostics["primary_import_error"] = {"stage": getattr(primary_error, "stage", "io"),
+                                            "symbol": getattr(primary_error, "symbol", ""),
+                                            "message": str(primary_error)}
+    if not verified:
+        diagnostics["status"] = "unavailable_unverified_source"
+        return
+    # Translation can normalize/delete legacy declarations. A new diagnostic
+    # parse of the IMMUTABLE original bytes observes every original site and
+    # never adopts the partially normalized translation module as the source.
+    context, module, buffer = None, P(), None
+    stage = "diagnostic_context"
+    try:
+        context = a.ContextCreate()
+        if not context:
+            raise ValueError("LLVM diagnostic context creation failed")
+        buffer = a.CreateMemoryBufferWithMemoryRangeCopy(data, len(data), b"failure-srcloc-original")
+        stage = "diagnostic_parse"
+        diagnostics["diagnostic_parse_status"] = "attempted"
+        message = P()
+        if a.ParseIRInContext2(context, buffer, C.byref(module), C.byref(message)):
+            diagnostics["diagnostic_parse_status"] = "rejected"
+            try:
+                detail = C.string_at(message).decode(errors="replace") if message else "LLVM diagnostic parse failed"
+            finally:
+                if message:
+                    a.DisposeMessage(message)
+            raise ValueError(detail)
+        diagnostics["diagnostic_parse_status"] = "accepted"
+        stage = "diagnostic_pre_verifier_safety"
+        preflight_scoped_alias_metadata(a, context, module)
+        message = P()
+        stage = "diagnostic_verify"
+        diagnostics["diagnostic_verification_status"] = "attempted"
+        invalid = a.VerifyModule(module, 2, C.byref(message))
+        try:
+            detail = C.string_at(message).decode(errors="replace") if message else ""
+        finally:
+            if message:
+                a.DisposeMessage(message)
+        if invalid:
+            diagnostics["diagnostic_verification_status"] = "rejected"
+            raise ValueError(detail or "LLVM diagnostic verification failed")
+        diagnostics["diagnostic_verification_status"] = "accepted"
+        diagnostics["target_triple"] = (a.GetTarget(module) or b"").decode()
+        diagnostics["data_layout"] = (a.GetDataLayoutStr(module) or b"").decode()
+        diagnostics["status"] = "rejected_valid_source"
+        stage = "diagnostic_scan"
+        diagnostics["scan"] = _failure_srcloc_scan(a, context, module)
+    except Exception as error:
+        diagnostics["status"] = "diagnostic_error"
+        diagnostics["diagnostic_error"] = {"stage": stage, "class": type(error).__name__, "message": str(error)}
+    finally:
+        if module:
+            a.DisposeModule(module)
+        if buffer:
+            a.DisposeMemoryBuffer(buffer)
+        if context:
+            a.ContextDispose(context)
+
+
 def _digest(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
@@ -3837,29 +4071,50 @@ def normalize_legacy_lifetime_artifacts(a, context, module, audit):
 
 def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                   frontend="LLVM IR", frontend_version="producer version not declared", tls_profile=None,
-                  atomic_profile=None, wide_volatile_profile=None, linux_syscall_profile=None, metadata_diagnostics=None):
+                  atomic_profile=None, wide_volatile_profile=None, linux_syscall_profile=None, metadata_diagnostics=None,
+                  failure_srcloc_diagnostics=None):
     """Return a fully traversed supported module; reject unsupported whole units."""
     path = Path(path)
     data = path.read_bytes()
+    if failure_srcloc_diagnostics is not None:
+        if not isinstance(failure_srcloc_diagnostics, dict):
+            raise ImportFailure("failure srcloc diagnostics require a separate dictionary", "command")
+        if failure_srcloc_diagnostics is metadata_diagnostics:
+            raise ImportFailure("failure srcloc diagnostics must not share the raw-v1 dictionary", "command")
+        failure_srcloc_diagnostics.clear()
+        failure_srcloc_diagnostics.update(_failure_srcloc_initial(data))
     if metadata_diagnostics is not None:
         metadata_diagnostics.clear()
         metadata_diagnostics.update({"schema": "ocore.raw-llvm-metadata-diagnostics/v1",
                                      "input_sha256": hashlib.sha256(data).hexdigest(),
                                      "input_bytes": len(data), "import_complete": False,
                                      "parser": None, "alias_nodes": [], "graph_source": None})
-    a = LLVM(Path(library_path) if library_path else discover_library(), expected_sha256)
+    try:
+        a = LLVM(Path(library_path) if library_path else discover_library(), expected_sha256)
+    except Exception as error:
+        if failure_srcloc_diagnostics is not None:
+            _failure_srcloc_collect(None, data, error, False, failure_srcloc_diagnostics)
+            failure_srcloc_diagnostics["status"] = "unavailable_parser"
+        raise
     if metadata_diagnostics is not None:
         metadata_diagnostics["parser"] = {"version": list(a.version), "sha256": a.digest}
+    if failure_srcloc_diagnostics is not None:
+        failure_srcloc_diagnostics["parser"] = {"version": list(a.version), "sha256": a.digest}
     context, module, buffer = a.ContextCreate(), P(), None
     importer = None
+    original_verified = False
     try:
         buffer = a.CreateMemoryBufferWithMemoryRangeCopy(data, len(data), os.fsencode(path))
         message = P()
         if a.ParseIRInContext2(context, buffer, C.byref(module), C.byref(message)):
+            if failure_srcloc_diagnostics is not None:
+                failure_srcloc_diagnostics["parse_status"] = "rejected"
             detail = C.string_at(message).decode(errors="replace") if message else "LLVM parse failed"
             if message:
                 a.DisposeMessage(message)
             raise ImportFailure(detail, "parse")
+        if failure_srcloc_diagnostics is not None:
+            failure_srcloc_diagnostics["parse_status"] = "accepted"
         preflight_scoped_alias_metadata(a, context, module)
         message = P()
         invalid = a.VerifyModule(module, 2, C.byref(message))  # LLVMReturnStatusAction
@@ -3867,7 +4122,12 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
         if message:
             a.DisposeMessage(message)
         if invalid:
+            if failure_srcloc_diagnostics is not None:
+                failure_srcloc_diagnostics["verification_status"] = "rejected"
             raise ImportFailure(detail or "LLVM verification failed", "llvm-verify")
+        original_verified = True
+        if failure_srcloc_diagnostics is not None:
+            failure_srcloc_diagnostics["verification_status"] = "accepted"
         importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile, wide_volatile_profile=wide_volatile_profile, linux_syscall_profile=linux_syscall_profile)
         importer.module_metadata()
         importer.check_target_profile()
@@ -3910,7 +4170,14 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
             raise ImportFailure("LLVM bitcode audit and C API inventories disagree", "bitcode-audit")
         if metadata_diagnostics is not None:
             metadata_diagnostics["import_complete"] = True
+        if failure_srcloc_diagnostics is not None:
+            failure_srcloc_diagnostics["status"] = "not_applicable_success"
+            failure_srcloc_diagnostics["import_complete"] = True
         return result
+    except Exception as error:
+        if failure_srcloc_diagnostics is not None:
+            _failure_srcloc_collect(a, data, error, original_verified, failure_srcloc_diagnostics)
+        raise
     finally:
         if metadata_diagnostics is not None and importer is not None:
             # Plainly raw, process-specific LLVM printer diagnostics. They are
@@ -3949,10 +4216,14 @@ def main():
     parser.add_argument("--wide-volatile-profile")
     parser.add_argument("--metadata-diagnostics", type=Path,
                         help="retain raw process-specific LLVM metadata printer diagnostics separately")
+    parser.add_argument("--failure-srcloc-diagnostics", type=Path,
+                        help="separate failure-only typed srcloc diagnostics; never NativeModule/source admission")
     parser.add_argument("--linux-syscall-profile", choices=["linux-user-raw-v1"])
     args = parser.parse_args()
     diagnostics = {}
     diagnostic_path_safe = False
+    failure_diagnostics = {}
+    failure_diagnostic_path_safe = False
     try:
         selected_library = args.llvm_library
         if args.metadata_diagnostics:
@@ -3966,14 +4237,30 @@ def main():
             if any(destination == path.resolve() for path in reserved):
                 raise ImportFailure("metadata diagnostics must not replace input, selected LLVM library, worker or module output", "command")
             diagnostic_path_safe = True
+        if args.failure_srcloc_diagnostics:
+            destination = args.failure_srcloc_diagnostics.resolve()
+            selected_library = selected_library or discover_library()
+            reserved = [args.input, selected_library]
+            if args.output:
+                reserved.append(args.output)
+            if args.metadata_diagnostics:
+                reserved.append(args.metadata_diagnostics)
+            if "__file__" in globals() and Path(__file__).is_file():
+                reserved.append(Path(__file__))
+            if any(destination == path.resolve() for path in reserved):
+                raise ImportFailure("failure srcloc diagnostics require a distinct output path", "command")
+            failure_diagnostic_path_safe = True
         module = import_module(args.input, selected_library, expected_sha256=args.llvm_sha256,
                                frontend=args.frontend, frontend_version=args.frontend_version,
                                tls_profile=args.tls_profile, atomic_profile=args.atomic_profile,
                                wide_volatile_profile=args.wide_volatile_profile,
                                linux_syscall_profile=args.linux_syscall_profile,
-                               metadata_diagnostics=diagnostics if args.metadata_diagnostics else None)
+                               metadata_diagnostics=diagnostics if args.metadata_diagnostics else None,
+                               failure_srcloc_diagnostics=failure_diagnostics if args.failure_srcloc_diagnostics else None)
         if args.metadata_diagnostics:
             _publish_json(args.metadata_diagnostics, diagnostics)
+        if args.failure_srcloc_diagnostics:
+            _publish_json(args.failure_srcloc_diagnostics, failure_diagnostics)
         if args.output:
             # Publish the whole module last, only after complete traversal and
             # successful requested diagnostic retention. This is not native
@@ -3992,7 +4279,17 @@ def main():
                 _publish_json(args.metadata_diagnostics, diagnostics)
             except OSError as diagnostic_error:
                 failure["diagnostic_output_error"] = str(diagnostic_error)
-        print(json.dumps({"error": failure}), file=sys.stderr)
+        reported = {"error": failure}
+        if args.failure_srcloc_diagnostics and failure_diagnostic_path_safe:
+            if not failure_diagnostics:
+                failure_diagnostics.update(_failure_srcloc_initial(None))
+                failure_diagnostics.update(status="unavailable_input", primary_import_error=dict(failure))
+            try:
+                _publish_json(args.failure_srcloc_diagnostics, failure_diagnostics)
+            except OSError as diagnostic_error:
+                # Secondary retention errors do not replace the import error.
+                reported["failure_srcloc_output_error"] = str(diagnostic_error)
+        print(json.dumps(reported), file=sys.stderr)
         return 1
 
 

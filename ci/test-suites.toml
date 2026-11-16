@@ -131,6 +131,7 @@ required_executables = ["clang", "grub-mkrescue", "grub-mkstandalone", "mcopy", 
 [suites.native-systems]
 required_executables = ["bash", "cargo", "clang", "make", "python3", "qemu-system-aarch64", "qemu-system-x86_64"]
 
-# Both nine-test scalar-FP suites require the digest-checked LLVM22 profile.
+# Both nine-test FP suites and the13-test rejected-source diagnostic suite
+# require the digest-checked LLVM22 profile; their result contracts are separate.
 [suites.ocore-constrained-fp]
 required_executables = ["cargo", "cc", "make", "python3", "rustc"]

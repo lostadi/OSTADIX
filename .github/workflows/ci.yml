@@ -43,9 +43,21 @@ jobs:
           import unittest
           suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_prepare_ci_llvm_profile")
           result = unittest.TextTestRunner(verbosity=2).run(suite)
-          if not result.wasSuccessful() or result.testsRun < 27 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
+          if not result.wasSuccessful() or result.testsRun < 29 or result.skipped or result.expectedFailures or result.unexpectedSuccesses:
               raise SystemExit("required LLVM archive/refusal controls must execute with no skips")
           PY
+      - name: Verify reviewed embedded-provider source closure
+        run: |
+          python3 -B - <<'PYCODE'
+          # Required embedded-provider source closure controller: no LLVM execution.
+          import unittest
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_ocore_provider_group_source_closure")
+          discovered = suite.countTestCases()
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if (not result.wasSuccessful() or discovered != 5 or result.testsRun != 5 or result.skipped
+                  or result.expectedFailures or result.unexpectedSuccesses):
+              raise SystemExit("all5 embedded-provider source closure tests must execute without skips")
+          PYCODE
       - name: Verify complete-source inventory worker and recipe bindings
         run: |
           python3 - <<'PY'
@@ -191,6 +203,51 @@ jobs:
           (evidence / "required-suites-result.json").write_text(json.dumps(combined, indent=2) + "\n")
           if not combined["passed"]:
               raise SystemExit("both required scalar FP suites must each execute all9 tests with no skips and unchanged compiler")
+          PYCODE
+      - name: Execute required rejected-source diagnostic suite
+        run: |
+          set -euo pipefail
+          python3 - <<'PYCODE' 2>&1 | tee target/ocore-constrained-fp/failure-srcloc-tests.log
+          # Required rejected-source diagnostic controller: distinct from scalar FP reports.
+          import hashlib, json, os, pathlib, unittest
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+          evidence = root / "target/ocore-constrained-fp"
+          environment = json.loads((evidence / "setup/environment.json").read_text())
+          compiler = json.loads((evidence / "compiler-pin.json").read_text())
+          def digest(path):
+              value = hashlib.sha256()
+              with pathlib.Path(path).open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      value.update(chunk)
+              return value.hexdigest()
+          parser_path = environment["OCORE_TEST_LLVM_LIBRARY"]
+          parser_sha256 = environment["OCORE_TEST_LLVM_SHA256"]
+          if digest(parser_path) != parser_sha256 or digest(compiler["path"]) != compiler["sha256"]:
+              raise SystemExit("required diagnostic parser/compiler pin mismatch before tests")
+          environment.update(OCOREC_BIN=compiler["path"], OCOREC_BIN_SHA256=compiler["sha256"],
+                             OCORE_LLVM_LIBRARY=parser_path, OCORE_LLVM_SHA256=parser_sha256,
+                             OCORE_FAILURE_SRCLOC_REQUIRED="1",
+                             OCORE_FAILURE_SRCLOC_OUTPUT=str(evidence / "failure-srcloc-suite"))
+          os.environ.update(environment)
+          module = "tests.test_ocore_llvm_failure_srcloc_diagnostics"
+          suite = unittest.defaultTestLoader.loadTestsFromName(module)
+          discovered = suite.countTestCases()
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          compiler_unchanged = digest(compiler["path"]) == compiler["sha256"]
+          parser_unchanged = digest(parser_path) == parser_sha256
+          report = {"schema": "ostadix.ci-required-failure-srcloc-tests/v1", "test_module": module,
+                    "discovered": discovered, "executed": result.testsRun,
+                    "skipped": len(result.skipped), "errors": len(result.errors), "failures": len(result.failures),
+                    "expected_failures": len(result.expectedFailures), "unexpected_successes": len(result.unexpectedSuccesses),
+                    "compiler_unchanged": compiler_unchanged, "parser_unchanged": parser_unchanged,
+                    "passed": result.wasSuccessful() and discovered == 13 and result.testsRun == 13
+                              and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses
+                              and compiler_unchanged and parser_unchanged,
+                    "whole_runtime_lowering": False, "new_successful_imports": False,
+                    "foreign_ISA_execution": False, "ocorec_or_olangc_public_flag": False}
+          (evidence / "failure-srcloc-tests-result.json").write_text(json.dumps(report, indent=2) + "\n")
+          if not report["passed"]:
+              raise SystemExit("all13 rejected-source diagnostic tests must execute without skips and with unchanged parser/compiler")
           PYCODE
       - name: Retain exact prerequisite and original-source execution evidence
         if: always()
