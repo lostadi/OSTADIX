@@ -3,6 +3,7 @@
 // Only the EL2 timer (physical PPI26) is enabled in the real GIC.
 .arch armv8-a
 .equ UW_CTX_BYTES, 4096
+.equ UW_DOMAINS, 8
 .equ UW_PC, 248
 .equ UW_PSTATE, 256
 .equ UW_SP0, 264
@@ -91,15 +92,268 @@ uw_current_domain:
     ldr x0, [x0, :lo12:uw_current]
     ret
 
+// All configuration hooks are trusted EL2 calls at a saved, stopped boundary.
+// Guest IPA remains40000000; no guest chooses a physical range/root/VMID.
+.global uw_domain_configured
+uw_domain_configured:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x1, uw_configured
+    add x1, x1, :lo12:uw_configured
+    ldr x0, [x1, x0, lsl #3]
+    ret
+9:  mov x0, #0
+    ret
+
+.global uw_domain_ram_base
+uw_domain_ram_base:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x1, uw_configured
+    add x1, x1, :lo12:uw_configured
+    ldr x2, [x1, x0, lsl #3]
+    cbz x2, 9f
+    adrp x1, uw_ram_bases
+    add x1, x1, :lo12:uw_ram_bases
+    ldr x0, [x1, x0, lsl #3]
+    ret
+9:  mov x0, #0
+    ret
+
+.global uw_domain_ram_bytes
+uw_domain_ram_bytes:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x1, uw_configured
+    add x1, x1, :lo12:uw_configured
+    ldr x2, [x1, x0, lsl #3]
+    cbz x2, 9f
+    adrp x1, uw_ram_sizes
+    add x1, x1, :lo12:uw_ram_sizes
+    ldr x0, [x1, x0, lsl #3]
+    ret
+9:  mov x0, #0
+    ret
+
+.global uw_domain_root
+uw_domain_root:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x1, uw_configured
+    add x1, x1, :lo12:uw_configured
+    ldr x2, [x1, x0, lsl #3]
+    cbz x2, 9f
+    adrp x1, uw_roots
+    add x1, x1, :lo12:uw_roots
+    add x0, x1, x0, lsl #12
+    ret
+9:  mov x0, #0
+    ret
+
+.global uw_domain_vmid
+uw_domain_vmid:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x1, uw_configured
+    add x1, x1, :lo12:uw_configured
+    ldr x2, [x1, x0, lsl #3]
+    cbz x2, 9f
+    add x0, x0, #1
+    ret
+9:  mov x0, #0
+    ret
+
+// (slot,privatePA,bytes)->1 or0. Bounded2MiB blocks, maximum512MiB,
+// nonoverlapping configured ranges, and the captured physical map's private
+// RAM windows only. The future immutable-image registry/allocator must also
+// exclude every newly registered image. e2400000..e2600000 is reserved now
+// for the proposed third-domain immutable image, never guest RAM.
+.global uw_domain_configure
+uw_domain_configure:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x4, uw_configured
+    add x4, x4, :lo12:uw_configured
+    ldr x5, [x4, x0, lsl #3]
+    cbnz x5, 9f
+    tst x1, #0x1fffff
+    b.ne 9f
+    cbz x2, 9f
+    tst x2, #0x1fffff
+    b.ne 9f
+    mov x4, #0x20000000
+    cmp x2, x4
+    b.hi 9f
+    adds x3, x1, x2
+    b.cs 9f
+    mov x4, #0x100000000
+    cmp x3, x4
+    b.hi 9f
+    mov x4, #0x48000000
+    cmp x1, x4
+    b.lo 1f
+    mov x4, #0x68000000
+    cmp x3, x4
+    b.ls 4f
+1:  mov x4, #0xb0000000
+    cmp x1, x4
+    b.lo 2f
+    mov x4, #0xd0000000
+    cmp x3, x4
+    b.ls 4f
+2:  mov x4, #0xe2200000
+    cmp x1, x4
+    b.lo 3f
+    mov x4, #0xe2400000
+    cmp x3, x4
+    b.ls 4f
+3:  mov x4, #0xe2600000
+    cmp x1, x4
+    b.lo 9f
+4:  adrp x4, uw_configured
+    add x4, x4, :lo12:uw_configured
+    adrp x5, uw_ram_bases
+    add x5, x5, :lo12:uw_ram_bases
+    adrp x6, uw_ram_sizes
+    add x6, x6, :lo12:uw_ram_sizes
+    mov x7, #0
+5:  ldr x8, [x4, x7, lsl #3]
+    cbz x8, 6f
+    ldr x8, [x5, x7, lsl #3]
+    ldr x9, [x6, x7, lsl #3]
+    add x9, x8, x9
+    cmp x1, x9
+    b.hs 6f
+    cmp x8, x3
+    b.lo 9f
+6:  add x7, x7, #1
+    cmp x7, #UW_DOMAINS
+    b.lo 5b
+    adrp x4, uw_roots
+    add x4, x4, :lo12:uw_roots
+    add x4, x4, x0, lsl #12
+    adrp x5, uw_ram_tables
+    add x5, x5, :lo12:uw_ram_tables
+    add x5, x5, x0, lsl #12
+    adrp x8, uw_contexts
+    add x8, x8, :lo12:uw_contexts
+    add x8, x8, x0, lsl #12
+    mov x6, x4
+    mov x7, x5
+    mov x9, #4096
+7:  stp xzr, xzr, [x6], #16
+    stp xzr, xzr, [x7], #16
+    stp xzr, xzr, [x8], #16
+    subs x9, x9, #16
+    b.ne 7b
+    orr x6, x5, #3
+    str x6, [x4, #8]
+    mov x6, #0x7fd
+    orr x6, x1, x6
+    lsr x7, x2, #21
+8:  str x6, [x5], #8
+    add x6, x6, #0x200, lsl #12
+    subs x7, x7, #1
+    b.ne 8b
+    // A reused slot has the same private VMID: purge it before publication.
+    mrs x6, vttbr_el2
+    add x5, x0, #1
+    orr x4, x4, x5, lsl #48
+    dsb sy
+    msr vttbr_el2, x4
+    isb
+    tlbi vmalls12e1is
+    dsb sy
+    ic iallu
+    dsb sy
+    msr vttbr_el2, x6
+    isb
+    adrp x4, uw_ram_bases
+    add x4, x4, :lo12:uw_ram_bases
+    str x1, [x4, x0, lsl #3]
+    adrp x4, uw_ram_sizes
+    add x4, x4, :lo12:uw_ram_sizes
+    str x2, [x4, x0, lsl #3]
+    adrp x4, uw_configured
+    add x4, x4, :lo12:uw_configured
+    mov x5, #1
+    dsb sy
+    str x5, [x4, x0, lsl #3]
+    mov x0, #1
+    ret
+9:  mov x0, #0
+    ret
+
+// The trusted caller has stopped scheduling this row and revoked its IRQs.
+// Invalidate only its VMID and clear its context/root/leaf; survivor banks and
+// translations are retained. Domain generations belong to the domain table.
+.global uw_domain_unconfigure
+uw_domain_unconfigure:
+    cmp x0, #UW_DOMAINS
+    b.hs 9f
+    adrp x1, uw_configured
+    add x1, x1, :lo12:uw_configured
+    ldr x2, [x1, x0, lsl #3]
+    cbz x2, 9f
+    str xzr, [x1, x0, lsl #3]
+    dsb sy
+    adrp x4, uw_roots
+    add x4, x4, :lo12:uw_roots
+    add x4, x4, x0, lsl #12
+    adrp x7, uw_ram_tables
+    add x7, x7, :lo12:uw_ram_tables
+    add x7, x7, x0, lsl #12
+    adrp x8, uw_contexts
+    add x8, x8, :lo12:uw_contexts
+    add x8, x8, x0, lsl #12
+    mov x9, #4096
+1:  stp xzr, xzr, [x4], #16
+    stp xzr, xzr, [x7], #16
+    stp xzr, xzr, [x8], #16
+    subs x9, x9, #16
+    b.ne 1b
+    adrp x4, uw_roots
+    add x4, x4, :lo12:uw_roots
+    add x4, x4, x0, lsl #12
+    mrs x6, vttbr_el2
+    add x5, x0, #1
+    orr x4, x4, x5, lsl #48
+    dsb sy
+    msr vttbr_el2, x4
+    isb
+    tlbi vmalls12e1is
+    dsb sy
+    ic iallu
+    dsb sy
+    msr vttbr_el2, x6
+    isb
+    adrp x1, uw_ram_bases
+    add x1, x1, :lo12:uw_ram_bases
+    str xzr, [x1, x0, lsl #3]
+    adrp x1, uw_ram_sizes
+    add x1, x1, :lo12:uw_ram_sizes
+    str xzr, [x1, x0, lsl #3]
+    mov x0, #1
+    ret
+9:  mov x0, #0
+    ret
+
 // Trusted initializer only; a guest never chooses an entry or address space.
 .global uw_domain_init
 uw_domain_init:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs 9f
+    adrp x4, uw_configured
+    add x4, x4, :lo12:uw_configured
+    ldr x5, [x4, x0, lsl #3]
+    cbz x5, 9f
     mov x5, #0x40000000
     cmp x1, x5
     b.lo 9f
-    mov x5, #0x60000000
+    adrp x4, uw_ram_sizes
+    add x4, x4, :lo12:uw_ram_sizes
+    ldr x4, [x4, x0, lsl #3]
+    add x5, x5, x4
     cmp x1, x5
     b.hs 9f
     tst x1, #3
@@ -114,31 +368,33 @@ uw_domain_init:
     str x3, [x4, #UW_PSTATE]
     movz x1, #0x0800
     movk x1, #0x30d0, lsl #16
-    str x1, [x4, #280] // SCTLR RES1, MMU/caches initially disabled.
+    str x1, [x4, #280]
     mov x1, #0x300000
-    str x1, [x4, #296] // FP/SIMD available to original kernels.
+    str x1, [x4, #296]
     mov x1, #1
-    str x1, [x4, #512] // ICC_SRE_EL1
+    str x1, [x4, #512]
     mov x0, #1
     ret
 9:  mov x0, #0
     ret
 
-// Trusted stopped-domain recycling. All architectural state, including SIMD,
-// PMU/debug/locks and active virtual interrupts, is discarded. The caller must
-// first withdraw the domain, then replace its private RAM at this quiescent
-// native EL2 boundary with the complete EL1 context already saved. The last
-// current-domain ID may still name it; no EL1 code is running during reset.
-// The dispatcher must not write that old saved frame after this call, and
-// uw_exception must reselect the returned domain's fresh context before eret.
+// Trusted stopped-domain recycling; discard the complete4KiB bank, and purge
+// only the target VMID. The dispatcher reselects the fresh bank after reset.
 .global uw_domain_reset
 uw_domain_reset:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs 9f
+    adrp x4, uw_configured
+    add x4, x4, :lo12:uw_configured
+    ldr x5, [x4, x0, lsl #3]
+    cbz x5, 9f
     mov x5, #0x40000000
     cmp x1, x5
     b.lo 9f
-    mov x5, #0x60000000
+    adrp x4, uw_ram_sizes
+    add x4, x4, :lo12:uw_ram_sizes
+    ldr x4, [x4, x0, lsl #3]
+    add x5, x5, x4
     cmp x1, x5
     b.hs 9f
     tst x1, #3
@@ -152,15 +408,11 @@ uw_domain_reset:
 1:  stp xzr, xzr, [x4], #16
     subs x5, x5, #16
     b.ne 1b
-    // Reusing a VMID requires invalidating its previous stage-1 and stage-2
-    // translations, without touching the surviving world's context bank.
     mrs x6, vttbr_el2
-    adrp x4, uw_root0
-    add x4, x4, :lo12:uw_root0
-    cbz x0, 2f
-    adrp x4, uw_root1
-    add x4, x4, :lo12:uw_root1
-2:  add x5, x0, #1
+    adrp x4, uw_roots
+    add x4, x4, :lo12:uw_roots
+    add x4, x4, x0, lsl #12
+    add x5, x0, #1
     orr x4, x4, x5, lsl #48
     dsb sy
     msr vttbr_el2, x4
@@ -176,45 +428,29 @@ uw_domain_reset:
     ret
 
 uw_stage2_init:
-    adrp x0, uw_root0
-    add x0, x0, :lo12:uw_root0
-    adrp x1, uw_ram0
-    add x1, x1, :lo12:uw_ram0
-    orr x2, x1, #3
-    str x2, [x0, #8]
-    movz x2, #0x07fd
-    movk x2, #0x4800, lsl #16
-    mov x3, #256
-1:  str x2, [x1], #8
-    add x2, x2, #0x200, lsl #12
-    subs x3, x3, #1
-    b.ne 1b
-    adrp x0, uw_root1
-    add x0, x0, :lo12:uw_root1
-    adrp x1, uw_ram1
-    add x1, x1, :lo12:uw_ram1
-    orr x2, x1, #3
-    str x2, [x0, #8]
-    movz x2, #0x07fd
-    movk x2, #0xb000, lsl #16
-    mov x3, #256
-2:  str x2, [x1], #8
-    add x2, x2, #0x200, lsl #12
-    subs x3, x3, #1
-    b.ne 2b
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
     movz x0, #0x3560
     movk x0, #0x8000, lsl #16
     msr vtcr_el2, x0
-    dsb sy
-    tlbi vmalls12e1is
-    dsb sy
-    isb
-    // RW, VM, IMO, FMO, AMO, TSC, TWI and TWE. IMO/FMO force every
-    // EL1 SGI send to EC18, so no guest can send a physical SGI.
+    // Explicit original boot descriptors; all six other slots stay closed.
+    mov x0, #0
+    mov x1, #0x48000000
+    mov x2, #0x20000000
+    bl uw_domain_configure
+    cmp x0, #1
+    b.ne uw_internal_abort
+    mov x0, #1
+    mov x1, #0xb0000000
+    mov x2, #0x20000000
+    bl uw_domain_configure
+    cmp x0, #1
+    b.ne uw_internal_abort
     movz x0, #0x6039
     movk x0, #0x8008, lsl #16
     msr hcr_el2, x0
     isb
+    ldp x29, x30, [sp], #16
     ret
 
 uw_physical_gic_init:
@@ -400,7 +636,7 @@ uw_vgic_lr_count:
     ret
 .global uw_vgic_lr_read
 uw_vgic_lr_read:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x3, uw_lr_count
     ldr x3, [x3, :lo12:uw_lr_count]
@@ -414,7 +650,7 @@ uw_vgic_lr_read:
     ret
 .global uw_vgic_lr_write
 uw_vgic_lr_write:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x3, uw_lr_count
     ldr x3, [x3, :lo12:uw_lr_count]
@@ -429,7 +665,7 @@ uw_vgic_lr_write:
 
 .global uw_vgic_hcr_read
 uw_vgic_hcr_read:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
@@ -438,7 +674,7 @@ uw_vgic_hcr_read:
     ret
 .global uw_vgic_hcr_write
 uw_vgic_hcr_write:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
@@ -448,7 +684,7 @@ uw_vgic_hcr_write:
 
 .global uw_vgic_vmcr_read
 uw_vgic_vmcr_read:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
@@ -457,7 +693,7 @@ uw_vgic_vmcr_read:
     ret
 .global uw_vgic_vmcr_write
 uw_vgic_vmcr_write:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x2, uw_contexts
     add x2, x2, :lo12:uw_contexts
@@ -467,7 +703,7 @@ uw_vgic_vmcr_write:
 
 .global uw_vgic_running_priority
 uw_vgic_running_priority:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     adrp x1, uw_contexts
     add x1, x1, :lo12:uw_contexts
@@ -499,7 +735,7 @@ uw_vgic_running_priority:
 
 .global uw_timer_read
 uw_timer_read:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     cmp x1, #2
     b.hs uw_internal_abort
@@ -533,7 +769,7 @@ uw_timer_read:
     ret
 .global uw_timer_write
 uw_timer_write:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     cmp x1, #2
     b.hs uw_internal_abort
@@ -574,7 +810,7 @@ uw_timer_pending:
 
 .global uw_timer_deadline
 uw_timer_deadline:
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_internal_abort
     cmp x1, #2
     b.hs uw_internal_abort
@@ -1895,13 +2131,16 @@ uw_restore_arch:
     add x1, x1, :lo12:uw_contexts
     sub x1, x0, x1
     lsr x1, x1, #12
-    cbnz x1, 1f
-    adrp x2, uw_root0
-    add x2, x2, :lo12:uw_root0
-    b 2f
-1:  adrp x2, uw_root1
-    add x2, x2, :lo12:uw_root1
-2:  add x1, x1, #1
+    cmp x1, #UW_DOMAINS
+    b.hs uw_invalid_dispatch
+    adrp x2, uw_configured
+    add x2, x2, :lo12:uw_configured
+    ldr x2, [x2, x1, lsl #3]
+    cbz x2, uw_invalid_dispatch
+    adrp x2, uw_roots
+    add x2, x2, :lo12:uw_roots
+    add x2, x2, x1, lsl #12
+    add x1, x1, #1
     orr x2, x2, x1, lsl #48
     dsb sy
     msr vttbr_el2, x2
@@ -3238,7 +3477,7 @@ uw_exception:
     msr tpidr_el2, x0
     adrp x0, uw_current
     ldr x0, [x0, :lo12:uw_current]
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_invalid_current
     adrp x1, uw_contexts
     add x1, x1, :lo12:uw_contexts
@@ -3273,7 +3512,7 @@ uw_exception:
     mrs x3, far_el2
     mrs x4, hpfar_el2
     bl uw_handle_exit
-    cmp x0, #2
+    cmp x0, #UW_DOMAINS
     b.hs uw_invalid_dispatch
     adrp x1, uw_current
     str x0, [x1, :lo12:uw_current]
@@ -3353,11 +3592,18 @@ kw_halt:
 
 .section .bss, "aw", %nobits
 .balign 4096
-uw_contexts: .skip 8192
+uw_contexts: .skip (UW_DOMAINS * UW_CTX_BYTES)
+uw_roots:
 uw_root0: .skip 4096
 uw_root1: .skip 4096
+.skip ((UW_DOMAINS - 2) * 4096)
+uw_ram_tables:
 uw_ram0: .skip 4096
 uw_ram1: .skip 4096
+.skip ((UW_DOMAINS - 2) * 4096)
+uw_configured: .skip (UW_DOMAINS * 8)
+uw_ram_bases: .skip (UW_DOMAINS * 8)
+uw_ram_sizes: .skip (UW_DOMAINS * 8)
 .balign 16
 uw_current: .skip 8
 uw_lr_count: .skip 8

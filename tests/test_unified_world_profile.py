@@ -133,6 +133,29 @@ class UnifiedWorldProfileTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             RUNNER.validate_profile(bad)
 
+    def test_dynamic_table_capacity_and_native_image_loader_contract(self):
+        value = copy.deepcopy(self.profile)
+        self.assertEqual(value["domain_capacity"], 8)
+        value["o10_qualification"] = True
+        value["native_fixture"] = dict(BUILDER.NATIVE_FIXTURE)
+        value["loader_addresses"].update({
+            "inputs/native-fixture.kernel": BUILDER.NATIVE_FIXTURE["kernel_backup_pa"],
+            "inputs/native-fixture.aux": BUILDER.NATIVE_FIXTURE["aux_backup_pa"]})
+        RUNNER.validate_profile(value)
+        for field, changed in (("domain_capacity", 9), ("o10_qualification", False)):
+            invalid = copy.deepcopy(value)
+            invalid[field] = changed
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                RUNNER.validate_profile(invalid)
+        invalid = copy.deepcopy(value)
+        invalid["loader_addresses"]["inputs/native-fixture.kernel"] = 0x48000000
+        with self.assertRaises(ValueError):
+            RUNNER.validate_profile(invalid)
+        invalid = copy.deepcopy(value)
+        invalid["native_fixture"]["baseline_grant"] = 1
+        with self.assertRaises(ValueError):
+            RUNNER.validate_profile(invalid)
+
     def test_builder_manifest_is_accepted_and_artifacts_are_bound(self):
         RUNNER.validate_profile(self.profile)
         self.assertEqual(json.loads((self.output / "monitor-profile.json").read_text()), self.profile)
@@ -539,6 +562,15 @@ class IdleObservationTests(unittest.TestCase):
         self.assertNotIn("blocked_domains", result)
         self.assertNotIn("native_idle_waits", result)
         self.assertEqual(domain.qmp.execute.call_count, 1)
+
+    def test_eight_entry_profile_accepts_highest_bank_and_rejects_ninth_bit(self):
+        domain, observe = self.observe(RUNNER.IDLE_SCHEDULER, blocked=0x84)
+        domain.domain_capacity = 8
+        self.assertEqual(observe()["blocked_domains"], 0x84)
+        domain, observe = self.observe(RUNNER.IDLE_SCHEDULER, blocked=0x100)
+        domain.domain_capacity = 8
+        with self.assertRaisesRegex(RuntimeError, "idle scheduler state"):
+            observe()
 
     def test_invalid_domain_bits_are_rejected(self):
         _, observe = self.observe(RUNNER.IDLE_SCHEDULER, blocked=4)

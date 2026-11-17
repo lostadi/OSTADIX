@@ -1,4 +1,4 @@
-"""Execute the production two-domain vGIC against saved hardware-LR banks.
+"""Execute the original two boot profiles against saved hardware-LR banks.
 
 This fixture models only the assembly register-bank hooks. The distributor,
 redistributor, authority checks, pending state and LR scheduling are compiled
@@ -28,6 +28,7 @@ HARNESS = r'''
 #define GROUP1 (UINT64_C(1)<<60)
 #define HW (UINT64_C(1)<<61)
 extern uint64_t G(init)(void);
+extern uint64_t G(configure)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t G(reset)(uint64_t);
 extern uint64_t G(mmio_read)(uint64_t,uint64_t,uint64_t);
 extern uint64_t G(mmio_write)(uint64_t,uint64_t,uint64_t,uint64_t);
@@ -59,7 +60,7 @@ static void group(unsigned d,unsigned irq){uint64_t a=base(irq)+0x80+(irq/32)*4;
 static void enable(unsigned d,unsigned irq){group(d,irq);bit(d,irq,0x100);}
 static void priority(unsigned d,unsigned irq,unsigned v){write_(d,base(irq)+0x400+irq,1,v);}
 static void ready(unsigned d){write_(d,R+0x14,4,0);write_(d,D,4,0x13);}
-static void reset(void){assert(G(init)()==1);assert(G(healthy)(0)&&G(healthy)(1));assert(hcr[0]==1&&hcr[1]==1&&vmcr[0]==0xff000002&&vmcr[1]==0xff000002);}
+static void reset(void){assert(G(init)()==1);assert(!G(healthy)(0)&&!G(healthy)(1));assert(G(configure)(0,1,1ull<<50,1ull<<48,1ull<<49,(1ull<<33)|(1ull<<51)));assert(G(configure)(1,1,1ull<<50,1ull<<33,0,0));assert(G(healthy)(0)&&G(healthy)(1));assert(hcr[0]==1&&hcr[1]==1&&vmcr[0]==0xff000002&&vmcr[1]==0xff000002);}
 
 static void driver_registers(void){
     reset();

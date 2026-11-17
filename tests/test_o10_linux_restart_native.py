@@ -12,6 +12,8 @@ import subprocess
 import tempfile
 import unittest
 
+from tests.test_o10_domain_table import write_table_fixture, extend_world
+
 ROOT=Path(__file__).resolve().parents[1]
 HARNESS = r"""
 
@@ -83,9 +85,25 @@ static void held_read(void){
 }
 
 #define W(n) _O_runtime__aarch64__unified_world__##n
+#define G(n) _O_runtime__aarch64__unified_gic__##n
+extern uint64_t G(binding_generation)(uint64_t);
+extern uint64_t G(set_transport_level)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
 extern uint64_t W(test_init)(void),W(test_mailbox)(void),W(test_plan9_input)(void),W(test_linux_input)(void);
 extern void W(test_inputs)(void),W(test_generation)(uint64_t);
 static uint64_t ticks,reset_calls,vmcr[2],hcr[2],lrs[2][4];
+static uint64_t configured[2]={1,1},configure_calls,unconfigure_calls,init_calls;
+uint64_t uw_domain_configured(uint64_t slot){assert(slot<2);return configured[slot];}
+uint64_t uw_domain_configure(uint64_t slot,uint64_t base,uint64_t bytes){
+ assert(slot==0&&!configured[slot]&&base==0x48000000&&bytes==0x20000000);
+ configured[slot]=1;configure_calls++;return 1;
+}
+uint64_t uw_domain_unconfigure(uint64_t slot){
+ assert(slot==0&&configured[slot]);configured[slot]=0;unconfigure_calls++;return 1;
+}
+uint64_t uw_domain_init(uint64_t slot,uint64_t pc,uint64_t x0,uint64_t pstate){
+ assert(slot==0&&configured[slot]&&pc==0x40000000&&x0==0x47e00000&&pstate==0x3c5);
+ init_calls++;return 1;
+}
 static unsigned char *request=(void*)0x6d0a0000,*reply=(void*)0x6d0a0200;
 static uint64_t sequence,mailbox_seq;
 uint64_t uw_domain_reset(uint64_t domain,uint64_t pc,uint64_t x0,uint64_t pstate){
@@ -113,6 +131,67 @@ static uint64_t call(void){
 static void state(uint64_t handle,unsigned expected){
  frame(178,31,0);st(request+23,handle,8);call();assert(reply[4]==179&&reply[16]==expected);
 }
+
+#define DI(n) _O_runtime__aarch64__domain_images__##n
+#define T(n) _O_runtime__aarch64__domain_table__##n
+extern uint64_t DI(register)(size_t,size_t,size_t,size_t,size_t,size_t,size_t);
+extern uint64_t T(state)(uint64_t),T(handle)(uint64_t),T(instance_byte)(uint64_t,uint64_t);
+static void bind_frame(uint64_t lease_generation,uint64_t domain_generation){
+ frame(184,39,1);st(request+23,(lease_generation<<32)|1,8);st(request+31,domain_generation<<32,8);
+}
+static void expect_error(unsigned code,unsigned detail){
+ call();assert(reply[4]==161&&rd(reply+7,4)==code&&rd(reply+11,8)==detail);
+}
+static void bound_survives(uint64_t session,uint64_t generation,unsigned lifecycle){
+ assert(S(session_handle)(1)==session&&S(session_fid_count)(1)==1&&statfid(session)==125&&P(bound)()==1);
+ assert(P(generation)()==generation&&B(generation)()==generation&&N(generation)()==generation);
+ assert(T(state)(0)==lifecycle&&T(handle)(0)==generation<<32&&G(binding_generation)(0)==generation);
+ assert(kw_guest_address(0x40000000,1)==0x48000000);
+ assert(((unsigned char*)0x48000000)[4096]==0x5a&&((unsigned char*)0x48000000)[0x1fffffff]==0x79);
+ assert(configure_calls==1&&unconfigure_calls==1&&init_calls==1);survivors();
+}
+static void provisioned_bind_regression(void){
+ assert(DI(register)(0,0,37,19,73,0,0)==0);
+ // Exact independent reproducer: destroy Linux, recreate its real image and
+ // bind while PROVISIONED. No production store/frontend is substituted.
+ frame(176,31,1);st(request+23,1ull<<32,8);call();
+ assert(reply[4]==177&&!configured[0]&&!T(state)(0)&&!S(session_handle)(1));survivors();
+ frame(168,50,1);st(request+23,2,1);st(request+24,3,8);st(request+32,4,8);
+ st(request+40,0x20000000,8);st(request+48,1,2);call();
+ assert(reply[4]==169&&rd(reply+7,8)==2ull<<32&&T(state)(0)==1&&P(bound)()==0);
+ assert(kw_guest_address(0x40000000,1)==0&&!S(session_handle)(1));
+ bind_frame(1,2);expect_error(5,2);bind_frame(2,1);expect_error(5,2);
+ assert(P(bound)()==0&&!S(session_handle)(1)&&T(state)(0)==1);
+ bind_frame(2,2);call();assert(reply[4]==185&&T(state)(0)==1);
+ uint64_t first=S(session_handle)(1);assert(first&&first!=linux_session);attach(first);
+ ((unsigned char*)0x48000000)[4096]=0x5a;((unsigned char*)0x48000000)[0x1fffffff]=0x79;
+ unsigned char retry[39],success[15],failure[19];memcpy(retry,request,39);memcpy(success,reply,15);
+ call();assert(!memcmp(reply,success,15));bound_survives(first,2,1);
+ // New log index is an ordinary rejected mutation, before session_init.
+ bind_frame(2,2);expect_error(12,1);memcpy(failure,reply,19);memcpy(retry,request,39);
+ bound_survives(first,2,1);
+ call();assert(!memcmp(reply,failure,19));bound_survives(first,2,1);
+ bind_frame(1,2);expect_error(5,2);bind_frame(2,1);expect_error(5,2);bound_survives(first,2,1);
+ // The rejected request leaves both normal Tstart and the later
+ // withdraw/restore/current-bind sequence usable.
+ frame(170,47,1);st(request+23,2ull<<32,8);memset(request+31,0x65,16);call();
+ assert(reply[4]==171);for(unsigned i=0;i<16;i++)assert(T(instance_byte)(0,i)==0x65);
+ bound_survives(first,2,2);bind_frame(2,2);expect_error(12,2);bound_survives(first,2,2);
+ frame(172,36,1);st(request+23,2ull<<32,8);call();assert(reply[4]==173&&!P(bound)());
+ assert(!S(session_handle)(1)&&statfid(first)==107&&reset_calls==1);survivors();
+ for(size_t i=0;i<0x20000000;i++)assert(((unsigned char*)0x48000000)[i]==0);
+ frame(174,63,1);st(request+23,2ull<<32,8);memset(request+31,0x76,16);st(request+47,3,8);st(request+55,4,8);
+ call();assert(reply[4]==175&&rd(reply+7,8)==3ull<<32&&reset_calls==2&&T(state)(0)==3&&!P(bound)());
+ bind_frame(2,3);expect_error(5,3);bind_frame(3,2);expect_error(5,3);
+ assert(!S(session_handle)(1)&&!P(bound)()&&T(state)(0)==3);
+ bind_frame(3,3);call();assert(reply[4]==185&&T(state)(0)==2);
+ uint64_t fresh=S(session_handle)(1);assert(fresh&&fresh!=first);attach(fresh);
+ ((unsigned char*)0x48000000)[4096]=0x5a;((unsigned char*)0x48000000)[0x1fffffff]=0x79;
+ memcpy(success,reply,15);call();assert(!memcmp(reply,success,15));bound_survives(fresh,3,2);
+ bind_frame(3,3);expect_error(12,2);bound_survives(fresh,3,2);
+ puts("Linux Tdestroy/create/provisioned bind/rebind rejection+journal+normal restore PASS");
+}
+
 int main(int argc,char**argv){
  assert(argc==2);unsigned scenario=(unsigned)strtoul(argv[1],0,10);
  unsigned char *guest=map(0x48000000,0x20000000);map(0xb0000000,4096);map(0x70000000,4096);map(0x6d000000,0x100000);
@@ -135,6 +214,7 @@ int main(int argc,char**argv){
   assert(S(session_handle)(1)==linux_session&&S(session_handle)(4)==plan9_session&&reset_calls==0);
  }
  frame(164,39,1);st(request+23,1,8);call();assert(reply[4]==165);
+ if(scenario==7){provisioned_bind_regression();return 0;}
  uint64_t handle=1ull<<32;
  if(scenario==2){W(test_generation)(0xffffffff);handle=0xffffffffull<<32;}
  if(scenario==1){
@@ -143,20 +223,23 @@ int main(int argc,char**argv){
  }
  frame(172,36,1);st(request+23,handle,8);assert(call()==2&&reply[4]==173);
  assert(rd(reply+19,4)==(scenario==1?0:1)&&rd(reply+23,4)==(scenario==1?0:1));
- state(handle,5);assert(S(session_handle)(1)==0&&statfid(linux_session)==107);survivors();
+ state(handle,5);assert(S(session_handle)(1)==0&&statfid(linux_session)==107&&reset_calls==1);survivors();
+ for(size_t i=0;i<0x20000000;i++)assert(guest[i]==0);
+ // Poison only after withdrawal to prove rejected restores preserve stopped state.
+ guest[0]=0xcc;
  assert(W(test_plan9_input)()==1&&W(test_linux_input)()==0&&kw_guest_address(0x40000000,1)==0);
  assert(P(can_provision)(namespace_generation)==0&&P(can_provision)(0)==0);
  assert(P(provision)(0x40000000,0x20000000,namespace_generation)==0&&P(generation)()==namespace_generation);
  frame(174,63,1);st(request+23,handle,8);st(request+47,99,8);st(request+55,4,8);
- call();assert(reply[4]==161&&rd(reply+7,4)==5&&reset_calls==0&&guest[0]==0xcc);
+ call();assert(reply[4]==161&&rd(reply+7,4)==5&&reset_calls==1&&guest[0]==0xcc);
  frame(174,63,1);st(request+23,handle,8);memset(request+31,0x77,16);st(request+47,3,8);st(request+55,4,8);
  if(scenario==2||scenario==5){
-  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==0&&guest[0]==0xcc);
+  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==1&&guest[0]==0xcc);
   assert(P(generation)()==namespace_generation&&B(generation)()==1&&N(generation)()==1);survivors();
   puts("Linux lifecycle generation capacity is nondestructive: PASS");return 0;
  }
  unsigned char retransmit[63],saved[15];memcpy(retransmit,request,63);
- assert(call()==3&&reply[4]==175&&rd(reply+7,8)==(2ull<<32)&&reset_calls==1);memcpy(saved,reply,15);
+ assert(call()==3&&reply[4]==175&&rd(reply+7,8)==(2ull<<32)&&reset_calls==2);memcpy(saved,reply,15);
  assert(P(generation)()==namespace_generation+1&&B(generation)()==2&&N(generation)()==2);
  for(size_t i=0;i<0x20000000;i++){
   unsigned char expected=0;
@@ -166,7 +249,10 @@ int main(int argc,char**argv){
   assert(guest[i]==expected);
  }
  assert(hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);survivors();state(2ull<<32,3);
- memcpy(request,retransmit,63);call();assert(!memcmp(reply,saved,15)&&reset_calls==1);
+ assert(G(binding_generation)(0)==2&&G(binding_generation)(1)==1);
+ assert(!G(set_transport_level)(0,1,0,50,0)&&G(set_transport_level)(0,2,0,50,0));
+
+ memcpy(request,retransmit,63);call();assert(!memcmp(reply,saved,15)&&reset_calls==2);
  state(2ull<<32,3);assert(kw_guest_address(0x40000000,1)==0);
  frame(178,31,0);st(request+23,handle,8);call();assert(reply[4]==161&&rd(reply+7,4)==5&&rd(reply+11,8)==2);
  frame(184,39,1);st(request+23,(1ull<<32)|1,8);st(request+31,2ull<<32,8);
@@ -177,14 +263,15 @@ int main(int argc,char**argv){
  call();assert(reply[4]==185&&kw_guest_address(0x40000000,1)==0x48000000);state(2ull<<32,2);
  uint64_t fresh=S(session_handle)(1);assert(fresh&&fresh!=linux_session);attach(fresh);
  assert(statfid(fresh)==125&&statfid(linux_session)==107);survivors();assert(W(test_plan9_input)()==1);
- assert(reset_calls==1&&hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);
+ assert(reset_calls==2&&hcr[1]==0x45&&vmcr[1]==0x6789&&lrs[1][0]==0xabc);
  if(scenario==4){
   // The existing full-u64 transport epoch may reach MAX once; a later restore
-  // must refuse before zeroing RAM, resetting state or wrapping the transport.
+  // must refuse before a second RAM clear/reset or wrapping the transport.
   guest[4096]=0x5a;
   frame(172,36,1);st(request+23,2ull<<32,8);call();assert(reply[4]==173);
+  assert(reset_calls==3&&guest[4096]==0);guest[4096]=0x5a;
   frame(174,63,1);st(request+23,2ull<<32,8);st(request+47,3,8);st(request+55,4,8);
-  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==1&&guest[4096]==0x5a);
+  call();assert(reply[4]==161&&rd(reply+7,4)==8&&reset_calls==3&&guest[4096]==0x5a);
   assert(P(generation)()==UINT64_MAX&&B(generation)()==2&&N(generation)()==2);survivors();
  }
  puts("O10 Linux withdraw/fault/restore/bind exact-once + survivor preservation: PASS");return 0;
@@ -192,13 +279,20 @@ int main(int argc,char**argv){
 
 """
 WRAPPER = r"""
+use runtime::aarch64::domain_table::test_generation as table_test_generation;
 
-pub unsafe fn test_init() -> u64 { LIVE[0]=1; LIVE[1]=1; return gic_init(); }
-pub unsafe fn test_mailbox() -> u64 { native_control(); return LIVE[0] | (LIVE[1]<<1); }
+pub unsafe fn test_init() -> u64 {
+    if boot_rows()!=1 || gic_init()!=1 || configure_irqs(linux_slot(),d_generation(linux_slot()))!=1
+        || configure_irqs(plan9_slot(),d_generation(plan9_slot()))!=1 { return 0; } return 1;
+}
+pub unsafe fn test_mailbox() -> u64 { native_control(); return d_live_mask(); }
 pub unsafe fn test_inputs() -> void { LINUX_INPUT_COUNT=3; LINUX_INPUT[0]=0x55; RX_COUNT=7; RX[0]=0xa7; }
 pub unsafe fn test_plan9_input() -> u64 { return (RX_COUNT==7 && RX[0]==0xa7) as u64; }
 pub unsafe fn test_linux_input() -> u64 { return LINUX_INPUT_COUNT as u64; }
-pub unsafe fn test_generation(value:u64) -> void { O10_DOMAIN_GENERATION[0]=value; }
+pub unsafe fn test_generation(value:u64) -> void {
+    let slot:u64=linux_slot(); close_irqs(slot); table_test_generation(slot,value);
+    if configure_irqs(slot,value)!=1 { uw_internal_failure(0x1109,0x1127,slot,value); }
+}
 
 """
 
@@ -215,11 +309,12 @@ class LinuxRestartNativeTests(unittest.TestCase):
                 "pub const PERSISTENT:u64=1;\npub const NETWORK:u64=1;\npub const NAMESPACE:u64=1;\n"
                 "pub const BACKING_BASE:usize=0x70000000;\npub const BACKING_BYTES:usize=4096;\n"
                 "pub const O10_QUALIFICATION:u64=1;\n")
-            world=out/"world.oc";world.write_text((ROOT/sources[0]).read_text()+WRAPPER)
+            table=write_table_fixture(out)
+            world=out/"world.oc";world.write_text(extend_world((ROOT/sources[0]).read_text(),WRAPPER))
             monitor_name="ocore/runtime/aarch64/kernel_world_monitor.oc"
             monitor=out/"monitor.oc";monitor.write_text((ROOT/monitor_name).read_text()+
                 "\npub unsafe fn test_admit() -> void { RAM_LIVE=1; }\n")
-            inputs=[str(profile),str(world),*(str(monitor if n==monitor_name else ROOT/n) for n in sources[1:])]
+            inputs=[str(profile),str(world),*(str(monitor if n==monitor_name else table if n=="ocore/runtime/aarch64/domain_table.oc" else ROOT/n) for n in sources[1:])]
             for target,emit,name in [("aarch64-unknown-none","mir","arm.mir"),("x86_64-unknown-none","obj","native.o")]:
                 p=subprocess.run([str(compiler),*inputs,"--target",target,"--emit",emit,"--function-sections","-o",str(out/name)],
                                  capture_output=True,text=True,timeout=120)
@@ -228,7 +323,7 @@ class LinuxRestartNativeTests(unittest.TestCase):
             imports=subprocess.run(["nm","-u",str(out/"native.o")],check=True,capture_output=True,text=True).stdout
             modeled={"kw_memory_barrier","uw_domain_reset","uw_counter_read","uw_memory_barrier","uw_serial_putc",
                      "uw_vgic_lr_count","uw_vgic_lr_read","uw_vgic_lr_write","uw_vgic_vmcr_read","uw_vgic_vmcr_write",
-                     "uw_vgic_hcr_read","uw_vgic_hcr_write"}
+                     "uw_vgic_hcr_read","uw_vgic_hcr_write","uw_domain_configured","uw_domain_configure","uw_domain_unconfigure","uw_domain_init"}
             names={line.split()[-1] for line in imports.splitlines() if line.split()}
             (out/"sentinels.c").write_text("#include <stdio.h>\n#include <stdlib.h>\n"+"\n".join(
                 'void '+n+'(void){fputs("off-corpus architecture: '+n+'\\n",stderr);abort();}'
@@ -236,7 +331,7 @@ class LinuxRestartNativeTests(unittest.TestCase):
             p=subprocess.run([clang,"-O2","-no-pie","-Wl,--gc-sections",str(out/"harness.c"),str(out/"sentinels.c"),
                               str(out/"native.o"),"-o",str(out/"selftest")],capture_output=True,text=True,timeout=120)
             self.assertEqual(p.returncode,0,p.stdout+p.stderr)
-            for scenario in range(7):
+            for scenario in range(8):
                 p=subprocess.run([str(out/"selftest"),str(scenario)],capture_output=True,text=True,timeout=30)
                 self.assertEqual(p.returncode,0,f"scenario={scenario}: "+p.stdout+p.stderr)
                 self.assertIn("PASS",p.stdout)

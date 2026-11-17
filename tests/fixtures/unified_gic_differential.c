@@ -31,6 +31,12 @@
  extern uint64_t N(test_inspect)(uint64_t,uint64_t,uint64_t);
 DECLARE(B)
 DECLARE(V)
+extern uint64_t V(configure)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
+static uint64_t current_boot_init(void){
+ if(V(init)()!=1)return 0;
+ if(!V(configure)(0,1,1ull<<50,1ull<<48,1ull<<49,(1ull<<33)|(1ull<<51)))return 0;
+ return V(configure)(1,1,1ull<<50,1ull<<33,0,0);
+}
 struct api {
  uint64_t (*init)(void),(*reset)(uint64_t);
  uint64_t (*read)(uint64_t,uint64_t,uint64_t),(*write)(uint64_t,uint64_t,uint64_t,uint64_t);
@@ -40,7 +46,7 @@ struct api {
 };
 static struct api apis[2]={
  {B(init),B(reset),B(mmio_read),B(mmio_write),B(set_level),B(send_sgi),B(poll),B(healthy),B(diagnostic),B(test_inspect)},
- {V(init),V(reset),V(mmio_read),V(mmio_write),V(set_level),V(send_sgi),V(poll),V(healthy),V(diagnostic),V(test_inspect)}
+ {current_boot_init,V(reset),V(mmio_read),V(mmio_write),V(set_level),V(send_sgi),V(poll),V(healthy),V(diagnostic),V(test_inspect)}
 };
 static unsigned which,count=4,seed,step,operation;
 static uint64_t banks[2][2][16],vmcr[2][2],hcr[2][2],apr[2][2][4],reads[2],writes[2];

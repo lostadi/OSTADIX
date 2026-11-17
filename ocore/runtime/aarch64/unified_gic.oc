@@ -13,6 +13,9 @@ extern "ocore" fn uw_vgic_hcr_write(domain: u64, value: u64) -> void;
 extern "ocore" fn uw_vgic_running_priority(domain: u64) -> u64;
 
 const BAD: u64 = 0xffff_ffff_ffff_ffff;
+const DOMAINS: u64 = 8;
+const TRANSPORTS: u64 = 4;
+const PRIVATE_IRQS: u64 = 0x4800_ffff;
 const PENDING: u64 = 0x4000_0000_0000_0000;
 const ACTIVE_BIT: u64 = 0x8000_0000_0000_0000;
 const GROUP1: u64 = 0x1000_0000_0000_0000;
@@ -22,35 +25,45 @@ const REDIST: u64 = 0x080a_0000;
 const PRIVATE: u64 = 0x080b_0000;
 static mut READY: u64 = 0;
 static mut LRS: u64 = 0;
-static mut ERROR: [u64; 2] = [0; 2];
-static mut DIAGNOSTIC: [u64; 2] = [0; 2];
-static mut CONTROL: [u64; 2] = [0x50; 2];
-static mut WAKER: [u64; 2] = [6; 2];
-static mut ENABLED: [u8; 128] = [0; 128];
-static mut GROUP: [u8; 128] = [0; 128];
-static mut EDGE: [u8; 128] = [0; 128];
-static mut PRIORITY: [u8; 128] = [0; 128];
-static mut LEVEL: [u8; 128] = [0; 128];
-static mut LATCH: [u8; 128] = [0; 128];
-static mut ACTIVE: [u8; 128] = [0; 128];
-static mut HARD_ACTIVE: [u8; 128] = [0; 128];
-static mut ACTIVE_PRIORITY: [u8; 128] = [0; 128];
-static mut ROUTE: [u64; 128] = [0; 128];
-static mut LR_OWNER: [u64; 32] = [BAD; 32];
-static mut LR_SOFT: [u8; 32] = [0; 32];
+static mut ERROR: [u64; 8] = [0; 8];
+static mut DIAGNOSTIC: [u64; 8] = [0; 8];
+static mut CONTROL: [u64; 8] = [0x50; 8];
+static mut WAKER: [u64; 8] = [6; 8];
+static mut ENABLED: [u8; 512] = [0; 512];
+static mut GROUP: [u8; 512] = [0; 512];
+static mut EDGE: [u8; 512] = [0; 512];
+static mut PRIORITY: [u8; 512] = [0; 512];
+static mut LEVEL: [u8; 512] = [0; 512];
+static mut LATCH: [u8; 512] = [0; 512];
+static mut ACTIVE: [u8; 512] = [0; 512];
+static mut HARD_ACTIVE: [u8; 512] = [0; 512];
+static mut ACTIVE_PRIORITY: [u8; 512] = [0; 512];
+static mut ROUTE: [u64; 512] = [0; 512];
+static mut LR_OWNER: [u64; 128] = [BAD; 128];
+static mut LR_SOFT: [u8; 128] = [0; 128];
 static mut SAVED: [u64; 16] = [0; 16];
-static mut DIRTY: [u64; 2] = [1; 2];
-static mut CACHE: [u64; 32] = [0; 32];
+static mut DIRTY: [u64; 8] = [1; 8];
+static mut CACHE: [u64; 128] = [0; 128];
+// Trusted transport declarations, never guest distributor routing values.
+static mut CONFIGURED: [u64; 8] = [0; 8];
+static mut BINDING_GENERATION: [u64; 8] = [0; 8];
+static mut TRANSPORT_IRQS: [u64; 32] = [0; 32];
 
-fn assigned(domain: u64, irq: u64) -> bool {
-    if domain >= 2 || irq >= 64 { return false; }
-    if irq < 16 || irq == 27 || irq == 30 || irq == 33 || irq == 50 { return true; }
-    return domain == 0 && (irq == 48 || irq == 49 || irq == 51);
+unsafe fn assigned(domain: u64, irq: u64) -> bool {
+    if domain >= DOMAINS || irq >= 64 || CONFIGURED[domain as usize] != 1 { return false; }
+    let bit: u64 = 1 << (irq as usize);
+    if (PRIVATE_IRQS & bit) != 0 { return true; }
+    let mut transport: u64 = 0;
+    while transport < TRANSPORTS {
+        if (TRANSPORT_IRQS[(domain * TRANSPORTS + transport) as usize] & bit) != 0 { return true; }
+        transport += 1;
+    }
+    return false;
 }
 fn item(domain: u64, irq: u64) -> usize { return (domain * 64 + irq) as usize; }
 fn slot(domain: u64, lr: u64) -> usize { return (domain * 16 + lr) as usize; }
 unsafe fn deny(domain: u64, reason: u64) -> u64 {
-    if domain < 2 { DIAGNOSTIC[domain as usize] = reason; }
+    if domain < DOMAINS { DIAGNOSTIC[domain as usize] = reason; }
     return 0;
 }
 unsafe fn fatal(domain: u64, reason: u64) -> bool {
@@ -59,7 +72,7 @@ unsafe fn fatal(domain: u64, reason: u64) -> bool {
     return false;
 }
 unsafe fn valid(domain: u64) -> bool {
-    return READY == 1 && domain < 2 && ERROR[domain as usize] == 0;
+    return READY == 1 && domain < DOMAINS && CONFIGURED[domain as usize] == 1 && ERROR[domain as usize] == 0;
 }
 
 // Fold actual hardware-updated saved LRs before changing software state. The
@@ -129,41 +142,101 @@ unsafe fn install(domain: u64, lr: u64, irq: u64, active: bool, priority: u8) ->
     CACHE[slot(domain, lr)] = value;
 }
 
-// Trusted reset of one withdrawn domain. Never exposed as a guest register;
-// its assembly context must already have been cleared, including APR banks.
+// Clear one saved bank only. Unconfigured rows own no interrupt route.
+unsafe fn clear_state(domain: u64, clear_bank: bool) -> void {
+    DIRTY[domain as usize] = 1;
+    ERROR[domain as usize] = 0; DIAGNOSTIC[domain as usize] = 0;
+    CONTROL[domain as usize] = 0x50; WAKER[domain as usize] = 6;
+    let mut irq: u64 = 0;
+    while irq < 64 {
+        let index: usize = item(domain, irq);
+        ENABLED[index] = 0; GROUP[index] = 0; PRIORITY[index] = 0;
+        LEVEL[index] = 0; LATCH[index] = 0; ACTIVE[index] = 0; HARD_ACTIVE[index] = 0;
+        ACTIVE_PRIORITY[index] = 0; ROUTE[index] = 0;
+        EDGE[index] = (irq < 16) as u8; irq += 1;
+    }
+    let mut lr: u64 = 0;
+    while lr < 16 {
+        LR_OWNER[slot(domain, lr)] = BAD; LR_SOFT[slot(domain, lr)] = 0;
+        CACHE[slot(domain, lr)] = 0;
+        if clear_bank && lr < LRS { uw_vgic_lr_write(domain, lr, 0); }
+        lr += 1;
+    }
+    if clear_bank {
+        uw_vgic_hcr_write(domain, 0); uw_vgic_vmcr_write(domain, 0);
+    }
+}
+
+// Only the trusted domain/transport table may configure these declarations.
+// A generation is an internal binding identity, not bearer authority.
+// The domain table must unconfigure and configure its new generation on a
+// restore; interrupt-state reset alone deliberately preserves the binding.
+// Transport0 is the existing namespace wire on both boot profiles.
+pub unsafe fn configure(domain: u64, generation: u64, first: u64, second: u64, third: u64, fourth: u64) -> u64 {
+    if READY != 1 || domain >= DOMAINS || CONFIGURED[domain as usize] != 0
+        || generation == 0 || generation > 0xffff_ffff
+        || generation <= BINDING_GENERATION[domain as usize] { return 0; }
+    // Transport IRQs are SPIs in this private 64-IRQ view. Intrinsic SGIs and
+    // timer PPIs are never transferable, and two transports cannot share an IRQ.
+    if ((first | second | third | fourth) & 0xffff_ffff) != 0
+        || (first & (second | third | fourth)) != 0
+        || (second & (third | fourth)) != 0 || (third & fourth) != 0 { return 0; }
+    clear_state(domain, true);
+    let base: usize = (domain * TRANSPORTS) as usize;
+    TRANSPORT_IRQS[base] = first; TRANSPORT_IRQS[base + 1] = second;
+    TRANSPORT_IRQS[base + 2] = third; TRANSPORT_IRQS[base + 3] = fourth;
+    BINDING_GENERATION[domain as usize] = generation;
+    CONFIGURED[domain as usize] = 1;
+    uw_vgic_hcr_write(domain, 1); uw_vgic_vmcr_write(domain, 0xff00_0002);
+    return 1;
+}
+
+pub unsafe fn binding_generation(domain: u64) -> u64 {
+    if domain >= DOMAINS || CONFIGURED[domain as usize] != 1 { return 0; }
+    return BINDING_GENERATION[domain as usize];
+}
+
+pub unsafe fn transport_irqs(domain: u64, generation: u64, transport: u64) -> u64 {
+    if domain >= DOMAINS || transport >= TRANSPORTS || CONFIGURED[domain as usize] != 1
+        || generation != BINDING_GENERATION[domain as usize] { return 0; }
+    return TRANSPORT_IRQS[(domain * TRANSPORTS + transport) as usize];
+}
+
+pub unsafe fn unconfigure(domain: u64, generation: u64) -> u64 {
+    if domain >= DOMAINS || CONFIGURED[domain as usize] != 1
+        || generation != BINDING_GENERATION[domain as usize] { return 0; }
+    CONFIGURED[domain as usize] = 0;
+    let mut transport: u64 = 0;
+    while transport < TRANSPORTS {
+        TRANSPORT_IRQS[(domain * TRANSPORTS + transport) as usize] = 0; transport += 1;
+    }
+    clear_state(domain, true);
+    return 1;
+}
+
+// Trusted reset preserves the declared bindings. The caller has cleared this
+// domain's architectural bank, including APRs; no other bank is touched.
 pub unsafe fn reset(domain: u64) -> u64 {
-    if domain >= 2 || LRS == 0 || LRS > 16 { return 0; }
-        DIRTY[domain as usize] = 1;
-        ERROR[domain as usize] = 0;
-        DIAGNOSTIC[domain as usize] = 0;
-        CONTROL[domain as usize] = 0x50;
-        WAKER[domain as usize] = 6;
-        let mut irq: u64 = 0;
-        while irq < 64 {
-            let index: usize = item(domain, irq);
-            ENABLED[index] = 0; GROUP[index] = 0; PRIORITY[index] = 0;
-            LEVEL[index] = 0; LATCH[index] = 0; ACTIVE[index] = 0; HARD_ACTIVE[index] = 0;
-            ACTIVE_PRIORITY[index] = 0; ROUTE[index] = 0;
-            EDGE[index] = (irq < 16) as u8;
-            irq += 1;
-        }
-        let mut lr: u64 = 0;
-        while lr < LRS {
-            LR_OWNER[slot(domain, lr)] = BAD; LR_SOFT[slot(domain, lr)] = 0;
-            uw_vgic_lr_write(domain, lr, 0); CACHE[slot(domain, lr)] = 0; lr += 1;
-        }
-        uw_vgic_hcr_write(domain, 1); // En only: do not trap ordinary IAR/EOIR/PMR.
-        uw_vgic_vmcr_write(domain, 0xff00_0002); // VPMR=ff; Group1 enabled.
+    if domain >= DOMAINS || CONFIGURED[domain as usize] != 1 || LRS == 0 || LRS > 16 { return 0; }
+    clear_state(domain, true);
+    uw_vgic_hcr_write(domain, 1); uw_vgic_vmcr_write(domain, 0xff00_0002);
     return 1;
 }
 
 pub unsafe fn init() -> u64 {
-    READY = 0;
-    LRS = uw_vgic_lr_count();
+    READY = 0; LRS = uw_vgic_lr_count();
     if LRS == 0 || LRS > 16 { return 0; }
-    if reset(0) != 1 || reset(1) != 1 { return 0; }
-    READY = 1;
-    return 1;
+    let mut domain: u64 = 0;
+    while domain < DOMAINS {
+        clear_state(domain, CONFIGURED[domain as usize] == 1);
+        CONFIGURED[domain as usize] = 0; BINDING_GENERATION[domain as usize] = 0;
+        let mut transport: u64 = 0;
+        while transport < TRANSPORTS {
+            TRANSPORT_IRQS[(domain * TRANSPORTS + transport) as usize] = 0; transport += 1;
+        }
+        domain += 1;
+    }
+    READY = 1; return 1;
 }
 
 pub unsafe fn poll(domain: u64) -> u64 {
@@ -256,6 +329,14 @@ pub unsafe fn set_level(domain: u64, irq: u64, asserted: u64) -> u64 {
     if EDGE[index] == 1 && asserted == 1 && LEVEL[index] == 0 { LATCH[index] = 1; }
     LEVEL[index] = asserted as u8;
     return 1;
+}
+
+// Future backend adapters carry the trusted binding generation and transport.
+pub unsafe fn set_transport_level(domain: u64, generation: u64, transport: u64, irq: u64, asserted: u64) -> u64 {
+    if domain >= DOMAINS || transport >= TRANSPORTS || irq >= 64
+        || CONFIGURED[domain as usize] != 1 || generation != BINDING_GENERATION[domain as usize]
+        || (TRANSPORT_IRQS[(domain * TRANSPORTS + transport) as usize] & (1 << (irq as usize))) == 0 { return 0; }
+    return set_level(domain, irq, asserted);
 }
 
 pub unsafe fn send_sgi(domain: u64, value: u64, group: u64) -> u64 {
@@ -514,6 +595,6 @@ pub unsafe fn mmio_write(domain: u64, ipa: u64, width: u64, value: u64) -> u64 {
 
 pub unsafe fn healthy(domain: u64) -> u64 { return valid(domain) as u64; }
 pub unsafe fn diagnostic(domain: u64) -> u64 {
-    if domain >= 2 { return BAD; }
+    if domain >= DOMAINS { return BAD; }
     return DIAGNOSTIC[domain as usize];
 }

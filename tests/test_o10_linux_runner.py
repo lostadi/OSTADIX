@@ -21,6 +21,7 @@ class LinuxRunnerTests(unittest.TestCase):
         d=object.__new__(runner.UnifiedDomain)
         d.linux_recovery=runner.LINUX_RECOVERY;d.legacy_control=False
         d.o10_linux=1<<32;d.o10_linux_lease_generation=1
+        d.o10_plan9=(1<<32)|1
         d.o10_claim=Mock();return d
 
     def test_linux_restore_refreshes_only_definite_stale_bind_once(self):
@@ -136,16 +137,21 @@ class LinuxRunnerTests(unittest.TestCase):
             d.linux_control.assert_not_called();self.assertFalse(d.control_active)
 
     def test_plan9_watcher_accepts_linux_dead_and_only_refuses_plan9_dead(self):
-        d=self.domain();d.native_store_ready=True;d.provider_ready=True
-        d.service={"generation":"a"*16,"instance":"b"*32}
-        marker=runner.protocol.ready_marker(**d.service)
-        def get(path):
-            if path.endswith("/ready"):return marker
-            raise FileNotFoundError(path)
-        d.native_volume=Mock(return_value=SimpleNamespace(get=get));d.counters=Mock(return_value={"live_domains":2})
-        d.watch_provider();self.assertTrue(d.provider_ready)
-        d.counters.return_value={"live_domains":1}
-        with self.assertRaisesRegex(RuntimeError,"Plan9"):d.watch_provider()
+        for linux_slot, plan9_slot in ((0,1),(6,3),(2,7)):
+            with self.subTest(linux_slot=linux_slot,plan9_slot=plan9_slot):
+                d=self.domain();d.native_store_ready=True;d.provider_ready=True
+                d.o10_linux=(5<<32)|linux_slot;d.o10_plan9=(9<<32)|plan9_slot
+                d.service={"generation":"a"*16,"instance":"b"*32}
+                marker=runner.protocol.ready_marker(**d.service)
+                def get(path):
+                    if path.endswith("/ready"):return marker
+                    raise FileNotFoundError(path)
+                other=next(i for i in range(8) if i not in (linux_slot,plan9_slot))
+                d.native_volume=Mock(return_value=SimpleNamespace(get=get))
+                d.counters=Mock(return_value={"live_domains":(1<<plan9_slot)|(1<<other)})
+                d.watch_provider();self.assertTrue(d.provider_ready)
+                d.counters.return_value={"live_domains":(1<<linux_slot)|(1<<other)}
+                with self.assertRaisesRegex(RuntimeError,"Plan9"):d.watch_provider()
 
     def test_stale_domain_observation_refreshes_only_readonly_handle(self):
         d=self.domain();d.o10_call=Mock(side_effect=[o10.O10Error(5,2,"new generation"),{"state":2,"dom":2<<32}])

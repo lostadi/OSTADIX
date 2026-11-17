@@ -119,6 +119,37 @@ def write_json(path, value):
     os.replace(pending, path)
 
 
+NATIVE_SUPPORT = ("o10_native_fixture.py", "build_o10_native_fixture.py",
+                  "build_okernel_unified_world.py")
+
+
+def native_support():
+    """Load checked canonical helpers from this checkout or a captured bundle."""
+    directory = Path(__file__).resolve().parent
+    if not (directory / NATIVE_SUPPORT[0]).is_file():
+        directory /= "support/native-admission"
+    modules, previous = {}, {}
+    previous_path = sys.path[:]
+    try:
+        for filename in NATIVE_SUPPORT:
+            name = Path(filename).stem
+            path = regular(directory, filename)
+            previous[name] = sys.modules.get(name)
+            spec = importlib.util.spec_from_file_location(name, path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            spec.loader.exec_module(module)
+            modules[name] = module
+    finally:
+        sys.path[:] = previous_path
+        for name, old in previous.items():
+            if old is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = old
+    return directory, modules["o10_native_fixture"], modules["build_o10_native_fixture"], modules["build_okernel_unified_world"]
+
+
 def validate_profile(value):
     required = {
         "schema": "ostadix.unified-world-monitor/v1", "profile": "linux-original-plan9", "outer_ram_bytes": 0xc0000000,
@@ -156,6 +187,16 @@ def validate_profile(value):
             "inputs/linux-recovery.dtb": 0xe2000000,
             "inputs/linux-recovery.initramfs": 0xda000000,
         })
+    if "native_fixture" in value:
+        _, fixture, _, _ = native_support()
+        required.update(native_fixture=fixture.CONTRACT, domain_capacity=8,
+                        o10_qualification=True)
+        required["loader_addresses"].update({
+            "inputs/native-fixture.kernel": fixture.CONTRACT["kernel_backup_pa"],
+            "inputs/native-fixture.aux": fixture.CONTRACT["aux_backup_pa"],
+        })
+        if "linux_recovery" not in value:
+            raise ValueError("native fixture requires the exact admitted Linux recovery profile")
     if any(json.dumps(value.get(key), sort_keys=True) != json.dumps(item, sort_keys=True) for key, item in required.items()):
         raise ValueError("expected the exact admitted two-domain native/coordinator/recovery profile")
 
@@ -210,7 +251,67 @@ def inspect_build(build):
                 or derivation.get("disk_script_modified") is not False
                 or derivation.get("namespace_version") != "9P2000.u"):
             raise ValueError("Linux initramfs derivation is not bound to captured inputs")
+    if "native_fixture" in manifest:
+        inspect_native_fixture(build, manifest, paths)
     return manifest, paths
+
+
+def inspect_native_fixture(build, manifest, paths):
+    support, fixture, fixture_builder, builder = native_support()
+    expected = set(builder.captured_source_paths(manifest.get("plan9_derivation_kind"),
+                                                native_fixture=True))
+    if set(manifest["source_artifacts"]) != expected:
+        raise ValueError("incomplete canonical native fixture source closure")
+    # The closure recipe/contract used by this verifier must be the captured ones.
+    for filename in NATIVE_SUPPORT:
+        matches(regular(build, "sources/scripts/" + filename), identity(regular(support, filename)))
+    required_artifacts = {
+        "inputs/native-fixture.kernel", "inputs/native-fixture.aux",
+        "native-fixture/build.json", "native-fixture/fixture.elf", "native-fixture/fixture.su"}
+    if not required_artifacts <= manifest["artifacts"].keys():
+        raise ValueError("incomplete native fixture artifact closure")
+    contract = fixture.CONTRACT
+    kernel = paths["inputs/native-fixture.kernel"]
+    aux = regular(build, "inputs/native-fixture.aux")
+    if not 0 < kernel["bytes"] <= contract["kernel_max_bytes"]:
+        raise ValueError("native fixture kernel exceeds its immutable image window")
+    if aux.read_bytes() != fixture.auxiliary_image():
+        raise ValueError("native fixture auxiliary bytes differ from the exact contract")
+    receipt = document(regular(build, "native-fixture/build.json"))
+    if (receipt.get("schema") != "ostadix.o10-m3-native-fixture-build/v1"
+            or receipt.get("built") is not True or receipt.get("source_unchanged") is not True
+            or json.dumps(receipt.get("contract"), sort_keys=True) != json.dumps(contract, sort_keys=True)):
+        raise ValueError("native fixture build receipt is not a successful exact-contract build")
+    sources = set(fixture_builder.SOURCES) | {
+        "scripts/build_o10_native_fixture.py", "scripts/o10_native_fixture.py"}
+    for group in ("source_before", "source_after"):
+        if type(receipt.get(group)) is not dict or set(receipt[group]) != sources:
+            raise ValueError("native fixture build source closure is incomplete")
+        for name in sources:
+            matches(regular(build, "sources/" + name), receipt[group][name])
+    aliases = {"fixture.bin": "inputs/native-fixture.kernel", "fixture.aux": "inputs/native-fixture.aux",
+               "fixture.elf": "native-fixture/fixture.elf", "fixture.su": "native-fixture/fixture.su"}
+    if type(receipt.get("artifacts")) is not dict or set(receipt["artifacts"]) != set(aliases):
+        raise ValueError("native fixture build artifact closure is incomplete")
+    for name, alias in aliases.items():
+        matches(regular(build, alias), receipt["artifacts"][name])
+        selected = "native-fixture/" + name
+        paths[selected] = matches(regular(build, selected), receipt["artifacts"][name])
+    header = regular(build, "native-fixture/fixture.elf").read_bytes()[:64]
+    if (len(header) != 64 or header[:6] != b"\x7fELF\x02\x01"
+            or struct.unpack_from("<H", header, 18)[0] != 183
+            or struct.unpack_from("<Q", header, 24)[0] != contract["entry"]):
+        raise ValueError("native fixture is not the contracted AArch64 ELF64 image")
+    steps = receipt.get("commands")
+    if type(steps) is not list or len(steps) != 4:
+        raise ValueError("native fixture build needs four completed compiler/linker commands")
+    for index, step in enumerate(steps):
+        if type(step) is not dict or type(step.get("returncode")) is not int or step["returncode"] != 0:
+            raise ValueError("native fixture compiler/linker command did not succeed")
+        for stream in ("stdout", "stderr"):
+            selected = "native-fixture/command-%d.%s" % (index, stream)
+            paths[selected] = matches(regular(build, selected), step.get(stream))
+    return receipt
 
 
 def recipe(build, manifest):
@@ -235,13 +336,35 @@ def recipe(build, manifest):
     # flow or main. All source bytes and this extraction are retained as evidence.
     namespace = {}
     exec(compile(ast.Module(body=functions, type_ignores=[]), str(source), "exec"), namespace)
-    profiles = [call.args[0].value for call in ast.walk(tree) if isinstance(call, ast.Call)
+    profiles = [call.args[0] for call in ast.walk(tree) if isinstance(call, ast.Call)
                 and isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name)
                 and call.func.value.id == "profile" and call.func.attr == "write_text"
-                and len(call.args) == 1 and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str)]
+                and len(call.args) == 1 and not call.keywords]
     if len(profiles) != 1:
         raise ValueError("captured builder profile recipe is not a literal")
-    return tuple(order), namespace["linux_dts"], profiles[0]
+    profile = profiles[0]
+    if isinstance(profile, ast.Constant) and isinstance(profile.value, str):
+        text = profile.value
+    elif isinstance(profile, ast.JoinedStr) and type(manifest.get("o10_qualification")) is bool:
+        # This sole fixed expression selects the captured qualification build.
+        # Do not evaluate arbitrary captured f-string expressions or formatters.
+        expression = ast.dump(ast.parse("1 if o10_qualification else 0", mode="eval").body)
+        parts, substitutions = [], 0
+        for part in profile.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                parts.append(part.value)
+            elif (isinstance(part, ast.FormattedValue) and part.conversion == -1
+                  and part.format_spec is None and ast.dump(part.value) == expression):
+                parts.append("1" if manifest["o10_qualification"] else "0")
+                substitutions += 1
+            else:
+                raise ValueError("captured builder profile recipe is not a literal or exact qualification expression")
+        if substitutions != 1:
+            raise ValueError("captured builder profile recipe requires one qualification expression")
+        text = "".join(parts)
+    else:
+        raise ValueError("captured builder profile recipe is not a literal or exact qualification expression")
+    return tuple(order), namespace["linux_dts"], text
 
 
 def commands(source, build, tools, order):
@@ -334,6 +457,11 @@ def run(args, output, evidence):
                     admitted_input=str(source_build), source_order=None, tools={}, builds=[], artifacts={})
     evidence["implementation"] = copy_file(Path(__file__).resolve(), output / "reproduce.py")
     evidence["freezer_implementation"] = copy_file(helper_source, output / "support/freeze_tool.py")
+    if "native_fixture" in manifest:
+        support, _, _, _ = native_support()
+        evidence["native_admission_implementations"] = {
+            name: copy_file(regular(support, name), output / "support/native-admission" / name)
+            for name in NATIVE_SUPPORT}
     for name, expected in source_identities.items():
         copy_file(regular(source_build, name), output / "captured-build" / name)
         matches(output / "captured-build" / name, expected)

@@ -595,7 +595,10 @@ def validate_regressions(root, path, build, profile, revision, resident_path, re
         sessions |= observed; children.append(entry["receipt"])
     return envelope, guest, sessions, children
 
-def validate_ordinary(root, component_path, unit_path, compiler_sha, evaluator_sha, revision):
+def validate_ordinary(root, component_path, unit_path, compiler_sha, evaluator_sha, revision, *, accepted_unit_schemas=None):
+    allowed_unit_schemas = UNIT_SCHEMAS if accepted_unit_schemas is None else accepted_unit_schemas
+    require(isinstance(allowed_unit_schemas, (set, frozenset)) and allowed_unit_schemas
+            and all(isinstance(name, str) and name for name in allowed_unit_schemas), "explicit unit schema set required")
     component, unit = document(component_path), document(unit_path)
     for label, receipt in (("component", component), ("unit", unit)):
         require(receipt.get("source_revision") == receipt.get("mcp_release") == revision, label + " revision differs")
@@ -620,7 +623,7 @@ def validate_ordinary(root, component_path, unit_path, compiler_sha, evaluator_s
     source_hashes(root, unit.get("source_sha256"), okernel | tests |
                   {"scripts/check_language_sources.py", "ci/language-sources.json",
                    "ocore/guest/plan9/unified/protocol.py"}, "unit")
-    require(unit.get("schema") in UNIT_SCHEMAS and unit.get("ok") is True, "wrong or failed ordinary unit receipt")
+    require(unit.get("schema") in allowed_unit_schemas and unit.get("ok") is True, "wrong or failed ordinary unit receipt")
     groups = unit.get("results")
     require(isinstance(groups, list) and len(groups) in (1, 2)
             and {g.get("group") for g in groups} in ({"all"}, {"normal", "ram-disk"}), "kernel unit groups incomplete")
