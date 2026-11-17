@@ -70,6 +70,10 @@ usage() {
   cat <<EOF
 O-lang setup script
 
+Usage:
+  ./install [minimal|runtime|full] [OPTIONS]
+  ./setup.sh [OPTIONS]
+
 Options:
   -h, --help                  Show this help
   -m, --minimal               Minimal hosted build; explicit --with-* flags still compose
@@ -130,9 +134,9 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage 0 ;;
-    -m|--minimal) MINIMAL=true; shift ;;
-    --runtime-only) RUNTIME_ONLY=true; shift ;;
-    -f|--full) FULL=true; shift ;;
+    minimal|-m|--minimal) MINIMAL=true; shift ;;
+    runtime|--runtime-only) RUNTIME_ONLY=true; shift ;;
+    full|-f|--full) FULL=true; shift ;;
     -y|--yes) YES=true; shift ;;
     -v|--verify) VERIFY=true; shift ;;
     --with-nix) WITH_NIX=true; NIX_EXPLICIT=true; SKIP_NIX=false; shift ;;

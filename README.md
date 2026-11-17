@@ -32,9 +32,11 @@ The first two are [recorded semantic witnesses](benchmarks/fidelity/README.md), 
 
 ## Run a document
 
-After the [setup instructions](docs/REFERENCE.md#quickstart), from this checkout:
+From the checkout, install the minimal hosted tools and run the example. See the [quickstart](docs/REFERENCE.md#quickstart) for other installation profiles.
 
 ```sh
+./install minimal
+. "$HOME/.config/ostadix/env.sh"
 o check examples/literate_report.O
 o plan examples/literate_report.O --json
 O examples/literate_report.O "$PWD/backends" > report.md

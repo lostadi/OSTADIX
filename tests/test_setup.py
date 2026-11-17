@@ -329,6 +329,7 @@ class SetupScriptTests(unittest.TestCase):
         platform: str = "linux",
         distro: str = "debian",
         extra_env: dict[str, str] | None = None,
+        entrypoint: Path = SETUP,
     ) -> subprocess.CompletedProcess[str]:
         env = {
             "HOME": str(home),
@@ -349,8 +350,8 @@ class SetupScriptTests(unittest.TestCase):
         if extra_env:
             env.update(extra_env)
         return subprocess.run(
-            [str(BASH), str(SETUP), *arguments],
-            cwd=PROJECT_ROOT,
+            [str(entrypoint), *arguments],
+            cwd=home,
             env=env,
             text=True,
             stdout=subprocess.PIPE,
@@ -706,6 +707,26 @@ class SetupScriptTests(unittest.TestCase):
         ):
             with self.subTest(option=option):
                 self.assertIn(option, result.stdout)
+
+    def test_install_matches_the_existing_setup_commands(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="installer test ") as temp_dir:
+            home = Path(temp_dir)
+            options = ["--dry-run", "--env-file", str(home / "shell config")]
+            for new, old, status in (
+                ([], [], 0),
+                (["minimal"], ["--minimal"], 0),
+                (["runtime", "--verify"], ["--runtime-only", "--verify"], 0),
+                (["full", "--no-nix"], ["--full", "--no-nix"], 0),
+                (["--no-wrappers", "-m"], ["--no-wrappers", "-m"], 0),
+                (["runtime", "--full"], ["--runtime-only", "--full"], 2),
+                (["--unknown"], ["--unknown"], 2),
+            ):
+                with self.subTest(arguments=new):
+                    alias = self.run_setup(*new, *options, home=home, entrypoint=PROJECT_ROOT / "install")
+                    legacy = self.run_setup(*old, *options, home=home)
+                    self.assertEqual(alias.returncode, status, self.combined_output(alias))
+                    self.assertEqual((alias.returncode, alias.stdout, alias.stderr),
+                                     (legacy.returncode, legacy.stdout, legacy.stderr))
 
     def test_macos_ocore_media_profile_is_explicit_and_composable(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

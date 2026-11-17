@@ -155,6 +155,7 @@ ALLOWED_TOP_LEVEL_FILES = frozenset(
         "SPEC.md",
         "boot-and-test.sh",
         "build.rs",
+        "install",
         "rust-toolchain.toml",
         "setup.sh",
         "test_o_lang_examples.sh",

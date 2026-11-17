@@ -267,13 +267,11 @@ from source bytes to observed execution.</p>
 <a href="#o-core-native-systems-language">O-core</a> ·
 <a href="#running-the-tests">Tests</a></p>
 <h2>Quickstart</h2>
-<p>For a fresh checkout, build the minimal hosted profile before invoking the
-installed tools. <code>setup.sh</code> also refreshes the native commands, so the commands
-below exercise the source revision you just checked out rather than an older
-binary already on <code>PATH</code>:</p>
+<p>For a fresh checkout, build the minimal hosted profile and load its environment
+to run the tools from this revision.</p>
 <pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
 cd OSTADIX
-./setup.sh -y --minimal
+./install minimal -y
 source &quot;$HOME/.config/ostadix/env.sh&quot;
 
 o eval &#39;python^( __oval_result__ = 1 + 1 )_python&#39;
@@ -283,6 +281,11 @@ O version --json
 </code></pre>
 <p><code>O version --json</code> reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.</p>
+<p>Use <code>./install runtime --verify</code> for the four core commands and the MCP server.
+Preview the full profile with <code>./install full --dry-run</code>. With no profile,
+<code>./install</code> selects components for the current host. Both installer names
+accept the existing flags, including <code>./setup.sh -y --minimal</code>. Run
+<code>./install --help</code> for the complete list.</p>
 <p>For a greeting that crosses three language boundaries, install Node.js and a
 Common Lisp runtime such as SBCL alongside Python 3, then run:</p>
 <pre><code class="language-bash">O examples/hello.O &quot;$PWD/backends&quot;

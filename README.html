@@ -74,8 +74,10 @@
 </tr>
 </tbody></table>
 <h2>Run a document</h2>
-<p>After the <a href="docs/REFERENCE.md#quickstart">setup instructions</a>, from this checkout:</p>
-<pre><code class="language-sh">o check examples/literate_report.O
+<p>From the checkout, install the minimal hosted tools and run the example. See the <a href="docs/REFERENCE.md#quickstart">quickstart</a> for other installation profiles.</p>
+<pre><code class="language-sh">./install minimal
+. &quot;$HOME/.config/ostadix/env.sh&quot;
+o check examples/literate_report.O
 o plan examples/literate_report.O --json
 O examples/literate_report.O &quot;$PWD/backends&quot; &gt; report.md
 </code></pre>

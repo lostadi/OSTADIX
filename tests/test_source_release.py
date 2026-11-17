@@ -1316,6 +1316,7 @@ class SourceReleaseTests(unittest.TestCase):
             "rust-toolchain.toml": (
                 '[toolchain]\nchannel = "1.97.1"\nprofile = "minimal"\n'
             ),
+            "install": (PROJECT_ROOT / "install").read_bytes(),
             "setup.sh": "#!/bin/sh\nexit 0\n",
             "docs/CLAIMS.md": "fixture claims\n",
             "docs/CI_POSTURE.md": "fixture local CI posture contract\n",
@@ -1932,6 +1933,7 @@ class SourceReleaseTests(unittest.TestCase):
                 in {
                     "boot-and-test.sh",
                     "boot/boot.sh",
+                    "install",
                     "setup.sh",
                     "okernel-multikernel/boot-and-test.sh",
                     "ocore/kernel/build.sh",
@@ -2214,6 +2216,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "ci/required-jobs.toml",
                 "ci/test-suites.toml",
                 "rust-toolchain.toml",
+                "install",
                 "setup.sh",
                 "docs/CLAIMS.md",
                 "docs/ABSORBED_CAPACITY.md",
@@ -2700,6 +2703,7 @@ class SourceReleaseTests(unittest.TestCase):
             self.assertEqual(embedded["file_count"], len(included))
             modes = {entry["path"]: entry["mode"] for entry in embedded["files"]}
             self.assertEqual(modes["boot-and-test.sh"], "100755")
+            self.assertEqual(modes["install"], "100755")
             self.assertEqual(modes["setup.sh"], "100755")
             self.assertEqual(
                 modes["okernel-multikernel/boot-and-test.sh"], "100755"
