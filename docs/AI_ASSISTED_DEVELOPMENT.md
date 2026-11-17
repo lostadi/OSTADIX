@@ -2,7 +2,7 @@
 
 OSTADIX development uses substantial AI assistance, including coding agents and coordinated parallel work. Agents generate and revise implementation code, tests, documentation and analysis; they also inspect source and run tools within delegated scopes. This assistance is part of the development process and should be disclosed when describing how an artifact was produced.
 
-Lee Daghlar Ostadi is the maintainer and publication identity. The repository's declared Git author/committer and citation identity follow its [publication policy](COMMIT_AUTHORS.md). That metadata identifies responsibility for publishing the project; it is not a statement that Lee manually typed every line or personally derived, understood, reviewed or empirically defended every generated result. No such statement should be inferred from a byline or synthesized contribution history.
+Lee Daghlar Ostadi is the project maintainer. A maintainer byline is not a statement that Lee manually typed every line or personally derived, understood, reviewed or empirically defended every generated result. Record [development credit](COMMIT_AUTHORS.md) and validation evidence for the work performed.
 
 A development tool's involvement is provenance, and factual provenance may be recorded without automatically assigning it human authorship. Conversely, a maintainer identity does not erase another human contributor's work or establish that an assistant's output has been independently checked. Attribute actual human contributions accurately and retain truthful tool/agent assistance when relevant, under the [contribution policy](../CONTRIBUTING.md).
 
@@ -16,8 +16,7 @@ The project makes no blanket claim here that every historical line has received 
 
 The configured-assembly source-unit route and producer/action-order integration
 were developed with OpenAI Codex and reviewed by a separate Codex source-review
-agent. Lee Daghlar Ostadi remains the maintainer publication identity; this does
-not imply sole manual implementation or a human source-review sign-off.
+agent. This records tool assistance, not a human source-review sign-off.
 Validation distinguishes source review, authored tests, actual fixture/compiler
 runs and complete original-runtime/ISA acceptance. See
 [configured assembly source units](CONFIGURED_ASSEMBLY_SOURCE_UNITS.md).
@@ -36,3 +35,21 @@ new native-system qualification. Fresh document checks and PDF build identities
 are retained in [the revision record](../evidence/whitepaper_revision_20261117.json).
 Agent review is source/editorial review, not a human sign-off or a rerun of the
 complete hosted, compiler, runtime and hardware acceptance matrices.
+
+## Setup with existing system packages, 17 November 2026
+
+The `--no-system-packages` installer option was implemented with OpenAI Codex
+and reviewed by a separate Codex agent. It skips OS package installation while
+retaining capability checks and the selected builds. Validation covered 43
+setup tests and 16 native-install tests (one platform skip); this is installer
+validation, not qualification of every runtime or target.
+
+## FDE association validation, 17 November 2026
+
+The FDE relocation guard and configured-artifact module integration were
+implemented with OpenAI Codex and reviewed by a separate Codex agent. Tests
+exercise raw ELF fixtures, the typed CIE adapter, shared source-CFI evaluation,
+artifact reconstruction and source registration. These checks do not establish
+original-producer admission, native unwind execution or cross-ISA runtime
+qualification. Commands and outcomes are recorded in the
+[validation record](../evidence/fde-cie-relocation-20261117/validation.json).

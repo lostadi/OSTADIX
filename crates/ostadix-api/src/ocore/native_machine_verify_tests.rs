@@ -227,25 +227,29 @@
         }
     }
     #[test]
-    fn cfi_restore_missing_saved_rule_reaches_the_active_cfa_guard() {
+    fn cfi_restore_references_initial_cie_without_a_prior_save_for_that_register() {
         for &t in Target::ALL {
             let (baseline,inventory)=cfi_saved_fixture(t);
-            let report=verify(&baseline,&inventory,t).unwrap();relative_cfi_only(&report);
-            assert_eq!(report.checked_inventory_items,8);assert_eq!(report.checked_instruction_sites,3);
-            let arg=register(registers(t).0,64);let scratch=register(registers(t).1,64);assert_ne!(arg,scratch);
-            assert_eq!(baseline.directives[0].directive,MachineDirective::CfiStart);
-            assert!(matches!(baseline.directives[1].directive,MachineDirective::CfiDefCfa{..}));
-            assert_eq!(baseline.directives[2].directive,MachineDirective::CfiSaved{register:arg,offset:-8});
-            assert_eq!(baseline.directives[3].directive,MachineDirective::CfiRestore{register:arg});
-            let mut bad=baseline.clone();
-            // ONLY the saved register changes. Start/CFA/Restore, source floor,
-            // all source spans, scalar/state chain and entry/exit remain valid.
-            bad.directives[2].directive=MachineDirective::CfiSaved{register:scratch,offset:-8};
-            assert_eq!(&bad.directives[..2],&baseline.directives[..2]);assert_eq!(&bad.directives[3..],&baseline.directives[3..]);
-            assert_eq!(bad.blocks,baseline.blocks);assert_eq!(bad.interface,baseline.interface);assert_eq!(bad.source,baseline.source);
-            assert_eq!(bad.directives[2].directive,MachineDirective::CfiSaved{register:scratch,offset:-8});
-            let error=verify(&bad,&inventory,t).unwrap_err();
-            assert_eq!(error.message,"CFI restore has no prior saved-register rule");
+            relative_cfi_only(&verify(&baseline,&inventory,t).unwrap());
+            let arg=register(registers(t).0,64);
+            let scratch=register(registers(t).1,64);
+            assert_ne!(arg,scratch);
+            let mut changed=baseline.clone();
+            changed.directives[2].directive=MachineDirective::CfiSaved {register:scratch,offset:-8};
+            assert_eq!(changed.directives[2].directive,MachineDirective::CfiSaved {register:scratch,offset:-8});
+            assert_eq!(&changed.directives[..2],&baseline.directives[..2]);
+            assert_eq!(&changed.directives[3..],&baseline.directives[3..]);
+            assert_eq!(changed.blocks,baseline.blocks);
+            assert_eq!(changed.interface,baseline.interface);
+            assert_eq!(changed.source,baseline.source);
+            let program=verify_cfi_source_program(&changed,&inventory,t).unwrap();
+            let restored=program.rows.iter().find(|row|row.source_item==7).unwrap();
+            assert_eq!(restored.position,CfiRowPosition::AfterDirective);
+            assert_eq!(restored.register_rules.iter().find(|v|v.register==arg).unwrap().rule,CfiRegisterRule::InitialCie);
+            assert_eq!(restored.register_rules.iter().find(|v|v.register==scratch).unwrap().rule,CfiRegisterRule::CfaOffset {offset:-8});
+            assert!(!program.initial_cie_rules_resolved);
+            assert!(!program.emitted_program_counter_map_verified);
+            relative_cfi_only(&verify(&changed,&inventory,t).unwrap());
         }
     }
     #[test]
@@ -745,3 +749,312 @@ fn computed_return_serialization_keeps_exact_target_and_branch_class(){
     let c=&value["blocks"][0]["terminator"]["control"];assert_eq!(c["control"],"return_to");assert_eq!(c["target"],expected.1);assert_eq!(c["mechanism"],"rv64_jalr");
     let decoded:MachineBodyContract=serde_json::from_value(value).unwrap();assert_eq!(return_parts(&decoded.blocks[0].terminator.control),expected);return_unqualified(&verify(&decoded,&i,t).unwrap());
 }
+
+
+// Inert CFI source-program oracles. These compare the actual returned rows and
+// reached mutations; they do not assemble, execute or authenticate GNU inputs.
+fn cfi_program_row(program:&CfiSourceProgram,id:SourceItemId)->&CfiSourceRow {
+    program.rows.iter().find(|row|row.source_item==id).unwrap()
+}
+#[test]
+fn cfi_source_program_preserves_exact_signed_cfa_and_source_order() {
+    for &t in Target::ALL {
+        for offset in [i64::MIN,-24,0,24,i64::MAX] {
+            let (mut body,inventory)=fixture(t);
+            let sp=register(registers(t).2,64);
+            body.directives[1].directive=MachineDirective::CfiDefCfa {register:sp,offset};
+            assert_eq!(body.directives[1].directive,MachineDirective::CfiDefCfa {register:sp,offset});
+            let program=verify_cfi_source_program(&body,&inventory,t).unwrap();
+            assert_eq!(program.selected_inventory,inventory.identity);
+            assert_eq!(program.source,body.source);
+            assert_eq!(program.profile,body.profile);
+            assert_eq!(program.symbol,body.symbol);
+            assert_eq!(program.rows.iter().map(|r|r.source_item).collect::<Vec<_>>(),inventory.items.iter().map(|i|i.id).collect::<Vec<_>>());
+            for id in [2,3,4] {
+                let row=cfi_program_row(&program,id);
+                assert_eq!(row.cfa,CfiCfaRule::RegisterOffset {register:sp,offset});
+                assert_eq!(row.position,CfiRowPosition::BeforeItem);
+                assert!(row.active);
+                assert_eq!(row.decoded_span,inventory.items.iter().find(|i|i.id==id).unwrap().decoded_span);
+            }
+            assert!(!program.initial_cie_rules_resolved);
+            assert!(!program.emitted_program_counter_map_verified);
+            relative_cfi_only(&verify(&body,&inventory,t).unwrap());
+        }
+    }
+}
+#[test]
+fn cfi_source_program_does_not_backfill_a_later_cfa_definition() {
+    for &t in Target::ALL {
+        let (body,baseline)=fixture(t);
+        let mut inventory=baseline.clone();
+        inventory.items=[0,2,1,3,4,5].iter().map(|id|baseline.items.iter().find(|i|i.id==*id).unwrap().clone()).collect();
+        respan_cfi_fixture(&mut inventory);
+        assert_eq!(inventory.items.iter().map(|i|i.id).collect::<Vec<_>>(),vec![0,2,1,3,4,5]);
+        let program=verify_cfi_source_program(&body,&inventory,t).unwrap();
+        assert_eq!(cfi_program_row(&program,2).cfa,CfiCfaRule::InitialCie);
+        assert_eq!(cfi_program_row(&program,3).cfa,CfiCfaRule::RegisterOffset {register:register(registers(t).2,64),offset:0});
+        assert_eq!(cfi_program_row(&program,0).position,CfiRowPosition::AfterDirective);
+        assert!(!cfi_program_row(&program,5).active);
+    }
+}
+#[test]
+fn cfi_source_program_offset_updates_then_restore_keep_distinct_rules() {
+    for &t in Target::ALL {
+        let (mut body,mut inventory)=cfi_saved_fixture(t);
+        let arg=register(registers(t).0,64);
+        body.directives.insert(3,DirectiveRecord {source_item:8,directive:MachineDirective::CfiSaved {register:arg,offset:-16}});
+        let mut later=inventory.items[2].clone();
+        later.id=8;
+        inventory.items.insert(3,later);
+        respan_cfi_fixture(&mut inventory);
+        assert_eq!(inventory.items.iter().map(|i|i.id).collect::<Vec<_>>(),vec![0,1,6,8,7,2,3,4,5]);
+        let program=verify_cfi_source_program(&body,&inventory,t).unwrap();
+        for (id,rule) in [(6,CfiRegisterRule::CfaOffset {offset:-8}),(8,CfiRegisterRule::CfaOffset {offset:-16}),(7,CfiRegisterRule::InitialCie)] {
+            let row=cfi_program_row(&program,id);
+            assert_eq!(row.position,CfiRowPosition::AfterDirective);
+            assert_eq!(row.register_rules.iter().find(|v|v.register==arg).unwrap().rule,rule);
+        }
+        assert_eq!(cfi_program_row(&program,2).register_rules.iter().find(|v|v.register==arg).unwrap().rule,CfiRegisterRule::InitialCie);
+        assert!(!program.initial_cie_rules_resolved);
+    }
+}
+#[test]
+fn cfi_source_program_uses_inventory_order_and_rejects_out_of_order_spans() {
+    for &t in Target::ALL {
+        let (body,inventory)=cfi_saved_fixture(t);
+        let expected=verify_cfi_source_program(&body,&inventory,t).unwrap();
+        let mut reordered=body.clone();
+        reordered.directives.reverse();
+        assert_ne!(reordered.directives,body.directives);
+        assert_eq!(verify_cfi_source_program(&reordered,&inventory,t).unwrap(),expected);
+        let mut changed=inventory.clone();
+        changed.items.swap(2,3);
+        assert_eq!(changed.items[2].id,7);
+        assert_eq!(changed.items[3].id,6);
+        assert!(changed.items[2].decoded_span.start>changed.items[3].decoded_span.start);
+        let error=verify_cfi_source_program(&body,&changed,t).unwrap_err();
+        assert_eq!(error.message,"selected source item spans overlap/out of order");
+    }
+}
+#[test]
+fn cfi_source_program_saved_offset_mutation_reaches_exactly_the_changed_row() {
+    for &t in Target::ALL {
+        let (body,inventory)=cfi_saved_fixture(t);
+        let expected=verify_cfi_source_program(&body,&inventory,t).unwrap();
+        let mut changed=body.clone();
+        let arg=register(registers(t).0,64);
+        changed.directives[2].directive=MachineDirective::CfiSaved {register:arg,offset:8};
+        assert_eq!(changed.directives[2].directive,MachineDirective::CfiSaved {register:arg,offset:8});
+        let actual=verify_cfi_source_program(&changed,&inventory,t).unwrap();
+        let different=expected.rows.iter().zip(&actual.rows).filter(|(a,b)|a!=b).map(|(_,b)|b.source_item).collect::<Vec<_>>();
+        assert_eq!(different,vec![6]);
+        assert_eq!(cfi_program_row(&actual,6).register_rules.iter().find(|v|v.register==arg).unwrap().rule,CfiRegisterRule::CfaOffset {offset:8});
+        assert_eq!(cfi_program_row(&actual,7),cfi_program_row(&expected,7));
+    }
+}
+#[test]
+fn cfi_source_program_keeps_complete_membership_and_duplicate_guards() {
+    for &t in Target::ALL {
+        let (body,inventory)=cfi_saved_fixture(t);
+        let mut missing=body.clone();
+        assert_eq!(missing.directives.remove(2).source_item,6);
+        assert!(inventory.items.iter().any(|i|i.id==6));
+        assert_eq!(verify_cfi_source_program(&missing,&inventory,t).unwrap_err().message,"missing independently selected original instruction/directive/label coverage");
+        let mut duplicate=body.clone();
+        duplicate.directives.push(body.directives[2].clone());
+        assert_eq!(duplicate.directives.iter().filter(|d|d.source_item==6).count(),2);
+        assert_eq!(verify_cfi_source_program(&duplicate,&inventory,t).unwrap_err().message,"duplicate directive/label coverage");
+    }
+}
+#[test]
+fn cfi_source_program_cannot_open_native_sp_or_nonlocal_control() {
+    for &t in Target::ALL {
+        let (body,inventory)=fixture(t);
+        let mut changed=body.clone();
+        let sp=register(registers(t).2,64);
+        changed.blocks[0].instructions[1].operation=MachineOperation::WriteRegister {view:sp,value:0,mode:WriteMode::WholeStorage};
+        assert!(matches!(changed.blocks[0].instructions[1].operation,MachineOperation::WriteRegister {view,..} if view==sp));
+        assert!(verify_cfi_source_program(&changed,&inventory,t).unwrap_err().message.contains("SP/PC/zero/flags"));
+        changed=body;
+        changed.blocks[0].terminator.control=MachineControl::RestoreContext {stack_pointer:0,program_counter:0};
+        assert!(matches!(changed.blocks[0].terminator.control,MachineControl::RestoreContext {..}));
+        assert_eq!(verify_cfi_source_program(&changed,&inventory,t).unwrap_err().message,"restored SP/PC transfer is unsupported without semantic/provider proof");
+    }
+}
+#[test]
+fn cfi_source_program_no_cfi_profile_has_no_invented_rows() {
+    for &t in Target::ALL {
+        let (mut body,mut inventory)=fixture(t);
+        body.profile.cfi=CfiPolicy::NoCfiDeclared;
+        inventory.profile=body.profile.clone();
+        body.directives.clear();
+        inventory.items.retain(|item|item.kind==SourceItemKind::Instruction);
+        respan_cfi_fixture(&mut inventory);
+        assert!(body.directives.is_empty());
+        let program=verify_cfi_source_program(&body,&inventory,t).unwrap();
+        assert!(program.rows.is_empty());
+        assert!(!program.initial_cie_rules_resolved);
+        assert!(!program.emitted_program_counter_map_verified);
+        relative_cfi_only(&verify(&body,&inventory,t).unwrap());
+    }
+}
+#[test]
+fn cfi_source_program_serializes_signed_offsets_and_symbolic_initial_rules() {
+    let t=Target::Riscv64UnknownNone;
+    let (body,inventory)=cfi_saved_fixture(t);
+    let program=verify_cfi_source_program(&body,&inventory,t).unwrap();
+    let saved=serde_json::to_value(cfi_program_row(&program,6)).unwrap();
+    let restored=serde_json::to_value(cfi_program_row(&program,7)).unwrap();
+    assert_eq!(saved["register_rules"][0]["rule"],serde_json::json!({"rule":"cfa_offset","offset":-8}));
+    assert_eq!(restored["register_rules"][0]["rule"],serde_json::json!({"rule":"initial_cie"}));
+    assert_ne!(saved["register_rules"],restored["register_rules"]);
+    assert!(!program.initial_cie_rules_resolved);
+    assert!(!program.emitted_program_counter_map_verified);
+}
+
+
+    // Inert typed metadata controls: these call the actual shared verifier.
+    fn initial_cie_fixture(t: Target) -> CfiInitialCie {
+        let (arg,_,sp,_) = registers(t);let (body,_)=fixture(t);
+        CfiInitialCie {
+            source_scope:CfiSourceScope {selected_inventory:body.selected_inventory.clone(),source:body.source.clone(),symbol:body.symbol.clone(),profile:body.profile.clone()},
+            object:identity_fixture('6'), architecture:architecture(t),
+            elf_machine:match t {Target::X86_64UnknownNone=>62,Target::Aarch64UnknownNone=>183,Target::Riscv64UnknownNone=>243},
+            elf_flags:0, frame_section_index:2, cie_section_offset:0, fde_section_offset:32,
+            cie_record:SourceSpan {start:128,end:160}, fde_record:SourceSpan {start:160,end:184},
+            initial_instructions:SourceSpan {start:144,end:160}, code_alignment:1,data_alignment:-8,
+            return_column:match t {Target::X86_64UnknownNone=>16,Target::Aarch64UnknownNone=>30,Target::Riscv64UnknownNone=>1},
+            cfa:Some(CfiInitialCfa {register:register(sp,64),offset:-37}),
+            registers:vec![CfiRegisterState {register:register(arg,64),rule:CfiRegisterRule::SameValue}],
+        }
+    }
+    fn with_saved_and_restore(t: Target) -> (MachineBodyContract,SelectedInstructionInventory) {
+        let (mut body,mut inventory)=fixture(t);let arg=register(registers(t).0,64);
+        body.directives.extend([
+            DirectiveRecord {source_item:6,directive:MachineDirective::CfiSaved {register:arg,offset:-40}},
+            DirectiveRecord {source_item:7,directive:MachineDirective::CfiRestore {register:arg}},
+        ]);
+        for id in [7,6] {
+            inventory.items.insert(2,SourceItem {id,kind:SourceItemKind::CfiDirective,
+                decoded_span:SourceSpan {start:0,end:1},
+                origins:vec![OriginalSpan {file:0,span:SourceSpan {start:0,end:1}}]});
+        }
+        for (index,item) in inventory.items.iter_mut().enumerate() {
+            item.decoded_span=SourceSpan {start:index as u64*8,end:index as u64*8+8};
+            item.origins[0].span=item.decoded_span;
+        }
+        body.directives.reverse(); // source order, not directive-vector order, is authoritative.
+        (body,inventory)
+    }
+    #[test]
+    fn decoded_cie_seeds_the_real_source_evaluator_for_each_canonical_architecture() {
+        for &t in Target::ALL {
+            let (mut body,inventory)=fixture(t);let initial=initial_cie_fixture(t);
+            body.directives[1].directive=MachineDirective::CfiRestore {register:initial.registers[0].register};
+            assert!(verify(&body,&inventory,t).unwrap_err().message.contains("active CFA"));
+            let out=verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap();
+            assert_eq!(out.program.rows[0].cfa,CfiCfaRule::RegisterOffset {register:initial.cfa.as_ref().unwrap().register,offset:-37});
+            assert_eq!(out.program.rows[1].register_rules,initial.registers);
+            assert!(out.program.initial_cie_rules_resolved);
+            assert!(!out.program.emitted_program_counter_map_verified && !out.source_object_association_verified && !out.native_unwind_verified);
+        }
+    }
+    #[test]
+    fn restore_recovers_each_exact_explicit_initial_rule_after_a_source_override() {
+        for &t in Target::ALL {
+            let (body,inventory)=with_saved_and_restore(t);let mut initial=initial_cie_fixture(t);
+            for rule in [CfiRegisterRule::Undefined,CfiRegisterRule::SameValue,
+                         CfiRegisterRule::CfaOffset {offset:-24},CfiRegisterRule::CfaValueOffset {offset:-16},
+                         CfiRegisterRule::Register {register:register(registers(t).1,64)}] {
+                initial.registers[0].rule=rule.clone();
+                let out=verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap();
+                let saved=out.program.rows.iter().find(|row|row.source_item==6).unwrap();
+                let restored=out.program.rows.iter().find(|row|row.source_item==7).unwrap();
+                assert_eq!(saved.register_rules[0].rule,CfiRegisterRule::CfaOffset {offset:-40});
+                assert_eq!(restored.register_rules[0].rule,rule);
+            }
+        }
+    }
+    #[test]
+    fn decoded_signed_byte_offsets_are_not_multiplied_by_data_alignment_again() {
+        let t=Target::Riscv64UnknownNone;let (body,inventory)=with_saved_and_restore(t);let mut initial=initial_cie_fixture(t);
+        initial.data_alignment = -8;initial.cfa.as_mut().unwrap().offset=i64::MIN;initial.registers[0].rule=CfiRegisterRule::CfaOffset {offset:i64::MIN};
+        let out=verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap();
+        assert_eq!(out.program.rows[0].cfa,CfiCfaRule::RegisterOffset {register:initial.cfa.as_ref().unwrap().register,offset:i64::MIN});
+        assert_eq!(out.program.rows.iter().find(|row|row.source_item==7).unwrap().register_rules[0].rule,CfiRegisterRule::CfaOffset {offset:i64::MIN});
+    }
+    #[test]
+    fn absent_initial_register_rule_is_not_replaced_by_a_local_saved_rule() {
+        let t=Target::Aarch64UnknownNone;let (body,inventory)=with_saved_and_restore(t);let mut initial=initial_cie_fixture(t);initial.registers.clear();
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("initial CIE restore rule is unspecified"));
+    }
+    #[test]
+    fn missing_initial_cfa_and_unresolved_initial_rule_are_rejected() {
+        let t=Target::X86_64UnknownNone;let (body,inventory)=fixture(t);let mut initial=initial_cie_fixture(t);
+        initial.cfa=None;assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("CFA is unspecified"));
+        initial=initial_cie_fixture(t);initial.registers[0].rule=CfiRegisterRule::InitialCie;
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("remains unresolved"));
+    }
+    #[test]
+    fn initial_rule_duplicates_aliases_and_incompatible_register_widths_fail_closed() {
+        let t=Target::X86_64UnknownNone;let (body,inventory)=fixture(t);let base=initial_cie_fixture(t);let mut initial=base.clone();
+        initial.registers.push(initial.registers[0].clone());initial.registers[1].rule=CfiRegisterRule::Undefined;
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("duplicate/conflicting"));
+        initial=base.clone();initial.registers[0].register.bits=32;
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("complete supported DWARF"));
+        initial=base;initial.registers[0].rule=CfiRegisterRule::Register {register:RegisterView {register:PhysicalRegister::X86Xmm {index:0},low_bit:0,bits:128}};
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("widths differ"));
+    }
+    #[test]
+    fn initial_machine_geometry_and_unsupported_cfa_do_not_acquire_defaults() {
+        let t=Target::Riscv64UnknownNone;let (body,inventory)=fixture(t);let base=initial_cie_fixture(t);let mut initial=base.clone();
+        initial.elf_machine=62;assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("architecture differs"));
+        initial=base.clone();initial.cie_record.end=initial.fde_record.end;
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("geometry"));
+        initial=base.clone();initial.cfa.as_mut().unwrap().register=register(PhysicalRegister::RiscvGpr {index:0},64);
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("canonical address"));
+        initial=base;initial.return_column=64;assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).is_err());
+    }
+    #[test]
+    fn dwarf_register_mapping_preserves_x86_order_aarch64_sp_and_explicit_domains() {
+        assert_eq!(cfi_dwarf_register(Architecture::X86_64,1).unwrap(),register(PhysicalRegister::X86Gpr {name:Gpr::Rdx},64));
+        assert_eq!(cfi_dwarf_register(Architecture::Aarch64,31).unwrap(),register(PhysicalRegister::Aarch64Sp,64));
+        assert_eq!(cfi_dwarf_register(Architecture::Rv64,0).unwrap(),register(PhysicalRegister::RiscvGpr {index:0},64));
+        for (a,n) in [(Architecture::X86_64,33),(Architecture::Aarch64,32),(Architecture::Rv64,64),(Architecture::I686,0),(Architecture::Armv7,0)] {assert!(cfi_dwarf_register(a,n).is_err());}
+    }
+    #[test]
+    fn explicit_initial_rules_keep_structural_sp_ssa_and_all_authority_guards() {
+        let t=Target::Aarch64UnknownNone;let (mut body,inventory)=fixture(t);let initial=initial_cie_fixture(t);
+        let (report,program)=verify_with_cfi_input(&body,&inventory,t,Some(&initial)).unwrap();
+        assert!(program.initial_cie_rules_resolved);
+        assert!(!report.cfi_semantics_verified && !report.native_realization_verified && !report.source_custody_verified && !report.inventory_authority_verified && !report.original_unit_completeness_verified && !report.instruction_semantics_verified && !report.entry_state_realization_verified && !report.memory_access_validity_verified && !report.provider_qualified && !report.runtime_qualified && !report.isa_equivalence_qualified && !report.ordinary_native_admission);
+        body.blocks[0].instructions[1].operation=MachineOperation::WriteRegister {view:register(registers(t).2,64),value:0,mode:WriteMode::WholeStorage};
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("SP/PC/zero/flags"));
+        let (mut body,inventory)=fixture(t);body.blocks[0].instructions[1].state_in=0;
+        assert!(verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap_err().message.contains("state SSA chain"));
+    }
+    #[test]
+    fn none_input_preserves_existing_unresolved_restore_and_public_verify_routes() {
+        let t=Target::X86_64UnknownNone;let (body,inventory)=with_saved_and_restore(t);
+        let program=verify_cfi_source_program(&body,&inventory,t).unwrap();
+        assert!(!program.initial_cie_rules_resolved && !program.emitted_program_counter_map_verified);
+        assert_eq!(program.rows.iter().find(|row|row.source_item==7).unwrap().register_rules[0].rule,CfiRegisterRule::InitialCie);
+        assert!(!verify(&body,&inventory,t).unwrap().cfi_semantics_verified);
+    }
+
+    #[test]
+    fn initial_cie_context_cannot_be_reused_for_a_different_selected_function() {
+        let t=Target::Riscv64UnknownNone;let (first,first_inventory)=with_saved_and_restore(t);
+        let mut second=first.clone();let mut second_inventory=first_inventory.clone();
+        second.symbol="second_inert_function".into();second_inventory.symbol=second.symbol.clone();
+        second.source.unit_id="second_inert_unit".into();second_inventory.source=second.source.clone();
+        second_inventory.identity=identity_fixture('7');second.selected_inventory=second_inventory.identity.clone();
+        let initial_first=initial_cie_fixture(t);let mut initial_second=initial_first.clone();
+        initial_second.source_scope=CfiSourceScope {selected_inventory:second.selected_inventory.clone(),source:second.source.clone(),symbol:second.symbol.clone(),profile:second.profile.clone()};
+        initial_second.registers[0].rule=CfiRegisterRule::Undefined;
+        assert!(verify_cfi_source_program_with_initial_cie(&first,&first_inventory,t,&initial_first).is_ok());
+        assert!(verify_cfi_source_program_with_initial_cie(&second,&second_inventory,t,&initial_second).is_ok());
+        assert!(verify_cfi_source_program_with_initial_cie(&second,&second_inventory,t,&initial_first).unwrap_err().message.contains("source-function scope differs"));
+        assert!(verify_cfi_source_program_with_initial_cie(&first,&first_inventory,t,&initial_second).unwrap_err().message.contains("source-function scope differs"));
+    }

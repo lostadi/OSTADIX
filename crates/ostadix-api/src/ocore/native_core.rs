@@ -51,3 +51,5 @@ mod native_machine_emit_rv64;
 
 #[path = "native_machine_asm_unit.rs"]
 pub mod native_machine_asm_unit;
+#[path = "native_machine_asm_unit_artifact.rs"]
+pub mod native_machine_asm_unit_artifact;

@@ -3,7 +3,6 @@
   "renderer": "marked",
   "version": "18.0.13",
   "sources": [
-    ".Jules/palette.md",
     ".github/pull_request_template.md",
     "AGENTS.md",
     "ARCHITECTURE.md",

@@ -1,0 +1,13 @@
+
+running 2 tests
+test cie_raw_decoder::tests::fde_header_relocation_overlap_uses_exact_known_width_and_exclusive_boundaries ... FAILED
+test cie_raw_decoder::tests::fde_header_relocations_reject_geometry_and_preserve_raw_evidence_for_all_machines ... FAILED
+
+failures:
+
+failures:
+    cie_raw_decoder::tests::fde_header_relocation_overlap_uses_exact_known_width_and_exclusive_boundaries
+    cie_raw_decoder::tests::fde_header_relocations_reject_geometry_and_preserve_raw_evidence_for_all_machines
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+

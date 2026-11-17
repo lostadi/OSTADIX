@@ -53,6 +53,7 @@ WRITE_ENV=true
 CHECK_ONLY=false
 VERIFY_OCORE=false
 DEPS_ONLY=false
+SKIP_SYSTEM_PACKAGES=false
 WINDOWS_RERUN_REQUIRED=false
 ENV_FILE="${OSTADIX_ENV_FILE:-$HOME/.config/ostadix/env.sh}"
 GUESTS_DIR="${OSTADIX_GUESTS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/ostadix/guests}"
@@ -88,6 +89,7 @@ Options:
   --verify-ocore              Build and run the bounded x86 O-core QEMU smoke
   --check                     Non-installing capability check for selected profiles
   --deps-only                 Install dependencies/env only; skip Ostadix builds
+  --no-system-packages        Use installed OS packages; still check capabilities before building
   --env-file PATH             Managed environment file (default: ~/.config/ostadix/env.sh)
   --no-env                    Do not create the managed environment file
   --persist-env               Idempotently source the env file from the current shell rc
@@ -145,6 +147,7 @@ while [[ $# -gt 0 ]]; do
     --verify-ocore) VERIFY_OCORE=true; WITH_OCORE=true; shift ;;
     --check) CHECK_ONLY=true; shift ;;
     --deps-only) DEPS_ONLY=true; shift ;;
+    --no-system-packages) SKIP_SYSTEM_PACKAGES=true; shift ;;
     --env-file)
       [[ $# -ge 2 && -n "$2" ]] || { echo "Error: --env-file requires a path" >&2; usage 2; }
       ENV_FILE="$2"
@@ -1804,14 +1807,18 @@ if $CHECK_ONLY; then
   exit $?
 fi
 
-install_system_deps
+if $SKIP_SYSTEM_PACKAGES; then
+  echo ">>> Using installed system packages (--no-system-packages); capability checks remain enabled."
+else
+  install_system_deps
+fi
 if $WINDOWS_RERUN_REQUIRED; then
   echo "Setup paused after winget installation. Restart the terminal and re-run setup.sh."
   exit 0
 fi
 install_rust
 install_hosted_runtime_extras
-install_ubuntu_vm_tools
+if ! $SKIP_SYSTEM_PACKAGES; then install_ubuntu_vm_tools; fi
 
 export PATH="$CARGO_BIN_DIR:$PATH"
 hash -r 2>/dev/null || true

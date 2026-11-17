@@ -7,6 +7,12 @@ Package SemVer is only one of the independent coordinates documented in
 
 ## [Unreleased]
 
+### Fixed
+
+- Raw ELF CIE decoding rejects unresolved relocations over an FDE's length or
+  CIE backreference before adapting its initial rules. Raw bytes and relocation
+  diagnostics are retained; initial-PC relocations remain a separate concern.
+
 ### Changed
 
 - Foreign value splices now use the receiving backend's declared data renderer.
@@ -27,7 +33,7 @@ Package SemVer is only one of the independent coordinates documented in
   they do not establish guest execution, completion or a universal confinement
   theorem.
 - The short README links to the complete preserved reference and a focused
-  research note. Publication identity policy now explicitly allows truthful
+  research note. Development guidance records contributor credit and truthful
   AI-assistance and review provenance. Historical root inputs and patches are
   retained under `audits/` with byte identities.
 

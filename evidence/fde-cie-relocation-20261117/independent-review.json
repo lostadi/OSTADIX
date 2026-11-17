@@ -1,0 +1,177 @@
+{
+  "schema": "ostadix.fde-relocation-independent-review/v1",
+  "recordedAt": "2026-11-17T13:32:18.386647+00:00",
+  "sourceRoot": "/home/ustad/ostadix-BM",
+  "baseCommit": "a686530c64f9abb2c262c7aca5a6c2b29b95ac27",
+  "sourceSha256": {
+    ".github/workflows/ci.yml": "ebefbae351a2f34ba6d5d9fd332837f96f739d5963b005c4fa7bb77018f29afb",
+    "Cargo.lock": "31f81ac32e461d1a8bd433f31fa65b3759a1fff73b196ad7a24ce751e345dca8",
+    "Cargo.toml": "1eeb28b44de3f4eaea63fc90f2abcbb21216a653ce53b4ed0b7b5f93a423fe95",
+    "ci/architecture-roots.toml": "cad184f6de918b950619f2ed60d2dd8363922ed8968020e4b51555e504cc39ae",
+    "crates/ostadix-api/Cargo.toml": "a6c4f003ad1f4ff9cc0f612cfa1d34a3dd2a2a9305f6fd1772ff814962a3d100",
+    "crates/ostadix-api/src/api/aot_source.rs": "d233a12eb1a4f98f9fba5c99a8852c41a1bd5e11e3df1790fe902166d3e812ef",
+    "crates/ostadix-api/src/api/aot_source_native_registry_tests.rs": "4457bf9b743021207bdb14edfb25a1925f43a928c5b43911153761266bf0536b",
+    "crates/ostadix-api/src/ocore/native_core.rs": "813876c53cf7fa65fba1c406cfcdb801c3aa62eab1af88f99f5551452cbc3785",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit.rs": "d572108ae589235b383f1de9229c4e6239421a6ec7b8528bd95def38820ba766",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact.rs": "98771f62ed8c1958643bbc38ca7185d10211c124fb6f62d565fc931149a73779",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact_tests.rs": "7d84ee25e4551967026942958fcc4326ff172f938a1f869a2612d6a61e91dbde",
+    "crates/ostadix-api/src/ocore/native_machine_verify.rs": "32d9e80340149afdce97c08356dc9d643b854df2b919ab5844e3c2897c969596",
+    "crates/ostadix-api/src/ocore/native_machine_verify_tests.rs": "0993a4e38d063112d00aeba8801acfccb034356566491ae47892c3bd698ef894",
+    "scripts/check_architecture_boundaries.py": "0f41abd6c8be446b2461de79854f8920b4ea3ebe898db05ea17c1672b991bd89",
+    "src/bin/olangc/native_runtime/cie_raw_decoder.rs": "93585aba7979bbd01adf5655046c4daa532154bb3f751000f61702257f6225b9",
+    "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs": "87606b13960af6c15d242a432fb22dacc192be0d2c3e36f69c50dd2df175dc25",
+    "src/bin/olangc/native_runtime/cie_source_adapter.rs": "b2f00093a6bb94fd450cd5f92ca1deabf6dc3fce65459436959421afb7acc2af",
+    "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs": "e167649055f11ca1f4f2405e2e85c06c3dd90c6dcc6f500dc5bc27d773a8f0ff",
+    "src/bin/olangc/native_runtime/exception_inventory.rs": "c41ffcd07cd24c2e8f9d63edd36fb9fb9a42cc8c0b919a0efe495864b9b5871a",
+    "tests/test_architecture_boundaries.py": "e10b0cf5e26b868e7a34f76f94d34a0a56e0f4c0aaaf82143cf0191b37cbe45f"
+  },
+  "reviewScope": "Production paths and negative controls from all twelve PR117 files, FDE geometry relocation guard, and canonical source-module geometry fix. No additional blocker identified. Existing unit::artifact API retained as a re-export. Architecture checker implementation unchanged.",
+  "validation": {
+    "originalRawDecoderDirectFdeBackrefProbe": {
+      "result": "accepted the unresolved FDE+4 RELA PC32 relocation; confirms the finding",
+      "count": 1,
+      "kind": "direct-source scratch harness"
+    },
+    "originalRawDecoderDesiredRegressions": {
+      "result": "failed as expected before production guard",
+      "count": 2,
+      "kind": "direct-source scratch harness"
+    },
+    "fixedRawDecoder": {
+      "result": "passed",
+      "count": 22,
+      "kind": "direct-source scratch harness"
+    },
+    "nativeMachineApi": {
+      "result": "passed",
+      "count": 249,
+      "command": "CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_TEST_CODEGEN_UNITS=256 CARGO_BUILD_JOBS=2 cargo test --locked -p ostadix-api --lib native_machine_"
+    },
+    "aotSourceRegistry": {
+      "result": "passed",
+      "count": 7,
+      "command": "CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_TEST_CODEGEN_UNITS=256 CARGO_BUILD_JOBS=2 cargo test --locked -p ostadix-api --lib aot_source"
+    },
+    "architectureUnitTests": {
+      "result": "passed",
+      "count": 147,
+      "command": "python3 -m unittest -v tests.test_architecture_boundaries"
+    },
+    "architectureDependencyChecker": {
+      "result": "passed",
+      "productionFiles": 228,
+      "roots": 55,
+      "crossRootEdges": 266,
+      "command": "python3 scripts/check_architecture_boundaries.py"
+    }
+  },
+  "logs": {
+    "architecture-native-machine-tests.log": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/architecture-native-machine-tests.log",
+      "sha256": "3627988bd31e5cd90c8136f1813f770439d8dcf91bca394c6a14e1d7b3cf2dde"
+    },
+    "architecture-aot-source-tests.log": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/architecture-aot-source-tests.log",
+      "sha256": "26b6cb4006e0673d6819f5b4a52fa3c4bbb04a22ef524a4f977e9c58988782f2"
+    },
+    "architecture-tests-fixed-final.log": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/architecture-tests-fixed-final.log",
+      "sha256": "798d1e26ad14863463ba59879359da6d844454bbb2b1be977507ca931694ff1c"
+    },
+    "exact-hole-probe.stdout": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-hole-probe.stdout",
+      "sha256": "6d02f19f4a7e75c36a8e60086db141db93b3935c202301e98272faee1a036b85"
+    },
+    "exact-hole-probe.stderr": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-hole-probe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exact-direct-backref-regression.stdout": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-direct-backref-regression.stdout",
+      "sha256": "0fdcae05a710af947751076754f8f69bf02795e837da5c1661633ed5333c12ab"
+    },
+    "exact-direct-backref-regression.stderr": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-direct-backref-regression.stderr",
+      "sha256": "c85e78ef3bd6c0f7450e418358ddd5a3cb1257d9c4b236f50ff9dd666b79ae6b"
+    },
+    "postfix-tests.stdout": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/postfix-tests.stdout",
+      "sha256": "27d311cb2f8d60720d73d6d82391f671a9fcaf2de022acf31ffc2db2a63206ce"
+    },
+    "postfix-tests.stderr": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/postfix-tests.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limits": [
+    "Source-only raw/adapter and structural artifact checks do not qualify native unwind execution, original-runtime lowering, or cross-ISA runtime equivalence.",
+    "Whole olangc cie_ execution is separately performed and reported by the parent agent; this record includes only independently observed runs."
+  ],
+  "reviewedPublishedCommit": "a4b899f23b3a1e8015a0f2b33f4babc9c7f75037",
+  "preFormattingReview": {
+    "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/final-independent-review.json",
+    "sha256": "def95564469508d98bdb901bde517815a7825c734e1a2d06a9bd3458b4662e0b"
+  },
+  "formattingEquivalenceReview": {
+    "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/format-review/format-only-review.json",
+    "sha256": "9e967f6314b95a40de80807dc73ca3e35260ae8746482fe48956e5f6865d7263",
+    "allFiveFilesExactCanonicalRustfmtOutputs": true,
+    "scope": "Historical proof of the earlier formatter-only step for five CLI files is retained. Current cie_raw_decoder.rs and cie_source_adapter.rs still exactly match those canonical formatter outputs. The two test files now carry the separately reviewed equivalent padding-loop lint changes; exception_inventory.rs carries the separately reviewed scoped dead-code attributes."
+  },
+  "validationSourceScope": "API production source, artifact/registry logic and architecture checker remain unchanged. Prior API249, AOT7 and architecture147 checks retain behavioral applicability; one API-test assignment spacing changed only. Raw22 logs predate canonical formatting and equivalent test-loop lint changes; the parent reruns production olangc cie_30, formatting and rustdoc checks against this final source snapshot.",
+  "formattedReviewPredecessor": {
+    "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/final-independent-review-formatted.json",
+    "sha256": "50b190f361bcf171510a6a779a90a34da857ed818d3b6b108c0f43ac2c47800c"
+  },
+  "scopedLintReview": {
+    "changedFilesSinceFormattedSnapshot": [
+      "crates/ostadix-api/src/ocore/native_machine_verify_tests.rs",
+      "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs",
+      "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs",
+      "src/bin/olangc/native_runtime/exception_inventory.rs"
+    ],
+    "changes": [
+      {
+        "path": "src/bin/olangc/native_runtime/exception_inventory.rs",
+        "description": "dead_code allowance solely on the two staged raw-CFI/source-adapter module declarations and their unused wrapper, each with a factual staged/non-admission reason; no global lint configuration or production caller added."
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_machine_verify_tests.rs",
+        "description": "Whitespace only: initial.data_alignment=-8 becomes initial.data_alignment = -8; identical tokens and assigned value."
+      }
+    ],
+    "result": "No semantic runtime change or additional review blocker identified. The parent reports whole-workspace clippy completed with exit0; independently observed source deltas and delegated validation are distinguished below."
+  },
+  "scopedLintReviewPredecessor": {
+    "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/final-independent-review-lint.json",
+    "sha256": "c37651faee68d893cf2462b1341c1ca7466b759b1f9212dd65f8e3804839317f"
+  },
+  "testFixtureLoopLintReview": {
+    "changedFilesSincePriorSnapshot": [
+      "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs",
+      "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs"
+    ],
+    "changes": [
+      {
+        "path": "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs",
+        "count": 2,
+        "before": "(len + 4) % 4 != 0",
+        "after": "!(len + 4).is_multiple_of(4)"
+      },
+      {
+        "path": "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs",
+        "count": 1,
+        "before": "len % 4 != 0",
+        "after": "!len.is_multiple_of(4)"
+      }
+    ],
+    "equivalence": "usize operands and the identical nonzero constant divisor4 make each condition equivalent; additions, loop bodies and padding bytes are unchanged. No production function changes. The declared Rust1.93.1 minimum supports the used API."
+  },
+  "workspaceClippyReportedByParent": {
+    "status": "passed",
+    "exitCode": 0,
+    "seconds": 23.96,
+    "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+    "source": "Parent agent executed the full check and reported its completed result; this reviewer independently inspected the source changes."
+  }
+}
