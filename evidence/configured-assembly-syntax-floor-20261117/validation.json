@@ -1,0 +1,284 @@
+{
+  "api_controls": {
+    "compiled": 1890,
+    "failed": 0,
+    "groups": [
+      {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 33,
+        "prefix": "ocore::native_machine_asm_reader::tests::"
+      },
+      {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 9,
+        "prefix": "ocore::native_machine_asm_reader::inventory::tests::"
+      },
+      {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 8,
+        "prefix": "ocore::native_machine_asm_unit::tests::"
+      },
+      {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 16,
+        "prefix": "ocore::native_machine_asm_unit_artifact::tests::"
+      },
+      {
+        "failed": 0,
+        "ignored": 0,
+        "passed": 7,
+        "prefix": "api::aot_source::native_root_registry_tests::"
+      }
+    ],
+    "ignored": 0,
+    "passed": 73,
+    "unrun": 1817
+  },
+  "build": {
+    "all_workspace_binaries_fresh": false,
+    "binaries": [
+      {
+        "bytes": 35407104,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "00a2211fc2bb0ed3219c1af227335f88db6f8024d1bf7860e4db4df402adb287",
+        "target": "O"
+      },
+      {
+        "bytes": 74102680,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "64c58db6edf99ef3965a46275ee43dd5a2eda98316605007259eb9715d82608d",
+        "target": "o-cli"
+      },
+      {
+        "bytes": 11751352,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "7c1918bd6b5331468ea2f71a155227b3af3df3c734318682e6410c739a2ffd93",
+        "target": "o-info"
+      },
+      {
+        "bytes": 57237576,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "a9cb7cedafa3893a9654bbbfad2df74fd91cd16d0b3c26a5c501c84aba5b3814",
+        "target": "o-link"
+      },
+      {
+        "bytes": 17470160,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "a2ef1b1dee550455bf81ce1e727deff1654a2501629d73deacd8fc5a9cda1113",
+        "target": "o-live-host"
+      },
+      {
+        "bytes": 60637968,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "2b1f46ac8625c449e6e76cd67f803f8117f7e71d5b31b752a83bb4152cba89b0",
+        "target": "o-node"
+      },
+      {
+        "bytes": 12873144,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "cb4c34a7490d816da0d538ffc79381583fc030d04bdb6f330952a388ca36154e",
+        "target": "o-registry"
+      },
+      {
+        "bytes": 9753584,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "0966007e7918b3aad9388eee2e09cfd3e6ce41b85922de2420de8392158b7364",
+        "target": "o-unlink"
+      },
+      {
+        "bytes": 11438720,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "621a4e6d1dcf079a985b6f8a0ef1d1d4406d72c792f227b9c3f886e36e1ea65c",
+        "target": "ocore-kernel-world-record"
+      },
+      {
+        "bytes": 29929424,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "3ce73bad1bf7d5f63076ca7668cd41aaf7a7331145a1963dccb7d039c33239e2",
+        "target": "ocorec"
+      },
+      {
+        "bytes": 44206368,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "aeca2e10290b7ae78e6cdceee0b911cacd279a49071006a9776413231a199d23",
+        "target": "octl"
+      },
+      {
+        "bytes": 3529096,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "4d025493cc08e6bc4bdff2eafc903495c280b24cef6babe5af05143422a88eea",
+        "target": "ogit"
+      },
+      {
+        "bytes": 69379632,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "81c9c675a242dc3304e1d979eaa959d7b60883e6ec2d6416406d3fe15278fd5a",
+        "target": "olangc"
+      },
+      {
+        "bytes": 5208792,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "o-lang",
+        "sha256": "37d19a183e1be7277a758b75edaeb2717ec6e421eb6744df112013ad0d259f4b",
+        "target": "ostadix-device"
+      },
+      {
+        "bytes": 5913128,
+        "interpreters": [
+          "/lib64/ld-linux-x86-64.so.2"
+        ],
+        "kind": 3,
+        "machine": 62,
+        "package": "ostadix",
+        "sha256": "147765712466277e431a194dd1ba43f0548fe89ec4fe997acac47c640075d89c",
+        "target": "ostadix"
+      }
+    ],
+    "caller_printed_exit": 0,
+    "meaning_of_fresh_false": "Cargo emitted fresh:false for all selected workspace binaries, meaning newly compiled rather than reused",
+    "native_commands_known_wait0": 23,
+    "original_mcp_outer_wait": "UNOBSERVED",
+    "selected_default_workspace_binaries": 15
+  },
+  "credit": {
+    "human_review_claimed": false,
+    "implementation": "OpenAI Codex",
+    "independent_retained_execution_review": "Separate OpenAI Codex agent; no test/build rerun",
+    "independent_source_review": "Separate OpenAI Codex agent",
+    "maintainer": "Lee Daghlar Ostadi"
+  },
+  "date": "2026-11-17",
+  "excluded_profiles": [
+    {
+      "package": "o-lang",
+      "requiredFeatures": [
+        "notebook"
+      ],
+      "state": "UNATTEMPTED",
+      "target": "o-notebook"
+    }
+  ],
+  "guards": {
+    "bytes_independently_hashed": 2442969794,
+    "files_independently_hashed": 7450,
+    "integrated_source_review_sha256": "1ccb60511196975b5e6879815785f10c05620c8d2a44572babefafd5b6d38606",
+    "raw_terminal_sha256": "193249157f2971b81b686282863f1fb929fbeaea2be79285dfaf9f35859b739f",
+    "retained_execution_review_sha256": "2148b3e9ca0741000c962613f110ec287db1228e601d3ac64f882d1d673167f7",
+    "source_review_sha256": "808bab53453261f50939d3fb734198c87746b036f18cba4f66481191ddbe286f",
+    "source_tool_cache_artifact_config_log_postchecks": "PASS"
+  },
+  "profile": {
+    "cargo": "1.97.1 (c980f4866)",
+    "debug": 0,
+    "default_features": [
+      "graph_executor"
+    ],
+    "host_isa": "x86_64",
+    "host_os": "Linux",
+    "incremental": false,
+    "jobs": 1,
+    "llvm": "22.1.6",
+    "locked": true,
+    "offline": true,
+    "opt_level": 0,
+    "rustc": "1.97.1 (8bab26f4f)",
+    "sha2_package_opt_level": 3,
+    "target": "x86_64-unknown-linux-gnu",
+    "trace_admitted": false
+  },
+  "qualification": {
+    "all_isa_semantic_identity": false,
+    "complete_runtime": false,
+    "later_identity_consumer_included": false,
+    "native_os": false,
+    "original_producer_authenticated": false,
+    "provider_closure": false,
+    "syntax_inventory_component_only": true
+  },
+  "reproduction_notes": [
+    "Use a complete checkout of the tested source and declared Rust/Cargo toolchain with matching Linux x86-64 native tools and pre-populated, verified dependencies.",
+    "Build default workspace binaries with cargo build --workspace --bins --locked --offline --jobs 1 under the recorded profile.",
+    "Build the ostadix-api library test target, obtain its actual Cargo-emitted test executable, list its complete test inventory, then run each recorded prefix with --test-threads 1 --format pretty.",
+    "These are portable reproduction instructions, not literal private-host observed argv; the source-bound controller retains exact observed commands and logs."
+  ],
+  "schema": "ostadix.configured-assembly-syntax-floor-validation/v1",
+  "source": {
+    "bytes": 214033687,
+    "commit": "e35cdf2c1802ce16de232effc11bf566f373877b",
+    "files": 6835,
+    "tree": "8d0ce99b1f8e8d2aa4206f09bbe420413b557b48"
+  }
+}

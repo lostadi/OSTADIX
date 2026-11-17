@@ -53,3 +53,24 @@ artifact reconstruction and source registration. These checks do not establish
 original-producer admission, native unwind execution or cross-ISA runtime
 qualification. Commands and outcomes are recorded in the
 [validation record](../evidence/fde-cie-relocation-20261117/validation.json).
+
+## Configured-assembly syntax floors, 17 November 2026
+
+The original/configured assembly syntax-floor factory was implemented with
+OpenAI Codex and reviewed by a separate Codex agent. A further independent
+agent checked the retained execution evidence without repeating the build or
+tests. The tested compiler source is `e35cdf2c1802ce16de232effc11bf566f373877b`;
+this entry and its validation record are later documentation only.
+
+On Linux x86-64, a private Rust/Cargo 1.97.1 locked, offline, single-job build
+compiled all 15 default-feature workspace binaries. All 73 selected API tests
+passed; 1,817 other API tests and the notebook feature were unrun. The 23
+observed native child commands exited successfully. The original outer MCP
+wait was not observed; it is kept separate from those child waits and the
+printed caller result. See the [scoped validation record](../evidence/configured-assembly-syntax-floor-20261117/validation.json).
+
+These results cover the syntax-floor factory, reader/unit/artifact controls
+and generated-source registration. They do not authenticate an original
+producer, lower complete original runtimes/providers, establish execution
+semantics across ISAs, or qualify a native operating system. The later
+identity-consumer candidate is separate and was not included in this run.
