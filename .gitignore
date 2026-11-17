@@ -144,3 +144,6 @@ big_iron_to_my_texas_red*
 
 # Keep private agent state out of source checkpoints.
 /.private-codex/
+
+# Local Jules journals
+.Jules/
