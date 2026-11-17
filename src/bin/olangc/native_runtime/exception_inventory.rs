@@ -8,6 +8,18 @@
 use super::*;
 use o_lang::ocore::native_ir::{ExceptionClause, Function, Operand, Operation, Terminator};
 
+#[path = "cie_raw_decoder.rs"]
+pub(super) mod cie_raw_decoder;
+
+#[path = "cie_source_adapter.rs"]
+pub(super) mod cie_source_adapter;
+
+/// Raw initial-CIE decoding only; object/source/profile authority stays separate.
+pub(super) fn decode_raw_cie_initial_state(bytes: &[u8]) -> Result<cie_raw_decoder::RawCieObject> {
+    cie_raw_decoder::decode_elf64_le_rel(bytes)
+}
+
+
 pub(super) struct Inspection {
     pub sections: Vec<(usize, String)>,
     pub receipt: Value,

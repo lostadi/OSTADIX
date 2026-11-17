@@ -171,33 +171,277 @@ fn coverage(items: &BTreeMap<SourceItemId,&SourceItem>, used: &mut BTreeMap<Sour
     let count = used.entry(id).or_insert(0); *count = count.checked_add(1).ok_or_else(|| fail("source site count overflow"))?;
     require(kind == SourceItemKind::Instruction || *count == 1, "duplicate directive/label coverage")
 }
-fn cfi(body: &MachineBodyContract, inventory: &SelectedInstructionInventory) -> Result<()> {
+
+/// Source-relative unwind rules only. InitialCie is deliberately unresolved:
+/// MachineProfile does not yet identify the original configured assembler CIE.
+/// These rules do not prove values in memory or register recovery at native PCs.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(tag = "rule", rename_all = "snake_case")]
+pub enum CfiCfaRule {
+    InitialCie,
+    RegisterOffset { register: RegisterView, offset: i64 },
+}
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(tag = "rule", rename_all = "snake_case")]
+pub enum CfiRegisterRule {
+    InitialCie,
+    CfaOffset { offset: i64 },
+    Undefined,
+    SameValue,
+    CfaValueOffset { offset: i64 },
+    Register { register: RegisterView },
+}
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiRegisterState {
+    pub register: RegisterView,
+    pub rule: CfiRegisterRule,
+}
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CfiRowPosition { AfterDirective, BeforeItem }
+/// Rule changes take effect after their directive. Other rows describe the
+/// state before the selected source item. Neither position is a native PC.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiSourceRow {
+    pub source_item: SourceItemId,
+    pub source_kind: SourceItemKind,
+    pub decoded_span: SourceSpan,
+    pub position: CfiRowPosition,
+    pub active: bool,
+    pub cfa: CfiCfaRule,
+    pub register_rules: Vec<CfiRegisterState>,
+}
+/// The complete selected source-order projection, after all structural checks.
+/// Register entries absent from a row also refer to unresolved initial CIE
+/// rules. Explicit restores remain present instead of pretending SameValue.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiSourceProgram {
+    pub format: &'static str,
+    pub selected_inventory: ArtifactIdentity,
+    pub source: SourceWitness,
+    pub symbol: String,
+    pub profile: MachineProfile,
+    pub rows: Vec<CfiSourceRow>,
+    pub initial_cie_rules_resolved: bool,
+    pub emitted_program_counter_map_verified: bool,
+}
+
+
+/// Explicit decoded CIE facts supplied separately from the source contract.
+/// These facts do not authenticate the object, its producer, or a function/FDE association.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiInitialCfa { pub register: RegisterView, pub offset: i64 }
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiSourceScope {
+    pub selected_inventory: ArtifactIdentity,
+    pub source: SourceWitness,
+    pub symbol: String,
+    pub profile: MachineProfile,
+}
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiInitialCie {
+    pub source_scope: CfiSourceScope,
+    pub object: ArtifactIdentity,
+    pub architecture: Architecture,
+    pub elf_machine: u16,
+    pub elf_flags: u32,
+    pub frame_section_index: u64,
+    pub cie_section_offset: u64,
+    pub fde_section_offset: u64,
+    pub cie_record: SourceSpan,
+    pub fde_record: SourceSpan,
+    pub initial_instructions: SourceSpan,
+    pub code_alignment: u64,
+    pub data_alignment: i64,
+    pub return_column: u64,
+    pub cfa: Option<CfiInitialCfa>,
+    pub registers: Vec<CfiRegisterState>,
+}
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CfiSourceProgramWithInitialCie {
+    pub program: CfiSourceProgram,
+    pub initial_cie: CfiInitialCie,
+    pub source_object_association_verified: bool,
+    pub native_unwind_verified: bool,
+}
+/// The checked ELF machine determines the architecture, never an ordinal cast.
+pub fn cfi_elf_architecture(machine: u16) -> Result<Architecture> {
+    match machine {
+        62 => Ok(Architecture::X86_64),
+        183 => Ok(Architecture::Aarch64),
+        243 => Ok(Architecture::Rv64),
+        _ => Err(fail("unsupported ELF machine for source CFI initial rules")),
+    }
+}
+/// Same explicit DWARF columns as the configured-assembly reader.
+/// In particular x86 ordering is not the GPR enum ordering and AArch64 31 is SP.
+pub fn cfi_dwarf_register(a: Architecture, column: u64) -> Result<RegisterView> {
+    use PhysicalRegister::*;
+    let (register,bits) = match a {
+        Architecture::X86_64 => {
+            let names = [Gpr::Rax,Gpr::Rdx,Gpr::Rcx,Gpr::Rbx,Gpr::Rsi,Gpr::Rdi,Gpr::Rbp,Gpr::Rsp,
+                         Gpr::R8,Gpr::R9,Gpr::R10,Gpr::R11,Gpr::R12,Gpr::R13,Gpr::R14,Gpr::R15];
+            if column < 16 { (X86Gpr {name:names[column as usize]},64) }
+            else if column == 16 { (X86Pc,64) }
+            else if (17..=32).contains(&column) { (X86Xmm {index:(column-17) as u8},128) }
+            else { return Err(fail("unsupported x86 DWARF register")); }
+        }
+        Architecture::Aarch64 => {
+            if column < 31 { (Aarch64Gpr {index:column as u8},64) }
+            else if column == 31 { (Aarch64Sp,64) }
+            else if (64..=95).contains(&column) { (Aarch64Vector {index:(column-64) as u8},128) }
+            else { return Err(fail("unsupported AArch64 DWARF register")); }
+        }
+        Architecture::Rv64 => {
+            if column < 32 { (RiscvGpr {index:column as u8},64) }
+            else if column < 64 { (RiscvFpr {index:(column-32) as u8},64) }
+            else { return Err(fail("unsupported RISC-V DWARF register")); }
+        }
+        Architecture::I686 | Architecture::Armv7 => return Err(fail("unsupported architecture for source CFI initial rules")),
+    };
+    Ok(RegisterView {register,low_bit:0,bits})
+}
+fn cfi_full_register(profile: &MachineProfile, register: RegisterView) -> Result<Layout> {
+    let (layout,_) = view(profile,register)?;
+    let column_bank = matches!((profile.architecture,register.register),
+        (Architecture::X86_64,PhysicalRegister::X86Gpr {..}|PhysicalRegister::X86Xmm {..}|PhysicalRegister::X86Pc) |
+        (Architecture::Aarch64,PhysicalRegister::Aarch64Gpr {..}|PhysicalRegister::Aarch64Sp|PhysicalRegister::Aarch64Vector {..}) |
+        (Architecture::Rv64,PhysicalRegister::RiscvGpr {..}|PhysicalRegister::RiscvFpr {..}));
+    require(column_bank && register.low_bit == 0 && register.bits == layout.width,
+            "CFI register rule requires a complete supported DWARF storage register")?;
+    Ok(layout)
+}
+fn validate_initial_cie(initial: &CfiInitialCie, body: &MachineBodyContract) -> Result<()> {
+    let profile=&body.profile;
+    require(initial.source_scope.selected_inventory == body.selected_inventory &&
+            initial.source_scope.source == body.source && initial.source_scope.symbol == body.symbol &&
+            initial.source_scope.profile == body.profile,
+            "initial CIE source-function scope differs from selected source contract")?;
+    identity(&initial.object)?;
+    require(initial.architecture == cfi_elf_architecture(initial.elf_machine)? &&
+            initial.architecture == profile.architecture,
+            "initial CIE ELF machine/profile architecture differs")?;
+    require(profile.cfi == CfiPolicy::Required, "initial CIE requires a declared source CFI region")?;
+    span(initial.cie_record,initial.object.bytes)?;
+    span(initial.fde_record,initial.object.bytes)?;
+    span(initial.initial_instructions,initial.object.bytes)?;
+    require(initial.cie_record.end <= initial.fde_record.start &&
+            initial.cie_section_offset < initial.fde_section_offset &&
+            initial.cie_record.start.checked_sub(initial.cie_section_offset).is_some() &&
+            initial.cie_record.start.checked_sub(initial.cie_section_offset) ==
+                initial.fde_record.start.checked_sub(initial.fde_section_offset) &&
+            initial.initial_instructions.start >= initial.cie_record.start &&
+            initial.initial_instructions.end <= initial.cie_record.end,
+            "initial CIE/FDE record geometry or initial-instruction span differs")?;
+    require(initial.code_alignment > 0, "initial CIE code alignment is zero")?;
+    cfi_dwarf_register(profile.architecture,initial.return_column)?;
+    let cfa = initial.cfa.as_ref().ok_or_else(||fail("initial CIE CFA is unspecified"))?;
+    let layout = cfi_full_register(profile,cfa.register)?;
+    require(cfa.register.bits == 64 && matches!(layout.role,Role::General|Role::Stack),
+            "initial CIE CFA requires an explicit canonical address register")?;
+    let mut seen = BTreeSet::new();
+    for entry in &initial.registers {
+        cfi_full_register(profile,entry.register)?;
+        require(seen.insert(entry.register.register), "duplicate/conflicting initial CIE register rules")?;
+        match &entry.rule {
+            CfiRegisterRule::InitialCie => return Err(fail("initial CIE register rule remains unresolved")),
+            CfiRegisterRule::Undefined | CfiRegisterRule::SameValue |
+            CfiRegisterRule::CfaOffset {..} | CfiRegisterRule::CfaValueOffset {..} => {},
+            CfiRegisterRule::Register {register} => {
+                cfi_full_register(profile,*register)?;
+                require(register.bits == entry.register.bits, "initial CIE register-to-register widths differ")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn cfi(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, initial_cie: Option<&CfiInitialCie>) -> Result<CfiSourceProgram> {
+    // Exact coverage, unique directive IDs, spans and source order have already
+    // been checked by verify_with_cfi. Directive vector order is not authority.
     let records: BTreeMap<_,_> = body.directives.iter().map(|d| (d.source_item, &d.directive)).collect();
-    let mut active = false; let mut ended = false; let mut cfa = false; let mut saved = BTreeSet::new();
+    let mut active = false;
+    let mut ended = false;
+    let mut cfa = CfiCfaRule::InitialCie;
+    let mut registers = BTreeMap::<RegisterView,CfiRegisterRule>::new();
+    let mut rows = Vec::new();
     for item in &inventory.items {
-        // Required CFI must structurally cover each selected instruction site,
-        // including control transfers. A balanced empty region elsewhere is
-        // not coverage. This does not establish any unwind-rule semantics.
         if body.profile.cfi == CfiPolicy::Required && item.kind == SourceItemKind::Instruction {
             require(active, "machine instruction is outside the active required CFI region")?;
         }
-        let Some(d) = records.get(&item.id) else { continue };
-        match d {
-            MachineDirective::CfiStart => { require(body.profile.cfi == CfiPolicy::Required && !active && !ended, "CFI start is repeated or not declared")?; active = true; }
-            MachineDirective::CfiEnd => { require(active && cfa && !ended, "CFI end lacks active CFA state")?; active = false; ended = true; }
-            MachineDirective::CfiDefCfa {register,..} => { let (l,_) = view(&body.profile,*register)?; require(active && register.bits == 64 && register.low_bit == 0 && matches!(l.role,Role::General|Role::Stack), "CFI CFA must use an active canonical address register")?; cfa = true; }
-            MachineDirective::CfiSaved {register,..} => { view(&body.profile,*register)?; require(active && cfa && saved.insert(*register), "CFI saved-register rule lacks CFA or is duplicated")?; }
-            MachineDirective::CfiRestore {register} => {
-                view(&body.profile,*register)?;
-                require(active && cfa, "CFI restore requires active CFA state")?;
-                require(saved.remove(register), "CFI restore has no prior saved-register rule")?;
+        if let Some(d) = records.get(&item.id) {
+            match d {
+                MachineDirective::CfiStart => {
+                    require(body.profile.cfi == CfiPolicy::Required && !active && !ended, "CFI start is repeated or not declared")?;
+                    active = true;
+                    cfa = CfiCfaRule::InitialCie;
+                    registers.clear();
+                    if let Some(initial) = initial_cie {
+                        let initial_cfa=initial.cfa.as_ref().ok_or_else(||fail("initial CIE CFA is unspecified"))?;
+                        cfa=CfiCfaRule::RegisterOffset {register:initial_cfa.register,offset:initial_cfa.offset};
+                        registers.extend(initial.registers.iter().map(|entry|(entry.register,entry.rule.clone())));
+                    }
+                }
+                MachineDirective::CfiEnd => {
+                    require(active && matches!(cfa,CfiCfaRule::RegisterOffset {..}) && !ended, "CFI end lacks active CFA state")?;
+                    active = false;
+                    ended = true;
+                }
+                MachineDirective::CfiDefCfa {register,offset} => {
+                    let (l,_) = view(&body.profile,*register)?;
+                    require(active && register.bits == 64 && register.low_bit == 0 && matches!(l.role,Role::General|Role::Stack), "CFI CFA must use an active canonical address register")?;
+                    cfa = CfiCfaRule::RegisterOffset {register:*register,offset:*offset};
+                }
+                MachineDirective::CfiSaved {register,offset} => {
+                    view(&body.profile,*register)?;
+                    if initial_cie.is_some() { cfi_full_register(&body.profile,*register)?; }
+                    require(active && matches!(cfa,CfiCfaRule::RegisterOffset {..}), "CFI saved-register rule requires active CFA state")?;
+                    // A later uniquely covered .cfi_offset replaces the rule.
+                    // Its offset is already relative to CFA, not the CFA base.
+                    registers.insert(*register,CfiRegisterRule::CfaOffset {offset:*offset});
+                }
+                MachineDirective::CfiRestore {register} => {
+                    view(&body.profile,*register)?;
+                    require(active && matches!(cfa,CfiCfaRule::RegisterOffset {..}), "CFI restore requires active CFA state")?;
+                    // GNU/DWARF restore means the rule after initial CIE
+                    // instructions, even without a preceding offset directive.
+                    // Do not erase it, infer SameValue, or pop another rule.
+                    let rule=if let Some(initial)=initial_cie {
+                        cfi_full_register(&body.profile,*register)?;
+                        initial.registers.iter().find(|entry|entry.register==*register)
+                            .map(|entry|entry.rule.clone())
+                            .ok_or_else(||fail("initial CIE restore rule is unspecified"))?
+                    } else { CfiRegisterRule::InitialCie };
+                    registers.insert(*register,rule);
+                }
+                MachineDirective::Alignment {bytes} => aligned(*bytes)?,
+                MachineDirective::Symbol {name} => symbol(name)?,
+                MachineDirective::UnsupportedData | MachineDirective::UnsupportedRelocation => return Err(fail("data/relocation directive semantics are not implemented")),
             }
-            MachineDirective::Alignment {bytes} => aligned(*bytes)?,
-            MachineDirective::Symbol {name} => symbol(name)?,
-            MachineDirective::UnsupportedData | MachineDirective::UnsupportedRelocation => return Err(fail("data/relocation directive semantics are not implemented")),
+        }
+        if active || item.kind == SourceItemKind::CfiDirective {
+            rows.push(CfiSourceRow {
+                source_item:item.id,
+                source_kind:item.kind,
+                decoded_span:item.decoded_span,
+                position:if item.kind == SourceItemKind::CfiDirective {CfiRowPosition::AfterDirective} else {CfiRowPosition::BeforeItem},
+                active,
+                cfa:cfa.clone(),
+                register_rules:registers.iter().map(|(&register,rule)| CfiRegisterState {register,rule:rule.clone()}).collect(),
+            });
         }
     }
-    require(!active && (ended || body.profile.cfi == CfiPolicy::NoCfiDeclared), "required CFI region is missing or remains open")
+    require(!active && (ended || body.profile.cfi == CfiPolicy::NoCfiDeclared), "required CFI region is missing or remains open")?;
+    Ok(CfiSourceProgram {
+        format:"ocore-machine-cfi-source-program-v1",
+        selected_inventory:inventory.identity.clone(),
+        source:body.source.clone(),
+        symbol:body.symbol.clone(),
+        profile:body.profile.clone(),
+        rows,
+        initial_cie_rules_resolved:initial_cie.is_some(),
+        emitted_program_counter_map_verified:false,
+    })
 }
 /// Compute register-bit definedness before validating individual reads. Starting
 /// reachable nonentry blocks at the register domain's top and intersecting all
@@ -305,11 +549,12 @@ fn register_entry_facts(body:&MachineBodyContract,seed:&BTreeMap<PhysicalRegiste
 }
 /// Structural coverage ONLY. Both inputs remain unauthenticated claims until a
 /// separate original-source producer and semantic lift are independently proven.
-pub fn verify(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target) -> Result<StructuralReport> {
+fn verify_with_cfi_input(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target, initial_cie: Option<&CfiInitialCie>) -> Result<(StructuralReport,CfiSourceProgram)> {
     let computed_control = body.format == COMPUTED_CONTROL_FORMAT;
     require((body.format == FORMAT || computed_control) && inventory.format == INVENTORY_FORMAT, "machine/inventory contract version differs")?;
     identity(&inventory.identity)?; source(&body.source)?; profile(&body.profile,target)?; symbol(&body.symbol)?;
     require(body.selected_inventory == inventory.identity && body.source == inventory.source && body.symbol == inventory.symbol && body.profile == inventory.profile && body.interface == inventory.interface, "body differs from separately selected inventory/source/profile/interface contract")?;
+    if let Some(initial)=initial_cie { validate_initial_cie(initial,body)?; }
     require(body.interface.entry.policy == EntryPolicy::NoImplicitFrameOrScratch, "ordinary prologue/unverified entry snapshot cannot realize machine entry state")?;
     let seed = masks(&body.profile, &body.interface.entry.initialized)?;
     let (sp, pc) = stack_pc(body.profile.architecture)?;
@@ -420,8 +665,38 @@ pub fn verify(body: &MachineBodyContract, inventory: &SelectedInstructionInvento
         }
     }
     for item in items.values() { require(used.get(&item.id).copied().unwrap_or(0)>0,"missing independently selected original instruction/directive/label coverage")?; }
-    cfi(body,inventory)?;
-    Ok(StructuralReport { format:if computed_control {"ocore-machine-structure-relative-inventory-v3"} else {"ocore-machine-structure-relative-inventory-v2"},target:target.id(),checked_inventory_items:items.len(),checked_instruction_sites:sites,structural_coverage_relative_to_supplied_inventory:true,source_custody_verified:false,inventory_authority_verified:false,original_unit_completeness_verified:false,instruction_semantics_verified:false,native_realization_verified:false,cfi_semantics_verified:false,memory_access_validity_verified:false,entry_state_realization_verified:false,provider_qualified:false,runtime_qualified:false,isa_equivalence_qualified:false,ordinary_native_admission:false })
+    let cfi_program=cfi(body,inventory,initial_cie)?;
+    Ok((StructuralReport { format:if computed_control {"ocore-machine-structure-relative-inventory-v3"} else {"ocore-machine-structure-relative-inventory-v2"},target:target.id(),checked_inventory_items:items.len(),checked_instruction_sites:sites,structural_coverage_relative_to_supplied_inventory:true,source_custody_verified:false,inventory_authority_verified:false,original_unit_completeness_verified:false,instruction_semantics_verified:false,native_realization_verified:false,cfi_semantics_verified:false,memory_access_validity_verified:false,entry_state_realization_verified:false,provider_qualified:false,runtime_qualified:false,isa_equivalence_qualified:false,ordinary_native_admission:false },cfi_program))
+}
+
+fn verify_with_cfi(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target) -> Result<(StructuralReport,CfiSourceProgram)> {
+    verify_with_cfi_input(body,inventory,target,None)
+}
+
+/// Existing structural report; no source-state trace promotes admission.
+pub fn verify(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target) -> Result<StructuralReport> {
+    verify_with_cfi(body,inventory,target).map(|(report,_)| report)
+}
+/// Project exact currently represented CFI rules after the same complete
+/// structural checks as verify(). Initial CIE rules and native PC mapping remain
+/// unresolved. This is not an unwind, entry-state or original-source proof.
+pub fn verify_cfi_source_program(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target) -> Result<CfiSourceProgram> {
+    verify_with_cfi(body,inventory,target).map(|(_,program)| program)
+}
+
+
+/// Evaluate the same complete source contract using explicit decoded initial
+/// CIE facts. Resolution is relative to supplied facts, not original-object
+/// authority, emitted PCs, unwind memory, ABI/provider or native execution.
+pub fn verify_cfi_source_program_with_initial_cie(
+    body: &MachineBodyContract, inventory: &SelectedInstructionInventory,
+    target: Target, initial_cie: &CfiInitialCie,
+) -> Result<CfiSourceProgramWithInitialCie> {
+    let (_,program) = verify_with_cfi_input(body,inventory,target,Some(initial_cie))?;
+    Ok(CfiSourceProgramWithInitialCie {
+        program, initial_cie:initial_cie.clone(),
+        source_object_association_verified:false, native_unwind_verified:false,
+    })
 }
 
 #[cfg(test)]

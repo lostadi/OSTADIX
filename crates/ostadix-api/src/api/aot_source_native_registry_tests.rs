@@ -250,3 +250,121 @@ fn unsupported_root_module_layout_refuses_instead_of_disappearing() {
         Err(GuardError::UnsupportedRootDeclaration(line))
     );
 }
+
+#[derive(Debug, PartialEq, Eq)]
+enum ConfiguredArtifactSiblingError {
+    Registry(GuardError),
+    MissingSource {
+        path: &'static str,
+        module: &'static str,
+    },
+    SourceBytesDiffer(&'static str),
+    MissingDeclaration {
+        owner: &'static str,
+        child: &'static str,
+    },
+}
+
+// This is a selected two-edge descendant contract, not a Rust dependency or
+// cfg evaluator. The ordinary root guard above intentionally has root scope.
+fn check_configured_artifact_siblings(
+    rows: &[(&str, &str)],
+) -> Result<(), ConfiguredArtifactSiblingError> {
+    check(ROOT, rows).map_err(ConfiguredArtifactSiblingError::Registry)?;
+    let sources: BTreeMap<_, _> = rows.iter().copied().collect();
+    for (path, module, expected) in [
+        (
+            "native_machine_asm_unit.rs",
+            "asm_unit",
+            include_str!("../ocore/native_machine_asm_unit.rs"),
+        ),
+        (
+            "native_machine_asm_unit_artifact.rs",
+            "artifact",
+            include_str!("../ocore/native_machine_asm_unit_artifact.rs"),
+        ),
+        (
+            "native_machine_asm_unit_artifact_tests.rs",
+            "tests",
+            include_str!("../ocore/native_machine_asm_unit_artifact_tests.rs"),
+        ),
+    ] {
+        match sources.get(path) {
+            None => {
+                return Err(ConfiguredArtifactSiblingError::MissingSource { path, module });
+            }
+            Some(&actual) if actual != expected => {
+                return Err(ConfiguredArtifactSiblingError::SourceBytesDiffer(path));
+            }
+            Some(_) => {}
+        }
+    }
+    for (owner, declaration, child) in [
+        (
+            "native_machine_asm_unit.rs",
+            "#[path = \"native_machine_asm_unit_artifact.rs\"]\npub mod artifact;",
+            "native_machine_asm_unit_artifact.rs",
+        ),
+        (
+            "native_machine_asm_unit_artifact.rs",
+            "#[cfg(test)]\n#[path = \"native_machine_asm_unit_artifact_tests.rs\"]\nmod tests;",
+            "native_machine_asm_unit_artifact_tests.rs",
+        ),
+    ] {
+        if !sources[owner].contains(declaration) {
+            return Err(ConfiguredArtifactSiblingError::MissingDeclaration { owner, child });
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn generated_configured_artifact_siblings_are_enrolled_with_exact_sources() {
+    assert_eq!(
+        check_configured_artifact_siblings(RUNTIME_OCORE_NATIVE_SOURCES),
+        Ok(())
+    );
+}
+
+#[test]
+fn removing_each_configured_artifact_sibling_reaches_its_missing_path() {
+    assert_eq!(
+        check_configured_artifact_siblings(RUNTIME_OCORE_NATIVE_SOURCES),
+        Ok(())
+    );
+    for (path, module, owner, declaration) in [
+        (
+            "native_machine_asm_unit_artifact.rs",
+            "artifact",
+            "native_machine_asm_unit.rs",
+            "#[path = \"native_machine_asm_unit_artifact.rs\"]\npub mod artifact;",
+        ),
+        (
+            "native_machine_asm_unit_artifact_tests.rs",
+            "tests",
+            "native_machine_asm_unit_artifact.rs",
+            "#[cfg(test)]\n#[path = \"native_machine_asm_unit_artifact_tests.rs\"]\nmod tests;",
+        ),
+    ] {
+        let witness = RUNTIME_OCORE_NATIVE_SOURCES
+            .iter()
+            .find(|row| row.0 == owner)
+            .unwrap()
+            .1;
+        assert!(witness.contains(declaration));
+        let mut mutant = RUNTIME_OCORE_NATIVE_SOURCES.to_vec();
+        assert_eq!(mutant.iter().filter(|row| row.0 == path).count(), 1);
+        let before = mutant.len();
+        mutant.retain(|row| row.0 != path);
+        assert_eq!(mutant.len() + 1, before);
+        assert!(mutant.iter().all(|row| row.0 != path));
+        assert_eq!(
+            mutant.iter().find(|row| row.0 == owner).unwrap().1,
+            witness
+        );
+        assert_eq!(
+            check_configured_artifact_siblings(&mutant),
+            Err(ConfiguredArtifactSiblingError::MissingSource { path, module })
+        );
+    }
+}
