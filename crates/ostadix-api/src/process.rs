@@ -1857,12 +1857,7 @@ impl BackendProcess {
         })?;
         match self.recv_operation_response()? {
             BackendWireResponseV2::RestoreV1 { receipt } => {
-                if !receipt.restored
-                    || receipt.backend != checkpoint.backend
-                    || receipt.checkpoint_sha256 != checkpoint.checkpoint_sha256()?
-                {
-                    bail!("backend returned an invalid restore receipt");
-                }
+                receipt.validate_for(&checkpoint)?;
                 Ok(receipt)
             }
             BackendWireResponseV2::StatePinRequiredV1 { reason } => {
@@ -4653,6 +4648,56 @@ mod tests {
 
         assert_eq!(value, OValue::Null);
         process.shutdown(backend_shutdown_timeout()?)?;
+        Ok(())
+    }
+
+    #[test]
+    fn replacement_actor_requires_the_complete_restore_receipt_before_publication() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let shim = temp.path().join("restore_target.py");
+        let sandbox = BackendSandboxPolicy::none();
+        let mut registry = ProcessRegistry::new();
+        let checkpoint = crate::backend_state::empty_checkpoint("python", &"11".repeat(32))?;
+        let receipt = BackendRestoreReceiptV1::restored("python", &checkpoint)?;
+        assert!(BackendRestoreReceiptV1::restored("sql", &checkpoint).is_err());
+
+        for (field, changed) in [
+            (
+                "schema",
+                serde_json::json!("ostadix.backend-restore-receipt/v2"),
+            ),
+            ("protocol", serde_json::json!("ostadix.backend-state/v2")),
+            ("backend", serde_json::json!("sql")),
+            ("checkpoint_sha256", serde_json::json!("22".repeat(32))),
+            ("restored", serde_json::json!(false)),
+        ] {
+            let mut response = serde_json::json!({"status": "restore_v1", "receipt": &receipt});
+            response["receipt"][field] = changed;
+            let mut frame = Vec::new();
+            wire::write_frame(&mut frame, &response)?;
+            std::fs::write(
+                &shim,
+                format!(
+                    "import sys\nlength = int.from_bytes(sys.stdin.buffer.read(4), 'big')\n\
+                     sys.stdin.buffer.read(length)\nsys.stdout.buffer.write(bytes.fromhex('{}'))\n\
+                     sys.stdout.buffer.flush()\n",
+                    hex::encode(frame)
+                ),
+            )?;
+            let error = registry
+                .restore_env(
+                    "python",
+                    1,
+                    checkpoint.clone(),
+                    test_launch_context(&shim, &sandbox, "restore-gen"),
+                )
+                .expect_err(field);
+            assert!(
+                error.to_string().contains("invalid restore receipt"),
+                "{field}: {error:#}"
+            );
+            assert!(registry.registry.is_empty(), "{field}");
+        }
         Ok(())
     }
 

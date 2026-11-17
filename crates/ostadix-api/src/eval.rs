@@ -3185,13 +3185,13 @@ impl Evaluator {
                 args,
             } => self.execute_ready_invoke(fn_name, *mode, args, node_id, plan, frame),
             OIr::NativeLeaf { .. } => {
-                let descriptor_sha = crate::ir::native_leaf_source_descriptor_sha256(node)
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("native scalar source descriptor is not static")
-                    })?;
-                let leaf = self.executable_leases()?.native_leaf(descriptor_sha)?;
-                let task =
-                    crate::executor::parallel::prepare_native(leaf, frame, plan, node_id, node)?;
+                let task = crate::executor::parallel::prepare_native(
+                    self.executable_leases()?,
+                    frame,
+                    plan,
+                    node_id,
+                    node,
+                )?;
                 let (events, _rx) = std::sync::mpsc::channel();
                 let context = crate::executor::task::TaskContext::new(
                     crate::executor::task::TaskToken(node_id.0),
@@ -3336,7 +3336,7 @@ impl Evaluator {
             );
         }
 
-        if backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote" {
+        if backend.owns_quoted_syntax() {
             if attr.is_some() {
                 bail!("attributes are not valid on the structural `quote` backend");
             }

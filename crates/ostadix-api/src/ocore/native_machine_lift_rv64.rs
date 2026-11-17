@@ -134,10 +134,8 @@ fn rv_return(ra: RegisterView, b: &mut BlockLifter<'_>) -> Result<LiftFlow> {
 
 pub fn lower_rv64(operation: RiscvOpcode, spelling: &str, operands: &[Operand],
     b: &mut BlockLifter<'_>) -> Result<LiftFlow> {
-    if b.profile().architecture != Architecture::Rv64
-        || !matches!(b.profile().abi, MachineAbi::RiscvLp64 | MachineAbi::RiscvLp64d)
-        || b.profile().address_bits != 64 {
-        return Err(b.fail("RV64 lifter requires an actual RV64 LP64/LP64D profile"));
+    if !b.profile().matches_layout(Architecture::Rv64) {
+        return Err(b.fail("RV64 lifter requires an actual little-endian RV64 LP64/LP64D profile"));
     }
     use RiscvOpcode::*;
     match operation {

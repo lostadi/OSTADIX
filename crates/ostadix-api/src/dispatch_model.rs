@@ -73,7 +73,7 @@ impl TaskKind {
 /// Classify a plan node when a local Send-only task adapter is available.
 pub(crate) fn classify(plan: &ExecutionPlan, oir: &OIr, id: PlanNodeId) -> Option<TaskKind> {
     match oir {
-        native if native_adapter_matches(plan, id, native) => Some(TaskKind::NativeI64),
+        native if native_adapter_source(plan, id, native).is_some() => Some(TaskKind::NativeI64),
         OIr::Load(name) => Some(TaskKind::Load { name: name.clone() }),
         OIr::Exec { attr, backend, .. }
             if attr.is_none()
@@ -107,7 +107,7 @@ pub(crate) fn adapter_matches(
     oir: &OIr,
 ) -> bool {
     match adapter {
-        DispatchAdapterV1::NativeI64V1 => native_adapter_matches(plan, id, oir),
+        DispatchAdapterV1::NativeI64V1 => native_adapter_source(plan, id, oir).is_some(),
         DispatchAdapterV1::OScopeLoadV1 => matches!(oir, OIr::Load(_)),
         DispatchAdapterV1::TrustedInlineRendererV1 => renderer_inputs_statically_preparable(oir),
         DispatchAdapterV1::AutonomousEphemeralShimV1 => {
@@ -117,20 +117,20 @@ pub(crate) fn adapter_matches(
     }
 }
 
-fn native_adapter_matches(plan: &ExecutionPlan, id: PlanNodeId, oir: &OIr) -> bool {
-    match (
-        plan.nodes.get(id.0).map(|node| &node.kind),
-        crate::ir::native_leaf_source_descriptor(oir),
-    ) {
-        (
-            Some(PlanNodeKind::NativeI64 {
-                descriptor: Some(expected),
-                ..
-            }),
-            Some(actual),
-        ) => expected == actual,
-        _ => false,
-    }
+pub(crate) fn native_adapter_source<'a>(
+    plan: &ExecutionPlan,
+    id: PlanNodeId,
+    oir: &'a OIr,
+) -> Option<crate::ir::NativeLeafSource<'a>> {
+    let PlanNodeKind::NativeI64 {
+        descriptor: Some(expected),
+        argument_count,
+    } = &plan.nodes.get(id.0)?.kind
+    else {
+        return None;
+    };
+    let source = crate::ir::native_leaf_source_descriptor(oir)?;
+    (source.text == expected && source.parameter_count == *argument_count).then_some(source)
 }
 
 /// Return the explicit coordination group authorizing non-strict execution of

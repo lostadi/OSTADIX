@@ -9,7 +9,7 @@
 //! their records must still occur in that floor. Original bytes are retained.
 use super::common::Target;
 use super::native_machine_ir::{
-    Architecture, ArtifactIdentity, ByteOrder, MachineAbi, MachineProfile, OriginalSpan,
+    Architecture, ArtifactIdentity, MachineProfile, OriginalSpan,
     PhysicalRegister, RegisterView, SourceSpan, SourceWitness, StateFeature, X86Gpr, SOURCE_FORMAT,
 };
 use serde::{Deserialize, Serialize};
@@ -477,19 +477,7 @@ fn span(start: usize, end: usize) -> SourceSpan {
 }
 fn profile(selection: &ReadSelection, target: Target) -> Result<(), ReadError> {
     let p = &selection.profile;
-    let ok = match target {
-        Target::X86_64UnknownNone => {
-            p.architecture == Architecture::X86_64 && p.abi == MachineAbi::SysvAmd64
-        }
-        Target::Aarch64UnknownNone => {
-            p.architecture == Architecture::Aarch64 && p.abi == MachineAbi::Aapcs64
-        }
-        Target::Riscv64UnknownNone => {
-            p.architecture == Architecture::Rv64
-                && matches!(p.abi, MachineAbi::RiscvLp64 | MachineAbi::RiscvLp64d)
-        }
-    };
-    if !ok || p.address_bits != 64 || p.byte_order != ByteOrder::Little {
+    if !p.matches_layout(Architecture::for_target(target)) {
         return Err(ReadError::Profile("selected architecture/ABI/byte order does not match the canonical target; 32-bit foundations unsupported".into()));
     }
     if p.entry_stack_alignment == 0

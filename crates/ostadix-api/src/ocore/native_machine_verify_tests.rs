@@ -13,7 +13,7 @@
     /// original-source completeness proof is manufactured by this constructor.
     fn fixture(t: Target) -> (MachineBodyContract,SelectedInstructionInventory) {
         let (arg,scratch,sp,pc)=registers(t);
-        let profile=MachineProfile {architecture:architecture(t),abi:match t {Target::X86_64UnknownNone=>MachineAbi::SysvAmd64,Target::Aarch64UnknownNone=>MachineAbi::Aapcs64,Target::Riscv64UnknownNone=>MachineAbi::RiscvLp64d},address_bits:64,byte_order:ByteOrder::Little,entry_stack_alignment:16,entry_stack_remainder:if t==Target::X86_64UnknownNone {8}else{0},features:vec![StateFeature::UserRegisterBits],cfi:CfiPolicy::Required};
+        let profile=MachineProfile {architecture:Architecture::for_target(t),abi:match t {Target::X86_64UnknownNone=>MachineAbi::SysvAmd64,Target::Aarch64UnknownNone=>MachineAbi::Aapcs64,Target::Riscv64UnknownNone=>MachineAbi::RiscvLp64d},address_bits:64,byte_order:ByteOrder::Little,entry_stack_alignment:16,entry_stack_remainder:if t==Target::X86_64UnknownNone {8}else{0},features:vec![StateFeature::UserRegisterBits],cfi:CfiPolicy::Required};
         let interface=MachineInterface {entry:EntryInterface {policy:EntryPolicy::NoImplicitFrameOrScratch,initialized:vec![register(arg,64),register(sp,64),register(pc,64)],memory:MemoryInterface::None},exits:vec![ExitInterface {id:0,kind:ExitKind::OrdinaryReturn,outputs:vec![register(scratch,64)],preserved:vec![register(sp,64)]}]};
         let source=SourceWitness {format:SOURCE_FORMAT.into(),input_form:MachineInputForm::ConfiguredAssemblyText,unit_id:"inert-metadata-fixture".into(),files:vec![SourceFile{id:0,logical_path:"inert-metadata-only.source".into(),identity:identity_fixture('1')}],decoded_assembly:identity_fixture('2'),build_configuration:identity_fixture('3'),frontend_event:identity_fixture('4')};
         let items=(0_u64..6).map(|id|SourceItem{id,kind:if [2,3,4].contains(&id){SourceItemKind::Instruction}else{SourceItemKind::CfiDirective},decoded_span:SourceSpan{start:id*8,end:id*8+8},origins:vec![OriginalSpan{file:0,span:SourceSpan{start:id*8,end:id*8+8}}]}).collect();
@@ -919,7 +919,7 @@ fn cfi_source_program_serializes_signed_offsets_and_symbolic_initial_rules() {
         let (arg,_,sp,_) = registers(t);let (body,_)=fixture(t);
         CfiInitialCie {
             source_scope:CfiSourceScope {selected_inventory:body.selected_inventory.clone(),source:body.source.clone(),symbol:body.symbol.clone(),profile:body.profile.clone()},
-            object:identity_fixture('6'), architecture:architecture(t),
+            object:identity_fixture('6'), architecture:Architecture::for_target(t),
             elf_machine:match t {Target::X86_64UnknownNone=>62,Target::Aarch64UnknownNone=>183,Target::Riscv64UnknownNone=>243},
             elf_flags:0, frame_section_index:2, cie_section_offset:0, fde_section_offset:32,
             cie_record:SourceSpan {start:128,end:160}, fde_record:SourceSpan {start:160,end:184},

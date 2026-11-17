@@ -5,6 +5,7 @@
 //! claims to be authenticated by a future original-source producer. Structural
 //! coverage relative to that inventory is not original instruction completeness.
 use serde::{Deserialize, Serialize};
+use super::common::Target;
 use super::native_ir::{BlockId, ValueId};
 
 /// Version 2 introduces typed flag definedness and scalar extensions.
@@ -41,6 +42,16 @@ pub struct SourceWitness {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Architecture { X86_64, Aarch64, Rv64, I686, Armv7 }
+
+impl Architecture {
+    pub(super) fn for_target(target: Target) -> Self {
+        match target {
+            Target::X86_64UnknownNone => Self::X86_64,
+            Target::Aarch64UnknownNone => Self::Aarch64,
+            Target::Riscv64UnknownNone => Self::Rv64,
+        }
+    }
+}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MachineAbi { SysvAmd64, Aapcs64, RiscvLp64, RiscvLp64d }
@@ -68,6 +79,30 @@ pub struct MachineProfile {
     pub entry_stack_remainder: u64,
     pub features: Vec<StateFeature>,
     pub cfi: CfiPolicy,
+}
+
+impl MachineProfile {
+    /// Layout shared by the configured-assembly reader and machine lowering.
+    pub(super) fn matches_layout(&self, architecture: Architecture) -> bool {
+        let abi_architecture = match self.abi {
+            MachineAbi::SysvAmd64 => Architecture::X86_64,
+            MachineAbi::Aapcs64 => Architecture::Aarch64,
+            MachineAbi::RiscvLp64 | MachineAbi::RiscvLp64d => Architecture::Rv64,
+        };
+        self.architecture == architecture
+            && abi_architecture == architecture
+            && self.address_bits == 64
+            && self.byte_order == ByteOrder::Little
+    }
+
+    /// At function entry the x86-64 stack carries the pushed return address.
+    pub(super) fn matches_entry_stack(&self) -> bool {
+        let remainder = match self.abi {
+            MachineAbi::SysvAmd64 => 8,
+            MachineAbi::Aapcs64 | MachineAbi::RiscvLp64 | MachineAbi::RiscvLp64d => 0,
+        };
+        self.entry_stack_alignment == 16 && self.entry_stack_remainder == remainder
+    }
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]

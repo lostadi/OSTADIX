@@ -1,5 +1,5 @@
     use super::*;
-    use super::super::native_machine_ir::{CfiPolicy,MachineInputForm,SourceFile,StateFeature};
+    use super::super::native_machine_ir::{ByteOrder,CfiPolicy,MachineAbi,MachineInputForm,SourceFile,StateFeature};
     // Authored syntax fixtures, NOT upstream GNU inputs or producer acceptance.
     // Explicit record strings/kinds below select the independent synthetic floor;
     // no parser-success enumeration is used to construct it.
@@ -351,6 +351,65 @@ fn parsed_dispatch_refuses_wrong_selected_source_site_before_emission() {
     assert_eq!(error.source_item, expected + 1);
     assert!(error.reason.contains("semantic site differs"));
     drop(builder); assert!(instructions.is_empty());
+}
+
+#[test]
+fn parsed_instruction_lowering_requires_the_selected_isa_layout_before_emitting_state() {
+    let cases = [
+        (
+            Architecture::X86_64,
+            MachineAbi::SysvAmd64,
+            "movq %rax,%rcx",
+        ),
+        (Architecture::Aarch64, MachineAbi::Aapcs64, "add x0,x1,x2"),
+        (Architecture::Rv64, MachineAbi::RiscvLp64, "add a0,a1,a2"),
+        (Architecture::Rv64, MachineAbi::RiscvLp64d, "add a0,a1,a2"),
+    ];
+    for (architecture, abi, source) in cases {
+        let (mut selection, mut raw, target) =
+            fixture(source, architecture, &[(source, SyntaxKind::Instruction)]);
+        selection.profile.abi = abi;
+        refloor(&mut selection, &mut raw, |floor| floor.profile.abi = abi);
+        let mut parsed =
+            read_configured_assembly(source.as_bytes(), &selection, &raw, target).unwrap();
+        let (flow, instructions) = lift_selected_record(&parsed, 0);
+        assert_eq!(flow, LiftFlow::Continue);
+        assert!(!instructions.is_empty());
+
+        // Rebuild the lifter from the same modified profile as the parsed record.
+        // A check that only compares these two representations would accept it.
+        let profile = parsed.profile.clone();
+        let wrong_abi = if architecture == Architecture::X86_64 {
+            MachineAbi::Aapcs64
+        } else {
+            MachineAbi::SysvAmd64
+        };
+        for invalid in [
+            MachineProfile {
+                abi: wrong_abi,
+                ..profile.clone()
+            },
+            MachineProfile {
+                byte_order: ByteOrder::Big,
+                ..profile.clone()
+            },
+            MachineProfile {
+                address_bits: 32,
+                ..profile.clone()
+            },
+        ] {
+            parsed.profile = invalid;
+            let item = parsed.records[0].required.id;
+            let mut ids = LiftIds::new(1, 1);
+            let mut instructions = Vec::new();
+            let mut builder =
+                BlockLifter::new(&parsed.profile, item, 0, &mut ids, &mut instructions);
+            let error = lift_instruction(&parsed, 0, &mut builder).unwrap_err();
+            assert_eq!(error.source_item, item);
+            assert!(error.reason.contains("profile"), "{error:?}");
+            assert!(instructions.is_empty());
+        }
+    }
 }
 
 #[test]

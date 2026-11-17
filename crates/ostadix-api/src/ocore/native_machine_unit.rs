@@ -415,24 +415,12 @@ fn named(n: &SymbolName) -> bool {
     }
 }
 fn compatible(profile: &MachineProfile, target: Target) -> Result<()> {
-    let (architecture, abi, remainder) = match target {
-        Target::X86_64UnknownNone => (Architecture::X86_64, vec![MachineAbi::SysvAmd64], 8),
-        Target::Aarch64UnknownNone => (Architecture::Aarch64, vec![MachineAbi::Aapcs64], 0),
-        Target::Riscv64UnknownNone => (
-            Architecture::Rv64,
-            vec![MachineAbi::RiscvLp64, MachineAbi::RiscvLp64d],
-            0,
-        ),
-    };
     require(
-        profile.architecture == architecture
-            && abi.contains(&profile.abi)
-            && profile.address_bits == 64
-            && profile.byte_order == ByteOrder::Little,
+        profile.matches_layout(Architecture::for_target(target)),
         "unit target/ABI/address layout mismatch; i686/ARMv7 are unsupported",
     )?;
     require(
-        profile.entry_stack_alignment == 16 && profile.entry_stack_remainder == remainder,
+        profile.matches_entry_stack(),
         "unit stack ABI profile mismatch",
     )?;
     require(

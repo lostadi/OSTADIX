@@ -182,6 +182,33 @@ fn native_leaf_graph_trap_blocks_store_value_completion_and_resource_outputs() {
 }
 
 #[test]
+fn native_leaf_adapter_binds_plan_arity_and_source_identity() {
+    let program = OIrProgram {
+        nodes: vec![native_leaf_node(false)],
+    };
+    let mut plan = program.plan();
+    let id = plan.roots[0];
+    let matches = |plan: &ExecutionPlan, oir: &OIr| {
+        crate::dispatch_model::adapter_matches(DispatchAdapterV1::NativeI64V1, plan, id, oir)
+    };
+    let node = &program.nodes[0];
+    assert!(matches(&plan, node));
+
+    let mut changed = node.clone();
+    let OIr::NativeLeaf { provenance, .. } = &mut changed else {
+        unreachable!()
+    };
+    provenance.descriptor_sha256 = Some("00".repeat(32));
+    assert!(!matches(&plan, &changed));
+
+    let PlanNodeKind::NativeI64 { argument_count, .. } = &mut plan.nodes[id.0].kind else {
+        unreachable!()
+    };
+    *argument_count += 1;
+    assert!(!matches(&plan, node));
+}
+
+#[test]
 fn native_leaf_graph_invalid_descriptor_never_acquires_execution_authority() {
     let mut program = program(false);
     let OIr::Store { expr, .. } = &mut program.nodes[1] else {
@@ -194,6 +221,27 @@ fn native_leaf_graph_invalid_descriptor_never_acquires_execution_authority() {
     let plan = program.plan();
     let error = program.hgraph_for_plan(&plan).unwrap_err();
     assert!(error.contains("static literal text descriptor"), "{error}");
+}
+
+#[test]
+fn native_leaf_graph_rejects_changed_source_arity_with_the_same_descriptor() {
+    let program = program(false);
+    let mut graph = build_program(&program);
+    let oir = graph
+        .ir_map
+        .values_mut()
+        .find(|oir| matches!(oir, OIr::NativeLeaf { .. }))
+        .unwrap();
+    let OIr::NativeLeaf {
+        args, interface, ..
+    } = oir
+    else {
+        unreachable!()
+    };
+    args.push(OIr::Text("extra".into()));
+    *interface = NativeLeafInterface::ScalarI64AcyclicV1 { parameter_count: 2 };
+    let error = graph.validate_execution_graph().unwrap_err();
+    assert!(error.contains("native leaf descriptor or arity"), "{error}");
 }
 
 #[test]

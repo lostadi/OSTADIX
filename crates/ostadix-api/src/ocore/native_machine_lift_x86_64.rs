@@ -8,7 +8,7 @@
 
 use super::native_machine_asm_reader as syntax;
 use super::native_machine_ir::{
-    Architecture, BinaryKind, ByteOrder, CompareKind, MachineAbi, PhysicalRegister,
+    Architecture, BinaryKind, CompareKind, PhysicalRegister,
     RegisterView, Scalar, WriteMode, X86Gpr,
 };
 use super::native_machine_lift::{BlockLifter, ExtensionKind, LiftError, LiftFlow};
@@ -247,9 +247,7 @@ fn direct_target(operands: &[Operand], b: &BlockLifter) -> Result<Expression, Li
 /// mnemonic (or full line starting with that mnemonic), retained for diagnostics.
 /// The surrounding driver must discard the entire failed lift transaction.
 pub fn lower_x86(operation: X86Opcode, selected_width: Option<u16>, spelling: &str, operands: &[Operand], b: &mut BlockLifter) -> Result<LiftFlow, LiftError> {
-    let profile = b.profile();
-    if profile.architecture != Architecture::X86_64 || profile.abi != MachineAbi::SysvAmd64
-        || profile.address_bits != 64 || profile.byte_order != ByteOrder::Little {
+    if !b.profile().matches_layout(Architecture::X86_64) {
         return reject(b, "x86-64 lowering requires the selected little-endian SysV AMD64 profile");
     }
     let mnemonic = spelling.split_whitespace().next().unwrap_or("");

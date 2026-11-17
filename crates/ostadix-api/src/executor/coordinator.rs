@@ -804,16 +804,10 @@ impl<'a> Coordinator<'a> {
             let submission = (|| -> Result<TaskSubmission> {
                 Ok(
                     if self.ops[index].dispatch_adapter == DispatchAdapterV1::NativeI64V1 {
-                        let descriptor = crate::ir::native_leaf_source_descriptor(self.flat[id.0])
-                            .ok_or_else(|| anyhow::anyhow!("native leaf lost source descriptor"))?;
-                        let leaf = self
-                            .admitted
-                            .executable_leases()?
-                            .native_leaf(&crate::native_leaf::digest(descriptor.as_bytes()))?;
                         TaskSubmission::new(
                             TaskToken(index),
                             parallel::prepare_native(
-                                leaf,
+                                self.admitted.executable_leases()?.as_ref(),
                                 &self.frame,
                                 self.plan,
                                 id,

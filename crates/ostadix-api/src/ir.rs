@@ -87,10 +87,17 @@ fn extract_static_text_descriptor(args: &[OIr]) -> Option<&str> {
     }
 }
 
+/// Source descriptor, byte identity and arity checked against the OIR arguments.
+pub(crate) struct NativeLeafSource<'a> {
+    pub(crate) text: &'a str,
+    pub(crate) sha256: &'a str,
+    pub(crate) parameter_count: usize,
+}
+
 /// Only a typed `OIr::NativeLeaf` whose static descriptor matches its first
 /// literal, attribute-free text argument qualifies. A missing/static-shape
 /// error remains a `NativeI64` plan node and fails closed.
-pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
+pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<NativeLeafSource<'_>> {
     let OIr::NativeLeaf {
         kind: NativeLeafKind::OcoreI64,
         interface: NativeLeafInterface::ScalarI64AcyclicV1 { parameter_count },
@@ -108,19 +115,15 @@ pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
     if arg_text != descriptor {
         return None;
     }
-    let expected_sha = native_leaf_digest(descriptor.as_bytes());
-    if provenance.descriptor_sha256.as_deref() != Some(expected_sha.as_str()) {
+    let sha256 = provenance.descriptor_sha256.as_deref()?;
+    if native_leaf_digest(descriptor.as_bytes()) != sha256 {
         return None;
     }
-    Some(descriptor)
-}
-
-pub(crate) fn native_leaf_source_descriptor_sha256(oir: &OIr) -> Option<&str> {
-    let _ = native_leaf_source_descriptor(oir)?;
-    let OIr::NativeLeaf { provenance, .. } = oir else {
-        return None;
-    };
-    provenance.descriptor_sha256.as_deref()
+    Some(NativeLeafSource {
+        text: descriptor,
+        sha256,
+        parameter_count: *parameter_count,
+    })
 }
 
 #[cfg(test)]
@@ -210,6 +213,20 @@ pub enum OIr {
         backend: BackendInterface,
         body: Vec<OIr>,
     },
+}
+
+impl OIr {
+    /// Executable children in source order. Both plan IDs and their OIR
+    /// bindings are allocated by preorder traversal over this slice.
+    fn plan_children(&self) -> &[OIr] {
+        match self {
+            Self::Text(_) | Self::Load(_) => &[],
+            Self::Store { expr, .. } => std::slice::from_ref(expr.as_ref()),
+            Self::Invoke { args, .. } | Self::NativeLeaf { args, .. } => args,
+            Self::Exec { backend, .. } if backend.owns_quoted_syntax() => &[],
+            Self::Exec { body, .. } => body,
+        }
+    }
 }
 
 pub(crate) fn is_code_splice(node: &OIr) -> bool {
@@ -302,31 +319,9 @@ fn flatten_nodes_for_plan(nodes: &[OIr]) -> Vec<&OIr> {
 
 fn flatten_node_for_plan<'a>(node: &'a OIr, out: &mut Vec<&'a OIr>) {
     out.push(node);
-    match node {
-        OIr::Text(_) | OIr::Load(_) => {}
-        OIr::Store { expr, .. } => flatten_node_for_plan(expr, out),
-        OIr::Invoke { args, .. } | OIr::NativeLeaf { args, .. } => {
-            for arg in args {
-                flatten_node_for_plan(arg, out);
-            }
-        }
-        OIr::Exec { body, .. } if is_quote_exec(node) => {
-            let _ = body;
-        }
-        OIr::Exec { body, .. } => {
-            for child in body {
-                flatten_node_for_plan(child, out);
-            }
-        }
+    for child in node.plan_children() {
+        flatten_node_for_plan(child, out);
     }
-}
-
-fn is_quote_exec(node: &OIr) -> bool {
-    matches!(
-        node,
-        OIr::Exec { backend, .. }
-            if backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote"
-    )
 }
 
 /// ONode → OIr lowering. Purely structural; never fails.
@@ -1093,59 +1088,24 @@ impl PlanBuilder {
                     self.add_edge(*source, id, PlanEdgeKind::Data);
                 }
             }
-            OIr::Store { name, expr } => {
+            OIr::Store { expr, .. } => {
                 if let OIr::Exec { backend, body, .. } = expr.as_ref() {
-                    if backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote"
-                    {
+                    if backend.owns_quoted_syntax() {
                         let mut refs = QuoteReferences::default();
                         collect_exec_references(body, &mut refs.tokens, &mut refs.o_scope);
                         self.quote_references.insert(id, refs);
                     }
                 }
-                scope_stack.push(std::collections::HashMap::new());
-                self.add_node(expr, scope_stack, Some(id), None);
-                scope_stack.pop();
-                scope_stack
-                    .last_mut()
-                    .expect("scope stack always has a root scope")
-                    .insert(name.clone(), id);
             }
-            OIr::Invoke { fn_name, args, .. } => {
-                // scope() reads every currently visible lexical binding even
-                // though it has no syntactic arguments. Record those implicit
-                // reads as data dependencies so the plan describes the same
-                // semantics the evaluator executes. Inner bindings shadow
-                // outer bindings with the same name.
+            OIr::Invoke { fn_name, .. } => {
+                // scope() implicitly reads the innermost visible binding of every name.
                 if fn_name == "scope" {
-                    let mut seen = std::collections::HashSet::new();
-                    let mut sources = Vec::new();
-                    for lexical_scope in scope_stack.iter().rev() {
-                        for (name, source) in lexical_scope {
-                            if seen.insert(name.clone()) {
-                                sources.push(*source);
-                            }
-                        }
-                    }
-                    sources.sort_by_key(|source| source.0);
-                    for source in sources {
+                    for source in visible_scope_sources(scope_stack) {
                         self.add_edge(source, id, PlanEdgeKind::Data);
                     }
                 }
-                scope_stack.push(std::collections::HashMap::new());
-                let mut prev = None;
-                for arg in args {
-                    prev = Some(self.add_node(arg, scope_stack, Some(id), prev));
-                }
-                scope_stack.pop();
             }
-            OIr::NativeLeaf { args, .. } => {
-                scope_stack.push(std::collections::HashMap::new());
-                let mut prev = None;
-                for arg in args {
-                    prev = Some(self.add_node(arg, scope_stack, Some(id), prev));
-                }
-                scope_stack.pop();
-            }
+            OIr::NativeLeaf { .. } => {}
             OIr::Exec {
                 attr,
                 backend,
@@ -1179,16 +1139,24 @@ impl PlanBuilder {
                         self.add_edge(*source, id, PlanEdgeKind::Data);
                     }
                 }
-                if backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote" {
-                    return id;
-                }
-                scope_stack.push(std::collections::HashMap::new());
-                let mut prev = None;
-                for child in body {
-                    prev = Some(self.add_node(child, scope_stack, Some(id), prev));
-                }
-                scope_stack.pop();
             }
+        }
+
+        let children = node.plan_children();
+        if !children.is_empty() {
+            scope_stack.push(HashMap::new());
+            let mut previous = None;
+            for child in children {
+                previous = Some(self.add_node(child, scope_stack, Some(id), previous));
+            }
+            scope_stack.pop();
+        }
+        if let OIr::Store { name, .. } = node {
+            // The new binding becomes visible after its initializer has been planned.
+            scope_stack
+                .last_mut()
+                .expect("scope stack always has a root scope")
+                .insert(name.clone(), id);
         }
 
         id
@@ -1252,7 +1220,8 @@ impl PlanBuilder {
                 },
             },
             OIr::NativeLeaf { args, .. } => PlanNodeKind::NativeI64 {
-                descriptor: native_leaf_source_descriptor(node).map(str::to_owned),
+                descriptor: native_leaf_source_descriptor(node)
+                    .map(|source| source.text.to_owned()),
                 argument_count: args.len().saturating_sub(1),
             },
             OIr::Exec {
@@ -1403,7 +1372,7 @@ fn collect_exec_references(
                 dynamic |= collect_exec_references(args, tokens, o_scope);
             }
             OIr::Exec { backend, body, .. } => {
-                if backend.canonical == "quote" {
+                if backend.owns_quoted_syntax() {
                     dynamic = true;
                 }
                 dynamic |= collect_exec_references(body, tokens, o_scope);
@@ -2261,7 +2230,7 @@ mod tests {
         let program = make(typed("text", vec![ONode::RawText("abc".into())]));
         let node = &program.nodes[0];
         assert!(is_native_leaf_call(node));
-        assert_eq!(native_leaf_source_descriptor(node), Some("abc"));
+        assert_eq!(native_leaf_source_descriptor(node).unwrap().text, "abc");
         assert_eq!(
             program.plan().nodes[0].kind.describe(),
             "native-i64/0 descriptor=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
@@ -2274,7 +2243,7 @@ mod tests {
         ] {
             let invalid = make(descriptor);
             assert!(is_native_leaf_call(&invalid.nodes[0]));
-            assert_eq!(native_leaf_source_descriptor(&invalid.nodes[0]), None);
+            assert!(native_leaf_source_descriptor(&invalid.nodes[0]).is_none());
             assert!(matches!(
                 invalid.plan().nodes[0].kind,
                 PlanNodeKind::NativeI64 {
@@ -2289,14 +2258,14 @@ mod tests {
                 *attr = Some("cache".into());
             }
         }
-        assert_eq!(native_leaf_source_descriptor(&attributed), None);
+        assert!(native_leaf_source_descriptor(&attributed).is_none());
         let forged_invoke = OIr::Invoke {
             fn_name: NATIVE_LEAF_BUILTIN.into(),
             mode: InvokeMode::Eager,
             args: vec![],
         };
         assert!(!is_native_leaf_call(&forged_invoke));
-        assert_eq!(native_leaf_source_descriptor(&forged_invoke), None);
+        assert!(native_leaf_source_descriptor(&forged_invoke).is_none());
     }
 
     #[test]
@@ -2341,6 +2310,46 @@ mod tests {
             .edges
             .iter()
             .all(|edge| edge.kind != PlanEdgeKind::Structural));
+    }
+
+    #[test]
+    fn executable_preorder_binds_source_spans_and_plan_ids_across_node_forms() {
+        let source = concat!(
+            "let x = quote^(text^($hidden)_text)_quote\n",
+            "ocore_i64(text^(descriptor)_text, now($x))"
+        );
+        let tags = BackendRegistry::global().registered_backend_tags();
+        let document = Parser::new(source, &tags).parse_with_origins().unwrap();
+        let program = OIrProgram::lower(document.nodes());
+        let plan = program.plan();
+        let flat = program.flatten_for_plan();
+
+        // A nested argument after the quoted region must retain its own source
+        // and lexical binding even when the call lowers into a NativeLeaf.
+        assert_eq!(plan.roots, [PlanNodeId(0), PlanNodeId(2), PlanNodeId(3)]);
+        assert_eq!(flat.len(), 8);
+        assert_eq!(document.plan_origins().len(), flat.len());
+        assert_eq!(plan.nodes.len(), flat.len());
+        for (planned, ir) in plan.nodes.iter().zip(&flat) {
+            let origin = document.origin_for_plan_node(planned.id).unwrap();
+            assert_eq!(
+                reconstruct_source(std::slice::from_ref(*ir)),
+                &source[origin.byte_range()]
+            );
+        }
+        assert!(matches!(
+            plan.nodes[3].kind,
+            PlanNodeKind::NativeI64 {
+                argument_count: 1,
+                ..
+            }
+        ));
+        assert!(matches!(&plan.nodes[7].kind, PlanNodeKind::Load { name } if name == "x"));
+        assert!(plan.edges.contains(&PlanEdge {
+            from: PlanNodeId(0),
+            to: PlanNodeId(7),
+            kind: PlanEdgeKind::Data,
+        }));
     }
 
     #[test]

@@ -291,7 +291,7 @@ fn validate_exec_metadata(
         );
     }
 
-    if backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote" {
+    if backend.owns_quoted_syntax() {
         if attr.is_some() {
             bail!("attributes are not valid on the structural `quote` backend");
         }

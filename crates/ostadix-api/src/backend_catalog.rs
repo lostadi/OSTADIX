@@ -314,6 +314,14 @@ pub struct BackendInterface {
     /// additional rights declared by a source block.
     pub required_authorities: Vec<BackendAuthority>,
 }
+
+impl BackendInterface {
+    /// A quoted body is syntax captured as a value, so its children have no plan IDs.
+    pub(crate) fn owns_quoted_syntax(&self) -> bool {
+        self.execution == ExecutionMode::InlineAst && self.canonical == "quote"
+    }
+}
+
 /// How an OValue is rendered into a backend's splice buffer. The actual
 /// renderer functions live in `eval_core.rs` (they need OValue); the registry
 /// only records which strategy a backend uses, so dispatch stays centralized
@@ -926,8 +934,9 @@ impl SyntaxDialect for std::collections::HashSet<String> {
     }
 
     fn owns_quoted_syntax(&self, canonical_name: &str) -> bool {
-        let backend = BackendRegistry::global().interface_for(canonical_name);
-        backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote"
+        BackendRegistry::global()
+            .interface_for(canonical_name)
+            .owns_quoted_syntax()
     }
 }
 

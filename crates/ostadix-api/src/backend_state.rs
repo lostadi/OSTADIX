@@ -375,13 +375,25 @@ pub struct BackendRestoreReceiptV1 {
 
 impl BackendRestoreReceiptV1 {
     pub fn restored(backend: impl Into<String>, checkpoint: &BackendCheckpointV1) -> Result<Self> {
+        let backend = backend.into();
+        if backend != checkpoint.backend {
+            bail!("restore receipt backend disagrees with the checkpoint");
+        }
         Ok(Self {
             schema: BACKEND_RESTORE_RECEIPT_SCHEMA_V1.to_string(),
             protocol: BACKEND_STATE_PROTOCOL_V1.to_string(),
-            backend: backend.into(),
+            backend,
             checkpoint_sha256: checkpoint.checkpoint_sha256()?,
             restored: true,
         })
+    }
+
+    pub fn validate_for(&self, checkpoint: &BackendCheckpointV1) -> Result<()> {
+        let expected = Self::restored(&checkpoint.backend, checkpoint)?;
+        if self != &expected {
+            bail!("backend returned an invalid restore receipt");
+        }
+        Ok(())
     }
 }
 

@@ -2,7 +2,7 @@
 //! The tiny primitive evaluator below is an oracle, NOT a shipped runtime for
 //! unchanged machine/LLVM IR. No authentic GNU-source or executable-ABI claim.
 use super::super::native_machine_ir::{
-    CfiPolicy, MachineInstruction, MachineOperation, MachineProfile, StateFeature,
+    ByteOrder, CfiPolicy, MachineAbi, MachineInstruction, MachineOperation, MachineProfile, StateFeature,
 };
 use super::super::native_machine_lift::LiftIds;
 use super::*;

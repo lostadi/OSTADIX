@@ -37,15 +37,6 @@ pub struct StructuralReport {
     pub isa_equivalence_qualified: bool,
     pub ordinary_native_admission: bool,
 }
-fn architecture(target: Target) -> Architecture {
-    // Exhaustive over the actual Source C Target enum: a new backend must make
-    // an explicit source change here, not acquire this contract accidentally.
-    match target {
-        Target::X86_64UnknownNone => Architecture::X86_64,
-        Target::Aarch64UnknownNone => Architecture::Aarch64,
-        Target::Riscv64UnknownNone => Architecture::Rv64,
-    }
-}
 fn identity(value: &ArtifactIdentity) -> Result<()> {
     require(value.bytes > 0 && value.sha256.len() == 64 && value.sha256.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)), "artifact identity requires nonempty extent and lowercase SHA256")
 }
@@ -62,13 +53,10 @@ fn source(value: &SourceWitness) -> Result<()> {
 }
 fn profile(value: &MachineProfile, target: Target) -> Result<()> {
     require(!matches!(value.architecture, Architecture::I686 | Architecture::Armv7), "i686/ARMv7 machine-state foundations are not implemented")?;
-    require(value.architecture == architecture(target), "machine profile differs from selected canonical target")?;
-    let abi = matches!((value.architecture, value.abi),
-        (Architecture::X86_64, MachineAbi::SysvAmd64) | (Architecture::Aarch64, MachineAbi::Aapcs64) |
-        (Architecture::Rv64, MachineAbi::RiscvLp64 | MachineAbi::RiscvLp64d));
-    require(abi && value.address_bits == 64 && value.byte_order == ByteOrder::Little, "unsupported machine ABI/address layout")?;
-    let remainder = if value.architecture == Architecture::X86_64 { 8 } else { 0 };
-    require(value.entry_stack_alignment == 16 && value.entry_stack_remainder == remainder, "entry stack ABI alignment/remainder differs")?;
+    let architecture = Architecture::for_target(target);
+    require(value.architecture == architecture, "machine profile differs from selected canonical target")?;
+    require(value.matches_layout(architecture), "unsupported machine ABI/address layout")?;
+    require(value.matches_entry_stack(), "entry stack ABI alignment/remainder differs")?;
     require(value.features == vec![StateFeature::UserRegisterBits], "required platform/security/floating state feature is not implemented")
 }
 /// Structural branch-class/profile agreement only; not source or native proof.

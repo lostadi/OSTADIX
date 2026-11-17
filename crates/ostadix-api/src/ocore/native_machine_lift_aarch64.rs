@@ -4,7 +4,7 @@
 //! is inferred. Authored source only, not original GNU/runtime qualification.
 use super::native_machine_asm_reader as syntax;
 use super::native_machine_ir::{
-    BinaryKind, CompareKind, PhysicalRegister, RegisterView, ReturnMechanism, Scalar, WriteMode,
+    Architecture, BinaryKind, CompareKind, PhysicalRegister, RegisterView, ReturnMechanism, Scalar, WriteMode,
 };
 use super::native_machine_lift::{
     integer_expression, BlockLifter, ExtensionKind, LiftError, LiftFlow,
@@ -503,6 +503,9 @@ pub(super) fn lower_aarch64(
     b: &mut BlockLifter,
 ) -> R<LiftFlow> {
     use syntax::Aarch64Opcode::*;
+    if !b.profile().matches_layout(Architecture::Aarch64) {
+        return Err(b.fail("AArch64 lifting requires a little-endian AAPCS64 profile"));
+    }
     let m = spelling.trim().to_ascii_lowercase();
     match operation {
         Nop if m == "nop" && operands.is_empty() => {

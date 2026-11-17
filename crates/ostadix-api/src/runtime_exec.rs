@@ -385,11 +385,18 @@ impl ExecutableLeaseSet {
     pub(crate) fn native_leaf(
         &self,
         descriptor_sha256: &str,
+        parameter_count: usize,
     ) -> Result<Arc<crate::native_leaf::PreparedLeaf>> {
         let leaf = self
             .native_leases
             .get(descriptor_sha256)
             .context("native leaf has no admitted sealed executable lease")?;
+        if leaf.manifest.descriptor_sha256 != descriptor_sha256 {
+            bail!("native leaf lease does not match its admitted plan");
+        }
+        if leaf.manifest.parameter_count != parameter_count {
+            bail!("native leaf manifest signature differs from source plan");
+        }
         if !self
             .manifest
             .native_leaves
@@ -414,10 +421,7 @@ impl ExecutableLeaseSet {
                     .context("native leaf plan lacks a static descriptor")?;
                 crate::native_leaf::validate_descriptor(descriptor, *argument_count)?;
                 let key = crate::native_leaf::digest(descriptor.as_bytes());
-                let leaf = self.native_leaf(&key)?;
-                if leaf.manifest.parameter_count != *argument_count {
-                    bail!("native leaf manifest signature differs from source plan");
-                }
+                self.native_leaf(&key, *argument_count)?;
                 expected.insert(key);
             }
         }

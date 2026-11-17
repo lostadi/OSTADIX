@@ -703,14 +703,16 @@ impl PreparedTask for NativeI64Task {
     }
 }
 pub(crate) fn prepare_native(
-    leaf: Arc<crate::native_leaf::PreparedLeaf>,
+    leases: &crate::runtime_exec::ExecutableLeaseSet,
     frame: &GraphEvalFrame,
     plan: &ExecutionPlan,
     id: PlanNodeId,
     oir: &OIr,
 ) -> Result<Box<dyn PreparedTask>> {
-    let expected = crate::ir::native_leaf_source_descriptor(oir)
-        .ok_or_else(|| anyhow::anyhow!("native scalar source descriptor is not static"))?;
+    let source = crate::dispatch_model::native_adapter_source(plan, id, oir).ok_or_else(|| {
+        anyhow::anyhow!("native scalar source descriptor or arity differs from plan")
+    })?;
+    let leaf = leases.native_leaf(source.sha256, source.parameter_count)?;
     let children = frame
         .plan_index
         .child_schedule(id)
@@ -719,15 +721,9 @@ pub(crate) fn prepare_native(
         .split_first()
         .ok_or_else(|| anyhow::anyhow!("native scalar descriptor input is absent"))?;
     match frame.value(*descriptor)? {
-        OValue::Text { v } if v.utf8 == expected => {}
+        OValue::Text { v } if v.utf8 == source.text => {}
         _ => bail!("materialized native descriptor differs from its admitted source"),
     }
-    if !adapter_matches(DispatchAdapterV1::NativeI64V1, plan, id, oir)
-        || leaf.manifest.descriptor_sha256 != crate::native_leaf::digest(expected.as_bytes())
-    {
-        bail!("native leaf lease does not match its admitted plan");
-    }
-    leaf.verify()?;
     let arguments = arguments
         .iter()
         .map(|child| frame.value(*child).cloned())
