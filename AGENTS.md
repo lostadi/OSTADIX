@@ -16,13 +16,12 @@ branches of `lostadi/OSTADIX` and `lostadi/ostadix-BM`, so agents on other machi
 can build on it. A local integration branch is an intermediate checkpoint.
 Fetch the latest masters, coordinate ownership with active project agents,
 integrate their newer work, run the affected checks and independent review,
-then publish using Lee's identity under the existing author policy. Preserve
-both histories and use fast-forward updates; never overwrite another agent's
-new commits or private working files. Publish validated milestones without
+then publish validated work. Preserve both histories and use fast-forward
+updates; never overwrite another agent's new commits or private working files.
+Publish validated milestones without
 waiting for the entire native-system objective to be complete.
 
-Lee's Git publication identity is a maintainer identity, not a claim of sole
-manual implementation. Accurately disclose agent/tool assistance, review and
+Accurately record contributor credit, agent/tool assistance, review and
 execution evidence under `docs/AI_ASSISTED_DEVELOPMENT.md`. Factual provenance
 trailers are allowed; do not strip assistance records to satisfy an author
 check. Do not invent human review, source ownership, sign-offs or test results.

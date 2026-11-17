@@ -1,0 +1,54 @@
+{
+  "schema": "ostadix.fde-relocation-format-review/v1",
+  "baseCommit": "a4b899f23b3a1e8015a0f2b33f4babc9c7f75037",
+  "rustfmtVersion": "rustfmt 1.9.0-stable (8bab26f4f6 2026-07-14)",
+  "method": "Format each exact published original Rust file with the same rustfmt edition2021 and default configuration, skipping child traversal; compare complete output bytes with current working file. Scratch formatting never changes repository source.",
+  "files": [
+    {
+      "path": "src/bin/olangc/native_runtime/cie_raw_decoder.rs",
+      "originalSha256": "7fbba175af336ddcbe058d092c4e52a34008e55b04e8de1f321359bc28dff082",
+      "formattedOriginalSha256": "93585aba7979bbd01adf5655046c4daa532154bb3f751000f61702257f6225b9",
+      "currentSha256": "93585aba7979bbd01adf5655046c4daa532154bb3f751000f61702257f6225b9",
+      "formatterExitCode": 0,
+      "exactCanonicalFormattingMatch": true,
+      "stderr": ""
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs",
+      "originalSha256": "dc0527aaac7de8db33d7deb041f77189b4365f42daa8b5fbd61bb0ea7c77aa5f",
+      "formattedOriginalSha256": "a15b0c559709f8332ffefe02ac8c2feb0e378b8bac580d6f044896b5f0c3ffc2",
+      "currentSha256": "a15b0c559709f8332ffefe02ac8c2feb0e378b8bac580d6f044896b5f0c3ffc2",
+      "formatterExitCode": 0,
+      "exactCanonicalFormattingMatch": true,
+      "stderr": ""
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/cie_source_adapter.rs",
+      "originalSha256": "354b706f41e40721b82fb6eb8627cc80bea6ed95d882ef4c0f10ea021d33b3da",
+      "formattedOriginalSha256": "b2f00093a6bb94fd450cd5f92ca1deabf6dc3fce65459436959421afb7acc2af",
+      "currentSha256": "b2f00093a6bb94fd450cd5f92ca1deabf6dc3fce65459436959421afb7acc2af",
+      "formatterExitCode": 0,
+      "exactCanonicalFormattingMatch": true,
+      "stderr": ""
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs",
+      "originalSha256": "29decccd10cbe65d3f7f3b42353459ab38df3b26f217e2c9e6f0bd4c1d77d336",
+      "formattedOriginalSha256": "27ce3950a9073af1322073cca64a57a455659ff869ccf3b050e7051377bf8cbf",
+      "currentSha256": "27ce3950a9073af1322073cca64a57a455659ff869ccf3b050e7051377bf8cbf",
+      "formatterExitCode": 0,
+      "exactCanonicalFormattingMatch": true,
+      "stderr": ""
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/exception_inventory.rs",
+      "originalSha256": "609e4a58f274b0571da4d423b7d3868dc17f07068db2b9f06262f20b05658b25",
+      "formattedOriginalSha256": "1dcb2e667babfc57853037ec17c6667988e783cdbed6fc1932be86d968946c0a",
+      "currentSha256": "1dcb2e667babfc57853037ec17c6667988e783cdbed6fc1932be86d968946c0a",
+      "formatterExitCode": 0,
+      "exactCanonicalFormattingMatch": true,
+      "stderr": ""
+    }
+  ],
+  "allCanonicalFormattingOnly": true
+}

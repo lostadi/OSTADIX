@@ -1,0 +1,109 @@
+{
+  "schema": "ostadix.fde-cie-relocation-validation/v1",
+  "base_commit": "a686530c64f9abb2c262c7aca5a6c2b29b95ac27",
+  "upstream_pr": 117,
+  "finding_confirmed": true,
+  "baseline": {
+    "relocation": "ELF64 ET_REL x86-64 RELA PC32 at FDE+4",
+    "strict_gate_accepted_unresolved_association": true,
+    "scope": "Direct production-source harness with exact production ELF reader helpers; not a full baseline compiler build."
+  },
+  "source_sha256": {
+    "src/bin/olangc/native_runtime/cie_raw_decoder.rs": "93585aba7979bbd01adf5655046c4daa532154bb3f751000f61702257f6225b9",
+    "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs": "87606b13960af6c15d242a432fb22dacc192be0d2c3e36f69c50dd2df175dc25",
+    "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs": "e167649055f11ca1f4f2405e2e85c06c3dd90c6dcc6f500dc5bc27d773a8f0ff",
+    "crates/ostadix-api/src/ocore/native_core.rs": "813876c53cf7fa65fba1c406cfcdb801c3aa62eab1af88f99f5551452cbc3785",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit.rs": "d572108ae589235b383f1de9229c4e6239421a6ec7b8528bd95def38820ba766",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact.rs": "98771f62ed8c1958643bbc38ca7185d10211c124fb6f62d565fc931149a73779",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact_tests.rs": "7d84ee25e4551967026942958fcc4326ff172f938a1f869a2612d6a61e91dbde",
+    "crates/ostadix-api/src/api/aot_source_native_registry_tests.rs": "4457bf9b743021207bdb14edfb25a1925f43a928c5b43911153761266bf0536b",
+    "ci/architecture-roots.toml": "cad184f6de918b950619f2ed60d2dd8363922ed8968020e4b51555e504cc39ae",
+    "tests/test_architecture_boundaries.py": "e10b0cf5e26b868e7a34f76f94d34a0a56e0f4c0aaaf82143cf0191b37cbe45f",
+    "src/bin/olangc/native_runtime/cie_source_adapter.rs": "b2f00093a6bb94fd450cd5f92ca1deabf6dc3fce65459436959421afb7acc2af",
+    "src/bin/olangc/native_runtime/exception_inventory.rs": "c41ffcd07cd24c2e8f9d63edd36fb9fb9a42cc8c0b919a0efe495864b9b5871a",
+    "crates/ostadix-api/src/ocore/native_machine_verify_tests.rs": "0993a4e38d063112d00aeba8801acfccb034356566491ae47892c3bd698ef894"
+  },
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "test_environment": {
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked --bin olangc cie_",
+      "passed": 30,
+      "failed": 0,
+      "log": "decoder-adapter-tests.log"
+    },
+    {
+      "command": "cargo test --locked -p ostadix-api --lib native_machine_",
+      "passed": 249,
+      "failed": 0,
+      "log": "native-machine-tests.log"
+    },
+    {
+      "command": "cargo test --locked -p ostadix-api --lib aot_source",
+      "passed": 7,
+      "failed": 0,
+      "log": "aot-source-tests.log"
+    },
+    {
+      "command": "python3 -m unittest -q tests.test_architecture_boundaries",
+      "passed": 147,
+      "failed": 0,
+      "log": "architecture-tests.log"
+    },
+    {
+      "command": "python3 -m unittest -q tests.test_governance_surfaces tests.test_commit_authors",
+      "passed": 45,
+      "failed": 0
+    },
+    {
+      "command": "python3 scripts/check_architecture_boundaries.py",
+      "passed": true,
+      "production_files": 228,
+      "roots": 55,
+      "cross_root_edges": 266
+    },
+    {
+      "command": "python3 scripts/contract_surfaces.py validate",
+      "passed": true
+    },
+    {
+      "command": "python3 scripts/local_ci_posture.py --profile baseline --format text",
+      "passed": true
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "passed": true
+    },
+    {
+      "command": "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+      "passed": true,
+      "log": "clippy.log"
+    },
+    {
+      "command": "RUSTDOCFLAGS=\"-D warnings\" cargo doc --locked --workspace --all-features --no-deps",
+      "passed": true,
+      "log": "rustdoc.log"
+    }
+  ],
+  "independent_review": "Separate Codex agent reproduced the original acceptance, reviewed the guard and all PR117 production paths, then validated the canonical module geometry. No human review claimed.",
+  "scope": [
+    "ELF fixtures cover e_machine 62,183,243, REL and RELA, known and unknown widths, header bytes, straddles and exclusive boundaries.",
+    "Raw bytes and relocation evidence remain; unresolved FDE geometry clears its CIE association.",
+    "Valid initial-PC relocations beginning at FDE+8 still reach the source adapter.",
+    "The original artifact API is preserved by a public reexport; the architecture checker is unchanged."
+  ],
+  "not_established": [
+    "Original-producer admission or complete runtime/compiler lowering.",
+    "Native unwind execution or cross-ISA machine-code/runtime equivalence.",
+    "Human sign-off."
+  ],
+  "integration_quality": [
+    "Applied canonical rustfmt to the five CLI source files introduced by PR117.",
+    "Narrow dead-code annotations explicitly identify the staged decoder/adapter and unused inspection entrypoint as not object admission.",
+    "Fixed equivalent assignment and padding-loop lint style; actual compiler decoder/adapter tests were rerun afterward."
+  ]
+}

@@ -979,7 +979,7 @@ fn cfi_source_program_serializes_signed_offsets_and_symbolic_initial_rules() {
     #[test]
     fn decoded_signed_byte_offsets_are_not_multiplied_by_data_alignment_again() {
         let t=Target::Riscv64UnknownNone;let (body,inventory)=with_saved_and_restore(t);let mut initial=initial_cie_fixture(t);
-        initial.data_alignment=-8;initial.cfa.as_mut().unwrap().offset=i64::MIN;initial.registers[0].rule=CfiRegisterRule::CfaOffset {offset:i64::MIN};
+        initial.data_alignment = -8;initial.cfa.as_mut().unwrap().offset=i64::MIN;initial.registers[0].rule=CfiRegisterRule::CfaOffset {offset:i64::MIN};
         let out=verify_cfi_source_program_with_initial_cie(&body,&inventory,t,&initial).unwrap();
         assert_eq!(out.program.rows[0].cfa,CfiCfaRule::RegisterOffset {register:initial.cfa.as_ref().unwrap().register,offset:i64::MIN});
         assert_eq!(out.program.rows.iter().find(|row|row.source_item==7).unwrap().register_rules[0].rule,CfiRegisterRule::CfaOffset {offset:i64::MIN});
