@@ -36,3 +36,11 @@ new native-system qualification. Fresh document checks and PDF build identities
 are retained in [the revision record](../evidence/whitepaper_revision_20261117.json).
 Agent review is source/editorial review, not a human sign-off or a rerun of the
 complete hosted, compiler, runtime and hardware acceptance matrices.
+
+## Setup with existing system packages, 17 November 2026
+
+The `--no-system-packages` installer option was implemented with OpenAI Codex
+and reviewed by a separate Codex agent. It skips OS package installation while
+retaining capability checks and the selected builds. Validation covered 43
+setup tests and 16 native-install tests (one platform skip); this is installer
+validation, not qualification of every runtime or target.

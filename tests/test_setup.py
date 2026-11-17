@@ -381,6 +381,21 @@ class SetupScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2, self.combined_output(result))
         self.assertIn("Unknown option: --not-a-real-option", result.stderr)
 
+    def test_existing_system_packages_allow_builds_without_package_manager(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = self.run_setup(
+                "--dry-run", "--no-system-packages", "--with-ubuntu-vm", "--no-env", home=Path(temp_dir)
+            )
+        output = self.combined_output(result)
+        self.assertEqual(result.returncode, 0, output)
+        planned_commands = "\n".join(line for line in output.splitlines() if line.startswith("[DRY]"))
+        self.assertNotIn("apt-get", planned_commands)
+        self.assertNotIn("snap install", planned_commands)
+        self.assertIn("capability checks remain enabled", output)
+        self.assertIn("--package o-lang", output)
+        self.assertIn("Building ostadix-mcp", output)
+        self.assertIn("Building C17 edition", output)
+
     def test_platform_override_is_rejected_without_dry_run(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = self.run_setup("--deps-only", home=Path(temp_dir))
