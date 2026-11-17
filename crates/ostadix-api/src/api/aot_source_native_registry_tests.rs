@@ -274,6 +274,16 @@ fn check_configured_artifact_siblings(
     let sources: BTreeMap<_, _> = rows.iter().copied().collect();
     for (path, module, expected) in [
         (
+            "native_machine_asm_reader_inventory.rs",
+            "inventory",
+            include_str!("../ocore/native_machine_asm_reader_inventory.rs"),
+        ),
+        (
+            "native_machine_asm_reader_inventory_tests.rs",
+            "tests",
+            include_str!("../ocore/native_machine_asm_reader_inventory_tests.rs"),
+        ),
+        (
             "native_machine_asm_unit.rs",
             "asm_unit",
             include_str!("../ocore/native_machine_asm_unit.rs"),
@@ -300,6 +310,16 @@ fn check_configured_artifact_siblings(
         }
     }
     for (owner, declaration, child) in [
+        (
+            "native_machine_asm_reader.rs",
+            "#[path = \"native_machine_asm_reader_inventory.rs\"]\npub mod inventory;",
+            "native_machine_asm_reader_inventory.rs",
+        ),
+        (
+            "native_machine_asm_reader_inventory.rs",
+            "#[cfg(test)]\n#[path = \"native_machine_asm_reader_inventory_tests.rs\"]\nmod tests;",
+            "native_machine_asm_reader_inventory_tests.rs",
+        ),
         (
             "native_machine_asm_unit.rs",
             "pub use super::native_machine_asm_unit_artifact as artifact;",
@@ -333,6 +353,18 @@ fn removing_each_configured_artifact_sibling_reaches_its_missing_path() {
         Ok(())
     );
     for (path, module, owner, declaration) in [
+        (
+            "native_machine_asm_reader_inventory.rs",
+            "inventory",
+            "native_machine_asm_reader.rs",
+            "#[path = \"native_machine_asm_reader_inventory.rs\"]\npub mod inventory;",
+        ),
+        (
+            "native_machine_asm_reader_inventory_tests.rs",
+            "tests",
+            "native_machine_asm_reader_inventory.rs",
+            "#[cfg(test)]\n#[path = \"native_machine_asm_reader_inventory_tests.rs\"]\nmod tests;",
+        ),
         (
             "native_machine_asm_unit_artifact.rs",
             "native_machine_asm_unit_artifact",
