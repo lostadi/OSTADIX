@@ -74,6 +74,14 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         include_str!("../ocore/native_machine_asm_unit_tests.rs"),
     ),
     (
+        "native_machine_asm_unit_artifact.rs",
+        include_str!("../ocore/native_machine_asm_unit_artifact.rs"),
+    ),
+    (
+        "native_machine_asm_unit_artifact_tests.rs",
+        include_str!("../ocore/native_machine_asm_unit_artifact_tests.rs"),
+    ),
+    (
         "native_machine_source_driver.rs",
         include_str!("../ocore/driver/configured_assembly.rs"),
     ),
