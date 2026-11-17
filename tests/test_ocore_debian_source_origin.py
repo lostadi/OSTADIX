@@ -10,7 +10,7 @@ from unittest import mock
 HISTORICAL_WORKER_SHA = '758bec4a31a3384113d31f4517d2a9ef16ddbf6a1824dc071aace756433c7c36'  # Original Debian25 provenance; never a current-worker fallback.
 # Historical provenance only; never a current-loader fallback.
 PAX_PREDECESSOR_WORKER_SHA = "26788e75cfd6906193a759ecf1e207df7369b04adeeb1afe8931e754d514f540"
-WORKER_SHA = '9d39df4e18aae07ee7a869b6c8c1539c6a47bf8e72c3fe6201d8e1f0ad94d20b'
+WORKER_SHA = '3d43ce7507a49cf093bcc1e1a88d84e764a31ff6521660a8533e8f01aad9095a'
 # Parse the frozen legacy source with the selected Python so optional AST
 # dump-field formatting differences across recipient Python versions are harmless.
 GIT_VERIFY_SOURCE = r'''def verify_source(recipe: dict, source: Path) -> dict:

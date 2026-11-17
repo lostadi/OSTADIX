@@ -13,7 +13,7 @@
   "intended_execution_profile": "ostadix-kernel-platform-adaptation-required",
   "source_inventory_helper": {
     "path": "build_inventory.py",
-    "sha256": "1d7e611c7f416a526acc5ba1d4d290434185822c6f5ab8cd0143f397deb5aca7"
+    "sha256": "66aa0554fcb6ad2672fa81c1895d3cc08a17496208c12f5a4ac68880963ac2e5"
   },
   "env": {
     "CFLAGS": "",
@@ -36,7 +36,7 @@
         "--isa",
         "riscv64",
         "--expected-helper-sha256",
-        "1d7e611c7f416a526acc5ba1d4d290434185822c6f5ab8cd0143f397deb5aca7"
+        "66aa0554fcb6ad2672fa81c1895d3cc08a17496208c12f5a4ac68880963ac2e5"
       ]
     },
     {
@@ -54,7 +54,7 @@
         "--isa",
         "riscv64",
         "--expected-helper-sha256",
-        "1d7e611c7f416a526acc5ba1d4d290434185822c6f5ab8cd0143f397deb5aca7"
+        "66aa0554fcb6ad2672fa81c1895d3cc08a17496208c12f5a4ac68880963ac2e5"
       ]
     },
     {
@@ -72,7 +72,7 @@
         "--isa",
         "riscv64",
         "--expected-helper-sha256",
-        "1d7e611c7f416a526acc5ba1d4d290434185822c6f5ab8cd0143f397deb5aca7",
+        "66aa0554fcb6ad2672fa81c1895d3cc08a17496208c12f5a4ac68880963ac2e5",
         "--output",
         "{build}/unit-inventory.json"
       ]
@@ -101,7 +101,7 @@
         "--isa",
         "riscv64",
         "--expected-helper-sha256",
-        "1d7e611c7f416a526acc5ba1d4d290434185822c6f5ab8cd0143f397deb5aca7",
+        "66aa0554fcb6ad2672fa81c1895d3cc08a17496208c12f5a4ac68880963ac2e5",
         "--post",
         "--output",
         "{build}/post-build-inventory.json"
@@ -122,7 +122,7 @@
         "--isa",
         "riscv64",
         "--expected-helper-sha256",
-        "1d7e611c7f416a526acc5ba1d4d290434185822c6f5ab8cd0143f397deb5aca7",
+        "66aa0554fcb6ad2672fa81c1895d3cc08a17496208c12f5a4ac68880963ac2e5",
         "--post",
         "--output",
         "{build}/unit-inventory.json"

@@ -2569,6 +2569,131 @@ def _assembly_capture_copy(context, source, name, role):
             "retained": {key: saved[key] for key in ("path", "identity", "bytes", "sha256")}}
 
 
+
+def _assembly_capture_object_options(args):
+    """Classify only a declared driver-option grammar, never raw membership.
+
+    Shared paired options consume their next token even when that operand
+    resembles -c/-S/-emit-llvm/-o. Unknown option forms refuse this evidence
+    profile; they do not prevent the original command or source retention.
+    """
+    modes, outputs = set(), []
+    no_operand = {
+        "-pipe", "-pthread", "-nostdinc", "-nostdinc++", "-nostdlib",
+        "-nostartfiles", "-nodefaultlibs", "-shared", "-static", "-pie", "-no-pie",
+        "-fPIC", "-fpic", "-fPIE", "-fpie", "-fno-pic", "-fno-PIC",
+        "-fno-pie", "-fno-PIE", "-ffreestanding", "-fno-stack-protector",
+        "-fstack-protector", "-fstack-protector-strong", "-fno-builtin", "-fno-common",
+        "-fexceptions", "-fno-exceptions", "-funwind-tables", "-fno-unwind-tables",
+        "-fasynchronous-unwind-tables", "-fno-asynchronous-unwind-tables",
+        "-fomit-frame-pointer", "-fno-omit-frame-pointer", "-fno-ident",
+        "-frounding-math", "-fno-math-errno", "-m32", "-m64", "-mrelax",
+        "-mno-relax", "-msave-restore", "-mno-save-restore", "-msoft-float", "-mhard-float",
+        "-Wall", "-Wextra", "-Werror", "-Wno-error", "-Wno-unused-command-line-argument",
+        "-Werror=unused-command-line-argument", "-Wno-error=unused-command-line-argument",
+        "-Wa,--noexecstack", "-Wa,--fatal-warnings", "-save-temps",
+        "-g", "-ggdb", "-gline-tables-only", "-gmlt", "-O", "-Os", "-Oz", "-Og", "-Ofast",
+        *["-O" + str(value) for value in range(4)],
+        *["-g" + str(value) for value in range(4)],
+        *["-ggdb" + str(value) for value in range(4)],
+        *["-gdwarf-" + str(value) for value in range(2, 6)]}
+    joined_value_options = {"-march", "-mabi", "-mcpu", "-mtune", "-save-temps"}
+    index = 0
+    while index < len(args):
+        value = args[index]
+        if value == "--":
+            break
+        if value in PAIR_OPTIONS:
+            if index + 1 >= len(args):
+                raise CaptureError("missing operand in original-object option grammar: " + value)
+            if value == "-o":
+                outputs.append((index, args[index + 1]))
+            index += 2
+            continue
+        if value in {"-c", "-S", "-emit-llvm"}:
+            modes.add(value)
+        elif value in no_operand:
+            pass
+        elif (any(value.startswith(prefix) and len(value) > len(prefix) for prefix in ("-I", "-D", "-U"))
+              or ("=" in value and value.split("=", 1)[0] in (PAIR_OPTIONS | joined_value_options) - {"-o"})):
+            pass
+        elif value.startswith("-"):
+            raise CaptureError("unsupported or ambiguous original-object option form: " + value)
+        index += 1
+    return modes, outputs
+
+
+
+def _assembly_capture_objects_before(context, args, inputs, cwd):
+    """Select original compile outputs before execution, without resolving links.
+
+    This is a retained-byte evidence contract, not an assembler invocation or
+    object/target importer. A stale output cannot become fresh merely because
+    its bytes change. Unsupported naming remains an explicit capture gap.
+    """
+    record = context["record"]
+    selection = record["original_object_selection"]
+    selection["argv_grammar"] = "paired-options-and-explicit-no-operand-flags-v1"
+    try:
+        modes, output_options = _assembly_capture_object_options(args)
+    except CaptureError as error:
+        selection["profile"] = "unsupported-original-object-option-grammar"
+        _assembly_capture_problem(context, "OBJECT_OUTPUT_SELECTION_UNSUPPORTED", error)
+        return
+    if "-c" not in modes or "-S" in modes or "-emit-llvm" in modes:
+        selection.update(profile="not-an-original-object-compile", required=False)
+        return
+    selection["required"] = True
+    sources = [Path(value) for value in inputs]
+    assembly = [value for value in sources if value.suffix in ASM_SUFFIXES]
+    candidates = []
+    if output_options:
+        index, explicit_path = output_options[0]
+        if (len(output_options) != 1 or explicit_path == "-" or len(sources) != 1):
+            _assembly_capture_problem(context, "OBJECT_OUTPUT_SELECTION_UNSUPPORTED",
+                                      "explicit original object requires one separate non-stdout -o and one source")
+            return
+        selection["profile"] = "separate-explicit-output-v1"
+        candidates = [(assembly[0], Path(explicit_path), index)]
+    else:
+        selection["profile"] = "per-source-default-object-v1"
+        # Include all input basenames in the collision check, including any
+        # C-family source in this same original invocation.
+        names = [source.stem + ".o" for source in sources]
+        if len(set(names)) != len(names):
+            _assembly_capture_problem(context, "OBJECT_OUTPUT_SELECTION_COLLISION",
+                                      "multiple original sources select the same default object")
+            return
+        candidates = [(source, Path(source.stem + ".o"), None) for source in assembly]
+    for source, path, argv_index in candidates:
+        source = Path(os.path.abspath(Path(cwd) / source))
+        path = Path(os.path.abspath(Path(cwd) / path))
+        row = {"selector": {"schema": "ocore-original-assembly-object-selector-v1",
+                            "original_event_id": record["original_event_id"],
+                            "source_path": str(source), "output_path": str(path),
+                            "naming_profile": selection["profile"],
+                            "explicit_output_argv_index": argv_index},
+               "path": str(path), "before_identity": None, "eligible": False,
+               "retained": None, "fresh_named_file_after_original_action": False,
+               "format_validated": False, "target_abi_profile_admitted": False,
+               "producer_source_consumption_proven": False, "producer_attribution_proven": False}
+        record["original_object_outputs"].append(row)
+        if os.path.realpath(path) != os.path.abspath(path):
+            _assembly_capture_problem(context, "OBJECT_OUTPUT_PATH_SYMLINK", path)
+            continue
+        if any(os.path.abspath(Path(cwd) / value) == str(path) for value in sources):
+            _assembly_capture_problem(context, "OBJECT_OUTPUT_ALIASES_SOURCE", path)
+            continue
+        try:
+            row["before_identity"] = _assembly_capture_identity(os.lstat(path))
+            _assembly_capture_problem(context, "PREEXISTING_OBJECT_NOT_ATTRIBUTED", path)
+        except FileNotFoundError:
+            row["eligible"] = True
+    selection["selected_count"] = len(record["original_object_outputs"])
+    selection["selection_complete"] = (selection["selected_count"] == len(assembly)
+                                        and all(row["eligible"] for row in record["original_object_outputs"]))
+
+
 def _assembly_capture_only_before(session_path, event, args, inputs, cwd, kind, header_compile):
     try:
         if kind != "clang" or not _assembly_capture_required(kind, args, inputs, header_compile):
@@ -2592,6 +2717,9 @@ def _assembly_capture_only_before(session_path, event, args, inputs, cwd, kind, 
         "target_abi_profile_admitted": False, "capture_complete": False,
         "import_available": False, "admission": False, "qualification": False,
         "sources": [], "problems": [], "custody": [], "closes": [],
+        "original_object_selection": {"required": False, "profile": None,
+                                      "selected_count": 0, "selection_complete": False},
+        "original_object_outputs": [], "original_object_bytes_retained": False,
         "original_action_terminal_known": False, "native_exit_code": None}
     event.setdefault("assembly_capture_only", []).append(record)
     context = {"record": record, "files": [], "directories": [],
@@ -2633,6 +2761,7 @@ def _assembly_capture_only_before(session_path, event, args, inputs, cwd, kind, 
                             and args[positions[0] + 1] != "-"
                             and not any(value.startswith(("-dumpbase", "-dumpdir", "-auxbase"))
                                         for value in args))
+        _assembly_capture_objects_before(context, args, inputs, cwd)
         output = None
         if naming_supported:
             output = Path(args[positions[0] + 1])
@@ -2704,6 +2833,21 @@ def _assembly_capture_only_after(context, native_status, event):
             except Exception as error:
                 stage["fresh_named_file_after_original_action"] = False
                 _assembly_capture_problem(context, "STAGE_RETENTION_FAILED", error)
+        for index, row in enumerate(record["original_object_outputs"]):
+            if type(native_status) is not int or native_status != 0:
+                row["consumption_skipped_reason"] = (
+                    "ORIGINAL_ACTION_TERMINAL_UNKNOWN" if type(native_status) is not int
+                    else "ORIGINAL_ACTION_FAILED")
+                continue
+            if not row["eligible"]:
+                continue
+            try:
+                row["retained"] = _assembly_capture_copy(
+                    context, Path(row["path"]), f"object-{index:06d}.native",
+                    "original-object-output-candidate")
+                row["fresh_named_file_after_original_action"] = True
+            except Exception as error:
+                _assembly_capture_problem(context, "OBJECT_RETENTION_FAILED", error)
     except Exception as error:
         _assembly_capture_problem(context, "POST_ACTION_RETENTION_FAILED", error)
     finally:
@@ -2747,6 +2891,12 @@ def _assembly_capture_only_after(context, native_status, event):
                 _assembly_capture_problem(context, "CLOSE_FAILED", error)
             record["closes"].append(close)
         record["retention_passed"] = not record["problems"]
+        record["original_object_bytes_retained"] = (
+            record["retention_passed"] and type(native_status) is int and native_status == 0
+            and record["original_object_selection"]["required"]
+            and record["original_object_selection"]["selection_complete"]
+            and bool(record["original_object_outputs"])
+            and all(row["retained"] is not None for row in record["original_object_outputs"]))
         record["capture_complete"], record["admission"] = False, False
         for problem in record["problems"]:
             event["capture_errors"].append("assembly capture-only " + problem["code"] + ": " + problem["detail"])
