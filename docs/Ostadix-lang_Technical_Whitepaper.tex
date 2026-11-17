@@ -52,7 +52,7 @@
   pdfcreator={},
   pdfproducer={},
   pdftitle={Ostadix-lang: Structural Polyglot Orchestration, Native O-core, and World Execution},
-  pdfsubject={Creator-authored technical whitepaper for Ostadix-lang 0.4.0 Unreleased at f472c983},
+  pdfsubject={Technical whitepaper for Ostadix-lang 0.4.0 Unreleased, source review at c0b02c32},
   pdfkeywords={Ostadix-lang, O-lang, O-core, OIR, HGraph, polyglot programming}
 }
 
@@ -78,7 +78,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\color{OSlate}Ostadix-lang Technical Whitepaper}
-\fancyhead[R]{\small\color{OSlate}\texttt{0.4.0 Unreleased / f472c983}}
+\fancyhead[R]{\small\color{OSlate}\texttt{0.4.0 Unreleased / c0b02c32}}
 \fancyfoot[L]{\small\color{OSlate}Lee Daghlar Ostadi}
 \fancyfoot[R]{\small\color{OSlate}\thepage\ /\ \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -126,7 +126,7 @@
 \newcommand{\oir}{{\mdseries\textsc{OIR}}}
 \newcommand{\hgraph}{{\mdseries\textsc{HGraph}}}
 \newcommand{\ocore}{{\mdseries\textsc{O-core}}}
-\newcommand{\src}[1]{\textcolor{OSlate}{\scriptsize[\href{https://github.com/lostadi/OSTADIX/blob/f472c983deb83d260d4d52e77aa4dd8740710dc5/#1}{\nolinkurl{#1}}]}\allowbreak}
+\newcommand{\src}[1]{\textcolor{OSlate}{\scriptsize[\href{https://github.com/lostadi/OSTADIX/blob/c0b02c326b2329a95ba52447c7180bc93957cd57/#1}{\nolinkurl{#1}}]}\allowbreak}
 \newcommand{\status}[2]{\textbf{\textcolor{#1}{#2}}}
 \newcommand{\breakcode}[1]{\texttt{\seqsplit{#1}}}
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
@@ -174,7 +174,7 @@
   \centering
   \textbf{Implementation snapshot}\\
   \href{https://github.com/lostadi/OSTADIX}{github.com/lostadi/OSTADIX}\\
-  Source snapshot \texttt{f472c983deb83d260d4d52e77aa4dd8740710dc5}\\
+  Source snapshot \texttt{c0b02c326b2329a95ba52447c7180bc93957cd57}\\
   Package coordinate \texttt{0.4.0 Unreleased}
   \end{tcolorbox}
 
@@ -183,7 +183,7 @@
   \vspace{0.08in}
   {\normalsize ORCID 0009-0001-6380-9558\par}
   \vspace{0.12in}
-  {\normalsize 28 October 2026\par}
+  {\normalsize 17 November 2026\par}
 \end{center}
 \end{titlepage}
 
@@ -193,50 +193,49 @@
 
 \section*{Abstract}
 
-I designed \product{} around a direct premise: the evaluator selected for an
-expression belongs in the expression's syntax. A hosted source file expresses
-that choice through balanced, language-indexed forms such as
-\texttt{python\string^(...\string)\_python}. Nested evaluators are structural
-nodes, and their results cross language boundaries through \ovalue{}, a typed
-interchange algebra. The
-authoritative Rust runtime parses these forms into a small structural AST,
-lowers every normal execution through \oir{}, freezes backend metadata in a
-validated execution plan, projects the plan into a state-complete \hgraph{},
-and coordinates backend actors through canonical CBOR. Persistent language
-environments, quotation and meta-evaluation, deferred requests, coordination
-groups, project lifting, and hosted live-system supervision make evaluator
-composition a complete execution model.
+I designed \product{} around a question about representation: what must remain
+visible when a computation crosses a language boundary? In hosted O, the
+evaluator selected for a region is part of its syntax. Balanced forms such as
+\texttt{python\string^(...\string)\_python} place independently implemented
+languages within one recursive source structure. Their results enter
+\ovalue{}, a tagged interchange algebra, before a receiving adapter projects
+them into its own language. An evaluator tag identifies the selected runtime;
+it does not statically determine the result type of the foreign program.
 
-I developed \ocore{} as the native systems lineage of this architecture. It is
-a statically typed freestanding language whose AST--typed HIR--SSA MIR
-pipeline emits owned x86-64, AArch64 and RV64GC assembly and ELF objects.
-A separate native-module pipeline imports original frontend LLVM, verifies
-the entire normalized module, and emits supported integer/pointer, variadic,
-atomic, TLS and exception profiles. Compiler-owned source recipes and reusable
-module sets advance the original-engine lowering objective; complete linked
-runtime/compiler closure remains a separate, unfinished qualification.
-Its compiler, runtime modules, capability system, and World-admission machinery
-carry the architecture from evaluator orchestration into native systems
-construction. Together, the hosted and native lineages span polyglot
-expression composition, state-complete execution graphs, freestanding
-compilation, and authority-bearing World execution.
+The ordinary Rust execution path lowers the parsed structure through \oir{}
+and a validated ExecutionPlan into \hgraph{}. The graph represents value
+dependencies, completion, actor state and modeled world effects. Graph V2
+identifies the solved graph; Evidence V6 records its declared execution
+context; Admission V6 recomputes the checks consumed by the coordinator.
+Persistent environments, quotation, deferred requests, route-preserving
+project bundles and remote execution extend this representation beyond a
+single evaluator invocation. These mechanisms make particular boundaries
+inspectable. They do not by themselves establish lossless conversion through
+every adapter, a closed ambient environment or replayability of arbitrary
+hosted effects.
 
-In this paper I present the language system at a pinned implementation
-snapshot, with separately dated execution evidence. I explain the hosted grammar and semantics; the
-\ovalue{} interchange algebra;
-backend actors and authority; \oir{}, execution plans, and \hgraph{}
-scheduling; project lifting and route execution; the \ocore{} compiler; and
-the Live-World and KernelWorld layers. I then trace the current execution
-constitution through Graph V2, Evidence V6, Admission V6, Why V2, the unified
-lowercase \texttt{o} front door, reciprocal node pairing, Project Mesh,
-Information, Registry V1, and the canonical World formats. This revision
-also covers operation realization planning, physical execution profiles,
-native object ownership, supported actor migration, the shared
-source-first human/MCP interface, and the fixes that restore hosted edition
-agreement and the 26-gate portable native aggregate. The central result
-is a coherent architecture in which evaluator identity is syntax,
-cross-language state is typed, effects become explicit graph resources, and
-execution authority is admitted through exact verified records.
+I developed \ocore{} as the native systems part of this work. Its statically
+typed \texttt{.oc} source lowers through HIR and SSA MIR to owned native
+backends. A separate import path brings original frontend output into a
+verified native-module representation. Source recipes, producer contracts and
+module inventories make the original implementation and its dependencies
+part of the compilation problem. The objective is for \texttt{olangc} to own
+that process through complete artifact construction and qualified execution,
+preserving the original engine rather than replacing it with a small
+reimplementation. Source capture, supported module import and individual
+component execution remain distinct from complete runtime or compiler
+lowering and functional agreement across ISAs.
+
+This paper explains the language, interchange boundary, execution graph,
+project model and native compilation paths at a pinned source snapshot. It
+also describes the interfaces that connect execution to placement,
+Information, Registry and World records, and the hosted and native lifecycle
+profiles used to investigate system construction. I distinguish the contracts
+visible in source from dated execution results and requirements that remain
+open. The contribution is a way to keep evaluator choice, representation,
+dependencies and authority explicit as computation moves between languages,
+processes and execution substrates, with the scope of each check retained
+alongside its result.
 
 \vspace{0.15in}
 \textbf{Keywords:} structural polyglot programming, evaluator composition,
@@ -246,36 +245,42 @@ freestanding systems language, multikernel research.
 \clearpage
 \section*{Core contributions}
 
-\begin{claimbox}[One language system, eight implemented contributions]
+The mechanisms below address different parts of the representation problem.
+Their implementation contracts and qualification boundaries are developed in
+the corresponding sections; a contribution listed here is not a claim that
+every backend or target satisfies every contract.
+
+\begin{claimbox}[Representation and execution mechanisms]
 \begin{enumerate}
-  \item \textbf{Evaluator-indexed syntax.} Every typed expression names its
-        evaluator in the grammar, so heterogeneous source remains structurally
-        visible in one recursive program tree.
-  \item \textbf{Typed inter-language state.} \ovalue{} gives every evaluator a
-        common algebra for values, requests, groups, scopes, and capabilities;
-        separate judgments describe modeled value crossings and renderer
-        projections.
-  \item \textbf{State-complete graph execution.} \oir{} and \hgraph{}
-        represent values, completion, actor mutation, and world effects as
-        explicit dependencies.
-  \item \textbf{Whole-project composition.} Deterministic project bundles
-        preserve files, routes, guards, artifacts, and alternative policies in
-        a reversible language artifact.
-  \item \textbf{Native compilation and World construction.} Three owned
-        ISA backends, verified original-module import and compiler-owned
-        source recipes connect implementation code to native artifacts.
-        The kernel and KernelWorld extend explicit structure into
-        freestanding services and authority-bearing admission.
-  \item \textbf{Execution constituted by evidence.} Graph V2 binds the solved
-        typed program; Evidence V6 binds its executable environment; Admission
-        V6 rederives and materializes the authority consumed by execution.
-  \item \textbf{Capacity-first project placement.} Project Mesh moves a
-        source-closed project branch with its prerequisites, ranks paired nodes
-        by usable capacity, and records generation-fenced attempts.
-  \item \textbf{Information and World records.} The Information Kernel,
-        eight bounded bridge projections, provenance admission, Registry V1,
-        and the OWIDENT, OWPROTO, OWVALUE, and OWRECEIPT codecs give execution
-        state canonical identities that can cross implementation boundaries.
+  \item \textbf{Evaluator-indexed syntax.} Registered evaluator tags expose
+        nested language regions to the parser while leaving ordinary
+        computation to the selected language engines.
+  \item \textbf{Typed interchange values.} \ovalue{} represents values,
+        requests, groups, scopes and operational records. Separate crossing
+        and renderer judgments describe which distinctions an adapter can
+        preserve, project or refuse.
+  \item \textbf{Explicit execution dependencies.} \oir{}, ExecutionPlan and
+        \hgraph{} represent values, completion, actor mutation and modeled
+        world effects as dependencies used by scheduling and settlement.
+  \item \textbf{Project composition.} Deterministic bundles preserve declared
+        files, routes, guards, artifacts and alternative policies in a
+        reversible source artifact.
+  \item \textbf{Native compilation.} Owned O-core backends, original-module
+        import and compiler-owned source recipes expose the path from source
+        implementation to native artifacts. Kernel and KernelWorld profiles
+        investigate how those artifacts participate in services and admission.
+  \item \textbf{Evidence-bound ordinary execution.} Graph V2 identifies the
+        solved program; Evidence V6 binds declared executable inputs and
+        assessments; Admission V6 reconstructs the checked object accepted by
+        the ordinary coordinator.
+  \item \textbf{Capacity-based project placement.} Project Mesh ranks paired
+        nodes for a source-closed branch, applies its compatibility and policy
+        constraints, and records generation-bound attempts and returned
+        artifacts.
+  \item \textbf{Canonical information and authority records.} Information
+        projections, provenance admission, Registry V1 and the World codecs
+        provide explicit identities and checked record formats. The policy
+        consuming a record determines its present authority.
 \end{enumerate}
 \end{claimbox}
 
@@ -358,22 +363,30 @@ evidence without changing terminology.
 
 \subsection{Source coordinate}
 
-This revision describes the published canonical OSTADIX commit
-\texttt{f472c983}, package coordinate \texttt{0.4.0 Unreleased}, reviewed
-on 28 October 2026. The title page and all source links pin the full commit.
-The development repository's \texttt{62c7f8f0} and the canonical publication
-have distinct histories and the identical tracked tree
-\breakcode{627afd3ee65c829a3edce3e3bd6ba86db4660017}. Both histories retain
-prior remote work. Runtime source identity, installed binary identity, and
-execution evidence retain their own coordinates.
+I reviewed this edition against commit \texttt{c0b02c32}, published in both
+the canonical OSTADIX repository and \texttt{ostadix-BM} on 17 November 2026.
+Its source tree is
+\breakcode{de5511a4d9e9dd962be38f8361206f2a8e483158}; the package coordinate
+remains \texttt{0.4.0 Unreleased}. The title page and source citations pin
+the full commit. The paper revision and its generated PDF have their own
+identities, recorded with the accompanying build evidence.
 
-The revision covers three native compiler targets, original LLVM-module
-import, compiler-owned source recipes, reusable native module sets, variadic
-ABI support, explicit atomic/TLS/exception profiles, hosted reference-edition
-repairs, MCP HTTP and OAuth interfaces, and native image repair. It reports
-the retained 28 October host and portable-native validation separately from
-older compiler-development evidence. Section~\ref{sec:validation} gives the
-source and execution scope of each result.
+This account follows the implementation rather than treating a design
+objective as a completed result. In particular, I distinguish the hosted
+evaluator from the original language engines it invokes, and the native
+O-core source compiler from the separate original-module import route.
+The revision adds receiver-specific literal insertion, prepared-fragment
+observations, the restricted fidelity-domain proof, newer native import
+profiles, configured assembly and diagnostic capture, and current source
+inventories. Section~\ref{sec:validation} keeps fresh document checks separate
+from dated host, compiler, QEMU and device observations.
+
+The project uses AI-assisted implementation, investigation and editorial
+work. The publication identity identifies maintainer responsibility; it
+does not assert sole manual implementation or human review of every result.
+I state review and execution evidence for the artifact to which each applies.
+\src{docs/AI_ASSISTED_DEVELOPMENT.md}
+\src{docs/COMMIT_AUTHORS.md}
 
 The Rust workspace has three members. The root \texttt{o-lang} package owns
 compatibility reexports and command-line programs. The independently
@@ -655,12 +668,23 @@ fidelity assessment, executable operations, effects, sequence dependencies,
 roots, and bindings. A semantic change in any of those fields produces a
 different graph coordinate.
 
-Evidence V6 binds that graph to the complete lowering and execution context.
+Evidence V6 binds that graph to the lowering and runtime facts represented
+by the current evidence schema.
 The bundle carries the OIR and plan identities, Graph V2 identity, analyzer
 coordinate, backend Catalog V6 projection, backend artifact bindings, runtime
 binding, environment binding, ambient World binding, and one typed assessment
 for every executable operation. The analyzer first validates the caller graph
 against a freshly solved Graph V2 before emitting the bundle.
+
+That binding has a defined boundary. Public evaluator entrypoints can accept
+already-lowered OIR, so its digest is not automatically a commitment to the
+original source bytes. The source/intent front door separately checks the
+digests it receives before fresh admission. Caller-supplied initial scope is
+not universally frozen as one immutable input package, and hashing a direct
+launcher does not attest every descendant process, dynamic library or ambient
+effect. These are separate obligations for a replayable execution profile.
+\src{docs/CURRENT_CONTRACT.md}
+\src{crates/ostadix-api/src/eval.rs}
 
 Admission V6 is the executable authority compiler. It checks the schema and
 analyzer coordinate, re-solves and re-analyzes the graph, matches the complete
@@ -704,8 +728,10 @@ position. It is derived from Admission V6 as an inspection operation.
     node[below,font=\tiny] {fresh recomputation} (admit.south west);
 \end{tikzpicture}
 }
-\caption{Current hosted execution is a proof-producing and proof-consuming
-pipeline. Admission reproduces the analyzer result before execution begins.}
+\caption{Ordinary Rust graph execution produces evidence and consumes an
+admitted object. Admission reproduces the represented analyzer result before
+execution begins; project execution and buffered Requests retain their own
+coordinators.}
 \label{fig:v6-pipeline}
 \end{figure}
 
@@ -766,8 +792,8 @@ human/agent workflows. \\
 \texttt{o\_job\_cancel} & Concurrent session jobs, bounded log pages,
 lossless base64 reads, interactive input, and owned-process cleanup. \\
 \texttt{o\_env}, \texttt{o\_runtimes}, \texttt{o\_doctor},
-\texttt{o\_smoke} & Resolved installation, backend requirements,
-diagnostics, and a private fixed Python arithmetic smoke program. \\
+\texttt{o\_smoke} & Process/build/source provenance, backend requirements,
+read-only diagnostics, and separately requested fixed Python execution checks. \\
 \texttt{o\_analyze\_intent}, \texttt{o\_execute\_intent} & One-use binding
 of exact source and stable intent before fresh runtime admission. \\
 \texttt{o\_olangc}, \texttt{o\_information\_inspect},
@@ -776,6 +802,18 @@ Information inspection, and the named search workflow. \\
 \bottomrule
 \end{longtable}
 \src{mcp/ostadix_lang_mcp_server/src/main.rs}
+
+The diagnostic surface distinguishes running binary identity, build-source
+metadata, and the selected runtime checkout. \texttt{o doctor --json} and MCP
+reports retain exact executable hashes and architectures alongside the
+\texttt{ostadix.runtime-provenance/v1} record. Catalog membership and file
+presence do not establish readiness. MCP environment inspection and default
+\texttt{o\_doctor} are read-only; \texttt{execution\_check=true} explicitly
+requests the fixed bounded Python \texttt{1+1} check. Native \texttt{o doctor}
+retains that smoke with a five-second deadline. Neither diagnostic proves
+closure ownership, all-backend behavior, or native-system qualification.
+\src{docs/RUNTIME_PROVENANCE.md}
+
 
 \texttt{o\_execute} accepts exactly one complete source document or existing
 path. Its \texttt{check} action parses; \texttt{plan} constructs a static
@@ -1331,18 +1369,19 @@ are part of the grammar.
 cli_source   ::= [ shebang newline ] document
 shebang      ::= "#!" raw_line
 document     ::= sequence
-sequence     ::= { comment | raw | var | typed | binding | call }
+sequence     ::= { comment | raw | var | code_hole | typed | binding | call }
 
 typed        ::= raw_tag "^(" body ")_" raw_tag
-raw_tag      ::= ident [ "[" uint "]" ] [ attributes ]
+raw_tag      ::= ident [ "[" ( uint | "*" ) "]" ] [ attributes ]
 attributes   ::= "{" attribute { "," attribute } "}"
 attribute    ::= ident | ident "=" visible_value
 visible_value ::= visible_attr_char { visible_attr_char }
 
 var          ::= "$" ident
+code_hole    ::= "$!" ident
 binding      ::= "let" ident "=" ( typed | call )
 call         ::= ident "(" [ call_arg { "," call_arg } ] ")"
-call_arg     ::= var | call
+call_arg     ::= var | call | typed
 comment      ::= "#" { non_newline_byte } [ newline ]
 
 ident        ::= ( letter | "_" ) { letter | digit | "_" }
@@ -1357,7 +1396,7 @@ structural token recognized in the current context; \texttt{raw\_line} and
 \texttt{non\_newline\_byte} end at LF or CR/LF. At document level and inside
 \texttt{O} or \texttt{quote}, the recognized tokens are comments, bindings,
 calls, variables, and registered typed openers. Inside every other evaluator
-body, only variables and registered typed openers are structural. A backslash
+body, variable holes, explicit code holes, and registered typed openers are structural. A backslash
 escapes an otherwise structural opener, closer, or variable splice. The CLI
 entrypoints strip one leading shebang before invoking the parser.
 
@@ -1368,17 +1407,23 @@ attribute text exactly reproduce the opener. This lexical symmetry makes the
 extent of every evaluator invocation locally decidable, even when foreign
 source contains parentheses of its own. A missing environment is represented
 internally by \texttt{u32::MAX} and selects a fresh ephemeral actor. An
-explicit \texttt{LANG[n]} selects a persistent evaluator actor. Language
+explicit \texttt{LANG[n]} selects a numbered evaluator actor. Whether that
+actor preserves guest globals is an adapter contract; the JavaScript adapter,
+for example, starts a fresh Node process for each step. Language
 aliases canonicalize in the AST, and reconstruction emits the canonical form.
 \src{crates/ostadix-api/src/parser.rs}
 
 \subsubsection{Structural versus opaque contexts}
 
-\texttt{\$name} and registered nested typed blocks are recognized throughout
-foreign bodies. The sequencing forms \texttt{let}, calls, and \texttt{\#}
+\texttt{\$name}, \texttt{\$!name}, and registered nested typed blocks
+are recognized throughout foreign bodies. An ordinary hole is data; an
+immediate \texttt{\$!name} lowers to a visible \texttt{code(\$name)}
+call for deliberate source insertion. The sequencing forms \texttt{let}, calls, and \texttt{\#}
 comments are recognized at document level and inside \texttt{O} and
 \texttt{quote}. Everywhere else, the parser preserves backend source
-verbatim. Registry membership therefore controls which apparent tag forms
+verbatim between those structural tokens. Receiver-specific lexical checks
+then determine whether an ordinary hole is in a supported expression position.
+Registry membership therefore controls which apparent tag forms
 become structural nodes, while ordinary backend syntax retains its native
 meaning. \src{crates/ostadix-api/src/parser.rs}
 
@@ -1386,9 +1431,10 @@ meaning. \src{crates/ostadix-api/src/parser.rs}
 
 O delegates literal construction and ordinary computation to its evaluators.
 A binding right-hand side is a typed block or call, and a call argument is a
-variable load or nested call. Every resulting value therefore has an explicit
-origin in an evaluator or orchestration builtin, which keeps the host grammar
-small while preserving the full expression systems of its member languages.
+variable load, nested call, or typed expression. This keeps the host grammar
+small while leaving ordinary computation to each evaluator. Initial scope
+values can also enter through the runtime API; the grammar alone does not
+commit their complete contents as an immutable input package.
 \src{crates/ostadix-api/src/parser.rs}
 
 \subsection{First example: evaluator-indexed expressions}
@@ -1401,7 +1447,8 @@ __oval_result__ = sum(x*x for x in range(10))
 )_html
 \end{lstlisting}
 
-The inner Python evaluator produces a typed result. Before the outer HTML
+The inner Python evaluator produces an \ovalue{} result. Its tag chooses the
+evaluator; it does not declare a static foreign-language result type. Before the outer HTML
 backend runs, the runtime renders that result according to HTML's splice
 rules. The splice is a first-class child node with its own evaluator identity,
 environment, result type, and data dependency. This is the central syntactic
@@ -1469,11 +1516,65 @@ __oval_result__ = $answer + 1
 
 \texttt{let} lowers to \texttt{Store}; \texttt{\$answer} lowers to
 \texttt{Load}. Plan construction connects the load to the most recent visible
-store with an explicit data edge. Each shim also receives the complete visible
-scope. The first mechanism makes dependencies schedulable; the second lets
-callbacks and backend adapters inspect the same lexical state that the host
-used to construct the invocation.
+store with an explicit data edge. Backend invocation also carries the visible O bindings under the selected
+adapter contract. The first mechanism makes dependencies schedulable; the
+second supports the adapter and callback scope. Neither implies that ordinary
+source holes are raw string substitution.
 \src{crates/ostadix-api/src/ir.rs} \src{crates/ostadix-api/src/eval.rs}
+
+\subsection{Data, presentation, and deliberate source}
+
+I distinguish the value produced by a child from the source fragment accepted
+by its receiver. An ordinary hole must occupy a supported expression position
+in a declared executable profile. The receiver supplies the literal spelling:
+
+\begin{lstlisting}[style=ostyle]
+let name = python^(__oval_result__ = "O'Brien")_python
+sql^(SELECT $name AS who;)_sql
+python^(__oval_result__ = [len($name), $name])_python
+javascript^(console.log($name))_javascript
+\end{lstlisting}
+
+Adding guest-language quotes around these holes is unnecessary and rejected.
+For example, \texttt{SELECT '\$name'} places the hole in an SQL string;
+\texttt{SELECT \$name} lets the SQL renderer form one value expression.
+The declared literal profiles cover Python, SQLite SQL, Bash/shell,
+JavaScript, and the Nix-family tags. Ordinary holes in unprofiled executable
+languages fail closed. This restriction does not remove their adapters:
+programs without O holes retain their native execution path.
+
+Bash also receives O bindings through its variable injection path. Its native
+\texttt{\$\{name\}} parameter expansion remains guest syntax. An unquoted O
+hole can instead supply one complete literal shell word. The lexical checks
+are conservative: unsupported contexts include interpolation, heredocs,
+complex shell substitutions and arrays, and other forms whose boundaries the
+bounded validator cannot establish. Passing that validator is not a proof of
+the complete guest grammar or of the effects of its parent operation.
+\src{SPEC.md}
+\src{docs/SPLICE_MIGRATION.md}
+\src{crates/ostadix-api/src/foreign_splice.rs}
+
+Deliberate source generation has a separate, visible form:
+
+\begin{lstlisting}[style=ostyle]
+let source = text^(__oval_result__ = 40 + 2)_text
+python^($!source)_python
+\end{lstlisting}
+
+The immediate code hole gives the receiver source rather than a data literal.
+It grants no additional authority and makes no confinement claim. Storing
+\texttt{code(\$source)} does not make later ordinary holes raw. After dynamic
+code insertion, a later ordinary hole is rejected when its lexical context
+can no longer be established. Presentation profiles---HTML, text, Markdown,
+and LaTeX---have their own rendering purpose; they do not establish executable
+confinement or HTML sanitization. In particular, a trusted HTML fragment may
+remain active markup. A syntactically confined number can still lose numeric
+precision, and an authored \texttt{eval} can reinterpret inserted data during
+execution. I therefore keep source-context validation, value fidelity, and
+effect authority as separate questions.
+\src{crates/ostadix-api/src/parser.rs}
+\src{crates/ostadix-api/src/eval_core.rs}
+\src{docs/research/fidelity-boundaries.md}
 
 \Needspace{9\baselineskip}
 \subsection{Persistent and ephemeral evaluators}
@@ -1490,6 +1591,11 @@ __oval_result__ = x + 2
 
 Both blocks share the same language, explicit environment ID, and process
 policy, so the process registry reuses one actor and Python state persists.
+The numbered identity alone is not a portable memory checkpoint or a promise
+that every adapter preserves its guest globals. Python and SQLite retain
+selected state; the JavaScript adapter executes fresh Node steps behind its
+proxy identity. The adapter's state declaration and its actual export result
+define the available behavior.
 Bare \texttt{python\string^(...\string)\_python} blocks each receive a fresh
 ephemeral identity and are cleaned up after execution. Different numeric IDs
 isolate interpreter-local state; ambient \texttt{HostWorld} resources remain
@@ -1497,8 +1603,8 @@ shared. \src{crates/ostadix-api/src/process.rs}
 
 \begin{claimbox}[Two explicit state domains]
 Root \texttt{Store} nodes commit to the caller's O scope, and nested stores
-belong to the nested evaluation scope. Persistent evaluator actors retain the
-backend's own process state under their environment identity. This separation
+belong to the nested evaluation scope. Persistent actor identities select the
+backend's declared state behavior. This separation
 gives O lexical state a graph-visible lifetime while allowing a backend such
 as Python to preserve its native runtime state across selected invocations.
 \end{claimbox}
@@ -1557,11 +1663,41 @@ regions preserve backend source. A typed block:
 
 \begin{enumerate}
   \item evaluates structural children and loads visible bindings;
-  \item renders child values using the selected backend's splice renderer;
-  \item resolves an inline evaluator or an external backend actor;
+  \item checks the receiver context and renders ordinary values or deliberate
+        code under the selected profile;
+  \item records supported Rust receiver-fragment preparation, then resolves
+        an inline evaluator or external backend actor;
   \item sends source, environment identity, bindings, and policy;
   \item decodes the backend result into \ovalue{}.
 \end{enumerate}
+
+The Rust trace exposes actual fragment preparation in
+\breakcode{execution\_evidence.trace.source\_renderings}. Each
+\texttt{ostadix.source-render-observation/v1} record names the receiver and
+child plan nodes, renderer, value or explicit-code role, fidelity, and hashes
+of the canonical observed value and rendered fragment. Raw values and source
+are not added. Its phase is \texttt{prepared}, with scope
+\texttt{rendered\_fragment\_not\_guest\_execution}. A completed-body hash
+covers the receiver splice buffer before backend wrappers and framing; it is
+not the identity of the entire generated guest program. Preparation records
+can survive later guest failure. They prove neither dispatch nor completion
+and grant no new authority. Trusted inline presentation-only worker fast paths
+remain outside this observation coverage. These additive fields do not
+relabel Admission V6 or the wire format.
+\src{crates/ostadix-api/src/executor/mod.rs}
+\src{crates/ostadix-api/src/eval_core.rs}
+\src{SPEC.md}
+
+Rust backend steps have a 120-second default deadline.
+\texttt{O\_BACKEND\_STEP\_TIMEOUT\_MS} accepts 1 through 604800000
+milliseconds, or the exact word \texttt{disabled}. The operation and heartbeat
+controls remain separate. Source guards exist in Rust, Python, and C17, but the
+reference editions do not inherit Rust admission, prepared-fragment tracing,
+or its general step-deadline guarantee. Edition agreement requires its own
+source-bound execution evidence.
+\src{crates/ostadix-api/src/step_knobs.rs}
+\src{crates/ostadix-api/src/process.rs}
+\src{docs/CURRENT_CONTRACT.md}
 
 \subsection{Quotation and meta-evaluation}
 
@@ -1573,7 +1709,7 @@ and the two-argument \texttt{O.eval(expr, scope)} form chooses it.
 
 \begin{lstlisting}[style=ostyle]
 python[0]^(
-q = quote^(python^(6 * 7)_python)_quote
+q = quote^(python^(__oval_result__ = 6 * 7)_python)_quote
 __oval_result__ = O.eval(q)
 )_python[0]
 \end{lstlisting}
@@ -1879,23 +2015,47 @@ Capability kinds are \texttt{file}, \texttt{memory\_region}, \texttt{device},
 
 \subsection{Fidelity}
 
-Conversions carry one of four fidelity states:
+I distinguish the ability to encode a value from the distinctions preserved
+by a receiving language. Conversions carry one of four fidelity states:
 \texttt{Lossless}, an accumulated set of structural losses,
-\texttt{NativeCapsule}, or \texttt{Unsupported}. Composition unions structural
-loss sets and selects the absorbing severity classes; its idempotence permits
-the HGraph solver to converge at a fixpoint.
+\texttt{NativeCapsule}, or \texttt{Unsupported}. Sequential structural
+composition unions loss sets. The two sentinels have separate severity rules;
+their precedence is not an information order over arbitrary alternatives.
 \src{crates/ostadix-api/src/value.rs}
 
-\texttt{FidelityAssessmentV2} refines the structural case to an interval of
-definite and possible loss sets, with the checked invariant
-$D \subseteq P$. Its \texttt{from\_concrete} operation is an exact point
-embedding of a V1 judgment; concretization is exposed as a membership test
-rather than an exponential powerset. Sequential composition unions both
-bounds. The structural/lossless path join is the interval hull, while
-\texttt{NativeCapsule} and \texttt{Unsupported} remain absorbing severity
-classes rather than cross-class disjunctions. These implemented laws do not by
-themselves establish a Galois connection.
+\texttt{FidelityAssessmentV2} refines structural judgments to intervals
+$[D,P]$ of definite and possible loss kinds, with $D \subseteq P$ and finite
+bounds. On finite, nonempty families $S$ of finite structural loss sets,
+define
+\[
+  \alpha(S)=[\bigcap S,\bigcup S],\qquad
+  \gamma([D,P])=\{L\mid D\subseteq L\subseteq P\}.
+\]
+The precision order is
+$[D_1,P_1]\sqsubseteq[D_2,P_2]$ exactly when
+$D_2\subseteq D_1$ and $P_1\subseteq P_2$. Substituting these definitions gives
+$\alpha(S)\sqsubseteq a$ if and only if $S\subseteq\gamma(a)$.
+Both endpoints belong to the concretization, so $\alpha(\gamma(a))=a$.
+This is a Galois insertion on the stated structural domain; it is not a
+proof of arbitrary backend semantics or a complete lattice containing
+empty and unrestricted infinite outcome families.
+
+Sequential composition unions both interval bounds and contains the union
+of every pair of represented concrete loss sets. Structural path merge is
+the interval hull $[D_1\cap D_2,P_1\cup P_2]$; it can lose correlations
+between loss kinds. The enum cannot represent a mixed family such as
+\{\texttt{Lossless},\texttt{Unsupported}\}: its severity merge returns
+\texttt{Unsupported}, which omits the lossless alternative. The structural
+proof therefore does not justify every \texttt{any} or \texttt{race} result.
+
+Solver termination is another obligation. A fixed finite vocabulary bounds
+the interval state space, while unbounded fresh backend-specific labels
+would invalidate that argument. The active accumulative update and the
+precision order also differ. The domain note states these restrictions and
+the implementation's generated-set and finite-domain checks.
 \src{crates/ostadix-api/src/value.rs}
+\src{docs/fidelity-domain.md}
+\src{docs/research/fidelity-boundaries.md}
 
 \texttt{RenderFidelity} can be recomputed on demand as a separate description
 of source projection. It combines classifications only while recursively
@@ -1913,6 +2073,20 @@ mode, making profile divergences inspectable while the established admission,
 rendering, and dispatch paths retain their current authority.
 \src{crates/ostadix-api/src/backend_morphism.rs}
 \src{crates/ostadix-api/src/hgraph/solve.rs}
+
+Two retained Python--JavaScript--Python witnesses show why those distinctions
+matter. The first starts with Python float \texttt{1.0}. JavaScript stdout
+returns \texttt{1}, which lifts as an integer and changes downstream Python
+type dispatch while numeric equality survives. The second starts with
+\texttt{9007199254740993}, or $2^{53}+1$; the JavaScript Number crossing
+returns \texttt{9007199254740992} and changes parity. Ordinary scalar CBOR and
+tagged-OValue CBOR controls preserve both original values exactly. The
+observed loss belongs to the adapter path, not to CBOR. These are concrete
+counterexamples rather than a coverage study of all backends. The large
+integer is outside the narrow JavaScript morphism profile even though the
+separate capability solver reports its structural precision loss.
+\src{benchmarks/fidelity/RESULTS.md}
+\src{tests/fidelity_evaluation.rs}
 
 \subsection{Representation-sensitive identity}
 
@@ -1984,7 +2158,7 @@ Compatibility shims can emit legacy \texttt{int}, \texttt{float}, and
 \texttt{str} frames; Rust decoding normalizes them into \texttt{ONumber} and
 \texttt{OText} before the value enters the hosted algebra.
 
-The complete shim-extension vocabulary is:
+The core execution and callback vocabulary is:
 
 \begin{longtable}{P{0.24\textwidth} P{0.68\textwidth}}
 \toprule
@@ -2004,6 +2178,13 @@ Shim to runtime & \texttt{status=eval\_request} with \texttt{src} and optional
 \bottomrule
 \end{longtable}
 \src{crates/ostadix-api/src/value.rs}
+
+The V2 command and response enums also include explicit native operations,
+morphism requests and receipts, state-capability queries, bounded checkpoints
+and restores, shutdown, and optional hello/heartbeat messages. These extensions
+carry their own schemas and state-support contracts; the core table is not
+an inventory of every V2 variant.
+\src{crates/ostadix-api/src/backend_state.rs}
 
 \section{Backends, actors, and authority}
 \label{sec:backends}
@@ -2096,7 +2277,15 @@ Production external evaluation self-spawns the current executable in hidden
 \[
 (\textit{language},\ \textit{environment ID},\ \textit{sandbox policy}).
 \]
-Persistent keys reuse a process; ephemeral keys are removed after evaluation.
+Persistent keys reuse a backend proxy process; ephemeral keys are removed
+after evaluation. Guest state still follows the adapter's implementation.
+Python and SQLite retain their supported state, while JavaScript starts a fresh
+Node process for each step even when the proxy is indexed. A numbered
+JavaScript tag does not preserve Node globals. Bash retains numbered live
+sessions; \texttt{shell} remains fresh. The catalog's state-support class does
+not by itself certify a portable checkpoint of arbitrary interpreter memory.
+\src{docs/CURRENT_CONTRACT.md}
+\src{crates/ostadix-api/src/backend.rs}
 Most backends are Rust adapters that invoke local executables. Python and
 \texttt{nixos\_test} use legacy Python proxy shims. Python retains this path
 for the host callback protocol used by \texttt{O.eval}.
@@ -2178,8 +2367,9 @@ every hosted construct projectable into the same graph ontology.
   \draw[a] (plan) -- (hg);
   \draw[a] (hg) -- (coord);
 \end{tikzpicture}
-\caption{Every ordinary hosted execution is mediated by the same lowering
-seam; serial execution remains a differential oracle.}
+\caption{Ordinary Rust graph execution uses this lowering path. Serial
+execution is a differential oracle; reference editions retain their own
+implementation and admission boundaries.}
 \end{figure}
 
 \subsection{Execution plan}
@@ -3013,10 +3203,10 @@ Python 0.4.0 &
 \texttt{python}, \texttt{markdown}, \texttt{html}, \texttt{latex},
 \texttt{text}, \texttt{O}, \texttt{quote}, \texttt{nix},
 \texttt{nix\_store}, \texttt{nixos\_test}, \texttt{common\_lisp},
-\texttt{javascript}; aliases \texttt{py}, \texttt{md}, \texttt{tex},
-\texttt{plain}, \texttt{o}. &
+\texttt{javascript}, \texttt{sql}, \texttt{bash}, \texttt{shell};
+aliases \texttt{py}, \texttt{md}, \texttt{tex}, \texttt{plain}, \texttt{o}. &
 Recursive evaluation, AST and output projections, a small typed embedding
-API, and stateless Common Lisp/JavaScript shim crossings. \\
+API, and stateless external shim crossings with receiver-specific source guards. \\
 C17 interpreter and AOT &
 One registry shared by the interpreter, meta-evaluator, and generated C:
 22 shipped shim tags, together with \texttt{O}, \texttt{html},
@@ -3032,9 +3222,13 @@ The Python reference evaluator retains its in-process Python environments,
 but environment lifetime is backend-specific. Its added
 \texttt{common\_lisp} and \texttt{javascript} adapters invoke the shipped
 framed-CBOR shims in a fresh process for each block, including blocks with
-numeric environment labels. They supply executable coverage for the nested
-Python--Common Lisp--JavaScript greeting without claiming the Rust runtime's
-native-object ownership or admitted-execution protocols.
+numeric environment labels. Their presence retains those engines without importing Rust's native-object
+ownership or admitted-execution protocols. The revised greeting crosses Python,
+Bash and JavaScript, whose ordinary data holes have declared literal profiles.
+Older Common Lisp greeting and quoted-hole examples remain historical source;
+Common Lisp has no ordinary-hole confinement profile in this registry.
+\src{docs/SPLICE_MIGRATION.md}
+\src{examples/hello.O}
 \src{o_lang/backends/__init__.py}
 \src{o_lang/backends/shim_backend.py}
 \src{tests/test_python_shim_backend.py}
@@ -3212,6 +3406,14 @@ the receipt is designed to preserve.
 \section{O-core: the native language}
 \label{sec:ocore}
 
+I use O-core to carry the same concern with explicit structure from evaluator
+composition into native implementation code. The important distinction is
+between describing a computation and owning the code that executes it.
+Hosted O can coordinate an installed language engine without compiling that
+engine. O-core's compiler and original-source import routes make the engine's
+implementation, ABI and dependencies objects of compilation and verification.
+Those routes have different present limits, which I keep separate below.
+
 \subsection{Language surface}
 
 Every \texttt{.oc} unit begins with a module declaration. The lexer and AST
@@ -3247,9 +3449,10 @@ visibility, \texttt{pub} admits cross-module lookup, the signature fixes every
 machine type, and the explicit return becomes typed SSA before ISA lowering.
 Structures, enums, imports, statics, constants, extern declarations, unsafe
 blocks, volatile and atomic intrinsics, and \texttt{asm!} use the same direct
-item-and-expression grammar across the 149 tracked O-core source files.
-The complete tracked language inventory also contains 86 hosted O files;
-the current parser check accepts all 235 without executing them.
+item-and-expression grammar in the tracked runtime, kernel and example units.
+The language-source manifest distinguishes source inventory from parse checks
+and execution. A file's presence in that inventory is not evidence that its
+program has executed on a particular target.
 \src{docs/OCORE.md}
 
 \subsection{Static semantics}
@@ -3413,9 +3616,11 @@ protector disabled. \src{crates/ostadix-api/src/ocore/mir.rs}
  \foreach \x/\y in {oc/hir,hir/emit,llvm/verify,verify/native,emit/elf,native/elf}
   {\draw[a] (\x) -- (\y);}
 \end{tikzpicture}
-\caption{Two native inputs retain distinct invariants. Source HIR/MIR and
-imported NativeModule have separate verification and ABI boundaries; both
-use O-core-owned instruction emission. OIR remains the orchestration layer.}
+\caption{The source and LLVM-import routes retain distinct invariants.
+Source HIR/MIR and imported NativeModule have separate verification and ABI
+boundaries; both use O-core-owned instruction emission. The configured
+assembly-source route described below is a third, separately bounded input
+contract. OIR remains the orchestration layer.}
 \label{fig:two-native-routes}
 \end{figure}
 
@@ -3487,16 +3692,23 @@ validity, with code-generation coverage and execution checked separately.
 \src{crates/ostadix-api/src/ocore/native_ir.rs}
 \src{crates/ostadix-api/src/ocore/native_verify.rs}
 
-The implemented integer/pointer profile includes widths 1--64, typed
+The current importer and native emitter go beyond the earlier scalar
+integer/pointer boundary. They represent integer widths 1--64 and exactly
+128, supported scalar floating formats, fixed integer vectors, typed
 structure and array values, ordinary memory, static entry allocations,
 switches, parallel phi moves, indirect calls, memory fill/copy/move and
-supported intrinsics. Fixed C and LLVM \texttt{fastcc} calls preserve the
-frontend's aggregate decomposition, argument attributes, register placement,
-stack arguments and result-storage contract. Typed \texttt{sret} retains its
-original pointer parameter and target placement, including AArch64's
-\texttt{x8}. This imported ABI support is broader than the \texttt{.oc}
-aggregate-call surface. It does not reconstruct a source-language ABI merely
-from a structure's byte size.
+supported intrinsics. Each operation and call still needs a supported
+realization; a representable type alone does not authorize every use of it.
+
+Fixed C and LLVM \texttt{fastcc} integer/pointer calls preserve the frontend's
+aggregate decomposition, argument attributes, register placement, stack
+arguments and result-storage contract. Supported scalar floating calls have
+a separate target-aware classifier. Typed \texttt{sret} retains its original
+pointer parameter and target placement, including AArch64's \texttt{x8}.
+This imported ABI support is broader than the \texttt{.oc} aggregate-call
+surface. It does not reconstruct a source-language ABI merely from a
+structure's byte size, or establish a general vector or aggregate
+floating-point calling convention.
 \src{crates/ostadix-api/src/ocore/native_abi.rs}
 \src{crates/ostadix-api/src/ocore/native_codegen.rs}
 \src{docs/OCORE.md}
@@ -3514,14 +3726,82 @@ not retarget an x86 LLVM module to AArch64 or RISC-V.
 \src{docs/OCORE.md}
 \src{crates/ostadix-api/src/ocore/native_verify.rs}
 
+\subsection{Scalar numbers, vectors, and instruction correspondence}
+
+The source defines separate owned emitters for scalar floating computation,
+wide integer computation and fixed integer-vector operations. I distinguish
+these implementation paths from the conformance results of a particular
+compiler build. The current source can state more than the older
+integer-only profile, but source review does not rerun every ABI or numerical
+test that accompanies it.
+
+Scalar floating values retain their significant bits through constants,
+storage, calls and results. The native representation admits IEEE binary32,
+binary64 and binary128, together with target-specific x86 extended80 values;
+it does not first convert every value to the host's \texttt{f64}. Supported
+operations include arithmetic, negation, absolute value, comparisons and
+numeric conversions. The emitter selects actual target instructions for its
+hardware-supported operations and computes exact external helper interfaces
+where the operation requires an implementation dependency. Those helper
+names and ABI types are obligations for closure, not implicit source-built
+providers. Scalar C calls and supported variadic transport preserve separate
+integer and floating register banks, target stack placement and the actual
+source ABI. LLVM \texttt{fastcc} floating transport additionally requires a
+supported per-function CPU/feature witness. None of this broadens the
+\texttt{.oc} source-language floating-call profile by implication.
+\src{crates/ostadix-api/src/ocore/native_float_layout.rs}
+\src{crates/ostadix-api/src/ocore/native_floating_codegen.rs}
+\src{crates/ostadix-api/src/ocore/native_floating_transport.rs}
+\src{crates/ostadix-api/src/ocore/native_floating_helpers.rs}
+\src{crates/ostadix-api/src/ocore/native_abi.rs}
+
+Exactly \texttt{i128} has a two-word owned realization for arithmetic,
+comparisons, shifts, conversions and supported scalar C ABI crossings.
+The implementation retains one source value and its original typed uses;
+the two machine words are an emission representation. This does not turn
+all integer widths above 64 into supported scalar types. Likewise, fixed
+integer vectors retain their original lane count and packed lane bits.
+The current profile admits \texttt{i1}, \texttt{i8}, \texttt{i16},
+\texttt{i32} and \texttt{i64} lanes and scalarizes supported operations at
+compile time. Floating, pointer, nested or scalable vector profiles require
+other realizations. Scalarizing an internal vector value does not establish
+a general vector calling ABI.
+\src{crates/ostadix-api/src/ocore/native_wide_integer_codegen.rs}
+\src{crates/ostadix-api/src/ocore/native_vector_codegen.rs}
+\src{crates/ostadix-api/src/ocore/native_verify.rs}
+
+The corresponding test programs cover original Clang scalar floating units,
+wide-integer caller/provider combinations and a complete authored vector
+source-recipe fixture. Their declared oracles and negative controls are useful
+compiler checks, not proof that a complete original engine or its providers
+have been lowered. The current integer reference interpreter refuses floating
+execution; it is not a replacement execution engine for these emitted
+floating operations.
+\src{tests/test_ocore_native_floating_abi.py}
+\src{tests/test_ocore_native_wide_integer_abi.py}
+\src{tests/test_ocore_native_vector_source_recipe.py}
+\src{crates/ostadix-api/src/ocore/native_interpret.rs}
+
+Native correspondence maps make an imported unit inspectable without
+claiming that a descriptive map grants execution authority.
+\texttt{ocorec --native-map} binds the exact verified module snapshot,
+original frontend-input digest, target, generated assembly and output
+artifact. Each instruction has an assembly-text range, including zero-width
+markers and edge-specific PHI copies. Verification rechecks and re-emits the
+whole module and compares the recorded identities and ranges. These are
+UTF-8 byte offsets in assembly text, not machine PCs, runtime observations
+or proof that the assembler emitted equivalent object code.
+\src{crates/ostadix-api/src/ocore/native_map.rs}
+\src{docs/OCORE.md}
+
 \subsection{C variadics and explicit execution profiles}
 
 Imported C variadic declarations, definitions and direct or indirect calls
 preserve the fixed signature prefix and the actual trailing operand types.
 Call-site attributes are checked independently, including attributes after
-the fixed prefix. The implemented profile uses integer and address-space-zero
-pointer arguments in little-endian ELF LP64; default argument promotions
-remain the original frontend's responsibility. Canonical
+the fixed prefix. The native ABI planner applies the selected scalar integer, pointer and
+floating realization within its supported little-endian ELF LP64 profiles;
+default argument promotions remain the original frontend's responsibility. Canonical
 \texttt{llvm.va\_start}, \texttt{llvm.va\_copy} and \texttt{llvm.va\_end}
 preserve their operands and context. Target prologues save the incoming
 register banks, and the emitted cursor operations preserve register-save
@@ -3542,9 +3822,10 @@ integer wrapper forward an opaque list to a foreign fixed-signature consumer;
 it does not introduce floating-point SSA or an owned floating-point caller.
 Of the 12,480 total comparisons, 9,024 include at least one owned component.
 These are retained Linux development-carrier results, with QEMU for nonhost
-ISAs. General \texttt{byval}, first-class floating-point calls, generic LLVM
-\texttt{va\_arg} and exception execution through owned variadic frames remain
-separate qualifications.
+ISAs. That historical record does not qualify the later scalar floating-call
+implementation, general \texttt{byval}, generic LLVM \texttt{va\_arg}, or
+exception execution through owned variadic frames. Each requires its own
+source and execution evidence.
 \src{evidence/native_variadic_integration_20261020.json}
 
 Other imported operations require named execution profiles. Coherent-RAM
@@ -3566,6 +3847,29 @@ loading or JIT publication.
 \src{tests/test_ocore_native_eh_execution.py}
 \src{tests/test_ocore_native_tls_execution.py}
 \src{docs/OCORE.md}
+
+The strict floating profiles are narrower than ordinary arithmetic.
+\texttt{scalar\_dynamic\_mul\_v1} admits the genuine constrained f32/f64
+multiply with \texttt{round.dynamic} and \texttt{fpexcept.ignore}.
+\breakcode{scalar\_dynamic\_mul\_register\_barrier\_v1} additionally admits the
+specified AArch64 ordered, bit-preserving register barrier. Other constrained
+operations, source modes or assembly shapes require an explicit supported
+contract. The documented original-musl comparisons retain target-local
+results and a failed cross-ISA raw-NaN-bit gate: RISC-V canonicalization is
+not silently normalized into a passing identity claim. These profiles do not
+establish a complete floating environment, kernel floating-state lifecycle
+or complete musl implementation.
+\src{tests/test_ocore_native_constrained_fmul.py}
+\src{tests/test_ocore_native_fp_register_barrier.py}
+\src{docs/OCORE.md}
+
+The compiler also records a bounded nonlocal-control frame witness for
+supported fixed-frame \texttt{returns\_twice} continuations. It records the
+actual ABI plan, saved registers, spill regions and continuation stack
+position, then checks them by canonical re-emission. A frame witness neither
+admits an original save/resume provider nor authorizes jumps across
+Rust/OValue frames, TLS, signals or arbitrary unwind implementations.
+\src{crates/ostadix-api/src/ocore/native_nonlocal.rs}
 
 \subsection{Compiler-owned source recipes and module closure}
 
@@ -3608,6 +3912,46 @@ qualification false. These fields prevent a successful source capture or a
 collection of emitted objects from being mistaken for a linked language engine.
 \src{src/bin/olangc/native_runtime/source_recipe.rs}
 
+\subsection{Configured assembly source and diagnostic capture}
+
+Original implementations contain assembly that an LLVM-only capture cannot
+make disappear. The experimental \texttt{configured-assembly} input route
+therefore consumes original configured text together with an independently
+selected, digest-pinned inventory. The reader retains source spans and
+architecture-specific instruction spelling. Typed lifters distinguish
+x86-64, AArch64 and RV64 register/state semantics; the whole-unit constructor
+retains selected bodies, data, relocations and control-flow obligations.
+The CLI requires one source, \texttt{--assembly-selection}, its exact
+SHA-256, and a new \texttt{--emit machine-unit} output.
+
+I keep construction, emission and admission separate. The constructed
+machine-unit artifact is not a linked executable or a verified
+\texttt{NativeModule}. The current whole-unit static machine emitter has a
+restricted RV64 realization; reader or lifter support for another
+architecture does not establish a complete emitter or upstream assembly
+unit for that architecture. The selected inventories are required floors,
+not proof that their author captured the complete original implementation.
+Automatic original-source production, trusted capture integration, ABI and
+provider closure, final artifacts and semantic execution remain separate
+obligations.
+\src{src/bin/ocorec.rs}
+\src{crates/ostadix-api/src/ocore/driver/configured_assembly.rs}
+\src{crates/ostadix-api/src/ocore/native_machine_asm_reader.rs}
+\src{crates/ostadix-api/src/ocore/native_machine_asm_unit.rs}
+\src{crates/ostadix-api/src/ocore/native_machine_lift_dispatch.rs}
+\src{crates/ostadix-api/src/ocore/native_machine_emit.rs}
+
+The original-build capture worker now preserves assembly-related stage and
+object identities as diagnostic evidence, alongside original producer and
+action order. A failed LLVM import can also retain an original-site metadata
+diagnostic from the direct Python importer worker. Neither channel publishes
+a partial successful native module or grants assembly, source-origin or
+provider authority. Retaining the input that failed is part of explaining
+the remaining work; it is not a successful lowering result.
+\src{scripts/ocore_runtime_capture.py}
+\src{scripts/ocore_llvm_import.py}
+\src{docs/CONFIGURED_ASSEMBLY_SOURCE_UNITS.md}
+
 \subsection{Measured original-source progress}
 
 The following observations are dated retained development evidence. They
@@ -3648,6 +3992,28 @@ provider closure or \texttt{rustc}/Cargo compilation. \\
 \src{evidence/chibicc_variadic_followup_20261020.json}
 \src{tools/ocore-runtime/rust-crates/README.md}
 
+A later component path connects unchanged original source to an actual
+native service. The u9fs recipe selects four original codec sources and a
+separately captured musl memory/string component. Its final seven-object
+closure has no unresolved libc symbols and is checked against independently
+compiled original reference functions. The optional native namespace peer
+uses the original \texttt{convS2M} and \texttt{convM2S} implementations for
+every request and response. This is complete closure for that explicitly
+selected component, not complete u9fs, musl, Linux or Plan 9.
+\src{tools/ocore-runtime/u9fs/README.md}
+\src{tools/ocore-runtime/u9fs/NATIVE_PEER.md}
+
+The checked-in account dates its live-peer observation to 2 November 2026:
+two AArch64 monitor boots under QEMU/TCG completed distinct Linux-to-native
+namespace exchanges, with codec counters sampled from the running monitor
+and shared files retained through save and restart. The underlying live
+receipt is machine-local; this whitepaper review inspected the source
+account rather than rerunning or independently retrieving that receipt.
+Linux remained the guest kernel. The observation therefore does not qualify
+full guest-kernel lowering, native POSIX services, physical hardware or a
+complete interactive \texttt{.O} distribution.
+\src{tools/ocore-runtime/u9fs/NATIVE_PEER.md}
+
 \subsection{Native computation within the ordinary O graph}
 
 The eager \texttt{ocore\_i64} builtin connects a complete verified native module
@@ -3677,7 +4043,12 @@ a complete runtime-bearing OIR artifact.
 
 The larger compiler objective is automatic preservation and lowering of
 existing runtime and compiler implementations, including interpreters, AOT
-compilers and JITs. The intended complete pipeline makes \texttt{olangc} own
+compilers and JITs. The required implementation families include Rust,
+Python, JavaScript, TypeScript, HTML, LaTeX, Java, C, D, Lua, Common Lisp,
+Chez Scheme, Go and OCaml. This is an expansion matrix, not a language
+whitelist or a claim that those complete engines currently pass acceptance.
+The selected original engine matters: a smaller JavaScript engine does not
+qualify Node/V8, and text construction does not qualify a browser or typesetter. The intended complete pipeline makes \texttt{olangc} own
 source/build recipes, frontend invocation, import, verification, ABI adaptation,
 dependency resolution, linking and artifact construction. A resulting binary
 or complete IR artifact must contain the required native implementation,
@@ -3697,17 +4068,34 @@ source recipes, reusable module-sets and scalar graph leaves implement parts
 of this architecture; complete runtime-bearing OIR artifacts and full original
 engine acceptance remain work in progress.
 
-Cross-ISA equivalence is qualified per execution profile, comparing observable
-values, faults and required effects under common inputs. Pure deterministic
+Cross-ISA equivalence is required across every implemented O-core ISA,
+comparing original-reference and pairwise owned executions under matched
+inputs and declared execution profiles. x86-64, AArch64 and RV64GC are the
+mandatory primary targets. i686 and ARMv7 remain required expansion work;
+their entries in the requirements matrix do not establish implemented target
+foundations. The acceptance runner reads the actual compiler target catalog
+and retains missing mechanisms or profiles as non-accepting results.
+\src{tools/ocore-runtime/expansion.requirements.json}
+\src{tools/ocore-runtime/isa.requirements.json}
+\src{tools/ocore-runtime/acceptance/dynamic_isa.py}
+
+Observable values, faults and required effects must agree within the stated
+profile; a successful object build or a few observed schedules cannot prove
+all allowed concurrent traces. Pure deterministic
 profiles require explicit numerical and library behavior; clocks, entropy,
 filesystems and scheduling do not become replayable merely because a runtime
 was compiled. Full runtime acceptance also requires actual O-core-generated
 engine execution with its complete dependency closure and native OSTADIX
 services on each ISA, after the ambient original engine is unavailable.
-Linux carriers, reference provider objects and QEMU development tests retain
-their narrower evidential scope.
+The complete original-runtime runner keeps source capture, independent
+verification, dependency/provider closure, complete artifact construction,
+execution, compiler-output routing and JIT publication as separate gates.
+Missing trusted reconstruction, providers or unsupported required units do
+not become a passing zero-case suite. Linux carriers, reference provider
+objects and QEMU development tests retain their narrower evidential scope.
+\src{tools/ocore-runtime/acceptance/README.md}
+\src{tools/ocore-runtime/acceptance/check_runtime.py}
 \src{docs/OCORE.md}
-
 
 \section{Kernel, capabilities, and native execution}
 \label{sec:kernel}
@@ -3912,7 +4300,7 @@ native quiescence. The host harness does not compute the graph operations.
 \src{ocore/kernel/native-cluster/README.md}
 \src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
 
-The AArch64 profile places an unmodified Linux 6.12.43 kernel behind an O-core
+The earlier AArch64 integration profile places an unmodified Linux 6.12.43 kernel behind an O-core
 EL2 monitor with separate guest stage-two RAM. Linux uses its standard
 virtio-MMIO block driver. During withdrawal the monitor returns a real block
 I/O error, waits for guest consumption and interrupt acknowledgment, then
@@ -3926,6 +4314,41 @@ commit/recovery, physical device isolation/reset, and the integrated physical
 multinode scenario remain outstanding; G4, G7, G8, and G10 remain unqualified.
 \src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
 \src{.github/workflows/ci.yml}
+
+\subsection{The O10 control path and disposable Linux profile}
+
+The newer O10 path gives the monitor a host-private control protocol,
+an epoch/sequence journal and a generation-bound domain lifecycle. M0 checks
+the synchronous host control path. M1 keeps EL2 resident when neither guest
+is runnable. M2 withdraws and replaces Linux while preserving the Plan 9
+provider. Their acceptance receipts record separate Draft 0 results on
+captured AArch64 QEMU/TCG builds from 12--13 November. They are retained
+results, not fresh runs of this paper revision or physical-device
+qualification.
+\src{docs/O10.md}
+\src{evidence/o10-m0-20261112/acceptance-r3d.json}
+\src{evidence/o10-m1-20261113/acceptance-draft0-r7.json}
+\src{evidence/o10-m2-20261113/acceptance-r2.json}
+
+M2 resets Linux private RAM, reloads the pinned boot images and issues fresh
+domain and frontend generations. Its namespace transport waits for a new
+bind. The retained gate checks stale Linux fids, a surviving Plan 9 counter,
+and a controlled APK3 pre-commit interruption. Preservation covers the
+observed fsynced prefix; an incomplete guest operation remains unknown
+rather than being automatically replayed. M1's additional guest-MMIO probe
+remains unqualified. The current M0--M2 profile uses the host runner as
+Governor; a native EL1 Governor is an M5 obligation. Additional domain,
+lease and console milestones retain their own unmet requirements.
+\src{docs/O10.md}
+
+The package profile separately boots original Linux and Alpine userspace
+under the O-core monitor, with a persistent guest disk and a native shared
+namespace. The optional original-source path links seven O-core-generated
+u9fs/musl codec objects into the native peer. Guest programs retain their
+Linux ABI. That bounded source-native component and an interactive package
+environment do not establish complete guest-kernel, POSIX or package-tool
+lowering.
+\src{docs/OKERNEL_PACKAGE_BOOT.md}
 
 \clearpage
 \section{Live-World and KernelWorld}
@@ -4605,23 +5028,37 @@ executed Project HGraph path.
 \section{Reproducibility and dated evidence}
 \label{sec:validation}
 
-The implementation described by this edition is the source tree
-\breakcode{627afd3ee65c829a3edce3e3bd6ba86db4660017}, published as
-\texttt{f472c983} in the canonical OSTADIX repository and as
-\texttt{62c7f8f0} in the development repository. These commits have distinct
-history but identical tracked trees. A tree identity relates the published
-sources; it does not retroactively change the source coordinate of a test.
-The portable native run below records \texttt{d9af173f}; the final Linux host
-suite was run at \texttt{62c7f8f0}. The Mac logs record the 28 October repair
-validation, and are reported separately instead of being assigned an
-unrecorded exact commit.
+This edition describes source commit \texttt{c0b02c32} and tree
+\breakcode{de5511a4d9e9dd962be38f8361206f2a8e483158}, inspected on
+17 November 2026. I keep each older experiment at the source, binary and
+substrate recorded when it ran. Updating a source citation does not update
+an experiment's coordinate or turn its result into current qualification.
 
 A defining source, a successful build, a parser check, a runtime transcript,
-and an emulated native gate establish different facts. The counts below
-retain those distinctions. Source-defined optional tests may return without
-executing an external runtime when their prerequisite is absent; the Cargo
-passing count alone therefore does not establish execution of every language
-engine or external backend.
+and an emulated native gate establish different facts. A test can also pass
+without executing an optional runtime when its prerequisite is absent.
+I therefore report source classification, test execution and whole-system
+qualification separately.
+
+\subsection{Checks for this paper revision}
+
+The fresh source census classifies 457 tracked language sources: 86 hosted
+\texttt{.O} files and 371 native \texttt{.oc} files. This classification
+executes no program and is not a parser run. The portable evidence-registry
+validator accepts the declared 26-gate projection; that is a registry check,
+not 26 new QEMU passes. Source review checked the current module inventory,
+receiver contracts, compiler profiles and cited file paths. The revised PDF
+was rebuilt with the repository helper and checked as a document artifact.
+
+The companion \path{evidence/whitepaper_revision_20261117.json} records the
+commands, tool identities, source coordinate and results for this revision.
+Its accompanying logs distinguish document and packaging regressions from
+runtime/compiler or hardware execution. Neither this review nor a successful
+PDF build reruns the full Rust workspace, every foreign runtime, the native
+aggregate or the original-engine acceptance matrix.
+\src{scripts/check_language_sources.py}
+\src{scripts/release_evidence.py}
+\src{scripts/build_whitepaper.py}
 
 \subsection{Retained checks for the 28 October revision}
 
@@ -4717,11 +5154,11 @@ filesystem paths and qualify the actual compiler features they require.
         binaries, artifacts, toolchain, prerequisites, and execution substrate.
 \end{enumerate}
 
-The accompanying \path{evidence/whitepaper_revision_20261028.json} records
-the source census, retained-log byte lengths and SHA-256 identities used by
-this edition. It is a summary of retained observations, not a fresh gate run.
-The raw 28 October records are in \path{target/validation-logs/}. This directory is local build evidence, not a
-tracked source publication. Its important records are
+The historical \path{evidence/whitepaper_revision_20261028.json} records
+the October source census, retained-log byte lengths and SHA-256 identities.
+It is a summary of retained observations, not a fresh gate run. The original
+run kept raw records in \path{target/validation-logs/}; those local logs are
+not tracked and are not asserted to accompany a fresh checkout. Its important records are
 \path{a51-final-smoke-20261028.log},
 \path{a51-host-tests-20261028.log},
 \path{mac-cargo-root-20261028.log},
@@ -4752,8 +5189,8 @@ including the feature-gated notebook command; the third package also provides
 its own \texttt{ostadix} binary. The MCP server remains a separately locked
 package outside the root workspace.
 
-The engine module root declares 51 top-level modules: 43 public and eight
-nonpublic. The root library reexports 42 engine modules and declares two
+The engine module root declares 55 top-level modules: 44 public and eleven
+nonpublic. The root library reexports 43 engine modules and declares two
 local CLI helper modules. These are module declarations, not counts of
 runtime implementations. The shared catalog contains 23 commands and eleven
 guide topics; the MCP server declares 21 tools. Catalog membership does not
@@ -4796,8 +5233,8 @@ comparisons.
   \item A rich typed interchange algebra, separate explicit crossing-fidelity
         assessments, and a canonical CBOR wire protocol capped at 128 MiB per
         frame.
-  \item Uniform hosted lowering through \oir{}, a validated plan, and a
-        state-complete \hgraph{}.
+  \item Ordinary Rust graph execution through \oir{}, a validated
+        ExecutionPlan, and a state-complete \hgraph{}.
   \item Deterministic graph settlement with explicit resource/effect
         modeling, trusted worker profiles, and explicit autonomous groups.
   \item Computation identity, retained realization decisions, typed
@@ -4837,108 +5274,115 @@ comparisons.
 
 \subsection{Why evaluator identity is syntax}
 
-I made evaluator identity part of syntax because the composition point is a
-semantic boundary. Structural recognition preserves native backend source
-while giving the host a complete heterogeneous program tree. The notation
-therefore carries both the foreign program and the information required to
-compose it.
+I made evaluator identity part of syntax so that crossing a language boundary
+is visible in the program I am trying to understand. A nested Python
+calculation inside HTML is an expression with a selected evaluator and an
+outgoing value dependency. Recognizing that structure does not require O to
+parse Python's full grammar. It gives the host the information needed to
+coordinate the child, then apply the receiving language's projection. Whether
+that projection preserves the distinctions the computation needs is a further
+question, answered by the adapter profile and its observed result.
 
 \subsection{Why graph state is explicit}
 
-Execution semantics include values, failures, ordering, actor mutation, and
-world effects. I represent those dimensions with ordinary values, completion
-tokens, and versioned resource nodes. The strict execution profile preserves
-the represented ordering constraints; explicitly autonomous groups admit
-unordered effects under their declared policy. The graph makes the chosen
-parallel frontier and its settlement obligations inspectable.
+Two invocations can return the same value and still differ in ordering,
+failure, actor mutation or effects on the world. I therefore represent those
+dimensions with completion tokens and versioned resource nodes as well as
+ordinary values. The strict profile preserves the ordering expressed by those
+resources. Explicitly autonomous groups choose a different policy for
+unordered effects. In either case, the graph records the dependency model
+used by execution; it does not claim to describe every state change of an
+arbitrary guest process.
 
 \subsection{Why analysis and authority are separate objects}
 
-I separate Graph V2 identity, Evidence V6 analysis, and Admission V6 authority
-because each stage answers a different technical question. Graph V2 states
-which solved computation exists. Evidence V6 states why each operation is
-executable in one exact context. Admission V6 proves that the context and
-analysis still reproduce at the execution boundary. Why V2 exposes the
-resulting dependency neighborhood in a stable reader-facing form. This
-separation gives compilers, local commands, agents, and placement systems one
-shared execution constitution.
+I separate the identity of a computation from the analysis supporting its
+execution and from the object that authorizes the coordinator to run it.
+Graph V2 identifies the solved graph. Evidence V6 records the graph's declared
+executable context and operation assessments. Admission V6 recomputes and
+checks those records at the execution boundary, and Why V2 presents the
+resulting dependency neighborhood for inspection. This division lets a
+caller inspect a plan without granting dispatch authority. Source-byte and
+execution-intent checks belong to the front doors that supply them; ordinary
+admission does not imply a universal commitment to initial scope, ambient
+state or every program launched by a guest.
 
 \subsection{Why the engine owns the types}
 
-I made \texttt{ostadix-api} the implementation owner so embedding is a primary
-runtime surface. Parser nodes, \ovalue{}, plans, graphs, evidence, admission,
-projects, and World records can be used directly without importing a command
-package. The root crate reexports those exact identities, preserving existing
-programs while keeping one evaluator and one value universe.
+I made \texttt{ostadix-api} the implementation owner because embedding should
+use the same parser, values and execution machinery as the commands. A client
+can work with \ovalue{}, plans, graphs, evidence, projects and World records
+without depending on a command package. The compatibility facade reexports
+its declared engine identities. This keeps compatibility an explicit API
+relationship rather than a second implementation whose behavior must be
+assumed to agree.
 
 \subsection{Why admission is typed across layers}
 
-I use one typed admission architecture across hosted and native execution.
-Hosted Live-World executes the lifecycle semantics and supplies a differential
-oracle for native World stages. Native M5 realizes an isolated service
-lifecycle on its own substrate. The connected authority path begins when
-KernelWorld binds verified package bytes, manifest claims, and policy into a
-deterministic record. The native parser verifies that record, Mode 20
-constructs generation-bound admission objects from it, and Mode 21 consumes an
-admitted object at guest entry. This path carries authority through explicit
-verification products while the hosted and native lifecycle implementations
-share the same semantic vocabulary.
+I use explicit admission records to connect hosted lifecycle semantics to
+native execution profiles. Hosted Live-World supplies an executable reference
+for package and service transitions. KernelWorld binds verified package bytes,
+manifest claims and policy into a record checked by the native parser.
+Mode 20 constructs generation-bound admission objects, and Mode 21 consumes an
+admitted object at guest entry. Each transition has its own input and
+verification product. Agreement in a hosted test, a native parser test or an
+emulated entry test establishes the result for that profile; the connected
+system requires the remaining transitions and substrate checks as well.
 
 \subsection{Why placement begins with capacity}
 
-Project Mesh begins with usable execution capacity because placement exists to
-increase the amount of work the language can execute. It ranks paired node
-profiles by capacity, then applies compatibility, generation, route, and
-policy constraints to the source-closed branch. Admission records, reciprocal
-TLS identity, and causal attempt traces make that capacity dependable at the
-moment it is used.
+I put usable capacity into project placement because distributing a program
+should let it execute work that the selected machine can actually support.
+Project Mesh ranks paired node profiles and checks the source-closed branch
+against compatibility, generation, route and policy constraints. Credentials
+and attempt records identify the selected peer and the work returned by an
+attempt. Those records make placement inspectable without implying that a
+failed connection can safely replay arbitrary external effects.
 
 \section{Conclusion}
 
-I designed \product{} around one proposition: evaluator identity belongs in
-the structural syntax of a typed expression. That decision gives the parser a
-heterogeneous program tree, gives \ovalue{}
-a typed boundary between independent runtimes, and gives \oir{}/\hgraph{} the
-information required to represent dataflow, completion, actor state, and
-world effects explicitly. The nesting is the interface because the nesting
-survives every stage from source recognition to runtime settlement.
+I designed \product{} to preserve the structure of a computation as it crosses
+language boundaries. Evaluator-indexed syntax gives the parser a recursive
+heterogeneous program tree. \ovalue{} supplies an explicit carrier between
+engines, and the receiving adapter determines how its values enter another
+language. \oir{}, ExecutionPlan and \hgraph{} make the corresponding value,
+completion, actor-state and modeled effect dependencies available to
+execution. The language choice and the boundary operation can therefore be
+examined as part of the program rather than inferred from external glue.
 
-The project layer extends the same idea from expressions to complete source
-trees. Deterministic bundles preserve artifacts, route policies select whole
-execution alternatives, and the toolchain exposes their complete logical
-Project HGraph. Project Mesh closes a selected branch over its prerequisites,
-ranks paired nodes by capacity, and binds every attempt to node generations
-and returned artifacts.
+The project model extends this concern to declared source trees. Bundles
+preserve files and execution alternatives; route policies choose among those
+alternatives; project graphs expose their dependencies. Project Mesh can move
+a source-closed branch to a compatible paired node and retain the identity of
+its attempts and artifacts. Computation facets, realization descriptions and
+grounding records make further distinctions between meaning, implementation,
+representation and target. The separate coordinators and policies consuming
+those records retain their own authority.
 
-Computation facets and declared realizations make the relation between meaning,
-implementation, representation, and target explicit. Grounding checks the
-identities connecting those descriptions; admitted physical execution moves
-the actual values under declared transfer observations. Supported native
-objects retain their live owners, checkpoint protocols move supported actor
-state, and cancellation follows the ownership of already-started work.
+\ocore{} brings the same question to original implementation code and machine
+execution. Its typed source pipeline, owned backends, native-module importer
+and source recipes provide parts of the path from an upstream engine to a
+native artifact. The intended endpoint includes the engine's required units,
+ABI, initializers, providers, resources and generated-code behavior, followed
+by execution under a declared semantic profile. Capturing the original source
+or importing supported modules establishes an intermediate result. Complete
+runtime and compiler lowering, and functional agreement across all
+implemented ISAs, require the corresponding closure and execution evidence.
 
-\ocore{} carries the architecture to the machine boundary. Typed source lowers
-through HIR and SSA MIR into owned x86-64, AArch64 and RV64GC objects.
-Whole-module import brings original frontend output into a separate verified
-native representation, while source recipes and module sets make the
-implementation inventory and dependency closure explicit. Existing kernel
-profiles compose native code into generation-tagged capabilities, isolated
-services, strict KernelWorld records, and staged VM admission and entry. Hosted Live-World
-supplies executable lifecycle semantics for immutable packages, service
-generations, revocation, rollback, and reconstruction. The October repairs
-restore the portable kernel aggregate without enlarging its memory limits
-or treating stale artifact hashes as valid. The remaining compiler objective
-is complete original-runtime and compiler lowering, linking, platform closure
-and qualified execution across all three ISAs.
+The kernel, Live-World and KernelWorld profiles investigate how explicit
+packages, service generations, capabilities and admission records support
+system construction. Their results remain attached to the substrate and
+workload that produced them. A hosted lifecycle result, a QEMU boot and a
+physical-device result each establish something different. Keeping that
+distinction is part of the architecture's usefulness: it gives a reader a way
+to locate both a working mechanism and the next unmet obligation.
 
-The result is one language system spanning recursive polyglot programming,
-state-complete graph execution, whole-project composition, native compilation,
-capability-bearing kernel services, Information, Registry, and World
-construction. The independent engine, unified \texttt{o}, and shared human/MCP catalog
-make the same runtime available to embedders, operators, and agents. Graph V2,
-Evidence V6, Admission V6, and Why V2 carry one continuous representation of
-evaluator choice, typed value, effect, explanation, authority, and execution
-substrate across all of those scales.
+The contribution of this work is the connected representation of evaluator
+choice, value conversion, dependency, execution context and authority. I have
+tried to make those choices inspectable through the same engine interfaces
+used by commands, embedders and agents. The remaining work is to extend and
+qualify that representation without losing the observable behavior of the
+languages and systems it composes.
 
 \appendix
 
@@ -4952,7 +5396,10 @@ substrate across all of those scales.
 \texttt{LANG\string^(body\string)\_LANG} &
 Fresh ephemeral evaluator expression. \\
 \texttt{LANG[n]\string^(body\string)\_LANG[n]} &
-Persistent evaluator actor keyed by language, numeric ID, and process policy. \\
+Indexed evaluator identity; guest-state persistence follows the actual
+backend profile. \\
+\texttt{LANG[*]\string^(body\string)\_LANG[*]} &
+Fresh linker-isolated evaluator identity, distinct from a numbered session. \\
 \texttt{LANG\{lazy\}\string^(...\string)\_LANG\{lazy\}} &
 Cache-safe deferred inline evaluation; auto-forces on splice. \\
 \texttt{LANG\{defer\}\string^(...\string)\_LANG\{defer\}} &
@@ -4960,7 +5407,10 @@ Non-cacheable deferred evaluation; requires explicit \texttt{now}. \\
 \texttt{let x = expr} &
 Root binding store; right-hand side is a typed block or orchestration call. \\
 \texttt{\$x} &
-Load and splice the visible binding. \\
+Load the visible value and project it through the receiver's declared profile. \\
+\texttt{\$!x}, \texttt{code(\$x)} &
+Explicit immediate code insertion; relinquishes the ordinary literal-hole
+contract at that insertion. \\
 \texttt{quote\string^(...\string)\_quote} &
 Produce an unevaluated \texttt{OExpr}. \\
 \texttt{O.eval(expr[, scope])} &
@@ -4989,6 +5439,8 @@ Attach capability, effect, resource, and serialization metadata to a block. \\
 \textbf{Signature} & \textbf{Value transition} \\
 \midrule
 \endhead
+\texttt{code(value)} & Mark an immediate authored code-insertion boundary;
+storing the returned ordinary value does not make later splices raw. \\
 \texttt{instantiate(expr)} & \texttt{ONixExpr} to
 \texttt{ODerivation}. \\
 \texttt{realise(drv)} & \texttt{ODerivation} to
@@ -5310,13 +5762,18 @@ Source-first agent execution, managed jobs, and the required portable native gat
 \section{Complete \texttt{ostadix-api} module inventory}
 \label{sec:engine-inventory}
 
-The independent engine declares 48 modules. Forty-two are public and are
-reexported by the root compatibility library. Six are crate-internal
-implementation modules: \texttt{backend\_catalog},
-\texttt{canonical\_cbor}, \texttt{capability},
-\texttt{dispatch\_model}, \texttt{eval\_core}, and
-\texttt{placement\_protocol}. The table accounts for every declaration in the
-engine root exactly once.
+The independent engine declares 55 top-level modules: 44 public and 11
+crate-internal. The root compatibility library reexports 43 public engine
+modules and declares two command-support modules of its own. The public
+\texttt{native\_leaf} interface is available directly through
+\texttt{ostadix\_api}; it is not silently counted as a compatibility
+reexport. The internal modules are \texttt{backend\_catalog},
+\texttt{canonical\_cbor}, \texttt{capability}, \texttt{dispatch\_model},
+\texttt{eval\_core}, \texttt{foreign\_splice}, \texttt{lifecycle\_trace},
+\texttt{native\_leaf\_identity}, \texttt{placement\_protocol},
+\texttt{progress}, and \texttt{step\_knobs}. The table accounts for every
+module declaration in the engine root exactly once. These are source inventory
+counts, not backend-readiness or runtime-qualification results.
 
 \begin{longtable}{P{0.22\textwidth} P{0.70\textwidth}}
 \toprule
@@ -5332,10 +5789,13 @@ Hosted execution and backends &
 \texttt{backend\_morphism}, \texttt{backend\_state},
 \texttt{capability} (internal), \texttt{dispatch\_model} (internal),
 \texttt{cancellation}, \texttt{effects}, \texttt{environment}, \texttt{eval},
-\texttt{eval\_core} (internal), \texttt{execution\_contract},
+\texttt{eval\_core} (internal), \texttt{foreign\_splice} (internal),
+\texttt{lifecycle\_trace} (internal), \texttt{progress} (internal),
+\texttt{step\_knobs} (internal), \texttt{execution\_contract},
 \texttt{execution\_fabric}, \texttt{execution\_fabric\_authority},
 \texttt{executor}, \texttt{hgraph}, \texttt{ir}, \texttt{process},
-\texttt{runtime\_exec}, \texttt{scheduler}, \texttt{shims}. \\
+\texttt{runtime\_exec}, \texttt{runtime\_provenance},
+\texttt{scheduler}, \texttt{shims}. \\
 Evidence, intent, placement, and projects &
 \texttt{computation}, \texttt{computation\_core}, \texttt{evidence},
 \texttt{intent}, \texttt{placement},
@@ -5346,7 +5806,8 @@ Distributed state and information &
 \texttt{registry}, \texttt{resource\_identity}, \texttt{world}. \\
 Lifecycle and native systems &
 \texttt{boot\_objects}, \texttt{kernel\_world}, \texttt{live\_system}, \texttt{nix\_ops},
-\texttt{nixos\_ops}, \texttt{ocore}. \\
+\texttt{nixos\_ops}, \texttt{native\_leaf},
+\texttt{native\_leaf\_identity} (internal), \texttt{ocore}. \\
 \bottomrule
 \end{longtable}
 
@@ -5355,7 +5816,7 @@ Lifecycle and native systems &
 
 \section{Architectural position among neighboring systems}
 
-The complete contribution joins expression-granular evaluator selection,
+The architecture joins expression-granular evaluator selection,
 recursive evaluator nesting, independently implemented runtimes, typed
 \ovalue{} exchange, OIR/plan/HGraph lowering, V6 evidence-based admission,
 capacity-first project placement, content-addressed Information, canonical
@@ -5417,17 +5878,19 @@ Polyglot embedding reference}. These sources define the comparison units used
 in the table: module language, notebook or document block, language box,
 engineered language pair, and shared polyglot runtime.
 
-The implementation makes every junction explicit. The parser preserves
-evaluator identity; \ovalue{} preserves cross-language meaning; the plan
-freezes backend interfaces; \hgraph{} exposes value and resource state;
-project policies settle whole-tree alternatives; and exact records carry
-verified host intent into native admission.
+The implementation exposes the relevant junctions for inspection. The parser
+retains evaluator identity; \ovalue{} carries explicit values while each
+adapter determines crossing fidelity; the plan records selected backend
+contracts; and \hgraph{} represents the modeled value and resource
+dependencies. Project execution and native admission consume their own
+records under the selected policy and execution profile.
 
 \section{Reproduction commands}
 
 The commands below begin at a prepared checkout of the pinned runtime source.
-The hosted greeting requires Python, a supported Common Lisp engine and
-Node.js. The document-build helper is distributed with this paper revision.
+The current hosted greeting requires Python, Bash and Node.js. Common Lisp
+remains a separate engine with its own source-insertion boundary. The
+document-build helper is distributed with this paper revision.
 They are reproduction procedures; successful execution must be recorded
 separately. Use an isolated checkout when local development changes the
 workspace or lockfile.
@@ -5453,8 +5916,8 @@ pdfinfo Ostadix-lang_Technical_Whitepaper.pdf
 
 \begin{lstlisting}[style=plaincode]
 git rev-parse HEAD HEAD^{tree}
-# Runtime source basis: f472c983deb83d260d4d52e77aa4dd8740710dc5
-# Tree: 627afd3ee65c829a3edce3e3bd6ba86db4660017
+# Runtime source basis: c0b02c326b2329a95ba52447c7180bc93957cd57
+# Tree: de5511a4d9e9dd962be38f8361206f2a8e483158
 
 cargo fmt --all --check
 cargo check --workspace --all-targets --all-features --locked

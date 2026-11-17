@@ -1,0 +1,87 @@
+{
+  "schema": "ostadix.whitepaper-revision/v2",
+  "date": "2026-11-17",
+  "author": "Lee Daghlar Ostadi",
+  "kind": "source-and-document-review",
+  "implementation_source_commit": "c0b02c326b2329a95ba52447c7180bc93957cd57",
+  "implementation_source_tree": "de5511a4d9e9dd962be38f8361206f2a8e483158",
+  "build": {
+    "schema": "ostadix.whitepaper-build/v1",
+    "source": "docs/Ostadix-lang_Technical_Whitepaper.tex",
+    "source_sha256": "eba43f31101a0c6eafd5e923306f2322ec53326e5d7f86e2a448be85cb2bc556",
+    "source_date_epoch": 1794879796,
+    "tectonic": "Tectonic 0.17.0",
+    "qpdf": "qpdf version 12.3.2",
+    "pdf": "Ostadix-lang_Technical_Whitepaper.pdf",
+    "pdf_sha256": "f626a108a3ec6b075d566e3228969c5a6ab71450bf8cdc7ffc5f27d6cadd5174",
+    "metadata": {
+      "/Author": "u:Lee Daghlar Ostadi",
+      "/Title": "u:Ostadix-lang: Structural Polyglot Orchestration, Native O-core, and World Execution",
+      "/Subject": "u:Technical whitepaper for Ostadix-lang 0.4.0 Unreleased, source review at c0b02c32",
+      "/Keywords": "u:Ostadix-lang, O-lang, O-core, OIR, HGraph, polyglot programming"
+    }
+  },
+  "pdf_pages": 95,
+  "document_build_environment": "Linux x86_64; remote Nix-provided Tectonic and qpdf",
+  "validation": {
+    "document_tool_tests": {
+      "passed": 164,
+      "failures": 0,
+      "seconds": 917.657
+    },
+    "language_sources_classified": 457,
+    "hosted_sources": 86,
+    "native_sources": 371,
+    "language_sources_parsed": 0,
+    "programs_executed": 0,
+    "portable_gate_registry_entries_validated": 26,
+    "qemu_gates_executed_this_revision": 0,
+    "html_exports_checked": 115,
+    "html_exports_drifted": 0,
+    "source_citation_paths_checked": 268,
+    "missing_source_citations": 0,
+    "overfull_tex_boxes": 0,
+    "pdf_structural_check": "qpdf --check executed by scripts/build_whitepaper.py",
+    "visual_review": "all 95 rendered pages in contact sheets; selected revised pages at reading size; no clipping or overlap found"
+  },
+  "qualification_boundary": "Document and source review; historical hosted/compiler/QEMU/device results retain their original source and date. No full runtime, compiler or hardware matrix rerun.",
+  "published_pdf_copies": [
+    "Ostadix-lang_Technical_Whitepaper.pdf",
+    "output/pdf/Ostadix-lang_Technical_Whitepaper.pdf"
+  ],
+  "reviewers": [
+    "OpenAI Codex hosted-contract/inventory agent",
+    "OpenAI Codex native-compiler/source reviewer",
+    "OpenAI Codex editorial reviewer"
+  ],
+  "evidence": {
+    "evidence/whitepaper-review-20261117/document-tool-tests.log": {
+      "sha256": "524672bf7bd55cf99fb9d626dd82c3797a2ca4b6c269c4ee925fb3dc6c6cb49c",
+      "bytes": 28098
+    },
+    "evidence/whitepaper-review-20261117/html-exports-check.log": {
+      "sha256": "a46a4b9f7a02ebd6f272a659e7642e5ca568880fcb2756e0287709aa05d10968",
+      "bytes": 63
+    },
+    "evidence/whitepaper-review-20261117/language-source-validation.log": {
+      "sha256": "1c691b4900fbaee7a6a00bdbb2e001a6822f32abb8c7182b9af5293c0749431b",
+      "bytes": 103
+    },
+    "evidence/whitepaper-review-20261117/pdfinfo.log": {
+      "sha256": "08563e28d4a1445a6a6e1437007412389a907905906ea9b9693dc6713e9b2464",
+      "bytes": 630
+    },
+    "evidence/whitepaper-review-20261117/release-evidence-validation.log": {
+      "sha256": "102b94bd8a0062f97ad5339deb104be33fe3dca9d0ca9504d1ef8907f76593a3",
+      "bytes": 57
+    },
+    "evidence/whitepaper-review-20261117/review.json": {
+      "sha256": "62c6a8c65db52dd563791f445c68a610cd02fb40f5334fd8d4ece931a9da40cb",
+      "bytes": 9885
+    },
+    "evidence/whitepaper-review-20261117/source-citation-audit.json": {
+      "sha256": "cdcb1f40c2e3bec3f1cba5b21c48fa6c6ef44079c66baa6b3cdbe76ee76954cf",
+      "bytes": 30240
+    }
+  }
+}

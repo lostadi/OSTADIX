@@ -21,3 +21,18 @@ not imply sole manual implementation or a human source-review sign-off.
 Validation distinguishes source review, authored tests, actual fixture/compiler
 runs and complete original-runtime/ISA acceptance. See
 [configured assembly source units](CONFIGURED_ASSEMBLY_SOURCE_UNITS.md).
+
+## Technical whitepaper revision, 17 November 2026
+
+The technical whitepaper was revised with OpenAI Codex, using separate agents
+for hosted-contract and inventory review, native-compiler review, and editorial
+review. Its prose was adapted to the maintainer's writing style. Private style
+references are not part of the repository or publication.
+
+The implementation basis is `c0b02c326b2329a95ba52447c7180bc93957cd57`.
+The revision updates source contracts, examples, compiler profiles, mathematical
+claim boundaries and dated evidence; it does not turn older experiments into
+new native-system qualification. Fresh document checks and PDF build identities
+are retained in [the revision record](../evidence/whitepaper_revision_20261117.json).
+Agent review is source/editorial review, not a human sign-off or a rerun of the
+complete hosted, compiler, runtime and hardware acceptance matrices.
