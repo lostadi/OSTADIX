@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::hir::{HirProgram, Type};
+use super::native_abi::MachineAbi;
 use super::{codegen, codegen_aarch64, codegen_riscv64};
 use super::{mir, parser, typeck, Diagnostic, Span};
 
@@ -465,16 +466,14 @@ fn native_block_labels_required(module: &super::native_ir::NativeModule) -> bool
 fn object_assembler_abi(
     target: Target,
     imported_abi: Option<&str>,
-) -> Result<Option<&'static str>, Diagnostic> {
-    match (target, imported_abi) {
-        (Target::Riscv64UnknownNone, None | Some("lp64")) => Ok(Some("lp64")),
-        (Target::Riscv64UnknownNone, Some("lp64d")) => Ok(Some("lp64d")),
-        (_, None) => Ok(None),
-        (_, Some(abi)) => Err(driver_error(format!(
-            "unsupported imported assembler ABI `{abi}` for {}",
+) -> Result<MachineAbi, Diagnostic> {
+    MachineAbi::from_frontend(target, imported_abi).ok_or_else(|| {
+        driver_error(format!(
+            "unsupported imported assembler ABI `{}` for {}",
+            imported_abi.unwrap_or_default(),
             target.architecture()
-        ))),
-    }
+        ))
+    })
 }
 
 fn emit_object(
@@ -511,7 +510,7 @@ fn emit_object(
             options.target.architecture()
         ))
     })?;
-    let mut command = object_assembler_command(&clang, options.target, abi, retain_block_labels);
+    let mut command = object_assembler_command(&clang, abi, retain_block_labels);
     let output = command
         .arg(&assembly_path)
         .arg("-o")
@@ -536,16 +535,11 @@ fn emit_object(
     })
 }
 
-fn object_assembler_command(
-    clang: &Path,
-    target: Target,
-    abi: Option<&str>,
-    retain_block_labels: bool,
-) -> Command {
+fn object_assembler_command(clang: &Path, abi: MachineAbi, retain_block_labels: bool) -> Command {
     let mut command = Command::new(clang);
     command.args([
         "-target",
-        target.triple(),
+        abi.target().triple(),
         "-ffreestanding",
         "-fno-stack-protector",
         "-c",
@@ -558,12 +552,7 @@ fn object_assembler_command(
         // an original block. Keep the ordinary emission command unchanged.
         command.arg("-Wa,-L");
     }
-    if let Some(abi) = abi {
-        // Preserve the imported scalar module's ABI marker. LP64D integer
-        // arguments use the same integer convention; FP values remain rejected
-        // by native_codegen rather than silently converted to an integer ABI.
-        command.arg("-march=rv64gc").arg(format!("-mabi={abi}"));
-    }
+    command.args(abi.assembler_flags());
     command
 }
 
@@ -777,8 +766,7 @@ pub fn reproduce_native_object(
     fs::write(directory.join("module.native.json"), &module_json)
         .and_then(|_| fs::write(&assembly_path, &assembly))
         .map_err(|error| driver_error(format!("retain object reproduction inputs: {error}")))?;
-    let mut command =
-        object_assembler_command(&invoked, target, abi, native_block_labels_required(module));
+    let mut command = object_assembler_command(&invoked, abi, native_block_labels_required(module));
     command.arg(&assembly_path).arg("-o").arg(&object_path);
     let argv: Vec<_> = std::iter::once(command.get_program())
         .chain(command.get_args())
@@ -1321,7 +1309,10 @@ unsafe fn kernel_main() -> never {
             assert!(object_assembler_abi(Target::Riscv64UnknownNone, Some(abi)).is_err());
         }
         for target in [Target::X86_64UnknownNone, Target::Aarch64UnknownNone] {
-            assert_eq!(object_assembler_abi(target, None).unwrap(), None);
+            assert!(object_assembler_abi(target, None)
+                .unwrap()
+                .assembler_flags()
+                .is_empty());
             assert!(object_assembler_abi(target, Some("lp64d")).is_err());
         }
     }

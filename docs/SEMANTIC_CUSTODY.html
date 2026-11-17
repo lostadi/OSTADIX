@@ -35,6 +35,18 @@ ledger or automatic migration service.</li>
 <li><strong>Settlement:</strong> records what the selected runtime observed. Proposal,
 admission, dispatch, and observation remain distinct events.</li>
 </ul>
+<p>Three of these checks also bind values as they change representation.</p>
+<ul>
+<li>A materialized text literal in a source-backed HGraph must carry the same
+UTF-8 text as its OIR node. The executor reads that checked value. The type
+solver can infer an operation&#39;s value while the operation still awaits execution.</li>
+<li>When a provider captures or restores a checkpoint, the process checks its
+backend name and admitted executable-set digest. A replacement process with
+a different runtime digest rejects the checkpoint before sending it to the provider.</li>
+<li>Native lowering derives assembler flags and ELF expectations from the module&#39;s
+target ABI. Object inventory checks the ELF machine and flags against that ABI.
+The leaf builder checks the linked executable again before sealing it.</li>
+</ul>
 <h2>Fidelity boundary</h2>
 <p>Fidelity assessments distinguish definite loss from possible loss and compose
 those bounds across modeled paths. They do not yet prove every backend

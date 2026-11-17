@@ -2015,12 +2015,7 @@ fn owned_block_bindings(
 }
 
 fn object_target(arch: &str) -> Result<o_lang::ocore::Target> {
-    match arch {
-        "x86_64" => Ok(o_lang::ocore::Target::X86_64UnknownNone),
-        "aarch64" => Ok(o_lang::ocore::Target::Aarch64UnknownNone),
-        "riscv64" => Ok(o_lang::ocore::Target::Riscv64UnknownNone),
-        _ => bail!("unknown object reproduction ISA"),
-    }
+    o_lang::ocore::Target::from_architecture(arch).context("unknown object reproduction ISA")
 }
 
 fn needs_object_reproduction(module: &NativeModule) -> bool {
@@ -2088,12 +2083,21 @@ fn object_inventory_with_reproduction(
     let u16_at = |offset| field(bytes, offset).map(u16::from_le_bytes);
     let u32_at = |offset| field(bytes, offset).map(u32::from_le_bytes);
     let u64_at = |offset| field(bytes, offset).map(u64::from_le_bytes);
-    let machine = match arch {
-        "x86_64" => 62,
-        "aarch64" => 183,
-        "riscv64" => 243,
-        _ => bail!("unknown ELF ISA"),
-    };
+    let target = object_target(arch)?;
+    if module.target.triple.split('-').next() != Some(target.architecture()) {
+        bail!("native module architecture differs from the selected object ISA");
+    }
+    let declared = module.target.abi.as_deref();
+    let abi = o_lang::ocore::native_abi::MachineAbi::from_frontend(target, declared).with_context(
+        || {
+            let isa = if arch == "riscv64" { "RISC-V" } else { arch };
+            format!(
+                "unsupported imported {isa} ABI `{}` in object inventory",
+                declared.unwrap_or_default()
+            )
+        },
+    )?;
+    let machine = abi.elf_machine();
     if !bytes.starts_with(b"\x7fELF\x02\x01\x01")
         || u16_at(16)? != 1
         || u16_at(18)? != machine
@@ -2104,17 +2108,7 @@ fn object_inventory_with_reproduction(
         bail!("own-emitter object is not a relocatable little-endian ELF64 for the selected ISA");
     }
     let flags = u32_at(48)?;
-    let expected_riscv_flags = match module.target.abi.as_deref() {
-        None | Some("lp64") => 0,
-        Some("lp64d") => 4, // EF_RISCV_FLOAT_ABI_DOUBLE.
-        Some(abi) if arch == "riscv64" => {
-            bail!("unsupported imported RISC-V ABI `{abi}` in object inventory")
-        }
-        Some(_) => 0,
-    };
-    if (arch == "riscv64" && flags & !1 != expected_riscv_flags)
-        || (arch != "riscv64" && flags != 0)
-    {
+    if !abi.accepts_elf_flags(flags) {
         bail!("ELF flags differ from the owned native ABI profile");
     }
     let shoff = u64_at(40)?;

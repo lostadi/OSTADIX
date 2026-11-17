@@ -1229,19 +1229,13 @@ impl Evaluator {
                 actor.launch_generation_sha256
             );
         }
-        let backend_manifest = executable_leases
-            .backend_manifest_json(backend)
+        let admitted_runtime_binding = executable_leases
+            .backend_executable_set_sha256(backend)
             .with_context(|| {
                 format!(
                     "state.restore-incompatible: backend `{backend}[{environment_id}]` has no admitted runtime manifest"
                 )
             })?;
-        let backend_manifest: serde_json::Value = serde_json::from_str(&backend_manifest)
-            .context("admitted backend runtime manifest is not valid JSON")?;
-        let admitted_runtime_binding = backend_manifest
-            .get("sha256")
-            .and_then(serde_json::Value::as_str)
-            .context("admitted backend runtime manifest omitted sha256")?;
         if actor.runtime_binding_sha256 != admitted_runtime_binding {
             bail!(
                 "state.restore-generation-mismatch: pending backend `{backend}[{environment_id}]` runtime binding `{}` does not match admitted binding `{admitted_runtime_binding}`",

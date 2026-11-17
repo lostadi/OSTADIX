@@ -23,6 +23,7 @@ use sha2::{Digest, Sha256};
 #[cfg(target_os = "linux")]
 mod child_watch;
 
+use crate::ocore::native_abi::MachineAbi;
 use crate::ocore::native_ir::{NativeModule, Operand, Operation, Terminator, Type};
 use crate::ocore::Target;
 use crate::value::{ONumber, OValue};
@@ -94,9 +95,7 @@ struct Audited {
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     module_sha256: String,
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-    target: Target,
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-    assembler_abi: Option<&'static str>,
+    assembler_abi: MachineAbi,
 }
 
 fn symbol(name: &str) -> bool {
@@ -147,14 +146,8 @@ fn audit(text: &str) -> Result<Audited> {
         .next()
         .and_then(Target::from_architecture)
         .context("unsupported native scalar leaf ISA")?;
-    // Mirror the owned object driver's explicit assembler ABI selection.
-    // Linux Clang's RV default is LP64D; the owned module default is LP64.
-    let assembler_abi = match (target, module.target.abi.as_deref()) {
-        (Target::Riscv64UnknownNone, None | Some("lp64")) => Some("lp64"),
-        (Target::Riscv64UnknownNone, Some("lp64d")) => Some("lp64d"),
-        (_, None) => None,
-        _ => bail!("native leaf assembler ABI is unsupported for this ISA"),
-    };
+    let assembler_abi = MachineAbi::from_frontend(target, module.target.abi.as_deref())
+        .context("native leaf assembler ABI is unsupported for this ISA")?;
     let scalar = |ty: usize| matches!(module.types.get(ty), Some(Type::Int { bits: 1 | 64 }));
     let i64_type = |ty: usize| matches!(module.types.get(ty), Some(Type::Int { bits: 64 }));
     let operand = |operand: &Operand| -> Result<()> {
@@ -305,7 +298,6 @@ fn audit(text: &str) -> Result<Audited> {
         descriptor,
         parameter_count,
         module_sha256: digest(&module_bytes),
-        target,
         assembler_abi,
     })
 }
@@ -441,6 +433,23 @@ fn wrapper(target: Target, entry: &str, arity: usize) -> Result<String> {
         }
     }
     Ok(out)
+}
+
+#[cfg(target_os = "linux")]
+fn check_linked_abi(bytes: &[u8], abi: MachineAbi) -> Result<()> {
+    let header = bytes
+        .first_chunk::<64>()
+        .context("native linker produced a truncated ELF header")?;
+    if !header.starts_with(b"\x7fELF\x02\x01\x01")
+        || !matches!(u16::from_le_bytes([header[16], header[17]]), 2 | 3)
+        || u16::from_le_bytes([header[18], header[19]]) != abi.elf_machine()
+    {
+        bail!("native linker output is not a little-endian ELF64 executable for the selected ISA");
+    }
+    if !abi.accepts_elf_flags(u32::from_le_bytes(header[48..52].try_into()?)) {
+        bail!("native linker output ELF flags differ from the selected ABI");
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -684,7 +693,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
     {
         let host = Target::from_architecture(std::env::consts::ARCH)
             .context("native scalar host ISA is unsupported")?;
-        if host != audited.target {
+        if host != audited.assembler_abi.target() {
             bail!("native scalar leaf target must match the Linux host ISA");
         }
         let tool_working_directory =
@@ -762,11 +771,13 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         )?;
         let (linker, linker_image) =
             tool("ld", NATIVE_LD_ENV, NATIVE_LD_SHA256_ENV, &tool_search_path)?;
-        let mut assembly =
-            crate::ocore::native_codegen::emit(&audited.descriptor.module, audited.target)
-                .map_err(|e| anyhow::anyhow!("{}", e.message))?;
+        let mut assembly = crate::ocore::native_codegen::emit(
+            &audited.descriptor.module,
+            audited.assembler_abi.target(),
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e.message))?;
         assembly.push_str(&wrapper(
-            audited.target,
+            audited.assembler_abi.target(),
             &audited.descriptor.entry,
             audited.parameter_count,
         )?);
@@ -785,9 +796,13 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             "-target".into(),
             audited.descriptor.module.target.triple.clone(),
         ];
-        if let Some(abi) = audited.assembler_abi {
-            assembler_flags.extend(["-march=rv64gc".into(), format!("-mabi={abi}")]);
-        }
+        assembler_flags.extend(
+            audited
+                .assembler_abi
+                .assembler_flags()
+                .iter()
+                .map(|&flag| flag.to_owned()),
+        );
         let mut assemble = assembler_image.command()?;
         assemble
             .arg0(&assembler.invocation)
@@ -824,9 +839,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             &linker.invocation,
         )?;
         let bytes = fs::read(&executable)?;
-        if !bytes.starts_with(b"\x7fELF") {
-            bail!("native linker did not produce ELF");
-        }
+        check_linked_abi(&bytes, audited.assembler_abi)?;
         let image = SealedImage::new(&bytes)?;
         let environment_sha256 = tool_environment_sha256(tool_library_path.as_deref());
         let manifest = NativeLeafManifest {
@@ -1349,7 +1362,7 @@ mod tests {
         for &target in Target::ALL {
             let descriptor = test_descriptor_for(target, 12, false);
             let audited = audit(&descriptor).unwrap();
-            assert_eq!(audited.target, target);
+            assert_eq!(audited.assembler_abi.target(), target);
             crate::ocore::native_codegen::emit(&audited.descriptor.module, target).unwrap();
             let wrapper = wrapper(target, "native_add", 12).unwrap();
             assert!(wrapper.contains("native_add"));

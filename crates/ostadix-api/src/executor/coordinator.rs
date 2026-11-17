@@ -329,21 +329,31 @@ impl<'a> Coordinator<'a> {
     /// materialized. Emit their lifecycle events so every plan node is traced
     /// exactly once, matching the reference executor.
     fn materialize_literals(&mut self) -> Result<()> {
-        let mut literals: Vec<(PlanNodeId, String)> = Vec::new();
-        for node in &self.plan.nodes {
-            if let PlanNodeKind::Text = node.kind {
-                if let OIr::Text(text) = self.flat[node.id.0] {
-                    literals.push((node.id, text.clone()));
-                }
+        // Unresolved operations can carry solver-inferred values. Only
+        // materialized literals seed the executor's frame.
+        for node in self
+            .admitted
+            .graph()
+            .nodes
+            .values()
+            .filter(|node| node.state == ValueState::Materialized)
+        {
+            if let (Some(id), Some(value)) = (node.plan_node, &node.value) {
+                self.frame.set_value(id, value.clone())?;
             }
         }
-        for (id, text) in literals {
-            let value = OValue::str_(text);
-            self.trace.ready(id);
-            self.trace.started(id);
-            self.trace
-                .finished(id, value.type_name().to_string(), trace_fingerprint(&value));
-            self.frame.set_value(id, value)?;
+        // Preserve the reference trace's plan order independently of graph node order.
+        for node in &self.plan.nodes {
+            if matches!(node.kind, PlanNodeKind::Text) {
+                let value = self.frame.value(node.id)?;
+                self.trace.ready(node.id);
+                self.trace.started(node.id);
+                self.trace.finished(
+                    node.id,
+                    value.type_name().to_string(),
+                    trace_fingerprint(value),
+                );
+            }
         }
         Ok(())
     }

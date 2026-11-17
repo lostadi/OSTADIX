@@ -306,7 +306,7 @@ fn tls_storage_sections_cannot_invent_unowned_templates_or_tail_bytes() {
             group_rejected(
                 &ordinary,
                 arch,
-                &module(),
+                &module_for(arch),
                 "outside the explicit source profile",
             );
         }
@@ -398,7 +398,7 @@ fn x86_unwind_relocations_accept_owned_section_kind_without_widening_other_isas(
     for (machine, arch) in [(183, "aarch64"), (243, "riscv64")] {
         let mut mutant = elf.clone();
         put16(&mut mutant.bytes, 18, machine);
-        assert!(object_inventory(&mutant.bytes, arch, &module())
+        assert!(object_inventory(&mutant.bytes, arch, &module_for(arch))
             .unwrap_err()
             .to_string()
             .contains("relocation section geometry or target"));
@@ -566,9 +566,13 @@ const SECTION_BYTES: usize = 64;
 const SYMBOL_BYTES: usize = 24;
 
 pub(super) fn module() -> NativeModule {
+    module_for("x86_64")
+}
+
+fn module_for(arch: &str) -> NativeModule {
     let bytes = serde_json::to_vec(&json!({
         "format":"ocore-native-module-v1","name":"object-admission-fixture",
-        "target":{"triple":"x86_64-unknown-none","data_layout":"e-p:64:64-i64:64",
+        "target":{"triple":format!("{arch}-unknown-none"),"data_layout":"e-p:64:64-i64:64",
                   "pointer_bits":64,"little_endian":true},
         "semantics":"llvm_defined_behavior_v1",
         "types":[{"kind":"void"},{"kind":"int","bits":64}],
@@ -1484,7 +1488,7 @@ fn local_alias_folding_and_declared_external_initializer_references_preserve_con
 #[test]
 fn zero_sized_global_initializers_may_coincide_without_fabricated_overlap() {
     for (machine, arch) in [(62, "x86_64"), (183, "aarch64"), (243, "riscv64")] {
-        let mut module = module();
+        let mut module = module_for(arch);
         module.types.push(Type::Int { bits: 8 });
         module.types.push(Type::Array { element: 2, len: 0 });
         module.globals[0].ty = 3;
@@ -1512,7 +1516,7 @@ fn zero_sized_global_initializers_may_coincide_without_fabricated_overlap() {
 #[test]
 fn independent_source_globals_cannot_share_initializer_storage_without_declared_aliases() {
     for (machine, arch) in [(62, "x86_64"), (183, "aarch64"), (243, "riscv64")] {
-        let mut module = module();
+        let mut module = module_for(arch);
         let mut second = module.globals[0].clone();
         second.name = "h".into();
         module.globals.push(second);
@@ -2407,6 +2411,39 @@ fn rv64_unknown_declared_abi_cannot_be_laundered_through_valid_elf_flags() {
             );
         }
     }
+}
+
+#[test]
+fn non_riscv_object_admission_rejects_an_explicit_abi_even_with_zero_elf_flags() {
+    for (arch, machine) in [("x86_64", 62), ("aarch64", 183)] {
+        let mut module = module();
+        module.target.triple = format!("{arch}-unknown-linux-gnu");
+        let elf = Elf::new(machine, 8, 8);
+        object_inventory(&elf.bytes, arch, &module).unwrap();
+        for abi in ["lp64", "lp64d", "unknown", ""] {
+            module.target.abi = Some(abi.into());
+            let error = object_inventory(&elf.bytes, arch, &module).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains(&format!("unsupported imported {arch} ABI")),
+                "{error}"
+            );
+        }
+    }
+}
+
+#[test]
+fn object_inventory_binds_the_module_architecture_to_the_selected_elf_machine() {
+    let module = module();
+    assert!(module.target.triple.starts_with("x86_64-"));
+    assert!(module.target.abi.is_none());
+    let elf = Elf::new(183, 8, 8);
+    let error = object_inventory(&elf.bytes, "aarch64", &module).unwrap_err();
+    assert!(error.to_string().contains("module architecture differs"));
+    let mut matching = module;
+    matching.target.triple = "aarch64-unknown-linux-gnu".into();
+    object_inventory(&elf.bytes, "aarch64", &matching).unwrap();
 }
 
 #[test]

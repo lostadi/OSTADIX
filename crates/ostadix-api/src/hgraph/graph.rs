@@ -1664,6 +1664,7 @@ impl HGraph {
 
         for plan_node in &plan.nodes {
             let value = value_for_plan[&plan_node.id];
+            let node = &self.nodes[&value];
             let expected_op = super::from_oir::executable_op(&plan_node.kind);
             let Some(expected_op) = expected_op else {
                 if !matches!(&plan_node.kind, PlanNodeKind::Text) {
@@ -1672,13 +1673,20 @@ impl HGraph {
                         plan_node.id.0
                     ));
                 }
-                let node = &self.nodes[&value];
                 if node.state != ValueState::Materialized
                     || node.producer.is_some()
                     || self.op_map.contains_key(&plan_node.id)
                 {
                     return Err(format!(
                         "literal plan node {} must be an initially materialized, producer-free value",
+                        plan_node.id.0
+                    ));
+                }
+                if !matches!((&self.ir_map[&value], &node.value),
+                    (OIr::Text(source), Some(value)) if value.matches_text(source))
+                {
+                    return Err(format!(
+                        "literal plan node {} must carry the text value of its source OIR",
                         plan_node.id.0
                     ));
                 }
@@ -2190,6 +2198,42 @@ mod tests {
 
         let error = graph.validate_execution_graph().unwrap_err();
         assert!(error.contains("must remain unknown"), "{error}");
+    }
+
+    #[test]
+    fn source_plan_materialized_values_match_their_oir_literals() {
+        let program = crate::ir::OIrProgram {
+            nodes: vec![OIr::Store {
+                name: "answer".into(),
+                expr: Box::new(OIr::Text("λ".into())),
+            }],
+        };
+        let plan = program.plan();
+        let mut graph = program.hgraph();
+        graph.validate_execution_source(&program, &plan).unwrap();
+        let literal = graph
+            .nodes
+            .values()
+            .find(|node| node.value.is_some())
+            .unwrap()
+            .id;
+        for forged in [
+            None,
+            Some(OValue::text("different")),
+            Some(OValue::int(42)),
+            Some(OValue::text_with_encoding("λ", None)),
+        ] {
+            graph.node_mut(literal).unwrap().value = forged;
+            assert!(graph.validate_execution_source(&program, &plan).is_err());
+        }
+
+        graph.node_mut(literal).unwrap().value = Some(OValue::text("λ"));
+        // Dataflow can infer a Store's value while it still awaits execution.
+        crate::hgraph::solve::solve_types(&mut graph).unwrap();
+        let output = &graph.nodes[&graph.op_for(plan.roots[0]).unwrap().value_output];
+        assert_eq!(output.value, Some(OValue::text("λ")));
+        assert_eq!(output.state, ValueState::Unresolved);
+        graph.validate_execution_source(&program, &plan).unwrap();
     }
 
     #[test]

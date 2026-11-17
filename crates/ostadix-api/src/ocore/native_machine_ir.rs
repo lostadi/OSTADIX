@@ -52,9 +52,7 @@ impl Architecture {
         }
     }
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum MachineAbi { SysvAmd64, Aapcs64, RiscvLp64, RiscvLp64d }
+pub use super::native_abi::MachineAbi;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ByteOrder { Little, Big }
@@ -84,13 +82,8 @@ pub struct MachineProfile {
 impl MachineProfile {
     /// Layout shared by the configured-assembly reader and machine lowering.
     pub(super) fn matches_layout(&self, architecture: Architecture) -> bool {
-        let abi_architecture = match self.abi {
-            MachineAbi::SysvAmd64 => Architecture::X86_64,
-            MachineAbi::Aapcs64 => Architecture::Aarch64,
-            MachineAbi::RiscvLp64 | MachineAbi::RiscvLp64d => Architecture::Rv64,
-        };
         self.architecture == architecture
-            && abi_architecture == architecture
+            && Architecture::for_target(self.abi.target()) == architecture
             && self.address_bits == 64
             && self.byte_order == ByteOrder::Little
     }

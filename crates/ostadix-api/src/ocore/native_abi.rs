@@ -12,6 +12,66 @@ use super::native_verify::{type_layouts, value_leaf_layouts};
 use super::Diagnostic;
 use super::Target;
 
+/// Machine calling convention used to lower and assemble an ELF object.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MachineAbi {
+    SysvAmd64,
+    Aapcs64,
+    RiscvLp64,
+    RiscvLp64d,
+}
+
+impl MachineAbi {
+    /// An absent RV64 ABI selects LP64 for ordinary integer objects.
+    /// Interfaces carrying FP values additionally require an explicit source ABI.
+    pub fn from_frontend(target: Target, abi: Option<&str>) -> Option<Self> {
+        match target {
+            Target::X86_64UnknownNone => abi.is_none().then_some(Self::SysvAmd64),
+            Target::Aarch64UnknownNone => abi.is_none().then_some(Self::Aapcs64),
+            Target::Riscv64UnknownNone => match abi {
+                None | Some("lp64") => Some(Self::RiscvLp64),
+                Some("lp64d") => Some(Self::RiscvLp64d),
+                _ => None,
+            },
+        }
+    }
+
+    pub(crate) fn target(self) -> Target {
+        match self {
+            Self::SysvAmd64 => Target::X86_64UnknownNone,
+            Self::Aapcs64 => Target::Aarch64UnknownNone,
+            Self::RiscvLp64 | Self::RiscvLp64d => Target::Riscv64UnknownNone,
+        }
+    }
+
+    pub(crate) fn assembler_flags(self) -> &'static [&'static str] {
+        match self {
+            Self::SysvAmd64 | Self::Aapcs64 => &[],
+            Self::RiscvLp64 => &["-march=rv64gc", "-mabi=lp64"],
+            Self::RiscvLp64d => &["-march=rv64gc", "-mabi=lp64d"],
+        }
+    }
+
+    pub fn elf_machine(self) -> u16 {
+        match self {
+            Self::SysvAmd64 => 62,                     // EM_X86_64
+            Self::Aapcs64 => 183,                      // EM_AARCH64
+            Self::RiscvLp64 | Self::RiscvLp64d => 243, // EM_RISCV
+        }
+    }
+
+    pub fn accepts_elf_flags(self, flags: u32) -> bool {
+        // RVC (bit zero) is independent of the ABI. LP64D requires
+        // EF_RISCV_FLOAT_ABI_DOUBLE (bit two); all other flags are excluded.
+        match self {
+            Self::SysvAmd64 | Self::Aapcs64 => flags == 0,
+            Self::RiscvLp64 => flags & !1 == 0,
+            Self::RiscvLp64d => flags & !1 == 4,
+        }
+    }
+}
+
 /// Full general-register names; emitters select the narrow spelling from
 /// `AbiPart::location_bits`. Stack offsets start at the caller's argument area.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -1192,11 +1252,7 @@ impl Placement {
 }
 
 fn profile(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
-    let architecture = match target {
-        Target::X86_64UnknownNone => "x86_64",
-        Target::Aarch64UnknownNone => "aarch64",
-        Target::Riscv64UnknownNone => "riscv64",
-    };
+    let architecture = target.architecture();
     let parts: Vec<_> = module.target.triple.split('-').collect();
     let bare_rv = module.target.triple == "riscv64"
         && matches!(module.target.abi.as_deref(), Some("lp64" | "lp64d"));
@@ -1211,12 +1267,7 @@ fn profile(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             "only the matching little-endian LP64 ELF target profile is supported",
         ));
     }
-    if module
-        .target
-        .abi
-        .as_deref()
-        .is_some_and(|a| architecture != "riscv64" || !matches!(a, "lp64" | "lp64d"))
-    {
+    if MachineAbi::from_frontend(target, module.target.abi.as_deref()).is_none() {
         return Err(fail("unsupported explicit target ABI"));
     }
     Ok(())

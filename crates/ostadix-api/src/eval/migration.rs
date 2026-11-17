@@ -201,10 +201,8 @@ fn validate_target(
     destination.verify_admitted_runtime_context(&admitted)?;
     let leases = admitted.executable_leases()?;
     leases.verify_backend(&actor.canonical_backend)?;
-    let manifest: serde_json::Value =
-        serde_json::from_str(&leases.backend_manifest_json(&actor.canonical_backend)?)?;
-    if manifest.get("sha256").and_then(serde_json::Value::as_str)
-        != Some(actor.runtime_binding_sha256.as_str())
+    if leases.backend_executable_set_sha256(&actor.canonical_backend)?
+        != actor.runtime_binding_sha256
     {
         bail!(
             "state.restore-runtime-mismatch: target executable set differs from source checkpoint"

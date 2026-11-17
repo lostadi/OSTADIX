@@ -236,6 +236,8 @@ struct PendingMorphismV1 {
 
 struct BackendProcess {
     language: String,
+    // Unleased shims are available only in the test build.
+    admitted_runtime_binding: Option<String>,
     // "python[1]" for numbered sessions, the language otherwise; used in
     // status lines.
     label: String,
@@ -1239,6 +1241,13 @@ impl BackendProcess {
         if session_id.len() != 64 || !session_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             bail!("backend session identity must be a 64-character SHA-256 digest");
         }
+        let admitted_runtime_binding = executable_leases
+            .map(|leases| {
+                leases
+                    .backend_executable_set_sha256(lang)
+                    .map(str::to_owned)
+            })
+            .transpose()?;
         #[cfg(test)]
         let mut command = legacy_backend_command(shim_path, sandbox)?;
         #[cfg(test)]
@@ -1415,6 +1424,7 @@ impl BackendProcess {
 
         Ok(Self {
             language: lang.to_string(),
+            admitted_runtime_binding,
             session_id: session_id.to_owned(),
             native_instance,
             child,
@@ -1817,6 +1827,13 @@ impl BackendProcess {
         match self.recv_operation_response()? {
             BackendWireResponseV2::StateCapabilitiesV1 { capabilities } => {
                 capabilities.validate()?;
+                if capabilities.backend != self.language {
+                    bail!(
+                        "backend `{}` reported state identity `{}`",
+                        self.label,
+                        capabilities.backend
+                    );
+                }
                 Ok(capabilities)
             }
             response => Err(unexpected_state_response("state_capabilities_v1", response)),
@@ -1828,7 +1845,7 @@ impl BackendProcess {
         self.send_command(&BackendWireCommandV2::CheckpointV1 { max_bytes })?;
         match self.recv_operation_response()? {
             BackendWireResponseV2::CheckpointV1 { checkpoint } => {
-                checkpoint.validate()?;
+                self.validate_checkpoint(&checkpoint)?;
                 crate::backend_state::ensure_checkpoint_bound(&checkpoint, max_bytes)?;
                 Ok(checkpoint)
             }
@@ -1851,7 +1868,7 @@ impl BackendProcess {
 
     fn restore(&mut self, checkpoint: BackendCheckpointV1) -> Result<BackendRestoreReceiptV1> {
         self.ensure_state_boundary()?;
-        checkpoint.validate()?;
+        self.validate_checkpoint(&checkpoint)?;
         self.send_command(&BackendWireCommandV2::RestoreV1 {
             checkpoint: checkpoint.clone(),
         })?;
@@ -1875,6 +1892,28 @@ impl BackendProcess {
             ),
             response => Err(unexpected_state_response("restore_v1", response)),
         }
+    }
+
+    fn validate_checkpoint(&self, checkpoint: &BackendCheckpointV1) -> Result<()> {
+        checkpoint.validate()?;
+        if checkpoint.backend != self.language {
+            bail!(
+                "checkpoint backend `{}` differs from actor `{}`",
+                checkpoint.backend,
+                self.label
+            );
+        }
+        if self
+            .admitted_runtime_binding
+            .as_ref()
+            .is_some_and(|expected| expected != &checkpoint.runtime_binding_sha256)
+        {
+            bail!(
+                "checkpoint runtime binding differs from the admitted executable set for `{}`",
+                self.label
+            );
+        }
+        Ok(())
     }
 
     fn ensure_state_boundary(&self) -> Result<()> {
@@ -3669,12 +3708,6 @@ impl ProcessRegistry {
             }
 
             let capabilities = self.state_capabilities(&lang, env_id, &sandbox)?;
-            if capabilities.backend != lang {
-                bail!(
-                    "backend `{lang}[{env_id}]` reported state identity `{}`",
-                    capabilities.backend
-                );
-            }
             if capabilities.tier == BackendStateTierV1::ExternalPinned
                 || !capabilities.restore_supported
             {
@@ -4651,6 +4684,79 @@ mod tests {
         Ok(())
     }
 
+    fn write_state_reply_shim(shim: &Path, response: &serde_json::Value) -> Result<()> {
+        let mut frame = Vec::new();
+        wire::write_frame(&mut frame, response)?;
+        std::fs::write(
+            shim,
+            format!(
+                "import sys\nlength = int.from_bytes(sys.stdin.buffer.read(4), 'big')\n\
+                 sys.stdin.buffer.read(length)\nsys.stdout.buffer.write(bytes.fromhex('{}'))\n\
+                 sys.stdout.buffer.flush()\n",
+                hex::encode(frame)
+            ),
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn checkpoint_capture_and_restore_require_the_admitted_backend_and_runtime() -> Result<()> {
+        use crate::ir::{OIr, OIrProgram};
+        let plan = OIrProgram {
+            nodes: vec![OIr::Exec {
+                lang: "python".into(),
+                env_id: 1,
+                attr: None,
+                backend: crate::backend_catalog::BackendRegistry::global().interface_for("python"),
+                body: vec![OIr::Text("1".into())],
+            }],
+        }
+        .plan();
+        let (_, leases) = crate::runtime_exec::capture_execution_manifest(&plan)?;
+        let sandbox = BackendSandboxPolicy::none();
+        let mut source =
+            BackendProcess::new("python", &python_shim_path(), &sandbox, Some(&leases))?;
+        let checkpoint = source.checkpoint(1024 * 1024)?;
+        assert_eq!(
+            checkpoint.runtime_binding_sha256,
+            leases.backend_executable_set_sha256("python")?
+        );
+        source.shutdown(backend_shutdown_timeout()?)?;
+
+        let temp = tempfile::tempdir()?;
+        let shim = temp.path().join("state_provider.py");
+        for (field, wrong, reason) in [
+            (
+                "runtime_binding_sha256",
+                "00".repeat(32),
+                "admitted executable set",
+            ),
+            ("backend", "sql".to_owned(), "checkpoint backend"),
+        ] {
+            let mut value = serde_json::to_value(&checkpoint)?;
+            value[field] = serde_json::Value::String(wrong);
+            let substituted: BackendCheckpointV1 = serde_json::from_value(value)?;
+            substituted.validate()?;
+            write_state_reply_shim(
+                &shim,
+                &serde_json::json!({
+                    "status":"checkpoint_v1", "checkpoint": &substituted
+                }),
+            )?;
+            let mut provider = BackendProcess::new("python", &shim, &sandbox, Some(&leases))?;
+            let capture = provider.checkpoint(1024 * 1024).expect_err(field);
+            assert!(capture.to_string().contains(reason), "{capture:#}");
+
+            let mut target =
+                BackendProcess::new("python", &python_shim_path(), &sandbox, Some(&leases))?;
+            let restore = target.restore(substituted).expect_err(field);
+            assert!(restore.to_string().contains(reason), "{restore:#}");
+            target.restore(checkpoint.clone())?;
+            target.shutdown(backend_shutdown_timeout()?)?;
+        }
+        Ok(())
+    }
+
     #[test]
     fn replacement_actor_requires_the_complete_restore_receipt_before_publication() -> Result<()> {
         let temp = tempfile::tempdir()?;
@@ -4673,17 +4779,7 @@ mod tests {
         ] {
             let mut response = serde_json::json!({"status": "restore_v1", "receipt": &receipt});
             response["receipt"][field] = changed;
-            let mut frame = Vec::new();
-            wire::write_frame(&mut frame, &response)?;
-            std::fs::write(
-                &shim,
-                format!(
-                    "import sys\nlength = int.from_bytes(sys.stdin.buffer.read(4), 'big')\n\
-                     sys.stdin.buffer.read(length)\nsys.stdout.buffer.write(bytes.fromhex('{}'))\n\
-                     sys.stdout.buffer.flush()\n",
-                    hex::encode(frame)
-                ),
-            )?;
+            write_state_reply_shim(&shim, &response)?;
             let error = registry
                 .restore_env(
                     "python",

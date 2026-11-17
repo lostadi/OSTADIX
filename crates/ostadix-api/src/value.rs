@@ -768,6 +768,8 @@ pub struct OText {
     pub encoding: Option<String>,
 }
 
+const UTF8_ENCODING: &str = "utf-8";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OBytes {
     pub bytes: Vec<u8>,
@@ -1706,9 +1708,13 @@ impl OValue {
         OValue::Text {
             v: OText {
                 utf8: s.into(),
-                encoding: Some("utf-8".to_string()),
+                encoding: Some(UTF8_ENCODING.to_string()),
             },
         }
+    }
+    /// Compare with `OValue::text(source)` without copying its bytes.
+    pub(crate) fn matches_text(&self, source: &str) -> bool {
+        matches!(self, Self::Text { v } if v.utf8 == source && v.encoding.as_deref() == Some(UTF8_ENCODING))
     }
     pub fn text_with_encoding(s: impl Into<String>, encoding: Option<String>) -> Self {
         OValue::Text {

@@ -39,6 +39,18 @@ signed placement evidence -> durable session journal -> signed node receipts
 - **Settlement:** records what the selected runtime observed. Proposal,
   admission, dispatch, and observation remain distinct events.
 
+Three of these checks also bind values as they change representation.
+
+- A materialized text literal in a source-backed HGraph must carry the same
+  UTF-8 text as its OIR node. The executor reads that checked value. The type
+  solver can infer an operation's value while the operation still awaits execution.
+- When a provider captures or restores a checkpoint, the process checks its
+  backend name and admitted executable-set digest. A replacement process with
+  a different runtime digest rejects the checkpoint before sending it to the provider.
+- Native lowering derives assembler flags and ELF expectations from the module's
+  target ABI. Object inventory checks the ELF machine and flags against that ABI.
+  The leaf builder checks the linked executable again before sealing it.
+
 ## Fidelity boundary
 
 Fidelity assessments distinguish definite loss from possible loss and compose

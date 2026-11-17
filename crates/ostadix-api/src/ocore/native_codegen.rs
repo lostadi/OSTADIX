@@ -567,11 +567,7 @@ fn argument_types(args: &[Operand], types: &BTreeMap<ValueId, TypeId>) -> Vec<Ty
 
 fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     let metadata_personalities = super::native_eh::metadata_personality_declarations(module);
-    let prefix = match target {
-        Target::X86_64UnknownNone => "x86_64",
-        Target::Aarch64UnknownNone => "aarch64",
-        Target::Riscv64UnknownNone => "riscv64",
-    };
+    let prefix = target.architecture();
     if module.target.triple.split('-').next() != Some(prefix) {
         return Err(error_diagnostic(format!(
             "frontend target `{}` does not match {}; regenerate frontend IR for this ISA",
@@ -581,12 +577,7 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     }
     let bare_rv = module.target.triple == "riscv64"
         && matches!(module.target.abi.as_deref(), Some("lp64" | "lp64d"));
-    if module
-        .target
-        .abi
-        .as_deref()
-        .is_some_and(|abi| prefix != "riscv64" || !matches!(abi, "lp64" | "lp64d"))
-    {
+    if super::native_abi::MachineAbi::from_frontend(target, module.target.abi.as_deref()).is_none() {
         return Err(error_diagnostic("unsupported explicit frontend ABI"));
     }
     let parts: Vec<_> = module.target.triple.split('-').collect();

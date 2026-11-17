@@ -24,6 +24,44 @@ fn constant_return(ty: usize, bits: &str) -> Json {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
+fn sealed_leaf_elf_matches_the_frontend_abi_and_rejects_mismatched_headers() {
+    use std::os::unix::fs::FileExt;
+    let (machine, profiles): (u16, &[(Option<&str>, u32)]) = match std::env::consts::ARCH {
+        "x86_64" => (62, &[(None, 0)]),
+        "aarch64" => (183, &[(None, 0)]),
+        "riscv64" => (243, &[(None, 0), (Some("lp64"), 0), (Some("lp64d"), 4)]),
+        arch => panic!("unsupported native leaf test architecture: {arch}"),
+    };
+    for &(source_abi, expected_flags) in profiles {
+        let mut descriptor = descriptor(1);
+        descriptor["module"]["target"]["abi"] = json!(source_abi);
+        let text = descriptor.to_string();
+        let abi = audit(&text).unwrap().assembler_abi;
+        let leaf = prepare(&text).unwrap();
+        let mut header = [0u8; 64];
+        leaf.image.file.read_exact_at(&mut header, 0).unwrap();
+        assert_eq!(u16::from_le_bytes([header[18], header[19]]), machine);
+        let flags = u32::from_le_bytes(header[48..52].try_into().unwrap());
+        let permitted = if machine == 243 { 1 } else { 0 };
+        assert_eq!(flags & !permitted, expected_flags);
+        assert_eq!(argument(&leaf.execute(&[41]).unwrap()).unwrap(), 42);
+
+        // Mutate independent wire fields on the image that just executed.
+        let mut wrong_isa = header;
+        wrong_isa[18..20].copy_from_slice(&0u16.to_le_bytes());
+        assert!(check_linked_abi(&wrong_isa, abi).is_err());
+        let mut wrong_flags = header;
+        wrong_flags[48..52].copy_from_slice(&(flags ^ 4).to_le_bytes());
+        assert!(check_linked_abi(&wrong_flags, abi).is_err());
+        let mut relocatable = header;
+        relocatable[16..18].copy_from_slice(&1u16.to_le_bytes());
+        assert!(check_linked_abi(&relocatable, abi).is_err());
+        assert!(check_linked_abi(&header[..63], abi).is_err());
+    }
+}
+
+#[test]
 fn unused_inventory_cannot_hide_external_storage_aliases_groups_or_effects() {
     let base = descriptor(1);
     verified(&base);
