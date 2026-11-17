@@ -1,0 +1,25 @@
+{
+  "schema": "ostadix.source-closure-integration/v1",
+  "base_commit": "9827dd9770c779d4aa445d8fe5f46c56554a7d01",
+  "change": "Place the scoped lint attributes before #[path], preserving the strict closure scanner module-declaration grammar. Rust module semantics and the FDE guard are unchanged.",
+  "file": "src/bin/olangc/native_runtime/exception_inventory.rs",
+  "before_sha256": "c41ffcd07cd24c2e8f9d63edd36fb9fb9a42cc8c0b919a0efe495864b9b5871a",
+  "after_sha256": "c0bb8f9281d37503f791c15d27d78cac26bcea1302c8216b7534ff5c60a1fec4",
+  "checks": [
+    {
+      "command": "python3 -m unittest -v tests.test_ocore_provider_group_source_closure tests.test_ocore_aot_native_source_closure",
+      "passed": 15,
+      "failed": 0,
+      "log": "source-closure-tests.log"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "passed": true
+    },
+    {
+      "command": "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+      "passed": true
+    }
+  ],
+  "source_checker_changed": false
+}
