@@ -153,5 +153,4 @@ pub fn select_identity_mapped_source(
 }
 
 #[cfg(test)]
-#[path = "native_machine_asm_reader_inventory_tests.rs"]
 mod tests;

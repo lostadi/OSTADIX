@@ -66,12 +66,12 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         include_str!("../ocore/native_machine_asm_reader.rs"),
     ),
     (
-        "native_machine_asm_reader_inventory.rs",
-        include_str!("../ocore/native_machine_asm_reader_inventory.rs"),
+        "native_machine_asm_reader/inventory.rs",
+        include_str!("../ocore/native_machine_asm_reader/inventory.rs"),
     ),
     (
-        "native_machine_asm_reader_inventory_tests.rs",
-        include_str!("../ocore/native_machine_asm_reader_inventory_tests.rs"),
+        "native_machine_asm_reader/inventory/tests.rs",
+        include_str!("../ocore/native_machine_asm_reader/inventory/tests.rs"),
     ),
     (
         "native_machine_asm_unit.rs",
