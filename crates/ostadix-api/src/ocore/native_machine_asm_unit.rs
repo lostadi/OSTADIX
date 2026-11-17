@@ -1645,5 +1645,4 @@ pub fn construct_configured_unit(
 pub(crate) mod tests;
 
 /// Source reconstruction artifacts relative to independently supplied floors.
-#[path = "native_machine_asm_unit_artifact.rs"]
-pub mod artifact;
+pub use super::native_machine_asm_unit_artifact as artifact;

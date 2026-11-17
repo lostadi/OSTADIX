@@ -1,0 +1,87 @@
+{
+  "schema": "ostadix.fde-cie-relocation-validation/v1",
+  "base_commit": "a686530c64f9abb2c262c7aca5a6c2b29b95ac27",
+  "upstream_pr": 117,
+  "finding_confirmed": true,
+  "baseline": {
+    "relocation": "ELF64 ET_REL x86-64 RELA PC32 at FDE+4",
+    "strict_gate_accepted_unresolved_association": true,
+    "scope": "Direct production-source harness with exact production ELF reader helpers; not a full baseline compiler build."
+  },
+  "source_sha256": {
+    "src/bin/olangc/native_runtime/cie_raw_decoder.rs": "7fbba175af336ddcbe058d092c4e52a34008e55b04e8de1f321359bc28dff082",
+    "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs": "dc0527aaac7de8db33d7deb041f77189b4365f42daa8b5fbd61bb0ea7c77aa5f",
+    "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs": "29decccd10cbe65d3f7f3b42353459ab38df3b26f217e2c9e6f0bd4c1d77d336",
+    "crates/ostadix-api/src/ocore/native_core.rs": "813876c53cf7fa65fba1c406cfcdb801c3aa62eab1af88f99f5551452cbc3785",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit.rs": "d572108ae589235b383f1de9229c4e6239421a6ec7b8528bd95def38820ba766",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact.rs": "98771f62ed8c1958643bbc38ca7185d10211c124fb6f62d565fc931149a73779",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact_tests.rs": "7d84ee25e4551967026942958fcc4326ff172f938a1f869a2612d6a61e91dbde",
+    "crates/ostadix-api/src/api/aot_source_native_registry_tests.rs": "4457bf9b743021207bdb14edfb25a1925f43a928c5b43911153761266bf0536b",
+    "ci/architecture-roots.toml": "cad184f6de918b950619f2ed60d2dd8363922ed8968020e4b51555e504cc39ae",
+    "tests/test_architecture_boundaries.py": "e10b0cf5e26b868e7a34f76f94d34a0a56e0f4c0aaaf82143cf0191b37cbe45f"
+  },
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "test_environment": {
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked --bin olangc cie_",
+      "passed": 30,
+      "failed": 0,
+      "log": "decoder-adapter-tests.log"
+    },
+    {
+      "command": "cargo test --locked -p ostadix-api --lib native_machine_",
+      "passed": 249,
+      "failed": 0,
+      "log": "native-machine-tests.log"
+    },
+    {
+      "command": "cargo test --locked -p ostadix-api --lib aot_source",
+      "passed": 7,
+      "failed": 0,
+      "log": "aot-source-tests.log"
+    },
+    {
+      "command": "python3 -m unittest -q tests.test_architecture_boundaries",
+      "passed": 147,
+      "failed": 0,
+      "log": "architecture-tests.log"
+    },
+    {
+      "command": "python3 -m unittest -q tests.test_governance_surfaces tests.test_commit_authors",
+      "passed": 45,
+      "failed": 0
+    },
+    {
+      "command": "python3 scripts/check_architecture_boundaries.py",
+      "passed": true,
+      "production_files": 228,
+      "roots": 55,
+      "cross_root_edges": 266
+    },
+    {
+      "command": "python3 scripts/contract_surfaces.py validate",
+      "passed": true
+    },
+    {
+      "command": "python3 scripts/local_ci_posture.py --profile baseline --format text",
+      "passed": true
+    }
+  ],
+  "independent_review": "Separate Codex agent reproduced the original acceptance, reviewed the guard and all PR117 production paths, then validated the canonical module geometry. No human review claimed.",
+  "scope": [
+    "ELF fixtures cover e_machine 62,183,243, REL and RELA, known and unknown widths, header bytes, straddles and exclusive boundaries.",
+    "Raw bytes and relocation evidence remain; unresolved FDE geometry clears its CIE association.",
+    "Valid initial-PC relocations beginning at FDE+8 still reach the source adapter.",
+    "The original artifact API is preserved by a public reexport; the architecture checker is unchanged."
+  ],
+  "not_established": [
+    "Original-producer admission or complete runtime/compiler lowering.",
+    "Native unwind execution or cross-ISA machine-code/runtime equivalence.",
+    "Human sign-off."
+  ]
+}

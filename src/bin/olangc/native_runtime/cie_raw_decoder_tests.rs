@@ -232,7 +232,10 @@ fn record_bounds_dwarf64_and_section_truncation_do_not_panic_or_pass_zero_cases(
     f.bytes.truncate(63);
     assert!(inspect_elf64_le_rel(&f.bytes).is_err());
 }
-fn with_relocation(mut f: Fixture, offset: u64, kind: u32) -> Fixture {
+fn with_relocation(f: Fixture, offset: u64, kind: u32) -> Fixture {
+    with_relocation_format(f, offset, kind, true)
+}
+fn with_relocation_format(mut f: Fixture, offset: u64, kind: u32, rela: bool) -> Fixture {
     let old_headers = f.bytes[f.headers..f.headers + 192].to_vec();
     let symbol_at = (f.bytes.len() + 7) & !7;
     let rela_at = symbol_at + 24;
@@ -243,10 +246,10 @@ fn with_relocation(mut f: Fixture, offset: u64, kind: u32) -> Fixture {
     put32(&mut f.bytes, headers + 196, 2); put64(&mut f.bytes, headers + 216, symbol_at as u64);
     put64(&mut f.bytes, headers + 224, 24); put64(&mut f.bytes, headers + 240, 8);
     put64(&mut f.bytes, headers + 248, 24);
-    put32(&mut f.bytes, headers + 260, 4); put64(&mut f.bytes, headers + 280, rela_at as u64);
-    put64(&mut f.bytes, headers + 288, 24); put32(&mut f.bytes, headers + 296, 3);
+    put32(&mut f.bytes, headers + 260, if rela { 4 } else { 9 }); put64(&mut f.bytes, headers + 280, rela_at as u64);
+    put64(&mut f.bytes, headers + 288, if rela { 24 } else { 16 }); put32(&mut f.bytes, headers + 296, 3);
     put32(&mut f.bytes, headers + 300, 2); put64(&mut f.bytes, headers + 304, 8);
-    put64(&mut f.bytes, headers + 312, 24);
+    put64(&mut f.bytes, headers + 312, if rela { 24 } else { 16 });
     put64(&mut f.bytes, rela_at, offset); put64(&mut f.bytes, rela_at + 8, u64::from(kind));
     f.headers = headers;
     f
@@ -392,4 +395,86 @@ fn negative_fde_range_reaches_signed_geometry_rejection_before_rule_admission() 
     let expected = "raw FDE geometry rejected: negative raw FDE address range";
     assert_eq!(diagnostic.require_initial_rules_decoded().unwrap_err().to_string(), expected);
     assert_eq!(decode_elf64_le_rel(&f.bytes).unwrap_err().to_string(), expected);
+}
+
+
+fn fde(object: &RawCieObject) -> &RawFde {
+    object.sections[0].records.iter().find_map(|record| match record {
+        RawRecord::Fde(fde) => Some(fde), _ => None,
+    }).unwrap()
+}
+
+#[test]
+fn fde_header_relocations_reject_geometry_and_preserve_raw_evidence_for_all_machines() {
+    for (machine, stack, return_column, word, pc) in [(62, 7, 16, 1, 2), (183, 31, 30, 257, 261), (243, 2, 1, 2, 57)] {
+        for rela in [false, true] {
+            // Every header byte, including the last backreference byte, plus a
+            // fixup originating in the preceding record which straddles its end.
+            for kind in [word, pc, 0xffff] {
+                for relative in [4isize, 0, 1, 2, 3, 5, 6, 7, -1] {
+                    let fixture = simple(machine, -8, return_column, &[0x0c, stack, 8]);
+                    let baseline = decode_elf64_le_rel(&fixture.bytes).unwrap();
+                    let before = fde(&baseline);
+                    let offset = before.range.section_offset.checked_add_signed(relative).unwrap();
+                    let fixture = with_relocation_format(fixture, offset as u64, kind, rela);
+                    let diagnostic = inspect_elf64_le_rel(&fixture.bytes).unwrap();
+                    let after = fde(&diagnostic);
+                    assert!(after.error.as_deref().is_some_and(|error| error.contains("overlaps FDE length/CIE backreference")),
+                        "machine={machine} rela={rela} kind={kind} relative={relative}: {:?}", after.error);
+                    assert!(after.cie_section_offset.is_none(), "a relocated backreference must not retain a checked CIE association");
+                    assert_eq!(after.range.bytes, before.range.bytes);
+                    assert_eq!(after.range.object_offset, before.range.object_offset);
+                    assert_eq!(diagnostic.sections[0].raw_bytes, baseline.sections[0].raw_bytes);
+                    let relocation = &diagnostic.sections[0].relocations[0];
+                    assert_eq!((relocation.offset, relocation.kind), (offset as u64, kind));
+                    assert_eq!(relocation.addend, rela.then_some(0));
+                    let mut expected = (offset as u64).to_le_bytes().to_vec();
+                    expected.extend(u64::from(kind).to_le_bytes());
+                    if rela { expected.extend(0i64.to_le_bytes()); }
+                    assert_eq!(relocation.raw, expected);
+                    assert_eq!(relocation.symbol_raw, [0; 24]);
+                    assert_eq!(diagnostic.object_sha256, hex::encode(Sha256::digest(&fixture.bytes)));
+                    assert!(diagnostic.require_initial_rules_decoded().is_err());
+                    assert!(decode_elf64_le_rel(&fixture.bytes).is_err());
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn fde_header_relocation_overlap_uses_exact_known_width_and_exclusive_boundaries() {
+    for (machine, stack, return_column, word, pc) in [(62, 7, 16, 1, 2), (183, 31, 30, 257, 261), (243, 2, 1, 2, 57)] {
+        for rela in [false, true] {
+            for (kind, width) in [(word, 8usize), (pc, 4)] {
+                let fixture = simple(machine, -8, return_column, &[0x0c, stack, 8]);
+                let baseline = decode_elf64_le_rel(&fixture.bytes).unwrap();
+                let start = fde(&baseline).range.section_offset;
+                // Ending exactly at FDE start touches only the preceding CIE;
+                // the FDE guard must not invent a header overlap.
+                let fixture = with_relocation_format(fixture, (start - width) as u64, kind, rela);
+                let diagnostic = inspect_elf64_le_rel(&fixture.bytes).unwrap();
+                assert!(fde(&diagnostic).error.is_none());
+                assert_eq!(fde(&diagnostic).cie_section_offset, fde(&baseline).cie_section_offset);
+                assert!(cie(&diagnostic).error.is_some());
+                // Moving one byte forward crosses into the FDE length field.
+                let fixture = simple(machine, -8, return_column, &[0x0c, stack, 8]);
+                let fixture = with_relocation_format(fixture, (start - width + 1) as u64, kind, rela);
+                let diagnostic = inspect_elf64_le_rel(&fixture.bytes).unwrap();
+                assert!(fde(&diagnostic).error.as_deref().unwrap().contains("overlaps FDE length/CIE backreference"));
+            }
+            let fixture = simple(machine, -8, return_column, &[0x0c, stack, 8]);
+            let baseline = decode_elf64_le_rel(&fixture.bytes).unwrap();
+            let initial_pc = fde(&baseline).range.section_offset + 8;
+            let fixture = with_relocation_format(fixture, initial_pc as u64, pc, rela);
+            // Normal unresolved initial-PC relocations start immediately after
+            // the protected header. This decoder still makes no FDE-PC proof.
+            let decoded = decode_elf64_le_rel(&fixture.bytes).unwrap();
+            assert!(fde(&decoded).error.is_none());
+            assert_eq!(fde(&decoded).cie_section_offset, fde(&baseline).cie_section_offset);
+            assert_eq!(fde(&decoded).initial_location.as_ref().unwrap().range.section_offset, initial_pc);
+            assert_eq!(decoded.sections[0].relocations[0].offset, initial_pc as u64);
+            assert!(!decoded.fde_pc_verified);
+        }
+    }
 }

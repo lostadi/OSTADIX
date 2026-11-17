@@ -124,3 +124,68 @@ fn two_functions_in_one_object_keep_distinct_selected_cie_contexts_and_reject_re
     assert_eq!(b.source_program.initial_cie.cfa.unwrap().offset,16);
     assert!(verify_source_cfi_from_original_fde(&bytes,&selected_first,&second,&second_inventory,Target::Riscv64UnknownNone).unwrap_err().to_string().contains("source-function scope differs"));
 }
+
+fn with_frame_relocation(mut bytes:Vec<u8>,offset:u64,kind:u32,rela:bool) -> Vec<u8> {
+    let old_headers=u64::from_le_bytes(bytes[40..48].try_into().unwrap()) as usize;
+    let original_headers=bytes[old_headers..old_headers+3*64].to_vec();
+    let symbol_at=(bytes.len()+7)&!7;let relocation_at=symbol_at+24;
+    let headers=relocation_at+24;bytes.resize(headers+5*64,0);
+    bytes[headers..headers+3*64].copy_from_slice(&original_headers);
+    put64(&mut bytes,40,headers as u64);put16(&mut bytes,60,5);
+    let symbols=headers+3*64;
+    put32(&mut bytes,symbols+4,2);put64(&mut bytes,symbols+24,symbol_at as u64);
+    put64(&mut bytes,symbols+32,24);put64(&mut bytes,symbols+48,8);put64(&mut bytes,symbols+56,24);
+    let relocations=headers+4*64;let stride=if rela {24}else{16};
+    put32(&mut bytes,relocations+4,if rela {4}else{9});put64(&mut bytes,relocations+24,relocation_at as u64);
+    put64(&mut bytes,relocations+32,stride);put32(&mut bytes,relocations+40,3);
+    put32(&mut bytes,relocations+44,2);put64(&mut bytes,relocations+48,8);put64(&mut bytes,relocations+56,stride);
+    put64(&mut bytes,relocation_at,offset);put64(&mut bytes,relocation_at+8,u64::from(kind));
+    bytes
+}
+
+#[test]
+fn relocated_fde_header_cannot_select_an_initial_cie_for_any_typed_architecture() {
+    for &target in Target::ALL {
+        let (_,machine,cfa,arg,_,_,_,_)=architecture_fixture(target);
+        let (bytes,selected)=object_fixture(machine,&[0x0c,cfa,8,0x08,arg]);
+        let (body,inventory)=body_fixture(target);
+        verify_source_cfi_from_original_fde(&bytes,&selected,&body,&inventory,target).unwrap();
+        let (word,pc)=match machine {62=>(1,2),183=>(257,261),243=>(2,57),_=>unreachable!()};
+        for rela in [false,true] {
+            for kind in [word,pc,0xffff] {
+                for relative in [4isize,0,1,2,3,5,6,7,-1] {
+                    let offset=selected.fde_section_offset.checked_add_signed(relative).unwrap();
+                    let modified=with_frame_relocation(bytes.clone(),offset as u64,kind,rela);
+                    let raw=cie_raw_decoder::inspect_elf64_le_rel(&modified).unwrap();
+                    let fde=raw.sections[0].records.iter().find_map(|record|match record {
+                        RawRecord::Fde(fde) if fde.range.section_offset==selected.fde_section_offset=>Some(fde),_=>None,
+                    }).unwrap();
+                    assert!(fde.error.as_deref().is_some_and(|error|error.contains("overlaps FDE length/CIE backreference")),
+                        "machine={machine} rela={rela} kind={kind} relative={relative}: {:?}",fde.error);
+                    assert!(fde.cie_section_offset.is_none());
+                    assert!(raw.require_initial_rules_decoded().is_err());
+                    assert!(decode_initial_cie(&modified,&selected).is_err());
+                    assert!(verify_source_cfi_from_original_fde(&modified,&selected,&body,&inventory,target).is_err());
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn initial_pc_relocation_after_fde_header_keeps_source_cfi_adapter_available() {
+    for &target in Target::ALL {
+        let (_,machine,cfa,arg,_,_,_,_)=architecture_fixture(target);
+        let (bytes,selected)=object_fixture(machine,&[0x0c,cfa,8,0x08,arg]);
+        let (body,inventory)=body_fixture(target);
+        let kind=match machine {62=>2,183=>261,243=>57,_=>unreachable!()};
+        for rela in [false,true] {
+            let modified=with_frame_relocation(bytes.clone(),(selected.fde_section_offset+8) as u64,kind,rela);
+            let output=verify_source_cfi_from_original_fde(&modified,&selected,&body,&inventory,target).unwrap();
+            assert_eq!(output.source_program.initial_cie.fde_section_offset,selected.fde_section_offset as u64);
+            assert_eq!(output.raw_object.sections[0].relocations.len(),1);
+            assert_eq!(output.raw_object.sections[0].relocations[0].addend,rela.then_some(0));
+            assert!(!output.raw_object.fde_pc_verified && !output.source_program.program.emitted_program_counter_map_verified);
+        }
+    }
+}

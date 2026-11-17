@@ -11,9 +11,8 @@ and attach evidence no broader than the substrate actually tested.
   [SECURITY.md](SECURITY.md), never in a public issue or pull request.
 - Do not submit secrets, credentials, private keys, proprietary fixtures, or
   generated artifacts you do not have the right to contribute.
-- Follow the maintainer [publication identity policy](docs/COMMIT_AUTHORS.md)
-  for Git, Cargo and citation author fields. Disclose actual AI/tool assistance
-  and review in prose or provenance trailers instead of suppressing it. Keep
+- Record [contributor credit](docs/COMMIT_AUTHORS.md) accurately. Disclose
+  actual AI/tool assistance and review in prose or provenance trailers. Keep
   human responsibility, agent assistance, generated code and executed checks
   distinct; see [AI-assisted development](docs/AI_ASSISTED_DEVELOPMENT.md).
   Do not invent contributor credit, sign-offs, test results or a human review.

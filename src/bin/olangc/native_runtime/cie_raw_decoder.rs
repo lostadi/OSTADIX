@@ -432,6 +432,27 @@ fn relocation_width(machine: u16, kind: u32) -> Option<usize> {
 }
 fn protect_initial_rules(section: &mut RawFrameSection, machine: u16) {
     for record in &mut section.records {
+        if let RawRecord::Fde(fde) = record {
+            // Length and CIE backreference determine which record supplies
+            // the initial rules. Unresolved fixups cannot authenticate those
+            // raw-byte geometry/association facts. The initial-PC field begins
+            // at +8 and remains outside this narrow header protection.
+            let start = fde.range.section_offset;
+            let end = start + 8;
+            for relocation in &section.relocations {
+                let Ok(offset) = usize::try_from(relocation.offset) else {
+                    fde.error = Some("FDE relocation offset exceeds addressable section".into());
+                    fde.cie_section_offset = None;
+                    continue;
+                };
+                let relocation_end = relocation_width(machine, relocation.kind)
+                    .and_then(|width| offset.checked_add(width));
+                if offset < end && relocation_end.is_none_or(|limit| limit > start) {
+                    fde.error = Some(format!("unresolved relocation kind {} overlaps FDE length/CIE backreference", relocation.kind));
+                    fde.cie_section_offset = None;
+                }
+            }
+        }
         let RawRecord::Cie(cie) = record else { continue };
         for relocation in &section.relocations {
             let Ok(offset) = usize::try_from(relocation.offset) else {

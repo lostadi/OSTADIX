@@ -18,7 +18,6 @@ environments, and claims the evidence does not establish.
 - [ ] Public behavior and `[Unreleased]` notes were updated where needed.
 - [ ] No old record, schema, or protocol is silently uplifted.
 - [ ] Generated/AOT source closure was checked when embedded runtime code changed.
-- [ ] Claude and Codex are not named as authors, committers, co-authors,
-      signers, or contributors in this change.
+- [ ] Contributor credit and AI/tool assistance are recorded accurately.
 - [ ] This change contains no secrets, credentials, bearer capabilities, or
       publicly disclosed vulnerability details.

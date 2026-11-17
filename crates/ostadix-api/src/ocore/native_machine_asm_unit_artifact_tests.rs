@@ -1,7 +1,7 @@
 //! Authored source-only artifact controls; no original capture or ISA execution.
 use super::*;
-use super::super::tests::{fixture, Fixture};
-use super::super::{BinaryKind, MachineOperation};
+use super::super::native_machine_asm_unit::tests::{fixture, Fixture};
+use super::super::native_machine_ir::{BinaryKind, MachineOperation};
 
 fn encode(f: &Fixture) -> Vec<u8> {
     encode_configured_unit(ConstructInput {
@@ -86,7 +86,7 @@ fn changed_source_with_recomputed_payload_hash_reaches_original_reader_guard() {
 fn changed_syntax_inventory_cannot_select_its_own_floor() {
     let (f, raw) = baseline();
     let mut envelope = decoded(&raw);
-    let mut floor: super::super::asm::SyntaxInventory = serde_json::from_slice(&envelope.syntax_inventory.bytes).unwrap();
+    let mut floor: super::super::native_machine_asm_reader::SyntaxInventory = serde_json::from_slice(&envelope.syntax_inventory.bytes).unwrap();
     assert_eq!(floor.records.len(), 7);
     floor.records.pop().unwrap();
     envelope.syntax_inventory = Blob::new(&serde_json::to_vec(&floor).unwrap());
@@ -97,7 +97,7 @@ fn changed_syntax_inventory_cannot_select_its_own_floor() {
 fn changed_unit_inventory_cannot_drop_a_required_body() {
     let (f, raw) = baseline();
     let mut envelope = decoded(&raw);
-    let mut floor: super::super::unit::SelectedUnitInventory = serde_json::from_slice(&envelope.unit_inventory.bytes).unwrap();
+    let mut floor: super::super::native_machine_unit::SelectedUnitInventory = serde_json::from_slice(&envelope.unit_inventory.bytes).unwrap();
     assert_eq!(floor.bodies.len(), 1);
     floor.bodies.clear();
     envelope.unit_inventory = Blob::new(&serde_json::to_vec(&floor).unwrap());
@@ -108,7 +108,7 @@ fn changed_unit_inventory_cannot_drop_a_required_body() {
 fn forged_typed_unit_with_valid_own_hash_is_rejected_after_real_reconstruction() {
     let (f, raw) = baseline();
     let mut envelope = decoded(&raw);
-    let mut typed: super::super::unit::MachineUnit = serde_json::from_slice(&envelope.typed_unit.bytes).unwrap();
+    let mut typed: super::super::native_machine_unit::MachineUnit = serde_json::from_slice(&envelope.typed_unit.bytes).unwrap();
     assert_eq!(serde_json::to_vec(&typed).unwrap(), envelope.typed_unit.bytes);
     assert_eq!(typed.bodies[0].symbol, 0);
     typed.bodies[0].symbol = 99;

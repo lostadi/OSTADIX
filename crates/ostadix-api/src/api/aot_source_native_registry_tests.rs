@@ -265,8 +265,8 @@ enum ConfiguredArtifactSiblingError {
     },
 }
 
-// This is a selected two-edge descendant contract, not a Rust dependency or
-// cfg evaluator. The ordinary root guard above intentionally has root scope.
+// The ordinary root guard owns production module declarations. This selected
+// facade/test-sibling contract is not a Rust dependency or cfg evaluator.
 fn check_configured_artifact_siblings(
     rows: &[(&str, &str)],
 ) -> Result<(), ConfiguredArtifactSiblingError> {
@@ -280,7 +280,7 @@ fn check_configured_artifact_siblings(
         ),
         (
             "native_machine_asm_unit_artifact.rs",
-            "artifact",
+            "native_machine_asm_unit_artifact",
             include_str!("../ocore/native_machine_asm_unit_artifact.rs"),
         ),
         (
@@ -302,7 +302,7 @@ fn check_configured_artifact_siblings(
     for (owner, declaration, child) in [
         (
             "native_machine_asm_unit.rs",
-            "#[path = \"native_machine_asm_unit_artifact.rs\"]\npub mod artifact;",
+            "pub use super::native_machine_asm_unit_artifact as artifact;",
             "native_machine_asm_unit_artifact.rs",
         ),
         (
@@ -335,9 +335,9 @@ fn removing_each_configured_artifact_sibling_reaches_its_missing_path() {
     for (path, module, owner, declaration) in [
         (
             "native_machine_asm_unit_artifact.rs",
-            "artifact",
-            "native_machine_asm_unit.rs",
-            "#[path = \"native_machine_asm_unit_artifact.rs\"]\npub mod artifact;",
+            "native_machine_asm_unit_artifact",
+            "mod.rs",
+            "#[path = \"native_machine_asm_unit_artifact.rs\"]\npub mod native_machine_asm_unit_artifact;",
         ),
         (
             "native_machine_asm_unit_artifact_tests.rs",
@@ -362,9 +362,13 @@ fn removing_each_configured_artifact_sibling_reaches_its_missing_path() {
             mutant.iter().find(|row| row.0 == owner).unwrap().1,
             witness
         );
-        assert_eq!(
-            check_configured_artifact_siblings(&mutant),
-            Err(ConfiguredArtifactSiblingError::MissingSource { path, module })
-        );
+        let expected = if owner == "mod.rs" {
+            ConfiguredArtifactSiblingError::Registry(GuardError::MissingModule {
+                path: path.into(), module: module.into(),
+            })
+        } else {
+            ConfiguredArtifactSiblingError::MissingSource { path, module }
+        };
+        assert_eq!(check_configured_artifact_siblings(&mutant), Err(expected));
     }
 }

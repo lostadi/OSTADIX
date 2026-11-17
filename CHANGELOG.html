@@ -4,6 +4,12 @@ governance was introduced. It does not reconstruct every historical commit.
 Package SemVer is only one of the independent coordinates documented in
 <a href="docs/VERSIONING.md">docs/VERSIONING.md</a>.</p>
 <h2><a href="https://github.com/lostadi/OSTADIX/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD">Unreleased</a></h2>
+<h3>Fixed</h3>
+<ul>
+<li>Raw ELF CIE decoding rejects unresolved relocations over an FDE&#39;s length or
+CIE backreference before adapting its initial rules. Raw bytes and relocation
+diagnostics are retained; initial-PC relocations remain a separate concern.</li>
+</ul>
 <h3>Changed</h3>
 <ul>
 <li>Foreign value splices now use the receiving backend&#39;s declared data renderer.
@@ -24,7 +30,7 @@ explicit code reinterpretation. These observations describe preparation;
 they do not establish guest execution, completion or a universal confinement
 theorem.</li>
 <li>The short README links to the complete preserved reference and a focused
-research note. Publication identity policy now explicitly allows truthful
+research note. Development guidance records contributor credit and truthful
 AI-assistance and review provenance. Historical root inputs and patches are
 retained under <code>audits/</code> with byte identities.</li>
 </ul>

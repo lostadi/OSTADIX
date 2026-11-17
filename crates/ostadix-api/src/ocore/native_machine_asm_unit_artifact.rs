@@ -5,11 +5,11 @@
 //! floors from its caller, reconstructs through the real parser/lifter/verifiers,
 //! and compares the exact newly constructed typed unit. No capture, provider,
 //! original-unit completeness, native realization or runtime authority is created.
-use super::{construct_configured_unit, BodyFloor, ConstructInput, ConstructedUnit, ConstructionFailure};
-use super::super::common::Target;
-use super::super::native_machine_asm_reader::ReadSelection;
-use super::super::native_machine_ir::{ArtifactIdentity, MachineProfile, SourceWitness};
-use super::super::native_machine_unit::{BodyId, UnitSelection};
+use super::native_machine_asm_unit::{construct_configured_unit, BodyFloor, ConstructInput, ConstructedUnit, ConstructionFailure};
+use super::common::Target;
+use super::native_machine_asm_reader::ReadSelection;
+use super::native_machine_ir::{ArtifactIdentity, MachineProfile, SourceWitness};
+use super::native_machine_unit::{BodyId, UnitSelection};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;

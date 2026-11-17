@@ -28,7 +28,7 @@ The first two are [recorded semantic witnesses](benchmarks/fidelity/README.md), 
 | Boot the development system | [Boot guide](boot/README.md), [qualified package profile](docs/OKERNEL_PACKAGE_BOOT.md) |
 | Inspect validation | [CI posture](docs/CI_POSTURE.md), [test/reference guide](docs/REFERENCE.md#running-the-tests), [historical results](docs/REFERENCE.md#validation-at-the-historical-audited-master) |
 | Evaluate the research | [New focused note](docs/research/fidelity-boundaries.md), [existing technical whitepaper](Ostadix-lang_Technical_Whitepaper.pdf), [whitepaper source](docs/Ostadix-lang_Technical_Whitepaper.tex) |
-| Understand development and credit | [AI-assisted development disclosure](docs/AI_ASSISTED_DEVELOPMENT.md), [contribution policy](CONTRIBUTING.md), [Git publication identity](docs/COMMIT_AUTHORS.md) |
+| Understand development and credit | [AI-assisted development disclosure](docs/AI_ASSISTED_DEVELOPMENT.md), [contribution policy](CONTRIBUTING.md), [development credit](docs/COMMIT_AUTHORS.md) |
 
 ## Run a document
 

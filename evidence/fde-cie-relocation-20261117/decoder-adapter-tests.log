@@ -1,0 +1,48 @@
+   Compiling ostadix-api v0.4.0 (/home/ustad/ostadix-BM/crates/ostadix-api)
+   Compiling o-lang v0.4.0 (/home/ustad/ostadix-BM)
+warning: function `decode_raw_cie_initial_state` is never used
+  --> src/bin/olangc/native_runtime/exception_inventory.rs:18:15
+   |
+18 | pub(super) fn decode_raw_cie_initial_state(bytes: &[u8]) -> Result<cie_raw_decoder::RawCieObject> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `o-lang` (bin "olangc" test) generated 1 warning
+    Finished `test` profile [unoptimized] target(s) in 1m 08s
+     Running unittests src/bin/olangc.rs (target/debug/deps/olangc-56bf5d03e637ea40)
+
+running 30 tests
+test native_runtime::exception_inventory::cie_raw_decoder::tests::cie_version_three_is_explicit_and_unimplemented_versions_keep_the_raw_record ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::augmentation_and_pointer_encodings_remain_raw_without_personality_policy_defaults ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::fde_range_format_is_signed_and_missing_or_unsupported_encodings_fail_closed ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::fde_restore_accessor_returns_exact_initial_rule_and_refuses_unspecified_defaults ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::augmentation_lengths_cannot_borrow_bytes_from_the_next_record ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::raw_initial_rules_decode_all_three_explicit_elf_register_domains ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::missing_cfa_dependencies_and_signed_offset_overflow_are_rejected ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::cie_restore_cannot_refer_to_the_rule_it_is_currently_constructing ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::negative_fde_range_reaches_signed_geometry_rejection_before_rule_admission ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::only_explicit_undefined_same_value_and_register_rules_enter_the_initial_table ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::record_bounds_dwarf64_and_section_truncation_do_not_panic_or_pass_zero_cases ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::remembered_state_restores_cfa_and_rules_without_erasing_instruction_trace ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::register_domains_reject_unknown_columns_without_inventing_32bit_support ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::relocation_overlapping_initial_rules_is_retained_and_blocks_a_decoded_baseline ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::raw_section_header_object_offsets_and_unresolved_fde_bytes_are_preserved ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::signed_factored_offsets_and_cfa_updates_do_not_wrap_or_lose_sign ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::remembered_state_underflow_and_open_stack_are_explicit_failures ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::truncated_signed_leb_reaches_sleb_at_the_cie_program_boundary ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::unterminated_and_overflowing_leb_fields_fail_with_original_bytes_retained ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::selected_fde_backreference_is_required_instead_of_selecting_the_first_cie ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::actual_target_and_cfa_register_mismatches_reach_existing_core_guards ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::unsupported_expression_location_and_architecture_extensions_do_not_become_nops ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::missing_cfa_wrong_machine_and_unresolved_restore_are_not_implicit_defaults ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::two_functions_in_one_object_keep_distinct_selected_cie_contexts_and_reject_reuse ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::actual_elf_decoder_adapter_and_shared_core_evaluator_compose_on_each_typed_architecture ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::fde_header_relocation_overlap_uses_exact_known_width_and_exclusive_boundaries ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::initial_pc_relocation_after_fde_header_keeps_source_cfi_adapter_available ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::typed_adapter_preserves_every_decoded_rule_and_signed_byte_offset_without_rescaling ... ok
+test native_runtime::exception_inventory::cie_raw_decoder::tests::fde_header_relocations_reject_geometry_and_preserve_raw_evidence_for_all_machines ... ok
+test native_runtime::exception_inventory::cie_source_adapter::tests::relocated_fde_header_cannot_select_an_initial_cie_for_any_typed_architecture ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 321 filtered out; finished in 0.02s
+

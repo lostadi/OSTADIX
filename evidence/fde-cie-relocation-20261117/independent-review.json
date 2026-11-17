@@ -1,0 +1,110 @@
+{
+  "schema": "ostadix.fde-relocation-independent-review/v1",
+  "recordedAt": "2026-11-17T13:12:48.835476+00:00",
+  "sourceRoot": "/home/ustad/ostadix-BM",
+  "baseCommit": "a686530c64f9abb2c262c7aca5a6c2b29b95ac27",
+  "sourceSha256": {
+    ".github/workflows/ci.yml": "ebefbae351a2f34ba6d5d9fd332837f96f739d5963b005c4fa7bb77018f29afb",
+    "Cargo.lock": "31f81ac32e461d1a8bd433f31fa65b3759a1fff73b196ad7a24ce751e345dca8",
+    "Cargo.toml": "1eeb28b44de3f4eaea63fc90f2abcbb21216a653ce53b4ed0b7b5f93a423fe95",
+    "ci/architecture-roots.toml": "cad184f6de918b950619f2ed60d2dd8363922ed8968020e4b51555e504cc39ae",
+    "crates/ostadix-api/Cargo.toml": "a6c4f003ad1f4ff9cc0f612cfa1d34a3dd2a2a9305f6fd1772ff814962a3d100",
+    "crates/ostadix-api/src/api/aot_source.rs": "d233a12eb1a4f98f9fba5c99a8852c41a1bd5e11e3df1790fe902166d3e812ef",
+    "crates/ostadix-api/src/api/aot_source_native_registry_tests.rs": "4457bf9b743021207bdb14edfb25a1925f43a928c5b43911153761266bf0536b",
+    "crates/ostadix-api/src/ocore/native_core.rs": "813876c53cf7fa65fba1c406cfcdb801c3aa62eab1af88f99f5551452cbc3785",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit.rs": "d572108ae589235b383f1de9229c4e6239421a6ec7b8528bd95def38820ba766",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact.rs": "98771f62ed8c1958643bbc38ca7185d10211c124fb6f62d565fc931149a73779",
+    "crates/ostadix-api/src/ocore/native_machine_asm_unit_artifact_tests.rs": "7d84ee25e4551967026942958fcc4326ff172f938a1f869a2612d6a61e91dbde",
+    "crates/ostadix-api/src/ocore/native_machine_verify.rs": "32d9e80340149afdce97c08356dc9d643b854df2b919ab5844e3c2897c969596",
+    "crates/ostadix-api/src/ocore/native_machine_verify_tests.rs": "74709a631de5ce2edc8606edf1464803a39448d998b90539ec730906f48b608f",
+    "scripts/check_architecture_boundaries.py": "0f41abd6c8be446b2461de79854f8920b4ea3ebe898db05ea17c1672b991bd89",
+    "src/bin/olangc/native_runtime/cie_raw_decoder.rs": "7fbba175af336ddcbe058d092c4e52a34008e55b04e8de1f321359bc28dff082",
+    "src/bin/olangc/native_runtime/cie_raw_decoder_tests.rs": "dc0527aaac7de8db33d7deb041f77189b4365f42daa8b5fbd61bb0ea7c77aa5f",
+    "src/bin/olangc/native_runtime/cie_source_adapter.rs": "354b706f41e40721b82fb6eb8627cc80bea6ed95d882ef4c0f10ea021d33b3da",
+    "src/bin/olangc/native_runtime/cie_source_adapter_tests.rs": "29decccd10cbe65d3f7f3b42353459ab38df3b26f217e2c9e6f0bd4c1d77d336",
+    "src/bin/olangc/native_runtime/exception_inventory.rs": "609e4a58f274b0571da4d423b7d3868dc17f07068db2b9f06262f20b05658b25",
+    "tests/test_architecture_boundaries.py": "e10b0cf5e26b868e7a34f76f94d34a0a56e0f4c0aaaf82143cf0191b37cbe45f"
+  },
+  "reviewScope": "Production paths and negative controls from all twelve PR117 files, FDE geometry relocation guard, and canonical source-module geometry fix. No additional blocker identified. Existing unit::artifact API retained as a re-export. Architecture checker implementation unchanged.",
+  "validation": {
+    "originalRawDecoderDirectFdeBackrefProbe": {
+      "result": "accepted the unresolved FDE+4 RELA PC32 relocation; confirms the finding",
+      "count": 1,
+      "kind": "direct-source scratch harness"
+    },
+    "originalRawDecoderDesiredRegressions": {
+      "result": "failed as expected before production guard",
+      "count": 2,
+      "kind": "direct-source scratch harness"
+    },
+    "fixedRawDecoder": {
+      "result": "passed",
+      "count": 22,
+      "kind": "direct-source scratch harness"
+    },
+    "nativeMachineApi": {
+      "result": "passed",
+      "count": 249,
+      "command": "CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_TEST_CODEGEN_UNITS=256 CARGO_BUILD_JOBS=2 cargo test --locked -p ostadix-api --lib native_machine_"
+    },
+    "aotSourceRegistry": {
+      "result": "passed",
+      "count": 7,
+      "command": "CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_TEST_CODEGEN_UNITS=256 CARGO_BUILD_JOBS=2 cargo test --locked -p ostadix-api --lib aot_source"
+    },
+    "architectureUnitTests": {
+      "result": "passed",
+      "count": 147,
+      "command": "python3 -m unittest -v tests.test_architecture_boundaries"
+    },
+    "architectureDependencyChecker": {
+      "result": "passed",
+      "productionFiles": 228,
+      "roots": 55,
+      "crossRootEdges": 266,
+      "command": "python3 scripts/check_architecture_boundaries.py"
+    }
+  },
+  "logs": {
+    "architecture-native-machine-tests.log": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/architecture-native-machine-tests.log",
+      "sha256": "3627988bd31e5cd90c8136f1813f770439d8dcf91bca394c6a14e1d7b3cf2dde"
+    },
+    "architecture-aot-source-tests.log": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/architecture-aot-source-tests.log",
+      "sha256": "26b6cb4006e0673d6819f5b4a52fa3c4bbb04a22ef524a4f977e9c58988782f2"
+    },
+    "architecture-tests-fixed-final.log": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/architecture-tests-fixed-final.log",
+      "sha256": "798d1e26ad14863463ba59879359da6d844454bbb2b1be977507ca931694ff1c"
+    },
+    "exact-hole-probe.stdout": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-hole-probe.stdout",
+      "sha256": "6d02f19f4a7e75c36a8e60086db141db93b3935c202301e98272faee1a036b85"
+    },
+    "exact-hole-probe.stderr": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-hole-probe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exact-direct-backref-regression.stdout": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-direct-backref-regression.stdout",
+      "sha256": "0fdcae05a710af947751076754f8f69bf02795e837da5c1661633ed5333c12ab"
+    },
+    "exact-direct-backref-regression.stderr": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/exact-direct-backref-regression.stderr",
+      "sha256": "c85e78ef3bd6c0f7450e418358ddd5a3cb1257d9c4b236f50ff9dd666b79ae6b"
+    },
+    "postfix-tests.stdout": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/postfix-tests.stdout",
+      "sha256": "27d311cb2f8d60720d73d6d82391f671a9fcaf2de022acf31ffc2db2a63206ce"
+    },
+    "postfix-tests.stderr": {
+      "path": "/mnt/data-hdd2/ostadix-fde-relocation-review-20261117/postfix-tests.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limits": [
+    "Source-only raw/adapter and structural artifact checks do not qualify native unwind execution, original-runtime lowering, or cross-ISA runtime equivalence.",
+    "Whole olangc cie_ execution is separately performed and reported by the parent agent; this record includes only independently observed runs."
+  ]
+}
