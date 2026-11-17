@@ -8,18 +8,18 @@
 use super::*;
 use o_lang::ocore::native_ir::{ExceptionClause, Function, Operand, Operation, Terminator};
 
-#[path = "cie_raw_decoder.rs"]
 #[allow(
     dead_code,
     reason = "staged raw-CFI inspection; not an object-admission path"
 )]
+#[path = "cie_raw_decoder.rs"]
 pub(super) mod cie_raw_decoder;
 
-#[path = "cie_source_adapter.rs"]
 #[allow(
     dead_code,
     reason = "staged source-CFI adapter; not an object-admission path"
 )]
+#[path = "cie_source_adapter.rs"]
 pub(super) mod cie_source_adapter;
 
 /// Raw initial-CIE decoding only; object/source/profile authority stays separate.
