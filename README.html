@@ -74,13 +74,14 @@
 </tr>
 </tbody></table>
 <h2>Run a document</h2>
-<p>From the checkout, install the minimal hosted tools and run the example. See the <a href="docs/REFERENCE.md#quickstart">quickstart</a> for other installation profiles.</p>
+<p>From the checkout, install the minimal hosted tools and run the example.</p>
 <pre><code class="language-sh">./install minimal
 . &quot;$HOME/.config/ostadix/env.sh&quot;
 o check examples/literate_report.O
 o plan examples/literate_report.O --json
 O examples/literate_report.O &quot;$PWD/backends&quot; &gt; report.md
 </code></pre>
+<p>Use <code>./install runtime --verify</code> for the four core commands and the MCP server. Preview the full installation with <code>./install full --dry-run</code>. Both entry points accept the existing flags, including <code>./setup.sh -y --minimal</code>. Run <code>./install --help</code> for the complete list.</p>
 <p>Checking parses; planning inspects; the final command executes. The example requires Python 3. Use <code>o capabilities</code> and <code>o guide</code> for the compiled command catalog; an advertised command or installed executable is not proof of runtime health or execution admission.</p>
 <p>The <a href="docs/REFERENCE.md">complete preserved reference</a> retains the former guide
 and its dated evidence. The current contract distinguishes present behavior.</p>

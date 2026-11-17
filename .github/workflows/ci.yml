@@ -856,7 +856,9 @@ jobs:
   native-leaf-targets:
     name: Native leaf graph on ${{ matrix.target }}
     needs: contracts
-    runs-on: ubuntu-26.04
+    # Ubuntu 24.04 supplies the PRoot 5.1 / QEMU 8.2 pair used for
+    # nested exec of the sealed leaf and host assembler/linker.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -895,12 +897,19 @@ jobs:
           export "CARGO_TARGET_${cargo_key}_LINKER=$CROSS-gcc"
           export "CARGO_TARGET_${cargo_key}_RUNNER=proot -q /usr/bin/qemu-$ISA"
           export QEMU_LD_PREFIX="/usr/$CROSS" O_NATIVE_CLANG=/usr/bin/clang O_NATIVE_LD="/usr/bin/$CROSS-ld"
+          # The target checkpoint test pins the host Python executable. Give PRoot
+          # a regular file so resolving python3 does not cross into the guest sysroot.
+          install -D -m 0755 /usr/bin/python3 "$RUNNER_TEMP/native-leaf-host-bin/python3"
+          export PATH="$RUNNER_TEMP/native-leaf-host-bin:$PATH"
           set -o pipefail
           cases=(
             executable_preorder_binds_source_spans_and_plan_ids_across_node_forms
+            source_plan_materialized_values_match_their_oir_literals
             replacement_actor_requires_the_complete_restore_receipt_before_publication
+            checkpoint_capture_and_restore_require_the_admitted_backend_and_runtime
             parsed_instruction_lowering_requires_the_selected_isa_layout_before_emitting_state
             native_leaf_runs_owned_sealed_code_with_stack_arguments_and_trap_failure
+            sealed_leaf_elf_matches_the_frontend_abi_and_rejects_mismatched_headers
           )
           cargo test --locked --target "$RUST_TARGET" -p ostadix-api --lib -- \
             --test-threads=1 native_leaf_graph_tests "${cases[@]}" | tee "$RUNNER_TEMP/leaf-tests.log"

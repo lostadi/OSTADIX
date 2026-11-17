@@ -301,13 +301,15 @@ from source bytes to observed execution.
 
 ## Quickstart
 
-For a fresh checkout, build the minimal hosted profile and load its environment
-to run the tools from this revision.
+For a fresh checkout, build the minimal hosted profile before invoking the
+installed tools. `setup.sh` also refreshes the native commands, so the commands
+below exercise the source revision you just checked out rather than an older
+binary already on `PATH`:
 
 ```bash
 git clone https://github.com/lostadi/OSTADIX.git OSTADIX
 cd OSTADIX
-./install minimal -y
+./setup.sh -y --minimal
 source "$HOME/.config/ostadix/env.sh"
 
 o eval 'python^( __oval_result__ = 1 + 1 )_python'
@@ -318,12 +320,6 @@ O version --json
 
 `O version --json` reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.
-
-Use `./install runtime --verify` for the four core commands and the MCP server.
-Preview the full profile with `./install full --dry-run`. With no profile,
-`./install` selects components for the current host. Both installer names
-accept the existing flags, including `./setup.sh -y --minimal`. Run
-`./install --help` for the complete list.
 
 For a greeting that crosses three language boundaries, install Node.js and a
 Common Lisp runtime such as SBCL alongside Python 3, then run:

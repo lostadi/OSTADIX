@@ -32,7 +32,7 @@ The first two are [recorded semantic witnesses](benchmarks/fidelity/README.md), 
 
 ## Run a document
 
-From the checkout, install the minimal hosted tools and run the example. See the [quickstart](docs/REFERENCE.md#quickstart) for other installation profiles.
+From the checkout, install the minimal hosted tools and run the example.
 
 ```sh
 ./install minimal
@@ -41,6 +41,8 @@ o check examples/literate_report.O
 o plan examples/literate_report.O --json
 O examples/literate_report.O "$PWD/backends" > report.md
 ```
+
+Use `./install runtime --verify` for the four core commands and the MCP server. Preview the full installation with `./install full --dry-run`. Both entry points accept the existing flags, including `./setup.sh -y --minimal`. Run `./install --help` for the complete list.
 
 Checking parses; planning inspects; the final command executes. The example requires Python 3. Use `o capabilities` and `o guide` for the compiled command catalog; an advertised command or installed executable is not proof of runtime health or execution admission.
 
