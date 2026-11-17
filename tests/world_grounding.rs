@@ -1,6 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::path::Path;
 
 use o_lang::effects::EffectSummary;
+use o_lang::eval::Evaluator;
 use o_lang::ir::{BackendRegistry, OIr, OIrProgram, PlanNodeId};
 use o_lang::value::{
     BackendAuthority, NativeBoundary, NativeCodecSafety, NativeIdentity, ONative, OValue,
@@ -134,20 +136,12 @@ fn invalid_and_mismatched_graphs_are_rejected_before_reporting() {
 #[test]
 fn materialized_native_capsule_remains_unresolved_without_origin_generation() {
     let program = OIrProgram {
-        nodes: vec![OIr::Text("materialized slot".into())],
+        nodes: vec![OIr::Load("capsule".into())],
     };
     let plan = program.plan();
     let mut graph = program.hgraph_for_plan(&plan).unwrap();
-    let value = graph
-        .node_ids()
-        .into_iter()
-        .find(|id| {
-            graph
-                .node(*id)
-                .is_some_and(|node| node.plan_node == Some(PlanNodeId(0)))
-        })
-        .unwrap();
-    graph.node_mut(value).unwrap().value = Some(OValue::Native {
+    let value = graph.op_for(plan.roots[0]).unwrap().value_output;
+    let capsule = OValue::Native {
         v: ONative {
             lang: "python".into(),
             implementation: Some("cpython".into()),
@@ -165,10 +159,17 @@ fn materialized_native_capsule_remains_unresolved_without_origin_generation() {
             metadata: BTreeMap::new(),
             rehydrate: RehydratePolicy::SameProcess,
         },
-    });
+    };
+    let mut scope = HashMap::from([("capsule".to_string(), capsule)]);
+    let mut evaluator = Evaluator::new(Path::new(env!("CARGO_MANIFEST_DIR")).join("backends"));
+    let observed = evaluator
+        .eval_ir_program_serial_with_scope(&program, &mut scope)
+        .unwrap();
+    graph.node_mut(value).unwrap().value = Some(observed);
 
     let report = GroundingReport::analyze(&plan, &graph, None).unwrap();
     assert_eq!(report.capsules.len(), 1);
+    assert_eq!(report.capsules[0].graph_node, value);
     assert_eq!(report.capsules[0].rehydrate, RehydratePolicy::SameProcess);
     assert!(!report.capsules[0].origin_generation_grounded);
     assert!(report
