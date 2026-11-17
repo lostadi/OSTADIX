@@ -1,0 +1,9 @@
+   Compiling getrandom v0.4.3
+   Compiling o-lang v0.4.0 (/home/ustad/ostadix-BM)
+    Checking ostadix-api v0.4.0 (/home/ustad/ostadix-BM/crates/ostadix-api)
+    Checking tempfile v3.27.0
+ Documenting ostadix v0.1.0 (/home/ustad/ostadix-BM/ostadix-core)
+ Documenting ostadix-api v0.4.0 (/home/ustad/ostadix-BM/crates/ostadix-api)
+ Documenting o-lang v0.4.0 (/home/ustad/ostadix-BM)
+    Finished `dev` profile [unoptimized] target(s) in 1m 01s
+   Generated /home/ustad/ostadix-BM/target/doc/o_lang/index.html and 17 other files
