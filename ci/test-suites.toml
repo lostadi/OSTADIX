@@ -61,8 +61,20 @@ probe_args = ["--version"]
 executable = "openssl"
 probe_args = ["version"]
 
+[runtime_probes.proot]
+executable = "proot"
+probe_args = ["--version"]
+
 [runtime_probes.python3]
 executable = "python3"
+probe_args = ["--version"]
+
+[runtime_probes.qemu-aarch64]
+executable = "qemu-aarch64"
+probe_args = ["--version"]
+
+[runtime_probes.qemu-riscv64]
+executable = "qemu-riscv64"
 probe_args = ["--version"]
 
 [runtime_probes.qemu-system-aarch64]
@@ -127,6 +139,9 @@ required_executables = ["bash", "python3"]
 
 [suites.ocore-qemu]
 required_executables = ["clang", "grub-mkrescue", "grub-mkstandalone", "mcopy", "python3", "qemu-system-aarch64", "qemu-system-x86_64", "xorriso"]
+
+[suites.native-leaf-targets]
+required_executables = ["cargo", "clang", "proot", "qemu-aarch64", "qemu-riscv64"]
 
 [suites.native-systems]
 required_executables = ["bash", "cargo", "clang", "make", "python3", "qemu-system-aarch64", "qemu-system-x86_64"]

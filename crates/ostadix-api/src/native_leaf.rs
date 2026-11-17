@@ -140,12 +140,13 @@ fn audit(text: &str) -> Result<Audited> {
     {
         bail!("native scalar leaf requires the little-endian 64-bit Linux ELF profile");
     }
-    let target = match module.target.triple.split('-').next() {
-        Some("x86_64") => Target::X86_64UnknownNone,
-        Some("aarch64") => Target::Aarch64UnknownNone,
-        Some("riscv64") => Target::Riscv64UnknownNone,
-        _ => bail!("unsupported native scalar leaf ISA"),
-    };
+    let target = module
+        .target
+        .triple
+        .split('-')
+        .next()
+        .and_then(Target::from_architecture)
+        .context("unsupported native scalar leaf ISA")?;
     // Mirror the owned object driver's explicit assembler ABI selection.
     // Linux Clang's RV default is LP64D; the owned module default is LP64.
     let assembler_abi = match (target, module.target.abi.as_deref()) {
@@ -681,12 +682,8 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
     let audited = audit(text)?;
     #[cfg(target_os = "linux")]
     {
-        let host = match std::env::consts::ARCH {
-            "x86_64" => Target::X86_64UnknownNone,
-            "aarch64" => Target::Aarch64UnknownNone,
-            "riscv64" => Target::Riscv64UnknownNone,
-            _ => bail!("native scalar host ISA is unsupported"),
-        };
+        let host = Target::from_architecture(std::env::consts::ARCH)
+            .context("native scalar host ISA is unsupported")?;
         if host != audited.target {
             bail!("native scalar leaf target must match the Linux host ISA");
         }
@@ -1068,8 +1065,28 @@ pub(crate) fn validate_manifests(manifests: &[NativeLeafManifest]) -> Result<()>
 
 #[cfg(test)]
 pub(crate) fn test_descriptor(arity: usize, trap: bool) -> String {
+    let target = Target::from_architecture(std::env::consts::ARCH).expect("native leaf test ISA");
+    test_descriptor_for(target, arity, trap)
+}
+
+#[cfg(test)]
+fn test_descriptor_for(target: Target, arity: usize, trap: bool) -> String {
     use serde_json::json;
-    let isa = std::env::consts::ARCH;
+    // Clang 22 Linux data layouts for the synthetic integer module on each ABI.
+    let data_layout = match target {
+        Target::X86_64UnknownNone => "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+        Target::Aarch64UnknownNone => "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32",
+        Target::Riscv64UnknownNone => "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+    };
+    let mut profile = json!({
+        "triple": format!("{}-unknown-linux-gnu", target.architecture()),
+        "data_layout": data_layout,
+        "pointer_bits": 64,
+        "little_endian": true,
+    });
+    if target == Target::Riscv64UnknownNone {
+        profile["abi"] = json!("lp64d");
+    }
     let value = |id| json!({"kind":"value","id":id});
     let mut instructions = Vec::new();
     let result = if trap {
@@ -1090,7 +1107,7 @@ pub(crate) fn test_descriptor(arity: usize, trap: bool) -> String {
     if trap {
         functions.push(json!({"name":"llvm.trap","linkage":"external","signature":signature(Vec::new(),0),"params":[],"entry":null,"blocks":[],"intrinsic":"llvm.trap"}));
     }
-    json!({"schema":SCHEMA,"entry":"native_add","module":{"format":"ocore-native-module-v1","name":"graph-native-scalar-test","target":{"triple":format!("{isa}-unknown-linux-gnu"),"data_layout":"e-m:e-p:64:64-i64:64-i128:128-n8:16:32:64-S128","pointer_bits":64,"little_endian":true},"semantics":"llvm_defined_behavior_v1","types":[{"kind":"void"},{"kind":"int","bits":64},{"kind":"int","bits":1}],"globals":[],"functions":functions,"provenance":{"input_sha256":"0".repeat(64),"frontend":"native-leaf-regression","frontend_version":"1","importer":"regression-fixture","importer_version":"1","source_function_count":if trap {2}else{1},"source_global_count":0,"refinements":[]}}}).to_string()
+    json!({"schema":SCHEMA,"entry":"native_add","module":{"format":"ocore-native-module-v1","name":"graph-native-scalar-test","target":profile,"semantics":"llvm_defined_behavior_v1","types":[{"kind":"void"},{"kind":"int","bits":64},{"kind":"int","bits":1}],"globals":[],"functions":functions,"provenance":{"input_sha256":"0".repeat(64),"frontend":"native-leaf-regression","frontend_version":"1","importer":"regression-fixture","importer_version":"1","source_function_count":if trap {2}else{1},"source_global_count":0,"refinements":[]}}}).to_string()
 }
 
 #[cfg(test)]
@@ -1329,16 +1346,10 @@ mod tests {
     }
     #[test]
     fn native_leaf_wrappers_cover_all_scalar_stack_abis_without_count_gate() {
-        for (isa, target) in [
-            ("x86_64", Target::X86_64UnknownNone),
-            ("aarch64", Target::Aarch64UnknownNone),
-            ("riscv64", Target::Riscv64UnknownNone),
-        ] {
-            let mut descriptor: serde_json::Value =
-                serde_json::from_str(&test_descriptor(12, false)).unwrap();
-            descriptor["module"]["target"]["triple"] =
-                serde_json::json!(format!("{isa}-unknown-linux-gnu"));
-            let audited = audit(&descriptor.to_string()).unwrap();
+        for &target in Target::ALL {
+            let descriptor = test_descriptor_for(target, 12, false);
+            let audited = audit(&descriptor).unwrap();
+            assert_eq!(audited.target, target);
             crate::ocore::native_codegen::emit(&audited.descriptor.module, target).unwrap();
             let wrapper = wrapper(target, "native_add", 12).unwrap();
             assert!(wrapper.contains("native_add"));
