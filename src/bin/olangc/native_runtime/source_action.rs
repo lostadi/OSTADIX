@@ -86,12 +86,26 @@ struct NativeActionEvidence {
     guard_files: Vec<BytesIdentity>,
 }
 
+// Rust frontend replay is one actual compiler action producing several LLVM
+// files. Hold that original action once; never synthesize per-unit commands.
+#[derive(Debug, Clone)]
+struct ReplayActionEvidence {
+    action: Value,
+    replay_argv: Vec<String>,
+    output_directory: PathBuf,
+}
+
 #[derive(Debug, Clone)]
 enum ProducerInput {
     FrontendReplay {
         producer: &'static str,
         original: BytesIdentity,
         replay_argv: Vec<String>,
+    },
+    ActionFrontendReplay {
+        original: BytesIdentity,
+        emitted_filename: String,
+        evidence: std::sync::Arc<ReplayActionEvidence>,
     },
     RustNativeEdges {
         original: BytesIdentity,
@@ -142,7 +156,7 @@ impl ProducerInput {
                 if native {
                     Self::bind_native_edges(action)
                 } else {
-                    Self::bind_replay(action, "rustc-llvm-v1")
+                    Self::bind_action_replay(action)
                 }
             }
             _ => bail!("unsupported registered producer contract"),
@@ -182,6 +196,102 @@ impl ProducerInput {
                 replay_argv,
             };
             if result.insert(id, input).is_some() {
+                bail!("producer contract repeats an original unit ID");
+            }
+        }
+        Ok(result)
+    }
+
+    fn bind_action_replay(action: &Value) -> Result<BTreeMap<String, Self>> {
+        // This is the existing registered rustc replay producer contract, not a
+        // language-name fallback. Native-edge policy is dispatched separately.
+        if action["producer"] != "rustc-llvm-v1" || action["kind"] != "rustc" {
+            bail!("action-scoped replay requires its registered rustc producer");
+        }
+        if action.get("executed_argv").is_some()
+            || ["rust_capture", "saved_cgus", "rust_native_resources"]
+                .iter()
+                .any(|key| action.get(*key).is_some_and(|value| !value.is_null()))
+        {
+            bail!("action-scoped replay cannot substitute native-edge or executed-command evidence");
+        }
+        if action["replay_exit_code"].as_i64() != Some(0) {
+            bail!("action-scoped Rust frontend replay did not complete successfully");
+        }
+        let replay_argv = strings(&action["replay_argv"], "action-scoped Rust frontend replay argv")?;
+        if replay_argv.len() < 4
+            || replay_argv.first().map(String::as_str) != Some(string(action, "compiler")?)
+            || replay_argv[replay_argv.len() - 3..replay_argv.len() - 1]
+                != ["--emit=llvm-ir,dep-info", "--out-dir"]
+            || replay_argv.iter().filter(|arg| arg.starts_with("--emit")).count() != 1
+            || replay_argv.iter().filter(|arg| arg.starts_with("--out-dir")).count() != 1
+            || replay_argv.iter().any(|arg| arg.starts_with("-o"))
+        {
+            bail!("action-scoped Rust replay command differs from its registered output contract");
+        }
+        let output_directory = PathBuf::from(replay_argv.last().context("Rust replay directory absent")?);
+        let normalized = output_directory.components().collect::<PathBuf>();
+        if !output_directory.is_absolute()
+            || normalized.as_os_str() != output_directory.as_os_str()
+            || output_directory.components().any(|part| {
+                !matches!(part, std::path::Component::RootDir | std::path::Component::Normal(_))
+            })
+        {
+            bail!("action-scoped Rust replay output directory is not canonical and absolute");
+        }
+        let version = string(&action["frontend"], "version")?;
+        if version.is_empty() {
+            bail!("action-scoped Rust replay frontend version is unavailable");
+        }
+        let sources = array(action, "sources")?;
+        let units = array(action, "units")?;
+        if units.is_empty() {
+            bail!("action-scoped Rust replay emitted unit inventory is empty");
+        }
+        let evidence = std::sync::Arc::new(ReplayActionEvidence {
+            action: action.clone(),
+            replay_argv,
+            output_directory,
+        });
+        let mut filenames = BTreeSet::new();
+        let mut result = BTreeMap::new();
+        for unit in units {
+            if has_replay(unit) {
+                bail!("action-scoped Rust replay unit cannot invent a per-unit command");
+            }
+            if unit["producer"] != "rustc-llvm-v1"
+                || unit["kind"] != "rustc"
+                || unit["frontend_version"] != version
+                || unit.get("capture_policy").is_some_and(|policy| policy != "frontend-replay-v1")
+                || unit.get("saved_cgu_index").is_some_and(|value| !value.is_null())
+                || !sources.contains(&unit["source"])
+            {
+                bail!("action-scoped Rust replay unit producer/frontend/source/policy differs from owner");
+            }
+            let original = declared_identity(&unit["ir"], "action-scoped Rust emitted LLVM input")?;
+            let path = Path::new(&original.path);
+            let normalized = path.components().collect::<PathBuf>();
+            if unit["ir"]["format"] != "llvm-text"
+                || normalized.as_os_str() != path.as_os_str()
+                || path.components().any(|part| {
+                    !matches!(part, std::path::Component::RootDir | std::path::Component::Normal(_))
+                })
+                || path.parent() != Some(evidence.output_directory.as_path())
+                || path.extension().is_none_or(|extension| extension != "ll")
+            {
+                bail!("action-scoped Rust replay unit is outside its owning LLVM output directory");
+            }
+            let emitted_filename = path.file_name().and_then(|name| name.to_str())
+                .context("action-scoped Rust emitted filename is unavailable")?.to_owned();
+            if !filenames.insert(emitted_filename.clone()) {
+                bail!("action-scoped Rust replay output selector is ambiguous");
+            }
+            let input = Self::ActionFrontendReplay {
+                original,
+                emitted_filename,
+                evidence: std::sync::Arc::clone(&evidence),
+            };
+            if result.insert(string(unit, "id")?.to_owned(), input).is_some() {
                 bail!("producer contract repeats an original unit ID");
             }
         }
@@ -324,7 +434,9 @@ impl ProducerInput {
 
     fn original(&self) -> &BytesIdentity {
         match self {
-            Self::FrontendReplay { original, .. } | Self::RustNativeEdges { original, .. } => {
+            Self::FrontendReplay { original, .. }
+            | Self::ActionFrontendReplay { original, .. }
+            | Self::RustNativeEdges { original, .. } => {
                 original
             }
         }
@@ -344,6 +456,24 @@ impl ProducerInput {
                     || unit["ir"]["format"] != "llvm-text"
                 {
                     bail!("consumed frontend replay contract changed");
+                }
+            }
+            Self::ActionFrontendReplay {
+                emitted_filename,
+                evidence,
+                ..
+            } => {
+                if action != &evidence.action
+                    || strings(&action["replay_argv"], "consumed action-scoped replay argv")?
+                        != evidence.replay_argv
+                    || action["replay_exit_code"].as_i64() != Some(0)
+                    || has_replay(unit)
+                    || array(&evidence.action, "units")?.iter()
+                        .find(|expected| expected["id"] == unit["id"]) != Some(unit)
+                    || Path::new(string(&unit["ir"], "path")?).file_name()
+                        .and_then(|name| name.to_str()) != Some(emitted_filename.as_str())
+                {
+                    bail!("consumed action-scoped replay evidence changed");
                 }
             }
             Self::RustNativeEdges {
@@ -377,7 +507,7 @@ impl ProducerInput {
 
     fn guard_files(&self) -> &[BytesIdentity] {
         match self {
-            Self::FrontendReplay { .. } => &[],
+            Self::FrontendReplay { .. } | Self::ActionFrontendReplay { .. } => &[],
             Self::RustNativeEdges { evidence, .. } => &evidence.guard_files,
         }
     }
@@ -1411,19 +1541,15 @@ mod tests {
 
     #[test]
     fn registered_rust_replay_preserves_the_replay_contract() {
-        let (mut capture, _) = fixture();
-        capture["invocations"][0]["producer"] = json!("rustc-llvm-v1");
-        capture["invocations"][0]["kind"] = json!("rustc");
-        capture["invocations"][0]["units"][0]["kind"] = json!("rustc");
-        let selected = sync_producer_units(&mut capture);
+        let (capture, selected, _) = rust_action_replay_fixture(1);
         let owner = bind(&capture, &selected).unwrap();
         assert!(matches!(
             &owner.units["action-1:0"].input,
-            ProducerInput::FrontendReplay {
-                producer: "rustc-llvm-v1",
-                ..
-            }
+            ProducerInput::ActionFrontendReplay { .. }
         ));
+        assert!(capture["units"][0].get("replay_argv").is_none());
+        assert!(capture["units"][0].get("replay_exit_code").is_none());
+        assert_eq!(capture["invocations"][0]["replay_exit_code"], 0);
     }
 
     #[test]
@@ -1732,4 +1858,5 @@ mod tests {
             );
         }
     }
+    include!("source_action_replay_tests.rs");
 }
