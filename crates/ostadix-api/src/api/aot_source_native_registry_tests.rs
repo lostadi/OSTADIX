@@ -445,13 +445,13 @@ fn ordinary_root_declarations_require_their_conventional_source_rows() {
 #[test]
 fn ordinary_and_explicit_root_declarations_share_duplicate_guards() {
     let root = "mod ordinary_root;\n#[path = \"explicit_root.rs\"]\npub mod explicit_root;\n";
-    let fixture = |root| {
+    fn fixture<'a>(root: &'a str) -> Vec<(&'static str, &'a str)> {
         vec![
             ("mod.rs", root),
             ("ordinary_root.rs", ""),
             ("explicit_root.rs", ""),
         ]
-    };
+    }
     assert_eq!(check(root, &fixture(root)).unwrap().len(), 2);
 
     let duplicate_name = root.replace("pub mod explicit_root;", "pub mod ordinary_root;");
@@ -462,7 +462,10 @@ fn ordinary_and_explicit_root_declarations_share_duplicate_guards() {
         Err(GuardError::DuplicateRootModule("ordinary_root".to_owned()))
     );
 
-    let duplicate_path = root.replace("#[path = \"explicit_root.rs\"]", "#[path = \"ordinary_root.rs\"]");
+    let duplicate_path = root.replace(
+        "#[path = \"explicit_root.rs\"]",
+        "#[path = \"ordinary_root.rs\"]",
+    );
     assert_ne!(duplicate_path, root);
     assert!(duplicate_path.contains("#[path = \"ordinary_root.rs\"]"));
     assert_eq!(
@@ -498,4 +501,3 @@ fn ordinary_root_support_does_not_accept_conditional_or_unsupported_layouts() {
         );
     }
 }
-
