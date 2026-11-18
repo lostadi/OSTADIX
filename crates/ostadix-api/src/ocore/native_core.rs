@@ -17,7 +17,6 @@ mod native_exception_codegen;
 pub mod native_floating_helpers;
 #[path = "native_ir.rs"]
 pub mod native_ir;
-#[path = "native_machine_asm_reader.rs"]
 pub mod native_machine_asm_reader;
 #[path = "native_machine_ir.rs"]
 pub mod native_machine_ir;
