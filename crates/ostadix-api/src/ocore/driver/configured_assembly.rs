@@ -37,8 +37,7 @@ pub struct AssemblySelection {
 
 /// Explicit source-membership mode: the selected original bytes must be exactly
 /// the configured bytes. This does not authenticate a producer or an ABI floor.
-pub const IDENTITY_SELECTION_FORMAT: &str =
-    "ocore-configured-assembly-identity-selection-v1";
+pub const IDENTITY_SELECTION_FORMAT: &str = "ocore-configured-assembly-identity-selection-v1";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IdentityOriginalFile {
@@ -70,9 +69,9 @@ impl AssemblyDescriptor {
             Self::Supplied(v) if v.format == SELECTION_FORMAT => Ok(()),
             Self::Identity(v) if v.format == IDENTITY_SELECTION_FORMAT => Ok(()),
             Self::Supplied(_) => Err("unsupported configured assembly selection format".into()),
-            Self::Identity(_) => Err(
-                "unsupported identity-original configured assembly selection format".into(),
-            ),
+            Self::Identity(_) => {
+                Err("unsupported identity-original configured assembly selection format".into())
+            }
         }
     }
     fn owner(&self) -> &Path {
@@ -165,10 +164,7 @@ fn selected_profile(p: &MachineProfile, target: Target) -> Result<(), String> {
         Ok(())
     }
 }
-fn membership(
-    floor: &unit::SelectedUnitInventory,
-    bodies: &[BodyFloorFile],
-) -> Result<(), String> {
+fn membership(floor: &unit::SelectedUnitInventory, bodies: &[BodyFloorFile]) -> Result<(), String> {
     let required: BTreeSet<_> = floor.bodies.iter().map(|b| b.id).collect();
     let selected: BTreeSet<_> = bodies.iter().map(|b| b.body).collect();
     if required.len() != floor.bodies.len()
@@ -890,7 +886,11 @@ mod file_route_tests {
         assert_eq!(legacy.source.files.len(), 1);
         assert_eq!(legacy.source.files[0].identity, identity(&raw));
         assert_eq!(legacy.source.decoded_assembly, identity(&raw));
-        let path = if separate_original { "original.S" } else { "source.s" };
+        let path = if separate_original {
+            "original.S"
+        } else {
+            "source.s"
+        };
         if separate_original {
             std::fs::write(owner.0.join(path), &raw).unwrap();
         }
@@ -899,7 +899,10 @@ mod file_route_tests {
             owner: legacy.owner,
             original_file: IdentityOriginalFile {
                 file_id: legacy.source.files[0].id,
-                input: FloorFile { path: path.into(), identity: identity(&raw) },
+                input: FloorFile {
+                    path: path.into(),
+                    identity: identity(&raw),
+                },
             },
             source: legacy.source,
             profile: legacy.profile,
@@ -915,29 +918,54 @@ mod file_route_tests {
         std::fs::write(descriptor, &bytes).unwrap();
         identity(&bytes).sha256
     }
-    fn run_identity(owner: &Owner, descriptor: &Path, sha: &str, output: &Path) -> Result<(), Diagnostic> {
+    fn run_identity(
+        owner: &Owner,
+        descriptor: &Path,
+        sha: &str,
+        output: &Path,
+    ) -> Result<(), Diagnostic> {
         construct_configured_assembly(
-            &owner.0.join("source.s"), descriptor, sha,
-            Target::Riscv64UnknownNone, output,
+            &owner.0.join("source.s"),
+            descriptor,
+            sha,
+            Target::Riscv64UnknownNone,
+            output,
         )
     }
     fn assert_identity_output(output: &Path) -> serde_json::Value {
         let value: serde_json::Value =
             serde_json::from_slice(&std::fs::read(output).unwrap()).unwrap();
         assert_eq!(value["format"], OUTPUT_FORMAT);
-        assert_eq!(value["syntax_inventory_origin"]["mode"], "held-identity-original");
+        assert_eq!(
+            value["syntax_inventory_origin"]["mode"],
+            "held-identity-original"
+        );
         assert_eq!(value["syntax_inventory_origin"]["identity_origin_file"], 0);
-        for key in ["qualification", "original_inventory_authenticated", "source_or_native_admission", "complete_runtime_or_provider"] {
+        for key in [
+            "qualification",
+            "original_inventory_authenticated",
+            "source_or_native_admission",
+            "complete_runtime_or_provider",
+        ] {
             assert_eq!(value[key], false, "{key}");
         }
-        assert_eq!(value["syntax_inventory_origin"]["producer_attribution_proven"], false);
-        assert_eq!(value["syntax_inventory_origin"]["unit_or_abi_inventory_derived"], false);
+        assert_eq!(
+            value["syntax_inventory_origin"]["producer_attribution_proven"],
+            false
+        );
+        assert_eq!(
+            value["syntax_inventory_origin"]["unit_or_abi_inventory_derived"],
+            false
+        );
         assert_eq!(value["unit"]["bodies"].as_array().unwrap().len(), 1);
         assert_eq!(value["records"].as_array().unwrap().len(), 7);
         let raw: Vec<u8> = serde_json::from_value(value["syntax_inventory_bytes"].clone()).unwrap();
         let floor: syntax::SyntaxInventory = serde_json::from_slice(&raw).unwrap();
         assert_eq!(floor.records.len(), 7);
-        assert_eq!(value["inputs"]["syntax_floor"], serde_json::to_value(identity(&raw)).unwrap());
+        assert_eq!(
+            value["inputs"]["syntax_floor"],
+            serde_json::to_value(identity(&raw)).unwrap()
+        );
         value
     }
     #[test]
@@ -957,9 +985,11 @@ mod file_route_tests {
         let output = owner.0.join("identity.machine.json");
         run_identity(&owner, &descriptor, &sha, &output).unwrap();
         let value = assert_identity_output(&output);
-        assert!(value["consumed_files"].as_array().unwrap().iter().any(|r| {
-            r["path"] == serde_json::to_value(owner.0.join("original.S")).unwrap()
-        }));
+        assert!(value["consumed_files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| { r["path"] == serde_json::to_value(owner.0.join("original.S")).unwrap() }));
     }
     #[test]
     fn identity_driver_rejects_transformed_s_before_opening_unit_floors() {
@@ -975,7 +1005,13 @@ mod file_route_tests {
         std::fs::remove_file(owner.0.join("unit.json")).unwrap();
         let output = owner.0.join("no.machine.json");
         let error = run_identity(&owner, &descriptor, &sha, &output).unwrap_err();
-        assert!(error.message.contains("nonidentity configured-source origins"), "{}", error.message);
+        assert!(
+            error
+                .message
+                .contains("nonidentity configured-source origins"),
+            "{}",
+            error.message
+        );
         assert!(!output.exists());
     }
     #[test]
@@ -983,12 +1019,19 @@ mod file_route_tests {
         let owner = Owner::new();
         let (mut value, descriptor, _) = selected_identity(&owner, true);
         value.source.files[0].identity.sha256 = "0".repeat(64);
-        assert_ne!(value.source.files[0].identity, value.original_file.input.identity);
+        assert_ne!(
+            value.source.files[0].identity,
+            value.original_file.input.identity
+        );
         let sha = save_identity_descriptor(&value, &descriptor);
         std::fs::remove_file(owner.0.join("unit.json")).unwrap();
         let output = owner.0.join("no.machine.json");
         let error = run_identity(&owner, &descriptor, &sha, &output).unwrap_err();
-        assert!(error.message.contains("held original file bytes differ"), "{}", error.message);
+        assert!(
+            error.message.contains("held original file bytes differ"),
+            "{}",
+            error.message
+        );
         assert!(!output.exists());
     }
     #[test]
@@ -1020,7 +1063,11 @@ mod file_route_tests {
         std::fs::remove_file(owner.0.join("unit.json")).unwrap();
         let output = owner.0.join("no.machine.json");
         let error = run_identity(&owner, &descriptor, &sha, &output).unwrap_err();
-        assert!(error.message.contains("nofollow openat"), "{}", error.message);
+        assert!(
+            error.message.contains("nofollow openat"),
+            "{}",
+            error.message
+        );
         assert!(!output.exists());
     }
     #[test]
@@ -1030,14 +1077,26 @@ mod file_route_tests {
             let (mut value, descriptor, _) = selected_identity(&owner, false);
             match mode {
                 0 => value.body_inventories.clear(),
-                1 => value.body_inventories.push(value.body_inventories[0].clone()),
+                1 => value
+                    .body_inventories
+                    .push(value.body_inventories[0].clone()),
                 _ => value.body_inventories[0].body = 99,
             }
-            assert!(value.body_inventories.is_empty() || value.body_inventories.len() == 2 || value.body_inventories[0].body == 99);
+            assert!(
+                value.body_inventories.is_empty()
+                    || value.body_inventories.len() == 2
+                    || value.body_inventories[0].body == 99
+            );
             let sha = save_identity_descriptor(&value, &descriptor);
             let output = owner.0.join("no.machine.json");
             let error = run_identity(&owner, &descriptor, &sha, &output).unwrap_err();
-            assert!(error.message.contains("duplicate, missing or extra required body selector before construction"), "{}", error.message);
+            assert!(
+                error.message.contains(
+                    "duplicate, missing or extra required body selector before construction"
+                ),
+                "{}",
+                error.message
+            );
             assert!(!output.exists());
         }
     }
@@ -1048,10 +1107,17 @@ mod file_route_tests {
         let original = owner.0.join("original.S");
         std::fs::remove_file(&original).unwrap();
         std::os::unix::fs::symlink("source.s", &original).unwrap();
-        assert!(std::fs::symlink_metadata(&original).unwrap().file_type().is_symlink());
+        assert!(std::fs::symlink_metadata(&original)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         let output = owner.0.join("no.machine.json");
         let error = run_identity(&owner, &descriptor, &sha, &output).unwrap_err();
-        assert!(error.message.contains("nofollow openat"), "{}", error.message);
+        assert!(
+            error.message.contains("nofollow openat"),
+            "{}",
+            error.message
+        );
         assert!(!output.exists());
     }
     #[test]
@@ -1072,7 +1138,8 @@ mod file_route_tests {
             let raw = serde_json::to_vec(&value).unwrap();
             std::fs::write(&descriptor, &raw).unwrap();
             let output = owner.0.join("no.machine.json");
-            let error = run_identity(&owner, &descriptor, &identity(&raw).sha256, &output).unwrap_err();
+            let error =
+                run_identity(&owner, &descriptor, &identity(&raw).sha256, &output).unwrap_err();
             assert!(error.message.contains(expected), "{}", error.message);
             assert!(!output.exists());
         }

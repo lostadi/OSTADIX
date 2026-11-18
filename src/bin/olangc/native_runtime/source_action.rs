@@ -73,7 +73,6 @@ fn file_record(value: &Value, context: &str) -> Result<()> {
     Ok(())
 }
 
-
 // A registered verifier, not this JSON binding layer, establishes native byte
 // edges. These private types keep its producer-specific evidence attached to
 // every consumed unit. They cannot be deserialized into an admission capability.
@@ -108,7 +107,9 @@ fn declared_identity(value: &Value, context: &str) -> Result<BytesIdentity> {
     Ok(BytesIdentity {
         path: string(value, "path")?.to_owned(),
         sha256: string(value, "sha256")?.to_owned(),
-        bytes: value["bytes"].as_u64().context("file byte count unavailable")?,
+        bytes: value["bytes"]
+            .as_u64()
+            .context("file byte count unavailable")?,
     })
 }
 
@@ -135,9 +136,9 @@ impl ProducerInput {
             ("clang-llvm-v1", "clang") => Self::bind_replay(action, "clang-llvm-v1"),
             ("rustc-llvm-v1", "rustc") => {
                 let native = action["rust_capture"]["policy"] == "rust-embedded-bc-v1"
-                    || array(action, "units")?.iter().any(|unit| {
-                        unit["capture_policy"] == "rust-embedded-bc-v1"
-                    });
+                    || array(action, "units")?
+                        .iter()
+                        .any(|unit| unit["capture_policy"] == "rust-embedded-bc-v1");
                 if native {
                     Self::bind_native_edges(action)
                 } else {
@@ -160,8 +161,12 @@ impl ProducerInput {
             if unit.get("ir").is_none() {
                 continue;
             }
-            if unit.get("capture_policy").is_some_and(|value| value != "frontend-replay-v1")
-                || unit.get("saved_cgu_index").is_some_and(|value| !value.is_null())
+            if unit
+                .get("capture_policy")
+                .is_some_and(|value| value != "frontend-replay-v1")
+                || unit
+                    .get("saved_cgu_index")
+                    .is_some_and(|value| !value.is_null())
                 || unit["ir"]["format"] != "llvm-text"
             {
                 bail!("frontend replay unit has a different producer policy or format");
@@ -233,13 +238,17 @@ impl ProducerInput {
             } else {
                 object
             };
-            let index = output_ids.iter().position(|output| output == &original)
+            let index = output_ids
+                .iter()
+                .position(|output| output == &original)
                 .context("native-edge object/container is not an original output")?;
             covered[index] = true;
         }
         for resource in &resources {
             let original = declared_identity(&resource["artifact"], "original Rust resource")?;
-            let index = output_ids.iter().position(|output| output == &original)
+            let index = output_ids
+                .iter()
+                .position(|output| output == &original)
                 .context("native-edge resource is not an original output")?;
             covered[index] = true;
         }
@@ -266,12 +275,18 @@ impl ProducerInput {
             if unit["kind"] != "rustc"
                 || unit["capture_policy"] != "rust-embedded-bc-v1"
                 || unit["ir"]["format"] != "llvm-bitcode"
-                || ["source_production_ownership_verified", "native_machine_equivalence_verified",
-                    "post_lto_equivalence_verified"].iter().any(|key| unit[*key] != false)
+                || [
+                    "source_production_ownership_verified",
+                    "native_machine_equivalence_verified",
+                    "post_lto_equivalence_verified",
+                ]
+                .iter()
+                .any(|key| unit[*key] != false)
             {
                 bail!("native-edge unit policy/format or qualification flags differ");
             }
-            let index = unit["saved_cgu_index"].as_u64()
+            let index = unit["saved_cgu_index"]
+                .as_u64()
                 .and_then(|index| usize::try_from(index).ok())
                 .context("native-edge CGU index is unavailable")?;
             if index >= evidence.saved_cgus.len() {
@@ -281,7 +296,12 @@ impl ProducerInput {
                 bail!("native-edge CGU ownership is duplicated");
             }
             let original = declared_identity(&unit["ir"], "original embedded LLVM input")?;
-            if original != declared_identity(&evidence.saved_cgus[index]["bitcode"], "saved native bitcode")? {
+            if original
+                != declared_identity(
+                    &evidence.saved_cgus[index]["bitcode"],
+                    "saved native bitcode",
+                )?
+            {
                 bail!("native-edge unit/bitcode identity differs");
             }
             let input = Self::RustNativeEdges {
@@ -289,7 +309,10 @@ impl ProducerInput {
                 saved_cgu_index: index,
                 evidence: std::sync::Arc::clone(&evidence),
             };
-            if result.insert(string(unit, "id")?.to_owned(), input).is_some() {
+            if result
+                .insert(string(unit, "id")?.to_owned(), input)
+                .is_some()
+            {
                 bail!("producer contract repeats an original unit ID");
             }
         }
@@ -301,28 +324,41 @@ impl ProducerInput {
 
     fn original(&self) -> &BytesIdentity {
         match self {
-            Self::FrontendReplay { original, .. } | Self::RustNativeEdges { original, .. } => original,
+            Self::FrontendReplay { original, .. } | Self::RustNativeEdges { original, .. } => {
+                original
+            }
         }
     }
 
     fn check_consumed(&self, action: &Value, unit: &Value, raw: &[u8]) -> Result<()> {
         match self {
-            Self::FrontendReplay { producer, replay_argv, .. } => {
-                if action["producer"] != *producer || unit["replay_exit_code"] != 0
-                    || strings(&unit["replay_argv"], "consumed frontend replay argv")? != *replay_argv
+            Self::FrontendReplay {
+                producer,
+                replay_argv,
+                ..
+            } => {
+                if action["producer"] != *producer
+                    || unit["replay_exit_code"] != 0
+                    || strings(&unit["replay_argv"], "consumed frontend replay argv")?
+                        != *replay_argv
                     || unit["ir"]["format"] != "llvm-text"
                 {
                     bail!("consumed frontend replay contract changed");
                 }
             }
-            Self::RustNativeEdges { saved_cgu_index, evidence, .. } => {
+            Self::RustNativeEdges {
+                saved_cgu_index,
+                evidence,
+                ..
+            } => {
                 if action["id"] != evidence.action_id
                     || action["producer"] != "rustc-llvm-v1"
                     || action["outputs"].as_array() != Some(&evidence.outputs)
                     || action["saved_cgus"].as_array() != Some(&evidence.saved_cgus)
                     || action["rust_native_resources"].as_array() != Some(&evidence.resources)
                     || action["units"].as_array() != Some(&evidence.units)
-                    || has_replay(action) || has_replay(unit)
+                    || has_replay(action)
+                    || has_replay(unit)
                     || unit["saved_cgu_index"].as_u64() != Some(*saved_cgu_index as u64)
                     || unit["ir"]["format"] != "llvm-bitcode"
                 {
@@ -516,8 +552,10 @@ impl AdmittedCapture {
                 if producer_inputs.is_none() {
                     producer_inputs = Some(ProducerInput::bind_action(action)?);
                 }
-                let input = producer_inputs.as_ref()
-                    .and_then(|inputs| inputs.get(id)).cloned()
+                let input = producer_inputs
+                    .as_ref()
+                    .and_then(|inputs| inputs.get(id))
+                    .cloned()
                     .context("unit has no admitted producer-specific input contract")?;
                 if units
                     .insert(
@@ -1274,25 +1312,38 @@ mod tests {
     // authored DATA, not genuine ELF extraction, actual admission or execution.
     fn sync_producer_units(capture: &mut Value) -> BTreeSet<String> {
         capture["units"] = capture["invocations"][0]["units"].clone();
-        let ids = capture["units"].as_array().unwrap().iter()
-            .map(|unit| unit["id"].as_str().unwrap().to_owned()).collect::<Vec<_>>();
+        let ids = capture["units"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| unit["id"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>();
         capture["lowering_unit_ids"] = json!(ids);
         ids.into_iter().collect()
     }
 
     fn native_edge_fixture() -> (Value, BTreeSet<String>, Vec<Vec<u8>>) {
         let (mut capture, _) = fixture();
-        let identity = |path: &str, raw: &[u8]| json!({"path":path,"bytes":raw.len(),"sha256":digest(raw)});
-        let outputs = vec![identity("/native/first.o", b"authored object zero"),
+        let identity =
+            |path: &str, raw: &[u8]| json!({"path":path,"bytes":raw.len(),"sha256":digest(raw)});
+        let outputs = vec![
+            identity("/native/first.o", b"authored object zero"),
             identity("/native/second.rlib", b"authored archive one"),
-            identity("/native/build.d", b"authored dependency resource")];
-        let raw = vec![b"authored native bitcode zero".to_vec(), b"authored native bitcode one".to_vec()];
+            identity("/native/build.d", b"authored dependency resource"),
+        ];
+        let raw = vec![
+            b"authored native bitcode zero".to_vec(),
+            b"authored native bitcode one".to_vec(),
+        ];
         let mut units = Vec::new();
         let mut records = Vec::new();
         for (index, bytes) in raw.iter().enumerate() {
             let bitcode = identity(&format!("/capture/cgu-{index}.bc"), bytes);
-            let object = if index == 0 { outputs[0].clone() }
-                else { identity("/capture/cgu-1.o", b"authored retained member") };
+            let object = if index == 0 {
+                outputs[0].clone()
+            } else {
+                identity("/capture/cgu-1.o", b"authored retained member")
+            };
             let mut record = json!({"schema":"ocore-rust-native-bitcode-edge-v1",
                 "compiler_invocation_id":"action-1","cargo_parent_invocation_id":"held-parent",
                 "object":object,"bitcode":bitcode,"edge":{"authored_binding_control":true}});
@@ -1315,15 +1366,19 @@ mod tests {
             unit["source_production_ownership_verified"] = json!(false);
             unit["native_machine_equivalence_verified"] = json!(false);
             unit["post_lto_equivalence_verified"] = json!(false);
-            records.push(record);units.push(unit);
+            records.push(record);
+            units.push(unit);
         }
         let action = &mut capture["invocations"][0];
-        action["kind"] = json!("rustc");action["producer"] = json!("rustc-llvm-v1");
-        action["driver_kind"] = json!("rustc");action["compiler"] = json!("/tool/rustc");
+        action["kind"] = json!("rustc");
+        action["producer"] = json!("rustc-llvm-v1");
+        action["driver_kind"] = json!("rustc");
+        action["compiler"] = json!("/tool/rustc");
         action["cargo_parent_invocation_id"] = json!("held-parent");
         action["rust_capture"] = json!({"policy":"rust-embedded-bc-v1","applied":true,
             "frontend_replay_used":false,"post_lto_equivalence_verified":false});
-        action["outputs"] = json!(outputs);action["saved_cgus"] = json!(records);
+        action["outputs"] = json!(outputs);
+        action["saved_cgus"] = json!(records);
         action["rust_cgu_gaps"] = json!([]);
         action["rust_native_resources"] = json!([{"artifact":action["outputs"][2],
             "kind":"rust_dependency_file","native_code":false,"ownership_qualified":false}]);
@@ -1337,8 +1392,20 @@ mod tests {
         let (capture, selected) = fixture();
         let owner = bind(&capture, &selected).unwrap();
         let input = &owner.units["action-1:0"].input;
-        assert!(matches!(input, ProducerInput::FrontendReplay { producer: "clang-llvm-v1", .. }));
-        input.check_consumed(&capture["invocations"][0], &capture["units"][0], b"original LLVM").unwrap();
+        assert!(matches!(
+            input,
+            ProducerInput::FrontendReplay {
+                producer: "clang-llvm-v1",
+                ..
+            }
+        ));
+        input
+            .check_consumed(
+                &capture["invocations"][0],
+                &capture["units"][0],
+                b"original LLVM",
+            )
+            .unwrap();
         assert!(input.guard_files().is_empty());
     }
 
@@ -1350,8 +1417,13 @@ mod tests {
         capture["invocations"][0]["units"][0]["kind"] = json!("rustc");
         let selected = sync_producer_units(&mut capture);
         let owner = bind(&capture, &selected).unwrap();
-        assert!(matches!(&owner.units["action-1:0"].input,
-            ProducerInput::FrontendReplay { producer: "rustc-llvm-v1", .. }));
+        assert!(matches!(
+            &owner.units["action-1:0"].input,
+            ProducerInput::FrontendReplay {
+                producer: "rustc-llvm-v1",
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -1367,8 +1439,16 @@ mod tests {
             let unit = &capture["units"][index];
             assert!(unit.get("replay_argv").is_none() && unit.get("replay_exit_code").is_none());
             let path = directory.path().join(format!("owned-{index}.bc"));
-            let lineage = owner.begin(unit["id"].as_str().unwrap(), unit, bytes,
-                &path, &compiler, &compiler_sha).unwrap();
+            let lineage = owner
+                .begin(
+                    unit["id"].as_str().unwrap(),
+                    unit,
+                    bytes,
+                    &path,
+                    &compiler,
+                    &compiler_sha,
+                )
+                .unwrap();
             assert_eq!(fs::read(&path).unwrap(), *bytes);
             assert_eq!(lineage.original_action, capture["invocations"][0]);
             assert!(!lineage.runtime_qualified && !lineage.original_abi_qualified);
@@ -1379,28 +1459,62 @@ mod tests {
     fn registered_rust_native_edges_preserve_complete_output_member_and_resource_order() {
         let (capture, selected, _) = native_edge_fixture();
         let owner = bind(&capture, &selected).unwrap();
-        let ProducerInput::RustNativeEdges { evidence, saved_cgu_index, .. } = &owner.units["action-1:1"].input
-            else { panic!("native contract not selected") };
+        let ProducerInput::RustNativeEdges {
+            evidence,
+            saved_cgu_index,
+            ..
+        } = &owner.units["action-1:1"].input
+        else {
+            panic!("native contract not selected")
+        };
         assert_eq!(*saved_cgu_index, 1);
-        assert_eq!(evidence.outputs, capture["invocations"][0]["outputs"].as_array().unwrap().clone());
-        assert_eq!(evidence.saved_cgus, capture["invocations"][0]["saved_cgus"].as_array().unwrap().clone());
+        assert_eq!(
+            evidence.outputs,
+            capture["invocations"][0]["outputs"]
+                .as_array()
+                .unwrap()
+                .clone()
+        );
+        assert_eq!(
+            evidence.saved_cgus,
+            capture["invocations"][0]["saved_cgus"]
+                .as_array()
+                .unwrap()
+                .clone()
+        );
         assert_eq!(evidence.resources.len(), 1);
         assert_eq!(evidence.saved_cgus[1]["container"]["member"]["index"], 9);
-        assert_eq!(evidence.saved_cgus[1]["container"]["member"]["name"], "original.member.o");
+        assert_eq!(
+            evidence.saved_cgus[1]["container"]["member"]["name"],
+            "original.member.o"
+        );
         assert_eq!(evidence.guard_files.len(), 6);
-        assert!(evidence.guard_files.iter().any(|file| file.path == "/native/build.d"));
+        assert!(evidence
+            .guard_files
+            .iter()
+            .any(|file| file.path == "/native/build.d"));
     }
 
     #[test]
     fn rust_native_edges_reject_any_replay_substitution() {
-        for (scope, field, value) in [("action", "replay_argv", json!(["rustc", "--emit=llvm-bc"])),
-            ("action", "replay_exit_code", json!(0)), ("unit", "replay_argv", json!(["rustc"])),
-            ("unit", "replay_exit_code", json!(0))] {
+        for (scope, field, value) in [
+            ("action", "replay_argv", json!(["rustc", "--emit=llvm-bc"])),
+            ("action", "replay_exit_code", json!(0)),
+            ("unit", "replay_argv", json!(["rustc"])),
+            ("unit", "replay_exit_code", json!(0)),
+        ] {
             let (mut capture, _, _) = native_edge_fixture();
-            if scope == "action" { capture["invocations"][0][field] = value; }
-            else { capture["invocations"][0]["units"][1][field] = value; }
+            if scope == "action" {
+                capture["invocations"][0][field] = value;
+            } else {
+                capture["invocations"][0]["units"][1][field] = value;
+            }
             let selected = sync_producer_units(&mut capture);
-            assert!(has_replay(if scope == "action" { &capture["invocations"][0] } else { &capture["units"][1] }));
+            assert!(has_replay(if scope == "action" {
+                &capture["invocations"][0]
+            } else {
+                &capture["units"][1]
+            }));
             error(&capture, &selected, "cannot substitute a frontend replay");
         }
     }
@@ -1410,9 +1524,21 @@ mod tests {
         for mutation in ["missing", "duplicate", "outside"] {
             let (mut capture, _, _) = native_edge_fixture();
             let expected = match mutation {
-                "missing" => { capture["invocations"][0]["units"].as_array_mut().unwrap().pop(); "CGU inventory is incomplete" },
-                "duplicate" => { capture["invocations"][0]["units"][1]["saved_cgu_index"] = json!(0); "CGU ownership is duplicated" },
-                "outside" => { capture["invocations"][0]["units"][1]["saved_cgu_index"] = json!(99); "CGU index is outside" },
+                "missing" => {
+                    capture["invocations"][0]["units"]
+                        .as_array_mut()
+                        .unwrap()
+                        .pop();
+                    "CGU inventory is incomplete"
+                }
+                "duplicate" => {
+                    capture["invocations"][0]["units"][1]["saved_cgu_index"] = json!(0);
+                    "CGU ownership is duplicated"
+                }
+                "outside" => {
+                    capture["invocations"][0]["units"][1]["saved_cgu_index"] = json!(99);
+                    "CGU index is outside"
+                }
                 _ => unreachable!(),
             };
             let selected = sync_producer_units(&mut capture);
@@ -1427,11 +1553,19 @@ mod tests {
             if mutation == "bitcode" {
                 capture["invocations"][0]["units"][1]["ir"]["sha256"] = json!("e".repeat(64));
             } else {
-                capture["invocations"][0]["saved_cgus"][0]["object"]["path"] = json!("/not-an-original-output.o");
+                capture["invocations"][0]["saved_cgus"][0]["object"]["path"] =
+                    json!("/not-an-original-output.o");
             }
             let selected = sync_producer_units(&mut capture);
-            error(&capture, &selected, if mutation == "bitcode" { "unit/bitcode identity differs" }
-                else { "object/container is not an original output" });
+            error(
+                &capture,
+                &selected,
+                if mutation == "bitcode" {
+                    "unit/bitcode identity differs"
+                } else {
+                    "object/container is not an original output"
+                },
+            );
         }
     }
 
@@ -1440,21 +1574,41 @@ mod tests {
         for mutation in ["unclassified", "missing_resource"] {
             let (mut capture, _, _) = native_edge_fixture();
             if mutation == "unclassified" {
-                capture["invocations"][0]["outputs"].as_array_mut().unwrap().push(json!({
+                capture["invocations"][0]["outputs"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({
                     "path":"/native/unaccounted.o","bytes":4,"sha256":"d".repeat(64)}));
-            } else { capture["invocations"][0]["rust_native_resources"] = json!([]); }
+            } else {
+                capture["invocations"][0]["rust_native_resources"] = json!([]);
+            }
             let selected = sync_producer_units(&mut capture);
-            error(&capture, &selected, "original output inventory is incomplete");
+            error(
+                &capture,
+                &selected,
+                "original output inventory is incomplete",
+            );
         }
     }
 
     #[test]
     fn rust_native_edges_reject_broken_original_action_and_parent_lineage() {
-        for field in ["compiler_invocation_id", "cargo_parent_invocation_id", "schema"] {
+        for field in [
+            "compiler_invocation_id",
+            "cargo_parent_invocation_id",
+            "schema",
+        ] {
             let (mut capture, selected, _) = native_edge_fixture();
             capture["invocations"][0]["saved_cgus"][1][field] = json!("different-original");
-            assert_eq!(capture["invocations"][0]["saved_cgus"][1][field], "different-original");
-            error(&capture, &selected, "compiler action/parent lineage differs");
+            assert_eq!(
+                capture["invocations"][0]["saved_cgus"][1][field],
+                "different-original"
+            );
+            error(
+                &capture,
+                &selected,
+                "compiler action/parent lineage differs",
+            );
         }
     }
 
@@ -1463,15 +1617,29 @@ mod tests {
         for mutation in ["producer", "kind", "policy"] {
             let (mut capture, _) = fixture();
             match mutation {
-                "producer" => capture["invocations"][0]["producer"] = json!("unregistered-producer"),
-                "kind" => { capture["invocations"][0]["kind"] = json!("rustc");
-                    capture["invocations"][0]["units"][0]["kind"] = json!("rustc"); },
-                "policy" => capture["invocations"][0]["units"][0]["capture_policy"] = json!("rust-embedded-bc-v1"),
+                "producer" => {
+                    capture["invocations"][0]["producer"] = json!("unregistered-producer")
+                }
+                "kind" => {
+                    capture["invocations"][0]["kind"] = json!("rustc");
+                    capture["invocations"][0]["units"][0]["kind"] = json!("rustc");
+                }
+                "policy" => {
+                    capture["invocations"][0]["units"][0]["capture_policy"] =
+                        json!("rust-embedded-bc-v1")
+                }
                 _ => unreachable!(),
             }
             let selected = sync_producer_units(&mut capture);
-            error(&capture, &selected, if mutation == "policy" { "different producer policy or format" }
-                else { "unsupported registered producer contract" });
+            error(
+                &capture,
+                &selected,
+                if mutation == "policy" {
+                    "different producer policy or format"
+                } else {
+                    "unsupported registered producer contract"
+                },
+            );
         }
     }
 
@@ -1479,21 +1647,38 @@ mod tests {
     fn replay_contract_checks_every_unit_in_a_multi_output_action() {
         let (mut capture, _) = fixture();
         let mut later = capture["invocations"][0]["units"][0].clone();
-        later["id"] = json!("action-1:later");later["replay_exit_code"] = json!(1);
-        capture["invocations"][0]["units"].as_array_mut().unwrap().push(later);
+        later["id"] = json!("action-1:later");
+        later["replay_exit_code"] = json!(1);
+        capture["invocations"][0]["units"]
+            .as_array_mut()
+            .unwrap()
+            .push(later);
         let selected = sync_producer_units(&mut capture);
         assert_eq!(capture["units"].as_array().unwrap().len(), 2);
         assert_eq!(capture["units"][0]["replay_exit_code"], 0);
-        error(&capture, &selected, "frontend replay did not complete successfully");
+        error(
+            &capture,
+            &selected,
+            "frontend replay did not complete successfully",
+        );
     }
 
     #[test]
     fn typed_native_input_rechecks_consumed_bytes_before_owned_copy() {
         let (capture, selected, _) = native_edge_fixture();
         let owner = bind(&capture, &selected).unwrap();
-        let directory = tempfile::tempdir().unwrap();let output = directory.path().join("must-not-exist.bc");
-        let error = owner.begin("action-1:1", &capture["units"][1], b"wrong native bitcode",
-            &output, Path::new("/not-a-compiler"), "unused").unwrap_err();
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("must-not-exist.bc");
+        let error = owner
+            .begin(
+                "action-1:1",
+                &capture["units"][1],
+                b"wrong native bitcode",
+                &output,
+                Path::new("/not-a-compiler"),
+                "unused",
+            )
+            .unwrap_err();
         assert!(error.to_string().contains("consumed LLVM buffer differs"));
         assert!(!output.exists());
     }
@@ -1502,12 +1687,29 @@ mod tests {
     fn typed_native_input_rechecks_complete_evidence_before_owned_copy() {
         let (capture, selected, raw) = native_edge_fixture();
         let mut owner = bind(&capture, &selected).unwrap();
-        owner.units.get_mut("action-1:1").unwrap().action["outputs"].as_array_mut().unwrap().swap(0, 1);
-        assert_ne!(owner.units["action-1:1"].action["outputs"], capture["invocations"][0]["outputs"]);
-        let directory = tempfile::tempdir().unwrap();let output = directory.path().join("must-not-exist.bc");
-        let error = owner.begin("action-1:1", &capture["units"][1], &raw[1],
-            &output, Path::new("/not-a-compiler"), "unused").unwrap_err();
-        assert!(error.to_string().contains("consumed native-edge evidence changed"));
+        owner.units.get_mut("action-1:1").unwrap().action["outputs"]
+            .as_array_mut()
+            .unwrap()
+            .swap(0, 1);
+        assert_ne!(
+            owner.units["action-1:1"].action["outputs"],
+            capture["invocations"][0]["outputs"]
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("must-not-exist.bc");
+        let error = owner
+            .begin(
+                "action-1:1",
+                &capture["units"][1],
+                &raw[1],
+                &output,
+                Path::new("/not-a-compiler"),
+                "unused",
+            )
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("consumed native-edge evidence changed"));
         assert!(!output.exists());
     }
 
@@ -1515,10 +1717,19 @@ mod tests {
     fn native_contract_rejects_mixed_policy_and_promoted_qualification_flags() {
         for mutation in ["policy", "qualification"] {
             let (mut capture, _, _) = native_edge_fixture();
-            if mutation == "policy" { capture["invocations"][0]["units"][1]["capture_policy"] = json!("frontend-replay-v1"); }
-            else { capture["invocations"][0]["units"][1]["source_production_ownership_verified"] = json!(true); }
+            if mutation == "policy" {
+                capture["invocations"][0]["units"][1]["capture_policy"] =
+                    json!("frontend-replay-v1");
+            } else {
+                capture["invocations"][0]["units"][1]["source_production_ownership_verified"] =
+                    json!(true);
+            }
             let selected = sync_producer_units(&mut capture);
-            error(&capture, &selected, "policy/format or qualification flags differ");
+            error(
+                &capture,
+                &selected,
+                "policy/format or qualification flags differ",
+            );
         }
     }
 }
