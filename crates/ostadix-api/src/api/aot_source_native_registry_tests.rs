@@ -312,7 +312,7 @@ fn check_configured_artifact_siblings(
     for (owner, declaration, child) in [
         (
             "native_machine_asm_reader.rs",
-            "#[path = \"native_machine_asm_reader_inventory.rs\"]\npub mod inventory;",
+            "pub mod inventory {\n    include!(\"native_machine_asm_reader_inventory.rs\");\n}",
             "native_machine_asm_reader_inventory.rs",
         ),
         (
@@ -357,7 +357,7 @@ fn removing_each_configured_artifact_sibling_reaches_its_missing_path() {
             "native_machine_asm_reader_inventory.rs",
             "inventory",
             "native_machine_asm_reader.rs",
-            "#[path = \"native_machine_asm_reader_inventory.rs\"]\npub mod inventory;",
+            "pub mod inventory {\n    include!(\"native_machine_asm_reader_inventory.rs\");\n}",
         ),
         (
             "native_machine_asm_reader_inventory_tests.rs",

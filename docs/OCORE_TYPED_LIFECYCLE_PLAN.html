@@ -1,0 +1,271 @@
+<hr>
+<h2>title: &quot;O-core / OKernel Implementation Guide&quot;
+subtitle: &quot;Distinct identities, preserved lifecycle rules, and executable checks&quot;
+author: &quot;Prepared for Lee Ostadi&quot;
+date: &quot;18 November 2026&quot;
+lang: en-US</h2>
+<h1>O-core / OKernel implementation</h1>
+<p>The first result is a compiler error: a namespace transport epoch cannot be
+passed as an O10 domain generation, and a process handle cannot be passed as a
+capability handle. A value with the right type can still be stale, belong to a
+different owner, or lack rights. Those checks remain in the runtime.</p>
+<p>This record tracks implementation against the live repository. It does not
+turn the supplied source review or historical execution receipts into fresh
+qualification. A stage is complete only when its own acceptance checks pass.</p>
+<h2>Starting point</h2>
+<p>The supplied guide reviewed <code>OSTADIX-master (1).zip</code>, 53,290,717 bytes, with
+SHA-256 <code>06d6e3711498caa126f9b0715772a0b41e2af1a5b939b13cc1f7a2825172141d</code>.
+That archive is not present on this implementation host, so its identity has
+not been independently recomputed here. It is a snapshot reference, without
+Git history, rather than the implementation baseline.</p>
+<p>The live checkout was clean at <code>50ebf8663079406db02260eddc9574b1e9a09232</code>.
+Both shared masters were observed at
+<code>88fc0de62d1064025bf8e31abde68352d1f1d7c9</code>; the checkout was fast-forwarded
+to that commit. Its tree is <code>aed6638582267f78f9548a624dbaa7d9fd1914ab</code>.
+Implementation uses <code>work/ocore-typed-lifecycle-20261118</code>. A separate clean,
+detached checkout retains the baseline while candidate sources change.</p>
+<p>The Rust pin is 1.97.1. The initial host is Linux x86-64 with Clang 21.1.8 and
+LLD. The compiler still lacks the two proposed structure attributes at this
+baseline. The installed MCP process was built from an older source revision;
+its observed identity is retained separately from the current source and new
+compiler builds. It is not current-source qualification.</p>
+<h2>Compiler contract</h2>
+<p><code>@transparent</code> applies only to a brace-style structure with one direct
+primitive integer field: <code>u8/u16/u32/u64</code>, <code>i8/i16/i32/i64</code>, or <code>usize/isize</code>.
+Its field offset is zero and its size and alignment equal that integer.
+Zero or multiple fields, nested wrappers, arrays, pointers, Boolean and float
+fields, <code>@packed</code>, and explicit <code>@align</code> combinations reject.</p>
+<p>The structure keeps its nominal identity in HIR, MIR and callbacks. Copying,
+locals, statics, arrays, control-flow merges, and internal arguments/results
+are admitted. Only the O-core internal ABI transports the wrapper by value.
+C/SysV, syscall, assembly, and wire boundaries retain primitive signatures.
+There are no implicit conversions, direct casts, or automatically inherited
+arithmetic, comparison, bit, shift, or atomic operations, including in unsafe
+source. Representation queries do not change source assignability.</p>
+<p><code>@opaque</code> records the canonical defining module. Only that module constructs
+literals or reads, writes, or takes field addresses. The rule also covers
+constants, statics, and imported aliases after identity resolution. Copying
+an owner-provided value remains legal. The attributes are independent; an
+opaque aggregate without transparency keeps the old aggregate-call limits.
+Existing unannotated structures and general <code>pub</code> behavior stay unchanged.</p>
+<p>Constants use explicit unseen/evaluating/ready dependency states. Forward and
+cross-module references resolve before statics consume them. Cycles diagnose;
+an actual zero value is never an unevaluated marker. Wrappers receive no
+implicit zero initializer. The owner supplies valid initial constants and
+checked status/output-pointer constructors. Null, invalid range and
+exhaustion fail before mutation; failure leaves the output unchanged. A
+maximum current value has no successor and never wraps to zero. Pointer
+safety requirements and unsafe declarations remain explicit.</p>
+<p>Typed wrap/unwrap or equivalent representation copies must validate width,
+identity, and call/result ABI. All three emitters must execute the admitted
+signed and unsigned widths, narrow normalization, stack arguments, indirect
+calls, and merges. Foreign imported <code>NativeModule</code> semantics are outside this
+change.</p>
+<h2>Lifecycle and authority contract</h2>
+<table>
+<thead>
+<tr>
+<th>Identity</th>
+<th>Policy retained</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>O10 domain generation</td>
+<td><code>1..=0xffff_ffff</code> in <code>u64</code>; maximum is valid, without a successor</td>
+</tr>
+<tr>
+<td>Namespace transport epoch</td>
+<td>Nonzero full-width <code>u64</code>, separate from session epoch</td>
+</tr>
+<tr>
+<td>Namespace session epoch</td>
+<td>Separate nonzero full-width <code>u64</code></td>
+</tr>
+<tr>
+<td>Namespace session serial</td>
+<td>At most <code>2^63 - 1</code>; dialect bit remains reserved</td>
+</tr>
+<tr>
+<td>Capability generation</td>
+<td>Last live value <code>0xffff_fffe</code>; <code>0xffff_ffff</code> retired</td>
+</tr>
+<tr>
+<td>Transfer/view/resource slot generations</td>
+<td>Existing maximum-live and retire-on-next-release behavior</td>
+</tr>
+</tbody></table>
+<p>The separate <code>world::identity::DomainGeneration</code> vocabulary is not narrowed.
+The initial common owner defines <code>O10DomainGeneration</code>,
+<code>NamespaceTransportEpoch</code>, and <code>NamespaceSessionEpoch</code>, all with <code>u64</code>
+representation. Existing handle packing, kind tags, rights, owners, quotas,
+table sizes, frame offsets, symbols, wire fields, reply bytes, errors and
+retry semantics remain stable. Raw external adapters decode and validate
+before entering one typed implementation; they do not duplicate a state
+machine.</p>
+<p>The O10 pilot follows domain extraction, restore preflight, advancement,
+namespace provision and binding. It retains full-width transport values past
+<code>0xffff_ffff</code>, including exhaustion and session-token collision regressions.
+Restoration leaves Linux waiting for binding; stale Linux authority rejects
+while unrelated Plan9 identities and contents survive.</p>
+<p>Capability transfer keeps exact creator/source/destination identities,
+attenuation, invisible reservation, retained references, publication order,
+owner-death cancellation and poison/quarantine on impossible cleanup failure.
+A capability&#39;s slot does not establish its CSpace owner. Request-bound views
+keep exact request/process/address-space/service identity, bounds, direction,
+snapshot, staging charge and written-prefix checks. Terminal publication
+retains <code>capability close &lt; terminal result &lt; wake</code>. Irreversible impossible
+failures remain fail-stop. The synchronization scope remains masked
+interrupts on one CPU; types add no SMP guarantee.</p>
+<h2>Independent lifecycle oracle</h2>
+<p>Write the policy model before using it to qualify the migrations. Keep domain,
+lease, block, network, transport and session limits distinct, with symbolic
+fresh sessions mapped to observed concrete tokens. Compare statuses, defined
+reply bytes, handles, fid/QID behavior, namespace contents, runnable/binding
+state and ordered effects against compiled production policy.</p>
+<p>Pre-admission rejection, journalled platform rejection, exact retained replay,
+invalid historical requests, preparation and terminal failure are distinct.
+Retained replay precedes the current-epoch check; retry identity includes all
+request bytes and the tag. Read-only sequence zero is not mutation replay.
+An error can advance the journal without changing protected lifecycle state.</p>
+<p>Separate finite profiles cover sessions, journal and replacement. State keys
+exclude predecessor traces/effects and retain bounded stale identities.
+Exhaustive means the reachable finite space was exhausted; bounded searches
+say so. Full-width production instructions and exact failure/effect ordering
+remain required. Candidate mutations must expose transport narrowing, wrap,
+missing owner/generation checks, session collisions, survivor revocation,
+premature runnable state, repeated reset/retry, and runner/evidence omissions.</p>
+<p>Component carriers execute production policy on every implemented canonical
+target. Privileged-hook effects are recorded and explicitly modeled. Their
+results do not qualify physical hardware, SMP, or a full-system replacement.
+Fresh same-build AArch64 resident/restart/regression/provenance acceptance is
+separate and retains exact-pair admission and reviewed artifact identities.</p>
+<h2>Separate array-indexing change</h2>
+<p>Ordinary <code>[T; N]</code> indexing checks signed negativity and unsigned range,
+including empty arrays and zero-sized elements. Reads, writes, compound
+assignment and address-of share the rule. <code>&amp;array[N]</code> traps; explicit unsafe
+pointer arithmetic remains the one-past route. Raw-pointer indexing keeps
+its unsafe, unchecked contract.</p>
+<p>Capture base and index once in left-to-right order. Check an assignment
+target before its RHS and preserve divergence. A checked-element-address
+MIR operation is emitted in <code>lower_place</code>, retains the actual array type,
+derives layout, rejects offset/address overflow, and returns a typed element
+pointer. Every array layout is validated before use, including standalone,
+nested and pointer-to-array layouts. Malformed MIR rejects.</p>
+<p>This is a language behavior change with its own diff, review and execution
+corpus. Real isolated traps and side effects must execute on x86-64,
+AArch64 and RV64GC. It is not folded into the identity migration.</p>
+<h2>Qualification and task record</h2>
+<p>Retain exact source/tool identities, commands, environment, inputs, assembly,
+objects, executables, outputs and statuses. A required skip is incomplete.
+Historical receipts, fake-tool runner tests, compile-only results and an
+artifact named pass are not fresh execution evidence. Register new sources,
+update explicit builders and mirrors, render changed documentation, and
+preserve historical evidence. Reviewed milestones reach both shared masters
+through fast-forward integration, preserving concurrent work.</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Source</th>
+<th>Changed files</th>
+<th>Checks executed</th>
+<th>Evidence</th>
+<th>Review</th>
+<th>Status</th>
+<th>Remaining blocker</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M0 baseline</td>
+<td><code>88fc0de6</code></td>
+<td>This contract record</td>
+<td>Clean build; 77 focused Rust checks; native equivalence on all three ISAs; x86 O10/namespace characterization; kernel Modes 0/13/19/24</td>
+<td>Retained baseline artifacts</td>
+<td>Source baseline reconciled</td>
+<td>Passed within recorded scope</td>
+<td>Orange Pi contact and fresh guest fixtures remain unavailable</td>
+</tr>
+<tr>
+<td>M1 wrappers</td>
+<td><code>88fc0de6</code> plus retained candidate manifest</td>
+<td>HIR/checker/MIR/three emitters and native corpus</td>
+<td>96 focused Rust checks; 16 runner/coverage checks; native arithmetic/wrappers/traps/Phi on all three ISAs; clippy and formatting</td>
+<td>Retained M1 compiler and source-bound receipts</td>
+<td>Independent findings resolved</td>
+<td>Passed within compiler scope</td>
+<td>Shared publication and later integration</td>
+</tr>
+<tr>
+<td>M2 O10/namespace</td>
+<td>Candidate</td>
+<td>Lifecycle owner and complete caller path</td>
+<td>Constructor/layout and crossed-domain checks on all three ISAs; native lifecycle suites and namespace-off resident regression</td>
+<td>Retained component runs</td>
+<td>Two findings corrected; qualification continuing</td>
+<td>Implementing</td>
+<td>Full independent corpus/mutations and fresh same-build guest acceptance</td>
+</tr>
+<tr>
+<td>M3a transfer</td>
+<td>Pending</td>
+<td>Capability/process/transfer owners and oracle</td>
+<td>Not run</td>
+<td>Pending</td>
+<td>Pending</td>
+<td>Not run</td>
+<td>M1</td>
+</tr>
+<tr>
+<td>M3b views</td>
+<td>Pending</td>
+<td>Request/view/resource/bounded-RPC owners</td>
+<td>Not run</td>
+<td>Pending</td>
+<td>Pending</td>
+<td>Not run</td>
+<td>M3a</td>
+</tr>
+<tr>
+<td>M4 model</td>
+<td><code>88fc0de6</code></td>
+<td>Independent model, vectors, carrier and strict runner</td>
+<td>Source contract audit; runner prerequisites being checked</td>
+<td>Pending</td>
+<td>Pending</td>
+<td>Implementing</td>
+<td>Compiled baseline corpus</td>
+</tr>
+<tr>
+<td>M5 arrays</td>
+<td>Pending</td>
+<td>Separate compiler change and bounds corpus</td>
+<td>Not run</td>
+<td>Pending</td>
+<td>Pending</td>
+<td>Not run</td>
+<td>Separate implementation/review after compiler ownership clears</td>
+</tr>
+<tr>
+<td>M6 integration</td>
+<td>Pending</td>
+<td>Evidence, inventories and documentation</td>
+<td>Not run</td>
+<td>Pending</td>
+<td>Pending</td>
+<td>Not run</td>
+<td>Required stages and fresh guest gates</td>
+</tr>
+</tbody></table>
+<p>General aggregate ABI support, generics, borrow checking, affine authority,
+new ISAs, changed wire/syscall layouts, larger quotas, normalized generation
+policies and SMP synchronization remain outside this assignment.</p>
+<h3>Baseline differences and qualification blockers</h3>
+<p>The old console-mux component test already fails at the clean baseline because
+its provider omits <code>kw_linux_detach</code>. Its failure is retained separately from
+this change. It is not counted as a passing regression check.</p>
+<p>The fresh AArch64 guest workflow needs admitted Linux and Plan9 payloads, a
+private seed state and offline APK fixture, and fresh runtime/provenance inputs.
+The historical cache paths referenced by the old acceptance record are absent
+on this host. Component execution does not fill that gap or admit a new
+monitor/profile pair. The private RV coordination request is open without an
+acknowledged agent session.</p>

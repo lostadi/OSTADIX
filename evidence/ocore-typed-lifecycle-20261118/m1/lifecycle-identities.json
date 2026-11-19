@@ -1,0 +1,976 @@
+{
+  "schema": "ostadix.lifecycle-identity-execution/v1",
+  "backend_catalog": {
+    "source": {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs",
+      "resolved_path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs",
+      "sha256": "2ce16b2f6855d3f84fe976bc1d57ff54bfb4fb31ce8ed3987145fd754405684b",
+      "bytes": 4726
+    },
+    "variants": [
+      "X86_64UnknownNone",
+      "Aarch64UnknownNone",
+      "Riscv64UnknownNone"
+    ],
+    "canonical_targets": [
+      "aarch64-unknown-none",
+      "riscv64-unknown-none",
+      "x86_64-unknown-none"
+    ],
+    "configured_execution_targets": [
+      "aarch64-unknown-none",
+      "riscv64-unknown-none",
+      "x86_64-unknown-none"
+    ]
+  },
+  "targets": {
+    "x86_64": {
+      "executed": true,
+      "cases": 64,
+      "crossed_domains_rejected": [
+        "transport-as-domain",
+        "session-as-transport"
+      ],
+      "execution_prefix": []
+    },
+    "aarch64": {
+      "executed": true,
+      "cases": 64,
+      "crossed_domains_rejected": [
+        "transport-as-domain",
+        "session-as-transport"
+      ],
+      "execution_prefix": [
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64"
+      ]
+    },
+    "riscv64": {
+      "executed": true,
+      "cases": 64,
+      "crossed_domains_rejected": [
+        "transport-as-domain",
+        "session-as-transport"
+      ],
+      "execution_prefix": [
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64"
+      ]
+    }
+  },
+  "evidence": {
+    "schema": "ostadix.compiler-conformance-inputs/v1",
+    "before": {
+      "sources": {
+        "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py": {
+          "path": "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py",
+          "resolved_path": "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py",
+          "sha256": "a098401aa04a7019c4f76660dd0732bf5fec717b1332bc8b99cfaf095a7caa58",
+          "bytes": 4684
+        },
+        "/home/ustad/ostadix-BM/scripts/check_ocore_native_equivalence.py": {
+          "path": "/home/ustad/ostadix-BM/scripts/check_ocore_native_equivalence.py",
+          "resolved_path": "/home/ustad/ostadix-BM/scripts/check_ocore_native_equivalence.py",
+          "sha256": "4e735f3fbcf3650b6e74d485bcb91da7096f158b29391d11fc9e13f90f00b5cd",
+          "bytes": 21612
+        },
+        "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc": {
+          "path": "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "resolved_path": "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "sha256": "40a7336159c7af452942f84fca13543cd27aac2c64cc7af1a1c0caa1640d29e9",
+          "bytes": 3047
+        },
+        "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc": {
+          "path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "resolved_path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "sha256": "fd75eb48f284a1f8151b4fe963a138af3b1b5724afdf15b3648a2472e6fd7675",
+          "bytes": 4437
+        },
+        "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c": {
+          "path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "resolved_path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "sha256": "6b1c388ea9b7b94d80f00f8a64345ae0994405051228306c73b5178e26dbea86",
+          "bytes": 3055
+        },
+        "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs": {
+          "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs",
+          "resolved_path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs",
+          "sha256": "2ce16b2f6855d3f84fe976bc1d57ff54bfb4fb31ce8ed3987145fd754405684b",
+          "bytes": 4726
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc",
+          "sha256": "43e4327d40e93a2fbb7a7fd99e965a44548f80b412149cdbeed51ea63816785f",
+          "bytes": 270
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc",
+          "sha256": "008da23f894195f2392d0ed167bf94b2df96ccc6fb4da21f1944222df62d430a",
+          "bytes": 274
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc",
+          "sha256": "43e4327d40e93a2fbb7a7fd99e965a44548f80b412149cdbeed51ea63816785f",
+          "bytes": 270
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc",
+          "sha256": "008da23f894195f2392d0ed167bf94b2df96ccc6fb4da21f1944222df62d430a",
+          "bytes": 274
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc",
+          "sha256": "43e4327d40e93a2fbb7a7fd99e965a44548f80b412149cdbeed51ea63816785f",
+          "bytes": 270
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc",
+          "sha256": "008da23f894195f2392d0ed167bf94b2df96ccc6fb4da21f1944222df62d430a",
+          "bytes": 274
+        }
+      },
+      "tools": {
+        "ocorec": {
+          "path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "resolved_path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "sha256": "5b8a05e9a3d893f8159be424adf63ff9cc28794c277d77917bd9717d058c4b8f",
+          "bytes": 30043952
+        },
+        "clang": {
+          "path": "/usr/bin/clang",
+          "resolved_path": "/usr/lib/llvm-21/bin/clang",
+          "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932",
+          "bytes": 137584
+        },
+        "linker": {
+          "path": "/usr/bin/ld.lld",
+          "resolved_path": "/usr/lib/llvm-21/bin/lld",
+          "sha256": "6a65863a9eba1af6b6e8969f8e96a5ad4df0e8b705f98491a28b1790ce35718c",
+          "bytes": 5873872
+        },
+        "executed:/home/ustad/ostadix-BM/target/debug/ocorec": {
+          "path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "resolved_path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "sha256": "5b8a05e9a3d893f8159be424adf63ff9cc28794c277d77917bd9717d058c4b8f",
+          "bytes": 30043952
+        },
+        "executed:/usr/bin/clang": {
+          "path": "/usr/bin/clang",
+          "resolved_path": "/usr/lib/llvm-21/bin/clang",
+          "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932",
+          "bytes": 137584
+        },
+        "executed:/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf",
+          "sha256": "91485235082be40d5558d200c29c5109d4af4f8f8014493b6252fea1653ce217",
+          "bytes": 10744
+        },
+        "executed:/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+          "sha256": "532b2c75f44749d4c6db3e5f578a76488bfcd7a261289a89675d2ced24a0bd3c",
+          "bytes": 7108312
+        },
+        "executed:/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+          "sha256": "c837c333af8ecc4459abc1a44ecca4e32c18d10ffac70e37dd3aa9e9d2442dc1",
+          "bytes": 4669656
+        }
+      }
+    },
+    "after": {
+      "sources": {
+        "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py": {
+          "path": "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py",
+          "resolved_path": "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py",
+          "sha256": "a098401aa04a7019c4f76660dd0732bf5fec717b1332bc8b99cfaf095a7caa58",
+          "bytes": 4684
+        },
+        "/home/ustad/ostadix-BM/scripts/check_ocore_native_equivalence.py": {
+          "path": "/home/ustad/ostadix-BM/scripts/check_ocore_native_equivalence.py",
+          "resolved_path": "/home/ustad/ostadix-BM/scripts/check_ocore_native_equivalence.py",
+          "sha256": "4e735f3fbcf3650b6e74d485bcb91da7096f158b29391d11fc9e13f90f00b5cd",
+          "bytes": 21612
+        },
+        "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc": {
+          "path": "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "resolved_path": "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "sha256": "40a7336159c7af452942f84fca13543cd27aac2c64cc7af1a1c0caa1640d29e9",
+          "bytes": 3047
+        },
+        "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc": {
+          "path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "resolved_path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "sha256": "fd75eb48f284a1f8151b4fe963a138af3b1b5724afdf15b3648a2472e6fd7675",
+          "bytes": 4437
+        },
+        "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c": {
+          "path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "resolved_path": "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "sha256": "6b1c388ea9b7b94d80f00f8a64345ae0994405051228306c73b5178e26dbea86",
+          "bytes": 3055
+        },
+        "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs": {
+          "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs",
+          "resolved_path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/common.rs",
+          "sha256": "2ce16b2f6855d3f84fe976bc1d57ff54bfb4fb31ce8ed3987145fd754405684b",
+          "bytes": 4726
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc",
+          "sha256": "43e4327d40e93a2fbb7a7fd99e965a44548f80b412149cdbeed51ea63816785f",
+          "bytes": 270
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc",
+          "sha256": "008da23f894195f2392d0ed167bf94b2df96ccc6fb4da21f1944222df62d430a",
+          "bytes": 274
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc",
+          "sha256": "43e4327d40e93a2fbb7a7fd99e965a44548f80b412149cdbeed51ea63816785f",
+          "bytes": 270
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc",
+          "sha256": "008da23f894195f2392d0ed167bf94b2df96ccc6fb4da21f1944222df62d430a",
+          "bytes": 274
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc",
+          "sha256": "43e4327d40e93a2fbb7a7fd99e965a44548f80b412149cdbeed51ea63816785f",
+          "bytes": 270
+        },
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc",
+          "sha256": "008da23f894195f2392d0ed167bf94b2df96ccc6fb4da21f1944222df62d430a",
+          "bytes": 274
+        }
+      },
+      "tools": {
+        "ocorec": {
+          "path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "resolved_path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "sha256": "5b8a05e9a3d893f8159be424adf63ff9cc28794c277d77917bd9717d058c4b8f",
+          "bytes": 30043952
+        },
+        "clang": {
+          "path": "/usr/bin/clang",
+          "resolved_path": "/usr/lib/llvm-21/bin/clang",
+          "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932",
+          "bytes": 137584
+        },
+        "linker": {
+          "path": "/usr/bin/ld.lld",
+          "resolved_path": "/usr/lib/llvm-21/bin/lld",
+          "sha256": "6a65863a9eba1af6b6e8969f8e96a5ad4df0e8b705f98491a28b1790ce35718c",
+          "bytes": 5873872
+        },
+        "executed:/home/ustad/ostadix-BM/target/debug/ocorec": {
+          "path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "resolved_path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "sha256": "5b8a05e9a3d893f8159be424adf63ff9cc28794c277d77917bd9717d058c4b8f",
+          "bytes": 30043952
+        },
+        "executed:/usr/bin/clang": {
+          "path": "/usr/bin/clang",
+          "resolved_path": "/usr/lib/llvm-21/bin/clang",
+          "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932",
+          "bytes": 137584
+        },
+        "executed:/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf",
+          "sha256": "91485235082be40d5558d200c29c5109d4af4f8f8014493b6252fea1653ce217",
+          "bytes": 10744
+        },
+        "executed:/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+          "sha256": "532b2c75f44749d4c6db3e5f578a76488bfcd7a261289a89675d2ced24a0bd3c",
+          "bytes": 7108312
+        },
+        "executed:/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64": {
+          "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+          "resolved_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+          "sha256": "c837c333af8ecc4459abc1a44ecca4e32c18d10ffac70e37dd3aa9e9d2442dc1",
+          "bytes": 4669656
+        }
+      }
+    },
+    "inputs_unchanged": true,
+    "tool_shared_library_closure_verified": false,
+    "identity_check_scope": "selected file bytes before first use and after the run; files are not sealed",
+    "environment": {
+      "configured_values": {
+        "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+        "HOME": "/home/ustad",
+        "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+        "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+        "LC_ALL": "C"
+      },
+      "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+      "url_userinfo_redacted": false,
+      "other_inherited_values_forwarded_or_recorded": false
+    },
+    "commands": [
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "--target",
+          "x86_64-unknown-none",
+          "--emit",
+          "obj",
+          "--keep-asm",
+          "--function-sections",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.o"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "--target",
+          "x86_64-unknown-none",
+          "--emit",
+          "obj",
+          "--keep-asm",
+          "--function-sections",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.o"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "ocorec: wrote /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.o\nocorec: kept /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.s\n"
+      },
+      {
+        "argv": [
+          "/usr/bin/clang",
+          "--target=x86_64-unknown-linux-gnu",
+          "-O2",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-stack-protector",
+          "-fno-pic",
+          "-nostdlib",
+          "-static",
+          "--ld-path=/usr/bin/ld.lld",
+          "-Wl,-e,_start",
+          "-Wl,--build-id=none",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.o",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf"
+        ],
+        "requested_argv": [
+          "/usr/bin/clang",
+          "--target=x86_64-unknown-linux-gnu",
+          "-O2",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-stack-protector",
+          "-fno-pic",
+          "-nostdlib",
+          "-static",
+          "--ld-path=/usr/bin/ld.lld",
+          "-Wl,-e,_start",
+          "-Wl,--build-id=none",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.o",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf"
+        ],
+        "requested_argv": [
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64.elf"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "OCORE-LIFECYCLE-IDENTITY cases=64\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc",
+          "--target",
+          "x86_64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.mir"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc",
+          "--target",
+          "x86_64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.mir"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: ocorec failed\nphase: native compilation\ncause: expected `runtime::common::lifecycle_identity::O10DomainGeneration`, found `runtime::common::lifecycle_identity::NamespaceTransportEpoch`\n\n  --> /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc:5:58\n  5 | fn bad(value: NamespaceTransportEpoch) -> void { consume(value); }\n    |                                                          ^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-transport-as-domain.oc' (parse only; does not typecheck or execute)\n\n"
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc",
+          "--target",
+          "x86_64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.mir"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc",
+          "--target",
+          "x86_64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.mir"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: ocorec failed\nphase: native compilation\ncause: expected `runtime::common::lifecycle_identity::NamespaceTransportEpoch`, found `runtime::common::lifecycle_identity::NamespaceSessionEpoch`\n\n  --> /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc:5:56\n  5 | fn bad(value: NamespaceSessionEpoch) -> void { consume(value); }\n    |                                                        ^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/x86_64-session-as-transport.oc' (parse only; does not typecheck or execute)\n\n"
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "--target",
+          "aarch64-unknown-none",
+          "--emit",
+          "obj",
+          "--keep-asm",
+          "--function-sections",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.o"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "--target",
+          "aarch64-unknown-none",
+          "--emit",
+          "obj",
+          "--keep-asm",
+          "--function-sections",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.o"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "ocorec: wrote /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.o\nocorec: kept /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.s\n"
+      },
+      {
+        "argv": [
+          "/usr/bin/clang",
+          "--target=aarch64-unknown-linux-gnu",
+          "-O2",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-stack-protector",
+          "-fno-pic",
+          "-nostdlib",
+          "-static",
+          "--ld-path=/usr/bin/ld.lld",
+          "-Wl,-e,_start",
+          "-Wl,--build-id=none",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.o",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.elf"
+        ],
+        "requested_argv": [
+          "/usr/bin/clang",
+          "--target=aarch64-unknown-linux-gnu",
+          "-O2",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-stack-protector",
+          "-fno-pic",
+          "-nostdlib",
+          "-static",
+          "--ld-path=/usr/bin/ld.lld",
+          "-Wl,-e,_start",
+          "-Wl,--build-id=none",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.o",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.elf"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.elf"
+        ],
+        "requested_argv": [
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64.elf"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "OCORE-LIFECYCLE-IDENTITY cases=64\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc",
+          "--target",
+          "aarch64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.mir"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc",
+          "--target",
+          "aarch64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.mir"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: ocorec failed\nphase: native compilation\ncause: expected `runtime::common::lifecycle_identity::O10DomainGeneration`, found `runtime::common::lifecycle_identity::NamespaceTransportEpoch`\n\n  --> /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc:5:58\n  5 | fn bad(value: NamespaceTransportEpoch) -> void { consume(value); }\n    |                                                          ^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-transport-as-domain.oc' (parse only; does not typecheck or execute)\n\n"
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc",
+          "--target",
+          "aarch64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.mir"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc",
+          "--target",
+          "aarch64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.mir"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: ocorec failed\nphase: native compilation\ncause: expected `runtime::common::lifecycle_identity::NamespaceTransportEpoch`, found `runtime::common::lifecycle_identity::NamespaceSessionEpoch`\n\n  --> /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc:5:56\n  5 | fn bad(value: NamespaceSessionEpoch) -> void { consume(value); }\n    |                                                        ^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/aarch64-session-as-transport.oc' (parse only; does not typecheck or execute)\n\n"
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "--target",
+          "riscv64-unknown-none",
+          "--emit",
+          "obj",
+          "--keep-asm",
+          "--function-sections",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.o"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.oc",
+          "--target",
+          "riscv64-unknown-none",
+          "--emit",
+          "obj",
+          "--keep-asm",
+          "--function-sections",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.o"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "ocorec: wrote /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.o\nocorec: kept /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.s\n"
+      },
+      {
+        "argv": [
+          "/usr/bin/clang",
+          "--target=riscv64-unknown-linux-gnu",
+          "-march=rv64gc",
+          "-mabi=lp64",
+          "-O2",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-stack-protector",
+          "-fno-pic",
+          "-nostdlib",
+          "-static",
+          "--ld-path=/usr/bin/ld.lld",
+          "-Wl,-e,_start",
+          "-Wl,--build-id=none",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.o",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.elf"
+        ],
+        "requested_argv": [
+          "/usr/bin/clang",
+          "--target=riscv64-unknown-linux-gnu",
+          "-march=rv64gc",
+          "-mabi=lp64",
+          "-O2",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-stack-protector",
+          "-fno-pic",
+          "-nostdlib",
+          "-static",
+          "--ld-path=/usr/bin/ld.lld",
+          "-Wl,-e,_start",
+          "-Wl,--build-id=none",
+          "/home/ustad/ostadix-BM/tests/fixtures/ocore_lifecycle_identity.c",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.o",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.elf"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.elf"
+        ],
+        "requested_argv": [
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64.elf"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 0,
+        "stdout": "OCORE-LIFECYCLE-IDENTITY cases=64\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc",
+          "--target",
+          "riscv64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.mir"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc",
+          "--target",
+          "riscv64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.mir"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: ocorec failed\nphase: native compilation\ncause: expected `runtime::common::lifecycle_identity::O10DomainGeneration`, found `runtime::common::lifecycle_identity::NamespaceTransportEpoch`\n\n  --> /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc:5:58\n  5 | fn bad(value: NamespaceTransportEpoch) -> void { consume(value); }\n    |                                                          ^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-transport-as-domain.oc' (parse only; does not typecheck or execute)\n\n"
+      },
+      {
+        "argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc",
+          "--target",
+          "riscv64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.mir"
+        ],
+        "requested_argv": [
+          "/home/ustad/ostadix-BM/target/debug/ocorec",
+          "/home/ustad/ostadix-BM/ocore/runtime/common/lifecycle_identity.oc",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc",
+          "--target",
+          "riscv64-unknown-none",
+          "--emit",
+          "mir",
+          "-o",
+          "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.mir"
+        ],
+        "cwd": "/home/ustad/ostadix-BM",
+        "environment": {
+          "configured_values": {
+            "PATH": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin:/home/ustad/.local/bin:/home/ustad/.codex/packages/app-server-daemon/releases/0.170.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0mUneHr:/home/ustad/.codex/tmp/arg0-linux/codex-arg0R0uyaN:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.1-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg0zfdyHo:/home/ustad/.codex/packages/app-server-daemon/releases/0.169.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.codex/tmp/arg0-linux/codex-arg051BA0I:/home/ustad/.codex/packages/standalone/releases/0.165.0-x86_64-unknown-linux-musl/codex-path:/home/ustad/.cargo/bin:/home/ustad/ostadix-BM/target/release:/home/ustad/.local/bin:/home/ustad/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+            "HOME": "/home/ustad",
+            "O_LANG_ROOT": "/home/ustad/ostadix-BM",
+            "O_BACKENDS_DIR": "/home/ustad/ostadix-BM/backends",
+            "LC_ALL": "C"
+          },
+          "effective_sha256": "60b40904a5c0407caef4cab5f7a290991867e35f7eace64b80dc7322f83d1c07",
+          "url_userinfo_redacted": false,
+          "other_inherited_values_forwarded_or_recorded": false
+        },
+        "timeout_seconds": 120,
+        "core_dumps_disabled": false,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "error: ocorec failed\nphase: native compilation\ncause: expected `runtime::common::lifecycle_identity::NamespaceTransportEpoch`, found `runtime::common::lifecycle_identity::NamespaceSessionEpoch`\n\n  --> /home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc:5:56\n  5 | fn bad(value: NamespaceSessionEpoch) -> void { consume(value); }\n    |                                                        ^^^^^\n\nO-core pipeline: source -> AST -> typed HIR -> SSA MIR -> target assembly/object.\n  O-core native compilation does not construct a hosted O HGraph.\n\nnext: correct the marked .oc source, then rerun the same compilation command with all of its input modules.\ninspect: ocorec --check '/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/identity-final-m1/riscv64-session-as-transport.oc' (parse only; does not typecheck or execute)\n\n"
+      }
+    ]
+  },
+  "complete": true
+}

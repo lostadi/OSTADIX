@@ -384,7 +384,7 @@ impl<'a> FunctionCodegen<'a> {
     fn store_parameters(&self, out: &mut String) -> Result<(), Diagnostic> {
         for (index, local) in self.source.params.iter().enumerate() {
             let ty = self.source.locals[*local].ty;
-            self.require_scalar_type(ty, "function parameter")?;
+            self.require_call_scalar_type(ty, self.source.abi, "function parameter")?;
             let register = if index < 8 {
                 format!("a{index}")
             } else {
@@ -443,7 +443,7 @@ impl<'a> FunctionCodegen<'a> {
                 volatile,
             } => {
                 self.require_same_type(self.mir.values[*dst], place.ty, "load result")?;
-                self.require_scalar_type(place.ty, "load")?;
+                self.require_value_scalar_type(place.ty, "load")?;
                 self.place_address(place, "t1", out)?;
                 if *volatile {
                     self.guard_volatile_alignment("t1", place, out);
@@ -459,7 +459,7 @@ impl<'a> FunctionCodegen<'a> {
                 volatile,
             } => {
                 self.require_same_type(self.mir.values[*value], place.ty, "store value")?;
-                self.require_scalar_type(place.ty, "store")?;
+                self.require_value_scalar_type(place.ty, "store")?;
                 self.load_value(*value, "t0", out);
                 self.place_address(place, "t1", out)?;
                 if *volatile {
@@ -515,6 +515,33 @@ impl<'a> FunctionCodegen<'a> {
             Instruction::Binary { dst, op, lhs, rhs } => {
                 self.emit_binary(*dst, *op, *lhs, *rhs, out)?;
             }
+            Instruction::Wrap {
+                dst,
+                value,
+                wrapper,
+                repr,
+            }
+            | Instruction::Unwrap {
+                dst,
+                value,
+                wrapper,
+                repr,
+            } => {
+                let unwrap = matches!(instruction, Instruction::Unwrap { .. });
+                validate_representation_copy(
+                    &self.hir.types,
+                    self.mir,
+                    *dst,
+                    *value,
+                    *wrapper,
+                    *repr,
+                    unwrap,
+                )
+                .map_err(codegen_error)?;
+                self.load_value(*value, "t0", out);
+                self.normalize_scalar("t0", *repr, out)?;
+                self.store_value(*dst, "t0", out);
+            }
             Instruction::Cast {
                 dst,
                 value,
@@ -525,6 +552,7 @@ impl<'a> FunctionCodegen<'a> {
                 self.require_same_type(self.mir.values[*dst], *to, "cast result")?;
                 self.require_scalar_type(*from, "cast source")?;
                 self.require_scalar_type(*to, "cast result")?;
+                validate_callback_cast(&self.hir.types, *from, *to).map_err(codegen_error)?;
                 if self.hir.types.is_float(*from) || self.hir.types.is_float(*to) {
                     return Err(codegen_error(
                         "floating-point cast escaped O-core type checking",
@@ -574,6 +602,24 @@ impl<'a> FunctionCodegen<'a> {
             .iter()
             .map(|local| target.locals[*local].ty)
             .collect::<Vec<_>>();
+        for ty in &expected_params {
+            self.require_call_scalar_type(*ty, target.abi, "function address parameter")?;
+        }
+        if !matches!(
+            self.hir.types.types[target.result],
+            Type::Void | Type::Never
+        ) {
+            self.require_call_scalar_type(target.result, target.abi, "function address result")?;
+        }
+        for ty in &expected_params {
+            self.require_call_scalar_type(*ty, target.abi, "function address argument")?;
+        }
+        if !matches!(
+            self.hir.types.types[target.result],
+            Type::Void | Type::Never
+        ) {
+            self.require_call_scalar_type(target.result, target.abi, "function address result")?;
+        }
         match &self.hir.types.types[self.mir.values[dst]] {
             Type::Function {
                 params,
@@ -774,7 +820,7 @@ impl<'a> FunctionCodegen<'a> {
             .iter()
             .map(|local| target.locals[*local].ty)
             .collect::<Vec<_>>();
-        self.validate_call_signature(dst, &params, target.result, args)
+        self.validate_call_signature(dst, &params, target.result, args, target.abi)
     }
 
     fn validate_call_signature(
@@ -783,18 +829,19 @@ impl<'a> FunctionCodegen<'a> {
         params: &[TypeId],
         result: TypeId,
         args: &[ValueId],
+        abi: Abi,
     ) -> Result<(), Diagnostic> {
         if args.len() != params.len() {
             return Err(codegen_error("call argument count mismatch"));
         }
         for (value, expected) in args.iter().zip(params) {
-            self.require_scalar_type(*expected, "call argument")?;
+            self.require_call_scalar_type(*expected, abi, "call argument")?;
             self.require_same_type(self.mir.values[*value], *expected, "call argument")?;
         }
         let expected =
             (!matches!(self.hir.types.types[result], Type::Void | Type::Never)).then_some(result);
         if expected.is_some() {
-            self.require_scalar_type(result, "call result")?;
+            self.require_call_scalar_type(result, abi, "call result")?;
         }
         self.require_optional_result(dst, expected, "call result")
     }
@@ -852,7 +899,7 @@ impl<'a> FunctionCodegen<'a> {
             return Err(codegen_error("indirect callee is not a function pointer"));
         };
         self.require_native_abi(abi)?;
-        self.validate_call_signature(dst, params, *result, args)?;
+        self.validate_call_signature(dst, params, *result, args, *abi)?;
         let stack_size = self.setup_call_args(args, out)?;
         self.load_value(callee, "t0", out);
         out.push_str("  jalr ra, 0(t0)\n");
@@ -1126,7 +1173,11 @@ impl<'a> FunctionCodegen<'a> {
                 );
                 match (value, no_result) {
                     (Some(value), false) => {
-                        self.require_scalar_type(self.source.result, "return value")?;
+                        self.require_call_scalar_type(
+                            self.source.result,
+                            self.source.abi,
+                            "return value",
+                        )?;
                         self.require_same_type(
                             self.mir.values[*value],
                             self.source.result,
@@ -1188,6 +1239,7 @@ impl<'a> FunctionCodegen<'a> {
                 self.mir.values[*dst],
                 "phi incoming value",
             )?;
+            self.require_value_scalar_type(self.mir.values[*dst], "phi result")?;
             moves.push((*dst, *value));
         }
         let size = align_up(moves.len() as u64 * 8, 16);
@@ -1220,6 +1272,7 @@ impl<'a> FunctionCodegen<'a> {
         register: &str,
         out: &mut String,
     ) -> Result<(), Diagnostic> {
+        validate_value_place(self.hir, self.mir, place).map_err(codegen_error)?;
         match place.base {
             PlaceBase::Local(local) => emit_frame_address(register, self.frame.locals[local], out),
             PlaceBase::Static(id) => {
@@ -1290,7 +1343,7 @@ impl<'a> FunctionCodegen<'a> {
     ) -> Result<(), Diagnostic> {
         let instruction = match (
             self.hir.types.layout(ty).size,
-            is_signed(&self.hir.types.types[ty]),
+            is_signed(&self.hir.types.types[self.hir.types.value_representation(ty)]),
         ) {
             (1, false) => "lbu",
             (1, true) => "lb",
@@ -1435,7 +1488,7 @@ impl<'a> FunctionCodegen<'a> {
             writeln!(
                 out,
                 "  {} {register}, {register}, {shift}",
-                if is_signed(&self.hir.types.types[ty]) {
+                if is_signed(&self.hir.types.types[self.hir.types.value_representation(ty)]) {
                     "srai"
                 } else {
                     "srli"
@@ -1586,6 +1639,29 @@ impl<'a> FunctionCodegen<'a> {
             Ok(())
         } else {
             Err(codegen_error(format!("{context} requires a scalar type")))
+        }
+    }
+
+    fn require_value_scalar_type(&self, ty: TypeId, context: &str) -> Result<(), Diagnostic> {
+        if self.hir.types.is_value_scalar(ty) && !self.hir.types.is_float(ty) {
+            Ok(())
+        } else {
+            Err(codegen_error(format!("{context} requires a scalar value")))
+        }
+    }
+
+    fn require_call_scalar_type(
+        &self,
+        ty: TypeId,
+        abi: Abi,
+        context: &str,
+    ) -> Result<(), Diagnostic> {
+        if self.hir.types.is_call_scalar(ty, abi) && !self.hir.types.is_float(ty) {
+            Ok(())
+        } else {
+            Err(codegen_error(format!(
+                "{context} type is not admitted by this call ABI"
+            )))
         }
     }
 

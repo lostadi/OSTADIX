@@ -51,6 +51,11 @@ pub enum Type {
 #[derive(Debug, Clone)]
 pub struct StructType {
     pub name: String,
+    /// Canonical module identity; imports never change representation ownership.
+    pub defining_module: String,
+    pub opaque: bool,
+    /// A direct primitive integer only. Source assignability remains nominal.
+    pub transparent_integer: Option<TypeId>,
     pub fields: Vec<StructField>,
     pub packed: bool,
     pub requested_align: Option<u64>,
@@ -140,7 +145,13 @@ impl TypeContext {
     pub fn add_struct_placeholder(&mut self, name: String) -> (StructId, TypeId) {
         let struct_id = self.structs.len();
         self.structs.push(StructType {
+            defining_module: name
+                .rsplit_once("::")
+                .map_or("", |(module, _)| module)
+                .into(),
             name,
+            opaque: false,
+            transparent_integer: None,
             fields: Vec::new(),
             packed: false,
             requested_align: None,
@@ -247,6 +258,69 @@ impl TypeContext {
                 | Type::Function { .. }
         )
     }
+
+    pub fn transparent_integer_repr(&self, ty: TypeId) -> Option<TypeId> {
+        let Type::Struct(id) = self.types[ty] else {
+            return None;
+        };
+        self.structs[id].transparent_integer
+    }
+
+    /// Values admitted to scalar storage/SSA, without granting scalar operators.
+    pub fn is_value_scalar(&self, ty: TypeId) -> bool {
+        self.is_scalar(ty) || self.transparent_integer_repr(ty).is_some()
+    }
+
+    pub fn is_call_scalar(&self, ty: TypeId, abi: Abi) -> bool {
+        self.is_scalar(ty) || (abi == Abi::OCore && self.transparent_integer_repr(ty).is_some())
+    }
+
+    /// Machine-width queries use this only after nominal type validation.
+    pub fn value_representation(&self, ty: TypeId) -> TypeId {
+        self.transparent_integer_repr(ty).unwrap_or(ty)
+    }
+
+    pub fn contains_transparent_integer(&self, ty: TypeId) -> bool {
+        fn visit(
+            types: &TypeContext,
+            ty: TypeId,
+            seen: &mut std::collections::HashSet<TypeId>,
+        ) -> bool {
+            if !seen.insert(ty) {
+                return false;
+            }
+            if types.transparent_integer_repr(ty).is_some() {
+                return true;
+            }
+            match &types.types[ty] {
+                Type::Array { element, .. } => visit(types, *element, seen),
+                Type::Struct(id) => types.structs[*id]
+                    .fields
+                    .iter()
+                    .any(|field| visit(types, field.ty, seen)),
+                Type::Enum(id) => types.enums[*id]
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.payload)
+                    .any(|ty| visit(types, *ty, seen)),
+                Type::Function { params, result, .. } => params
+                    .iter()
+                    .chain(std::iter::once(result))
+                    .any(|ty| visit(types, *ty, seen)),
+                // Reinterpreting raw pointers remains an explicit unsafe boundary.
+                _ => false,
+            }
+        }
+        visit(self, ty, &mut std::collections::HashSet::new())
+    }
+
+    pub fn callback_cast_preserves_identity(&self, from: TypeId, to: TypeId) -> bool {
+        from == to
+            || !(matches!(self.types[from], Type::Function { .. })
+                && matches!(self.types[to], Type::Function { .. })
+                && (self.contains_transparent_integer(from)
+                    || self.contains_transparent_integer(to)))
+    }
 }
 
 impl Default for TypeContext {
@@ -271,6 +345,8 @@ pub struct ItemAttrs {
     pub interrupt: bool,
     pub naked: bool,
     pub unsafe_linkage: bool,
+    pub opaque: bool,
+    pub transparent: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -336,6 +412,8 @@ pub struct HirConst {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum HirConstValue {
+    /// Checker-only state; never an implicit source or runtime zero value.
+    Unevaluated,
     Integer(u64),
     /// A relocatable code address, not a host-sized numeric address.
     Function(FunctionId),

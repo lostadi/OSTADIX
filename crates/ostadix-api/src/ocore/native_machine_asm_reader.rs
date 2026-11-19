@@ -18,8 +18,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const SYNTAX_INVENTORY_FORMAT: &str = "ocore-selected-assembly-syntax-inventory-v1";
 
-#[path = "native_machine_asm_reader_inventory.rs"]
-pub mod inventory;
+pub mod inventory {
+    include!("native_machine_asm_reader_inventory.rs");
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
