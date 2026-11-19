@@ -30,14 +30,17 @@ def check(compiler_path: str, directory: Path) -> dict:
     compiler=tool(compiler_path,'ocorec')
     clang=tool('clang','Clang assembler/frontend')
     linker=tool('ld.lld','LLVM linker')
+    prefixes={isa:execution_prefix(isa) for isa in TARGETS}
     owner=ROOT/'ocore/runtime/common/lifecycle_identity.oc'
     fixture=ROOT/'tests/fixtures/ocore_lifecycle_identity.oc'
     carrier=ROOT/'tests/fixtures/ocore_lifecycle_identity.c'
-    evidence=IdentityEvidence(directory, [__file__,owner,fixture,carrier,TARGET_CATALOG],
-                         {'ocorec':compiler,'clang':clang,'linker':linker})
+    evidence=IdentityEvidence(directory, [__file__,ROOT/'scripts/check_ocore_native_equivalence.py',
+                                         owner,fixture,carrier,TARGET_CATALOG],
+                         {'ocorec':compiler,'clang':clang,'linker':linker,
+                          **{isa+'_runner':prefix[0] for isa,prefix in prefixes.items() if prefix}})
     report={'schema':'ostadix.lifecycle-identity-execution/v1','backend_catalog':catalog,'targets':{}}
     for isa,(native,hosted,machine,flags) in TARGETS.items():
-        prefix=execution_prefix(isa)
+        prefix=prefixes[isa]
         obj=directory/(isa+'.o')
         produce([compiler,str(owner),str(fixture),'--target',native,'--emit','obj','--keep-asm','--function-sections','-o',str(obj)],
                 [obj,obj.with_suffix('.s')],runner=evidence.checked_run)
@@ -73,6 +76,7 @@ def main() -> int:
     parser.add_argument('--output-dir',type=Path,required=True)
     args=parser.parse_args()
     try:
+        args.output_dir=args.output_dir.resolve()
         args.output_dir.mkdir(parents=True,exist_ok=False)
         report=check(args.ocorec,args.output_dir)
         (args.output_dir/'identity.json').write_text(json.dumps(report,indent=2)+'\n')

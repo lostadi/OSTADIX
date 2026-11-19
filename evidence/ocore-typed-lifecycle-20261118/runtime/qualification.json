@@ -73,6 +73,14 @@
     "o10-native-components.json": {
       "sha256": "c0f45e4d093b190fc95d9eefc23d673adb30d3c675113b565cb57325d6def978",
       "bytes": 96666
+    },
+    "identity-runner-admission.json": {
+      "sha256": "4e42915339d0433c6b82e70be33041cb491bae5c76c857782c80236e3377ac6b",
+      "bytes": 1497
+    },
+    "lifecycle-identity-runner.json": {
+      "sha256": "7a3a15e1c91747ecb1b658ca9ce90134017c1cd2b1f9d882d0cad7c50bf0ec22",
+      "bytes": 69987
     }
   },
   "fresh_component_suites": {
@@ -80,5 +88,10 @@
     "required_skips": 0,
     "actual_isa": "x86-64",
     "argv_capture": "Actual compiler/assembler/linker/test-child execve traces retained with each suite"
+  },
+  "identity_runner_admission": {
+    "focused_controls_passed": 4,
+    "three_isa_constructor_execution": "passed with both required runner identities watched",
+    "caller_relative_output": "executed from outside the repository after absolute-path admission"
   }
 }
