@@ -161,7 +161,9 @@ Historical receipts, fake-tool runner tests, compile-only results and an
 artifact named pass are not fresh execution evidence. Register new sources,
 update explicit builders and mirrors, render changed documentation, and
 preserve historical evidence. Reviewed milestones reach both shared masters
-through fast-forward integration, preserving concurrent work.</p>
+through fast-forward integration, preserving concurrent work. These stage
+receipts describe the local source freeze. Publication CI and final tool
+installation have separate observations bound to their commit and binaries.</p>
 <table>
 <thead>
 <tr>
@@ -212,8 +214,8 @@ through fast-forward integration, preserving concurrent work.</p>
 <td>Modes 13/0; actual crossed-kind rejection; independent Mode 13 rerun; maximum ticket retirement</td>
 <td><a href="../evidence/ocore-typed-lifecycle-20261118/runtime/README.md">Runtime receipts</a></td>
 <td>Raw cleanup-key finding corrected; final compact adapters reviewed</td>
-<td>Passed with the retained M1 compiler</td>
-<td>Requalification with the separate final array compiler</td>
+<td>Passed with both retained compilers; integrated Modes 0/13/19/24 passed</td>
+<td>None</td>
 </tr>
 <tr>
 <td>M3b views</td>
@@ -222,38 +224,38 @@ through fast-forward integration, preserving concurrent work.</p>
 <td>Modes 19/24; typed lifecycle and generation retirement; actual API compiler negatives; source mirror and ABI/storage audits</td>
 <td><a href="../evidence/ocore-typed-lifecycle-20261118/runtime/README.md">Runtime receipts</a></td>
 <td>Typed resource destruction omission corrected; no remaining findings</td>
-<td>Passed with the retained M1 compiler</td>
-<td>Requalification with the separate final array compiler</td>
+<td>Passed with both retained compilers; integrated Modes 0/13/19/24 passed</td>
+<td>None</td>
 </tr>
 <tr>
 <td>M4 model</td>
-<td>Frozen oracle plus source-bound candidate</td>
+<td>Frozen r11 oracle and source-bound candidate</td>
 <td>Independent model, vectors, carrier and strict runner</td>
-<td>33 traces and 535 observations per ISA; 27,714 finite edge witnesses; 14 actual policy mutations; 32 model/runner checks</td>
-<td><a href="../evidence/ocore-typed-lifecycle-20261118/runtime/README.md">Runtime receipts</a></td>
-<td>Framing, effect comparison and source-copy isolation reviewed; baseline refinements retained</td>
-<td>Passed with the retained M1 compiler</td>
-<td>Final guarded runner with the separate array compiler</td>
+<td>33 traces and 535 observations per ISA; 27,714 finite edge witnesses; 14 actual policy mutations with reproduced prefixes and passing predecessors; 35 final model/runner checks</td>
+<td><a href="../evidence/ocore-typed-lifecycle-20261118/runtime/README.md">Runtime receipts</a> and <a href="../evidence/ocore-typed-lifecycle-20261118/arrays/README.md">final array integration</a></td>
+<td>Framing, effects, source-copy isolation and scalar observation alignment reviewed; baseline refinements retained</td>
+<td>Passed with both retained compilers</td>
+<td>None within component scope</td>
 </tr>
 <tr>
 <td>M5 arrays</td>
-<td>Separate candidate checkout</td>
+<td>Frozen compiler and integrated runtime manifests</td>
 <td>Checked-address MIR, three emitters and bounds corpus</td>
-<td>Original adjacent-field read reproduced; 51 bounds/order cases and seven source rejections per ISA; native arithmetic/wrapper regression; Mode 0</td>
-<td>Retained characterization and candidate artifacts</td>
-<td>Static-layout diagnostic finding corrected; final review continuing</td>
-<td>Implementing</td>
-<td>Fresh final-source execution and fixed-limit Mode 24 build</td>
+<td>106 focused Rust checks; 68 bounds/order cases and seven source rejections per ISA; arithmetic/wrapper/Phi/reproducibility checks; integrated Modes 0/13/19/24; 463 source parses</td>
+<td><a href="../evidence/ocore-typed-lifecycle-20261118/arrays/README.md">Array receipts</a></td>
+<td>Layout, skipped-place validation, runner and fixed-limit integration findings resolved</td>
+<td>Passed within recorded compiler, component and kernel scope</td>
+<td>See the published commit&#39;s Required CI result</td>
 </tr>
 <tr>
 <td>M6 integration</td>
-<td>Pending</td>
-<td>Evidence, inventories and documentation</td>
-<td>Not run</td>
-<td>Pending</td>
-<td>Pending</td>
-<td>Not run</td>
-<td>Required stages and fresh guest gates</td>
+<td>Source-bound integration candidate</td>
+<td>Evidence, inventories, documentation and required CI lanes</td>
+<td>463 source parses; 61 CI contract checks and nine tool probes; 115 documentation pairs without drift; final integrated native/lifecycle/kernel runs</td>
+<td>Retained source/tool manifests and stage receipts</td>
+<td>Independent compiler, runtime, oracle, runner and CI findings resolved</td>
+<td>Local integration passed; full guest acceptance blocked</td>
+<td>Fresh same-build AArch64 fixtures, admission and observed guest provenance</td>
 </tr>
 </tbody></table>
 <p>General aggregate ABI support, generics, borrow checking, affine authority,
@@ -282,10 +284,12 @@ slot, state, generation, object-type and rights predicates. A nonzero cleanup
 key with no matching escrow still returns zero.</p>
 <p>The new transfer mutation oracle has a dedicated real/stub leaf, selected
 only for Mode 13. Existing module choices and fixed linker limits remain in
-place. The live memory-view build fits those limits after removing redundant
-forwarding and sharing identical read-only capability predicates. Those changes
-alter generated instructions, with behavior checked by the mechanism and live
-gates.</p>
+place. The live memory-view build fits those limits after sharing identical read-only
+capability predicates, valid request-identity initialization and poison/error
+tails. The combined image ends at the unchanged <code>0x380000</code> limit. Those changes
+alter generated instructions, with behavior checked by fresh Modes 0, 13, 19
+and 24. Authority predicates, fail-stop paths and publication order remain
+unchanged.</p>
 <p>The finite model distinguishes a provisioned namespace frontend from bound
 authority. After withdraw, restore, then withdraw before binding, the baseline
 can retain an active frontend with no bound session. Fresh baseline and
@@ -299,3 +303,12 @@ are retained. Its finite profiles exhaust 561 session states and 6,732 edges,
 Each edge has a shortest predecessor witness. The initial independent model
 covers O10 and namespaces; transfer and views use their compiled kernel
 oracles.</p>
+<p>The array compiler executes the bounds and evaluation-order corpus on all three
+ISAs. Its first strict lifecycle rerun exposed a C observation-carrier alignment
+assumption before a journal transition ran. The production symbol retains its
+eight-byte alignment; the carrier must read scalar widths without assuming
+16-byte C array alignment. The failed run and its exact instruction remain
+retained beside the corrected-carrier qualification. The corrected observer
+passed the full strict corpus on all three ISAs with unchanged source and tool
+inputs. Every mutation has a reproduced failing prefix and a passing immediate
+predecessor, or an explicitly labeled initialization-only divergence.</p>

@@ -264,6 +264,24 @@ class ContractSurfacesTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unknown CI suite", result.stderr)
 
+    def test_lifecycle_conformance_is_an_independent_required_lane(self) -> None:
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        job = contracts.workflow_job_body(workflow, "ocore-lifecycle")
+        self.assertIn("timeout-minutes: 60", job)
+        self.assertIn("probe-runtimes --suite ocore-lifecycle", job)
+        self.assertIn("scripts/check_ocore_lifecycle_conformance.py", job)
+        self.assertNotIn("--diagnostic-component-only", job)
+        self.assertNotIn("--targets", job)
+        self.assertIn("if: always()", job)
+        self.assertIn("target/ocore-lifecycle/", job)
+        self.assertIn("target/ocore-lifecycle-logs/", job)
+        required = contracts.load_toml(ROOT / "ci/required-jobs.toml")
+        self.assertIn("ocore-lifecycle", required["required_jobs"])
+        self.assertIn("ocore-lifecycle", contracts.workflow_job_needs(workflow, "required-ci"))
+        aggregate = contracts.workflow_job_body(workflow, "required-ci")
+        self.assertIn("OCORE_LIFECYCLE: ${{ needs.ocore-lifecycle.result }}", aggregate)
+        self.assertRegex(aggregate, r"for name in .*\bOCORE_LIFECYCLE\b.*; do")
+
     def test_required_aggregate_needs_are_parsed_as_an_exact_block_list(self) -> None:
         workflow = """\
 jobs:

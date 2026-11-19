@@ -1,0 +1,169 @@
+module bounds;
+
+struct Empty {}
+struct Adjacent { values: [u64; 1], marker: u64 }
+struct Arrays { values: [[u64; 2]; 2] }
+@packed struct Packed { prefix: u8, values: [i16; 2] }
+static mut VALUES: [u64; 3] = [11, 22, 33];
+static DATA: Adjacent = Adjacent { values: [11], marker: 77 };
+static MATRIX: Arrays = Arrays { values: [[2, 3], [5, 7]] };
+static ZEROS: [Empty; 2] = [Empty {}; 2];
+static mut PACKED: Packed = Packed { prefix: 0, values: [-2, 7] };
+static mut OTHER: [u64; 3] = [101, 102, 103];
+static mut BOOLS: [bool; 2] = [false, false];
+const CONST_NEGATIVE: i8 = -1;
+const CONST_LAST: i8 = 2;
+const CONST_WIDE: u64 = 0xffff_ffff_ffff_fffe;
+
+extern "C" fn bounds_event(value: u64) -> void;
+extern "C" fn bounds_exit(value: u64) -> never;
+
+unsafe fn base() -> *mut [u64; 3] {
+    bounds_event(66);
+    return (&mut VALUES);
+}
+fn index(value: usize) -> usize {
+    bounds_event(73);
+    return value;
+}
+fn rhs() -> u64 {
+    bounds_event(82);
+    return 9;
+}
+unsafe fn dying_base() -> *mut [u64; 3] {
+    bounds_event(66);
+    bounds_exit(42);
+}
+fn dying_index() -> never {
+    bounds_event(73);
+    bounds_exit(43);
+}
+unsafe fn replace_base(slot: *mut *mut [u64; 3]) -> usize {
+    bounds_event(73);
+    *slot = (&mut OTHER);
+    return 1;
+}
+
+// Every case runs in a fresh process. The carrier observes emitted events,
+// returned primitive values, and real trap/exit status independently.
+@export @no_mangle
+extern "C" unsafe fn bounds_case(which: u64) -> u64 {
+    if which == 0 { return VALUES[0] + VALUES[2]; }
+    if which == 1 { return VALUES[3]; }
+    if which == 2 { let i: i8 = -1; return VALUES[i]; }
+    if which == 3 { let i: i16 = -1; return VALUES[i]; }
+    if which == 4 { let i: i32 = -1; return VALUES[i]; }
+    if which == 5 { let i: i64 = -1; return VALUES[i]; }
+    if which == 6 { let i: isize = -1; return VALUES[i]; }
+    if which == 7 { let i: u64 = 0xffff_ffff_ffff_ffff; return VALUES[i]; }
+    if which == 8 { let a: [u64; 0] = [0; 0]; return a[0]; }
+    if which == 9 { return (&ZEROS[1]) as usize as u64 - (&ZEROS[0]) as usize as u64; }
+    if which == 10 { return (&ZEROS[2]) as usize as u64; }
+    if which == 11 { return MATRIX.values[1][1]; }
+    if which == 12 { return MATRIX.values[0][2]; }
+    if which == 13 { return MATRIX.values[2][0]; }
+    if which == 14 { return DATA.values[1]; }
+    if which == 15 { (*base())[index(1)] = rhs(); return VALUES[1]; }
+    if which == 16 { (*base())[index(3)] = rhs(); return 0; }
+    if which == 17 { (*base())[index(1)] += rhs(); return VALUES[1]; }
+    if which == 18 { (*base())[index(3)] += rhs(); return 0; }
+    if which == 19 { return (*base())[index(2)]; }
+    if which == 20 { return (*base())[index(3)]; }
+    if which == 21 { let p: *const u64 = (&(*base())[index(2)]); return *p; }
+    if which == 22 { return (&(*base())[index(3)]) as usize as u64; }
+    if which == 23 { (*dying_base())[index(0)] = rhs(); return 0; }
+    if which == 24 { (*base())[dying_index()] = rhs(); return 0; }
+    if which == 25 { let p: *const u64 = (&DATA.values[0]); return p[1]; }
+    if which == 26 {
+        let p: *const [u64; 2] = 0xffff_ffff_ffff_fffc as usize as *const [u64; 2];
+        return (&(*p)[1]) as usize as u64;
+    }
+    if which == 27 {
+        let p: *const [Empty; 0xffff_ffff_ffff_ffff] = 4096 as usize as *const [Empty; 0xffff_ffff_ffff_ffff];
+        let i: i64 = -2;
+        return (&(*p)[i]) as usize as u64;
+    }
+    if which == 28 {
+        let p: *const [Empty; 0xffff_ffff_ffff_ffff] = 4096 as usize as *const [Empty; 0xffff_ffff_ffff_ffff];
+        let i: u64 = 0xffff_ffff_ffff_fffe;
+        return (&(*p)[i]) as usize as u64;
+    }
+    if which == 29 {
+        let p: *const [u8; 0xffff_ffff_ffff_ffff] = 0 as usize as *const [u8; 0xffff_ffff_ffff_ffff];
+        let i: u64 = 0xffff_ffff_ffff_fffe;
+        return (&(*p)[i]) as usize as u64;
+    }
+    if which == 30 { return [rhs(), 4, 5][index(0)]; }
+    if which == 31 { return [rhs(); 3][index(2)]; }
+    if which == 32 { let a: [Empty; 0] = [Empty {}; 0]; return (&a[0]) as usize as u64; }
+    if which == 33 { let i: i8 = 2; return VALUES[i]; }
+    if which == 34 { let i: i16 = 2; return VALUES[i]; }
+    if which == 35 { let i: i32 = 2; return VALUES[i]; }
+    if which == 36 { let i: i64 = 2; return VALUES[i]; }
+    if which == 37 { let i: isize = 2; return VALUES[i]; }
+    if which == 38 { let i: u8 = 2; return VALUES[i]; }
+    if which == 39 { let i: u16 = 2; return VALUES[i]; }
+    if which == 40 { let i: u32 = 2; return VALUES[i]; }
+    if which == 41 { let i: u64 = 2; return VALUES[i]; }
+    if which == 42 { let i: usize = 2; return VALUES[i]; }
+    if which == 43 { let a: Arrays = Arrays { values: [[2, 3], [5, 7]] }; return a.values[1][0]; }
+    if which == 44 { return Arrays { values: [[2, 3], [5, 7]] }.values[1][0]; }
+    if which == 45 { let x: Empty = ZEROS[2]; return 0; }
+    if which == 46 { let x: Empty = ZEROS[1]; return 123; }
+    if which == 47 { let mut a:[[u64;2];2]=[[0;2];2]; a[index(2)]=[rhs(),3]; return 0; }
+    if which == 48 { let mut a:[[u64;2];2]=[[0;2];2]; a[index(1)]=[rhs(),3]; return a[1][0]; }
+    if which == 49 { let mut a:[Empty;2]=[Empty{};2]; a[2]=Empty{}; return 0; }
+    if which == 50 { let mut a:[Empty;2]=[Empty{};2]; a[1]=Empty{}; return 123; }
+    if which == 51 {
+        let p:*const [Empty;0xffff_ffff_ffff_ffff]=4096 as usize as *const [Empty;0xffff_ffff_ffff_ffff];
+        return (&(*p)[CONST_NEGATIVE]) as usize as u64;
+    }
+    if which == 52 { return VALUES[CONST_LAST]; }
+    if which == 53 { let a:[u64;0]=[0;0]; return a[index(0)]; }
+    if which == 54 {
+        let p:*const [u64;1]=0xffff_ffff_ffff_ffff as usize as *const [u64;1];
+        return (&(*p)[0]) as usize as u64;
+    }
+    if which == 55 {
+        let p:*const [u8;0xffff_ffff_ffff_ffff]=0 as usize as *const [u8;0xffff_ffff_ffff_ffff];
+        return (&(*p)[CONST_WIDE]) as usize as u64;
+    }
+    if which == 56 {
+        let p:*const [Empty;0xffff_ffff_ffff_ffff]=4096 as usize as *const [Empty;0xffff_ffff_ffff_ffff];
+        return (&(*p)[CONST_WIDE]) as usize as u64;
+    }
+    if which == 57 { return PACKED.values[index(0)] as u64; }
+    if which == 58 { PACKED.values[index(1)] = -9; return PACKED.values[1] as u64; }
+    if which == 59 { return volatile_load((&PACKED.values[index(0)])) as u64; }
+    if which == 60 { return volatile_load((&VALUES[index(2)])); }
+    if which == 61 {
+        let mut raw: *mut u8 = (&mut BOOLS) as *mut u8;
+        raw[1] = 2;
+        return BOOLS[index(1)] as u64;
+    }
+    if which == 62 {
+        let mut pointer: *mut [u64; 3] = base();
+        return (*pointer)[replace_base((&mut pointer))];
+    }
+    if which == 63 {
+        let p:*const [Empty;0xffff_ffff]=4096 as usize as *const [Empty;0xffff_ffff];
+        let i:u64=0x1_0000_0000;
+        return (&(*p)[i]) as usize as u64;
+    }
+    if which == 64 {
+        let p:*const [Empty;0x1_0000_0000]=4096 as usize as *const [Empty;0x1_0000_0000];
+        let i:u64=0xffff_ffff;
+        return (&(*p)[i]) as usize as u64;
+    }
+    if which == 65 {
+        let p:*const [[u8;0x1_0000_0000];2]=4096 as usize as *const [[u8;0x1_0000_0000];2];
+        let i:usize=1;
+        return (&(*p)[i]) as usize as u64;
+    }
+    if which == 66 {
+        let p:*const [[u8;0x1_0000_0000];2]=0xffff_ffff_ffff_f000 as usize as *const [[u8;0x1_0000_0000];2];
+        let i:usize=1;
+        return (&(*p)[i]) as usize as u64;
+    }
+    bounds_exit(97);
+}

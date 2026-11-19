@@ -64,9 +64,47 @@ impl<'a> Checker<'a> {
         self.define_types()?;
         self.compute_layouts()?;
         self.collect_value_signatures()?;
+        self.validate_array_layouts()?;
         self.check_constants_and_statics()?;
         self.check_function_bodies()?;
+        self.validate_array_layouts()?;
+        // MIR captures an array place before evaluating its index. These
+        // internal pointer types do not add source conversions or capabilities.
+        let arrays: Vec<_> = self
+            .program
+            .types
+            .types
+            .iter()
+            .enumerate()
+            .filter_map(|(ty, kind)| {
+                if let Type::Array { element, .. } = kind {
+                    Some((ty, *element))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for (array, element) in arrays {
+            for pointee in [array, element] {
+                self.program.types.intern(Type::Pointer {
+                    mutable: false,
+                    pointee,
+                });
+            }
+        }
         Ok(self.program)
+    }
+
+    fn validate_array_layouts(&self) -> TcResult<()> {
+        for (ty, kind) in self.program.types.types.iter().enumerate() {
+            if matches!(kind, Type::Array { .. }) {
+                self.program
+                    .types
+                    .checked_layout(ty)
+                    .map_err(|message| self.layout_diag(ty, message))?;
+            }
+        }
+        Ok(())
     }
 
     fn check_item_attributes(&self) -> TcResult<()> {
@@ -301,7 +339,8 @@ impl<'a> Checker<'a> {
         for ty in field_types {
             let layout = self.layout_type(ty, struct_state, enum_state)?;
             let field_align = if packed { 1 } else { layout.align };
-            offset = align_up(offset, field_align);
+            offset = checked_layout_align(offset, field_align)
+                .ok_or_else(|| self.layout_diag(ty, "struct layout overflows u64"))?;
             offsets.push(offset);
             offset = offset
                 .checked_add(layout.size)
@@ -318,8 +357,14 @@ impl<'a> Checker<'a> {
         {
             field.offset = offset;
         }
+        let size = checked_layout_align(offset, max_align).ok_or_else(|| {
+            self.layout_diag(
+                self.program.types.interned_type_for_struct(id).unwrap_or(0),
+                "struct layout overflows u64",
+            )
+        })?;
         self.program.types.structs[id].layout = Layout {
-            size: align_up(offset, max_align),
+            size,
             align: max_align,
         };
         struct_state[id] = 2;
@@ -360,26 +405,33 @@ impl<'a> Checker<'a> {
         let mut layouts = Vec::new();
         let mut max_payload_size = 0u64;
         let mut max_payload_align = 1u64;
+        let enum_ty = self.type_for_enum(id);
         for payload in payloads {
             let mut offset = 0u64;
             let mut align = 1u64;
             for ty in payload {
                 let layout = self.layout_type(ty, struct_state, enum_state)?;
-                offset = align_up(offset, layout.align);
-                offset += layout.size;
+                offset = checked_layout_align(offset, layout.align)
+                    .and_then(|offset| offset.checked_add(layout.size))
+                    .ok_or_else(|| self.layout_diag(enum_ty, "enum layout overflows u64"))?;
                 align = align.max(layout.align);
             }
             let layout = Layout {
-                size: align_up(offset, align),
+                size: checked_layout_align(offset, align)
+                    .ok_or_else(|| self.layout_diag(enum_ty, "enum layout overflows u64"))?,
                 align,
             };
             max_payload_size = max_payload_size.max(layout.size);
             max_payload_align = max_payload_align.max(layout.align);
             layouts.push(layout);
         }
-        let payload_offset = align_up(tag_size, max_payload_align);
+        let payload_offset = checked_layout_align(tag_size, max_payload_align)
+            .ok_or_else(|| self.layout_diag(enum_ty, "enum layout overflows u64"))?;
         let overall_align = max_payload_align.max(tag_size);
-        let overall_size = align_up(payload_offset + max_payload_size, overall_align);
+        let overall_size = payload_offset
+            .checked_add(max_payload_size)
+            .and_then(|size| checked_layout_align(size, overall_align))
+            .ok_or_else(|| self.layout_diag(enum_ty, "enum layout overflows u64"))?;
         for (variant, layout) in self.program.types.enums[id]
             .variants
             .iter_mut()
@@ -953,6 +1005,12 @@ impl<'a> Checker<'a> {
     }
 }
 
+fn checked_layout_align(value: u64, align: u64) -> Option<u64> {
+    value
+        .checked_add(align - 1)
+        .map(|value| value & !(align - 1))
+}
+
 // Private helper used only during recursive layout. Kept here rather than in
 // the public TypeContext API because placeholder lookup is a checker concern.
 trait TypeContextLookup {
@@ -1492,7 +1550,9 @@ impl<'a> BodyChecker<'a> {
                 let base = self.check_expr(base, None)?;
                 let usize_ty = self.program.types.primitive("usize").unwrap();
                 let index = self.check_expr(index, Some(usize_ty))?;
-                if !self.program.types.is_integer(index.ty) {
+                if !self.program.types.is_integer(index.ty)
+                    && !matches!(self.program.types.types[index.ty], Type::Never)
+                {
                     return Err(self.error(index.span, "array index must be an integer"));
                 }
                 let ty = match self.program.types.types[base.ty] {

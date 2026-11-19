@@ -30,8 +30,14 @@ pub(crate) fn emit_assembly_with_object_sections(
     out.push_str(".intel_syntax noprefix\n");
     out.push_str(".file \"ocore\"\n");
     emit_statics(hir, &mut out, data_sections)?;
+    let mut array_helpers = std::collections::BTreeSet::new();
     for function in &mir.functions {
-        FunctionCodegen::new(hir, function).emit(&mut out, function_sections)?;
+        let codegen = FunctionCodegen::new(hir, function)?;
+        array_helpers.extend(codegen.arrays.helper_shapes.iter().copied());
+        codegen.emit(&mut out, function_sections)?;
+    }
+    if !array_helpers.is_empty() {
+        emit_array_helpers(&array_helpers, &mut out);
     }
     out.push_str(".section .note.GNU-stack,\"\",@progbits\n");
     Ok(out)
@@ -39,6 +45,10 @@ pub(crate) fn emit_assembly_with_object_sections(
 
 fn emit_statics(hir: &HirProgram, out: &mut String, data_sections: bool) -> Result<(), Diagnostic> {
     for static_ in &hir.statics {
+        let layout = hir
+            .types
+            .checked_layout(static_.ty)
+            .map_err(codegen_error)?;
         if let Some(section) = static_.attrs.link_section.as_deref() {
             // An explicit section is part of the source's placement contract.
             writeln!(out, ".section {section}").unwrap();
@@ -58,10 +68,7 @@ fn emit_statics(hir: &HirProgram, out: &mut String, data_sections: bool) -> Resu
             let section = if static_.mutable { ".data" } else { ".rodata" };
             writeln!(out, ".section {section}").unwrap();
         }
-        let align = static_
-            .attrs
-            .align
-            .unwrap_or_else(|| hir.types.layout(static_.ty).align);
+        let align = static_.attrs.align.unwrap_or(layout.align);
         writeln!(out, ".balign {align}").unwrap();
         if static_.attrs.export || static_.public {
             writeln!(out, ".globl {}", static_.symbol).unwrap();
@@ -194,6 +201,30 @@ fn emit_integer(size: u64, value: u64, out: &mut String) -> Result<(), Diagnosti
     Ok(())
 }
 
+fn emit_array_helpers(shapes: &std::collections::BTreeSet<ArrayHelperShape>, out: &mut String) {
+    out.push_str(".section .text.ocore_fn.__array_bounds,\"ax\",@progbits\n.balign 16\n.type .L_ocore_array_bounds,@function\n.L_ocore_array_bounds:\n");
+    for shape in shapes {
+        writeln!(out, "{}:", shape.label()).unwrap();
+        if shape.len <= u32::MAX as u64 {
+            writeln!(out, "  mov edx, {}", shape.len).unwrap();
+        } else {
+            writeln!(out, "  mov rdx, {}", shape.len).unwrap();
+        }
+        if shape.size <= u32::MAX as u64 {
+            writeln!(out, "  mov ecx, {}", shape.size).unwrap();
+        } else {
+            writeln!(out, "  mov rcx, {}", shape.size).unwrap();
+        }
+        writeln!(
+            out,
+            "  jmp .L_ocore_array_bounds_{}",
+            if shape.signed { "signed" } else { "unsigned" }
+        )
+        .unwrap();
+    }
+    out.push_str(".L_ocore_array_bounds_signed:\n  test rsi, rsi\n  js .L_ocore_array_bounds_trap\n.L_ocore_array_bounds_unsigned:\n  cmp rsi, rdx\n  jae .L_ocore_array_bounds_trap\n  mov rax, rsi\n  mul rcx\n  test rdx, rdx\n  jnz .L_ocore_array_bounds_trap\n  add rax, rdi\n  jc .L_ocore_array_bounds_trap\n  ret\n.L_ocore_array_bounds_trap:\n  ud2\n.size .L_ocore_array_bounds, .-.L_ocore_array_bounds\n");
+}
+
 struct FrameLayout {
     locals: Vec<u64>,
     values: Vec<u64>,
@@ -202,31 +233,47 @@ struct FrameLayout {
 }
 
 impl FrameLayout {
-    fn new(types: &TypeContext, function: &MirFunction) -> Self {
+    fn new(types: &TypeContext, function: &MirFunction) -> Result<Self, Diagnostic> {
         let mut cursor = 0u64;
         let mut alignment = 16;
         let mut locals = Vec::new();
         for ty in &function.local_types {
-            let layout = types.layout(*ty);
+            let layout = types.checked_layout(*ty).map_err(codegen_error)?;
             alignment = alignment.max(layout.align);
             // Locals grow down from the frame base, so their final address
             // (base - offset), rather than the preceding slot, is aligned.
-            cursor = align_up(cursor + layout.size.max(1), layout.align.max(1));
+            cursor = checked_frame_align(
+                cursor
+                    .checked_add(layout.size.max(1))
+                    .ok_or_else(|| codegen_error("x86_64 local frame size overflow"))?,
+                layout.align.max(1),
+            )?;
             locals.push(cursor);
         }
         let mut values = Vec::new();
         for _ in &function.values {
-            cursor = align_up(cursor, 8);
-            cursor += 8;
+            cursor = checked_frame_align(cursor, 8)?
+                .checked_add(8)
+                .ok_or_else(|| codegen_error("x86_64 SSA frame size overflow"))?;
             values.push(cursor);
         }
-        Self {
+        Ok(Self {
             locals,
             values,
-            size: align_up(cursor, 16),
+            size: checked_frame_align(cursor, 16)?,
             alignment,
-        }
+        })
     }
+}
+
+fn checked_frame_align(value: u64, alignment: u64) -> Result<u64, Diagnostic> {
+    if !alignment.is_power_of_two() {
+        return Err(codegen_error("invalid frame alignment"));
+    }
+    value
+        .checked_add(alignment - 1)
+        .map(|value| value & !(alignment - 1))
+        .ok_or_else(|| codegen_error("x86_64 frame size overflow"))
 }
 
 struct FunctionCodegen<'a> {
@@ -235,18 +282,20 @@ struct FunctionCodegen<'a> {
     source: &'a HirFunction,
     frame: FrameLayout,
     label_prefix: String,
+    arrays: ArrayLowering,
 }
 
 impl<'a> FunctionCodegen<'a> {
-    fn new(hir: &'a HirProgram, mir: &'a MirFunction) -> Self {
+    fn new(hir: &'a HirProgram, mir: &'a MirFunction) -> Result<Self, Diagnostic> {
         let source = &hir.functions[mir.source];
-        Self {
+        Ok(Self {
             hir,
             mir,
             source,
-            frame: FrameLayout::new(&hir.types, mir),
+            frame: FrameLayout::new(&hir.types, mir)?,
             label_prefix: format!(".L_ocore_{}", mir.source),
-        }
+            arrays: ArrayLowering::new(&hir.types, mir),
+        })
     }
 
     fn emit(&self, out: &mut String, function_sections: bool) -> Result<(), Diagnostic> {
@@ -312,9 +361,9 @@ impl<'a> FunctionCodegen<'a> {
 
         for (block_id, block) in self.mir.blocks.iter().enumerate() {
             writeln!(out, "{}_bb{}:", self.label_prefix, block_id).unwrap();
-            for instruction in &block.instructions {
+            for (instruction_index, instruction) in block.instructions.iter().enumerate() {
                 if !matches!(instruction, Instruction::Phi { .. }) {
-                    self.emit_instruction(instruction, out)?;
+                    self.emit_instruction(block_id, instruction_index, instruction, out)?;
                 }
             }
             self.emit_terminator(block_id, &block.terminator, out)?;
@@ -379,8 +428,46 @@ impl<'a> FunctionCodegen<'a> {
         Ok(())
     }
 
+    fn load_array_base(
+        &self,
+        base: ValueId,
+        register: &str,
+        out: &mut String,
+    ) -> Result<(), Diagnostic> {
+        if let Some(place) = &self.arrays.base_places[base] {
+            self.place_address(place, register, out)
+        } else {
+            self.load_value(base, register, out);
+            Ok(())
+        }
+    }
+
+    fn store_array_result(
+        &self,
+        dst: ValueId,
+        address: &str,
+        out: &mut String,
+    ) -> Result<(), Diagnostic> {
+        if let Some((loaded, place)) = &self.arrays.adjacent_loads[dst] {
+            validate_value_place(self.hir, self.mir, place).map_err(codegen_error)?;
+            self.require_same_type(
+                self.mir.values[*loaded],
+                place.ty,
+                "fused array load result",
+            )?;
+            self.require_value_scalar_type(place.ty, "fused array load")?;
+            self.load_memory("rax", address, place.ty, out)?;
+            self.store_value(*loaded, "rax", out);
+        } else {
+            self.store_value(dst, address, out);
+        }
+        Ok(())
+    }
+
     fn emit_instruction(
         &self,
+        block_id: BlockId,
+        instruction_index: usize,
         instruction: &Instruction,
         out: &mut String,
     ) -> Result<(), Diagnostic> {
@@ -399,6 +486,9 @@ impl<'a> FunctionCodegen<'a> {
                         "floating-point constant escaped O-core type checking",
                     ));
                 }
+                if self.arrays.omit_constants[*dst] {
+                    return Ok(());
+                }
                 writeln!(out, "  mov rax, {value}").unwrap();
                 self.normalize_scalar("rax", self.mir.values[*dst], out)?;
                 self.store_value(*dst, "rax", out);
@@ -413,6 +503,63 @@ impl<'a> FunctionCodegen<'a> {
                 .unwrap();
                 self.store_value(*dst, "rax", out);
             }
+            Instruction::CheckedArrayElementAddress {
+                dst,
+                base,
+                index,
+                array,
+            } => {
+                let (len, size) = validate_checked_array_address(
+                    &self.hir.types,
+                    self.mir,
+                    *dst,
+                    *base,
+                    *index,
+                    *array,
+                )
+                .map_err(codegen_error)?;
+                let label = format!("{}_array_{}", self.label_prefix, out.len());
+                let plan = array_index_plan(
+                    &self.hir.types.types[self.mir.values[*index]],
+                    local_constant_before(
+                        &self.arrays.constants,
+                        *index,
+                        block_id,
+                        instruction_index,
+                    ),
+                    len,
+                    size,
+                );
+                match plan {
+                    ArrayIndexPlan::Trap => {
+                        out.push_str("  ud2\n");
+                        return Ok(());
+                    }
+                    ArrayIndexPlan::Offset(offset) => {
+                        self.load_array_base(*base, "rax", out)?;
+                        if offset != 0 {
+                            if offset <= i32::MAX as u64 {
+                                writeln!(out, "  add rax, {offset}").unwrap();
+                            } else {
+                                writeln!(out, "  mov r10, {offset}\n  add rax, r10").unwrap();
+                            }
+                            writeln!(out, "  jnc {label}_done\n  ud2\n{label}_done:").unwrap();
+                        }
+                        self.store_array_result(*dst, "rax", out)?;
+                        return Ok(());
+                    }
+                    ArrayIndexPlan::Dynamic => {}
+                }
+                self.load_array_base(*base, "rdi", out)?;
+                self.load_value(*index, "rsi", out);
+                let shape = ArrayHelperShape {
+                    signed: is_signed(&self.hir.types.types[self.mir.values[*index]]),
+                    len,
+                    size,
+                };
+                writeln!(out, "  call {}", shape.label()).unwrap();
+                self.store_array_result(*dst, "rax", out)?;
+            }
             Instruction::AddressOf { dst, place } => {
                 let Type::Pointer { pointee, .. } = self.hir.types.types[self.mir.values[*dst]]
                 else {
@@ -420,6 +567,10 @@ impl<'a> FunctionCodegen<'a> {
                 };
                 if pointee != place.ty {
                     return Err(codegen_error("address result pointee type mismatch"));
+                }
+                if self.arrays.base_places[*dst].is_some() {
+                    validate_value_place(self.hir, self.mir, place).map_err(codegen_error)?;
+                    return Ok(());
                 }
                 self.place_address(place, "r11", out)?;
                 self.store_value(*dst, "r11", out);
@@ -431,6 +582,10 @@ impl<'a> FunctionCodegen<'a> {
             } => {
                 self.require_same_type(self.mir.values[*dst], place.ty, "load result")?;
                 self.require_value_scalar_type(place.ty, "load")?;
+                if self.arrays.skip_loads[block_id][instruction_index] {
+                    validate_value_place(self.hir, self.mir, place).map_err(codegen_error)?;
+                    return Ok(());
+                }
                 self.place_address(place, "r11", out)?;
                 if *volatile {
                     self.emit_alignment_check("r11", place.ty, out);

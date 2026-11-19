@@ -1,0 +1,23 @@
+{
+  "schema": "ostadix.execution-host/v1",
+  "machine": "x86_64",
+  "cpu_model": "Intel(R) Core(TM) i7-6800K CPU @ 3.40GHz",
+  "logical_cpus_available": 12,
+  "kernel": "7.0.0-43-generic",
+  "os_release": {
+    "NAME": "Ubuntu",
+    "ID": "ubuntu",
+    "PRETTY_NAME": "Ubuntu 26.04.1 LTS",
+    "VERSION_ID": "26.04",
+    "VERSION": "26.04.1 LTS (Resolute Raccoon)",
+    "VERSION_CODENAME": "resolute",
+    "ID_LIKE": "debian",
+    "HOME_URL": "https://www.ubuntu.com/",
+    "SUPPORT_URL": "https://help.ubuntu.com/",
+    "BUG_REPORT_URL": "https://bugs.launchpad.net/ubuntu/",
+    "PRIVACY_POLICY_URL": "https://www.ubuntu.com/legal/terms-and-policies/privacy-policy",
+    "UBUNTU_CODENAME": "resolute",
+    "LOGO": "ubuntu-logo"
+  },
+  "scope": "x86-64 Linux user execution; kernel gates use QEMU TCG; AArch64 and RV64GC compiled components use user-mode QEMU. This is not Orange Pi, physical kernel, full-system AArch64 or SMP qualification."
+}

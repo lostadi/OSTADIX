@@ -41,6 +41,18 @@ probe_args = ["--version"]
 executable = "ip"
 probe_args = ["-Version"]
 
+[runtime_probes."ld.lld"]
+executable = "ld.lld"
+probe_args = ["--version"]
+
+[runtime_probes.llvm-nm]
+executable = "llvm-nm"
+probe_args = ["--version"]
+
+[runtime_probes.llvm-objcopy]
+executable = "llvm-objcopy"
+probe_args = ["--version"]
+
 [runtime_probes.make]
 executable = "make"
 probe_args = ["--version"]
@@ -139,6 +151,9 @@ required_executables = ["bash", "python3"]
 
 [suites.ocore-qemu]
 required_executables = ["clang", "grub-mkrescue", "grub-mkstandalone", "mcopy", "python3", "qemu-system-aarch64", "qemu-system-x86_64", "xorriso"]
+
+[suites.ocore-lifecycle]
+required_executables = ["cargo", "clang", "ld.lld", "llvm-nm", "llvm-objcopy", "python3", "qemu-aarch64", "qemu-riscv64", "rustc"]
 
 [suites.native-leaf-targets]
 required_executables = ["cargo", "clang", "proot", "qemu-aarch64", "qemu-riscv64"]

@@ -175,7 +175,20 @@ impl TypeContext {
     }
 
     pub fn layout(&self, ty: TypeId) -> Layout {
-        match &self.types[ty] {
+        self.checked_layout(ty).expect("validated type layout")
+    }
+
+    /// Source checking validates every array, including arrays behind pointers,
+    /// before storage or a native address operation consumes its layout.
+    pub fn checked_layout(&self, ty: TypeId) -> Result<Layout, &'static str> {
+        self.checked_layout_at(ty, 0)
+    }
+
+    fn checked_layout_at(&self, ty: TypeId, depth: usize) -> Result<Layout, &'static str> {
+        if depth > self.types.len() {
+            return Err("recursive array layout");
+        }
+        let layout = match self.types.get(ty).ok_or("invalid layout type")? {
             Type::Bool | Type::Int { bits: 8, .. } => Layout { size: 1, align: 1 },
             Type::Int { bits: 16, .. } => Layout { size: 2, align: 2 },
             Type::Int { bits: 32, .. } | Type::Float { bits: 32 } => Layout { size: 4, align: 4 },
@@ -185,23 +198,41 @@ impl TypeContext {
             | Type::Isize
             | Type::Pointer { .. }
             | Type::Function { .. } => Layout { size: 8, align: 8 },
-            Type::Int { bits, .. } | Type::Float { bits } => {
-                panic!("invalid primitive width {bits}")
-            }
+            Type::Int { .. } | Type::Float { .. } => return Err("invalid primitive layout width"),
             Type::Void | Type::Never => Layout { size: 0, align: 1 },
             Type::Array { element, len } => {
-                let element = self.layout(*element);
+                let element = self.checked_layout_at(*element, depth + 1)?;
                 Layout {
                     size: element
                         .size
                         .checked_mul(*len)
-                        .expect("array layout overflow"),
+                        .ok_or("array layout overflows u64")?,
                     align: element.align,
                 }
             }
-            Type::Struct(id) => self.structs[*id].layout,
-            Type::Enum(id) => self.enums[*id].layout,
+            Type::Struct(id) => {
+                let definition = self.structs.get(*id).ok_or("invalid struct layout")?;
+                for field in &definition.fields {
+                    self.checked_layout_at(field.ty, depth + 1)?;
+                }
+                definition.layout
+            }
+            Type::Enum(id) => {
+                let definition = self.enums.get(*id).ok_or("invalid enum layout")?;
+                for ty in definition
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.payload)
+                {
+                    self.checked_layout_at(*ty, depth + 1)?;
+                }
+                definition.layout
+            }
+        };
+        if layout.align == 0 || !layout.align.is_power_of_two() {
+            return Err("invalid layout alignment");
         }
+        Ok(layout)
     }
 
     pub fn name(&self, ty: TypeId) -> String {

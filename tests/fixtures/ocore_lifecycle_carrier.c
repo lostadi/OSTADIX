@@ -33,12 +33,20 @@ extern u64 W(lifecycle_test_init)(void),W(lifecycle_test_request)(void);
 /* These names are made observable only in a fresh test object by objcopy.
  * C does not define their storage or replace the production allocation code.
  */
-extern u64 S(SERIAL),S(GENERATION)[5];
-extern u64 P(SESSION_EPOCH),P(ACTIVE),U(ACTIVE);
-extern u64 W(O10_DOMAIN_GENERATION)[2],W(LINUX_LEASE_GENERATION),W(O10_LEASE_GENERATION);
-extern u64 W(LINUX_SESSION_GENERATION),W(O10_SESSION_GENERATION),W(LIVE)[2],W(BLOCKED)[2];
-extern u64 W(LINUX_WAIT_BIND),W(O10_WAIT_BIND),W(LINUX_DETACHED),W(LINUX_WITHDRAWN),W(PLAN9_WITHDRAWN);
-extern u64 E(LAST),E(EPOCH);
+extern volatile u64 S(SERIAL);
+/* Private O-core array symbols have their primitive representation alignment.
+ * C's preferred 16-byte global-array alignment is not their ABI. Explicit
+ * alignment plus volatile element access keeps observations/stores at 64 bits.
+ */
+extern volatile u64 S(GENERATION)[5] __attribute__((aligned(8)));
+extern volatile u64 P(SESSION_EPOCH),P(ACTIVE),U(ACTIVE);
+extern volatile u64 W(O10_DOMAIN_GENERATION)[2] __attribute__((aligned(8)));
+extern volatile u64 W(LIVE)[2] __attribute__((aligned(8)));
+extern volatile u64 W(BLOCKED)[2] __attribute__((aligned(8)));
+extern volatile u64 W(LINUX_LEASE_GENERATION),W(O10_LEASE_GENERATION);
+extern volatile u64 W(LINUX_SESSION_GENERATION),W(O10_SESSION_GENERATION);
+extern volatile u64 W(LINUX_WAIT_BIND),W(O10_WAIT_BIND),W(LINUX_DETACHED),W(LINUX_WITHDRAWN),W(PLAN9_WITHDRAWN);
+extern volatile u64 E(LAST),E(EPOCH);
 
 typedef struct { u64 op,a,b,c,d; usize length; u8 bytes[512]; } LCStep;
 typedef struct { u64 transport,plan9_epoch,serial,domain,lease,session_epoch,last,epoch;
@@ -116,6 +124,7 @@ static void readonly(u64 base,u64 bytes) {
 }
 static u64 load(const void*p,usize n) { const u8*b=p;u64 v=0;for(usize i=0;i<n;i++)v|=(u64)b[i]<<(8*i);return v; }
 static void store(void*p,u64 v,usize n) { u8*b=p;for(usize i=0;i<n;i++)b[i]=(u8)(v>>(8*i)); }
+static u64 observe_word(const volatile u64*word) { return *word; }
 static u64 tokens[256],reset_count[2],ram_digest[2],vmcr[2],hcr[2],lrs[2][4],ticks,current_step,value;
 static u64 effects[4096][4],effect_count,reset_failure,batch_mode,batch_index,prefix_mode,group_index;
 static u8 volume[16777216] __attribute__((aligned(4096))),response[8192];
@@ -143,12 +152,12 @@ static u64 ram_hash(u64 base) {
 }
 static void record(void) {
  if(batch_mode){text(prefix_mode?"{\"prefix\":":"{\"case\":");number(prefix_mode?group_index:batch_index);text(",\"record\":");}
- u64 sessions[4],generations[4];for(usize i=0;i<4;i++){sessions[i]=S(session_handle)(i+1);generations[i]=S(GENERATION)[i+1];}
- u64 dg[2]={W(O10_DOMAIN_GENERATION)[0],W(O10_DOMAIN_GENERATION)[1]};
+ u64 sessions[4],generations[4];for(usize i=0;i<4;i++){sessions[i]=S(session_handle)(i+1);generations[i]=observe_word(&S(GENERATION)[i+1]);}
+ u64 dg[2]={observe_word(&W(O10_DOMAIN_GENERATION)[0]),observe_word(&W(O10_DOMAIN_GENERATION)[1])};
  u64 leases[2]={W(LINUX_LEASE_GENERATION),W(O10_LEASE_GENERATION)};
  u64 session_gen[2]={W(LINUX_SESSION_GENERATION),W(O10_SESSION_GENERATION)};
- u64 states[2]={W(LIVE)[0]?((W(BLOCKED)[0]||W(LINUX_WAIT_BIND))?3:2):(W(LINUX_WITHDRAWN)?5:4),
-                W(LIVE)[1]?((W(BLOCKED)[1]||W(O10_WAIT_BIND))?3:2):(W(PLAN9_WITHDRAWN)?5:4)};
+ u64 states[2]={observe_word(&W(LIVE)[0])?((observe_word(&W(BLOCKED)[0])||W(LINUX_WAIT_BIND))?3:2):(W(LINUX_WITHDRAWN)?5:4),
+                observe_word(&W(LIVE)[1])?((observe_word(&W(BLOCKED)[1])||W(O10_WAIT_BIND))?3:2):(W(PLAN9_WITHDRAWN)?5:4)};
  u64 transport[6]={B(generation)(),N(generation)(),P(generation)(),P(SESSION_EPOCH),P(ACTIVE),P(bound)()};
  u64 plan9_transport[2]={U(qualification_generation)(),U(ACTIVE)};
  u64 journal[3]={E(epoch)(),E(last_seq)(),E(pending)()};
