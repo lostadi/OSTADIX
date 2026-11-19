@@ -206,3 +206,118 @@ extern "C" fn fault_rem(a: i64, b: i64) -> i64 { return a % b; }
 extern "C" unsafe fn fault_volatile(p: *const u64) -> u64 { return volatile_load(p); }
 @export @no_mangle
 extern "C" unsafe fn fault_atomic(p: *const u64) -> u64 { return atomic_load(p, seq_cst); }
+
+// Nominal integer transport stays internal; C entry points remain primitive.
+@opaque @transparent pub struct WU8 { raw:u8 }
+pub fn wrapper_id_u8(value:WU8)->WU8{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_u8(value:u8)->u8{
+ let mut wrapped:WU8=WU8{raw:value};let values:[WU8;2]=[wrapped;2];
+ let callback:fn(WU8)->WU8=wrapper_id_u8;wrapped=callback(wrapper_id_u8(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WU16 { raw:u16 }
+pub fn wrapper_id_u16(value:WU16)->WU16{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_u16(value:u16)->u16{
+ let mut wrapped:WU16=WU16{raw:value};let values:[WU16;2]=[wrapped;2];
+ let callback:fn(WU16)->WU16=wrapper_id_u16;wrapped=callback(wrapper_id_u16(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WU32 { raw:u32 }
+pub fn wrapper_id_u32(value:WU32)->WU32{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_u32(value:u32)->u32{
+ let mut wrapped:WU32=WU32{raw:value};let values:[WU32;2]=[wrapped;2];
+ let callback:fn(WU32)->WU32=wrapper_id_u32;wrapped=callback(wrapper_id_u32(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WU64 { raw:u64 }
+pub fn wrapper_id_u64(value:WU64)->WU64{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_u64(value:u64)->u64{
+ let mut wrapped:WU64=WU64{raw:value};let values:[WU64;2]=[wrapped;2];
+ let callback:fn(WU64)->WU64=wrapper_id_u64;wrapped=callback(wrapper_id_u64(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WI8 { raw:i8 }
+pub fn wrapper_id_i8(value:WI8)->WI8{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_i8(value:i8)->i8{
+ let mut wrapped:WI8=WI8{raw:value};let values:[WI8;2]=[wrapped;2];
+ let callback:fn(WI8)->WI8=wrapper_id_i8;wrapped=callback(wrapper_id_i8(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WI16 { raw:i16 }
+pub fn wrapper_id_i16(value:WI16)->WI16{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_i16(value:i16)->i16{
+ let mut wrapped:WI16=WI16{raw:value};let values:[WI16;2]=[wrapped;2];
+ let callback:fn(WI16)->WI16=wrapper_id_i16;wrapped=callback(wrapper_id_i16(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WI32 { raw:i32 }
+pub fn wrapper_id_i32(value:WI32)->WI32{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_i32(value:i32)->i32{
+ let mut wrapped:WI32=WI32{raw:value};let values:[WI32;2]=[wrapped;2];
+ let callback:fn(WI32)->WI32=wrapper_id_i32;wrapped=callback(wrapper_id_i32(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WI64 { raw:i64 }
+pub fn wrapper_id_i64(value:WI64)->WI64{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_i64(value:i64)->i64{
+ let mut wrapped:WI64=WI64{raw:value};let values:[WI64;2]=[wrapped;2];
+ let callback:fn(WI64)->WI64=wrapper_id_i64;wrapped=callback(wrapper_id_i64(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WUsize { raw:usize }
+pub fn wrapper_id_usize(value:WUsize)->WUsize{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_usize(value:usize)->usize{
+ let mut wrapped:WUsize=WUsize{raw:value};let values:[WUsize;2]=[wrapped;2];
+ let callback:fn(WUsize)->WUsize=wrapper_id_usize;wrapped=callback(wrapper_id_usize(values[1]));return wrapped.raw;
+}
+@opaque @transparent pub struct WIsize { raw:isize }
+pub fn wrapper_id_isize(value:WIsize)->WIsize{return value;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_isize(value:isize)->isize{
+ let mut wrapped:WIsize=WIsize{raw:value};let values:[WIsize;2]=[wrapped;2];
+ let callback:fn(WIsize)->WIsize=wrapper_id_isize;wrapped=callback(wrapper_id_isize(values[1]));return wrapped.raw;
+}
+
+pub const WRAPPER_FIRST:WU64=WU64{raw:7};
+pub const WRAPPER_SECOND:WU64=WU64{raw:11};
+static mut WRAPPER_STATE:WU64=WRAPPER_FIRST;
+pub fn wrapper_bits(value:WU64)->u64{return value.raw;}
+@opaque pub struct WrapperSecret{raw:u64}
+pub const WRAPPER_SECRET:WrapperSecret=WrapperSecret{raw:7};
+pub unsafe fn wrapper_secret_bits(value:*const WrapperSecret)->u64{return (*value).raw;}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_storage(value:u64)->u64{
+ let initial:WU64=WU64{raw:value};WRAPPER_STATE=wrapper_id_u64(initial);
+ let first:[WU64;3]=[WRAPPER_STATE;3];let second:[WU64;3]=first;return wrapper_id_u64(second[2]).raw;
+}
+@export @no_mangle
+extern "C" fn ocore_wrapper_opaque_copy()->u64{
+ let first:WrapperSecret=WRAPPER_SECRET;let values:[WrapperSecret;2]=[WRAPPER_SECRET;2];
+ let copied:[WrapperSecret;2]=values;return first.raw+copied[1].raw;
+}
+fn wrapper_stack_impl(a:WU8,b:WI8,c:WU16,d:WI16,e:WU32,f:WI32,g:WU64,h:WI64,i:WUsize,j:WIsize,k:WI8,l:WU16)->WU64{
+ return WU64{raw:(a.raw as u64)+2*(b.raw as u64)+3*(c.raw as u64)+4*(d.raw as u64)
+ +5*(e.raw as u64)+6*(f.raw as u64)+7*g.raw+8*(h.raw as u64)+9*(i.raw as u64)
+ +10*(j.raw as u64)+11*(k.raw as u64)+12*(l.raw as u64)};
+}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_stack()->u64{
+ let callback:fn(WU8,WI8,WU16,WI16,WU32,WI32,WU64,WI64,WUsize,WIsize,WI8,WU16)->WU64=wrapper_stack_impl;
+ return callback(WU8{raw:250},WI8{raw:-128},WU16{raw:65530},WI16{raw:-32768},WU32{raw:0xf1234567},WI32{raw:-2147483648},
+ WU64{raw:0xf123456789abcdef},WI64{raw:-9223372036854775808},WUsize{raw:0x7ffffffffffffffe},WIsize{raw:-123456789},WI8{raw:-99},WU16{raw:0x8bad}).raw;
+}
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_layout()->u64{
+ let a0:[WU8;2]=[WU8{raw:0};2];
+ let a1:[WU16;2]=[WU16{raw:0};2];
+ let a2:[WU32;2]=[WU32{raw:0};2];
+ let a3:[WU64;2]=[WU64{raw:0};2];
+ let a4:[WI8;2]=[WI8{raw:0};2];
+ let a5:[WI16;2]=[WI16{raw:0};2];
+ let a6:[WI32;2]=[WI32{raw:0};2];
+ let a7:[WI64;2]=[WI64{raw:0};2];
+ let a8:[WUsize;2]=[WUsize{raw:0};2];
+ let a9:[WIsize;2]=[WIsize{raw:0};2];
+ return 1*(((&a0[1]) as usize)-((&a0[0]) as usize)) as u64+2*(((&a1[1]) as usize)-((&a1[0]) as usize)) as u64+3*(((&a2[1]) as usize)-((&a2[0]) as usize)) as u64+4*(((&a3[1]) as usize)-((&a3[0]) as usize)) as u64+5*(((&a4[1]) as usize)-((&a4[0]) as usize)) as u64+6*(((&a5[1]) as usize)-((&a5[0]) as usize)) as u64+7*(((&a6[1]) as usize)-((&a6[0]) as usize)) as u64+8*(((&a7[1]) as usize)-((&a7[0]) as usize)) as u64+9*(((&a8[1]) as usize)-((&a8[0]) as usize)) as u64+10*(((&a9[1]) as usize)-((&a9[0]) as usize)) as u64;
+}

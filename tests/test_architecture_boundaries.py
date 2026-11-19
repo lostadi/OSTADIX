@@ -77,6 +77,7 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/evidence/intent.rs",
         "crates/ostadix-api/src/evidence/mod.rs",
         "crates/ostadix-api/src/evidence/profile.rs",
+        "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs",
         "crates/ostadix-api/src/world/grounding.rs",
     ):
         path = root / relative
@@ -115,6 +116,9 @@ def write_minimal_tree(root: Path) -> None:
             'mod wide_integer { include!("native_wide_integer_codegen.rs"); }\n'
             'mod wide_volatile { include!("native_wide_volatile_codegen.rs"); }\n'
             'mod vector { include!("native_vector_codegen.rs"); }\n'
+        ),
+        "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs": (
+            'pub mod inventory;\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -221,9 +225,35 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             edges, sum(len(root["allowed_dependencies"]) for root in manifest["root"])
         )
 
+    def test_configured_inventory_ordinary_source_retains_root_dependency_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            reader = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs"
+            inventory = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs"
+            self.assertEqual(reader.read_text(), "pub mod inventory;\n")
+            self.assertTrue(inventory.is_file())
+            self.assertEqual(inventory.read_text(), "pub struct Boundary;\n")
+            baseline = run_checker(root)
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            forbidden = "use crate::executor::Boundary;\n"
+            inventory.write_text(forbidden)
+            self.assertEqual(inventory.read_text(), forbidden)
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("root edge `ocore -> executor` is not declared", result.stderr)
+
     def test_manifest_inventories_every_current_root_edge_override_and_facade(self) -> None:
         manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         roots = manifest["root"]
+        inventory = "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs"
+        old_inventory = "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs"
+        self.assertNotIn(inventory, manifest["production"]["excluded_files"])
+        self.assertNotIn(old_inventory, manifest["production"]["excluded_files"])
+        self.assertFalse(any(
+            fragment["path"] in {inventory, old_inventory}
+            for fragment in manifest["compiled_fragment"]
+        ))
         self.assertEqual(
             manifest["production"]["package_manifest"],
             "crates/ostadix-api/Cargo.toml",

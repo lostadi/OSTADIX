@@ -90,6 +90,19 @@ and its dated evidence. The current contract distinguishes present behavior.</p>
 <p>The JavaScript profile is stateless: a persistent proxy does not imply a persistent Node.js environment. Hosted original engines, selected original components lowered through O-core, and complete original-runtime/compiler lowering are separate milestones. Full cross-ISA semantic equivalence remains incomplete. The integrated boot profile uses original Linux as guest code under an O-core monitor; emulated boots do not qualify physical hardware or establish full Linux/Plan 9 kernel lowering.</p>
 <p>Public validation claims are scoped to named commands, source identities, environments, prerequisites and retained results. <a href="docs/REFERENCE.md#validation-at-the-historical-audited-master">Historical logs</a> are dated observations; a workflow badge or source inventory does not establish that every current gate passes. See <a href="docs/CLAIMS.md">current claims</a> and the <a href="docs/CURRENT_CONTRACT.md#capability-matrix">matrix</a> before relying on an advanced surface.</p>
 <p>The canonical repository is <a href="https://github.com/lostadi/OSTADIX">lostadi/OSTADIX</a>; <a href="https://github.com/lostadi/ostadix-BM">lostadi/ostadix-BM</a> is another development line of the same system. Identify artifacts by repository and exact commit, not package version alone. Maintainer: Lee Daghlar Ostadi.</p>
+<h2>Typed identities in O-core</h2>
+<p>O-core can distinguish values that share the same integer representation.
+<code>@transparent</code> lets a one-field integer structure pass through internal calls;
+<code>@opaque</code> keeps construction and field access in its defining module. The
+structure retains its identity through copies, storage and callbacks. External
+C, syscall, assembly and wire adapters keep primitive signatures. Runtime
+checks still decide whether an object is live, belongs to the caller and grants
+the requested rights.</p>
+<p>The compiler corpus executes on x86-64, AArch64 and RV64GC. The
+<a href="docs/OCORE.md">language reference</a> defines the rules; the
+<a href="docs/OCORE_TYPED_LIFECYCLE_PLAN.md">implementation guide</a> tracks the O10,
+capability and memory-view migrations, their execution evidence and remaining
+guest qualification. Array-bounds checking is a separate language change.</p>
 <h2>License and citation</h2>
 <p>The project uses the GNU Lesser General Public License v2.1 only (<code>LGPL-2.1-only</code>); see <a href="LICENSE">LICENSE</a>. Generated AOT build crates are <code>publish = false</code>. Their component-scoped Cargo metadata identifies the embedded Ostadix runtime as LGPL-2.1-only while marking embedded user or project inputs as retaining the licensing attached to their source; it does not declare one license for the mixed generated package.</p>
 <h3>How to cite</h3>

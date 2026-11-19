@@ -997,6 +997,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parses_independent_opaque_and_transparent_identifier_attributes() {
+        let module = parse(
+            "attributes.oc",
+            "module attrs; @opaque @transparent pub struct Generation { raw:u64 }",
+        )
+        .unwrap();
+        assert_eq!(
+            module.items[0]
+                .attrs
+                .iter()
+                .map(|attr| attr.name.as_str())
+                .collect::<Vec<_>>(),
+            ["opaque", "transparent"]
+        );
+        assert!(matches!(module.items[0].kind, ItemKind::Struct(_)));
+    }
+
+    #[test]
     fn parses_system_language_surface() {
         let source = r#"
 module kernel::main;

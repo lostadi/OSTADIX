@@ -213,28 +213,45 @@ impl ProducerInput {
                 .iter()
                 .any(|key| action.get(*key).is_some_and(|value| !value.is_null()))
         {
-            bail!("action-scoped replay cannot substitute native-edge or executed-command evidence");
+            bail!(
+                "action-scoped replay cannot substitute native-edge or executed-command evidence"
+            );
         }
         if action["replay_exit_code"].as_i64() != Some(0) {
             bail!("action-scoped Rust frontend replay did not complete successfully");
         }
-        let replay_argv = strings(&action["replay_argv"], "action-scoped Rust frontend replay argv")?;
+        let replay_argv = strings(
+            &action["replay_argv"],
+            "action-scoped Rust frontend replay argv",
+        )?;
         if replay_argv.len() < 4
             || replay_argv.first().map(String::as_str) != Some(string(action, "compiler")?)
             || replay_argv[replay_argv.len() - 3..replay_argv.len() - 1]
                 != ["--emit=llvm-ir,dep-info", "--out-dir"]
-            || replay_argv.iter().filter(|arg| arg.starts_with("--emit")).count() != 1
-            || replay_argv.iter().filter(|arg| arg.starts_with("--out-dir")).count() != 1
+            || replay_argv
+                .iter()
+                .filter(|arg| arg.starts_with("--emit"))
+                .count()
+                != 1
+            || replay_argv
+                .iter()
+                .filter(|arg| arg.starts_with("--out-dir"))
+                .count()
+                != 1
             || replay_argv.iter().any(|arg| arg.starts_with("-o"))
         {
             bail!("action-scoped Rust replay command differs from its registered output contract");
         }
-        let output_directory = PathBuf::from(replay_argv.last().context("Rust replay directory absent")?);
+        let output_directory =
+            PathBuf::from(replay_argv.last().context("Rust replay directory absent")?);
         let normalized = output_directory.components().collect::<PathBuf>();
         if !output_directory.is_absolute()
             || normalized.as_os_str() != output_directory.as_os_str()
             || output_directory.components().any(|part| {
-                !matches!(part, std::path::Component::RootDir | std::path::Component::Normal(_))
+                !matches!(
+                    part,
+                    std::path::Component::RootDir | std::path::Component::Normal(_)
+                )
             })
         {
             bail!("action-scoped Rust replay output directory is not canonical and absolute");
@@ -262,8 +279,12 @@ impl ProducerInput {
             if unit["producer"] != "rustc-llvm-v1"
                 || unit["kind"] != "rustc"
                 || unit["frontend_version"] != version
-                || unit.get("capture_policy").is_some_and(|policy| policy != "frontend-replay-v1")
-                || unit.get("saved_cgu_index").is_some_and(|value| !value.is_null())
+                || unit
+                    .get("capture_policy")
+                    .is_some_and(|policy| policy != "frontend-replay-v1")
+                || unit
+                    .get("saved_cgu_index")
+                    .is_some_and(|value| !value.is_null())
                 || !sources.contains(&unit["source"])
             {
                 bail!("action-scoped Rust replay unit producer/frontend/source/policy differs from owner");
@@ -274,15 +295,21 @@ impl ProducerInput {
             if unit["ir"]["format"] != "llvm-text"
                 || normalized.as_os_str() != path.as_os_str()
                 || path.components().any(|part| {
-                    !matches!(part, std::path::Component::RootDir | std::path::Component::Normal(_))
+                    !matches!(
+                        part,
+                        std::path::Component::RootDir | std::path::Component::Normal(_)
+                    )
                 })
                 || path.parent() != Some(evidence.output_directory.as_path())
                 || path.extension().is_none_or(|extension| extension != "ll")
             {
                 bail!("action-scoped Rust replay unit is outside its owning LLVM output directory");
             }
-            let emitted_filename = path.file_name().and_then(|name| name.to_str())
-                .context("action-scoped Rust emitted filename is unavailable")?.to_owned();
+            let emitted_filename = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .context("action-scoped Rust emitted filename is unavailable")?
+                .to_owned();
             if !filenames.insert(emitted_filename.clone()) {
                 bail!("action-scoped Rust replay output selector is ambiguous");
             }
@@ -291,7 +318,10 @@ impl ProducerInput {
                 emitted_filename,
                 evidence: std::sync::Arc::clone(&evidence),
             };
-            if result.insert(string(unit, "id")?.to_owned(), input).is_some() {
+            if result
+                .insert(string(unit, "id")?.to_owned(), input)
+                .is_some()
+            {
                 bail!("producer contract repeats an original unit ID");
             }
         }
@@ -436,9 +466,7 @@ impl ProducerInput {
         match self {
             Self::FrontendReplay { original, .. }
             | Self::ActionFrontendReplay { original, .. }
-            | Self::RustNativeEdges { original, .. } => {
-                original
-            }
+            | Self::RustNativeEdges { original, .. } => original,
         }
     }
 
@@ -468,10 +496,14 @@ impl ProducerInput {
                         != evidence.replay_argv
                     || action["replay_exit_code"].as_i64() != Some(0)
                     || has_replay(unit)
-                    || array(&evidence.action, "units")?.iter()
-                        .find(|expected| expected["id"] == unit["id"]) != Some(unit)
-                    || Path::new(string(&unit["ir"], "path")?).file_name()
-                        .and_then(|name| name.to_str()) != Some(emitted_filename.as_str())
+                    || array(&evidence.action, "units")?
+                        .iter()
+                        .find(|expected| expected["id"] == unit["id"])
+                        != Some(unit)
+                    || Path::new(string(&unit["ir"], "path")?)
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        != Some(emitted_filename.as_str())
                 {
                     bail!("consumed action-scoped replay evidence changed");
                 }

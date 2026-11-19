@@ -1,15 +1,15 @@
-//! Select complete configured-text membership before owned construction.
-//!
-//! This is a source-selection prerequisite, not capture admission. The caller
-//! must already hold the original bytes, configured bytes, build/event selection
-//! and target profile independently of any newly constructed machine artifact.
-//! No interface, body, symbol declaration, dependency or ABI is inferred here.
-//!
-//! The implemented origin policy is exact byte identity with a selected original
-//! file. It also works for an unchanged `.S` input; suffixes grant no authority.
-//! A transformed `.S` stage needs a real producer-held expansion map. CPP line
-//! directives, a retained stage candidate, or an artifact's own metadata do not
-//! supply that map, so this factory explicitly refuses nonidentity origins.
+// Select complete configured-text membership before owned construction.
+//
+// This is a source-selection prerequisite, not capture admission. The caller
+// must already hold the original bytes, configured bytes, build/event selection
+// and target profile independently of any newly constructed machine artifact.
+// No interface, body, symbol declaration, dependency or ABI is inferred here.
+//
+// The implemented origin policy is exact byte identity with a selected original
+// file. It also works for an unchanged `.S` input; suffixes grant no authority.
+// A transformed `.S` stage needs a real producer-held expansion map. CPP line
+// directives, a retained stage candidate, or an artifact's own metadata do not
+// supply that map, so this factory explicitly refuses nonidentity origins.
 
 use super::{
     check_floor, identity, kind, profile, read_configured_assembly, statements, ParsedAssembly,

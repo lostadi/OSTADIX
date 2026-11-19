@@ -83,6 +83,18 @@ pub enum Instruction {
         from: TypeId,
         to: TypeId,
     },
+    Wrap {
+        dst: ValueId,
+        value: ValueId,
+        wrapper: TypeId,
+        repr: TypeId,
+    },
+    Unwrap {
+        dst: ValueId,
+        value: ValueId,
+        wrapper: TypeId,
+        repr: TypeId,
+    },
     Call {
         dst: Option<ValueId>,
         function: FunctionId,
@@ -175,6 +187,211 @@ pub fn lower(program: &HirProgram) -> Result<MirProgram, Diagnostic> {
             .map(|(source, _)| MirStatic { source })
             .collect(),
     })
+}
+
+/// Validate nominal identities before a backend performs a representation move.
+pub fn validate_representation_copy(
+    types: &TypeContext,
+    function: &MirFunction,
+    dst: ValueId,
+    value: ValueId,
+    wrapper: TypeId,
+    repr: TypeId,
+    unwrap: bool,
+) -> Result<(), &'static str> {
+    let Some(Type::Struct(id)) = types.types.get(wrapper) else {
+        return Err("representation copy requires a transparent wrapper identity");
+    };
+    let Some(definition) = types.structs.get(*id) else {
+        return Err("representation copy has an invalid wrapper identity");
+    };
+    if !matches!(
+        types.types.get(repr),
+        Some(
+            Type::Int {
+                bits: 8 | 16 | 32 | 64,
+                ..
+            } | Type::Usize
+                | Type::Isize
+        )
+    ) || definition.transparent_integer != Some(repr)
+        || definition.fields.len() != 1
+        || definition.fields[0].ty != repr
+        || definition.fields[0].offset != 0
+        || definition.layout != types.layout(repr)
+    {
+        return Err("invalid transparent integer representation metadata");
+    }
+    let (source, destination) = if unwrap {
+        (wrapper, repr)
+    } else {
+        (repr, wrapper)
+    };
+    if function.values.get(value).copied() != Some(source)
+        || function.values.get(dst).copied() != Some(destination)
+    {
+        return Err("representation copy nominal source/result type mismatch");
+    }
+    Ok(())
+}
+
+pub fn validate_callback_cast(
+    types: &TypeContext,
+    from: TypeId,
+    to: TypeId,
+) -> Result<(), &'static str> {
+    if !types.callback_cast_preserves_identity(from, to) {
+        Err("cannot cast between distinct transparent-wrapper callback signatures")
+    } else {
+        Ok(())
+    }
+}
+
+/// Places must not erase the wrapper identity already present in their storage.
+/// Existing aggregate projection encodings remain unchanged.
+pub fn validate_value_place(
+    hir: &HirProgram,
+    function: &MirFunction,
+    place: &Place,
+) -> Result<(), &'static str> {
+    let types = &hir.types;
+    let (base, mut raw_index) = match place.base {
+        PlaceBase::Local(id) => (
+            *function.local_types.get(id).ok_or("invalid place local")?,
+            false,
+        ),
+        PlaceBase::Static(id) => (hir.statics.get(id).ok_or("invalid place static")?.ty, false),
+        PlaceBase::Pointer(id) => {
+            let ty = *function
+                .values
+                .get(id)
+                .ok_or("invalid place pointer value")?;
+            let Some(Type::Pointer { pointee, .. }) = types.types.get(ty) else {
+                return Err("place base is not a typed pointer");
+            };
+            (*pointee, true)
+        }
+    };
+    if base >= types.types.len() || place.ty >= types.types.len() {
+        return Err("invalid place type");
+    }
+    if place.projections.is_empty() {
+        if base == place.ty {
+            return Ok(());
+        }
+        // Existing enum initialization stores its primitive tag at offset zero.
+        if let Type::Enum(id) = types.types[base] {
+            let tag = types
+                .primitive(match types.enums[id].tag_size {
+                    1 => "u8",
+                    2 => "u16",
+                    _ => "u32",
+                })
+                .unwrap();
+            if place.ty == tag {
+                return Ok(());
+            }
+        }
+        return Err("place base/result nominal type mismatch");
+    }
+    let mut candidates = vec![base];
+    for projection in &place.projections {
+        let mut next = Vec::new();
+        for current in candidates {
+            match projection {
+                Projection::Index { element_size, .. } if raw_index => {
+                    if types.layout(current).size == *element_size {
+                        next.push(current);
+                    }
+                    // A pointer may first be dereferenced to an array place.
+                    // Its first projection then indexes that array, rather than
+                    // stepping the raw pointer by the whole pointee layout.
+                    if let Type::Array { element, .. } = types.types[current] {
+                        if types.layout(element).size == *element_size {
+                            next.push(element);
+                        }
+                    }
+                }
+                Projection::Index { element_size, .. } => {
+                    if let Type::Array { element, .. } = types.types[current] {
+                        if types.layout(element).size == *element_size {
+                            next.push(element);
+                        }
+                    }
+                }
+                Projection::Field { offset } => match &types.types[current] {
+                    Type::Struct(id) => next.extend(
+                        types.structs[*id]
+                            .fields
+                            .iter()
+                            .filter(|field| field.offset == *offset)
+                            .map(|field| field.ty),
+                    ),
+                    Type::Array { element, len } => {
+                        let size = types.layout(*element).size;
+                        if *len > 0
+                            && ((size == 0 && *offset == 0)
+                                || (size != 0 && *offset % size == 0 && *offset / size < *len))
+                        {
+                            next.push(*element);
+                        }
+                    }
+                    Type::Enum(id) => {
+                        let definition = &types.enums[*id];
+                        if *offset == 0 {
+                            next.push(
+                                types
+                                    .primitive(match definition.tag_size {
+                                        1 => "u8",
+                                        2 => "u16",
+                                        _ => "u32",
+                                    })
+                                    .unwrap(),
+                            );
+                        }
+                        for variant in &definition.variants {
+                            let mut at = 0;
+                            for ty in &variant.payload {
+                                let layout = types.layout(*ty);
+                                at = align_up(at, layout.align);
+                                if definition.payload_offset.checked_add(at) == Some(*offset) {
+                                    next.push(*ty);
+                                }
+                                at = at
+                                    .checked_add(layout.size)
+                                    .ok_or("enum place projection overflow")?;
+                            }
+                        }
+                    }
+                    _ => {}
+                },
+            }
+        }
+        raw_index = false;
+        if next.is_empty() {
+            return Err("place projection does not preserve nominal storage type");
+        }
+        next.sort_unstable();
+        next.dedup();
+        candidates = next;
+    }
+    if candidates.iter().any(|candidate| {
+        if *candidate == place.ty {
+            return true;
+        }
+        let Type::Enum(id) = types.types[*candidate] else {
+            return false;
+        };
+        types.primitive(match types.enums[id].tag_size {
+            1 => "u8",
+            2 => "u16",
+            _ => "u32",
+        }) == Some(place.ty)
+    }) {
+        Ok(())
+    } else {
+        Err("place projection/result nominal type mismatch")
+    }
 }
 
 struct FunctionBuilder<'a> {
@@ -350,6 +567,104 @@ impl<'a> FunctionBuilder<'a> {
             return Ok(());
         }
         match &expr.kind {
+            HirExprKind::Constant(HirConstValue::Struct(id, values)) => {
+                if self.program.types.types[expr.ty] != Type::Struct(*id)
+                    || values.len() != self.program.types.structs[*id].fields.len()
+                {
+                    return Err(self.error(expr.span, "constant structure identity/shape mismatch"));
+                }
+                let fields = self.program.types.structs[*id].fields.clone();
+                for (field, value) in fields.iter().zip(values) {
+                    let mut target = place.clone();
+                    target.projections.push(Projection::Field {
+                        offset: field.offset,
+                    });
+                    target.ty = field.ty;
+                    self.lower_initializer(
+                        target,
+                        &HirExpr {
+                            kind: HirExprKind::Constant(value.clone()),
+                            ty: field.ty,
+                            span: expr.span,
+                        },
+                    )?;
+                }
+            }
+            HirExprKind::Constant(HirConstValue::Array(values)) => {
+                let Type::Array { element, len } = self.program.types.types[expr.ty] else {
+                    return Err(self.error(expr.span, "array constant requires array storage"));
+                };
+                if values.len() as u64 != len {
+                    return Err(self.error(expr.span, "array constant length mismatch"));
+                }
+                let expanded = HirExpr {
+                    kind: HirExprKind::Array(
+                        values
+                            .iter()
+                            .map(|value| HirExpr {
+                                kind: HirExprKind::Constant(value.clone()),
+                                ty: element,
+                                span: expr.span,
+                            })
+                            .collect(),
+                    ),
+                    ty: expr.ty,
+                    span: expr.span,
+                };
+                self.lower_initializer(place, &expanded)?;
+            }
+            HirExprKind::Constant(HirConstValue::Repeat(value, len)) => {
+                let Type::Array {
+                    element,
+                    len: expected,
+                } = self.program.types.types[expr.ty]
+                else {
+                    return Err(self.error(expr.span, "repeat constant requires array storage"));
+                };
+                if *len != expected {
+                    return Err(self.error(expr.span, "repeat constant length mismatch"));
+                }
+                let expanded = HirExpr {
+                    kind: HirExprKind::ArrayRepeat {
+                        value: Box::new(HirExpr {
+                            kind: HirExprKind::Constant((**value).clone()),
+                            ty: element,
+                            span: expr.span,
+                        }),
+                        len: *len,
+                    },
+                    ty: expr.ty,
+                    span: expr.span,
+                };
+                self.lower_initializer(place, &expanded)?;
+            }
+            HirExprKind::Constant(HirConstValue::Enum(id, variant, values)) => {
+                if self.program.types.types[expr.ty] != Type::Enum(*id) {
+                    return Err(self.error(expr.span, "enum constant identity mismatch"));
+                }
+                let payload = &self.program.types.enums[*id].variants[*variant].payload;
+                if values.len() != payload.len() {
+                    return Err(self.error(expr.span, "enum constant payload mismatch"));
+                }
+                let expanded = HirExpr {
+                    kind: HirExprKind::EnumVariant {
+                        enum_id: *id,
+                        variant: *variant,
+                        args: values
+                            .iter()
+                            .zip(payload)
+                            .map(|(value, ty)| HirExpr {
+                                kind: HirExprKind::Constant(value.clone()),
+                                ty: *ty,
+                                span: expr.span,
+                            })
+                            .collect(),
+                    },
+                    ty: expr.ty,
+                    span: expr.span,
+                };
+                self.lower_initializer(place, &expanded)?;
+            }
             HirExprKind::Struct { struct_id, fields } => {
                 let def = &self.program.types.structs[*struct_id];
                 for (index, value) in fields {
@@ -434,7 +749,7 @@ impl<'a> FunctionBuilder<'a> {
                 // private snapshot so later writes cannot change that value.
                 let scalar_value;
                 let aggregate_value;
-                if self.program.types.is_scalar(element) {
+                if self.program.types.is_value_scalar(element) {
                     scalar_value = Some(self.lower_expr(value)?);
                     aggregate_value = None;
                 } else {
@@ -496,7 +811,7 @@ impl<'a> FunctionBuilder<'a> {
                 }
             }
             _ => {
-                if !self.program.types.is_scalar(expr.ty) {
+                if !self.program.types.is_value_scalar(expr.ty) {
                     let source = self.lower_place(expr)?;
                     if self.terminated(self.current) {
                         return Ok(());
@@ -524,6 +839,97 @@ impl<'a> FunctionBuilder<'a> {
 
     fn lower_expr(&mut self, expr: &HirExpr) -> Result<ValueId, Diagnostic> {
         match &expr.kind {
+            HirExprKind::Constant(HirConstValue::Struct(id, values))
+                if self
+                    .program
+                    .types
+                    .transparent_integer_repr(expr.ty)
+                    .is_some() =>
+            {
+                let repr = self
+                    .program
+                    .types
+                    .transparent_integer_repr(expr.ty)
+                    .unwrap();
+                if self.program.types.types[expr.ty] != Type::Struct(*id) || values.len() != 1 {
+                    return Err(
+                        self.error(expr.span, "transparent constant identity/shape mismatch")
+                    );
+                }
+                let HirConstValue::Integer(raw) = values[0] else {
+                    return Err(self.error(
+                        expr.span,
+                        "transparent constant requires its primitive integer representation",
+                    ));
+                };
+                let value = self.const_value(raw, repr);
+                let dst = self.new_value(expr.ty);
+                self.emit(Instruction::Wrap {
+                    dst,
+                    value,
+                    wrapper: expr.ty,
+                    repr,
+                });
+                Ok(dst)
+            }
+            HirExprKind::Struct { fields, .. }
+                if self
+                    .program
+                    .types
+                    .transparent_integer_repr(expr.ty)
+                    .is_some() =>
+            {
+                let repr = self
+                    .program
+                    .types
+                    .transparent_integer_repr(expr.ty)
+                    .unwrap();
+                if fields.len() != 1 || fields[0].0 != 0 {
+                    return Err(
+                        self.error(expr.span, "transparent literal requires its single field")
+                    );
+                }
+                let value = self.lower_expr(&fields[0].1)?;
+                if self.terminated(self.current) {
+                    return Ok(value);
+                }
+                let dst = self.new_value(expr.ty);
+                self.emit(Instruction::Wrap {
+                    dst,
+                    value,
+                    wrapper: expr.ty,
+                    repr,
+                });
+                Ok(dst)
+            }
+            HirExprKind::Field { base, field, .. }
+                if self
+                    .program
+                    .types
+                    .transparent_integer_repr(base.ty)
+                    .is_some() =>
+            {
+                let repr = self
+                    .program
+                    .types
+                    .transparent_integer_repr(base.ty)
+                    .unwrap();
+                if *field != 0 || expr.ty != repr {
+                    return Err(self.error(expr.span, "transparent field type mismatch"));
+                }
+                let value = self.lower_expr(base)?;
+                if self.terminated(self.current) {
+                    return Ok(value);
+                }
+                let dst = self.new_value(repr);
+                self.emit(Instruction::Unwrap {
+                    dst,
+                    value,
+                    wrapper: base.ty,
+                    repr,
+                });
+                Ok(dst)
+            }
             HirExprKind::Constant(HirConstValue::Integer(value)) => {
                 Ok(self.const_value(*value, expr.ty))
             }
@@ -638,7 +1044,7 @@ impl<'a> FunctionBuilder<'a> {
                 if self.terminated(self.current) {
                     return Ok(self.diverged_value());
                 }
-                if op.is_none() && !self.program.types.is_scalar(target.ty) {
+                if op.is_none() && !self.program.types.is_value_scalar(target.ty) {
                     let source = self.lower_place(value)?;
                     if self.terminated(self.current) {
                         return Ok(self.diverged_value());
@@ -1108,6 +1514,18 @@ fn format_instruction(instruction: &Instruction) -> String {
         Instruction::Unary { dst, op, operand } => format!("%{dst} = {op:?} %{operand}"),
         Instruction::Binary { dst, op, lhs, rhs } => format!("%{dst} = {op:?} %{lhs}, %{rhs}"),
         Instruction::Cast { dst, value, to, .. } => format!("%{dst} = cast %{value} to t{to}"),
+        Instruction::Wrap {
+            dst,
+            value,
+            wrapper,
+            repr,
+        } => format!("%{dst} = wrap %{value} from t{repr} to t{wrapper}"),
+        Instruction::Unwrap {
+            dst,
+            value,
+            wrapper,
+            repr,
+        } => format!("%{dst} = unwrap %{value} from t{wrapper} to t{repr}"),
         Instruction::Call {
             dst,
             function,
@@ -1164,6 +1582,562 @@ fn format_terminator(terminator: &Terminator) -> String {
 mod tests {
     use super::*;
     use crate::ocore::{codegen, parser, typeck};
+
+    type TestEmitter = fn(&HirProgram, &MirProgram) -> Result<String, Diagnostic>;
+
+    fn transparent_program() -> (HirProgram, MirProgram) {
+        let source = r#"module wrappers;
+@opaque @transparent struct A{raw:u64}
+@transparent struct B{raw:u64}
+const FIRST:A=A{raw:7};
+fn keep(x:A)->A{return x;}
+unsafe fn exercise(raw:u64)->u64{
+ let mut x:A=FIRST;x=A{raw:raw};let a:[A;2]=[x;2];
+ let f:fn(A)->A=keep;return f(keep(a[1])).raw;
+}"#;
+        let parsed = parser::parse("wrappers.oc", source).unwrap();
+        let hir = typeck::check(&[("wrappers.oc".into(), parsed)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        (hir, mir)
+    }
+
+    #[test]
+    fn transparent_values_keep_explicit_nominal_wraps_and_unwraps() {
+        let (hir, mir) = transparent_program();
+        assert!(mir
+            .functions
+            .iter()
+            .flat_map(|f| &f.blocks)
+            .flat_map(|b| &b.instructions)
+            .any(|i| matches!(i, Instruction::Wrap { .. })));
+        assert!(mir
+            .functions
+            .iter()
+            .flat_map(|f| &f.blocks)
+            .flat_map(|b| &b.instructions)
+            .any(|i| matches!(i, Instruction::Unwrap { .. })));
+        for function in &mir.functions {
+            assert_each_value_defined_once(function);
+        }
+        codegen::emit_assembly(&hir, &mir).unwrap();
+        crate::ocore::codegen_aarch64::emit_assembly(&hir, &mir).unwrap();
+        crate::ocore::codegen_riscv64::emit_assembly(&hir, &mir).unwrap();
+    }
+
+    #[test]
+    fn every_emitter_rejects_malformed_representation_moves_and_foreign_calls() {
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for mutation in 0..7 {
+            let (mut hir, mut mir) = transparent_program();
+            let Symbol::Type(a) = hir.symbols["wrappers::A"] else {
+                panic!()
+            };
+            let Symbol::Type(b) = hir.symbols["wrappers::B"] else {
+                panic!()
+            };
+            let u32_ty = hir.types.primitive("u32").unwrap();
+            if mutation == 6 {
+                let Symbol::Function(keep) = hir.symbols["wrappers::keep"] else {
+                    panic!()
+                };
+                hir.functions[keep].abi = crate::ocore::ast::Abi::C;
+            } else {
+                let mut changed = false;
+                'outer: for function in &mut mir.functions {
+                    for block in &mut function.blocks {
+                        for instruction in &mut block.instructions {
+                            match instruction {
+                                Instruction::Wrap {
+                                    dst, wrapper, repr, ..
+                                } if mutation < 4 => {
+                                    match mutation {
+                                        0 => *wrapper = b,
+                                        1 => *repr = u32_ty,
+                                        2 => function.values[*dst] = b,
+                                        3 => {
+                                            let target = *dst;
+                                            *instruction = Instruction::Const {
+                                                dst: target,
+                                                value: 0,
+                                            };
+                                        }
+                                        _ => unreachable!(),
+                                    }
+                                    changed = true;
+                                    break 'outer;
+                                }
+                                Instruction::Unwrap { wrapper, .. } if mutation == 4 => {
+                                    *wrapper = b;
+                                    changed = true;
+                                    break 'outer;
+                                }
+                                Instruction::Unwrap { dst, .. } if mutation == 5 => {
+                                    function.values[*dst] = a;
+                                    changed = true;
+                                    break 'outer;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                assert!(changed, "mutation {mutation} did not find its instruction");
+            }
+            for emit in emitters {
+                assert!(
+                    emit(&hir, &mir).is_err(),
+                    "emitter accepted mutation {mutation}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_emitter_rejects_nominal_place_and_callback_retagging() {
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for mutation in 0..4 {
+            let (mut hir, mut mir) = transparent_program();
+            let Symbol::Type(a) = hir.symbols["wrappers::A"] else {
+                panic!()
+            };
+            let Symbol::Type(b) = hir.symbols["wrappers::B"] else {
+                panic!()
+            };
+            let u64_ty = hir.types.primitive("u64").unwrap();
+            let callback = hir.types.intern(Type::Function {
+                params: vec![b],
+                result: b,
+                abi: crate::ocore::ast::Abi::OCore,
+            });
+            let mut changed = false;
+            'outer: for function in &mut mir.functions {
+                for block in &mut function.blocks {
+                    for instruction in &mut block.instructions {
+                        let Instruction::Load { dst, place, .. } = instruction else {
+                            continue;
+                        };
+                        let change = match mutation {
+                            0 => place.projections.is_empty() && place.ty == a,
+                            1 => place.projections.is_empty() && place.ty == u64_ty,
+                            2 => {
+                                place.projections.is_empty()
+                                    && matches!(hir.types.types[place.ty], Type::Function { .. })
+                            }
+                            _ => !place.projections.is_empty() && place.ty == a,
+                        };
+                        if change {
+                            place.ty = if mutation == 2 {
+                                callback
+                            } else if mutation == 1 {
+                                a
+                            } else {
+                                b
+                            };
+                            function.values[*dst] = place.ty;
+                            changed = true;
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+            assert!(changed);
+            for emit in emitters {
+                let error = emit(&hir, &mir).unwrap_err();
+                assert!(
+                    error.message.contains("place"),
+                    "mutation {mutation}: {error}"
+                );
+            }
+        }
+        let (mut hir, mut mir) = transparent_program();
+        let Symbol::Type(b) = hir.symbols["wrappers::B"] else {
+            panic!()
+        };
+        let to = hir.types.intern(Type::Function {
+            params: vec![b],
+            result: b,
+            abi: crate::ocore::ast::Abi::OCore,
+        });
+        let mut changed = false;
+        'outer: for function in &mut mir.functions {
+            for block in &mut function.blocks {
+                let source = block
+                    .instructions
+                    .iter()
+                    .find_map(|instruction| match instruction {
+                        Instruction::FunctionAddress { dst, .. } => Some(*dst),
+                        _ => None,
+                    });
+                if let Some(value) = source {
+                    let from = function.values[value];
+                    let dst = function.values.len();
+                    function.values.push(to);
+                    block.instructions.push(Instruction::Cast {
+                        dst,
+                        value,
+                        from,
+                        to,
+                    });
+                    changed = true;
+                    break 'outer;
+                }
+            }
+        }
+        assert!(changed);
+        for emit in emitters {
+            assert!(emit(&hir, &mir)
+                .unwrap_err()
+                .message
+                .contains("callback signatures"));
+        }
+    }
+
+    #[test]
+    fn transparent_pointer_array_places_keep_both_valid_index_forms() {
+        let source = r#"module pointer_arrays;
+@transparent struct W{raw:u64}
+unsafe fn read(p:*const [W;2])->W{return (*p)[1];}
+unsafe fn raw(p:*const [W;2])->W{return p[1][0];}
+unsafe fn nested(p:*const [[W;2];2])->W{return (*p)[1][0];}
+unsafe fn one(p:*const [W;1])->W{return (*p)[0];}
+unsafe fn wrapped()->u64{let array:[W;2]=[W{raw:3};2];return read(&array).raw;}
+"#;
+        let parsed = parser::parse("arrays.oc", source).unwrap();
+        let hir = typeck::check(&[("arrays.oc".into(), parsed)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        codegen::emit_assembly(&hir, &mir).unwrap();
+        crate::ocore::codegen_aarch64::emit_assembly(&hir, &mir).unwrap();
+        crate::ocore::codegen_riscv64::emit_assembly(&hir, &mir).unwrap();
+    }
+
+    #[test]
+    fn every_emitter_requires_typed_pointer_storage_instead_of_implicit_retagging() {
+        let source = r#"module pointer_storage;
+@opaque @transparent struct A{raw:u64}
+@opaque @transparent struct B{raw:u64}
+struct Holder{pointer:*const A}
+fn unused(pointer:*const A)->u64{let local:*const A=pointer;let holder:Holder=Holder{pointer:pointer};let copied:*const A=holder.pointer;return 0;}
+"#;
+        let ast = parser::parse("pointer-storage.oc", source).unwrap();
+        let hir = typeck::check(&[("pointer-storage.oc".into(), ast)]).unwrap();
+        let original = lower(&hir).unwrap();
+        let Symbol::Type(b) = hir.symbols["pointer_storage::B"] else {
+            panic!()
+        };
+        for projected in [false, true] {
+            let mut hir = hir.clone();
+            let mut program = original.clone();
+            let wrong = hir.types.intern(Type::Pointer {
+                mutable: false,
+                pointee: b,
+            });
+            let mut changed = false;
+            'outer: for function in &mut program.functions {
+                for block in &mut function.blocks {
+                    for instruction in &mut block.instructions {
+                        if let Instruction::Load { dst, place, .. } = instruction {
+                            if matches!(hir.types.types[place.ty], Type::Pointer { .. })
+                                && (!place.projections.is_empty()) == projected
+                            {
+                                place.ty = wrong;
+                                function.values[*dst] = wrong;
+                                changed = true;
+                                break 'outer;
+                            }
+                        }
+                    }
+                }
+            }
+            assert!(changed);
+            for emit in [
+                codegen::emit_assembly,
+                crate::ocore::codegen_aarch64::emit_assembly,
+                crate::ocore::codegen_riscv64::emit_assembly,
+            ] {
+                assert!(emit(&hir, &program).unwrap_err().message.contains("place"));
+            }
+        }
+    }
+
+    #[test]
+    fn transparent_phi_executes_all_targets_when_requested() {
+        use crate::ocore::{ast, codegen_aarch64, codegen_riscv64, common::Target};
+        use sha2::{Digest, Sha256};
+        use std::{
+            fs,
+            path::{Path, PathBuf},
+            process::Command,
+        };
+        let source = r#"module wrapper_phi;
+@opaque @transparent struct W{raw:i8}
+fn exchange(a:W,b:W,count:u64)->W{return a;}
+@export @no_mangle extern "C" fn ocore_wrapper_phi_entry()->u64{
+ let first:W=exchange(W{raw:-128},W{raw:127},1);
+ let second:W=exchange(W{raw:-128},W{raw:127},2);
+ if first.raw!=127{return 1;}if second.raw!=-128{return 2;}return 0;
+}"#;
+        let ast = parser::parse("wrapper-phi.oc", source).unwrap();
+        let hir = typeck::check(&[("wrapper-phi.oc".into(), ast)]).unwrap();
+        let mut program = lower(&hir).unwrap();
+        let Symbol::Function(exchange) = hir.symbols["wrapper_phi::exchange"] else {
+            panic!()
+        };
+        let Symbol::Type(wrapper) = hir.symbols["wrapper_phi::W"] else {
+            panic!()
+        };
+        let u64_ty = hir.types.primitive("u64").unwrap();
+        let bool_ty = hir.types.primitive("bool").unwrap();
+        let function = program
+            .functions
+            .iter_mut()
+            .find(|function| function.source == exchange)
+            .unwrap();
+        function.values = vec![
+            wrapper, wrapper, wrapper, wrapper, u64_ty, u64_ty, bool_ty, u64_ty, u64_ty,
+        ];
+        let place = |local, ty| Place {
+            base: PlaceBase::Local(local),
+            projections: vec![],
+            ty,
+        };
+        function.blocks = vec![
+            BasicBlock {
+                instructions: vec![
+                    Instruction::Load {
+                        dst: 0,
+                        place: place(0, wrapper),
+                        volatile: false,
+                    },
+                    Instruction::Load {
+                        dst: 1,
+                        place: place(1, wrapper),
+                        volatile: false,
+                    },
+                ],
+                terminator: Terminator::Jump(1),
+            },
+            BasicBlock {
+                instructions: vec![
+                    Instruction::Phi {
+                        dst: 2,
+                        incoming: vec![(0, 0), (2, 3)],
+                    },
+                    Instruction::Phi {
+                        dst: 3,
+                        incoming: vec![(0, 1), (2, 2)],
+                    },
+                    Instruction::Load {
+                        dst: 4,
+                        place: place(2, u64_ty),
+                        volatile: false,
+                    },
+                    Instruction::Const { dst: 5, value: 0 },
+                    Instruction::Binary {
+                        dst: 6,
+                        op: ast::BinaryOp::Eq,
+                        lhs: 4,
+                        rhs: 5,
+                    },
+                ],
+                terminator: Terminator::Branch {
+                    condition: 6,
+                    then_block: 3,
+                    else_block: 2,
+                },
+            },
+            BasicBlock {
+                instructions: vec![
+                    Instruction::Const { dst: 7, value: 1 },
+                    Instruction::Binary {
+                        dst: 8,
+                        op: ast::BinaryOp::Sub,
+                        lhs: 4,
+                        rhs: 7,
+                    },
+                    Instruction::Store {
+                        place: place(2, u64_ty),
+                        value: 8,
+                        volatile: false,
+                    },
+                ],
+                terminator: Terminator::Jump(1),
+            },
+            BasicBlock {
+                instructions: vec![],
+                terminator: Terminator::Return(Some(2)),
+            },
+        ];
+        assert_each_value_defined_once(function);
+        let assemblies = [
+            codegen::emit_assembly(&hir, &program).unwrap(),
+            codegen_aarch64::emit_assembly(&hir, &program).unwrap(),
+            codegen_riscv64::emit_assembly(&hir, &program).unwrap(),
+        ];
+        let Some(output) = std::env::var_os("OCORE_WRAPPER_PHI_OUTPUT_DIR") else {
+            eprintln!("SKIP-OPTIONAL: typed Phi machine execution requires OCORE_WRAPPER_PHI_OUTPUT_DIR and matching Linux runners; all three assemblies validated");
+            return;
+        };
+        let output = PathBuf::from(output);
+        assert!(!output.exists(), "Phi evidence directory must be fresh");
+        fs::create_dir_all(&output).unwrap();
+        fs::write(output.join("source.oc"), source).unwrap();
+        fs::write(output.join("mir.txt"), program.to_text(&hir)).unwrap();
+        fn resolve_tool(value: &str) -> PathBuf {
+            let path = Path::new(value);
+            if path.components().count() > 1 {
+                assert!(path.is_file(), "missing tool {value}");
+                return path.to_path_buf();
+            }
+            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+                .map(|directory| directory.join(value))
+                .find(|path| path.is_file())
+                .unwrap_or_else(|| panic!("missing tool {value}"))
+        }
+        fn identity(path: &Path) -> serde_json::Value {
+            let data = fs::read(path).unwrap();
+            serde_json::json!({"path":path,"bytes":data.len(),"sha256":hex::encode(Sha256::digest(data))})
+        }
+        let clang = resolve_tool(&std::env::var("OCORE_CLANG").unwrap_or_else(|_| "clang".into()));
+        let linker = resolve_tool("ld.lld");
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
+        let sources = [
+            "hir.rs",
+            "typeck.rs",
+            "mir.rs",
+            "codegen.rs",
+            "codegen_aarch64.rs",
+            "codegen_riscv64.rs",
+        ]
+        .map(|name| identity(&repo.join("crates/ostadix-api/src/ocore").join(name)));
+        let test_executable = std::env::current_exe().unwrap();
+        let running = if cfg!(target_os = "linux") {
+            PathBuf::from("/proc/self/exe")
+        } else {
+            test_executable.clone()
+        };
+        let mut report = serde_json::json!({"schema":"ostadix.ocore-transparent-phi-execution/v1","complete":false,"source_files":sources,"test_executable_path":test_executable,"running_test_binary":identity(&running),"clang":identity(&clang),"linker":identity(&linker),"commands":[],"targets":[],"scope":"Actual typed O-core MIR Phi/parallel-edge moves and internal narrow-signed wrapper ABI; no imported NativeModule or guest qualification"});
+        for (target, assembly) in Target::ALL.iter().zip(assemblies) {
+            let (id,hosted,flags,start,runner):( &str,&str,Vec<&str>,&str,Option<&str>)=match target{
+                Target::X86_64UnknownNone=>("x86_64","x86_64-linux-gnu",vec![],".text\n.globl _start\n_start:\n and rsp,-16\n call ocore_wrapper_phi_entry\n mov rdi,rax\n mov rax,60\n syscall\n ud2\n",if cfg!(all(target_os="linux",target_arch="x86_64")){None}else{Some("OCORE_TEST_QEMU_X86_64")}),
+                Target::Aarch64UnknownNone=>("aarch64","aarch64-linux-gnu",vec![],".text\n.globl _start\n_start:\n bl ocore_wrapper_phi_entry\n mov x8,#93\n svc #0\n brk #0\n",Some("OCORE_TEST_QEMU_AARCH64")),
+                Target::Riscv64UnknownNone=>("riscv64","riscv64-linux-gnu",vec!["-march=rv64gc","-mabi=lp64"],".text\n.globl _start\n_start:\n call ocore_wrapper_phi_entry\n li a7,93\n ecall\n ebreak\n",Some("OCORE_TEST_QEMU_RISCV64")),
+            };
+            let source = output.join(format!("{id}.s"));
+            let object = output.join(format!("{id}.o"));
+            let executable = output.join(format!("{id}.elf"));
+            fs::write(&source, format!("{assembly}{start}")).unwrap();
+            let mut assemble = Command::new(&clang);
+            assemble
+                .arg(format!("--target={}", target.triple()))
+                .args(&flags)
+                .arg("-c")
+                .arg(&source)
+                .arg("-o")
+                .arg(&object);
+            let mut link = Command::new(&clang);
+            link.arg(format!("--target={hosted}"))
+                .args(&flags)
+                .args([
+                    "-nostdlib",
+                    "-static",
+                    "-fno-pic",
+                    "-Wl,--build-id=none",
+                    "-Wl,-e,_start",
+                ])
+                .arg(format!("--ld-path={}", linker.display()))
+                .arg(&object)
+                .arg("-o")
+                .arg(&executable);
+            let mut execute = if let Some(variable) = runner {
+                let path = resolve_tool(
+                    &std::env::var(variable)
+                        .unwrap_or_else(|_| panic!("required runner {variable} is missing")),
+                );
+                let mut command = Command::new(path);
+                command.arg(&executable);
+                command
+            } else {
+                Command::new(&executable)
+            };
+            for (phase, command) in [
+                ("assemble", &mut assemble),
+                ("link", &mut link),
+                ("execute", &mut execute),
+            ] {
+                command.current_dir(&output);
+                let argv = std::iter::once(command.get_program().to_string_lossy().into_owned())
+                    .chain(
+                        command
+                            .get_args()
+                            .map(|value| value.to_string_lossy().into_owned()),
+                    )
+                    .collect::<Vec<_>>();
+                let tool_before = identity(Path::new(command.get_program()));
+                let version = if phase != "execute" || runner.is_some() {
+                    Some(
+                        Command::new(command.get_program())
+                            .arg("--version")
+                            .output()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                };
+                let result = command.output().unwrap();
+                let tool_after = identity(Path::new(command.get_program()));
+                assert_eq!(tool_before, tool_after, "tool changed during Phi execution");
+                fs::write(output.join(format!("{id}-{phase}.stdout")), &result.stdout).unwrap();
+                fs::write(output.join(format!("{id}-{phase}.stderr")), &result.stderr).unwrap();
+                report["commands"].as_array_mut().unwrap().push(serde_json::json!({"target":target.name(),"phase":phase,"argv":argv,"cwd":output,"exit_code":result.status.code(),"status":format!("{:?}",result.status),"stdout":String::from_utf8_lossy(&result.stdout),"stderr":String::from_utf8_lossy(&result.stderr),"tool_before":tool_before,"tool_after":tool_after,"tool_version":version.map(|value|String::from_utf8_lossy(&value.stdout).into_owned())}));
+                fs::write(
+                    output.join("execution.json"),
+                    serde_json::to_vec_pretty(&report).unwrap(),
+                )
+                .unwrap();
+                assert!(
+                    result.status.success(),
+                    "{id} {phase} failed: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                );
+            }
+            let machine = match target {
+                Target::X86_64UnknownNone => 62u16,
+                Target::Aarch64UnknownNone => 183,
+                Target::Riscv64UnknownNone => 243,
+            };
+            for (path, kind) in [(&object, 1u16), (&executable, 2u16)] {
+                let data = fs::read(path).unwrap();
+                assert!(data.len() >= 64);
+                assert_eq!(&data[..6], b"\x7fELF\x02\x01");
+                assert_eq!(u16::from_le_bytes([data[16], data[17]]), kind);
+                assert_eq!(u16::from_le_bytes([data[18], data[19]]), machine);
+            }
+            report["targets"].as_array_mut().unwrap().push(serde_json::json!({"target":target.name(),"assembly":identity(&source),"object":identity(&object),"executable":identity(&executable),"passed":true}));
+        }
+        assert_eq!(
+            report["targets"].as_array().unwrap().len(),
+            Target::ALL.len()
+        );
+        report["complete"] =
+            serde_json::json!(report["targets"].as_array().unwrap().len() == Target::ALL.len());
+        fs::write(
+            output.join("execution.json"),
+            serde_json::to_vec_pretty(&report).unwrap(),
+        )
+        .unwrap();
+    }
 
     #[test]
     fn lowering_produces_ssa_and_control_flow() {
@@ -1434,6 +2408,8 @@ fn boot() -> never {
                 | Instruction::Unary { dst, .. }
                 | Instruction::Binary { dst, .. }
                 | Instruction::Cast { dst, .. }
+                | Instruction::Wrap { dst, .. }
+                | Instruction::Unwrap { dst, .. }
                 | Instruction::Phi { dst, .. } => Some(*dst),
                 Instruction::Call { dst, .. }
                 | Instruction::CallIndirect { dst, .. }

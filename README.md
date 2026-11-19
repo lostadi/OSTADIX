@@ -59,6 +59,22 @@ Public validation claims are scoped to named commands, source identities, enviro
 
 The canonical repository is [lostadi/OSTADIX](https://github.com/lostadi/OSTADIX); [lostadi/ostadix-BM](https://github.com/lostadi/ostadix-BM) is another development line of the same system. Identify artifacts by repository and exact commit, not package version alone. Maintainer: Lee Daghlar Ostadi.
 
+## Typed identities in O-core
+
+O-core can distinguish values that share the same integer representation.
+`@transparent` lets a one-field integer structure pass through internal calls;
+`@opaque` keeps construction and field access in its defining module. The
+structure retains its identity through copies, storage and callbacks. External
+C, syscall, assembly and wire adapters keep primitive signatures. Runtime
+checks still decide whether an object is live, belongs to the caller and grants
+the requested rights.
+
+The compiler corpus executes on x86-64, AArch64 and RV64GC. The
+[language reference](docs/OCORE.md) defines the rules; the
+[implementation guide](docs/OCORE_TYPED_LIFECYCLE_PLAN.md) tracks the O10,
+capability and memory-view migrations, their execution evidence and remaining
+guest qualification. Array-bounds checking is a separate language change.
+
 ## License and citation
 
 The project uses the GNU Lesser General Public License v2.1 only (`LGPL-2.1-only`); see [LICENSE](LICENSE). Generated AOT build crates are `publish = false`. Their component-scoped Cargo metadata identifies the embedded Ostadix runtime as LGPL-2.1-only while marking embedded user or project inputs as retaining the licensing attached to their source; it does not declare one license for the mixed generated package.

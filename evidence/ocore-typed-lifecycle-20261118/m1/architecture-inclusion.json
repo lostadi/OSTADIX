@@ -1,0 +1,63 @@
+{
+  "schema": "ostadix.architecture-inclusion-repair/v1",
+  "baseline_commit": "88fc0de62d1064025bf8e31abde68352d1f1d7c9",
+  "baseline_result": {
+    "argv": [
+      "python3",
+      "scripts/check_architecture_boundaries.py"
+    ],
+    "exit_code": 1,
+    "diagnostic": "native_machine_asm_reader.rs:21: undeclared #[path = 'native_machine_asm_reader_inventory.rs'] module source"
+  },
+  "change": "Declare the existing inventory as an inline module containing a manifest-owned compiled fragment; preserve its module identity and existing source filename. Architecture checker and dependency rules are unchanged.",
+  "source_sha256": {
+    "ci/architecture-roots.toml": "79a5c974e7f07ea8b72575a68eb8a58e52f41de925708d40103b0599fd63d7ef",
+    "tests/test_architecture_boundaries.py": "0d2990c3fb30d7cd76b0136c2ba38dce9a3635bfc996da482629a197894059e8",
+    "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs": "49be5af2f534ba93e64d735787ec0b6d229f3ba656b53040f2d86ef88b38f806",
+    "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs": "196c85c8cf2e116d10eaa6f2085d3b60483b8c3ce4faba3f280cab31c10fc7d8",
+    "crates/ostadix-api/src/api/aot_source_native_registry_tests.rs": "0e55860be9b3fb2d35316ee0f2fcbfd4bb00dc3dfe58a5112c15282a2a53688c"
+  },
+  "review": "Independent source review found no correctness issue; visibility, parent imports, test child and embedded source closure retain their identities. Module header comments become ordinary comments for include-context validity.",
+  "checks": [
+    {
+      "argv": [
+        "python3",
+        "scripts/check_architecture_boundaries.py"
+      ],
+      "exit_code": 0,
+      "production_files": 228,
+      "roots": 55,
+      "cross_root_edges": 266
+    },
+    {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "tests.test_architecture_boundaries"
+      ],
+      "exit_code": 0,
+      "passed": 147
+    },
+    {
+      "argv": [
+        "target/debug/deps/ostadix_api-1ca0bd2fece17c6e",
+        "api::aot_source::native_root_registry_tests",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "passed": 7
+    },
+    {
+      "argv": [
+        "target/debug/deps/ostadix_api-1ca0bd2fece17c6e",
+        "ocore::native_machine_asm_reader",
+        "--nocapture"
+      ],
+      "exit_code": 0,
+      "passed": 42
+    }
+  ],
+  "test_binary_sha256": "9fa99f6bcdbb5d45369da90a604218d0be111259819a44988a32828dfb63286f",
+  "limits": "This source-inclusion repair is separate from the earlier compiler-feature execution receipts. It does not alter foreign import or assembly reader semantics."
+}

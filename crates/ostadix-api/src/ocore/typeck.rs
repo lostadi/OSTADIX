@@ -6,6 +6,13 @@ use super::{Diagnostic, Span};
 
 type TcResult<T> = Result<T, Diagnostic>;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ConstState {
+    Unseen,
+    Evaluating,
+    Ready,
+}
+
 #[derive(Clone)]
 struct ModuleScope {
     file: String,
@@ -26,6 +33,7 @@ struct Checker<'a> {
     function_defs: Vec<(usize, usize)>,
     static_defs: Vec<(usize, usize)>,
     const_defs: Vec<(usize, usize)>,
+    const_states: Vec<ConstState>,
 }
 
 impl<'a> Checker<'a> {
@@ -45,11 +53,13 @@ impl<'a> Checker<'a> {
             function_defs: Vec::new(),
             static_defs: Vec::new(),
             const_defs: Vec::new(),
+            const_states: Vec::new(),
         }
     }
 
     fn run(mut self) -> TcResult<HirProgram> {
         self.build_module_scopes()?;
+        self.check_item_attributes()?;
         self.collect_type_names()?;
         self.define_types()?;
         self.compute_layouts()?;
@@ -57,6 +67,16 @@ impl<'a> Checker<'a> {
         self.check_constants_and_statics()?;
         self.check_function_bodies()?;
         Ok(self.program)
+    }
+
+    fn check_item_attributes(&self) -> TcResult<()> {
+        for (file, module) in self.modules {
+            for item in &module.items {
+                // Every item is parsed, including otherwise ignored constants/enums.
+                parse_attrs(file, item)?;
+            }
+        }
+        Ok(())
     }
 
     fn build_module_scopes(&mut self) -> TcResult<()> {
@@ -147,8 +167,35 @@ impl<'a> Checker<'a> {
             }
             let entry = &mut self.program.types.structs[id];
             entry.fields = fields;
+            entry.opaque = attrs.opaque;
             entry.packed = attrs.packed;
             entry.requested_align = attrs.align;
+            entry.opaque = attrs.opaque;
+            if attrs.transparent {
+                if attrs.packed || attrs.align.is_some() {
+                    return Err(diag(
+                        &self.scopes[module_index].file,
+                        item.span,
+                        "@transparent cannot be combined with @packed or @align",
+                    ));
+                }
+                if entry.fields.len() != 1 {
+                    return Err(diag(
+                        &self.scopes[module_index].file,
+                        item.span,
+                        "@transparent requires exactly one direct primitive integer field",
+                    ));
+                }
+                let repr = entry.fields[0].ty;
+                if !self.program.types.is_integer(repr) {
+                    return Err(diag(
+                        &self.scopes[module_index].file,
+                        item.span,
+                        "@transparent requires exactly one direct primitive integer field",
+                    ));
+                }
+                self.program.types.structs[id].transparent_integer = Some(repr);
+            }
         }
 
         let enums: Vec<_> = self.enum_defs.values().copied().collect();
@@ -443,7 +490,7 @@ impl<'a> Checker<'a> {
                             public: item.public,
                             mutable: def.mutable,
                             ty,
-                            init: HirConstValue::Zero,
+                            init: HirConstValue::Unevaluated,
                             span: item.span,
                         });
                         self.program.symbols.insert(qn, Symbol::Static(id));
@@ -457,11 +504,12 @@ impl<'a> Checker<'a> {
                         self.program.consts.push(HirConst {
                             qualified_name: qn.clone(),
                             ty,
-                            value: HirConstValue::Zero,
+                            value: HirConstValue::Unevaluated,
                             span: item.span,
                         });
                         self.program.symbols.insert(qn, Symbol::Const(id));
                         self.const_defs.push((module_index, item_index));
+                        self.const_states.push(ConstState::Unseen);
                     }
                     ast::ItemKind::Struct(_) | ast::ItemKind::Enum(_) => {}
                 }
@@ -471,14 +519,8 @@ impl<'a> Checker<'a> {
     }
 
     fn check_constants_and_statics(&mut self) -> TcResult<()> {
-        let const_defs = self.const_defs.clone();
-        for (id, (module_index, item_index)) in const_defs.into_iter().enumerate() {
-            let item = &self.modules[module_index].1.items[item_index];
-            let ast::ItemKind::Const(def) = &item.kind else {
-                unreachable!()
-            };
-            let value = self.const_value(module_index, &def.init, self.program.consts[id].ty)?;
-            self.program.consts[id].value = value;
+        for id in 0..self.const_defs.len() {
+            self.resolve_const(id)?;
         }
         let static_defs = self.static_defs.clone();
         for (id, (module_index, item_index)) in static_defs.into_iter().enumerate() {
@@ -490,6 +532,33 @@ impl<'a> Checker<'a> {
             self.program.statics[id].init = value;
         }
         Ok(())
+    }
+
+    fn resolve_const(&mut self, id: ConstId) -> TcResult<HirConstValue> {
+        let (module_index, item_index) = self.const_defs[id];
+        match self.const_states[id] {
+            ConstState::Ready => return Ok(self.program.consts[id].value.clone()),
+            ConstState::Evaluating => {
+                return Err(diag(
+                    &self.scopes[module_index].file,
+                    self.program.consts[id].span,
+                    format!(
+                        "constant initialization cycle involving `{}`",
+                        self.program.consts[id].qualified_name
+                    ),
+                ))
+            }
+            ConstState::Unseen => {}
+        }
+        self.const_states[id] = ConstState::Evaluating;
+        let ast::ItemKind::Const(def) = &self.modules[module_index].1.items[item_index].kind else {
+            unreachable!()
+        };
+        let expression = def.init.clone();
+        let value = self.const_value(module_index, &expression, self.program.consts[id].ty)?;
+        self.program.consts[id].value = value.clone();
+        self.const_states[id] = ConstState::Ready;
+        Ok(value)
     }
 
     fn check_function_bodies(&mut self) -> TcResult<()> {
@@ -538,12 +607,12 @@ impl<'a> Checker<'a> {
     }
 
     fn const_value(
-        &self,
+        &mut self,
         module_index: usize,
         expr: &ast::Expr,
         expected: TypeId,
     ) -> TcResult<HirConstValue> {
-        let file = &self.scopes[module_index].file;
+        let file = self.scopes[module_index].file.clone();
         let positive_integer_limit = |ty: &Type| match ty {
             Type::Int { bits: 64, .. } | Type::Usize | Type::Isize => Some(u64::MAX),
             Type::Int {
@@ -553,11 +622,12 @@ impl<'a> Checker<'a> {
             Type::Int { signed: true, bits } => Some((1u64 << (bits - 1)) - 1),
             _ => None,
         };
-        match (&expr.kind, &self.program.types.types[expected]) {
+        let expected_type = self.program.types.types[expected].clone();
+        match (&expr.kind, &expected_type) {
             (ast::ExprKind::Integer(v), ty) if is_integer_type(ty) => {
                 if *v > positive_integer_limit(ty).unwrap() {
                     return Err(diag(
-                        file,
+                        &file,
                         expr.span,
                         format!(
                             "literal `{v}` does not fit `{}`",
@@ -576,7 +646,7 @@ impl<'a> Checker<'a> {
             ) if is_integer_type(ty) => {
                 let ast::ExprKind::Integer(magnitude) = operand.kind else {
                     return Err(diag(
-                        file,
+                        &file,
                         expr.span,
                         "constant unary `-` requires an integer literal",
                     ));
@@ -588,7 +658,7 @@ impl<'a> Checker<'a> {
                 };
                 if magnitude > limit {
                     return Err(diag(
-                        file,
+                        &file,
                         expr.span,
                         format!(
                             "negative integer literal does not fit `{}`",
@@ -641,11 +711,17 @@ impl<'a> Checker<'a> {
                 *len,
             )),
             (ast::ExprKind::Struct { path, fields }, Type::Struct(id)) => {
+                check_struct_owner(
+                    &self.program.types,
+                    *id,
+                    &self.scopes[module_index],
+                    expr.span,
+                )?;
                 let qn = self.resolve_path(module_index, path);
                 let expected_name = &self.program.types.structs[*id].name;
                 if &qn != expected_name {
                     return Err(diag(
-                        file,
+                        &file,
                         expr.span,
                         format!("expected `{expected_name}`, found `{qn}`"),
                     ));
@@ -665,7 +741,7 @@ impl<'a> Checker<'a> {
                     } = &self.program.types.types[expected]
                     else {
                         return Err(diag(
-                            file,
+                            &file,
                             expr.span,
                             "function address requires a function-pointer constant type",
                         ));
@@ -680,17 +756,17 @@ impl<'a> Checker<'a> {
                                 .collect::<Vec<_>>()
                     {
                         return Err(diag(
-                            file,
+                            &file,
                             expr.span,
                             "function-pointer constant signature or ABI mismatch",
                         ));
                     }
                     Ok(HirConstValue::Function(*id))
-                } else if let Some(Symbol::Const(id)) = self.program.symbols.get(&qn) {
-                    if self.program.consts[*id].ty != expected {
-                        return Err(diag(file, expr.span, "constant type mismatch"));
+                } else if let Some(Symbol::Const(id)) = self.program.symbols.get(&qn).copied() {
+                    if self.program.consts[id].ty != expected {
+                        return Err(diag(&file, expr.span, "constant type mismatch"));
                     }
-                    Ok(self.program.consts[*id].value.clone())
+                    self.resolve_const(id)
                 } else if let Some((enum_id, variant)) = self.resolve_enum_variant(&qn) {
                     if expected != self.type_for_enum(enum_id)
                         || !self.program.types.enums[enum_id].variants[variant]
@@ -698,7 +774,7 @@ impl<'a> Checker<'a> {
                             .is_empty()
                     {
                         return Err(diag(
-                            file,
+                            &file,
                             expr.span,
                             "enum constant does not match expected type",
                         ));
@@ -706,14 +782,14 @@ impl<'a> Checker<'a> {
                     Ok(HirConstValue::Enum(enum_id, variant, Vec::new()))
                 } else {
                     Err(diag(
-                        file,
+                        &file,
                         expr.span,
                         "initializer is not a compile-time constant",
                     ))
                 }
             }
             _ => Err(diag(
-                file,
+                &file,
                 expr.span,
                 format!(
                     "initializer is not a `{}` compile-time constant",
@@ -724,13 +800,13 @@ impl<'a> Checker<'a> {
     }
 
     fn order_const_struct_fields(
-        &self,
+        &mut self,
         module_index: usize,
         struct_id: StructId,
         fields: &[(String, ast::Expr)],
         span: Span,
     ) -> TcResult<Vec<HirConstValue>> {
-        let def = &self.program.types.structs[struct_id];
+        let def = self.program.types.structs[struct_id].clone();
         if fields.len() != def.fields.len() {
             return Err(diag(
                 &self.scopes[module_index].file,
@@ -795,6 +871,14 @@ impl<'a> Checker<'a> {
                     .map(|p| self.resolve_type(module_index, p))
                     .collect::<TcResult<Vec<_>>>()?;
                 let result = self.resolve_type(module_index, result)?;
+                validate_wrapper_abi(
+                    &self.program.types,
+                    *abi,
+                    &params,
+                    result,
+                    &self.scopes[module_index].file,
+                    ty.span,
+                )?;
                 self.program.types.intern(Type::Function {
                     params,
                     result,
@@ -1133,6 +1217,7 @@ impl<'a> BodyChecker<'a> {
                 let Type::Struct(struct_id) = self.program.types.types[ty] else {
                     return Err(self.error(expr.span, format!("`{qn}` is not a struct")));
                 };
+                check_struct_owner(&self.program.types, struct_id, self.scope, expr.span)?;
                 let def = self.program.types.structs[struct_id].clone();
                 if fields.len() != def.fields.len() {
                     return Err(
@@ -1384,6 +1469,7 @@ impl<'a> BodyChecker<'a> {
                 let Type::Struct(id) = self.program.types.types[base.ty] else {
                     return Err(self.error(expr.span, "field access requires a struct value"));
                 };
+                check_struct_owner(&self.program.types, id, self.scope, expr.span)?;
                 let Some((field, def)) = self.program.types.structs[id]
                     .fields
                     .iter()
@@ -1442,6 +1528,8 @@ impl<'a> BodyChecker<'a> {
                 let from_function =
                     matches!(self.program.types.types[value.ty], Type::Function { .. });
                 let to_function = matches!(self.program.types.types[to], Type::Function { .. });
+                validate_callback_cast(&self.program.types, value.ty, to)
+                    .map_err(|message| self.error(expr.span, message))?;
                 let from_pointer =
                     matches!(self.program.types.types[value.ty], Type::Pointer { .. });
                 let to_pointer = matches!(self.program.types.types[to], Type::Pointer { .. });
@@ -1677,12 +1765,11 @@ impl<'a> BodyChecker<'a> {
             // but not the target's unsafe/effect contract. Calling through a
             // pointer must therefore be explicit, including inferred pointers.
             self.require_unsafe(span, "indirect function call")?;
-            if params
-                .iter()
-                .any(|ty| !self.program.types.is_scalar(*ty) || self.program.types.is_float(*ty))
-                || (!matches!(self.program.types.types[result], Type::Void | Type::Never)
-                    && (!self.program.types.is_scalar(result)
-                        || self.program.types.is_float(result)))
+            if params.iter().any(|ty| {
+                !self.program.types.is_call_scalar(*ty, abi) || self.program.types.is_float(*ty)
+            }) || (!matches!(self.program.types.types[result], Type::Void | Type::Never)
+                && (!self.program.types.is_call_scalar(result, abi)
+                    || self.program.types.is_float(result)))
             {
                 return Err(self.error(span, "indirect calls require non-floating scalar arguments and results; pass aggregates through pointers"));
             }
@@ -2018,6 +2105,14 @@ impl<'a> BodyChecker<'a> {
                     .map(|p| self.resolve_type(p))
                     .collect::<TcResult<Vec<_>>>()?;
                 let result = self.resolve_type(result)?;
+                validate_wrapper_abi(
+                    &self.program.types,
+                    *abi,
+                    &params,
+                    result,
+                    &self.scope.file,
+                    ty.span,
+                )?;
                 Ok(self.program.types.intern(Type::Function {
                     params,
                     result,
@@ -2128,6 +2223,8 @@ fn parse_attrs(file: &str, item: &ast::Item) -> TcResult<ItemAttrs> {
             "interrupt" => no_args(file, attr, &mut out.interrupt)?,
             "naked" => no_args(file, attr, &mut out.naked)?,
             "unsafe_linkage" => no_args(file, attr, &mut out.unsafe_linkage)?,
+            "opaque" => no_args(file, attr, &mut out.opaque)?,
+            "transparent" => no_args(file, attr, &mut out.transparent)?,
             "link_section" => match attr.args.as_slice() {
                 [ast::AttrArg::String(section)] if !section.is_empty() => {
                     out.link_section = Some(section.clone())
@@ -2161,7 +2258,67 @@ fn parse_attrs(file: &str, item: &ast::Item) -> TcResult<ItemAttrs> {
             }
         }
     }
+    if (out.opaque || out.transparent) && !matches!(item.kind, ast::ItemKind::Struct(_)) {
+        return Err(diag(
+            file,
+            item.span,
+            "@opaque and @transparent apply only to structures",
+        ));
+    }
     Ok(out)
+}
+
+fn check_struct_owner(
+    types: &TypeContext,
+    id: StructId,
+    scope: &ModuleScope,
+    span: Span,
+) -> TcResult<()> {
+    let definition = &types.structs[id];
+    if definition.opaque && definition.defining_module != scope.name {
+        Err(diag(
+            &scope.file,
+            span,
+            format!(
+                "opaque structure `{}` representation is accessible only in defining module `{}`",
+                definition.name, definition.defining_module
+            ),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_callback_cast(
+    types: &TypeContext,
+    from: TypeId,
+    to: TypeId,
+) -> Result<(), &'static str> {
+    if types.callback_cast_preserves_identity(from, to) {
+        Ok(())
+    } else {
+        Err("cannot cast between distinct transparent-wrapper callback signatures")
+    }
+}
+
+fn validate_wrapper_abi(
+    types: &TypeContext,
+    abi: ast::Abi,
+    params: &[TypeId],
+    result: TypeId,
+    file: &str,
+    span: Span,
+) -> TcResult<()> {
+    if abi != ast::Abi::OCore
+        && params
+            .iter()
+            .chain(std::iter::once(&result))
+            .any(|ty| types.transparent_integer_repr(*ty).is_some())
+    {
+        Err(diag(file, span, "transparent integer structures may cross only the O-core ABI; use primitive boundary adapters"))
+    } else {
+        Ok(())
+    }
 }
 
 fn no_args(file: &str, attr: &ast::Attribute, target: &mut bool) -> TcResult<()> {
@@ -2229,6 +2386,14 @@ fn validate_function_attrs(
             ));
         }
     }
+    validate_wrapper_abi(
+        types,
+        *function.abi,
+        function.params,
+        function.result,
+        file,
+        span,
+    )?;
     if *function.abi == ast::Abi::SysV64
         && (function.params.iter().any(|ty| types.is_float(*ty)) || types.is_float(function.result))
     {
@@ -2248,9 +2413,12 @@ fn validate_function_attrs(
         ));
     }
     if *function.abi != ast::Abi::Interrupt
-        && (function.params.iter().any(|ty| !types.is_scalar(*ty))
+        && (function
+            .params
+            .iter()
+            .any(|ty| !types.is_call_scalar(*ty, *function.abi))
             || (!matches!(types.types[function.result], Type::Void | Type::Never)
-                && !types.is_scalar(function.result)))
+                && !types.is_call_scalar(function.result, *function.abi)))
     {
         return Err(diag(
             file,
@@ -2509,6 +2677,390 @@ mod tests {
     fn rejected(source: &str) -> Diagnostic {
         let ast = parser::parse("test.oc", source).unwrap();
         check(&[("test.oc".into(), ast)]).unwrap_err()
+    }
+
+    fn modules_checked(sources: &[&str]) -> TcResult<HirProgram> {
+        let modules = sources
+            .iter()
+            .enumerate()
+            .map(|(index, source)| {
+                let file = format!("module-{index}.oc");
+                let module = crate::ocore::parser::parse(&file, source).unwrap();
+                (file, module)
+            })
+            .collect::<Vec<_>>();
+        check(&modules)
+    }
+
+    const WRAPPER_OWNER: &str = r#"
+module owner;
+@opaque @transparent pub struct Handle { raw:u64 }
+@opaque @transparent pub struct Other { raw:u64 }
+pub const FIRST:Handle=Handle{raw:7};
+pub fn copy(value:Handle)->Handle { return value; }
+pub fn other(value:Other)->Other { return value; }
+pub fn bits(value:Handle)->u64 { return value.raw; }
+"#;
+
+    #[test]
+    fn transparent_integer_layouts_keep_nominal_types_and_internal_only_transport() {
+        for (primitive, bytes) in [
+            ("u8", 1),
+            ("u16", 2),
+            ("u32", 4),
+            ("u64", 8),
+            ("i8", 1),
+            ("i16", 2),
+            ("i32", 4),
+            ("i64", 8),
+            ("usize", 8),
+            ("isize", 8),
+        ] {
+            let source=format!("module layout; @transparent struct W {{raw:{primitive}}} fn id(x:W)->W {{return x;}}");
+            let hir = checked(&source);
+            let Symbol::Type(ty) = hir.symbols["layout::W"] else {
+                panic!()
+            };
+            let raw = hir.types.primitive(primitive).unwrap();
+            assert_eq!(hir.types.transparent_integer_repr(ty), Some(raw));
+            assert_eq!(
+                hir.types.layout(ty),
+                Layout {
+                    size: bytes,
+                    align: bytes
+                }
+            );
+            assert_eq!(hir.types.structs[0].fields[0].offset, 0);
+            assert_eq!(hir.types.structs[0].defining_module, "layout");
+            assert!(!hir.types.is_integer(ty));
+            assert!(!hir.types.is_scalar(ty));
+            assert!(hir.types.is_value_scalar(ty));
+            assert!(hir.types.is_call_scalar(ty, ast::Abi::OCore));
+            for abi in [ast::Abi::C, ast::Abi::SysV64, ast::Abi::Interrupt] {
+                assert!(!hir.types.is_call_scalar(ty, abi));
+            }
+        }
+    }
+
+    #[test]
+    fn opaque_owner_constants_copy_across_aliases_in_reversed_input_order() {
+        let consumer = r#"module client; use owner::Handle as H; use owner::FIRST as SEED;
+const COPY:H=SEED;
+static VALUE:H=COPY;
+static VALUES:[H;2]=[SEED;2];
+unsafe fn via_pointer(value:H)->H {let f:fn(H)->H=owner::copy;return f(value);}
+fn local()->u64 {let x:H=COPY;let values:[H;2]=[x;2];return owner::bits(values[1]);}
+"#;
+        for inputs in [[consumer, WRAPPER_OWNER], [WRAPPER_OWNER, consumer]] {
+            let hir = modules_checked(&inputs).unwrap();
+            assert!(hir.consts.iter().all(|value| !matches!(
+                value.value,
+                HirConstValue::Unevaluated | HirConstValue::Zero
+            )));
+            assert!(hir.statics.iter().all(|value| !matches!(
+                value.init,
+                HirConstValue::Unevaluated | HirConstValue::Zero
+            )));
+            let Symbol::Const(copy) = hir.symbols["client::COPY"] else {
+                panic!()
+            };
+            assert!(
+                matches!(&hir.consts[copy].value,HirConstValue::Struct(_, values) if matches!(values.as_slice(),[HirConstValue::Integer(7)]))
+            );
+            crate::ocore::mir::lower(&hir).unwrap();
+        }
+    }
+
+    #[test]
+    fn opacity_rejects_aliased_literals_and_all_field_access_even_inside_unsafe() {
+        for body in [
+            "fn bad()->H{return H{raw:1};}",
+            "fn bad(x:H)->u64{return x.raw;}",
+            "unsafe fn bad()->u64{let mut x:H=owner::FIRST;x.raw=9;return 0;}",
+            "unsafe fn bad(x:H)->*const u64{return &x.raw;}",
+            "unsafe fn bad(x:H)->u64{return x.raw;}",
+            "const BAD:H=H{raw:1};",
+            "static BAD:H=H{raw:1};",
+            "static BAD:[H;1]=[H{raw:1};1];",
+        ] {
+            let consumer = format!("module client;use owner::Handle as H;{body}");
+            let error = modules_checked(&[&consumer, WRAPPER_OWNER]).unwrap_err();
+            assert!(
+                error.message.contains("opaque structure"),
+                "{body}: {error}"
+            );
+        }
+        for body in [
+            "const BAD:u64=owner::FIRST.raw;",
+            "static BAD:u64=owner::FIRST.raw;",
+        ] {
+            let consumer = format!("module client;{body}");
+            assert!(modules_checked(&[&consumer, WRAPPER_OWNER]).is_err());
+        }
+    }
+
+    #[test]
+    fn opaque_and_transparent_attributes_are_independent() {
+        let owner="module owner; @opaque pub struct Secret{raw:u64} pub const FIRST:Secret=Secret{raw:9}; @transparent pub struct Public{raw:u16}";
+        let client="module client; const COPY:owner::Secret=owner::FIRST;static VALUE:owner::Secret=COPY;fn make()->owner::Public{return owner::Public{raw:12};}fn bits(x:owner::Public)->u16{return x.raw;}";
+        let hir = modules_checked(&[client, owner]).unwrap();
+        crate::ocore::mir::lower(&hir).unwrap();
+        let local="module client;unsafe fn copy()->void{let x:owner::Secret=owner::FIRST;let a:[owner::Secret;2]=[owner::FIRST;2];let y:[owner::Secret;2]=a;}";
+        let hir = modules_checked(&[local, owner]).unwrap();
+        let mir = crate::ocore::mir::lower(&hir).unwrap();
+        crate::ocore::codegen::emit_assembly(&hir, &mir).unwrap();
+        crate::ocore::codegen_aarch64::emit_assembly(&hir, &mir).unwrap();
+        crate::ocore::codegen_riscv64::emit_assembly(&hir, &mir).unwrap();
+        assert!(modules_checked(&[
+            "module client;fn bad(x:owner::Secret)->owner::Secret{return x;}",
+            owner
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn transparent_wrappers_do_not_gain_conversions_or_operators() {
+        for expression in [
+            "let x:B=a;",
+            "let x:u64=a;",
+            "let x:A=1;",
+            "let x:u64=a as u64;",
+            "let x:A=1 as A;",
+            "let x:B=a as B;",
+            "let x:A=a as A;",
+            "let x:A=a+a;",
+            "let x:A=a-a;",
+            "let x:A=a&a;",
+            "let x:A=a|a;",
+            "let x:A=a^a;",
+            "let x:A=a<<1;",
+            "let x:A=a>>1;",
+            "let x:A=~a;",
+            "let x:A=-a;",
+            "let x:bool=a==a;",
+            "let x:bool=a!=a;",
+            "let x:bool=a<a;",
+            "let x:bool=a<=a;",
+            "let x:bool=a>a;",
+            "let x:bool=a>=a;",
+            "a+=a;",
+            "a<<=1;",
+            "let x:A=atomic_load(&a,relaxed);",
+        ] {
+            let source=format!("module reject;@transparent struct A{{raw:u64}}@transparent struct B{{raw:u64}}unsafe fn bad()->u64{{let mut a:A=A{{raw:1}};{expression}return 0;}}");
+            assert!(
+                crate::ocore::parser::parse("test.oc", &source).is_ok(),
+                "{expression}"
+            );
+            assert!(modules_checked(&[&source]).is_err(), "{expression}");
+        }
+    }
+
+    #[test]
+    fn transparent_callback_signatures_remain_nominal_even_under_unsafe_casts() {
+        for body in [
+            "unsafe fn bad()->u64{let f:fn(H)->H=owner::other;return 0;}",
+            "unsafe fn bad()->u64{let f=owner::copy;let g=f as fn(owner::Other)->owner::Other;return 0;}",
+            "fn bad(x:H)->owner::Other{return x;}",
+            "fn bad(x:owner::Other)->H{return owner::copy(x);}",
+            "unsafe fn bad(x:owner::Other)->H{let f=owner::copy;return f(x);}",
+        ] {
+            let consumer=format!("module client;use owner::Handle as H;{body}");
+            assert!(modules_checked(&[&consumer,WRAPPER_OWNER]).is_err(),"{body}");
+        }
+    }
+
+    #[test]
+    fn transparent_wrappers_reject_every_foreign_by_value_boundary() {
+        for abi in ["C", "sysv64"] {
+            for signature in [
+                format!("extern \"{abi}\" fn bad(x:W)->u64;"),
+                format!("extern \"{abi}\" fn bad()->W;"),
+                format!("const F:extern \"{abi}\" fn(W)->W=bad;extern \"{abi}\" fn bad(x:W)->W;"),
+            ] {
+                let source = format!("module boundary;@transparent struct W{{raw:u64}}{signature}");
+                assert!(modules_checked(&[&source]).is_err(), "{signature}");
+            }
+        }
+    }
+
+    #[test]
+    fn transparent_attribute_shape_and_placement_are_checked_for_every_item_kind() {
+        for structure in [
+            "struct W{}",
+            "struct W{a:u64,b:u64}",
+            "struct W{raw:bool}",
+            "struct W{raw:f32}",
+            "struct W{raw:f64}",
+            "struct W{raw:*const u64}",
+            "struct W{raw:[u64;1]}",
+            "@packed struct W{raw:u64}",
+            "@align(8) struct W{raw:u64}",
+            "@transparent struct W{raw:u64}",
+            "struct Inner{raw:u64}@transparent struct W{raw:Inner}",
+        ] {
+            assert!(
+                modules_checked(&[&format!("module shape;@transparent {structure}")]).is_err(),
+                "{structure}"
+            );
+        }
+        for attr in ["opaque", "transparent"] {
+            for item in [
+                "fn bad(){}",
+                "const BAD:u64=1;",
+                "static BAD:u64=1;",
+                "enum Bad{Value}",
+            ] {
+                let source = format!("module misplaced;@{attr} {item}");
+                assert!(
+                    modules_checked(&[&source])
+                        .unwrap_err()
+                        .message
+                        .contains("only to structures"),
+                    "{source}"
+                );
+            }
+            assert!(
+                modules_checked(&[&format!("module args;@{attr}(1) struct W{{raw:u64}}")]).is_err()
+            );
+            assert!(
+                modules_checked(&[&format!("module dup;@{attr} @{attr} struct W{{raw:u64}}")])
+                    .unwrap_err()
+                    .message
+                    .contains("duplicate attribute")
+            );
+        }
+    }
+
+    #[test]
+    fn constants_resolve_dependencies_before_statics_without_placeholder_zero() {
+        let hir = checked(
+            "module forward;const A:u64=B;const B:u64=C;const C:u64=73;static VALUE:u64=A;",
+        );
+        assert!(hir
+            .consts
+            .iter()
+            .all(|value| matches!(value.value, HirConstValue::Integer(73))));
+        assert!(matches!(hir.statics[0].init, HirConstValue::Integer(73)));
+        for source in [
+            "module cycle;const A:u64=A;",
+            "module cycle;const A:u64=B;const B:u64=A;",
+        ] {
+            assert!(rejected(source)
+                .message
+                .contains("constant initialization cycle"));
+        }
+        let error = modules_checked(&[
+            "module left;const A:u64=right::B;",
+            "module right;const B:u64=left::A;",
+        ])
+        .unwrap_err();
+        assert!(error.message.contains("constant initialization cycle"));
+    }
+
+    #[test]
+    fn transparent_integer_layouts_and_internal_call_types_stay_nominal() {
+        for primitive in [
+            "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "usize", "isize",
+        ] {
+            let source=format!("module layout;@opaque @transparent struct Value{{raw:{primitive}}}fn id(value:Value)->Value{{return value;}}");
+            let hir = checked(&source);
+            let Symbol::Type(wrapper) = hir.symbols["layout::Value"] else {
+                panic!()
+            };
+            let repr = hir.types.primitive(primitive).unwrap();
+            assert_ne!(wrapper, repr);
+            assert_eq!(hir.types.transparent_integer_repr(wrapper), Some(repr));
+            assert_eq!(hir.types.layout(wrapper), hir.types.layout(repr));
+            let Type::Struct(id) = hir.types.types[wrapper] else {
+                panic!()
+            };
+            assert_eq!(hir.types.structs[id].fields[0].offset, 0);
+            assert_eq!(hir.types.structs[id].defining_module, "layout");
+            assert!(!hir.types.is_integer(wrapper));
+            assert!(!hir.types.is_scalar(wrapper));
+            assert!(hir.types.is_value_scalar(wrapper));
+            assert!(hir.types.is_call_scalar(wrapper, ast::Abi::OCore));
+            assert!(!hir.types.is_call_scalar(wrapper, ast::Abi::C));
+            assert!(!hir.types.is_call_scalar(wrapper, ast::Abi::SysV64));
+            assert_eq!(hir.functions[0].result, wrapper);
+        }
+    }
+
+    #[test]
+    fn transparent_attributes_reject_every_unsupported_shape_and_placement() {
+        for fields in [
+            "",
+            "first:u64,second:u64",
+            "raw:bool",
+            "raw:f32",
+            "raw:*const u64",
+            "raw:[u8;8]",
+            "raw:Other",
+        ] {
+            let source=format!("module shape;@transparent struct Other{{raw:u64}}@transparent struct Bad{{{fields}}}");
+            assert!(
+                rejected(&source)
+                    .message
+                    .contains("direct primitive integer field"),
+                "{fields}"
+            );
+        }
+        for prefix in ["@packed", "@align(8)"] {
+            let source = format!("module shape;{prefix}@transparent struct Bad{{raw:u64}}");
+            assert!(rejected(&source).message.contains("cannot be combined"));
+        }
+        for attribute in ["opaque", "transparent"] {
+            for item in [
+                "fn bad()->u64{return 0;}",
+                "const BAD:u64=1;",
+                "static BAD:u64=1;",
+                "enum Bad{first}",
+            ] {
+                let source = format!("module placement;@{attribute} {item}");
+                assert!(
+                    rejected(&source).message.contains("only to structures"),
+                    "{source}"
+                );
+            }
+            let source = format!("module placement;@{attribute}@{attribute} struct Bad{{raw:u64}}");
+            assert!(rejected(&source).message.contains("duplicate attribute"));
+            let source = format!("module placement;@{attribute}(1)struct Bad{{raw:u64}}");
+            assert!(rejected(&source).message.contains("takes no arguments"));
+        }
+    }
+
+    #[test]
+    fn callbacks_keep_wrapper_identity_and_cannot_cast_it_away() {
+        for body in [
+            "let f:fn(A)->A=other;",
+            "let f:fn(A)->B=keep;",
+            "let f:fn(A)->A=keep;let g:fn(B)->B=f;",
+            "let f:fn(A)->A=keep;let g:fn(B)->B=f as fn(B)->B;",
+            "let f:fn(A)->A=keep;let g:fn(u64)->u64=f as fn(u64)->u64;",
+            "let f:fn(A)->A=keep;let x:B=B{raw:1};let y:A=f(x);",
+            "let x:A=A{raw:1};let y:B=keep(x);",
+        ] {
+            let source=format!("module callbacks;@transparent struct A{{raw:u64}}@transparent struct B{{raw:u64}}fn keep(x:A)->A{{return x;}}fn other(x:B)->B{{return x;}}unsafe fn bad()->u64{{{body}return 0;}}");
+            assert!(crate::ocore::parser::parse("callbacks.oc", &source).is_ok());
+            rejected(&source);
+        }
+        for abi in ["C", "sysv64"] {
+            for item in [
+                format!("extern \"{abi}\" fn bad(x:A)->u64;"),
+                format!("extern \"{abi}\" fn bad()->A;"),
+                format!("static BAD:extern \"{abi}\" fn(A)->A=keep;"),
+            ] {
+                let source=format!("module foreign;@transparent struct A{{raw:u64}}fn keep(x:A)->A{{return x;}}{item}");
+                assert!(crate::ocore::parser::parse("foreign.oc", &source).is_ok());
+                rejected(&source);
+            }
+        }
+        assert!(rejected(
+            "module interrupts;@transparent struct A{raw:u64}@interrupt unsafe fn bad(x:A)->void{}"
+        )
+        .message
+        .contains("fn() -> void"));
     }
 
     #[test]
