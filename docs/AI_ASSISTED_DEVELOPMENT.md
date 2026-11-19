@@ -74,3 +74,25 @@ and generated-source registration. They do not authenticate an original
 producer, lower complete original runtimes/providers, establish execution
 semantics across ISAs, or qualify a native operating system. The later
 identity-consumer candidate is separate and was not included in this run.
+
+## Shared compiler source integration, 19 November 2026
+
+OpenAI Codex reconciled the owned compiler changes with both shared repository
+histories. Separate Codex agents reviewed source preservation and retained
+execution evidence; this records agent assistance, not human source-review
+sign-off. The tested source is `8e72046ae547a7205f93f3060c4cc3e7e7a6b05c`.
+
+A fresh Linux x86-64 build with pinned Rust/Cargo 1.97.1 produced all 15 default
+workspace binaries. The two subsequent Rust control sets passed 130 and 96
+distinct tests; 155 architecture checks and three fresh-binary help checks also
+passed. The compiled Rust inventories contain 2,297 methods, of which 2,071
+remain unrun by these selected controls. One passing MIR test reported that
+its optional machine-execution path was not configured. These results do not
+qualify cross-ISA execution, complete original engines, providers or a native OS.
+
+The [validation record](../evidence/shared-source-integration-20261119/validation.json)
+identifies the source, compiler artifacts, controls, raw-receipt digests and
+remaining limits. The original inner native command outcomes are known;
+unobserved outer MCP final waits remain explicitly unconfirmed. This entry and
+its generated HTML are a documentation-only descendant of the tested source,
+not a claim that another compiler build ran.
