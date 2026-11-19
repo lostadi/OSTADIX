@@ -737,15 +737,11 @@ unsafe fn checked_capability_slot(cspace_id: usize, handle: u64, expected_state:
     return index;
 }
 
-pub unsafe fn validate_for_owner(
-    cspace_handle: u64,
-    handle: u64,
+unsafe fn validate_capability_index(
+    index: usize,
     expected_object_type: u64,
     required_rights: u64
 ) -> u64 {
-
-    let cspace_id: usize = checked_cspace(cspace_handle);
-    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
     if index >= 256 { return 0; }
 
     if OBJECT_TYPES[index] != expected_object_type {
@@ -755,6 +751,18 @@ pub unsafe fn validate_for_owner(
         return 0;
     }
     return OBJECT_IDS[index];
+}
+
+pub unsafe fn validate_for_owner(
+    cspace_handle: u64,
+    handle: u64,
+    expected_object_type: u64,
+    required_rights: u64
+) -> u64 {
+
+    let cspace_id: usize = checked_cspace(cspace_handle);
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    return validate_capability_index(index, expected_object_type, required_rights);
 }
 
 pub unsafe fn validate_for_owner_typed(
@@ -774,15 +782,7 @@ pub unsafe fn validate_during_drain(
 ) -> u64 {
     let cspace_id: usize = checked_draining_cspace(cspace_handle);
     let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
-    if index >= 256 { return 0; }
-
-    if OBJECT_TYPES[index] != expected_object_type {
-        return 0;
-    }
-    if (RIGHTS[index] & required_rights) != required_rights {
-        return 0;
-    }
-    return OBJECT_IDS[index];
+    return validate_capability_index(index, expected_object_type, required_rights);
 }
 
 pub unsafe fn validate_in_cspace(

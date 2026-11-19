@@ -540,7 +540,17 @@ impl<'a> FunctionCodegen<'a> {
                     len,
                     size,
                 };
-                writeln!(out, "  call {}", shape.label()).unwrap();
+                if self.source.attrs.link_section.is_some() {
+                    // Keep inserted checks in the source's executable domain.
+                    emit_u64("a2", shape.len, out);
+                    emit_u64("a3", shape.size, out);
+                    if shape.signed {
+                        writeln!(out, "  bltz a1, {label}_trap").unwrap();
+                    }
+                    writeln!(out, "  bgeu a1, a2, {label}_trap\n  mulhu t0, a1, a3\n  bnez t0, {label}_trap\n  mul t0, a1, a3\n  add t1, a0, t0\n  bltu t1, a0, {label}_trap\n  mv a0, t1\n  j {label}_done\n{label}_trap:\n  unimp\n{label}_done:").unwrap();
+                } else {
+                    writeln!(out, "  call {}", shape.label()).unwrap();
+                }
                 self.store_array_result(*dst, "a0", out)?;
             }
             Instruction::AddressOf { dst, place } => {

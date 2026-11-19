@@ -1,7 +1,7 @@
 {
   "scope": "Integrated checked-array compiler plus typed runtime on actual x86-64 TCG; guest and physical/SMP qualification separate",
-  "source_revision": "1d8f0610ae580a836b8833706f28e07f02dfbcef",
-  "source_state": "Uncommitted candidate, complete tested source manifest retained",
+  "source_revision": "6cafb48962fbff45efacc4607486d48c91663a21",
+  "source_state": "Reviewed custom-section and GC worktree; exact uncommitted source closure retained, remote master admission remains a separate CI gate",
   "source_before": {
     "ocore/boot/riscv64/entry.S": "0c7d19fede1985be8f4e1d7ff0b9d58ba7f36ca235dffb510757a82f428c8108",
     "ocore/boot/riscv64/linker.ld": "175f4b89a5e0ad277e5957319000db1531e17c4217fca58464142f00e32aaaac",
@@ -44,7 +44,7 @@
     "ocore/kernel/build-x86_64-hosted-live-iso.sh": "93e282f3fc642c0692368e3916f30c3c4f255fbda801de0cbdf77e645a8465b1",
     "ocore/kernel/build-x86_64-uefi-iso.sh": "62ad1a4768c4a7674d560141cfbaf7d8cbe18c7544c5b941da83d6fcb638c3df",
     "ocore/kernel/build-x86_64-uefi-media.sh": "a4b6da07bf8659ab44bbd73a979f79f5c1b650eba60927dc98f32bdf847e54d1",
-    "ocore/kernel/build.sh": "94fb201e5fe6f75e159c7dd53d54229dbdab403da0344960a58cdacd789e85cb",
+    "ocore/kernel/build.sh": "8c1fcaa78cb012a2993ea9f06420b356b7c3277f60691915156db33ed4e0a8d1",
     "ocore/kernel/capability_boot_test.oc": "d742db7f2ef1713aee84f03a9876c03c64eb693fb6d23f289011bd4d90ad6e71",
     "ocore/kernel/capability_boot_test_stub.oc": "0aa5a0a4940a2ddbb6113da7b593c567eec055688c1afeaae89c010c5b14137f",
     "ocore/kernel/check-linux-minimal-slice.sh": "4004a2a5821a71a947b90defc7a4a4207e60cc0a634d46c43d67a63a4a5230ed",
@@ -205,7 +205,7 @@
     "ocore/runtime/riscv64/rust_import_probe.oc": "bec1bc1fd23b546fd840a37ef1d65d50ca924e571f4eec0aa6de56bfb4106bda",
     "ocore/runtime/x86_64/address_space.oc": "b405d131d5c32d8a37d7b77605bd648b30d872baef35d1038fb290840720f0d5",
     "ocore/runtime/x86_64/cap_transfer.oc": "2d163ccc7f7d8da3eda84aee61db72fe5e5e13559c4d1af37c04f4c7788793c0",
-    "ocore/runtime/x86_64/capability.oc": "c38dd4f9ba9b3c94c4ac4c3c19c0a9fa343561f8fce5f19514e69e258f0a79d1",
+    "ocore/runtime/x86_64/capability.oc": "0a326f8f1ebf9ba31421d862d89bd83c8551b35bd21693b2db52651de1a3788b",
     "ocore/runtime/x86_64/delegated_resource.oc": "63ba7b4e692ce5575eb9ca416687b0668814891f593d3006581d80c7b26564ef",
     "ocore/runtime/x86_64/domain.oc": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7",
     "ocore/runtime/x86_64/domain_namespace.oc": "8f3b9a11eb77fbab8459ffc7764d366e7c9a4a1cd11fdb9bff4a709709936a31",
@@ -308,17 +308,17 @@
     "ocore/world/value_codec.oc": "a3e9a48225e3c544a97f1d8078ccc34a2673ed1fb52f8fcb7d20a71031871520",
     "crates/ostadix-api/src/ocore/hir.rs": "f7d277a71d6323301fa47d213de176b9bb09ec73ec98337273168b01676de289",
     "crates/ostadix-api/src/ocore/typeck.rs": "4502cd94bb2b3eb4a8daf03f5c33c266ae5a1696faba598e9bd4620c2b2a0e36",
-    "crates/ostadix-api/src/ocore/mir.rs": "d3b062e5c3393021f0944d0ba5ba39355238cd3b37fdfc83e8a8cebbbd649399",
-    "crates/ostadix-api/src/ocore/codegen.rs": "28720b2001fcf380ec246493fa7caeca495fc7799984a514ee2de4ef7a0f8927",
-    "crates/ostadix-api/src/ocore/codegen_aarch64.rs": "3404329d90f68523fc4e5f65180b44fc1a3c0651875ffd77f1252fa0a96a9194",
-    "crates/ostadix-api/src/ocore/codegen_riscv64.rs": "b0d522be3e61d31f8ab0669b847476a70763f48357c237a140525928bcf86400"
+    "crates/ostadix-api/src/ocore/mir.rs": "062331fb5f752b855000d8ee2048adfa66f720c01cdbe0b9fc9946a53745d05a",
+    "crates/ostadix-api/src/ocore/codegen.rs": "d9f96004f55a23ff0bef34ea043c4235af931808ccec68023fbc82d56b5519f7",
+    "crates/ostadix-api/src/ocore/codegen_aarch64.rs": "d1897aef0c403c117d5e9a117e268743b934813ac15ea655e0d7161794966c81",
+    "crates/ostadix-api/src/ocore/codegen_riscv64.rs": "b4f47c8da817d0cb3953110c25efb246c52ad132b73361cc930ae873016a32f5"
   },
   "tools": {
     "ocorec": {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-tools-c47856794229/ocorec",
-      "sha256": "c478567942292073383dc5a13600166a771cdd69a06d73f501db0e3276ed08d2",
+      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ocorec",
+      "sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
       "version_argv": [
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-tools-c47856794229/ocorec",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ocorec",
         "--version"
       ],
       "version": "ocorec 0.4.0"
@@ -391,38 +391,38 @@
         "-s",
         "65535",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode0.execve.log",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode0.execve.log",
         "--",
         "bash",
         "/home/ustad/ostadix-BM/ocore/kernel/smoke-qemu.sh"
       ],
       "cwd": "/home/ustad/ostadix-BM",
       "environment": {
-        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-tools-c47856794229/ocorec",
-        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode0",
+        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ocorec",
+        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode0",
         "OCORE_PROBE_MODE": "0"
       },
       "exit_code": 0,
-      "elapsed_seconds": 6.2883312702178955,
+      "elapsed_seconds": 6.304065942764282,
       "artifacts": {
         "boot.o": {
           "sha256": "9de8eb10e196c8d996756d22c764419db0008febf0ad51a3e3bc9fd1883dd6f8",
           "bytes": 26936
         },
         "kernel.s": {
-          "sha256": "a18ed7ffd60f0af8b155590dc2f375b8a48c6726247b92329993ab46252fd21f",
-          "bytes": 13068717
+          "sha256": "da878455394c6b89fb52eb16467cc2b1b404148c2b6e6952c93734b3f456534b",
+          "bytes": 13078104
         },
         "kernel.elf": {
-          "sha256": "720b99fe810ebace0a90d40025ace877bea8224471fc4794f67b5024416e535b",
-          "bytes": 1737216
+          "sha256": "7adab8e11a31b59eea266f1bdc625c2866f69b017eb02414b7317de971fa78c6",
+          "bytes": 1737296
         },
         "kernel.o": {
-          "sha256": "b3d28f40cc3f44c8421c25a2c7dda4bef7c00d41d8a2fbf3e0e34a4504ff20fb",
-          "bytes": 3075808
+          "sha256": "9a8bd56638e1748bb9185edc82ec12760c158b727b05fbcf6a273acb47814b06",
+          "bytes": 3075976
         }
       },
-      "execve_trace_sha256": "c9025d206a754cec3410bb148df3a628f4aa067c7e577e375e760883f3ee289a"
+      "execve_trace_sha256": "05bb601b284e983fdf114f2733c6a5b34628d1a42c3590a1d6f1347fbb0180b4"
     },
     {
       "mode": 13,
@@ -434,38 +434,38 @@
         "-s",
         "65535",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode13.execve.log",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode13.execve.log",
         "--",
         "bash",
         "/home/ustad/ostadix-BM/ocore/kernel/smoke-ipc-foundation-qemu.sh"
       ],
       "cwd": "/home/ustad/ostadix-BM",
       "environment": {
-        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-tools-c47856794229/ocorec",
-        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode13",
+        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ocorec",
+        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode13",
         "OCORE_PROBE_MODE": "13"
       },
       "exit_code": 0,
-      "elapsed_seconds": 3.6561851501464844,
+      "elapsed_seconds": 3.7056684494018555,
       "artifacts": {
         "boot.o": {
           "sha256": "e7ecc128e2abc35a1e4d605b658c6d38891766708ccdfed27f972617efadac76",
           "bytes": 26856
         },
         "kernel.s": {
-          "sha256": "81f122a43128968e8ab82c25198671c0d01eaa349aa0ff197995909d4a6e4edc",
-          "bytes": 13134572
+          "sha256": "65e7b55d34f74655480fbb892ca9b35d17181f39e2069160a7057936c4dc9901",
+          "bytes": 13143959
         },
         "kernel.elf": {
-          "sha256": "cc07ab93bccccaefb8bae673e4faac9afe61e52be0bb5c449c10ce3cf354a389",
-          "bytes": 1750280
+          "sha256": "52f88d6e9c991c9eae0ca2b1dfdd50a1293d7b0be17b1e9e6b40b077b379ee40",
+          "bytes": 1754456
         },
         "kernel.o": {
-          "sha256": "182d64362b1ff35e1e7603d82d814d0cf847d1efde70268f66829804e645a8a2",
-          "bytes": 3089800
+          "sha256": "2b05352c3e6cca0a66e339c4b3d4675522d740e10ecf285d63f98abf2cad052a",
+          "bytes": 3089976
         }
       },
-      "execve_trace_sha256": "e41f74b699388986ada761b59923c32ed997d48bc91bc56feec351ba2b13f8f9"
+      "execve_trace_sha256": "60beed7efecdb18ab52e6e9b8d6fee6fd3fd85c4303aea53a3fb21722a959250"
     },
     {
       "mode": 19,
@@ -477,38 +477,38 @@
         "-s",
         "65535",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode19.execve.log",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode19.execve.log",
         "--",
         "bash",
         "/home/ustad/ostadix-BM/ocore/kernel/smoke-m6b-qemu.sh"
       ],
       "cwd": "/home/ustad/ostadix-BM",
       "environment": {
-        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-tools-c47856794229/ocorec",
-        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode19",
+        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ocorec",
+        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode19",
         "OCORE_PROBE_MODE": "19"
       },
       "exit_code": 0,
-      "elapsed_seconds": 3.927459478378296,
+      "elapsed_seconds": 4.019890546798706,
       "artifacts": {
         "boot.o": {
           "sha256": "a951a5d245465e93c70a2053cd70cdc840ef379a759e70371c836f9983824809",
           "bytes": 26856
         },
         "kernel.s": {
-          "sha256": "8698abdd1a438a4b115bbd13c0332187e7245adec878a09209fa6703be9f0631",
-          "bytes": 14830733
+          "sha256": "3b99da6078720e92e7ff4a1112cb2973d0f076febd36a2fbbb7e777dcba5062e",
+          "bytes": 14840143
         },
         "kernel.elf": {
-          "sha256": "b4892d1611336be0f5c46742635f7a12a78a05ccf286b4bbf5f6eb9439992dad",
-          "bytes": 1893288
+          "sha256": "0a526bea3b3981887706d6d7c1b268e11b2c4db8bbb72ddfbffc5687eeb3d831",
+          "bytes": 1893368
         },
         "kernel.o": {
-          "sha256": "0b36cbf97ae5ebfdb25c627d261044931583e504d49492daad7f06fe5aa400d1",
-          "bytes": 3502272
+          "sha256": "e212c97f79c92e6ae8ced533816530e3d65a9110b95c3be9413441139aa1108a",
+          "bytes": 3502440
         }
       },
-      "execve_trace_sha256": "c328a925d09beb56b1ebb7dd01f6dedf6bb39b303ade62cc2467b467e3ba9192"
+      "execve_trace_sha256": "fbe088b40285d6277573455b8f04527b3f38af7ca4dc442ff8ce455760980fa5"
     },
     {
       "mode": 24,
@@ -520,19 +520,19 @@
         "-s",
         "65535",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode24.execve.log",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode24.execve.log",
         "--",
         "bash",
         "/home/ustad/ostadix-BM/ocore/kernel/smoke-live-bounded-personality-qemu.sh"
       ],
       "cwd": "/home/ustad/ostadix-BM",
       "environment": {
-        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-tools-c47856794229/ocorec",
-        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode24",
+        "OCOREC_BIN": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ocorec",
+        "OCORE_BUILD_DIR": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode24",
         "OCORE_PROBE_MODE": "24"
       },
       "exit_code": 0,
-      "elapsed_seconds": 9.170267343521118,
+      "elapsed_seconds": 9.242728471755981,
       "artifacts": {
         "boot.o": {
           "sha256": "acde289f8b2f59daaf5f73061cf5cee9aa5a8f57c3d124d262582ddb07381173",
@@ -543,16 +543,16 @@
           "bytes": 137
         },
         "kernel.s": {
-          "sha256": "ee9c77d50b0ea64e539639a1105acf5d740bbffec00c91bd3088cda5ff93b184",
-          "bytes": 15673661
+          "sha256": "62be995d84670fc8a022df27b54dab051dbd22a23f3d8c6d2da3820d302b1c4c",
+          "bytes": 15683046
         },
         "kernel.elf": {
-          "sha256": "f9d2d95eb9df9b49f0b00c9b734bc141cb988bd79696317d82741aed9ceb6b2c",
-          "bytes": 2372760
+          "sha256": "e9ec6db144e89ca0e73db43c51f2f9857eb3052aeb73eb4abecea2a8b5a63f0a",
+          "bytes": 2372832
         },
         "kernel.o": {
-          "sha256": "f8183fb9ecace5dba99419638298fc50f84702df2c54ebe0924abb7e0bfbd6ab",
-          "bytes": 3648312
+          "sha256": "f56e90c2a2aaeb3d5441c038d45cc6a87d547a236145b6420e3f55b0d36e9dcf",
+          "bytes": 3648488
         },
         "m6.image.json": {
           "sha256": "0114e44020b48ffae5c346bd0a74236578dcaf2d628a734d10f45584211c58fe",
@@ -563,13 +563,13 @@
           "bytes": 75552
         }
       },
-      "execve_trace_sha256": "8eb093408a7bff4facf8fd645fb2601e355c46f77b84dd29cfd34d5bd9e19be6"
+      "execve_trace_sha256": "ece9f42f12cf213f993fe54c8cec903eed948a87cf491be7e44f95042d8c9c49"
     }
   ],
   "passed": true,
   "mode24_secondary": {
     "source": "/home/ustad/ostadix-BM/target/ocore-m6b-live-artifacts",
-    "retained": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-integrated-kernel-r3/mode24-secondary",
+    "retained": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-integrated-kernel-r2/mode24-secondary",
     "files": {
       "pass-one/client.elf": {
         "sha256": "9a7d738546705a0aca29534ce28ae5283560b12e89ed8cadf5dc52cdeb1d0948",
@@ -695,7 +695,7 @@
     "ocore/kernel/build-x86_64-hosted-live-iso.sh": "93e282f3fc642c0692368e3916f30c3c4f255fbda801de0cbdf77e645a8465b1",
     "ocore/kernel/build-x86_64-uefi-iso.sh": "62ad1a4768c4a7674d560141cfbaf7d8cbe18c7544c5b941da83d6fcb638c3df",
     "ocore/kernel/build-x86_64-uefi-media.sh": "a4b6da07bf8659ab44bbd73a979f79f5c1b650eba60927dc98f32bdf847e54d1",
-    "ocore/kernel/build.sh": "94fb201e5fe6f75e159c7dd53d54229dbdab403da0344960a58cdacd789e85cb",
+    "ocore/kernel/build.sh": "8c1fcaa78cb012a2993ea9f06420b356b7c3277f60691915156db33ed4e0a8d1",
     "ocore/kernel/capability_boot_test.oc": "d742db7f2ef1713aee84f03a9876c03c64eb693fb6d23f289011bd4d90ad6e71",
     "ocore/kernel/capability_boot_test_stub.oc": "0aa5a0a4940a2ddbb6113da7b593c567eec055688c1afeaae89c010c5b14137f",
     "ocore/kernel/check-linux-minimal-slice.sh": "4004a2a5821a71a947b90defc7a4a4207e60cc0a634d46c43d67a63a4a5230ed",
@@ -856,7 +856,7 @@
     "ocore/runtime/riscv64/rust_import_probe.oc": "bec1bc1fd23b546fd840a37ef1d65d50ca924e571f4eec0aa6de56bfb4106bda",
     "ocore/runtime/x86_64/address_space.oc": "b405d131d5c32d8a37d7b77605bd648b30d872baef35d1038fb290840720f0d5",
     "ocore/runtime/x86_64/cap_transfer.oc": "2d163ccc7f7d8da3eda84aee61db72fe5e5e13559c4d1af37c04f4c7788793c0",
-    "ocore/runtime/x86_64/capability.oc": "c38dd4f9ba9b3c94c4ac4c3c19c0a9fa343561f8fce5f19514e69e258f0a79d1",
+    "ocore/runtime/x86_64/capability.oc": "0a326f8f1ebf9ba31421d862d89bd83c8551b35bd21693b2db52651de1a3788b",
     "ocore/runtime/x86_64/delegated_resource.oc": "63ba7b4e692ce5575eb9ca416687b0668814891f593d3006581d80c7b26564ef",
     "ocore/runtime/x86_64/domain.oc": "96eb460a5eba8ed61acbb81f260043dc8878cbfb50b72add77f2fdd1ba905af7",
     "ocore/runtime/x86_64/domain_namespace.oc": "8f3b9a11eb77fbab8459ffc7764d366e7c9a4a1cd11fdb9bff4a709709936a31",
@@ -959,11 +959,16 @@
     "ocore/world/value_codec.oc": "a3e9a48225e3c544a97f1d8078ccc34a2673ed1fb52f8fcb7d20a71031871520",
     "crates/ostadix-api/src/ocore/hir.rs": "f7d277a71d6323301fa47d213de176b9bb09ec73ec98337273168b01676de289",
     "crates/ostadix-api/src/ocore/typeck.rs": "4502cd94bb2b3eb4a8daf03f5c33c266ae5a1696faba598e9bd4620c2b2a0e36",
-    "crates/ostadix-api/src/ocore/mir.rs": "d3b062e5c3393021f0944d0ba5ba39355238cd3b37fdfc83e8a8cebbbd649399",
-    "crates/ostadix-api/src/ocore/codegen.rs": "28720b2001fcf380ec246493fa7caeca495fc7799984a514ee2de4ef7a0f8927",
-    "crates/ostadix-api/src/ocore/codegen_aarch64.rs": "3404329d90f68523fc4e5f65180b44fc1a3c0651875ffd77f1252fa0a96a9194",
-    "crates/ostadix-api/src/ocore/codegen_riscv64.rs": "b0d522be3e61d31f8ab0669b847476a70763f48357c237a140525928bcf86400"
+    "crates/ostadix-api/src/ocore/mir.rs": "062331fb5f752b855000d8ee2048adfa66f720c01cdbe0b9fc9946a53745d05a",
+    "crates/ostadix-api/src/ocore/codegen.rs": "d9f96004f55a23ff0bef34ea043c4235af931808ccec68023fbc82d56b5519f7",
+    "crates/ostadix-api/src/ocore/codegen_aarch64.rs": "d1897aef0c403c117d5e9a117e268743b934813ac15ea655e0d7161794966c81",
+    "crates/ostadix-api/src/ocore/codegen_riscv64.rs": "b4f47c8da817d0cb3953110c25efb246c52ad132b73361cc930ae873016a32f5"
   },
   "inputs_unchanged": true,
-  "tools_unchanged": true
+  "tools_unchanged": true,
+  "retained_full_report": {
+    "retained_path": "section-integrated-kernel-r2/result.json",
+    "sha256": "940baecdca93074267fcea2f37dd17247eb62a88921dca47d7be529b3faf8b8a",
+    "bytes": 83153
+  }
 }

@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 import signal
+import struct
 
 from check_ocore_native_equivalence import (
     ROOT, TARGETS, TARGET_CATALOG, RunEvidence, canonical_target_coverage,
@@ -75,6 +76,10 @@ CASES = [
     (65, "helper-full-width-element-size", (1 << 32) + 4096, "", None),
     (66, "helper-dynamic-address-carry", 0, "", "trap"),
     (67, "unexpected-selector-fails", 0, "", 97),
+    (68, "custom-section-dynamic-valid", 33, "I", None),
+    (69, "custom-section-equal-length-trap", 0, "I", "trap"),
+    (70, "custom-section-negative-trap", 0, "I", "trap"),
+    (71, "custom-section-address-carry-trap", 0, "I", "trap"),
 ]
 
 REJECTIONS = {
@@ -106,6 +111,8 @@ volatile-aligned-width fused-boolean-normalization base-pointer-local-changed-by
 helper-u32-max-length-rejects-u64-index helper-full-width-length
 helper-full-width-element-size helper-dynamic-address-carry
 unexpected-selector-fails
+custom-section-dynamic-valid custom-section-equal-length-trap
+custom-section-negative-trap custom-section-address-carry-trap
 """.split()) | {"negative-" + ty for ty in ["i8", "i16", "i32", "i64", "isize"]} | {
     "valid-" + ty for ty in ["i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize"]}
 REQUIRED_REJECTIONS = {"local-overflow", "static-overflow", "pointer-array-overflow",
@@ -135,6 +142,42 @@ def check_observation(isa, case, result):
         raise RuntimeError(f"{isa} {name}: expected status {status}, observed {result.returncode}")
 
 
+def nonexecuting_helper_segment(path):
+    data = path.read_bytes()
+    try:
+        if data[:6] != b"\x7fELF\x02\x01":
+            raise ValueError("ELF64 little-endian required")
+        phoff, shoff = struct.unpack_from("<QQ", data, 32)
+        phsize, phnum, shsize, shnum, strings_index = struct.unpack_from("<5H", data, 54)
+        if phsize != 56 or shsize != 64 or strings_index >= shnum:
+            raise ValueError("invalid ELF tables")
+        sections = [struct.unpack_from("<IIQQQQIIQQ", data, shoff + n * shsize) for n in range(shnum)]
+        strings = sections[strings_index]
+        names = data[strings[4]:strings[4] + strings[5]]
+        helpers = [row for row in sections if names[row[0]:].split(b"\0", 1)[0] == b".bounds_helpers"]
+        if len(helpers) != 1 or helpers[0][5] == 0:
+            raise ValueError("missing shared helper section")
+        start, size = helpers[0][3], helpers[0][5]
+        # This fixture links with 4 KiB pages. Distinct byte intervals can
+        # still map the same page, so inspect every page-sharing PT_LOAD.
+        page_start = start & ~4095
+        page_end = (start + size + 4095) & ~4095
+        covering = []
+        for n in range(phnum):
+            kind, flags, _, address, _, _, memory, _ = struct.unpack_from("<IIQQQQQQ", data, phoff + n * phsize)
+            load_start = address & ~4095
+            load_end = (address + memory + 4095) & ~4095
+            if kind == 1 and memory and load_start < page_end and page_start < load_end:
+                if flags != 4 or not address <= start < start + size <= address + memory:
+                    raise ValueError("helper segment must be read-only and non-executable")
+                covering.append(flags)
+        if covering != [4]:
+            raise ValueError("helper section is not in one protected load segment")
+        return {"address": start, "bytes": size, "load_flags": 4}
+    except (IndexError, struct.error, ValueError) as error:
+        raise RuntimeError("invalid non-executing helper fixture: " + str(error)) from error
+
+
 def check(args, output):
     validate_cases()
     coverage = canonical_target_coverage()
@@ -145,7 +188,8 @@ def check(args, output):
     runners = {isa: execution_prefix(isa, getattr(args, "qemu_" + isa)) for isa in TARGETS}
     source = ROOT / "tests/fixtures/ocore_array_bounds.oc"
     carrier = ROOT / "tests/fixtures/ocore_array_bounds.c"
-    evidence = RunEvidence([__file__, source, carrier, TARGET_CATALOG,
+    placement_script = ROOT / "tests/fixtures/ocore_array_bounds_nx.ld"
+    evidence = RunEvidence([__file__, source, carrier, placement_script, TARGET_CATALOG,
                             *sorted((ROOT / "crates/ostadix-api/src/ocore").glob("*.rs"))],
                            {"ocorec": compiler, "clang": clang,
                             "assembler_clang": assembler, "linker": linker})
@@ -170,17 +214,21 @@ def check(args, output):
             for case in CASES:
                 number, name, expected, events, outcome = case
                 exe = output / f"{isa}-{number:02d}-{name}.elf"
+                placement_flags = (["-Wl,-T," + str(placement_script), "-Wl,-z,max-page-size=0x1000"]
+                                   if name.startswith("custom-section-") else [])
                 produce([clang, "--target=" + hosted, *flags, "-O2", "-ffreestanding", "-fno-builtin",
                          "-fno-stack-protector", "-fno-pic", "-nostdlib", "-static", "--ld-path=" + linker,
-                         "-Wl,-e,_start", "-Wl,--build-id=none", f"-DBOUNDS_CASE={number}",
+                         "-Wl,-e,_start", "-Wl,--build-id=none", *placement_flags, f"-DBOUNDS_CASE={number}",
                          f"-DBOUNDS_EXPECTED={expected}ULL", carrier, obj, "-o", exe],
                         [exe], runner=evidence.checked_run)
                 elf(exe, machine, 2)
+                placement = nonexecuting_helper_segment(exe) if placement_flags else None
                 observed = evidence.run([*runners[isa], exe], preexec_fn=no_core_dumps)
                 check_observation(isa, case, observed)
                 target["cases"].append({"id": number, "name": name, "expected_value": expected,
                                         "events": events, "outcome": outcome, "exit_code": observed.returncode,
-                                        "stdout": observed.stdout.decode(), "executable": file_identity(exe)})
+                                        "stdout": observed.stdout.decode(), "executable": file_identity(exe),
+                                        **({"nonexecuting_helper_segment": placement} if placement else {})})
             for name, body in REJECTIONS.items():
                 bad = output / "rejections" / (name + ".oc")
                 bad.parent.mkdir(exist_ok=True)

@@ -3,6 +3,7 @@ from pathlib import Path
 import argparse
 import os
 import signal
+import struct
 import subprocess
 import sys
 import tempfile
@@ -15,6 +16,59 @@ import check_ocore_array_bounds as bounds
 
 
 class BoundsRunnerTests(unittest.TestCase):
+    def helper_elf(self, flags=4, memory=16):
+        data = bytearray(512)
+        data[:6] = b"\x7fELF\x02\x01"
+        struct.pack_into("<QQ", data, 32, 64, 128)
+        struct.pack_into("<5H", data, 54, 56, 1, 64, 3, 1)
+        struct.pack_into("<IIQQQQQQ", data, 64, 1, flags, 384, 0x200000, 0x200000, 16, memory, 4096)
+        names = b"\0.shstrtab\0.bounds_helpers\0"
+        data[320:320+len(names)] = names
+        struct.pack_into("<IIQQQQIIQQ", data, 192, 1, 3, 0, 0, 320, len(names), 0, 0, 1, 0)
+        struct.pack_into("<IIQQQQIIQQ", data, 256, names.index(b".bounds_helpers"), 1, 6, 0x200000, 384, 16, 0, 0, 16, 0)
+        return data
+
+    def test_custom_section_fixture_requires_protected_complete_helper_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.elf"
+            path.write_bytes(self.helper_elf())
+            self.assertEqual(bounds.nonexecuting_helper_segment(path),
+                             {"address": 0x200000, "bytes": 16, "load_flags": 4})
+            for data in (self.helper_elf(flags=5), self.helper_elf(flags=6),
+                         self.helper_elf(memory=8), b"not ELF"):
+                path.write_bytes(data)
+                with self.assertRaisesRegex(RuntimeError, "helper fixture"):
+                    bounds.nonexecuting_helper_segment(path)
+
+    def test_custom_section_fault_cannot_replace_return_or_local_bounds_trap(self):
+        for case in bounds.CASES[68:]:
+            for isa in bounds.TARGETS:
+                with self.subTest(case=case[1], isa=isa), self.assertRaises(RuntimeError):
+                    bounds.check_observation(isa, case, self.observed(-signal.SIGSEGV, b"I"))
+
+    def test_custom_section_helper_rejects_page_sharing_load_aliases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.elf"
+            for flags in (4, 5, 6):
+                with self.subTest(flags=flags):
+                    data = self.helper_elf()
+                    header = bytes(data[64:120])
+                    data.extend(bytes(512))
+                    struct.pack_into("<Q", data, 32, 512)
+                    struct.pack_into("<H", data, 56, 2)
+                    data[512:568] = header
+                    # The second load misses the helper's bytes, but shares
+                    # its page. Even a second read-only mapping is refused.
+                    struct.pack_into("<IIQQQQQQ", data, 568, 1, flags, 416,
+                                     0x200020, 0x200020, 16, 16, 4096)
+                    path.write_bytes(data)
+                    with self.assertRaisesRegex(RuntimeError, "helper fixture"):
+                        bounds.nonexecuting_helper_segment(path)
+                    # A different page cannot change helper permissions.
+                    struct.pack_into("<QQ", data, 584, 0x201000, 0x201000)
+                    path.write_bytes(data)
+                    self.assertEqual(bounds.nonexecuting_helper_segment(path)["load_flags"], 4)
+
     def observed(self, code, output):
         return subprocess.CompletedProcess([], code, output, b"")
 

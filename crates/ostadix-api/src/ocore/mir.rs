@@ -2318,6 +2318,51 @@ mod tests {
     }
 
     #[test]
+    fn explicit_function_sections_keep_inserted_array_checks_in_their_execution_domain() {
+        let source = r#"module bounds;
+@link_section(".text.user")
+unsafe fn placed(p:*const [u64;3],u:usize,s:i8)->u64 { return (*p)[u] + (*p)[s]; }
+unsafe fn ordinary(p:*const [u64;3],u:usize)->u64 { return (*p)[u]; }
+"#;
+        let ast = parser::parse("bounds.oc", source).unwrap();
+        let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for emit in emitters {
+            let assembly = emit(&hir, &mir).unwrap();
+            let placed = assembly
+                .split(".section .text.user,")
+                .nth(1)
+                .unwrap()
+                .split(".section ")
+                .next()
+                .unwrap();
+            assert!(
+                !placed.lines().any(|line| {
+                    line.contains(".L_ocore_array_bounds_")
+                        && (line.contains("call ") || line.contains("bl "))
+                }),
+                "inserted helper crosses an explicit section: {placed}"
+            );
+            assert!(placed.contains("_trap:"));
+            assert!(placed.contains("mul ") || placed.contains("umulh "));
+            let ordinary = assembly
+                .split(".section .text,\"")
+                .nth(1)
+                .unwrap()
+                .split(".section ")
+                .next()
+                .unwrap();
+            assert!(ordinary.contains(".L_ocore_array_bounds_u_3_8"));
+            assert!(assembly.contains(".section .text.ocore_fn.__array_bounds,"));
+        }
+    }
+
+    #[test]
     fn array_target_is_captured_and_checked_before_rhs_effects() {
         let source = r#"module bounds;
 extern "C" fn base()->*mut [u64;2];

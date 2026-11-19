@@ -30,7 +30,7 @@ fn one_binary_runs_python_bash_and_multicall_inside_immutable_private_root() {
     fs::write(
         &program,
         r#"python^(
-import os, errno, socket, subprocess, threading, ctypes, glob, time, sys
+import os, errno, socket, subprocess, threading, ctypes, time, sys
 assert os.environ.get('ROOTFS_HOST_SECRET') is None
 assert os.environ['PATH'] == '/bin'
 assert socket.gethostname() == 'ostadix'
@@ -54,20 +54,20 @@ for t in threads: t.start()
 for t in threads: t.join()
 assert len(values) == 4
 assert subprocess.check_output(['bash', '-c', 'printf 7']) == b'7'
+orphan_pids = []
 for _ in range(8):
-    subprocess.run([sys.executable, '-c', 'import os; os.fork(); os._exit(0)'], check=True)
-def zombies():
-    result = []
-    for path in glob.glob('/proc/[0-9]*/stat'):
-        try:
-            if open(path).read().split(') ', 1)[1].startswith('Z '): result.append(path)
-        except FileNotFoundError:
-            pass
-    return result
+    # Capture the exact orphan, and wait for the helper and its stdout writers.
+    child = subprocess.check_output([sys.executable, '-c',
+        'import os; pid = os.fork(); os.write(1, str(pid).encode()) if pid else None; os._exit(0)'])
+    orphan_pids.append(int(child))
+assert len(set(orphan_pids)) == 8 and all(pid > 0 for pid in orphan_pids)
+pending = set(orphan_pids)
 for _ in range(100):
-    if not zombies(): break
+    pending = {pid for pid in pending if os.path.exists('/proc/' + str(pid))}
+    if not pending: break
     time.sleep(0.01)
-assert not zombies(), zombies()
+pending = {pid for pid in pending if os.path.exists('/proc/' + str(pid))}
+assert not pending, sorted(pending)
 server = socket.socket()
 server.bind(('127.0.0.1', 0)); server.listen(1)
 client = socket.socket(); client.connect(server.getsockname())
