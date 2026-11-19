@@ -1559,12 +1559,19 @@ effects and before RHS effects. A valid constant offset still checks addition
 to an arbitrary base; offset zero cannot wrap. No assumption that an unsafe
 pointer names a real object is needed for this reduction.
 
-Dynamic checks use a compiler-private leaf helper in owned `.oc` output. The
-helper retains the signed, range, multiplication, and address-overflow checks;
-sharing it limits code growth in fixed kernel profiles. These internal calls
-add execution cost and introduce no public ABI. Entries are deduplicated in a
-fixed order by signedness, full-width array length, and element size. Each
-entry loads those checked constants; a call passes the captured base and index.
+Dynamic checks in functions without an explicit `@link_section` use a
+compiler-private leaf helper in owned `.oc` output. The helper retains the
+signed, range, multiplication, and address-overflow checks; sharing it limits
+code growth in fixed kernel profiles. These internal calls add execution cost
+and introduce no public ABI. Entries are deduplicated in a fixed order by
+signedness, full-width array length, and element size. Each entry loads those
+checked constants; a call passes the captured base and index.
+
+A function with an explicit `@link_section` emits those dynamic checks inline
+in its own section. Section placement can separate privilege or memory-mapping
+domains, so an inserted bounds check must remain executable by its caller.
+The inline path keeps the same signed, range, multiplication and address-carry
+guards and the same evaluation point. The default helper path is unchanged.
 
 A uniquely used captured address can feed the check directly when its pointer
 and raw index operands are already SSA values. The compiler does not reload a
@@ -2082,6 +2089,14 @@ aggregate assignments, address overflow, divergence, and the unchanged raw
 pointer path. Compiler rejection cases cover overflowing layouts and pointer
 indexing outside `unsafe`. Retained assembly, objects, executables, commands,
 observations, and source/tool identities are bound in `bounds.json`.
+
+The corpus includes explicitly placed functions whose shared helper is mapped
+read-only without execute permission. Valid indexing must return, and invalid
+indexing must take the target's local bounds trap. A helper-fetch memory fault
+fails the case. The runner checks the actual ELF section and every load segment
+sharing its 4 KiB pages before execution, including mappings whose byte ranges
+do not overlap. The complete corpus has 72 execution cases and seven source
+rejections on each implemented target.
 
 `ocore/kernel/smoke-aarch64-g2-qemu.sh` builds one deterministic `EM_AARCH64`
 image twice, proves semantic markers originate in compiled `.oc`, and boots it

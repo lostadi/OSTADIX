@@ -44,6 +44,17 @@ unsafe fn replace_base(slot: *mut *mut [u64; 3]) -> usize {
     return 1;
 }
 
+// These functions must execute with the shared compiler-helper segment NX.
+// Inserted checks belong to the caller's explicitly placed code domain.
+@link_section(".text.bounds_placement")
+unsafe fn placed_read(p: *const [u64; 3], i: usize) -> u64 { return (*p)[i]; }
+@link_section(".text.bounds_placement")
+unsafe fn placed_signed_read(p: *const [u64; 3], i: i8) -> u64 { return (*p)[i]; }
+@link_section(".text.bounds_placement")
+unsafe fn placed_address(p: *const [u64; 2], i: usize) -> u64 {
+    return (&(*p)[i]) as usize as u64;
+}
+
 // Every case runs in a fresh process. The carrier observes emitted events,
 // returned primitive values, and real trap/exit status independently.
 @export @no_mangle
@@ -164,6 +175,13 @@ extern "C" unsafe fn bounds_case(which: u64) -> u64 {
         let p:*const [[u8;0x1_0000_0000];2]=0xffff_ffff_ffff_f000 as usize as *const [[u8;0x1_0000_0000];2];
         let i:usize=1;
         return (&(*p)[i]) as usize as u64;
+    }
+    if which == 68 { return placed_read((&VALUES), index(2)); }
+    if which == 69 { return placed_read((&VALUES), index(3)); }
+    if which == 70 { bounds_event(73); return placed_signed_read((&VALUES), -1); }
+    if which == 71 {
+        let p: *const [u64; 2] = 0xffff_ffff_ffff_fffc as usize as *const [u64; 2];
+        return placed_address(p, index(1));
     }
     bounds_exit(97);
 }

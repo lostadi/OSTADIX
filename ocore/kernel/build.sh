@@ -26,10 +26,14 @@ esac
 
 LINK_GC_FLAGS=()
 OCOREC_FUNCTION_SECTION_FLAGS=()
-if (( PROBE_MODE == 0 || PROBE_MODE == 13 || PROBE_MODE == 15 || PROBE_MODE == 17 || PROBE_MODE == 20 || PROBE_MODE == 22 \
+if (( (PROBE_MODE >= 1 && PROBE_MODE <= 12) || PROBE_MODE == 14 || PROBE_MODE == 21 || PROBE_MODE == 31 \
+    || PROBE_MODE == 0 || PROBE_MODE == 13 || PROBE_MODE == 15 || PROBE_MODE == 17 || PROBE_MODE == 20 || PROBE_MODE == 22 \
     || PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 \
     || PROBE_MODE == 30 || PROBE_MODE == 32 || PROBE_MODE == 16 || PROBE_MODE == 23 \
     || PROBE_MODE == 27 || PROBE_MODE == 28 || PROBE_MODE == 29 || PROBE_MODE == 33 || PROBE_MODE == 34 || PROBE_MODE == 35 )); then
+  # Historical fault/user-copy, process, scheduler, and live IPC probes retain
+  # their full source selections as shared runtime helpers grow. They need the
+  # same reachability collection as Mode 0 and the later large probes.
   # These probes carry the largest kernels, including Mode 17's full semantics
   # corpus. Preserve the fixed bootstrap
   # reserve by letting linker reachability discard unreferenced functions and

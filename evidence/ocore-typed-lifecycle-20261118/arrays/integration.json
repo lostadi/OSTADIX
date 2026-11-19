@@ -1,16 +1,17 @@
 {
   "schema": "ostadix.ocore-array-integration/v1",
-  "status": "All recorded compiler, native, independent lifecycle and x86 kernel integration checks passed; full-system AArch64 qualification remains blocked",
-  "compiler_sha256": "c478567942292073383dc5a13600166a771cdd69a06d73f501db0e3276ed08d2",
+  "status": "Recorded final compiler, native, independent lifecycle and x86 kernel checks passed. Shared CI and installation remain separate; fresh full-system AArch64 qualification is blocked.",
+  "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
   "checks": {
     "rust_parser": 4,
     "rust_typeck": 32,
-    "rust_mir": 25,
+    "rust_mir": 26,
     "rust_emitters": 45,
-    "runner_controls": 9,
+    "focused_rust_total": 107,
+    "runner_controls": 12,
     "strict_clippy": "passed",
     "format": "passed",
-    "native_bounds_per_isa": 68,
+    "native_bounds_per_isa": 72,
     "compiler_rejections_per_isa": 7,
     "native_arithmetic_per_isa": 12288,
     "native_wrappers_per_isa": 93,
@@ -24,13 +25,13 @@
     "parsed": 463,
     "failed": 0,
     "programs_executed": 0,
-    "retained_report_sha256": "a55e028c85fa067a502ea186528359c5b32d985792a5a4a414a6b7974b479d40"
-  },
-  "combined_runner_profile_checks": {
-    "tests": 64,
-    "passed": true,
-    "retained_log_sha256": "8dc4481b91ef6692e9c539e71091163900b6b00653744bd9f451822eaa66aa30",
-    "scope": "64 checks before the final observer/prefix additions;35 final model/runner checks separately qualify those changes"
+    "retained_report": {
+      "retained_path": "final-targeted-verification/inventory-result.json",
+      "sha256": "dfb2a77bdff9874cf7e759eca9dc86716f056ad61fe12f7cf1eae749be715001",
+      "bytes": 144316
+    },
+    "scope": "Current463-source classification and parse/check only; no programs executed, no full guest/provenance qualification",
+    "hosted_O_scope": "Retained baseline hosted parser is suitable for unchanged .O sources; this does not attest final installed evaluator provenance"
   },
   "integrated_kernel": {
     "modes": [
@@ -43,59 +44,115 @@
     "compiler_and_sources_unchanged": true,
     "mode24_kernel_end": "0x380000",
     "fixed_limit": "0x380000",
-    "source_compaction": {
-      "files": {
-        "ocore/runtime/x86_64/capability.oc": {
-          "before_sha256": "726800f973ff7031df53f24a9ad97eec3548e697890a09c696942c5870deb70c",
-          "after_sha256": "c38dd4f9ba9b3c94c4ac4c3c19c0a9fa343561f8fce5f19514e69e258f0a79d1"
-        },
-        "ocore/runtime/x86_64/personality_bounded_rpc.oc": {
-          "before_sha256": "eca9f6ae280346a875a55f805faa6cd52230c5eaf61b5d7fa85c8a9925736ff1",
-          "after_sha256": "2b628aa3ad721c0c3f53ccc0c9d102c38c81201d1fe7ea88de37d2ebbcc601d8"
-        }
+    "report": {
+      "retained_path": "section-integrated-kernel-r2/result.json",
+      "sha256": "940baecdca93074267fcea2f37dd17247eb62a88921dca47d7be529b3faf8b8a",
+      "bytes": 83153
+    },
+    "final_capability_sha256": "0a326f8f1ebf9ba31421d862d89bd83c8551b35bd21693b2db52651de1a3788b",
+    "capability_tail_factoring": {
+      "functions": [
+        "validate_for_owner",
+        "validate_during_drain"
+      ],
+      "saved_raw_text_bytes": 352,
+      "raw_text_end": "0x291fee",
+      "scope": "Only identical sentinel/type/rights/object-ID tails share a private helper. Distinct owner lookup and live-slot validation retain their order; every other capability body is unchanged.",
+      "proof": {
+        "retained_path": "section-runtime-compaction-r4/mechanical-proof.json",
+        "sha256": "524636bbd2c0f546d429cfef7bcc6d59e7193bb00d6a093430d150e759d0f2db",
+        "bytes": 2743
       },
-      "bounded_inverse_whitespace_equivalent_to_original": true,
-      "poison_tail_substitutions": 49,
-      "identity_template_substitutions": 10,
-      "compiler_sha256": "c478567942292073383dc5a13600166a771cdd69a06d73f501db0e3276ed08d2",
-      "fixed_limit_hex": "0x380000",
-      "baseline_raw_text_end_hex": "0x292efe",
-      "candidate_raw_text_end_hex": "0x291c4e",
-      "candidate_aligned_text_end_hex": "0x292000",
-      "candidate_rodata_end_hex": "0x2a3000",
-      "candidate_kernel_end_hex": "0x380000",
-      "saved_raw_text_bytes": 4784,
-      "build_evidence": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m5-runtime-compaction/final-r1",
-      "mirror_update_required": "crates/ostadix-api/test-assets/ocore/runtime/x86_64/capability.oc",
-      "scope": "Two-file integration compaction plus byte-identical capability mirror; kernel limits and profiles unchanged",
-      "reviewed_source_applied_and_executed": true
+      "review": {
+        "retained_path": "section-runtime-compaction-r4/lifecycle-review.json",
+        "sha256": "88e4dd0689aab22d4b546f0b478e9f6eb1c376977ca528303bef13e1254fa8cf",
+        "bytes": 2618
+      }
     }
   },
-  "review_receipts": [
-    {
-      "retained_receipt": "m5-helper-independent-review.json",
-      "sha256": "a4a2b3e25ab9b2a89dd7e3dc3d536b5faad706d0ab48720d61bfd6600f129b6e"
+  "final_lifecycle": {
+    "qualified": true,
+    "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+    "full_report": {
+      "origin": "retained_evidence",
+      "path": "m4-final-section-r1/lifecycle.json",
+      "sha256": "b0fc1d04b42e600e2665efecf23ca36eadce0f25cd41f32e794746368ff2f3f6",
+      "bytes": 46348699
     },
-    {
-      "retained_receipt": "m5-runner-independent-review.json",
-      "sha256": "e3836f01be52ed100bf66c196f92a174d2dd3c63cf937045820aee2c6a158c7f"
-    },
-    {
-      "retained_receipt": "m5-runtime-compaction-compiler-review.json",
-      "sha256": "6ec6e5aa41bf55c34bffd32608b531c3b50f2c472ba7e398a3855fd6ac311828"
-    },
-    {
-      "retained_receipt": "m5-runtime-compaction-lifecycle-review.json",
-      "sha256": "84e9a709be52ff70e97d1bf82654c37442f50f10018510631f9f6a2a06d464fa"
+    "full_width_cases_per_isa": 33,
+    "observations_per_isa": 535,
+    "compiled_edge_witnesses_all_isas": 27714,
+    "actual_policy_mutations": 14,
+    "final_runner_tests_passed": 35,
+    "inputs_unchanged": true,
+    "compact_projection": "lifecycle-final.json",
+    "independent_projection_review": {
+      "retained_path": "m4-section-public-projection-rv-review.json",
+      "sha256": "74bd46e92f7386547d73c6d4b81e2747dd0d562db0bbe6756ff2d29026d09757",
+      "bytes": 1275
     }
-  ],
-  "scope": "x86-64 native and system QEMU; AArch64/RV64GC user-mode QEMU. Full-system AArch64, physical RV and SMP qualification remain separate.",
+  },
+  "custom_section_checks": {
+    "rule": "Explicitly placed functions keep dynamic array guards inline in their executable section.",
+    "NX_fixture": "The shared helper segment is read-only and non-executable; all page-sharing load segments are checked at 4 KiB granularity.",
+    "actual_valid_and_local_trap_cases_per_isa": 4,
+    "old_compiler_negative": {
+      "retained_path": "older-probe-gc/section-old-negative-r1/result.json",
+      "sha256": "08c34b8e9d233520153f46e735db3257ec686af25cdc87e8603749ca49ff2b15",
+      "bytes": 45562
+    },
+    "final_bounds_report": {
+      "retained_path": "section-bounds72-final/bounds.json",
+      "sha256": "14aa8adb733c8c67c4e9d685f07555ba1750d9e85c55b881c61f69f7a2b00e61",
+      "bytes": 1560973
+    },
+    "review": {
+      "retained_path": "older-probe-gc/section-runner-lifecycle-review.json",
+      "sha256": "e277106b23c480b0885d4f36734cd4a03d7762899626401a350b4b0b45b2d4e0",
+      "bytes": 7355
+    },
+    "corrected_mode14": {
+      "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+      "observed_marker": "M3 native IPC smoke: PASS",
+      "stdout": {
+        "retained_path": "older-probe-gc/section-ipc-r1.stdout",
+        "sha256": "e415a4045c88f0fa7e35480eaa4712bf1bbe047bf73455ea496247a4cc8e1f6a",
+        "bytes": 844
+      },
+      "stderr": {
+        "retained_path": "older-probe-gc/section-ipc-r1.stderr",
+        "sha256": "9091abbd3a3a6654f6a05002568cfffa0e8ef9322cc703d60aa42b39785c1ea4",
+        "bytes": 221
+      },
+      "executed_elf": {
+        "retained_path": "older-probe-gc/section-ipc-r1/kernel.elf",
+        "sha256": "63f8a9a74665f8c0e8cf7054714073d92edeefbdfcc42ccd2f359f6ffaae13d3",
+        "bytes": 1737160
+      },
+      "scope": "Corrected x86-64 QEMU Mode14 run before the final two-validator capability-tail factoring. Separate from the final integrated Modes0/13/19/24 source closure; the retained trace files preserve the invocation."
+    }
+  },
+  "legacy_probe_gc": {
+    "source_fix": "Modes 1\u201312,14,21,31 use existing function/data sections and linker reachability collection; source choices and limits stay fixed.",
+    "exact_runtime_source_qualification": {
+      "retained_path": "runtime-gc-exact-a5/qualification.json",
+      "sha256": "4a645879eb3ca6df13f94c8c854fe03d4f764287f69b4edff4dcdd6711fb2e33",
+      "bytes": 102149
+    },
+    "scope": "Five actual M1 smoke scripts cover 14 TCG builds on exact Runtime A5 + reviewed overlays. This is separate from final 3b1 integrated Modes 0/13/19/24.",
+    "Mode21": "Actual compile/link only on its own retained source closure, before the final capability-tail factoring; no hardware execution.",
+    "mode21_report": {
+      "retained_path": "mode21-gc-qualification/result.json",
+      "sha256": "aa36cff5bc0f7b59c19ca55c86276a00d6921175ed18a576fa0a5f5939c98043",
+      "bytes": 13426
+    }
+  },
   "ci_wiring": {
     "local_contract_checks": 61,
     "probe_tools": 9,
     "old_jobs_preserved": 22,
     "prior_qemu_steps_preserved": 40,
-    "shared_execution": "Required external publication gate; consult the published commit checks and retained publication receipt",
+    "shared_execution": "Pending against the final combined publication commit; consult its Required CI result.",
     "source_manifest": {
       ".github/workflows/ci.yml": {
         "before_sha256": "4ee4c1552b49e9a124f3412b77c242f473199444d5e5ceef9cf55a70b9e18c13",
@@ -115,19 +172,55 @@
       }
     }
   },
-  "final_lifecycle": {
-    "qualified": true,
+  "review_receipts": [
+    {
+      "retained_path": "older-probe-gc/section-source-lifecycle-review.json",
+      "sha256": "c2b481f0ab89d021a414b50112e9d20bb5d8771e55b808c01c5734e551c03214",
+      "bytes": 4198
+    },
+    {
+      "retained_path": "older-probe-gc/section-runner-lifecycle-review.json",
+      "sha256": "e277106b23c480b0885d4f36734cd4a03d7762899626401a350b4b0b45b2d4e0",
+      "bytes": 7355
+    },
+    {
+      "retained_path": "older-probe-gc/runtime-gc-independent-review.json",
+      "sha256": "5fe6d9ab297cc02365ef4e038aa61bb4f6d543aa1b5ace093f166ec5f4fc6c9f",
+      "bytes": 4582
+    },
+    {
+      "retained_path": "section-runtime-compaction-r4/lifecycle-review.json",
+      "sha256": "88e4dd0689aab22d4b546f0b478e9f6eb1c376977ca528303bef13e1254fa8cf",
+      "bytes": 2618
+    },
+    {
+      "retained_path": "m4-section-public-projection-rv-review.json",
+      "sha256": "74bd46e92f7386547d73c6d4b81e2747dd0d562db0bbe6756ff2d29026d09757",
+      "bytes": 1275
+    }
+  ],
+  "prior_iteration": {
     "compiler_sha256": "c478567942292073383dc5a13600166a771cdd69a06d73f501db0e3276ed08d2",
-    "full_report": "m4-final-m5-r2/lifecycle.json",
-    "full_report_sha256": "94309b785bdbbd341ae25d5c9a4ef358ecdebe20eaef18c6f64437b1859d082a",
-    "full_report_bytes": 46044719,
-    "full_width_cases_per_isa": 33,
-    "observations_per_isa": 535,
-    "compiled_edge_witnesses_all_isas": 27714,
-    "actual_policy_mutations": 14,
-    "final_runner_tests_passed": 35,
-    "inputs_unchanged": true,
-    "compact_projection": "lifecycle-final.json"
+    "strict_lifecycle_report": {
+      "retained_path": "m4-final-m5-r2/lifecycle.json",
+      "sha256": "94309b785bdbbd341ae25d5c9a4ef358ecdebe20eaef18c6f64437b1859d082a",
+      "bytes": 46044719
+    },
+    "scope": "Valid earlier iteration; retained separately and not substituted for the final 3b1 executions."
   },
-  "publication_snapshot": "Local source freeze before publication; shared CI and final installation observations are recorded separately against their exact commit and binary identities"
+  "scope": "x86-64 native and system QEMU; AArch64/RV64GC user-mode QEMU. No full-system AArch64, physical RV or SMP qualification.",
+  "publication_snapshot": "Local source-bound freeze before the combined publication commit is known. Required shared CI and final native/MCP installation observations must bind their own exact commits and binary identities.",
+  "final_typed_api_rejections": {
+    "cases": 5,
+    "source_files": 69,
+    "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+    "type_errors_observed": true,
+    "sources_unchanged_at_handoff": true,
+    "report": {
+      "retained_path": "section-final-kernel-identities/identity-rejections.json",
+      "sha256": "431af443430d0d86de12758d468566e007f2d348023d4de1b8c298a2a9f6317f",
+      "bytes": 37259
+    },
+    "scope": "compiler rejection; kernel execution is a separate gate"
+  }
 }

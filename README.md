@@ -83,6 +83,10 @@ addresses trap. Unsafe raw-pointer indexing keeps its existing behavior. The
 [array receipts](evidence/ocore-typed-lifecycle-20261118/arrays/README.md)
 separate native checks from kernel and guest qualification.
 
+Checks in explicitly placed functions stay in that function's executable
+section. The native gate maps the shared helper without execute permission
+and requires the placed function to return or take its own bounds trap.
+
 The runtime pilot separates O10 domain generations from namespace transport
 and session epochs. Capability transfer and request-bound memory views use
 owner-defined handle types at internal operation boundaries. The independent

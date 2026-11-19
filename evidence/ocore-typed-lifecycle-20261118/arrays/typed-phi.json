@@ -3,41 +3,41 @@
   "complete": true,
   "source_files": [
     {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree/crates/ostadix-api/src/ocore/hir.rs",
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/hir.rs",
       "bytes": 16696,
       "sha256": "f7d277a71d6323301fa47d213de176b9bb09ec73ec98337273168b01676de289"
     },
     {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree/crates/ostadix-api/src/ocore/typeck.rs",
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/typeck.rs",
       "bytes": 136127,
       "sha256": "4502cd94bb2b3eb4a8daf03f5c33c266ae5a1696faba598e9bd4620c2b2a0e36"
     },
     {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree/crates/ostadix-api/src/ocore/mir.rs",
-      "bytes": 131735,
-      "sha256": "d3b062e5c3393021f0944d0ba5ba39355238cd3b37fdfc83e8a8cebbbd649399"
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/mir.rs",
+      "bytes": 133566,
+      "sha256": "062331fb5f752b855000d8ee2048adfa66f720c01cdbe0b9fc9946a53745d05a"
     },
     {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree/crates/ostadix-api/src/ocore/codegen.rs",
-      "bytes": 95371,
-      "sha256": "28720b2001fcf380ec246493fa7caeca495fc7799984a514ee2de4ef7a0f8927"
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/codegen.rs",
+      "bytes": 96093,
+      "sha256": "d9f96004f55a23ff0bef34ea043c4235af931808ccec68023fbc82d56b5519f7"
     },
     {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree/crates/ostadix-api/src/ocore/codegen_aarch64.rs",
-      "bytes": 104521,
-      "sha256": "3404329d90f68523fc4e5f65180b44fc1a3c0651875ffd77f1252fa0a96a9194"
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/codegen_aarch64.rs",
+      "bytes": 105178,
+      "sha256": "d1897aef0c403c117d5e9a117e268743b934813ac15ea655e0d7161794966c81"
     },
     {
-      "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree/crates/ostadix-api/src/ocore/codegen_riscv64.rs",
-      "bytes": 90889,
-      "sha256": "b0d522be3e61d31f8ab0669b847476a70763f48357c237a140525928bcf86400"
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/codegen_riscv64.rs",
+      "bytes": 91572,
+      "sha256": "b4f47c8da817d0cb3953110c25efb246c52ad132b73361cc930ae873016a32f5"
     }
   ],
-  "test_executable_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-target/debug/deps/ostadix_api-49a358f8512c2845",
+  "test_executable_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/section-tools-3b1f147354a2/ostadix-api-tests",
   "running_test_binary": {
     "path": "/proc/self/exe",
-    "bytes": 131126920,
-    "sha256": "3084e71f6fcf19a1269b6f545723225346eb693c705cd57463d7b8e7e7df5233"
+    "bytes": 131138632,
+    "sha256": "847d1b784218f5b97597a0fb507244ff584a774e90b49a0b4a80cee279f41227"
   },
   "clang": {
     "path": "/usr/bin/clang",
@@ -57,11 +57,11 @@
         "/usr/bin/clang",
         "--target=x86_64-unknown-none-elf",
         "-c",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.s",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.s",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.o"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.o"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -90,11 +90,11 @@
         "-Wl,--build-id=none",
         "-Wl,-e,_start",
         "--ld-path=/usr/bin/ld.lld",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.o",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.elf"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.elf"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -115,20 +115,20 @@
       "target": "x86_64-unknown-none",
       "phase": "execute",
       "argv": [
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.elf"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.elf"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
       "stderr": "",
       "tool_before": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.elf",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.elf",
         "bytes": 1736,
         "sha256": "559e82373d0f254647d2dbf00b4ac195f16e8cb2da52cc7156e2ff755e4e8d3b"
       },
       "tool_after": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.elf",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.elf",
         "bytes": 1736,
         "sha256": "559e82373d0f254647d2dbf00b4ac195f16e8cb2da52cc7156e2ff755e4e8d3b"
       },
@@ -141,11 +141,11 @@
         "/usr/bin/clang",
         "--target=aarch64-unknown-none-elf",
         "-c",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.s",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.s",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.o"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.o"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -174,11 +174,11 @@
         "-Wl,--build-id=none",
         "-Wl,-e,_start",
         "--ld-path=/usr/bin/ld.lld",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.o",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.elf"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.elf"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -200,9 +200,9 @@
       "phase": "execute",
       "argv": [
         "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.elf"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.elf"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -228,11 +228,11 @@
         "-march=rv64gc",
         "-mabi=lp64",
         "-c",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.s",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.s",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.o"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.o"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -263,11 +263,11 @@
         "-Wl,--build-id=none",
         "-Wl,-e,_start",
         "--ld-path=/usr/bin/ld.lld",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.o",
         "-o",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.elf"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.elf"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -289,9 +289,9 @@
       "phase": "execute",
       "argv": [
         "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
-        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.elf"
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.elf"
       ],
-      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3",
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1",
       "exit_code": 0,
       "status": "ExitStatus(unix_wait_status(0))",
       "stdout": "",
@@ -313,17 +313,17 @@
     {
       "target": "x86_64-unknown-none",
       "assembly": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.s",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.s",
         "bytes": 5037,
         "sha256": "2dde11f71b3492457f487b861c789bae45fad1541a8b989b5a004267d6f778f7"
       },
       "object": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.o",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.o",
         "bytes": 1512,
         "sha256": "7e3e066c8a5a4d74d21da6244a59ca340e6865d042fc7793f4e9b40f87293d39"
       },
       "executable": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/x86_64.elf",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/x86_64.elf",
         "bytes": 1736,
         "sha256": "559e82373d0f254647d2dbf00b4ac195f16e8cb2da52cc7156e2ff755e4e8d3b"
       },
@@ -332,17 +332,17 @@
     {
       "target": "aarch64-unknown-none",
       "assembly": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.s",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.s",
         "bytes": 5980,
         "sha256": "69d7fe92ad71c791c4f3263df00fc8130fe816aef9b190cf3849c3c6ccda5c29"
       },
       "object": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.o",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.o",
         "bytes": 1848,
         "sha256": "4209dc56b7f4fc25a9ce306e8bf16c356f806d0d5e93f379223c75eef0784f7e"
       },
       "executable": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/aarch64.elf",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/aarch64.elf",
         "bytes": 2072,
         "sha256": "045294824bb721cc3118fbc9e00d0af2c2572da9bbd186d09ac0f9ba22a1d216"
       },
@@ -351,22 +351,27 @@
     {
       "target": "riscv64-unknown-none",
       "assembly": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.s",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.s",
         "bytes": 7362,
         "sha256": "b4d452439050047a9ef57347938afd098cd94b06daef1823e762042071da692e"
       },
       "object": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.o",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.o",
         "bytes": 2304,
         "sha256": "d2c199d7487a546f2f700fb38799b8330a8c70b8e2d5339fb52577015447bceb"
       },
       "executable": {
-        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-wrapper-phi-r3/riscv64.elf",
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/older-probe-gc/section-phi-r1/riscv64.elf",
         "bytes": 2568,
         "sha256": "12269dfc987aabc2d6ff2106ab9c55cdec9472667758cda67f1808dd52d91494"
       },
       "passed": true
     }
   ],
-  "scope": "Actual typed O-core MIR Phi/parallel-edge moves and internal narrow-signed wrapper ABI; no imported NativeModule or guest qualification"
+  "scope": "Actual typed O-core MIR Phi/parallel-edge moves and internal narrow-signed wrapper ABI; no imported NativeModule or guest qualification",
+  "retained_full_report": {
+    "retained_path": "older-probe-gc/section-phi-r1/execution.json",
+    "sha256": "c64daab4e0b8130bf6069406594d4b36f6b4d25095a4bd4dfbffe1e08eb08242",
+    "bytes": 15338
+  }
 }

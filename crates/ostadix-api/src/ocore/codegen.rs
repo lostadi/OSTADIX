@@ -557,7 +557,17 @@ impl<'a> FunctionCodegen<'a> {
                     len,
                     size,
                 };
-                writeln!(out, "  call {}", shape.label()).unwrap();
+                if self.source.attrs.link_section.is_some() {
+                    // Source placement can separate privilege or mapping
+                    // domains. Compiler checks must stay in that section.
+                    writeln!(out, "  mov rdx, {}\n  mov rcx, {}", shape.len, shape.size).unwrap();
+                    if shape.signed {
+                        writeln!(out, "  test rsi, rsi\n  js {label}_trap").unwrap();
+                    }
+                    writeln!(out, "  cmp rsi, rdx\n  jae {label}_trap\n  mov rax, rsi\n  mul rcx\n  test rdx, rdx\n  jnz {label}_trap\n  add rax, rdi\n  jnc {label}_done\n{label}_trap:\n  ud2\n{label}_done:").unwrap();
+                } else {
+                    writeln!(out, "  call {}", shape.label()).unwrap();
+                }
                 self.store_array_result(*dst, "rax", out)?;
             }
             Instruction::AddressOf { dst, place } => {
