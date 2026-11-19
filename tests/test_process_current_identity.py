@@ -337,12 +337,20 @@ class ProcessCurrentIdentityTests(unittest.TestCase):
         start = self.original.index("// Read-only identity check for serialized lifecycle observations.")
         end = self.original.index("pub unsafe fn current_process_handle()", start)
         baseline = self.out / "before-process.oc"
-        baseline.write_text(self.original[:start] + self.original[end:])
+        before = self.original[:start] + self.original[end:]
+        # The nominal adapter belongs to the query removed by this control.
+        # Keep the historical lossy getter and all registry mutations intact.
+        forwarder = """pub unsafe fn current_process_matches_typed(expected_handle: ProcessHandle) -> bool {
+    return current_process_matches(process_handle_raw(expected_handle));
+}"""
+        self.assertEqual(before.count(forwarder), 1, "review the typed query adapter before rebuilding the historical control")
+        before = before.replace(forwarder, "", 1)
+        baseline.write_text(before)
         self.compile_and_link("before", [*self.sources[:-1], baseline], legacy=True)
         result = self.run_command("before-native", [self.out / "before", "legacy"])
         self.assertEqual(result.stdout.count(b"legacy getter:"), 5)
         self.assertIn(b"Original lossy getter ambiguity witness: PASS", result.stdout)
-        self.report["before_control"] = "Original production process bytes with only the newly added query/comment removed; no absent-symbol link failure is counted as a semantic result."
+        self.report["before_control"] = "Production process bytes with the query/comment and its exact nominal forwarding adapter removed; the historical getter and registry mutations remain unchanged. No absent-symbol link failure is counted as a semantic result."
 
     def test_incorrect_queries_fail_actual_native_oracle(self):
         start = self.original.index("pub unsafe fn current_process_matches(expected_handle: u64) -> bool {")
