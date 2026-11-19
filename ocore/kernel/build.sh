@@ -26,10 +26,14 @@ esac
 
 LINK_GC_FLAGS=()
 OCOREC_FUNCTION_SECTION_FLAGS=()
-if (( PROBE_MODE == 0 || PROBE_MODE == 15 || PROBE_MODE == 17 || PROBE_MODE == 20 || PROBE_MODE == 22 \
+if (( (PROBE_MODE >= 1 && PROBE_MODE <= 12) || PROBE_MODE == 14 || PROBE_MODE == 21 || PROBE_MODE == 31 \
+    || PROBE_MODE == 0 || PROBE_MODE == 13 || PROBE_MODE == 15 || PROBE_MODE == 17 || PROBE_MODE == 20 || PROBE_MODE == 22 \
     || PROBE_MODE == 18 || PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 \
     || PROBE_MODE == 30 || PROBE_MODE == 32 || PROBE_MODE == 16 || PROBE_MODE == 23 \
     || PROBE_MODE == 27 || PROBE_MODE == 28 || PROBE_MODE == 29 || PROBE_MODE == 33 || PROBE_MODE == 34 || PROBE_MODE == 35 )); then
+  # Historical fault/user-copy, process, scheduler, and live IPC probes retain
+  # their full source selections as shared runtime helpers grow. They need the
+  # same reachability collection as Mode 0 and the later large probes.
   # These probes carry the largest kernels, including Mode 17's full semantics
   # corpus. Preserve the fixed bootstrap
   # reserve by letting linker reachability discard unreferenced functions and
@@ -416,6 +420,12 @@ M1_SOURCE="$KERNEL_DIR/m1.oc"
 M2_SOURCE="$KERNEL_DIR/m2.oc"
 M3_SOURCE="$KERNEL_DIR/m3.oc"
 M3_LIVE_SOURCE="$KERNEL_DIR/m3_live.oc"
+# Keep the new transfer mutation corpus in its own test-only module. Existing
+# probe selections and the fixed kernel-image limit remain unchanged.
+M3_TYPED_TRANSFER_SOURCE="$KERNEL_DIR/x86_64/m3_typed_transfer_stub.oc"
+if (( PROBE_MODE == 13 )); then
+  M3_TYPED_TRANSFER_SOURCE="$KERNEL_DIR/x86_64/m3_typed_transfer_real.oc"
+fi
 M4_SOURCE="$KERNEL_DIR/m4.oc"
 if (( PROBE_MODE == 15 )); then
   M4_SOURCE="$BUILD_DIR/m4.oc"
@@ -490,6 +500,7 @@ fi
   "$M2_SOURCE" \
   "$M3_SOURCE" \
   "$M3_LIVE_SOURCE" \
+  "$M3_TYPED_TRANSFER_SOURCE" \
   "$M4_SOURCE" \
   "$M5_SOURCE" \
   "$M5_SELFTEST_SOURCE" \

@@ -917,6 +917,63 @@ jobs:
             grep -F "::$case_name ... ok" "$RUNNER_TEMP/leaf-tests.log"
           done
 
+  ocore-lifecycle:
+    name: O-core lifecycle conformance
+    needs: contracts
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "1"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: 1.97.1
+      - name: Install lifecycle component build and execution tools
+        run: |
+          for source in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            if [[ -f "$source" ]] && grep -qF packages.microsoft.com "$source"; then
+              sudo mv "$source" "$source.disabled"
+            fi
+          done
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang lld llvm binutils qemu-user
+      - name: Verify declared lifecycle prerequisites
+        run: |
+          set -euo pipefail
+          mkdir -p target/ocore-lifecycle-logs
+          python3 scripts/contract_surfaces.py probe-runtimes --suite ocore-lifecycle \
+            | tee target/ocore-lifecycle-logs/prerequisites.log
+      - name: Build the O-core compiler for lifecycle conformance
+        run: |
+          set -euo pipefail
+          cargo build --locked --jobs 1 --package o-lang --bin ocorec 2>&1 \
+            | tee target/ocore-lifecycle-logs/build.log
+      - name: Verify lifecycle runner failure and provenance controls
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ocore_lifecycle_conformance.py -v 2>&1 \
+            | tee target/ocore-lifecycle-logs/runner-controls.log
+      - name: Compare compiled lifecycle policy with the independent model on every target
+        run: |
+          set -euo pipefail
+          python3 scripts/check_ocore_lifecycle_conformance.py \
+            --ocorec "$PWD/target/debug/ocorec" \
+            --output-dir target/ocore-lifecycle 2>&1 \
+            | tee target/ocore-lifecycle-logs/conformance.log
+      - name: Retain lifecycle source, tools, artifacts, traces, and qualification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ocore-lifecycle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/ocore-lifecycle/
+            target/ocore-lifecycle-logs/
+          if-no-files-found: error
+          retention-days: 14
+
   ocore-qemu:
     name: O-core QEMU proof
     needs: contracts
@@ -1601,6 +1658,29 @@ jobs:
           python3 scripts/check_ocore_native_equivalence.py
           --ocorec "$PWD/target/debug/ocorec"
           --output-dir target/ocore-native-equivalence
+      - name: Verify array, lifecycle, identity, and target-coverage runner controls
+        run: >-
+          python3 -m unittest -v
+          tests.test_ocore_array_bounds
+          tests.test_ocore_lifecycle_conformance
+          tests.test_ocore_lifecycle_identity
+          tests.test_ocore_equivalence_target_coverage
+      - name: Reject crossed identities against the actual kernel APIs
+        env:
+          OCORE_TYPED_IDENTITY_EVIDENCE_DIR: target/ocore-typed-kernel-identities
+        run: >-
+          OCOREC_BIN="$PWD/target/debug/ocorec"
+          python3 -m unittest -v tests.test_ocore_typed_kernel_identities
+      - name: Execute checked array bounds and evaluation order on every native target
+        run: >-
+          python3 scripts/check_ocore_array_bounds.py
+          --ocorec "$PWD/target/debug/ocorec"
+          --output-dir target/ocore-array-bounds
+      - name: Execute distinct lifecycle identities on every native target
+        run: >-
+          python3 scripts/check_ocore_lifecycle_identity.py
+          --ocorec "$PWD/target/debug/ocorec"
+          --output-dir target/ocore-lifecycle-identity
       - name: Prove the native RV64 supervisor bootstrap and rejection controls
         run: >-
           python3 scripts/check_ocore_riscv64_boot.py
@@ -1619,6 +1699,9 @@ jobs:
           path: |
             target/ci-tool-pins/provider-order-python.json
             target/ocore-native-equivalence/
+            target/ocore-array-bounds/
+            target/ocore-lifecycle-identity/
+            target/ocore-typed-kernel-identities/
             target/ocore-import-equivalence/
             target/ocore-foreign-frontends/
             target/ocore-riscv64-boot/
@@ -1891,6 +1974,7 @@ jobs:
       - native-leaf-targets
       - native-systems
       - ocore-constrained-fp
+      - ocore-lifecycle
       - ocore-qemu
       - offline-kit
       - python
@@ -1916,12 +2000,13 @@ jobs:
           OFFLINE_KIT: ${{ needs.offline-kit.result }}
           RELEASE_CLAIMS: ${{ needs.release-claims.result }}
           OCORE_CONSTRAINED_FP: ${{ needs.ocore-constrained-fp.result }}
+          OCORE_LIFECYCLE: ${{ needs.ocore-lifecycle.result }}
           OCORE_QEMU: ${{ needs.ocore-qemu.result }}
           NATIVE_LEAF_TARGETS: ${{ needs.native-leaf-targets.result }}
           NATIVE_SYSTEMS: ${{ needs.native-systems.result }}
         run: |
           status=0
-          for name in BOUNDARY_CONTRACT CONTRACTS RUST_MSRV RUST_QUALITY RUST_TESTS RUST_HOSTED PYTHON C17 DOCKER MCP OFFLINE_KIT RELEASE_CLAIMS OCORE_CONSTRAINED_FP OCORE_QEMU NATIVE_LEAF_TARGETS NATIVE_SYSTEMS; do
+          for name in BOUNDARY_CONTRACT CONTRACTS RUST_MSRV RUST_QUALITY RUST_TESTS RUST_HOSTED PYTHON C17 DOCKER MCP OFFLINE_KIT RELEASE_CLAIMS OCORE_CONSTRAINED_FP OCORE_LIFECYCLE OCORE_QEMU NATIVE_LEAF_TARGETS NATIVE_SYSTEMS; do
             result="${!name}"
             printf '%s=%s\n' "$name" "$result"
             [[ "$result" == success ]] || status=1

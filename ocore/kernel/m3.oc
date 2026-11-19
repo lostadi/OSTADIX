@@ -1,5 +1,9 @@
 module kernel::m3;
 
+use kernel::m3_typed_transfer::exercise as typed_transfer_oracle;
+use runtime::memory_object::reference_count;
+use runtime::cap_transfer::prepared_count;
+
 use runtime::address_space::create_native_for_owner;
 use runtime::address_space::destroy as destroy_address_space;
 use runtime::address_space::dynamic_protections_hold;
@@ -106,6 +110,11 @@ unsafe fn management_context() -> bool {
 unsafe fn close_memory(owner: u64, capability: u64) -> bool {
     return close_capability_for_owner(owner, capability) == MEMORY_OK;
 }
+
+
+// This mechanism oracle exercises correctly typed but unauthorized/stale values.
+// Nominal identity never replaces the live owner, rights, or generation checks.
+
 
 unsafe fn exercise_endpoint(
     sender_process: u64,
@@ -307,6 +316,7 @@ pub unsafe fn start(mode: u64, native_domain: u64) -> never {
         ) != 0 {
         fail_closed();
     }
+    typed_transfer_oracle(cspace_one, cspace_two, source_capability, process_one, process_two, shared_object_handle);
     let mapping_one: u64 = map_shared(
         address_space_one,
         cspace_one,
@@ -542,6 +552,14 @@ pub unsafe fn start(mode: u64, native_domain: u64) -> never {
     }
     let mut dead_transfer_result: u64 = 0;
     let mut cancelled_ticket_result: u64 = 0;
+    // The escrow is still prepared: reject the dead creator before cancellation,
+    // while retaining its reference so trusted owner cleanup can unwind it.
+    let retained_after_death: u32 = reference_count(shared_object_handle);
+    if commit_copy(pending_ticket, &mut dead_transfer_result) != 0
+        || dead_transfer_result != 0 || prepared_count() != 1
+        || reference_count(shared_object_handle) != retained_after_death {
+        fail_closed();
+    }
     if enqueue(
         dead_sender_endpoint,
         process_one,

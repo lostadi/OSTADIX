@@ -257,7 +257,7 @@ class UnifiedNamespaceTransportsTests(unittest.TestCase):
             out = Path(directory)
             (out / "harness.c").write_text(HARNESS)
             sources = [str(ROOT / name) for name in (
-                "ocore/runtime/common/namespace_store.oc",
+                "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
                 "ocore/runtime/aarch64/kernel_world_9p.oc",
                 "ocore/runtime/aarch64/plan9_namespace_uart.oc")]
             commands = [

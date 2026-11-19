@@ -1,0 +1,78 @@
+{
+  "schema": "ostadix.ocore-final-compiler-source/v1",
+  "compiler": {
+    "retained_path": "section-tools-3b1f147354a2/ocorec",
+    "sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+    "bytes": 30249832
+  },
+  "files": [
+    {
+      "path": "crates/ostadix-api/src/ocore/hir.rs",
+      "sha256": "f7d277a71d6323301fa47d213de176b9bb09ec73ec98337273168b01676de289",
+      "bytes": 16696
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/typeck.rs",
+      "sha256": "4502cd94bb2b3eb4a8daf03f5c33c266ae5a1696faba598e9bd4620c2b2a0e36",
+      "bytes": 136127
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/mir.rs",
+      "sha256": "062331fb5f752b855000d8ee2048adfa66f720c01cdbe0b9fc9946a53745d05a",
+      "bytes": 133566
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/codegen.rs",
+      "sha256": "d9f96004f55a23ff0bef34ea043c4235af931808ccec68023fbc82d56b5519f7",
+      "bytes": 96093
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/codegen_aarch64.rs",
+      "sha256": "d1897aef0c403c117d5e9a117e268743b934813ac15ea655e0d7161794966c81",
+      "bytes": 105178
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/codegen_riscv64.rs",
+      "sha256": "b4f47c8da817d0cb3953110c25efb246c52ad132b73361cc930ae873016a32f5",
+      "bytes": 91572
+    }
+  ],
+  "section_change_manifest": {
+    "retained_path": "older-probe-gc/section-frozen-r1.json",
+    "sha256": "562f0e0788f410c76ecae4cbf3e88a42c13dde35e40b7f8c1e15fb299d70bdf9",
+    "bytes": 724
+  },
+  "source_review": {
+    "retained_path": "older-probe-gc/section-source-lifecycle-review.json",
+    "sha256": "c2b481f0ab89d021a414b50112e9d20bb5d8771e55b808c01c5734e551c03214",
+    "bytes": 4198
+  },
+  "fixture_and_runner_files": [
+    {
+      "path": "scripts/check_ocore_array_bounds.py",
+      "sha256": "475b0903ec99763a619ebd5ee7a2caae2c95b8c7e97b4db600308eb0fef3af10",
+      "bytes": 15754
+    },
+    {
+      "path": "tests/test_ocore_array_bounds.py",
+      "sha256": "404f8ed856d3c7f8ce74a8ea2d3bde105aef13654cab8f8887c504249d211e09",
+      "bytes": 8138
+    },
+    {
+      "path": "tests/fixtures/ocore_array_bounds.oc",
+      "sha256": "26921cbde3908d0dd3487f36923de1316b7129ab6a0639e27d55f715bb04a1a8",
+      "bytes": 8345
+    },
+    {
+      "path": "tests/fixtures/ocore_array_bounds.c",
+      "sha256": "c097961df706623317dc648ca08975b3058b8ac4a77979923abc1bc6549e9b4b",
+      "bytes": 2210
+    },
+    {
+      "path": "tests/fixtures/ocore_array_bounds_nx.ld",
+      "sha256": "2fa16a6291712b5bf09af6e055c9d71c476bc66ccb1695a521f5dbc113e4110f",
+      "bytes": 594
+    }
+  ],
+  "scope": "Exact final changed compiler sources and execution inputs. Complete watched O-core Rust file identities are retained in bounds.json provenance. Source and selected executable identities are observed, not a sealed build or shared-library closure."
+}

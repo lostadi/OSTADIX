@@ -1,5 +1,9 @@
 module runtime::aarch64::kernel_world_monitor;
 
+use runtime::common::lifecycle_identity::NamespaceTransportEpoch;
+use runtime::common::lifecycle_identity::NAMESPACE_TRANSPORT_FIRST;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_init;
+
 use runtime::aarch64::kernel_world_virtio::init as device_init;
 use runtime::aarch64::kernel_world_virtio::mmio_read as device_read;
 use runtime::aarch64::kernel_world_virtio::mmio_write as device_write;
@@ -22,10 +26,10 @@ use runtime::aarch64::kernel_world_net::can_detach as net_can_detach;
 use runtime::aarch64::kernel_world_net::detach as net_detach;
 use runtime::aarch64::kernel_world_net::can_provision as net_can_provision;
 use runtime::aarch64::kernel_world_net::provision as net_provision;
-use runtime::aarch64::kernel_world_9p::can_detach as ns_can_detach;
-use runtime::aarch64::kernel_world_9p::detach as ns_detach;
-use runtime::aarch64::kernel_world_9p::can_provision as ns_can_provision;
-use runtime::aarch64::kernel_world_9p::provision as ns_provision;
+use runtime::aarch64::kernel_world_9p::can_detach_typed as ns_can_detach;
+use runtime::aarch64::kernel_world_9p::detach_typed as ns_detach;
+use runtime::aarch64::kernel_world_9p::can_provision_typed as ns_can_provision;
+use runtime::aarch64::kernel_world_9p::provision_typed as ns_provision;
 use runtime::aarch64::kernel_world_9p::bound as ns_bound;
 use runtime::aarch64::kernel_world_virtio::configure_backing;
 use runtime::aarch64::kernel_world_virtio_selftest::run as device_selftest;
@@ -722,10 +726,18 @@ pub unsafe fn kw_handle_exit_checked(frame_address: usize, esr: u64, far: u64, h
 }
 
 
+pub fn kw_linux_namespace_enabled() -> u64 { return NAMESPACE; }
+
 // Linux-only serialized lifecycle. The unified scheduler must first stop the
 // vCPU and route its interrupts off. None of these calls reinitialize the
 // shared namespace store, independent peer or physical network backend.
 pub unsafe fn kw_linux_detach(block: u64, net: u64, ns: u64) -> u64 {
+    let mut epoch: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if NAMESPACE == 1 && namespace_transport_epoch_init(&mut epoch, ns) != 1 { return 0; }
+    return kw_linux_detach_typed(block, net, epoch);
+}
+
+pub unsafe fn kw_linux_detach_typed(block: u64, net: u64, ns: NamespaceTransportEpoch) -> u64 {
     if block_can_detach(block) != 1 { return 0; }
     if NETWORK == 1 && net_can_detach(net) != 1 { return 0; }
     if NAMESPACE == 1 && ns_can_detach(ns) != 1 { return 0; }
@@ -736,6 +748,12 @@ pub unsafe fn kw_linux_detach(block: u64, net: u64, ns: u64) -> u64 {
     return block_detach(block);
 }
 pub unsafe fn kw_linux_provision(block: u64, net: u64, ns: u64) -> u64 {
+    let mut epoch: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if NAMESPACE == 1 && namespace_transport_epoch_init(&mut epoch, ns) != 1 { return 0; }
+    return kw_linux_provision_typed(block, net, epoch);
+}
+
+pub unsafe fn kw_linux_provision_typed(block: u64, net: u64, ns: NamespaceTransportEpoch) -> u64 {
     if RAM_LIVE != 0 || block_can_provision(block) != 1 { return 0; }
     if NETWORK == 1 && net_can_provision(net) != 1 { return 0; }
     if NAMESPACE == 1 && ns_can_provision(ns) != 1 { return 0; }

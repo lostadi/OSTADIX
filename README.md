@@ -69,11 +69,31 @@ C, syscall, assembly and wire adapters keep primitive signatures. Runtime
 checks still decide whether an object is live, belongs to the caller and grants
 the requested rights.
 
-The compiler corpus executes on x86-64, AArch64 and RV64GC. The
+The compiler corpus runs x86-64 code on Linux and executes AArch64 and RV64GC
+code through user-mode QEMU. The
 [language reference](docs/OCORE.md) defines the rules; the
 [implementation guide](docs/OCORE_TYPED_LIFECYCLE_PLAN.md) tracks the O10,
 capability and memory-view migrations, their execution evidence and remaining
 guest qualification. Array-bounds checking is a separate language change.
+
+Ordinary array indexing now checks bounds before access. It also checks an
+assignment target before evaluating the right-hand side, and evaluates the
+base and index once. Negative indices, address overflow and one-past array
+addresses trap. Unsafe raw-pointer indexing keeps its existing behavior. The
+[array receipts](evidence/ocore-typed-lifecycle-20261118/arrays/README.md)
+separate native checks from kernel and guest qualification.
+
+Checks in explicitly placed functions stay in that function's executable
+section. The native gate maps the shared helper without execute permission
+and requires the placed function to return or take its own bounds trap.
+
+The runtime pilot separates O10 domain generations from namespace transport
+and session epochs. Capability transfer and request-bound memory views use
+owner-defined handle types at internal operation boundaries. The independent
+O10/namespace corpus executes production policy on all three ISAs; transfer
+and view gates run in the x86-64 QEMU kernel. Fresh AArch64 guest acceptance
+still needs its private fixtures. The [runtime receipts](evidence/ocore-typed-lifecycle-20261118/runtime/README.md)
+record that distinction and the tested source identities.
 
 ## License and citation
 

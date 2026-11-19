@@ -39,6 +39,22 @@ use runtime::pages::FRAME_KIND_ANONYMOUS;
 use runtime::pages::FRAME_KIND_EXECUTABLE;
 use runtime::pages::FRAME_KIND_PAGE_TABLE;
 
+// Nominal identity preserves bits; authority and lifetime checks remain below.
+@opaque
+@transparent
+pub struct AddressSpaceHandle { raw: u64 }
+pub const ADDRESS_SPACE_HANDLE_FIRST: AddressSpaceHandle = AddressSpaceHandle { raw: 1 };
+pub unsafe fn address_space_handle_init(result: *mut AddressSpaceHandle, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if raw != 1 {
+        if (raw & 0xff00_0000) != 0xa200_0000 { return 0; }
+        if (raw & 0x00ff_ffff) >= 4 { return 0; }
+        if (raw >> 32) == 0 { return 0; }
+    }
+    *result = AddressSpaceHandle { raw: raw }; return 1;
+}
+pub fn address_space_handle_raw(value: AddressSpaceHandle) -> u64 { return value.raw; }
+
 pub const VM_USER: u64 = 1;
 pub const VM_READ: u64 = 2;
 pub const VM_WRITE: u64 = 4;
@@ -2572,4 +2588,23 @@ pub unsafe fn valid_stack_top(handle: u64, top: usize) -> bool {
         1,
         VM_USER | VM_READ | VM_WRITE | VM_STACK
     );
+}
+
+// Typed callers share the primitive adapters' exact rejection accounting
+// and one mutation body, including terminal ordering and irreversible failures.
+pub unsafe fn is_live_typed(handle: AddressSpaceHandle) -> bool {
+    return is_live(address_space_handle_raw(handle));
+}
+
+pub unsafe fn owner_cspace_handle_typed(handle: AddressSpaceHandle) -> u64 {
+    return owner_cspace_handle(address_space_handle_raw(handle));
+}
+
+pub unsafe fn allows_typed(
+    handle: AddressSpaceHandle,
+    pointer: usize,
+    length: usize,
+    required: u64
+) -> bool {
+    return allows(address_space_handle_raw(handle), pointer, length, required);
 }

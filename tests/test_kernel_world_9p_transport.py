@@ -362,12 +362,12 @@ class KernelWorld9PTransportTests(unittest.TestCase):
 
     def test_real_transport_and_server_share_authorized_objects(self):
         output = self.compile_and_run(INTEGRATED_HARNESS, [
-            "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/kernel_world_9p.oc"])
+            "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/kernel_world_9p.oc"])
         self.assertIn("short-replies/restart: PASS", output)
 
     def test_real_transport_adopts_dotu_token_and_returns_numeric_estale(self):
         output = self.compile_and_run(INTEGRATED_DOTU_HARNESS, [
-            "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/kernel_world_9p.oc"])
+            "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/kernel_world_9p.oc"])
         self.assertIn("numericESTALE and plain Plan9 survivor: PASS", output)
 
     def test_real_transport_memory_and_protocol_boundary(self):
@@ -379,7 +379,7 @@ class KernelWorld9PTransportTests(unittest.TestCase):
             output = Path(directory)
             (output / "store-stubs.oc").write_text(STUBS)
             (output / "harness.c").write_text(HARNESS)
-            inputs = [str(output / "store-stubs.oc"), str(ROOT / "ocore/runtime/aarch64/kernel_world_9p.oc")]
+            inputs = [str(output / "store-stubs.oc"), str(ROOT / "ocore/runtime/aarch64/kernel_world_9p.oc"), str(ROOT / "ocore/runtime/common/lifecycle_identity.oc")]
             commands = [
                 [str(compiler), *inputs, "--target", "aarch64-unknown-none", "--emit", "mir", "-o", str(output / "arm.mir")],
                 [str(compiler), *inputs, "--target", "x86_64-unknown-none", "--emit", "obj", "-o", str(output / "transport.o")],

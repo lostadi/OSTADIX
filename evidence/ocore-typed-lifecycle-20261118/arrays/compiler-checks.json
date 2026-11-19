@@ -1,0 +1,92 @@
+{
+  "schema": "ostadix.ocore-final-compiler-checks/v1",
+  "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+  "focused_rust_tests": 107,
+  "counts": {
+    "parser": 4,
+    "typeck": 32,
+    "mir": 26,
+    "all3-codegen": 45
+  },
+  "retained_counts_report": {
+    "retained_path": "older-probe-gc/section-rust-counts.json",
+    "sha256": "6ae2a68d1acc0ae89de54b25d2d5a9cf00501b68e8f4b2d30d66e03b76c8c069",
+    "bytes": 280
+  },
+  "retained_direct_command_report": {
+    "retained_path": "older-probe-gc/section-rust-direct.json",
+    "sha256": "71a22614d402a0838a606677e2dd70fedbd1ee787b7403eb14ac05bb043823d2",
+    "bytes": 1423
+  },
+  "test_binary": {
+    "sha256": "847d1b784218f5b97597a0fb507244ff584a774e90b49a0b4a80cee279f41227",
+    "bytes": 131138632
+  },
+  "family_logs": {
+    "parser": {
+      "retained_path": "older-probe-gc/section-rust-parser-direct.stdout",
+      "sha256": "e7b5755cc57325293e3fa91e3cf8112a30df4c4fac556259106170ab1affafe9",
+      "bytes": 443
+    },
+    "typeck": {
+      "retained_path": "older-probe-gc/section-rust-typeck-direct.stdout",
+      "sha256": "493a303de1035c99511e83c55b2c99b56582ae95cfe38be663a40c1f99de27bf",
+      "bytes": 3008
+    },
+    "mir": {
+      "retained_path": "older-probe-gc/section-rust-mir-direct.stdout",
+      "sha256": "6a5caa21ea435f6d745d28192366a12b573d426cd407464d7f206f4b5a321e7f",
+      "bytes": 2592
+    },
+    "all3-codegen": {
+      "retained_path": "older-probe-gc/section-rust-codegen-all3.stdout",
+      "sha256": "4d672c5d751ba71cdda0df110ae4cc78924f73cd499b6bf8de64f4f2d5b6b50e",
+      "bytes": 4262
+    }
+  },
+  "count_scope": "The direct-command report includes an earlier x86-only codegen filter. The separate all3-codegen log supplies the final 45 checks; 107 is 4 + 32 + 26 + 45, not the earlier partial filter.",
+  "runner_controls": {
+    "passed": 12,
+    "log": {
+      "retained_path": "section-bounds-page-controls.stdout",
+      "sha256": "241fd1eccf3fa14a2cd7e571091dea82b2ee5336351ce134c1872c14b7ab1331",
+      "bytes": 2203
+    }
+  },
+  "strict_clippy": {
+    "status": "passed",
+    "scope": "Final --lib --tests -D warnings check; retained completion logs. Exact argv is not reconstructed by this projection.",
+    "stdout": {
+      "retained_path": "older-probe-gc/section-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "stderr": {
+      "retained_path": "older-probe-gc/section-clippy.stderr",
+      "sha256": "7fc1640269de8e24e2c88901015aff687886ee25f81a5e988bf3bc0a36560e02",
+      "bytes": 137
+    }
+  },
+  "format": {
+    "status": "passed",
+    "stdout": {
+      "retained_path": "older-probe-gc/section-final-format.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "stderr": {
+      "retained_path": "older-probe-gc/section-final-format.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "actual_phi": {
+    "passed": true,
+    "report": {
+      "retained_path": "older-probe-gc/section-phi-r1/execution.json",
+      "sha256": "c64daab4e0b8130bf6069406594d4b36f6b4d25095a4bd4dfbffe1e08eb08242",
+      "bytes": 15338
+    }
+  },
+  "scope": "Actual retained test binary and native Phi execution; separate from full-system guest and installation provenance."
+}

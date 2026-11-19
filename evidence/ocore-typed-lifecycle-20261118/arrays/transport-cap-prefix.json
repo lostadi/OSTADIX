@@ -1,0 +1,254 @@
+{
+  "schema": "ostadix.ocore-lifecycle-mutation-prefix/v1",
+  "full_report": {
+    "origin": "retained_evidence",
+    "path": "m4-final-section-r1/lifecycle.json",
+    "sha256": "b0fc1d04b42e600e2665efecf23ca36eadce0f25cd41f32e794746368ff2f3f6",
+    "bytes": 46348699
+  },
+  "compiler": {
+    "origin": "retained_evidence",
+    "path": "section-tools-3b1f147354a2/ocorec",
+    "sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+    "bytes": 30249832
+  },
+  "mutation": {
+    "name": "namespace-transport-32-bit-cap",
+    "isa": "x86_64",
+    "changes": [
+      {
+        "path": "ocore/runtime/aarch64/kernel_world_9p.oc",
+        "old": "|| next == 0 || next <= GENERATION",
+        "new": "|| next > 0xffff_ffff || next == 0 || next <= GENERATION",
+        "count": 1,
+        "name": "namespace-transport-32-bit-cap"
+      }
+    ],
+    "status": "killed-by-observation-mismatch",
+    "witness": {
+      "case": "linux-replacement-0xffffffff",
+      "trace": [
+        {
+          "op": 6,
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "13000000641100000200000600395032303030"
+        },
+        {
+          "op": 6,
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "1400000068110001000000ffffffff0100750000"
+        },
+        {
+          "op": 6,
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "170000006e1100010000000200000001000400776f726b"
+        },
+        {
+          "op": 6,
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "1300000072110002000000010061a401000002"
+        },
+        {
+          "op": 6,
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "1a000000761100020000000000000000000000030000000011ff"
+        },
+        {
+          "op": 6,
+          "a": 2,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "13000000641100000200000600395032303030"
+        },
+        {
+          "op": 6,
+          "a": 2,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "1400000068110001000000ffffffff0100750000"
+        },
+        {
+          "op": 6,
+          "a": 2,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "1a0000006e1100010000000200000002000400776f726b010061"
+        },
+        {
+          "op": 6,
+          "a": 2,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "0c0000007011000200000000"
+        },
+        {
+          "op": 6,
+          "a": 2,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "data": "1700000074110002000000000000000000000003000000"
+        },
+        {
+          "op": 17,
+          "a": 0,
+          "data": "27000000a45b000000000000000000010000000000000001000000000000000000000000000000"
+        },
+        {
+          "op": 17,
+          "a": 0,
+          "data": "24000000ac5b000100000000000000020000000000000000000000010000000000000000"
+        },
+        {
+          "op": 17,
+          "a": 0,
+          "data": "3f000000ae5b000100000000000000030000000000000000000000010000007777777777777777777777777777777703000000000000000400000000000000"
+        }
+      ],
+      "error": "linux-replacement-0xffffffff: exit 86 != 0",
+      "input": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/minimal-prefix/linux-replacement-0xffffffff.case",
+        "sha256": "52838ce41b7d0cf666bdbb8e1a698503603c131be64bc61c0981d4f556903704",
+        "bytes": 1049
+      },
+      "stdout": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/minimal-prefix/linux-replacement-0xffffffff.stdout",
+        "sha256": "5d5c843e4e0f0bc4e11ae61476e98da62a9506982db6c9a3830261b7670b9c0b",
+        "bytes": 5357
+      },
+      "stderr": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/minimal-prefix/linux-replacement-0xffffffff.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "exit_code": 86
+    },
+    "prefix_diagnosis": {
+      "commands": 13,
+      "basis": "first divergent observation"
+    },
+    "passing_predecessor": {
+      "name": "linux-replacement-0xffffffff",
+      "observations": 13,
+      "exit_code": 0,
+      "symbolic_to_concrete": {
+        "1": 2,
+        "2": 4
+      },
+      "observation_sha256": "ee995db453062f15feb1dd02a2cd859fb2e06c449b7b5e1c26fc7bde0c2b9afa",
+      "matched": true,
+      "input": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/minimal-predecessor/linux-replacement-0xffffffff.case",
+        "sha256": "7f3282687e40a6721daf4b390664f26da481bc3284e8ba5cf9c35f58e9d4449b",
+        "bytes": 938
+      },
+      "stdout": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/minimal-predecessor/linux-replacement-0xffffffff.stdout",
+        "sha256": "ee995db453062f15feb1dd02a2cd859fb2e06c449b7b5e1c26fc7bde0c2b9afa",
+        "bytes": 4886
+      },
+      "stderr": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/minimal-predecessor/linux-replacement-0xffffffff.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "minimality": "reproduced failing prefix and passing immediate predecessor; not global trace minimization",
+    "failing_prefix_commands": 13,
+    "passing_predecessor_commands": 12,
+    "compiled_target": {
+      "native_target": "x86_64-unknown-none",
+      "hosted_target": "x86_64-unknown-linux-gnu",
+      "flags": [],
+      "unmodeled_hook_sentinels": [
+        "kw_counter_frequency",
+        "kw_counter_read",
+        "kw_halt",
+        "kw_revoke_guest_ram",
+        "kw_serial_console_init",
+        "uw_counter_frequency",
+        "uw_current_domain",
+        "uw_domain_init",
+        "uw_idle_until",
+        "uw_irq_ack",
+        "uw_irq_eoi",
+        "uw_serial_try_read",
+        "uw_timer_deadline",
+        "uw_timer_pending",
+        "uw_timer_read",
+        "uw_timer_write",
+        "uw_vgic_running_priority"
+      ]
+    },
+    "artifacts": {
+      "policy.o": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/x86_64/policy.o",
+        "sha256": "b25d83c5e40bdd7e123c318939df93b12aced784f627ec59f80969c981768e1f",
+        "bytes": 1070496
+      },
+      "policy.s": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/x86_64/policy.s",
+        "sha256": "ef7bcad134b8b54359ef21b723f24b6bd7e61b119cee9051951ca1ef4520881e",
+        "bytes": 4983270
+      },
+      "observable.o": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/x86_64/observable.o",
+        "sha256": "05c4a98cdd5aa6d1b47a012145312869b062e332600cc631d46a7fd8cfaa08ca",
+        "bytes": 1070496
+      },
+      "carrier.elf": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/x86_64/carrier.elf",
+        "sha256": "3174bed0df9ef901fa0f389032b11e3c6628072f37208db7d60a4b6dca74ed4b",
+        "bytes": 589552
+      },
+      "unexpected-hooks.c": {
+        "origin": "retained_evidence",
+        "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/x86_64/unexpected-hooks.c",
+        "sha256": "c7ece51442bd2cee0c6ab550acb4ccb821d003156400e95f11191c7821b35fa2",
+        "bytes": 989
+      }
+    },
+    "changed_compiled_sources": [
+      {
+        "source_path": "ocore/runtime/aarch64/kernel_world_9p.oc",
+        "compiled": {
+          "origin": "retained_evidence",
+          "path": "m4-final-section-r1/mutations/namespace-transport-32-bit-cap/generated/ocore/runtime/aarch64/kernel_world_9p.oc",
+          "sha256": "c55eb16c6ddf36ed3358e8d4ec7cd1f6a660c857054e7ee4554d85399f4017ce",
+          "bytes": 20253
+        }
+      }
+    ]
+  },
+  "validation": "The retained mutant executable fails after thirteen commands. The same executable passes the immediate twelve-command predecessor. This establishes the first divergent prefix of this trace, not global trace minimization.",
+  "extra_execution_required": false
+}

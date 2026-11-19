@@ -993,6 +993,7 @@ class O10ComponentSourceClosureTests(unittest.TestCase):
         self.assertEqual(len(declarations), 1)
         sources = ast.literal_eval(declarations[0])
         self.assertTrue(sources)
+        self.assertIn("ocore/runtime/common/lifecycle_identity.oc", sources)
         self.assertFalse(set(sources) - release.O10_COMPONENT_RELEASE_PATHS)
 
     def test_every_discovered_component_test_is_required(self) -> None:
@@ -1572,6 +1573,8 @@ class SourceReleaseTests(unittest.TestCase):
             "ocore/kernel/x86_64/grub.cfg": "multiboot2 /boot/okernel.elf\n",
             "ocore/kernel/x86_64/boot_info.oc": "module kernel::boot_info;\n",
             "ocore/kernel/x86_64/boot_info_stub.oc": "module kernel::boot_info;\n",
+            "ocore/kernel/x86_64/m3_typed_transfer_real.oc": "module kernel::m3_typed_transfer;\n",
+            "ocore/kernel/x86_64/m3_typed_transfer_stub.oc": "module kernel::m3_typed_transfer;\n",
             "ocore/runtime/x86_64/trap.oc": "module runtime::trap;\n",
             "ocore/runtime/aarch64/g2_kernel.oc": "module runtime::g2_kernel;\n",
             "ocore/runtime/aarch64/g2_user_a.oc": "module runtime::g2_user_a;\n",
@@ -2354,6 +2357,8 @@ class SourceReleaseTests(unittest.TestCase):
                 "ocore/kernel/x86_64/grub.cfg",
                 "ocore/kernel/x86_64/boot_info.oc",
                 "ocore/kernel/x86_64/boot_info_stub.oc",
+                "ocore/kernel/x86_64/m3_typed_transfer_real.oc",
+                "ocore/kernel/x86_64/m3_typed_transfer_stub.oc",
                 "ocore/runtime/x86_64/trap.oc",
                 "ocore/runtime/aarch64/g2_kernel.oc",
                 "ocore/runtime/aarch64/g2_user_a.oc",
@@ -2758,6 +2763,8 @@ class SourceReleaseTests(unittest.TestCase):
             self.assertEqual(modes["ocore/kernel/x86_64/grub.cfg"], "100644")
             self.assertEqual(modes["ocore/kernel/x86_64/boot_info.oc"], "100644")
             self.assertEqual(modes["ocore/kernel/x86_64/boot_info_stub.oc"], "100644")
+            self.assertEqual(modes["ocore/kernel/x86_64/m3_typed_transfer_real.oc"], "100644")
+            self.assertEqual(modes["ocore/kernel/x86_64/m3_typed_transfer_stub.oc"], "100644")
             self.assertEqual(modes["crates/ostadix-api/src/ocore/boot_info.rs"], "100644")
             self.assertEqual(modes["tests/fixtures/project_hgraph_tools/sh"], "100755")
             self.assertEqual(
@@ -3378,6 +3385,7 @@ class SourceReleaseTests(unittest.TestCase):
             "ocore/kernel/native-cluster/README.md",
             "ocore/kernel/native-cluster/verify.py",
             "ocore/runtime/aarch64/kernel_world_monitor.oc",
+            "ocore/runtime/common/lifecycle_identity.oc",
             "ocore/runtime/aarch64/kernel_world_virtio.oc",
             "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
             "ocore/runtime/x86_64/rtl8139.oc",
@@ -3403,7 +3411,7 @@ class SourceReleaseTests(unittest.TestCase):
             "scripts/boot_okernel.py",
             "scripts/okernel_package_domain.py",
             "scripts/okernel_native_codec.py",
-            "ocore/runtime/common/namespace_store.oc",
+            "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
             "ocore/runtime/common/u9fs_namespace_peer.oc",
             "ocore/runtime/aarch64/kernel_world_9p.oc",
             "ocore/guest/linux/package-domain/u9fs-path-hardening.patch",
@@ -3608,6 +3616,8 @@ class SourceReleaseTests(unittest.TestCase):
             "ocore/kernel/x86_64/grub.cfg",
             "ocore/kernel/x86_64/boot_info.oc",
             "ocore/kernel/x86_64/boot_info_stub.oc",
+            "ocore/kernel/x86_64/m3_typed_transfer_real.oc",
+            "ocore/kernel/x86_64/m3_typed_transfer_stub.oc",
             "scripts/ostadix_boot_iso.py",
             "scripts/ostadix_boot_media.py",
             "scripts/ostadix_boot_info_qemu.py",

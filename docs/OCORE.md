@@ -1533,6 +1533,58 @@ is zero. Each element receives that value. Aggregate repeats first capture a
 private snapshot and copy it to the elements, so writes during copying cannot
 change the repeated value.
 
+Indexing `[T; N]` checks its index before producing an element address. A
+negative signed index or an index greater than or equal to `N` traps
+synchronously. Empty arrays have no valid index. Zero-size elements still
+require an in-range index. Reads, writes, compound assignments, and address-of
+all use this rule: forming `&array[N]` traps too.
+
+The base and index each evaluate once, from left to right. An assignment checks
+its target before evaluating the right-hand side, including when the element
+is an aggregate or has size zero. If the base or index does not return, later
+expressions do not execute. Array literals and repeats used as bases are
+captured once before the index runs.
+
+MIR records a checked-array-element-address operation while lowering the
+place. It retains the actual array type, derives its length and element size,
+and checks multiplication and base-plus-offset overflow before returning a
+typed element pointer. The three native emitters validate those types before
+emission. Array layouts, including nested arrays and arrays behind pointers,
+must fit `u64`; invalid layouts diagnose before storage or emission.
+
+A unique primitive constant defined earlier in the same MIR block can settle
+the index check during emission. Its declared width and signedness still apply.
+A known invalid index emits the trap at the same point, after base and index
+effects and before RHS effects. A valid constant offset still checks addition
+to an arbitrary base; offset zero cannot wrap. No assumption that an unsafe
+pointer names a real object is needed for this reduction.
+
+Dynamic checks in functions without an explicit `@link_section` use a
+compiler-private leaf helper in owned `.oc` output. The helper retains the
+signed, range, multiplication, and address-overflow checks; sharing it limits
+code growth in fixed kernel profiles. These internal calls add execution cost
+and introduce no public ABI. Entries are deduplicated in a fixed order by
+signedness, full-width array length, and element size. Each entry loads those
+checked constants; a call passes the captured base and index.
+
+A function with an explicit `@link_section` emits those dynamic checks inline
+in its own section. Section placement can separate privilege or memory-mapping
+domains, so an inserted bounds check must remain executable by its caller.
+The inline path keeps the same signed, range, multiplication and address-carry
+guards and the same evaluation point. The default helper path is unchanged.
+
+A uniquely used captured address can feed the check directly when its pointer
+and raw index operands are already SSA values. The compiler does not reload a
+source pointer local after index effects. An immediately following ordinary
+load can also share the checked address when its pointer is uniquely used and
+its type matches. The skipped steps still undergo MIR validation. Volatile
+loads retain their separate alignment, access-width, and normalization rules.
+
+Raw-pointer indexing keeps its explicit unsafe, unchecked contract. Use
+explicit unsafe pointer arithmetic when a one-past pointer is required.
+Checked arrays do not validate forged pointers, foreign calls, mutable statics,
+or the lifetime and authority of storage reached through unsafe operations.
+
 There are no implicit numeric conversions except that an unsuffixed integer
 literal may be inferred from its expected integer type. All other conversions
 use `as`. Data-pointer-to-integer, integer-to-pointer, pointer arithmetic, pointer
@@ -1965,8 +2017,9 @@ GPT/ESP disk image is accepted by the external-media writer; the ISO is not.
 ## 11. Implemented bounded O-core milestone boundary
 
 The compiler supports x86_64, AArch64, and RV64GC native assembly/object
-generation. All three are stack-spill backends without optimization or a
-general register allocator. They implement scalar locals and pointers,
+generation. All three use stack-spill storage with local constant-index and
+captured-address reductions. They have no general optimizer or register
+allocator. They implement scalar locals and pointers,
 integer operations and casts, direct and unsafe indirect calls with stack
 arguments, branches and parallel phi moves, volatile memory, all supported
 atomic integer widths, aligned local frames, and overlap-safe aggregate
@@ -2017,6 +2070,33 @@ expected status. Retained artifacts include
 assembly, ELF objects/executables, and `equivalence.json`. This is compiler
 conformance evidence for the checked corpus, separate from kernel boot and
 subsystem proof.
+
+Ordinary array indexing has a separate execution gate:
+
+```bash
+python3 scripts/check_ocore_array_bounds.py \
+  --ocorec target/debug/ocorec --output-dir target/ocore-array-bounds
+```
+
+The output directory must be new. The runner requires every implemented
+canonical target and fails when a compiler, assembler/linker, or Linux runner
+is missing. Each case runs in a separate process. Deliberate traps must use
+the target's trap convention; an unrelated memory fault does not pass. The C
+carrier records base, index, and RHS events so a trap after an RHS effect, a
+repeated operand, or a wrong order fails. The corpus also covers signed and
+unsigned widths, empty and zero-size arrays, nested arrays and array fields,
+aggregate assignments, address overflow, divergence, and the unchanged raw
+pointer path. Compiler rejection cases cover overflowing layouts and pointer
+indexing outside `unsafe`. Retained assembly, objects, executables, commands,
+observations, and source/tool identities are bound in `bounds.json`.
+
+The corpus includes explicitly placed functions whose shared helper is mapped
+read-only without execute permission. Valid indexing must return, and invalid
+indexing must take the target's local bounds trap. A helper-fetch memory fault
+fails the case. The runner checks the actual ELF section and every load segment
+sharing its 4 KiB pages before execution, including mappings whose byte ranges
+do not overlap. The complete corpus has 72 execution cases and seven source
+rejections on each implemented target.
 
 `ocore/kernel/smoke-aarch64-g2-qemu.sh` builds one deterministic `EM_AARCH64`
 image twice, proves semantic markers originate in compiled `.oc`, and boots it

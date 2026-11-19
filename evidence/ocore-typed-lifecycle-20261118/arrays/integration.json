@@ -1,0 +1,226 @@
+{
+  "schema": "ostadix.ocore-array-integration/v1",
+  "status": "Recorded final compiler, native, independent lifecycle and x86 kernel checks passed. Shared CI and installation remain separate; fresh full-system AArch64 qualification is blocked.",
+  "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+  "checks": {
+    "rust_parser": 4,
+    "rust_typeck": 32,
+    "rust_mir": 26,
+    "rust_emitters": 45,
+    "focused_rust_total": 107,
+    "runner_controls": 12,
+    "strict_clippy": "passed",
+    "format": "passed",
+    "native_bounds_per_isa": 72,
+    "compiler_rejections_per_isa": 7,
+    "native_arithmetic_per_isa": 12288,
+    "native_wrappers_per_isa": 93,
+    "native_deliberate_traps_per_isa": 6,
+    "native_never_cases_per_isa": 2,
+    "object_reproducibility": "passed",
+    "typed_phi_all_targets": "passed"
+  },
+  "main_inventory": {
+    "classified": 463,
+    "parsed": 463,
+    "failed": 0,
+    "programs_executed": 0,
+    "retained_report": {
+      "retained_path": "final-targeted-verification/inventory-result.json",
+      "sha256": "dfb2a77bdff9874cf7e759eca9dc86716f056ad61fe12f7cf1eae749be715001",
+      "bytes": 144316
+    },
+    "scope": "Current463-source classification and parse/check only; no programs executed, no full guest/provenance qualification",
+    "hosted_O_scope": "Retained baseline hosted parser is suitable for unchanged .O sources; this does not attest final installed evaluator provenance"
+  },
+  "integrated_kernel": {
+    "modes": [
+      0,
+      13,
+      19,
+      24
+    ],
+    "passed": true,
+    "compiler_and_sources_unchanged": true,
+    "mode24_kernel_end": "0x380000",
+    "fixed_limit": "0x380000",
+    "report": {
+      "retained_path": "section-integrated-kernel-r2/result.json",
+      "sha256": "940baecdca93074267fcea2f37dd17247eb62a88921dca47d7be529b3faf8b8a",
+      "bytes": 83153
+    },
+    "final_capability_sha256": "0a326f8f1ebf9ba31421d862d89bd83c8551b35bd21693b2db52651de1a3788b",
+    "capability_tail_factoring": {
+      "functions": [
+        "validate_for_owner",
+        "validate_during_drain"
+      ],
+      "saved_raw_text_bytes": 352,
+      "raw_text_end": "0x291fee",
+      "scope": "Only identical sentinel/type/rights/object-ID tails share a private helper. Distinct owner lookup and live-slot validation retain their order; every other capability body is unchanged.",
+      "proof": {
+        "retained_path": "section-runtime-compaction-r4/mechanical-proof.json",
+        "sha256": "524636bbd2c0f546d429cfef7bcc6d59e7193bb00d6a093430d150e759d0f2db",
+        "bytes": 2743
+      },
+      "review": {
+        "retained_path": "section-runtime-compaction-r4/lifecycle-review.json",
+        "sha256": "88e4dd0689aab22d4b546f0b478e9f6eb1c376977ca528303bef13e1254fa8cf",
+        "bytes": 2618
+      }
+    }
+  },
+  "final_lifecycle": {
+    "qualified": true,
+    "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+    "full_report": {
+      "origin": "retained_evidence",
+      "path": "m4-final-section-r1/lifecycle.json",
+      "sha256": "b0fc1d04b42e600e2665efecf23ca36eadce0f25cd41f32e794746368ff2f3f6",
+      "bytes": 46348699
+    },
+    "full_width_cases_per_isa": 33,
+    "observations_per_isa": 535,
+    "compiled_edge_witnesses_all_isas": 27714,
+    "actual_policy_mutations": 14,
+    "final_runner_tests_passed": 35,
+    "inputs_unchanged": true,
+    "compact_projection": "lifecycle-final.json",
+    "independent_projection_review": {
+      "retained_path": "m4-section-public-projection-rv-review.json",
+      "sha256": "74bd46e92f7386547d73c6d4b81e2747dd0d562db0bbe6756ff2d29026d09757",
+      "bytes": 1275
+    }
+  },
+  "custom_section_checks": {
+    "rule": "Explicitly placed functions keep dynamic array guards inline in their executable section.",
+    "NX_fixture": "The shared helper segment is read-only and non-executable; all page-sharing load segments are checked at 4 KiB granularity.",
+    "actual_valid_and_local_trap_cases_per_isa": 4,
+    "old_compiler_negative": {
+      "retained_path": "older-probe-gc/section-old-negative-r1/result.json",
+      "sha256": "08c34b8e9d233520153f46e735db3257ec686af25cdc87e8603749ca49ff2b15",
+      "bytes": 45562
+    },
+    "final_bounds_report": {
+      "retained_path": "section-bounds72-final/bounds.json",
+      "sha256": "14aa8adb733c8c67c4e9d685f07555ba1750d9e85c55b881c61f69f7a2b00e61",
+      "bytes": 1560973
+    },
+    "review": {
+      "retained_path": "older-probe-gc/section-runner-lifecycle-review.json",
+      "sha256": "e277106b23c480b0885d4f36734cd4a03d7762899626401a350b4b0b45b2d4e0",
+      "bytes": 7355
+    },
+    "corrected_mode14": {
+      "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+      "observed_marker": "M3 native IPC smoke: PASS",
+      "stdout": {
+        "retained_path": "older-probe-gc/section-ipc-r1.stdout",
+        "sha256": "e415a4045c88f0fa7e35480eaa4712bf1bbe047bf73455ea496247a4cc8e1f6a",
+        "bytes": 844
+      },
+      "stderr": {
+        "retained_path": "older-probe-gc/section-ipc-r1.stderr",
+        "sha256": "9091abbd3a3a6654f6a05002568cfffa0e8ef9322cc703d60aa42b39785c1ea4",
+        "bytes": 221
+      },
+      "executed_elf": {
+        "retained_path": "older-probe-gc/section-ipc-r1/kernel.elf",
+        "sha256": "63f8a9a74665f8c0e8cf7054714073d92edeefbdfcc42ccd2f359f6ffaae13d3",
+        "bytes": 1737160
+      },
+      "scope": "Corrected x86-64 QEMU Mode14 run before the final two-validator capability-tail factoring. Separate from the final integrated Modes0/13/19/24 source closure; the retained trace files preserve the invocation."
+    }
+  },
+  "legacy_probe_gc": {
+    "source_fix": "Modes 1\u201312,14,21,31 use existing function/data sections and linker reachability collection; source choices and limits stay fixed.",
+    "exact_runtime_source_qualification": {
+      "retained_path": "runtime-gc-exact-a5/qualification.json",
+      "sha256": "4a645879eb3ca6df13f94c8c854fe03d4f764287f69b4edff4dcdd6711fb2e33",
+      "bytes": 102149
+    },
+    "scope": "Five actual M1 smoke scripts cover 14 TCG builds on exact Runtime A5 + reviewed overlays. This is separate from final 3b1 integrated Modes 0/13/19/24.",
+    "Mode21": "Actual compile/link only on its own retained source closure, before the final capability-tail factoring; no hardware execution.",
+    "mode21_report": {
+      "retained_path": "mode21-gc-qualification/result.json",
+      "sha256": "aa36cff5bc0f7b59c19ca55c86276a00d6921175ed18a576fa0a5f5939c98043",
+      "bytes": 13426
+    }
+  },
+  "ci_wiring": {
+    "local_contract_checks": 61,
+    "probe_tools": 9,
+    "old_jobs_preserved": 22,
+    "prior_qemu_steps_preserved": 40,
+    "shared_execution": "Pending against the final combined publication commit; consult its Required CI result.",
+    "source_manifest": {
+      ".github/workflows/ci.yml": {
+        "before_sha256": "4ee4c1552b49e9a124f3412b77c242f473199444d5e5ceef9cf55a70b9e18c13",
+        "after_sha256": "a036b7587b2bbb2123d8c183ab2927948109b78328153cb027b51e2ff543625e"
+      },
+      "ci/required-jobs.toml": {
+        "before_sha256": "4e422b3c0f1c1a20c0e52fe4062766edc29becc58e23b3ad21986c67d79b397e",
+        "after_sha256": "f6256d3cffbe92af79416366ea904586f7d9e3ad627812d36931df43f12b4c57"
+      },
+      "ci/test-suites.toml": {
+        "before_sha256": "be7be348919e8cd47061cd740c5cb431a4d6fb0bc6df37a34d292bed622011ba",
+        "after_sha256": "bee9e775d92f52536784154aca4f266dc619f1f6bbc5640ee42cf1e6d4726cd6"
+      },
+      "tests/test_contract_surfaces.py": {
+        "before_sha256": "1ab920a82ce79e67cfbed0c0761ff89617e235818eeb06a91d233cc5687843c4",
+        "after_sha256": "d59427da583c3320f43d9997c6ee4b378206febdae508b5f9128e6c1eab68f33"
+      }
+    }
+  },
+  "review_receipts": [
+    {
+      "retained_path": "older-probe-gc/section-source-lifecycle-review.json",
+      "sha256": "c2b481f0ab89d021a414b50112e9d20bb5d8771e55b808c01c5734e551c03214",
+      "bytes": 4198
+    },
+    {
+      "retained_path": "older-probe-gc/section-runner-lifecycle-review.json",
+      "sha256": "e277106b23c480b0885d4f36734cd4a03d7762899626401a350b4b0b45b2d4e0",
+      "bytes": 7355
+    },
+    {
+      "retained_path": "older-probe-gc/runtime-gc-independent-review.json",
+      "sha256": "5fe6d9ab297cc02365ef4e038aa61bb4f6d543aa1b5ace093f166ec5f4fc6c9f",
+      "bytes": 4582
+    },
+    {
+      "retained_path": "section-runtime-compaction-r4/lifecycle-review.json",
+      "sha256": "88e4dd0689aab22d4b546f0b478e9f6eb1c376977ca528303bef13e1254fa8cf",
+      "bytes": 2618
+    },
+    {
+      "retained_path": "m4-section-public-projection-rv-review.json",
+      "sha256": "74bd46e92f7386547d73c6d4b81e2747dd0d562db0bbe6756ff2d29026d09757",
+      "bytes": 1275
+    }
+  ],
+  "prior_iteration": {
+    "compiler_sha256": "c478567942292073383dc5a13600166a771cdd69a06d73f501db0e3276ed08d2",
+    "strict_lifecycle_report": {
+      "retained_path": "m4-final-m5-r2/lifecycle.json",
+      "sha256": "94309b785bdbbd341ae25d5c9a4ef358ecdebe20eaef18c6f64437b1859d082a",
+      "bytes": 46044719
+    },
+    "scope": "Valid earlier iteration; retained separately and not substituted for the final 3b1 executions."
+  },
+  "scope": "x86-64 native and system QEMU; AArch64/RV64GC user-mode QEMU. No full-system AArch64, physical RV or SMP qualification.",
+  "publication_snapshot": "Local source-bound freeze before the combined publication commit is known. Required shared CI and final native/MCP installation observations must bind their own exact commits and binary identities.",
+  "final_typed_api_rejections": {
+    "cases": 5,
+    "source_files": 69,
+    "compiler_sha256": "3b1f147354a2d96ac740da6fa2c83ee674b0d6b0f798ef2e9441e2310b19590a",
+    "type_errors_observed": true,
+    "sources_unchanged_at_handoff": true,
+    "report": {
+      "retained_path": "section-final-kernel-identities/identity-rejections.json",
+      "sha256": "431af443430d0d86de12758d468566e007f2d348023d4de1b8c298a2a9f6317f",
+      "bytes": 37259
+    },
+    "scope": "compiler rejection; kernel execution is a separate gate"
+  }
+}

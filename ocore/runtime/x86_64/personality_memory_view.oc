@@ -1,5 +1,18 @@
 module runtime::personality_memory_view;
 
+use runtime::address_space::AddressSpaceHandle;
+use runtime::address_space::address_space_handle_raw;
+use runtime::capability::CSpaceHandle;
+use runtime::capability::CapabilityHandle;
+use runtime::capability::capability_handle_raw;
+use runtime::capability::cspace_handle_raw;
+use runtime::delegated_resource::DelegatedResourceHandle;
+use runtime::delegated_resource::delegated_resource_handle_raw;
+use runtime::personality_rpc::PersonalityRequestHandle;
+use runtime::personality_rpc::personality_request_handle_raw;
+use runtime::process::ProcessHandle;
+use runtime::process::process_handle_raw;
+
 use runtime::address_space::allows;
 use runtime::address_space::is_live as address_space_is_live;
 use runtime::address_space::VM_READ;
@@ -31,6 +44,21 @@ use runtime::user_memory::COPY_OK;
 // M6B's first native memory boundary is deliberately small. Every byte is
 // kernel-owned staging; a view records the foreign virtual address only as
 // immutable validation metadata and never retains a host or service pointer.
+// Nominal identity preserves bits; authority and lifetime checks remain below.
+@opaque
+@transparent
+pub struct MemoryViewHandle { raw: u64 }
+pub const MEMORY_VIEW_HANDLE_FIRST: MemoryViewHandle = MemoryViewHandle { raw: 0x1_b500_0000 };
+pub unsafe fn memory_view_handle_init(result: *mut MemoryViewHandle, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xff00_0000) != 0xb500_0000 { return 0; }
+    if (raw & 0x00ff_ffff) >= 4 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    *result = MemoryViewHandle { raw: raw };
+    return 1;
+}
+pub fn memory_view_handle_raw(value: MemoryViewHandle) -> u64 { return value.raw; }
+
 pub const MAX_PERSONALITY_MEMORY_VIEWS: usize = 4;
 pub const MAX_PERSONALITY_MEMORY_VIEW_BYTES: usize = 128;
 pub const MAX_PERSONALITY_MEMORY_VIEW_TOTAL_BYTES: usize = 256;
@@ -1452,3 +1480,156 @@ pub unsafe fn denial_count() -> u64 { return DENIALS; }
 pub unsafe fn duplicate_denial_count() -> u64 { return DUPLICATE_DENIALS; }
 pub unsafe fn stale_denial_count() -> u64 { return STALE_DENIALS; }
 pub unsafe fn poisoned() -> bool { return POISONED != 0; }
+
+// Typed callers share the primitive adapters' exact rejection accounting
+// and one mutation body, including terminal ordering and irreversible failures.
+pub unsafe fn create_typed(
+    request: PersonalityRequestHandle,
+    caller_process: ProcessHandle,
+    caller_address_space: AddressSpaceHandle,
+    foreign_address: usize,
+    length: usize,
+    direction: u64,
+    service_cspace: CSpaceHandle,
+    capability_out: *mut u64
+) -> u64 {
+    return create(personality_request_handle_raw(request), process_handle_raw(caller_process), address_space_handle_raw(caller_address_space), foreign_address, length, direction, cspace_handle_raw(service_cspace), capability_out);
+}
+
+pub unsafe fn abort_create_typed(view: MemoryViewHandle) -> u64 {
+    return abort_create(memory_view_handle_raw(view));
+}
+
+pub unsafe fn bind_resource_typed(view: MemoryViewHandle, resource: DelegatedResourceHandle) -> u64 {
+    return bind_resource(memory_view_handle_raw(view), delegated_resource_handle_raw(resource));
+}
+
+pub unsafe fn read_byte_typed(
+    service_cspace: CSpaceHandle,
+    capability: CapabilityHandle,
+    offset: usize,
+    result: *mut u8
+) -> u64 {
+    return read_byte(cspace_handle_raw(service_cspace), capability_handle_raw(capability), offset, result);
+}
+
+pub unsafe fn write_byte_typed(
+    service_cspace: CSpaceHandle,
+    capability: CapabilityHandle,
+    offset: usize,
+    value: u8
+) -> u64 {
+    return write_byte(cspace_handle_raw(service_cspace), capability_handle_raw(capability), offset, value);
+}
+
+pub unsafe fn can_reply_typed(
+    service_cspace: CSpaceHandle,
+    capability: CapabilityHandle,
+    committed_length: usize
+) -> bool {
+    return can_reply(cspace_handle_raw(service_cspace), capability_handle_raw(capability), committed_length);
+}
+
+pub unsafe fn reply_typed(
+    service_cspace: CSpaceHandle,
+    capability: CapabilityHandle,
+    committed_length: usize
+) -> u64 {
+    return reply(cspace_handle_raw(service_cspace), capability_handle_raw(capability), committed_length);
+}
+
+pub unsafe fn cancel_typed(view: MemoryViewHandle) -> u64 {
+    return cancel(memory_view_handle_raw(view));
+}
+
+pub unsafe fn timeout_typed(view: MemoryViewHandle) -> u64 {
+    return timeout(memory_view_handle_raw(view));
+}
+
+pub unsafe fn service_died_typed(service_cspace: CSpaceHandle) -> u64 {
+    return service_died(cspace_handle_raw(service_cspace));
+}
+
+pub unsafe fn process_exited_typed(caller_process: ProcessHandle) -> u64 {
+    return process_exited(process_handle_raw(caller_process));
+}
+
+pub unsafe fn unmapped_typed(
+    caller_address_space: AddressSpaceHandle,
+    range_start: usize,
+    range_length: usize
+) -> u64 {
+    return unmapped(address_space_handle_raw(caller_address_space), range_start, range_length);
+}
+
+pub unsafe fn revoke_by_resource_typed(resource: DelegatedResourceHandle) -> u64 {
+    return revoke_by_resource(delegated_resource_handle_raw(resource));
+}
+
+pub unsafe fn revoke_request_typed(request: PersonalityRequestHandle) -> u64 {
+    return revoke_request(personality_request_handle_raw(request));
+}
+
+pub unsafe fn can_consume_terminal_typed(
+    view: MemoryViewHandle,
+    caller_process: ProcessHandle,
+    caller_address_space: AddressSpaceHandle,
+    foreign_address: usize
+) -> u64 {
+    return can_consume_terminal(memory_view_handle_raw(view), process_handle_raw(caller_process), address_space_handle_raw(caller_address_space), foreign_address);
+}
+
+pub unsafe fn consume_terminal_typed(
+    view: MemoryViewHandle,
+    caller_process: ProcessHandle,
+    caller_address_space: AddressSpaceHandle,
+    foreign_address: usize,
+    terminal_kind_out: *mut u64,
+    committed_length_out: *mut usize
+) -> u64 {
+    return consume_terminal(memory_view_handle_raw(view), process_handle_raw(caller_process), address_space_handle_raw(caller_address_space), foreign_address, terminal_kind_out, committed_length_out);
+}
+
+pub unsafe fn discard_terminal_typed(view: MemoryViewHandle) -> u64 {
+    return discard_terminal(memory_view_handle_raw(view));
+}
+
+pub unsafe fn is_live_typed(view: MemoryViewHandle) -> bool {
+    return is_live(memory_view_handle_raw(view));
+}
+
+pub unsafe fn state_typed(view: MemoryViewHandle) -> u64 {
+    return state(memory_view_handle_raw(view));
+}
+
+pub unsafe fn request_for_typed(view: MemoryViewHandle) -> u64 {
+    return request_for(memory_view_handle_raw(view));
+}
+
+pub unsafe fn service_cspace_for_typed(view: MemoryViewHandle) -> u64 {
+    return service_cspace_for(memory_view_handle_raw(view));
+}
+
+pub unsafe fn capability_for_typed(view: MemoryViewHandle) -> u64 {
+    return capability_for(memory_view_handle_raw(view));
+}
+
+pub unsafe fn terminal_kind_typed(view: MemoryViewHandle) -> u64 {
+    return terminal_kind(memory_view_handle_raw(view));
+}
+
+pub unsafe fn committed_length_typed(view: MemoryViewHandle) -> usize {
+    return committed_length(memory_view_handle_raw(view));
+}
+
+pub unsafe fn cap_close_sequence_typed(view: MemoryViewHandle) -> u64 {
+    return cap_close_sequence(memory_view_handle_raw(view));
+}
+
+pub unsafe fn terminal_sequence_typed(view: MemoryViewHandle) -> u64 {
+    return terminal_sequence(memory_view_handle_raw(view));
+}
+
+pub unsafe fn wake_sequence_typed(view: MemoryViewHandle) -> u64 {
+    return wake_sequence(memory_view_handle_raw(view));
+}

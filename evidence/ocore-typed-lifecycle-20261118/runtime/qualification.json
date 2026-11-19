@@ -1,0 +1,97 @@
+{
+  "schema": "ostadix.typed-lifecycle-runtime-qualification/v1",
+  "baseline": "88fc0de62d1064025bf8e31abde68352d1f1d7c9",
+  "source_state": "Executed candidate sources before publication; exact file manifests identify the tested closure.",
+  "compiler_sha256": "5b8a05e9a3d893f8159be424adf63ff9cc28794c277d77917bd9717d058c4b8f",
+  "stages": {
+    "M2": "Implemented; constructor and compiled component checks passed; full guest qualification blocked",
+    "M3a": "Modes 0/13 passed; raw cleanup-key finding corrected; owner/rights/stale/rollback and maximum-ticket retirement tested",
+    "M3b": "Modes 19/24 passed; healthy resource destruction now typed; malformed raw fallback preserves diagnostics",
+    "M4": "All three ISAs passed 33 traces/535 observations each and 27,714 finite edge witnesses; 14 x86 policy mutations killed; 32 model/runner controls passed"
+  },
+  "m3_final_source_sha256": {
+    "ocore/runtime/x86_64/capability.oc": "726800f973ff7031df53f24a9ad97eec3548e697890a09c696942c5870deb70c",
+    "ocore/runtime/x86_64/cap_transfer.oc": "2d163ccc7f7d8da3eda84aee61db72fe5e5e13559c4d1af37c04f4c7788793c0",
+    "ocore/runtime/x86_64/process.oc": "5bca88b6ebdd0e2b8734d497153231eedad255063440c433a94a00319e53eee2",
+    "ocore/runtime/x86_64/memory_object.oc": "d6aec15cf56ff2f30b2cda9a390aebd6e9fa0b3a07c5cab78378fa9c62025bd3",
+    "ocore/runtime/x86_64/address_space.oc": "b405d131d5c32d8a37d7b77605bd648b30d872baef35d1038fb290840720f0d5",
+    "ocore/runtime/x86_64/personality_rpc.oc": "ea65c085b11d431e11ace8b98e1e9070a27fd58dc6527e6071a140a6ef097cdf",
+    "ocore/runtime/x86_64/personality_memory_view.oc": "91b86847c1d0985ed4d1238fbb56a6fb5814a36d5c3ec157390d1b644bfde9e0",
+    "ocore/runtime/x86_64/delegated_resource.oc": "63ba7b4e692ce5575eb9ca416687b0668814891f593d3006581d80c7b26564ef",
+    "ocore/runtime/x86_64/personality_bounded_rpc.oc": "eca9f6ae280346a875a55f805faa6cd52230c5eaf61b5d7fa85c8a9925736ff1",
+    "crates/ostadix-api/test-assets/ocore/runtime/x86_64/capability.oc": "726800f973ff7031df53f24a9ad97eec3548e697890a09c696942c5870deb70c",
+    "ocore/kernel/m3.oc": "fa475b749d490a9bd4f021a1b15b2bac1d8e0f22ea654b5907506a1d28664eba",
+    "ocore/kernel/m6b_semantics.oc": "6f5ca52971bffe6188a0908030e38e01012be18147ce5ed8b8f496dbbe1eb1e2",
+    "ocore/kernel/x86_64/m3_typed_transfer_real.oc": "56bbee873835da21186b65d98ea0a8ed7940d3dfc76955bd75d77401c02b934d",
+    "ocore/kernel/x86_64/m3_typed_transfer_stub.oc": "c736ce0d6da405cce3612808489cc4d72c839a57cdc371c190ba0c6cd04a2322",
+    "tests/test_ocore_typed_kernel_identities.py": "95c864a7ef38786a0725044609114273831191f1830c49e79c1a5b7f704975c2"
+  },
+  "review": {
+    "status": "No remaining correctness findings within reviewed source scope",
+    "resolved": [
+      "Preserve arbitrary nonzero raw cleanup key semantics",
+      "Project healthy stored resource identity before typed destruction",
+      "Keep source-release lifecycle owner closure",
+      "Distinguish namespace-disabled monitor behavior",
+      "Reject inventory paths that can escape generated test copies"
+    ]
+  },
+  "compatibility": {
+    "raw_interfaces_and_static_declarations": "Preserved in the owner declaration audit",
+    "capability_mirror_identical": true,
+    "old_profile_selections": "Preserved; the new transfer mutation corpus alone has a Mode13 real/stub leaf",
+    "linker_limit": "Unchanged; actual required kernel gates passed"
+  },
+  "full_guest_blocker": {
+    "status": "blocked",
+    "required": [
+      "Fresh admitted Linux/Plan9 payload/build pair",
+      "Private seed state and offline APK fixture",
+      "Fresh same-build resident/restart/regression/unit/provenance evidence",
+      "Observed running MCP/evaluator identities with matching roots/revisions"
+    ],
+    "historical_receipts": "Retained unchanged; not substituted for fresh execution"
+  },
+  "remaining_integration": "Separate checked-array compiler must execute its own corpus and the affected integration gates.",
+  "receipts": {
+    "kernel-m3-r1.json": {
+      "sha256": "6072db1c10206d4bcc2edc97883fd9a367f01b20441c980dab5316d72156991c",
+      "bytes": 123566
+    },
+    "kernel-identity-rejections.json": {
+      "sha256": "74fc4291e5966046d47a685a69e9b0db673fbd832ad602bc6898c8833243ee42",
+      "bytes": 37124
+    },
+    "kernel-m3-r2.json": {
+      "sha256": "2cc1b630b5d4fa452e2054df0e4b89d7a1da2e431698338c71f74d74e0b883ef",
+      "bytes": 88876
+    },
+    "lifecycle-component.json": {
+      "sha256": "39b866acb6a579c6a40b6d240f5f0f0f95e9a2a7167affedb68d970138fe4bf6",
+      "bytes": 372737
+    },
+    "o10-native-components.json": {
+      "sha256": "c0f45e4d093b190fc95d9eefc23d673adb30d3c675113b565cb57325d6def978",
+      "bytes": 96666
+    },
+    "identity-runner-admission.json": {
+      "sha256": "4e42915339d0433c6b82e70be33041cb491bae5c76c857782c80236e3377ac6b",
+      "bytes": 1497
+    },
+    "lifecycle-identity-runner.json": {
+      "sha256": "7a3a15e1c91747ecb1b658ca9ce90134017c1cd2b1f9d882d0cad7c50bf0ec22",
+      "bytes": 69987
+    }
+  },
+  "fresh_component_suites": {
+    "passed": 9,
+    "required_skips": 0,
+    "actual_isa": "x86-64",
+    "argv_capture": "Actual compiler/assembler/linker/test-child execve traces retained with each suite"
+  },
+  "identity_runner_admission": {
+    "focused_controls_passed": 4,
+    "three_isa_constructor_execution": "passed with both required runner identities watched",
+    "caller_relative_output": "executed from outside the repository after absolute-path admission"
+  }
+}

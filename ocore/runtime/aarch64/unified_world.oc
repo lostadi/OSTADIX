@@ -1,18 +1,33 @@
 module runtime::aarch64::unified_world;
 
+use runtime::common::lifecycle_identity::O10DomainGeneration;
+use runtime::common::lifecycle_identity::NamespaceTransportEpoch;
+use runtime::common::lifecycle_identity::NamespaceSessionEpoch;
+use runtime::common::lifecycle_identity::O10_DOMAIN_FIRST;
+use runtime::common::lifecycle_identity::NAMESPACE_TRANSPORT_FIRST;
+use runtime::common::lifecycle_identity::NAMESPACE_SESSION_FIRST;
+use runtime::common::lifecycle_identity::o10_domain_generation_raw;
+use runtime::common::lifecycle_identity::o10_domain_generation_next;
+use runtime::common::lifecycle_identity::o10_domain_generation_equal;
+use runtime::common::lifecycle_identity::o10_domain_handle;
+use runtime::common::lifecycle_identity::o10_domain_handle_generation;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_next;
+use runtime::common::lifecycle_identity::namespace_session_epoch_raw;
+
 use runtime::aarch64::kernel_world_monitor::kw_monitor_init as linux_init;
-use runtime::aarch64::kernel_world_monitor::kw_linux_detach as linux_detach;
-use runtime::aarch64::kernel_world_monitor::kw_linux_provision as linux_provision;
+use runtime::aarch64::kernel_world_monitor::kw_linux_detach_typed as linux_detach;
+use runtime::aarch64::kernel_world_monitor::kw_linux_provision_typed as linux_provision;
 use runtime::aarch64::kernel_world_monitor::kw_linux_activate as linux_activate;
+use runtime::aarch64::kernel_world_monitor::kw_linux_namespace_enabled as linux_namespace_enabled;
 use runtime::aarch64::kernel_world_virtio::generation as linux_block_generation;
 use runtime::aarch64::kernel_world_net::generation as linux_net_generation;
-use runtime::aarch64::kernel_world_9p::generation as linux_namespace_generation;
-use runtime::aarch64::kernel_world_9p::bind_current as linux_bind;
-use runtime::aarch64::kernel_world_9p::next_session_epoch as linux_next_session_epoch;
+use runtime::aarch64::kernel_world_9p::generation_identity as linux_namespace_generation;
+use runtime::aarch64::kernel_world_9p::bind_current_typed as linux_bind;
+use runtime::aarch64::kernel_world_9p::next_session_epoch_typed as linux_next_session_epoch;
 use runtime::aarch64::linux_domain_images::register as linux_images_register;
 use runtime::aarch64::linux_domain_images::reload as linux_images_reload;
 use runtime::aarch64::linux_restart_witness::execute as linux_restart_observe;
-use runtime::common::namespace_store::session_init as namespace_session_init;
+use runtime::aarch64::kernel_world_9p::session_init_typed as namespace_session_init;
 use runtime::aarch64::kernel_world_monitor::kw_handle_exit_checked as linux_exit;
 use runtime::aarch64::kernel_world_monitor::checked_diagnostic as linux_diagnostic;
 use runtime::aarch64::kernel_world_monitor::checked_detail as linux_detail;
@@ -104,7 +119,7 @@ static mut LINUX_DETACHED: u64 = 0;
 static mut LINUX_WAIT_BIND: u64 = 0;
 static mut LINUX_LEASE_GENERATION: u64 = 1;
 static mut LINUX_SESSION_GENERATION: u64 = 1;
-static mut O10_DOMAIN_GENERATION: [u64; 2] = [1; 2];
+static mut O10_DOMAIN_GENERATION: [O10DomainGeneration; 2] = [O10_DOMAIN_FIRST; 2];
 static mut O10_INSTANCE: [u8; 32] = [0; 32];
 static mut O10_SWITCHES: [u64; 2] = [0; 2];
 static mut O10_LAST_IPA: [u64; 2] = [0; 2];
@@ -188,7 +203,9 @@ unsafe fn stop_linux(pc: u64) -> void {
         if LINUX_DETACHED == 0 {
             if LINUX_LEASE_GENERATION == 0xffff_ffff { uw_internal_failure(0x1106, 0, LINUX_LEASE_GENERATION, 0); }
             LINUX_LEASE_GENERATION += 1;
-            if linux_detach(linux_block_generation(), linux_net_generation(), linux_namespace_generation()) != 1 {
+            let mut transport: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+            if (linux_namespace_enabled() == 1 && linux_namespace_generation(&mut transport) != 1)
+                || linux_detach(linux_block_generation(), linux_net_generation(), transport) != 1 {
                 uw_internal_failure(0x1109, 0x1114, 0, pc);
             }
             LINUX_DETACHED = 1;
@@ -567,7 +584,9 @@ unsafe fn progress() -> void {
 unsafe fn o10_domain(handle: u64) -> u64 {
     let index: u64 = handle & 0xffff_ffff;
     if index >= 2 { return MAX; }
-    if (handle >> 32) != O10_DOMAIN_GENERATION[index as usize] { return MAX; }
+    let mut generation: O10DomainGeneration = O10_DOMAIN_FIRST;
+    if o10_domain_handle_generation(&mut generation, handle) != 1
+        || !o10_domain_generation_equal(generation, O10_DOMAIN_GENERATION[index as usize]) { return MAX; }
     return index;
 }
 unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
@@ -582,7 +601,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         if index == MAX {
             let slot: u64 = handle & 0xffff_ffff;
             let mut generation: u64 = 0;
-            if slot < 2 { generation = O10_DOMAIN_GENERATION[slot as usize]; }
+            if slot < 2 { generation = o10_domain_generation_raw(O10_DOMAIN_GENERATION[slot as usize]); }
             return o10_error(response, 512, tag, 5, generation);
         }
         if o10_read(request, 31, 2) != 1 { return o10_error(response, 512, tag, 9, 0); }
@@ -599,7 +618,7 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         let index: u64 = handle & 0xffff_ffff;
         if index >= 2 { return o10_error(response, 512, tag, 5, 0); }
         if o10_domain(handle) == MAX {
-            return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[index as usize]);
+            return o10_error(response, 512, tag, 5, o10_domain_generation_raw(O10_DOMAIN_GENERATION[index as usize]));
         }
         if kind == 178 {
             o10_header(response, 179, tag, 77);
@@ -642,20 +661,25 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
             if o10_read(request, 47, 8) != 3 || o10_read(request, 55, 8) != 4 {
                 return o10_error(response, 512, tag, 5, 0);
             }
-            if O10_DOMAIN_GENERATION[0] == 0xffff_ffff || linux_block_generation() == 0xffff_ffff
-                || linux_net_generation() == 0xffff_ffff || linux_namespace_generation() == MAX {
+            let mut next_domain: O10DomainGeneration = O10_DOMAIN_FIRST;
+            let mut transport: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+            let mut next_transport: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+            if o10_domain_generation_next(&mut next_domain, O10_DOMAIN_GENERATION[0]) != 1
+                || linux_block_generation() == 0xffff_ffff || linux_net_generation() == 0xffff_ffff
+                || (linux_namespace_enabled() == 1 && (linux_namespace_generation(&mut transport) != 1
+                    || namespace_transport_epoch_next(&mut next_transport, transport) != 1)) {
                 return o10_error(response, 512, tag, 8, 0xffff_ffff);
             }
             if linux_images_reload() != 0 { return o10_error(response, 512, tag, 12, 4); }
             if uw_domain_reset(0, 0x4000_0000, 0x47e0_0000, 0x3c5) != 1 || gic_reset(0) != 1
-                || linux_provision(linux_block_generation() + 1, linux_net_generation() + 1, linux_namespace_generation() + 1) != 1
+                || linux_provision(linux_block_generation() + 1, linux_net_generation() + 1, next_transport) != 1
                 || coordinator_init() != 1 {
                 uw_internal_failure(0x1109, 0x1115, 0, LAST_PC[0]);
             }
-            O10_DOMAIN_GENERATION[0] += 1;
+            O10_DOMAIN_GENERATION[0] = next_domain;
             let mut j: usize = 0; while j < 16 { O10_INSTANCE[j] = volatile_load(request + 31 + j); j += 1; }
             LINUX_WITHDRAWN = 0; LINUX_WAIT_BIND = 1; BLOCKED[0] = 1; LIVE[0] = 1;
-            o10_header(response, 175, tag, 15); o10_write(response, 7, O10_DOMAIN_GENERATION[0] << 32, 8); return 15;
+            o10_header(response, 175, tag, 15); o10_write(response, 7, o10_domain_handle(O10_DOMAIN_GENERATION[0], 0), 8); return 15;
         }
         if kind == 172 {
             if PLAN9_WITHDRAWN == 1 { return o10_error(response, 512, tag, 12, 5); }
@@ -676,36 +700,38 @@ unsafe fn o10_platform(request: *const u8, response: *mut u8) -> usize {
         if o10_read(request, 47, 8) != 1 || o10_read(request, 55, 8) != 2 {
             return o10_error(response, 512, tag, 5, 0);
         }
-        if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+        if o10_domain_generation_raw(O10_DOMAIN_GENERATION[1]) == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
         if restore_plan9(false) != 1 { return o10_error(response, 512, tag, 12, 4); }
         let mut j: usize = 0;
         while j < 16 { O10_INSTANCE[16 + j] = volatile_load(request + 31 + j); j += 1; }
         // The new kernel waits for its explicit namespace transport binding.
         O10_WAIT_BIND = 1; BLOCKED[1] = 1;
         o10_header(response, 175, tag, 15);
-        o10_write(response, 7, (O10_DOMAIN_GENERATION[1] << 32) | 1, 8); return 15;
+        o10_write(response, 7, o10_domain_handle(O10_DOMAIN_GENERATION[1], 1), 8); return 15;
     }
     if kind == 184 {
         let lease: u64 = o10_read(request, 23, 8);
         let transport: u64 = o10_read(request, 31, 8);
         if (lease & 0xffff_ffff) == 1 {
             if (lease >> 32) != LINUX_LEASE_GENERATION { return o10_error(response, 512, tag, 5, LINUX_LEASE_GENERATION); }
-            if (transport >> 32) != O10_DOMAIN_GENERATION[0] { return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[0]); }
+            if (transport >> 32) != o10_domain_generation_raw(O10_DOMAIN_GENERATION[0]) { return o10_error(response, 512, tag, 5, o10_domain_generation_raw(O10_DOMAIN_GENERATION[0])); }
             if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
             if LIVE[0] != 1 || LINUX_WAIT_BIND != 1 { return o10_error(response, 512, tag, 12, 5); }
-            let epoch: u64 = linux_next_session_epoch();
-            if epoch == 0 || LINUX_SESSION_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
+            let mut epoch: NamespaceSessionEpoch = NAMESPACE_SESSION_FIRST;
+            if linux_next_session_epoch(&mut epoch) != 1 || LINUX_SESSION_GENERATION == 0xffff_ffff { return o10_error(response, 512, tag, 8, 0xffff_ffff); }
             let session: u64 = namespace_session_init(1, epoch);
-            if session == 0 || linux_bind(linux_namespace_generation(), session, epoch) != 1 || linux_activate() != 1 {
-                uw_internal_failure(0x1109, 0x1116, epoch, LAST_PC[0]);
+            let mut transport_epoch: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+            if session == 0 || (linux_namespace_enabled() == 1 && linux_namespace_generation(&mut transport_epoch) != 1)
+                || linux_bind(transport_epoch, session, epoch) != 1 || linux_activate() != 1 {
+                uw_internal_failure(0x1109, 0x1116, namespace_session_epoch_raw(epoch), LAST_PC[0]);
             }
             LINUX_SESSION_GENERATION += 1; LINUX_WAIT_BIND = 0; LINUX_DETACHED = 0; BLOCKED[0] = 0;
             o10_header(response, 185, tag, 15); o10_write(response, 7, (LINUX_SESSION_GENERATION << 32) | 1, 8); return 15;
         }
         if (lease & 0xffff_ffff) != 4 { return o10_error(response, 512, tag, 6, 0); }
         if (lease >> 32) != O10_LEASE_GENERATION { return o10_error(response, 512, tag, 5, O10_LEASE_GENERATION); }
-        if (transport >> 32) != O10_DOMAIN_GENERATION[1] {
-            return o10_error(response, 512, tag, 5, O10_DOMAIN_GENERATION[1]);
+        if (transport >> 32) != o10_domain_generation_raw(O10_DOMAIN_GENERATION[1]) {
+            return o10_error(response, 512, tag, 5, o10_domain_generation_raw(O10_DOMAIN_GENERATION[1]));
         }
         if (transport & 0xffff_ffff) != 0 { return o10_error(response, 512, tag, 6, 0); }
         if LIVE[1] != 1 { return o10_error(response, 512, tag, 12, 5); }
@@ -740,7 +766,8 @@ unsafe fn restore_plan9(bind_wire: bool) -> u64 {
     // Shared by legacy pre-claim and O10 replacement. Reject exhaustion before
     // zeroing RAM or touching architectural state; publish one new identity
     // only after the complete replacement succeeds.
-    if O10_DOMAIN_GENERATION[1] == 0xffff_ffff { return 0; }
+    let mut next_domain: O10DomainGeneration = O10_DOMAIN_FIRST;
+    if o10_domain_generation_next(&mut next_domain, O10_DOMAIN_GENERATION[1]) != 1 { return 0; }
     let mut result: u64 = 0;
         let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
         let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
@@ -767,7 +794,7 @@ unsafe fn restore_plan9(bind_wire: bool) -> u64 {
                 UART[0x30 / 4] = 0x301;
                 RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
                 INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
-                O10_DOMAIN_GENERATION[1] += 1;
+                O10_DOMAIN_GENERATION[1] = next_domain;
                 PLAN9_WITHDRAWN = 0; BLOCKED[1] = 0; LIVE[1] = 1; result = 1;
             }
         }

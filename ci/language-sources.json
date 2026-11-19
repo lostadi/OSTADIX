@@ -294,7 +294,9 @@
         "ocore/kernel/world_value_semantics.oc",
         "ocore/kernel/world_value_semantics_stub.oc",
         "ocore/kernel/x86_64/boot_info.oc",
-        "ocore/kernel/x86_64/boot_info_stub.oc"
+        "ocore/kernel/x86_64/boot_info_stub.oc",
+        "ocore/kernel/x86_64/m3_typed_transfer_real.oc",
+        "ocore/kernel/x86_64/m3_typed_transfer_stub.oc"
       ]
     },
     {
@@ -1237,6 +1239,21 @@
       "sources": [
         "ocore/runtime/common/lifecycle_identity.oc",
         "tests/fixtures/ocore_lifecycle_identity.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-array-bounds",
+      "category": "fixture",
+      "reason": "Checked ordinary array indexing uses a typed MIR address operation; native fixtures exercise bounds, overflow and evaluation order.",
+      "coverage": [
+        {
+          "path": "scripts/check_ocore_array_bounds.py",
+          "kind": "runtime",
+          "conditions": "Requires the current compiler, Clang/LLD and all canonical target runners; isolated real traps and side effects, no diagnostic partial qualification."
+        }
+      ],
+      "sources": [
+        "tests/fixtures/ocore_array_bounds.oc"
       ]
     }
   ],
