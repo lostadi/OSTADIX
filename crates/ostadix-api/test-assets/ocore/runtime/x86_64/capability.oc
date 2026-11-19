@@ -259,22 +259,7 @@ unsafe fn clear_and_advance_slot(index: usize) -> bool {
     return true;
 }
 
-unsafe fn checked_cspace(handle: u64) -> usize {
-    if INITIALIZED == 0 || (handle & HANDLE_TAG_MASK) != CSPACE_HANDLE_TAG {
-        return MAX_CSPACES;
-    }
-    let slot: usize = cspace_index(handle);
-    if slot >= MAX_CSPACES || CSPACE_STATES[slot] != CSPACE_LIVE {
-        return MAX_CSPACES;
-    }
-    if !generation_is_live(CSPACE_GENERATIONS[slot])
-        || CSPACE_GENERATIONS[slot] != cspace_generation(handle) {
-        return MAX_CSPACES;
-    }
-    return slot;
-}
-
-unsafe fn checked_cspace_owner(handle: u64) -> usize {
+unsafe fn checked_cspace_in_states(handle: u64, first: u8, second: u8) -> usize {
     if INITIALIZED == 0 || (handle & HANDLE_TAG_MASK) != CSPACE_HANDLE_TAG {
         return MAX_CSPACES;
     }
@@ -282,8 +267,8 @@ unsafe fn checked_cspace_owner(handle: u64) -> usize {
     if slot >= MAX_CSPACES {
         return MAX_CSPACES;
     }
-    if CSPACE_STATES[slot] != CSPACE_LIVE
-        && CSPACE_STATES[slot] != CSPACE_DRAINING {
+    let state: u8 = CSPACE_STATES[slot];
+    if state != first && state != second {
         return MAX_CSPACES;
     }
     if !generation_is_live(CSPACE_GENERATIONS[slot])
@@ -293,19 +278,16 @@ unsafe fn checked_cspace_owner(handle: u64) -> usize {
     return slot;
 }
 
+unsafe fn checked_cspace(handle: u64) -> usize {
+    return checked_cspace_in_states(handle, CSPACE_LIVE, CSPACE_LIVE);
+}
+
+unsafe fn checked_cspace_owner(handle: u64) -> usize {
+    return checked_cspace_in_states(handle, CSPACE_LIVE, CSPACE_DRAINING);
+}
+
 unsafe fn checked_draining_cspace(handle: u64) -> usize {
-    if INITIALIZED == 0 || (handle & HANDLE_TAG_MASK) != CSPACE_HANDLE_TAG {
-        return MAX_CSPACES;
-    }
-    let slot: usize = cspace_index(handle);
-    if slot >= MAX_CSPACES || CSPACE_STATES[slot] != CSPACE_DRAINING {
-        return MAX_CSPACES;
-    }
-    if !generation_is_live(CSPACE_GENERATIONS[slot])
-        || CSPACE_GENERATIONS[slot] != cspace_generation(handle) {
-        return MAX_CSPACES;
-    }
-    return slot;
+    return checked_cspace_in_states(handle, CSPACE_DRAINING, CSPACE_DRAINING);
 }
 
 pub fn valid_cspace_slot(slot: usize) -> bool {

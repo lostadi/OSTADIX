@@ -305,6 +305,57 @@ class LifecycleRunnerAdmissionTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             gate.compare_case(self.case, self.encode(self.observed()), 86)
 
+    def test_early_terminal_stream_identifies_its_first_divergent_prefix(self):
+        rows = self.observed()[:14]
+        rows[-1]['terminal'] = [0x1109, 0x1115, 0, 0]
+        diagnosis = gate.divergent_prefix(self.case, self.encode(rows))
+        self.assertEqual(diagnosis, {'commands': 13, 'basis': 'first divergent observation'})
+        prefix = dict(self.case, steps=self.case['steps'][:12])
+        self.assertTrue(gate.compare_case(prefix, self.encode(rows[:13]), 0)['matched'])
+
+    def test_carrier_borrowed_arrays_use_primitive_alignment_and_word_loads(self):
+        compiler = gate.native.tool('clang', 'Clang required for observation ABI regression')
+        source = gate.ROOT / 'tests/fixtures/ocore_lifecycle_carrier.c'
+        with tempfile.TemporaryDirectory() as name:
+            output = Path(name) / 'carrier.ll'
+            command = [compiler, '-O2', '-ffreestanding', '-fno-builtin',
+                       '-S', '-emit-llvm', str(source), '-o', str(output)]
+            result = subprocess.run(command, capture_output=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+            ir = output.read_text()
+            names = ('_O_runtime__common__namespace_store__GENERATION',
+                     '_O_runtime__aarch64__unified_world__O10_DOMAIN_GENERATION',
+                     '_O_runtime__aarch64__unified_world__LIVE',
+                     '_O_runtime__aarch64__unified_world__BLOCKED')
+            for symbol in names:
+                declaration = next(line for line in ir.splitlines() if line.startswith('@' + symbol + ' ='))
+                self.assertRegex(declaration, r'\balign 8(?:,|$)')
+            self.assertIn('load volatile i64', ir)
+            self.assertNotIn('load volatile <', ir)
+
+    def test_shortened_mutation_crash_cannot_count_as_reproduced_mismatch(self):
+        calls = []
+        def execution(cases, executable, prefix, directory, evidence):
+            directory.mkdir(parents=True)
+            calls.append(directory.name)
+            failure = {'case': cases[0]['name'], 'trace': cases[0]['steps'],
+                       'error': 'synthetic observation mismatch',
+                       'exit_code': 0 if len(calls) == 1 else 97}
+            (directory / 'failing-trace.json').write_text(json.dumps(failure))
+            (directory / (cases[0]['name'] + '.stdout')).write_bytes(b'not used by this control')
+            raise RuntimeError('synthetic observation mismatch')
+        with tempfile.TemporaryDirectory() as name:
+            args = SimpleNamespace(source_root=Path('/unused'), targets=['x86_64'])
+            mutation = {'name': 'control', 'changes': [], 'case_names': [self.case['name']]}
+            with patch.object(gate, 'mutation_specs', return_value=[mutation]), \
+                 patch.object(gate, 'prepare_inputs', return_value=([], Path('/unused'), [])), \
+                 patch.object(gate, 'build_target', return_value=(Path('/unused'), {})), \
+                 patch.object(gate, 'execute_cases', side_effect=execution), \
+                 patch.object(gate, 'divergent_prefix', return_value={'commands': 1, 'basis': 'control'}), \
+                 self.assertRaisesRegex(RuntimeError, 'shortened mutation runtime is inconclusive'):
+                gate.execute_mutations(args, Path(name), None, {'cases': [self.case]}, {'x86_64': []})
+            self.assertEqual(calls, ['witness', 'minimal-prefix'])
+
     def test_changed_reply_and_effect_order_are_detected(self):
         rows = self.observed()
         rows[-1]['reply'] = '00'

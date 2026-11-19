@@ -1,0 +1,50 @@
+{
+  "root": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/arrays-worktree",
+  "files": {
+    "crates/ostadix-api/src/ocore/hir.rs": {
+      "sha256": "f7d277a71d6323301fa47d213de176b9bb09ec73ec98337273168b01676de289",
+      "bytes": 16696
+    },
+    "crates/ostadix-api/src/ocore/typeck.rs": {
+      "sha256": "4502cd94bb2b3eb4a8daf03f5c33c266ae5a1696faba598e9bd4620c2b2a0e36",
+      "bytes": 136127
+    },
+    "crates/ostadix-api/src/ocore/mir.rs": {
+      "sha256": "d3b062e5c3393021f0944d0ba5ba39355238cd3b37fdfc83e8a8cebbbd649399",
+      "bytes": 131735
+    },
+    "crates/ostadix-api/src/ocore/codegen.rs": {
+      "sha256": "28720b2001fcf380ec246493fa7caeca495fc7799984a514ee2de4ef7a0f8927",
+      "bytes": 95371
+    },
+    "crates/ostadix-api/src/ocore/codegen_aarch64.rs": {
+      "sha256": "3404329d90f68523fc4e5f65180b44fc1a3c0651875ffd77f1252fa0a96a9194",
+      "bytes": 104521
+    },
+    "crates/ostadix-api/src/ocore/codegen_riscv64.rs": {
+      "sha256": "b0d522be3e61d31f8ab0669b847476a70763f48357c237a140525928bcf86400",
+      "bytes": 90889
+    },
+    "docs/OCORE.md": {
+      "sha256": "6c6f1c7d27f9ddd64da897268406d3d823857a99336c278d02e4ed98adedad6b",
+      "bytes": 168515
+    },
+    "scripts/check_ocore_array_bounds.py": {
+      "sha256": "633f8a98a8e04e63cbd8e7e52b03e895a125e6dd061d4321da198b311e05274d",
+      "bytes": 12826
+    },
+    "tests/test_ocore_array_bounds.py": {
+      "sha256": "3e1ac5a14e03642e98b1534d44ba9508e5bb475d6094d113a353c66b969cd68b",
+      "bytes": 5071
+    },
+    "tests/fixtures/ocore_array_bounds.oc": {
+      "sha256": "7c532dc49fd4534910e9910fbc3715ebb325b845b8aca8b505800632ad5c7926",
+      "bytes": 7442
+    },
+    "tests/fixtures/ocore_array_bounds.c": {
+      "sha256": "c097961df706623317dc648ca08975b3058b8ac4a77979923abc1bc6549e9b4b",
+      "bytes": 2210
+    }
+  },
+  "scope": "M5 final production plus runner review fixes,9 controls and68 actual selectors; qualification pending"
+}

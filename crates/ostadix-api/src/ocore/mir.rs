@@ -31,6 +31,355 @@ pub struct MirFunction {
     pub entry: BlockId,
 }
 
+#[derive(Clone, Copy)]
+pub struct MirConstant {
+    pub value: u64,
+    pub block: BlockId,
+    pub instruction: usize,
+}
+
+/// Only a unique definition in the same block before the use can discharge a
+/// machine check. This does not assume dominance for malformed MIR.
+pub fn local_constants(function: &MirFunction) -> Vec<Option<MirConstant>> {
+    let mut seen = vec![false; function.values.len()];
+    let mut constants = vec![None; function.values.len()];
+    for (block, body) in function.blocks.iter().enumerate() {
+        for (instruction, operation) in body.instructions.iter().enumerate() {
+            let dst = match operation {
+                Instruction::Const { dst, .. }
+                | Instruction::FunctionAddress { dst, .. }
+                | Instruction::AddressOf { dst, .. }
+                | Instruction::CheckedArrayElementAddress { dst, .. }
+                | Instruction::Load { dst, .. }
+                | Instruction::Unary { dst, .. }
+                | Instruction::Binary { dst, .. }
+                | Instruction::Cast { dst, .. }
+                | Instruction::Wrap { dst, .. }
+                | Instruction::Unwrap { dst, .. }
+                | Instruction::Phi { dst, .. } => Some(*dst),
+                Instruction::Call { dst, .. }
+                | Instruction::CallIndirect { dst, .. }
+                | Instruction::Intrinsic { dst, .. } => *dst,
+                _ => None,
+            };
+            if let Some(dst) = dst.filter(|dst| *dst < constants.len()) {
+                if seen[dst] {
+                    constants[dst] = None;
+                } else if let Instruction::Const { value, .. } = operation {
+                    constants[dst] = Some(MirConstant {
+                        value: *value,
+                        block,
+                        instruction,
+                    });
+                }
+                seen[dst] = true;
+            }
+        }
+    }
+    constants
+}
+
+pub fn local_constant_before(
+    constants: &[Option<MirConstant>],
+    value: ValueId,
+    block: BlockId,
+    instruction: usize,
+) -> Option<u64> {
+    constants
+        .get(value)
+        .copied()
+        .flatten()
+        .filter(|constant| constant.block == block && constant.instruction < instruction)
+        .map(|constant| constant.value)
+}
+
+#[derive(Clone, Copy)]
+pub enum ArrayIndexPlan {
+    Dynamic,
+    Offset(u64),
+    Trap,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ArrayHelperShape {
+    pub signed: bool,
+    pub len: u64,
+    pub size: u64,
+}
+
+impl ArrayHelperShape {
+    pub fn label(self) -> String {
+        format!(
+            ".L_ocore_array_bounds_{}_{}_{}",
+            if self.signed { "s" } else { "u" },
+            self.len,
+            self.size
+        )
+    }
+}
+
+pub fn array_index_plan(
+    index_type: &Type,
+    constant: Option<u64>,
+    len: u64,
+    size: u64,
+) -> ArrayIndexPlan {
+    if len == 0 {
+        return ArrayIndexPlan::Trap;
+    }
+    let Some(raw) = constant else {
+        return ArrayIndexPlan::Dynamic;
+    };
+    let (bits, signed) = match index_type {
+        Type::Int {
+            bits: bits @ (8 | 16 | 32 | 64),
+            signed,
+        } => (*bits, *signed),
+        Type::Isize => (64, true),
+        Type::Usize => (64, false),
+        _ => return ArrayIndexPlan::Dynamic,
+    };
+    let mask = if bits == 64 {
+        u64::MAX
+    } else {
+        (1u64 << bits) - 1
+    };
+    let value = raw & mask;
+    if (signed && value & (1u64 << (bits - 1)) != 0) || value >= len {
+        return ArrayIndexPlan::Trap;
+    }
+    value
+        .checked_mul(size)
+        .map_or(ArrayIndexPlan::Trap, ArrayIndexPlan::Offset)
+}
+
+fn value_definition(operation: &Instruction) -> Option<ValueId> {
+    match operation {
+        Instruction::Const { dst, .. }
+        | Instruction::FunctionAddress { dst, .. }
+        | Instruction::AddressOf { dst, .. }
+        | Instruction::CheckedArrayElementAddress { dst, .. }
+        | Instruction::Load { dst, .. }
+        | Instruction::Unary { dst, .. }
+        | Instruction::Binary { dst, .. }
+        | Instruction::Cast { dst, .. }
+        | Instruction::Wrap { dst, .. }
+        | Instruction::Unwrap { dst, .. }
+        | Instruction::Phi { dst, .. } => Some(*dst),
+        Instruction::Call { dst, .. }
+        | Instruction::CallIndirect { dst, .. }
+        | Instruction::Intrinsic { dst, .. } => *dst,
+        _ => None,
+    }
+}
+
+fn place_values(place: &Place, visit: &mut impl FnMut(ValueId)) {
+    if let PlaceBase::Pointer(value) = place.base {
+        visit(value);
+    }
+    for projection in &place.projections {
+        if let Projection::Index { index, .. } = projection {
+            visit(*index);
+        }
+    }
+}
+
+fn instruction_values(operation: &Instruction, visit: &mut impl FnMut(ValueId)) {
+    match operation {
+        Instruction::Const { .. } | Instruction::FunctionAddress { .. } => {}
+        Instruction::AddressOf { place, .. } | Instruction::Load { place, .. } => {
+            place_values(place, visit)
+        }
+        Instruction::Store { place, value, .. } => {
+            place_values(place, visit);
+            visit(*value);
+        }
+        Instruction::Copy {
+            destination,
+            source,
+            ..
+        } => {
+            place_values(destination, visit);
+            place_values(source, visit);
+        }
+        Instruction::CheckedArrayElementAddress { base, index, .. } => {
+            visit(*base);
+            visit(*index);
+        }
+        Instruction::Unary { operand, .. } => visit(*operand),
+        Instruction::Binary { lhs, rhs, .. } => {
+            visit(*lhs);
+            visit(*rhs);
+        }
+        Instruction::Cast { value, .. }
+        | Instruction::Wrap { value, .. }
+        | Instruction::Unwrap { value, .. } => visit(*value),
+        Instruction::Call { args, .. } | Instruction::Intrinsic { args, .. } => {
+            args.iter().for_each(|value| visit(*value))
+        }
+        Instruction::CallIndirect { callee, args, .. } => {
+            visit(*callee);
+            args.iter().for_each(|value| visit(*value));
+        }
+        Instruction::Phi { incoming, .. } => incoming.iter().for_each(|(_, value)| visit(*value)),
+        Instruction::Asm { operands, .. } => {
+            for operand in operands {
+                match operand {
+                    MirAsmOperand::In { value, .. } => visit(*value),
+                    MirAsmOperand::Out { target, .. } => place_values(target, visit),
+                    MirAsmOperand::InOut { input, output, .. } => {
+                        visit(*input);
+                        place_values(output, visit);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Bounds-only machine reductions. Captured pointer/index SSA operands never
+/// reload a source local after an index effect. There is no alias inference.
+pub struct ArrayLowering {
+    pub constants: Vec<Option<MirConstant>>,
+    pub omit_constants: Vec<bool>,
+    pub base_places: Vec<Option<Place>>,
+    pub adjacent_loads: Vec<Option<(ValueId, Place)>>,
+    pub skip_loads: Vec<Vec<bool>>,
+    pub needs_helper: bool,
+    pub helper_shapes: std::collections::BTreeSet<ArrayHelperShape>,
+}
+
+impl ArrayLowering {
+    pub fn new(types: &TypeContext, function: &MirFunction) -> Self {
+        let count = function.values.len();
+        let mut uses = vec![0usize; count];
+        let mut definitions = vec![None; count];
+        let mut seen = vec![false; count];
+        for (block, body) in function.blocks.iter().enumerate() {
+            for (instruction, operation) in body.instructions.iter().enumerate() {
+                instruction_values(operation, &mut |value| {
+                    if let Some(count) = uses.get_mut(value) {
+                        *count += 1;
+                    }
+                });
+                if let Some(dst) = value_definition(operation).filter(|dst| *dst < count) {
+                    definitions[dst] = if seen[dst] {
+                        None
+                    } else {
+                        Some((block, instruction))
+                    };
+                    seen[dst] = true;
+                }
+            }
+            match body.terminator {
+                Terminator::Return(Some(value))
+                | Terminator::Branch {
+                    condition: value, ..
+                } => {
+                    if let Some(count) = uses.get_mut(value) {
+                        *count += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut result = Self {
+            constants: local_constants(function),
+            omit_constants: vec![false; count],
+            base_places: vec![None; count],
+            adjacent_loads: vec![None; count],
+            skip_loads: function
+                .blocks
+                .iter()
+                .map(|body| vec![false; body.instructions.len()])
+                .collect(),
+            needs_helper: false,
+            helper_shapes: std::collections::BTreeSet::new(),
+        };
+        let mut folded_index_uses = vec![0usize; count];
+        for (block, body) in function.blocks.iter().enumerate() {
+            for (instruction, operation) in body.instructions.iter().enumerate() {
+                let Instruction::CheckedArrayElementAddress {
+                    dst,
+                    base,
+                    index,
+                    array,
+                } = operation
+                else {
+                    continue;
+                };
+                let Ok((len, size)) =
+                    validate_checked_array_address(types, function, *dst, *base, *index, *array)
+                else {
+                    continue;
+                };
+                let constant = local_constant_before(&result.constants, *index, block, instruction);
+                let plan =
+                    array_index_plan(&types.types[function.values[*index]], constant, len, size);
+                result.needs_helper |= matches!(plan, ArrayIndexPlan::Dynamic);
+                if matches!(plan, ArrayIndexPlan::Dynamic) {
+                    result.helper_shapes.insert(ArrayHelperShape {
+                        signed: matches!(
+                            types.types[function.values[*index]],
+                            Type::Int { signed: true, .. } | Type::Isize
+                        ),
+                        len,
+                        size,
+                    });
+                }
+                if constant.is_some() && !matches!(plan, ArrayIndexPlan::Dynamic) {
+                    folded_index_uses[*index] += 1;
+                }
+                if uses[*base] == 1 {
+                    if let Some((source_block, source_instruction)) = definitions[*base] {
+                        if source_block == block && source_instruction < instruction {
+                            if let Instruction::AddressOf { place, .. } =
+                                &body.instructions[source_instruction]
+                            {
+                                let mut stable = true;
+                                place_values(place, &mut |value| {
+                                    stable &= definitions.get(value).is_some_and(Option::is_some)
+                                });
+                                if stable {
+                                    result.base_places[*base] = Some(place.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                if uses[*dst] == 1 {
+                    if let Some(Instruction::Load {
+                        dst: loaded,
+                        place,
+                        volatile: false,
+                    }) = body.instructions.get(instruction + 1)
+                    {
+                        let Type::Array { element, .. } = types.types[*array] else {
+                            unreachable!()
+                        };
+                        if matches!(place.base, PlaceBase::Pointer(value) if value == *dst)
+                            && place.projections.is_empty()
+                            && place.ty == element
+                            && function.values.get(*loaded) == Some(&element)
+                            && definitions.get(*loaded) == Some(&Some((block, instruction + 1)))
+                            && types.is_value_scalar(element)
+                        {
+                            result.adjacent_loads[*dst] = Some((*loaded, place.clone()));
+                            result.skip_loads[block][instruction + 1] = true;
+                        }
+                    }
+                }
+            }
+        }
+        for value in 0..count {
+            result.omit_constants[value] = result.constants[value].is_some()
+                && uses[value] > 0
+                && uses[value] == folded_index_uses[value];
+        }
+        result
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BasicBlock {
     pub instructions: Vec<Instruction>,
@@ -50,6 +399,12 @@ pub enum Instruction {
     AddressOf {
         dst: ValueId,
         place: Place,
+    },
+    CheckedArrayElementAddress {
+        dst: ValueId,
+        base: ValueId,
+        index: ValueId,
+        array: TypeId,
     },
     Load {
         dst: ValueId,
@@ -247,6 +602,50 @@ pub fn validate_callback_cast(
     }
 }
 
+/// The array type is authoritative: no independent length or stride can weaken
+/// the check. The captured input and result retain their exact pointee types.
+pub fn validate_checked_array_address(
+    types: &TypeContext,
+    function: &MirFunction,
+    dst: ValueId,
+    base: ValueId,
+    index: ValueId,
+    array: TypeId,
+) -> Result<(u64, u64), &'static str> {
+    let Some(Type::Array { element, len }) = types.types.get(array) else {
+        return Err("checked array address requires an array type");
+    };
+    types.checked_layout(array)?;
+    let size = types.checked_layout(*element)?.size;
+    for (value, expected) in [(base, array), (dst, *element)] {
+        let ty = *function
+            .values
+            .get(value)
+            .ok_or("invalid checked array address value")?;
+        if !matches!(types.types.get(ty), Some(Type::Pointer { pointee, .. }) if *pointee == expected)
+        {
+            return Err("checked array address pointer type mismatch");
+        }
+    }
+    let index_type = *function
+        .values
+        .get(index)
+        .ok_or("invalid checked array index value")?;
+    if !matches!(
+        types.types.get(index_type),
+        Some(
+            Type::Int {
+                bits: 8 | 16 | 32 | 64,
+                ..
+            } | Type::Usize
+                | Type::Isize
+        )
+    ) {
+        return Err("checked array index must have a primitive integer type");
+    }
+    Ok((*len, size))
+}
+
 /// Places must not erase the wrapper identity already present in their storage.
 /// Existing aggregate projection encodings remain unchanged.
 pub fn validate_value_place(
@@ -255,6 +654,26 @@ pub fn validate_value_place(
     place: &Place,
 ) -> Result<(), &'static str> {
     let types = &hir.types;
+    for projection in &place.projections {
+        if let Projection::Index { index, .. } = projection {
+            let ty = *function
+                .values
+                .get(*index)
+                .ok_or("invalid place index value")?;
+            if !matches!(
+                types.types.get(ty),
+                Some(
+                    Type::Int {
+                        bits: 8 | 16 | 32 | 64,
+                        ..
+                    } | Type::Usize
+                        | Type::Isize
+                )
+            ) {
+                return Err("place index must have a primitive integer type");
+            }
+        }
+    }
     let (base, mut raw_index) = match place.base {
         PlaceBase::Local(id) => (
             *function.local_types.get(id).ok_or("invalid place local")?,
@@ -300,24 +719,12 @@ pub fn validate_value_place(
         for current in candidates {
             match projection {
                 Projection::Index { element_size, .. } if raw_index => {
-                    if types.layout(current).size == *element_size {
+                    if types.checked_layout(current)?.size == *element_size {
                         next.push(current);
                     }
-                    // A pointer may first be dereferenced to an array place.
-                    // Its first projection then indexes that array, rather than
-                    // stepping the raw pointer by the whole pointee layout.
-                    if let Type::Array { element, .. } = types.types[current] {
-                        if types.layout(element).size == *element_size {
-                            next.push(element);
-                        }
-                    }
                 }
-                Projection::Index { element_size, .. } => {
-                    if let Type::Array { element, .. } = types.types[current] {
-                        if types.layout(element).size == *element_size {
-                            next.push(element);
-                        }
-                    }
+                Projection::Index { .. } => {
+                    return Err("ordinary array index requires a checked array address")
                 }
                 Projection::Field { offset } => match &types.types[current] {
                     Type::Struct(id) => next.extend(
@@ -725,12 +1132,11 @@ impl<'a> FunctionBuilder<'a> {
                 };
                 let element_size = self.program.types.layout(element).size;
                 for (index, value) in values.iter().enumerate() {
-                    let index_value = self
-                        .const_value(index as u64, self.program.types.primitive("usize").unwrap());
                     let mut element_place = place.clone();
-                    element_place.projections.push(Projection::Index {
-                        index: index_value,
-                        element_size,
+                    element_place.projections.push(Projection::Field {
+                        offset: (index as u64).checked_mul(element_size).ok_or_else(|| {
+                            self.error(expr.span, "array initializer offset overflow")
+                        })?,
                     });
                     element_place.ty = element;
                     self.lower_initializer(element_place, value)?;
@@ -794,13 +1200,10 @@ impl<'a> FunctionBuilder<'a> {
                     return Err(self.error(expr.span, "byte string reached non-array place"));
                 };
                 for (index, byte) in bytes.iter().enumerate() {
-                    let index_value = self
-                        .const_value(index as u64, self.program.types.primitive("usize").unwrap());
                     let byte_value = self.const_value(*byte as u64, element);
                     let mut element_place = place.clone();
-                    element_place.projections.push(Projection::Index {
-                        index: index_value,
-                        element_size: 1,
+                    element_place.projections.push(Projection::Field {
+                        offset: index as u64,
                     });
                     element_place.ty = element;
                     self.emit(Instruction::Store {
@@ -1381,6 +1784,51 @@ impl<'a> FunctionBuilder<'a> {
                 if self.terminated(self.current) {
                     return Ok(place);
                 }
+                if matches!(self.program.types.types[base.ty], Type::Array { .. }) {
+                    let pointer_to = |pointee| {
+                        self.program
+                            .types
+                            .types
+                            .iter()
+                            .position(|kind| {
+                                *kind
+                                    == Type::Pointer {
+                                        mutable: false,
+                                        pointee,
+                                    }
+                            })
+                            .ok_or_else(|| {
+                                self.error(expr.span, "missing checked array pointer type")
+                            })
+                    };
+                    let base_pointer_ty = pointer_to(base.ty)?;
+                    let element_pointer_ty = pointer_to(expr.ty)?;
+                    let captured_base = self.new_value(base_pointer_ty);
+                    self.emit(Instruction::AddressOf {
+                        dst: captured_base,
+                        place,
+                    });
+                    let index = self.lower_expr(index)?;
+                    if self.terminated(self.current) {
+                        return Ok(Place {
+                            base: PlaceBase::Pointer(captured_base),
+                            projections: Vec::new(),
+                            ty: expr.ty,
+                        });
+                    }
+                    let dst = self.new_value(element_pointer_ty);
+                    self.emit(Instruction::CheckedArrayElementAddress {
+                        dst,
+                        base: captured_base,
+                        index,
+                        array: base.ty,
+                    });
+                    return Ok(Place {
+                        base: PlaceBase::Pointer(dst),
+                        projections: Vec::new(),
+                        ty: expr.ty,
+                    });
+                }
                 let index = self.lower_expr(index)?;
                 if self.terminated(self.current) {
                     return Ok(place);
@@ -1390,6 +1838,26 @@ impl<'a> FunctionBuilder<'a> {
                     element_size,
                 });
                 place.ty = expr.ty;
+                Ok(place)
+            }
+            HirExprKind::Array(_)
+            | HirExprKind::ArrayRepeat { .. }
+            | HirExprKind::Struct { .. }
+            | HirExprKind::EnumVariant { .. }
+            | HirExprKind::Constant(
+                HirConstValue::Array(_)
+                | HirConstValue::Repeat(..)
+                | HirConstValue::Struct(..)
+                | HirConstValue::Enum(..),
+            ) => {
+                let local = self.local_types.len();
+                self.local_types.push(expr.ty);
+                let place = Place {
+                    base: PlaceBase::Local(local),
+                    projections: Vec::new(),
+                    ty: expr.ty,
+                };
+                self.lower_initializer(place.clone(), expr)?;
                 Ok(place)
             }
             _ => Err(self.error(expr.span, "expression is not a MIR place")),
@@ -1490,6 +1958,12 @@ fn format_instruction(instruction: &Instruction) -> String {
             format!("%{dst} = function_address fn{function}")
         }
         Instruction::AddressOf { dst, place } => format!("%{dst} = addr {place:?}"),
+        Instruction::CheckedArrayElementAddress {
+            dst,
+            base,
+            index,
+            array,
+        } => format!("%{dst} = checked_array_address %{base}[%{index}] array=t{array}"),
         Instruction::Load {
             dst,
             place,
@@ -1584,6 +2058,487 @@ mod tests {
     use crate::ocore::{codegen, parser, typeck};
 
     type TestEmitter = fn(&HirProgram, &MirProgram) -> Result<String, Diagnostic>;
+
+    #[test]
+    fn constant_array_index_proofs_preserve_width_sign_range_and_overflow() {
+        let signed = Type::Int {
+            bits: 8,
+            signed: true,
+        };
+        let unsigned = Type::Int {
+            bits: 8,
+            signed: false,
+        };
+        assert!(matches!(
+            array_index_plan(&signed, Some(255), u64::MAX, 0),
+            ArrayIndexPlan::Trap
+        ));
+        assert!(matches!(
+            array_index_plan(&signed, Some(128), u64::MAX, 0),
+            ArrayIndexPlan::Trap
+        ));
+        assert!(matches!(
+            array_index_plan(&unsigned, Some(258), 3, 8),
+            ArrayIndexPlan::Offset(16)
+        ));
+        assert!(matches!(
+            array_index_plan(&signed, Some(256), 3, 8),
+            ArrayIndexPlan::Offset(0)
+        ));
+        assert!(matches!(
+            array_index_plan(&unsigned, Some(3), 3, 0),
+            ArrayIndexPlan::Trap
+        ));
+        assert!(matches!(
+            array_index_plan(&unsigned, None, 0, 0),
+            ArrayIndexPlan::Trap
+        ));
+        assert!(matches!(
+            array_index_plan(&unsigned, None, 3, 8),
+            ArrayIndexPlan::Dynamic
+        ));
+        assert!(matches!(
+            array_index_plan(&Type::Usize, Some(2), 3, u64::MAX),
+            ArrayIndexPlan::Trap
+        ));
+    }
+
+    #[test]
+    fn constant_array_index_proof_requires_a_unique_prior_definition_in_its_block() {
+        let ast = parser::parse(
+            "bounds.oc",
+            "module bounds; fn f()->u64 {let a:[u64;2]=[1,2];return a[1];}",
+        )
+        .unwrap();
+        let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+        let mut mir = lower(&hir).unwrap();
+        let function = &mut mir.functions[0];
+        let (block, instruction, index) = function
+            .blocks
+            .iter()
+            .enumerate()
+            .flat_map(|(block, body)| {
+                body.instructions
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(instruction, operation)| {
+                        if let Instruction::CheckedArrayElementAddress { index, .. } = operation {
+                            Some((block, instruction, *index))
+                        } else {
+                            None
+                        }
+                    })
+            })
+            .next()
+            .unwrap();
+        let constants = local_constants(function);
+        let definition = constants[index].unwrap();
+        assert_eq!(
+            local_constant_before(&constants, index, block, instruction),
+            Some(1)
+        );
+        assert_eq!(
+            local_constant_before(&constants, index, block, definition.instruction),
+            None
+        );
+        assert_eq!(
+            local_constant_before(&constants, index, block + 1, instruction),
+            None
+        );
+        function.blocks[block]
+            .instructions
+            .push(Instruction::Const {
+                dst: index,
+                value: 0,
+            });
+        assert!(local_constants(function)[index].is_none());
+    }
+
+    #[test]
+    fn skipped_array_base_still_rejects_noninteger_raw_place_indices_before_constant_trap() {
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for wrapper in [false, true] {
+            let ast = parser::parse("bounds.oc", "module bounds; @transparent struct W{raw:u64} unsafe fn f(p:*const [u64;2],i:usize)->u64{return p[i][2];}").unwrap();
+            let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+            let mut mir = lower(&hir).unwrap();
+            let function = &mut mir.functions[0];
+            let raw = function.values.len();
+            let raw_ty = hir
+                .types
+                .primitive(if wrapper { "u64" } else { "bool" })
+                .unwrap();
+            function.values.push(raw_ty);
+            let bad_index = if wrapper {
+                let Symbol::Type(w) = hir.symbols["bounds::W"] else {
+                    unreachable!()
+                };
+                let value = function.values.len();
+                function.values.push(w);
+                function.blocks[0].instructions.insert(
+                    0,
+                    Instruction::Wrap {
+                        dst: value,
+                        value: raw,
+                        wrapper: w,
+                        repr: raw_ty,
+                    },
+                );
+                value
+            } else {
+                raw
+            };
+            function.blocks[0]
+                .instructions
+                .insert(0, Instruction::Const { dst: raw, value: 0 });
+            let mut changed = false;
+            for operation in &mut function.blocks[0].instructions {
+                if let Instruction::AddressOf { place, .. } = operation {
+                    if let Some(Projection::Index { index, .. }) = place.projections.first_mut() {
+                        *index = bad_index;
+                        changed = true;
+                    }
+                }
+            }
+            assert!(changed);
+            assert!(ArrayLowering::new(&hir.types, function)
+                .base_places
+                .iter()
+                .any(Option::is_some));
+            for emit in emitters {
+                let error = emit(&hir, &mir).unwrap_err();
+                assert!(
+                    error
+                        .message
+                        .contains("place index must have a primitive integer type"),
+                    "{error}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn array_fusion_requires_unique_captured_values_and_nonvolatile_matching_loads() {
+        let ast = parser::parse(
+            "bounds.oc",
+            "module bounds; unsafe fn f(p:*const [u64;2],i:usize)->u64{return (*p)[i];}",
+        )
+        .unwrap();
+        let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let initial = ArrayLowering::new(&hir.types, &mir.functions[0]);
+        assert!(initial.needs_helper);
+        assert_eq!(
+            initial.base_places.iter().filter(|p| p.is_some()).count(),
+            1
+        );
+        assert_eq!(
+            initial
+                .adjacent_loads
+                .iter()
+                .filter(|p| p.is_some())
+                .count(),
+            1
+        );
+        let mut volatile = mir.clone();
+        let function = &mut volatile.functions[0];
+        for operation in &mut function.blocks[0].instructions {
+            if let Instruction::Load {
+                place:
+                    Place {
+                        base: PlaceBase::Pointer(_),
+                        ..
+                    },
+                volatile,
+                ..
+            } = operation
+            {
+                *volatile = true;
+            }
+        }
+        assert!(ArrayLowering::new(&hir.types, function)
+            .adjacent_loads
+            .iter()
+            .all(Option::is_none));
+        let mut duplicate = mir.clone();
+        let function = &mut duplicate.functions[0];
+        let operation = function.blocks[0]
+            .instructions
+            .iter()
+            .find(|operation| matches!(operation, Instruction::AddressOf { .. }))
+            .unwrap()
+            .clone();
+        function.blocks[0].instructions.push(operation);
+        assert!(ArrayLowering::new(&hir.types, function)
+            .base_places
+            .iter()
+            .all(Option::is_none));
+    }
+
+    #[test]
+    fn private_array_helper_entries_deduplicate_by_signedness_length_and_stride() {
+        let ast = parser::parse("bounds.oc", "module bounds; unsafe fn f(p:*const [u64;3],u:usize,s:i8)->u64{return (*p)[u]+(*p)[u]+(*p)[s];}").unwrap();
+        let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let lowering = ArrayLowering::new(&hir.types, &mir.functions[0]);
+        let expected = [
+            ArrayHelperShape {
+                signed: false,
+                len: 3,
+                size: 8,
+            },
+            ArrayHelperShape {
+                signed: true,
+                len: 3,
+                size: 8,
+            },
+        ];
+        assert_eq!(
+            lowering.helper_shapes.iter().copied().collect::<Vec<_>>(),
+            expected
+        );
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for emit in emitters {
+            let assembly = emit(&hir, &mir).unwrap();
+            for shape in expected {
+                assert_eq!(assembly.matches(&format!("{}:", shape.label())).count(), 1);
+            }
+            assert_eq!(
+                assembly.matches(".L_ocore_array_bounds_unsigned:").count(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn array_target_is_captured_and_checked_before_rhs_effects() {
+        let source = r#"module bounds;
+extern "C" fn base()->*mut [u64;2];
+extern "C" fn index()->usize;
+extern "C" fn rhs()->u64;
+unsafe fn test()->void { (*base())[index()] = rhs(); }
+"#;
+        let ast = parser::parse("bounds.oc", source).unwrap();
+        let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let order: Vec<_> = mir.functions[0]
+            .blocks
+            .iter()
+            .flat_map(|b| &b.instructions)
+            .filter_map(|instruction| match instruction {
+                Instruction::Call { function, .. } => {
+                    Some(hir.functions[*function].qualified_name.as_str())
+                }
+                Instruction::AddressOf { .. } => Some("capture"),
+                Instruction::CheckedArrayElementAddress { .. } => Some("check"),
+                Instruction::Store { .. } => Some("store"),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            order,
+            [
+                "bounds::base",
+                "capture",
+                "bounds::index",
+                "check",
+                "bounds::rhs",
+                "store"
+            ]
+        );
+        assert_each_value_defined_once(&mir.functions[0]);
+    }
+
+    #[test]
+    fn diverging_array_index_does_not_emit_a_check_or_rhs() {
+        let source = r#"module bounds;
+extern "C" fn stop()->never;
+extern "C" fn rhs()->u64;
+fn test()->void { let mut a:[u64;2]=[1,2]; a[stop()] = rhs(); }
+"#;
+        let ast = parser::parse("bounds.oc", source).unwrap();
+        let hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let instructions: Vec<_> = mir.functions[0]
+            .blocks
+            .iter()
+            .flat_map(|b| &b.instructions)
+            .collect();
+        assert!(!instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::CheckedArrayElementAddress { .. })));
+        let calls: Vec<_> = instructions
+            .iter()
+            .filter_map(|i| match i {
+                Instruction::Call { function, .. } => {
+                    Some(hir.functions[*function].qualified_name.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(calls, ["bounds::stop"]);
+        assert_each_value_defined_once(&mir.functions[0]);
+    }
+
+    #[test]
+    fn every_emitter_rejects_malformed_checked_array_addresses_and_unchecked_array_places() {
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for mutation in 0..9 {
+            let ast = parser::parse(
+                "bounds.oc",
+                "module bounds; unsafe fn f(p:*const [u64;2],i:i64)->u64{return (*p)[i];}",
+            )
+            .unwrap();
+            let mut hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+            let mut mir = lower(&hir).unwrap();
+            let u64_ty = hir.types.primitive("u64").unwrap();
+            let u8_ty = hir.types.primitive("u8").unwrap();
+            let bool_ty = hir.types.primitive("bool").unwrap();
+            let pointer = hir.types.intern(Type::Pointer {
+                mutable: false,
+                pointee: u8_ty,
+            });
+            let other_array = hir.types.intern(Type::Array {
+                element: u64_ty,
+                len: 3,
+            });
+            let function = &mut mir.functions[0];
+            let instruction = function.blocks[0]
+                .instructions
+                .iter_mut()
+                .find(|i| matches!(i, Instruction::CheckedArrayElementAddress { .. }))
+                .unwrap();
+            let Instruction::CheckedArrayElementAddress {
+                dst,
+                base,
+                index,
+                array,
+            } = instruction
+            else {
+                unreachable!()
+            };
+            match mutation {
+                0 => *array = u64_ty,
+                1 => *array = other_array,
+                2 => function.values[*dst] = pointer,
+                3 => function.values[*base] = pointer,
+                4 => function.values[*index] = bool_ty,
+                5 => {
+                    hir.types.types[*array] = Type::Array {
+                        element: u64_ty,
+                        len: u64::MAX,
+                    }
+                }
+                6 => *index = usize::MAX,
+                7 | 8 => {
+                    let raw_base = *base;
+                    let raw_index = *index;
+                    let local = function.local_types.len();
+                    function.local_types.push(*array);
+                    let value = function.values.len();
+                    function.values.push(u64_ty);
+                    *instruction = Instruction::Load {
+                        dst: value,
+                        place: Place {
+                            base: if mutation == 7 {
+                                PlaceBase::Local(local)
+                            } else {
+                                PlaceBase::Pointer(raw_base)
+                            },
+                            projections: vec![Projection::Index {
+                                index: raw_index,
+                                element_size: 8,
+                            }],
+                            ty: u64_ty,
+                        },
+                        volatile: false,
+                    };
+                }
+                _ => unreachable!(),
+            }
+            for emit in emitters {
+                assert!(
+                    emit(&hir, &mir).is_err(),
+                    "emitter accepted checked-array mutation {mutation}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_emitter_diagnoses_array_storage_and_frame_overflow_without_panicking() {
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for (primitive, length) in [("u8", u64::MAX), ("u64", u64::MAX)] {
+            let ast = parser::parse("bounds.oc", "module bounds; fn f()->u64{return 0;}").unwrap();
+            let mut hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+            let mut mir = lower(&hir).unwrap();
+            let element = hir.types.primitive(primitive).unwrap();
+            let array = hir.types.intern(Type::Array {
+                element,
+                len: length,
+            });
+            mir.functions[0].local_types.push(array);
+            for emit in emitters {
+                assert!(emit(&hir, &mir).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn every_emitter_diagnoses_invalid_static_array_layout_even_with_explicit_alignment() {
+        let emitters: [TestEmitter; 3] = [
+            codegen::emit_assembly,
+            crate::ocore::codegen_aarch64::emit_assembly,
+            crate::ocore::codegen_riscv64::emit_assembly,
+        ];
+        for container in 0..4 {
+            for alignment in [None, Some(16)] {
+                let ast = parser::parse("bounds.oc", "module bounds; struct Holder{a:[[u64;1];1]} enum E{value([[u64;1];1])} static A:[u64;1]=[0];").unwrap();
+                let mut hir = typeck::check(&[("bounds.oc".into(), ast)]).unwrap();
+                let mir = lower(&hir).unwrap();
+                let u64_ty = hir.types.primitive("u64").unwrap();
+                let inner = hir.statics[0].ty;
+                let nested = hir.types.intern(Type::Array {
+                    element: inner,
+                    len: 1,
+                });
+                let Symbol::Type(holder) = hir.symbols["bounds::Holder"] else {
+                    unreachable!()
+                };
+                let Symbol::Type(enumeration) = hir.symbols["bounds::E"] else {
+                    unreachable!()
+                };
+                hir.statics[0].ty = [inner, nested, holder, enumeration][container];
+                hir.statics[0].attrs.align = alignment;
+                // Zero is an existing internal initializer, chosen so malformed
+                // storage cannot be hidden by an earlier initializer mismatch.
+                hir.statics[0].init = HirConstValue::Zero;
+                hir.types.types[inner] = Type::Array {
+                    element: u64_ty,
+                    len: u64::MAX,
+                };
+                for emit in emitters {
+                    let error = emit(&hir, &mir).unwrap_err();
+                    assert!(error.message.contains("layout overflows"), "{error}");
+                }
+            }
+        }
+    }
 
     fn transparent_program() -> (HirProgram, MirProgram) {
         let source = r#"module wrappers;
@@ -1731,7 +2686,9 @@ unsafe fn exercise(raw:u64)->u64{
                                 place.projections.is_empty()
                                     && matches!(hir.types.types[place.ty], Type::Function { .. })
                             }
-                            _ => !place.projections.is_empty() && place.ty == a,
+                            // Array elements now arrive as captured checked
+                            // pointers rather than deferred Index projections.
+                            _ => matches!(place.base, PlaceBase::Pointer(_)) && place.ty == a,
                         };
                         if change {
                             place.ty = if mutation == 2 {
@@ -2405,6 +3362,7 @@ fn boot() -> never {
                 | Instruction::FunctionAddress { dst, .. }
                 | Instruction::Load { dst, .. }
                 | Instruction::AddressOf { dst, .. }
+                | Instruction::CheckedArrayElementAddress { dst, .. }
                 | Instruction::Unary { dst, .. }
                 | Instruction::Binary { dst, .. }
                 | Instruction::Cast { dst, .. }

@@ -202,6 +202,32 @@ def compare_case(case, stdout, exit_code):
             'observation_sha256': hashlib.sha256(text.encode()).hexdigest(), 'matched': True}
 
 
+def divergent_prefix(case, stdout):
+    """Find the first divergent/missing observation without changing the oracle.
+
+    Full comparison rejects a short stream before inspecting its rows. Inspect
+    recorded prefixes separately so an early fail-stop still yields the exact
+    command prefix to reproduce, rather than retaining the whole input probe.
+    """
+    try:
+        text = stdout.decode() if isinstance(stdout, bytes) else stdout
+        rows = [json.loads(line) for line in text.splitlines()]
+    except (UnicodeDecodeError, ValueError):
+        return {'commands': len(case['steps']), 'basis': 'unparseable observation stream'}
+    expected = model.evaluate_case(case)
+    for count in range(min(len(rows), len(expected))):
+        prefix = dict(case, steps=case['steps'][:count])
+        output = '\n'.join(json.dumps(row) for row in rows[:count+1])
+        status = 86 if any(expected[count]['terminal']) else 0
+        try:
+            compare_case(prefix, output, status)
+        except RuntimeError:
+            return {'commands': count, 'basis': 'first divergent observation'}
+    if len(rows) < len(expected):
+        return {'commands': min(len(rows), len(case['steps'])), 'basis': 'first missing observation'}
+    return {'commands': len(case['steps']), 'basis': 'completion or extra-observation mismatch'}
+
+
 def production_sources(root):
     inventory = root / 'scripts/build_okernel_unified_world.py'
     tree = ast.parse(inventory.read_text())
@@ -561,11 +587,9 @@ def execute_mutations(args, directory, evidence, corpus, prefixes):
                 if failure['exit_code'] not in (0, 86):
                     raise RuntimeError('mutation runtime is inconclusive: ' + mutation['name'])
                 killed = failure
-                # The comparator walks observations in order. Its first
-                # mismatching step supplies a minimal prefix of this witness.
-                found = re.search(r' step (\d+):', failure['error'])
-                if found:
-                    count = int(found[1]) + 1 if int(found[1]) != model.U64 else 0
+                diagnosis = divergent_prefix(case, (run_dir / (case['name'] + '.stdout')).read_bytes())
+                count = diagnosis['commands']
+                if count < len(case['steps']):
                     shortened = dict(case, steps=case['steps'][:count])
                     try:
                         execute_cases([shortened], executable, prefixes[isa], mutation_dir / 'minimal-prefix', evidence)
@@ -574,15 +598,23 @@ def execute_mutations(args, directory, evidence, corpus, prefixes):
                         if not minimal.exists():
                             raise
                         killed = json.loads(minimal.read_text())
+                        if killed['exit_code'] not in (0, 86):
+                            raise RuntimeError('shortened mutation runtime is inconclusive: ' + mutation['name'])
                     else:
                         raise RuntimeError('mutation prefix did not reproduce: ' + mutation['name'])
+                predecessor = None
+                if count:
+                    predecessor = execute_cases([dict(case, steps=case['steps'][:count-1])],
+                        executable, prefixes[isa], mutation_dir / 'minimal-predecessor', evidence)[0]
                 break
         if killed is None:
             raise RuntimeError('policy mutation survived: ' + mutation['name'])
         result.append({'name': mutation['name'], 'isa': isa, 'changes': mutation['changes'],
                        'production_input_closure': captured, 'artifacts': artifacts,
                        'status': 'killed-by-observation-mismatch', 'witness': killed,
-                       'minimality': 'first divergent prefix of the specified probe; not global trace minimization'})
+                       'prefix_diagnosis': diagnosis, 'passing_predecessor': predecessor,
+                       'minimality': ('initialization-only divergence; no command predecessor exists' if not count else
+                           'reproduced failing prefix and passing immediate predecessor; not global trace minimization')})
         print(isa + ': killed policy mutation ' + mutation['name'], flush=True)
     return result
 

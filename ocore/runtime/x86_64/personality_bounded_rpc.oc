@@ -253,6 +253,10 @@ struct RequestIdentity {
     capability: CapabilityHandle,
     service_cspace: CSpaceHandle,
 }
+static REQUEST_IDENTITY_FIRST: RequestIdentity = RequestIdentity {
+    request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+    capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
 unsafe fn read_identity(slot: usize, destination: *mut RequestIdentity) -> bool {
     if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS { return false; }
     if destination as usize == 0 { return false; }
@@ -263,6 +267,11 @@ unsafe fn read_identity(slot: usize, destination: *mut RequestIdentity) -> bool 
     return true;
 }
 
+
+unsafe fn poison_failure() -> u64 {
+    POISONED = 1;
+    return ERR_PERSONALITY_FAILED;
+}
 
 unsafe fn timeout_stored_view(slot: usize) -> u64 {
     let mut view: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
@@ -333,8 +342,7 @@ unsafe fn destroy_slot_resource(slot: usize) -> bool {
 
 unsafe fn deny(result: u64) -> u64 {
     if DENIALS == MAX_COUNTER {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     DENIALS += 1;
     return result;
@@ -405,8 +413,7 @@ unsafe fn preflight() -> bool {
 
 unsafe fn finish(result: u64) -> u64 {
     if !invariants_hold() {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     return result;
 }
@@ -550,11 +557,10 @@ pub unsafe fn dispatch_or_consume(
                 view_terminal_kind(view),
                 rpc_terminal_kind(request)
             ) {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         let mut consumed_view: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
-        if memory_view_handle_init(&mut consumed_view, view) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+        if memory_view_handle_init(&mut consumed_view, view) != 1 { return poison_failure(); }
         let mut view_kind: u64 = 0;
         let mut committed: usize = 0;
         if consume_view_identity(
@@ -568,8 +574,7 @@ pub unsafe fn dispatch_or_consume(
             return deny(ERR_PERSONALITY_FAILED);
         }
         if !destroy_slot_resource(existing) {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         let mut consumed_request: u64 = 0;
         let mut result: u64 = 0;
@@ -584,8 +589,7 @@ pub unsafe fn dispatch_or_consume(
         if disposition != RPC_CONSUMED
             || consumed_request != request
             || CONSUMED == MAX_COUNTER {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         volatile_store(request_out, request);
         volatile_store(result_out, result);
@@ -641,7 +645,7 @@ pub unsafe fn dispatch_or_consume(
         return prepared;
     }
     let mut request_identity: PersonalityRequestHandle = PERSONALITY_REQUEST_HANDLE_FIRST;
-    if personality_request_handle_init(&mut request_identity, request) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if personality_request_handle_init(&mut request_identity, request) != 1 { return poison_failure(); }
     // Mode24's live gate arms this one-shot before CPL3 scheduling.  The
     // failure occurs after exact request reservation but before snapshot,
     // capability publication, endpoint enqueue, or service wake, exercising
@@ -657,8 +661,7 @@ pub unsafe fn dispatch_or_consume(
             || view_charged_bytes() != charged_before
             || live_slots_for_owner(service_cspace)
                 != service_caps_before {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         FAIL_NEXT_ALLOCATION = 0;
         ALLOCATION_FAILURES += 1;
@@ -678,13 +681,12 @@ pub unsafe fn dispatch_or_consume(
     );
     if view == 0 || capability == 0 {
         if abort_rpc_identity(request_identity) != 1 {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         return deny(ERR_PERSONALITY_FAILED);
     }
     let mut view_identity: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
-    if memory_view_handle_init(&mut view_identity, view) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if memory_view_handle_init(&mut view_identity, view) != 1 { return poison_failure(); }
     STATES[slot] = BOUNDED_LIVE;
     REQUESTS[slot] = request;
     VIEWS[slot] = view;
@@ -710,20 +712,17 @@ pub unsafe fn dispatch_or_consume(
             || view_charged_bytes() != charged_before
             || live_slots_for_owner(service_cspace)
                 != service_caps_before {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         STATES[slot] = BOUNDED_EMPTY;
         clear_slot(slot);
         if rpc_wait_failure_count() == wait_failures_before + 1 {
             if WAIT_ROLLBACK_PROOFS == MAX_COUNTER {
-                POISONED = 1;
-                return ERR_PERSONALITY_FAILED;
+                return poison_failure();
             }
             WAIT_ROLLBACK_PROOFS += 1;
         } else if rpc_wait_failure_count() != wait_failures_before {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         return deny(wait);
     }
@@ -731,8 +730,7 @@ pub unsafe fn dispatch_or_consume(
     if published != RPC_DISPATCHED {
         if abort_view_identity(view_identity) != 1
             || abort_prepared_wait_identity(request_identity, wait) != 1 {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         STATES[slot] = BOUNDED_EMPTY;
         clear_slot(slot);
@@ -776,8 +774,7 @@ pub unsafe fn lookup_view(request: u64) -> u64 {
         return deny(ERR_PERSONALITY_DUPLICATE);
     }
     if LOOKUPS == MAX_COUNTER {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     LOOKED_UP[slot] = 1;
     LOOKUPS += 1;
@@ -876,11 +873,8 @@ pub unsafe fn read_byte(
     if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     if read_view_identity(
         identity.service_cspace,
         identity.capability,
@@ -904,11 +898,8 @@ pub unsafe fn write_byte(
     if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     if write_view_identity(
         identity.service_cspace,
         identity.capability,
@@ -944,8 +935,7 @@ pub unsafe fn reply(
         // Never let this fallback terminalize a live request that lacks its
         // corresponding bounded view record.
         if rpc_state(request) == RPC_STATE_WAITING {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         return deny(reply_rpc(request, caller, result));
     }
@@ -960,13 +950,10 @@ pub unsafe fn reply(
         || RESOURCES[slot] != 0 {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     let mut service_identity: ProcessHandle = PROCESS_HANDLE_FIRST;
-    if process_handle_init(&mut service_identity, caller) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if process_handle_init(&mut service_identity, caller) != 1 { return poison_failure(); }
     if !can_reply_view_identity(
         identity.service_cspace,
         identity.capability,
@@ -991,8 +978,7 @@ pub unsafe fn reply(
         return ERR_PERSONALITY_FAILED;
     }
     if !invariants_hold() {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     if take_reply_failure(REPLY_FAILURE_PREPARED_INVARIANT) {
         return ERR_PERSONALITY_FAILED;
@@ -1045,8 +1031,7 @@ pub unsafe fn cancel(request: u64) -> u64 {
         // duplicate/stale classification, while refusing to bypass a live
         // outer request that has inexplicably lost its bounded record.
         if rpc_state(request) == RPC_STATE_WAITING {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         return deny(cancel_rpc(request));
     }
@@ -1059,11 +1044,8 @@ pub unsafe fn cancel(request: u64) -> u64 {
         || rpc_state(request) != RPC_STATE_WAITING {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     let outer_ready: u64 = can_transition_rpc_identity(
         identity.request,
         RPC_TERMINAL_SUPERVISOR_CANCEL
@@ -1083,8 +1065,7 @@ pub unsafe fn cancel(request: u64) -> u64 {
             rpc_terminal_kind(request)
         )
         || CANCELLATIONS == MAX_COUNTER {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     CANCELLATIONS += 1;
     return finish(1);
@@ -1129,15 +1110,13 @@ pub unsafe fn expire(now: u64) -> u64 {
                     slot,
                     MEMORY_VIEW_TERMINAL_TIMEOUT
                 ) {
-                POISONED = 1;
-                return ERR_PERSONALITY_FAILED;
+                return poison_failure();
             }
         }
         slot += 1;
     }
     if expire_rpc(now) != due || TIMEOUTS > MAX_COUNTER - due {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     slot = 0;
     while slot < MAX_BOUNDED_PERSONALITY_REQUESTS {
@@ -1148,8 +1127,7 @@ pub unsafe fn expire(now: u64) -> u64 {
                 MEMORY_VIEW_TERMINAL_TIMEOUT,
                 rpc_terminal_kind(REQUESTS[slot])
             ) {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         slot += 1;
     }
@@ -1186,10 +1164,9 @@ pub unsafe fn service_died(service_process: u64) -> u64 {
     let mut service_id: ProcessHandle = PROCESS_HANDLE_FIRST;
     let mut cspace_id: CSpaceHandle = CSPACE_HANDLE_FIRST;
     if process_handle_init(&mut service_id, service_process) != 1
-        || cspace_handle_init(&mut cspace_id, service_cspace) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+        || cspace_handle_init(&mut cspace_id, service_cspace) != 1 { return poison_failure(); }
     if service_views_identity(cspace_id) != expected {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     slot = 0;
     while slot < MAX_BOUNDED_PERSONALITY_REQUESTS {
@@ -1199,16 +1176,14 @@ pub unsafe fn service_died(service_process: u64) -> u64 {
                 slot,
                 MEMORY_VIEW_TERMINAL_SERVICE_DEATH
             ) {
-                POISONED = 1;
-                return ERR_PERSONALITY_FAILED;
+                return poison_failure();
             }
         }
         slot += 1;
     }
     if service_rpc_identity(service_id) != expected
         || SERVICE_DEATHS > MAX_COUNTER - expected {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     slot = 0;
     while slot < MAX_BOUNDED_PERSONALITY_REQUESTS {
@@ -1219,8 +1194,7 @@ pub unsafe fn service_died(service_process: u64) -> u64 {
                 MEMORY_VIEW_TERMINAL_SERVICE_DEATH,
                 rpc_terminal_kind(REQUESTS[slot])
             ) {
-            POISONED = 1;
-            return ERR_PERSONALITY_FAILED;
+            return poison_failure();
         }
         slot += 1;
     }
@@ -1252,11 +1226,8 @@ pub unsafe fn delegate_resource(
         || RESOURCE_CAPABILITIES[slot] != 0 {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     let mut capability: u64 = 0;
     let resource: u64 = create_resource_identity(
         identity.request,
@@ -1267,8 +1238,7 @@ pub unsafe fn delegate_resource(
     );
     if resource == 0
         || capability == 0 {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     RESOURCES[slot] = resource;
     RESOURCE_CAPABILITIES[slot] = capability;
@@ -1302,11 +1272,10 @@ pub unsafe fn process_exited(caller_process: u64) -> u64 {
         return deny(ERR_PERSONALITY_STALE);
     }
     let mut caller_id: ProcessHandle = PROCESS_HANDLE_FIRST;
-    if process_handle_init(&mut caller_id, caller_process) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if process_handle_init(&mut caller_id, caller_process) != 1 { return poison_failure(); }
     if process_views_identity(caller_id) != expected
         || process_rpc_identity(caller_id) != expected {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     slot = 0;
     while slot < MAX_BOUNDED_PERSONALITY_REQUESTS {
@@ -1316,8 +1285,7 @@ pub unsafe fn process_exited(caller_process: u64) -> u64 {
                 slot,
                 MEMORY_VIEW_TERMINAL_PROCESS_EXIT
             ) || discard_stored_view(slot) != 1 {
-                POISONED = 1;
-                return ERR_PERSONALITY_FAILED;
+                return poison_failure();
             }
             PROCESS_EXITS += 1;
             release_slot(slot);
@@ -1346,13 +1314,10 @@ pub unsafe fn unmap_request(request: u64) -> u64 {
         || UNMAPS == MAX_COUNTER {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     let mut address_identity: AddressSpaceHandle = ADDRESS_SPACE_HANDLE_FIRST;
-    if address_space_handle_init(&mut address_identity, CALLER_ADDRESS_SPACES[slot]) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if address_space_handle_init(&mut address_identity, CALLER_ADDRESS_SPACES[slot]) != 1 { return poison_failure(); }
     if unmapped_view_identity(
         address_identity,
         FOREIGN_ADDRESSES[slot],
@@ -1360,8 +1325,7 @@ pub unsafe fn unmap_request(request: u64) -> u64 {
     ) != 1
         || !terminalize_record(slot, MEMORY_VIEW_TERMINAL_UNMAP)
         || cancel_rpc_identity(identity.request) != 1 {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     UNMAPS += 1;
     return finish(1);
@@ -1383,11 +1347,8 @@ pub unsafe fn revoke_request(request: u64) -> u64 {
         || REQUEST_REVOCATIONS == MAX_COUNTER {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     let mut resources: u64 = 0;
     let mut views: u64 = 0;
     if revoke_request_identity(
@@ -1401,8 +1362,7 @@ pub unsafe fn revoke_request(request: u64) -> u64 {
             MEMORY_VIEW_TERMINAL_REQUEST_REVOKED
         )
         || cancel_rpc_identity(identity.request) != 1 {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     REQUEST_REVOCATIONS += 1;
     return finish(1);
@@ -1425,13 +1385,10 @@ pub unsafe fn revoke_resource(request: u64) -> u64 {
         || RESOURCE_REVOCATIONS == MAX_COUNTER {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     let mut resource_capability: CapabilityHandle = CAPABILITY_HANDLE_FIRST;
-    if capability_handle_init(&mut resource_capability, RESOURCE_CAPABILITIES[slot]) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if capability_handle_init(&mut resource_capability, RESOURCE_CAPABILITIES[slot]) != 1 { return poison_failure(); }
     let mut views: u64 = 0;
     if revoke_resource_identity(
         identity.service_cspace,
@@ -1444,8 +1401,7 @@ pub unsafe fn revoke_resource(request: u64) -> u64 {
             MEMORY_VIEW_TERMINAL_RESOURCE_REVOKED
         )
         || cancel_rpc_identity(identity.request) != 1 {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     RESOURCE_CAPABILITIES[slot] = 0;
     RESOURCE_REVOCATIONS += 1;
@@ -1466,17 +1422,13 @@ pub unsafe fn abort_wait(request: u64, wait: u64) -> u64 {
             && rpc_state(request) != RPC_STATE_WAITING) {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     if cancel_view_identity(identity.view) != 1
         || abort_wait_rpc_identity(identity.request, wait) != 1
         || discard_view_identity(identity.view) != 1
         || ABORTS == MAX_COUNTER {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     ABORTS += 1;
     release_slot(slot);
@@ -1497,17 +1449,13 @@ pub unsafe fn abort_unarmed_dispatch(request: u64) -> u64 {
         || rpc_state(request) != RPC_STATE_DISPATCHED {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let mut identity: RequestIdentity = RequestIdentity {
-        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
-        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
-};
-    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut identity: RequestIdentity = REQUEST_IDENTITY_FIRST;
+    if !read_identity(slot, &mut identity) { return poison_failure(); }
     if cancel_view_identity(identity.view) != 1
         || abort_published_identity(identity.request) != 1
         || discard_view_identity(identity.view) != 1
         || ABORTS == MAX_COUNTER {
-        POISONED = 1;
-        return ERR_PERSONALITY_FAILED;
+        return poison_failure();
     }
     ABORTS += 1;
     release_slot(slot);
