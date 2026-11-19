@@ -993,6 +993,7 @@ class O10ComponentSourceClosureTests(unittest.TestCase):
         self.assertEqual(len(declarations), 1)
         sources = ast.literal_eval(declarations[0])
         self.assertTrue(sources)
+        self.assertIn("ocore/runtime/common/lifecycle_identity.oc", sources)
         self.assertFalse(set(sources) - release.O10_COMPONENT_RELEASE_PATHS)
 
     def test_every_discovered_component_test_is_required(self) -> None:

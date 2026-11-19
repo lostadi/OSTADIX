@@ -400,7 +400,7 @@ O10_COMPONENT_RELEASE_PATHS = frozenset(
         ),
         *(
             f"ocore/runtime/common/{name}.oc"
-            for name in ("namespace_store", "o10_codec", "o10_executor", "namespace_peer")
+            for name in ("lifecycle_identity", "namespace_store", "o10_codec", "o10_executor", "namespace_peer")
         ),
     }
 )
