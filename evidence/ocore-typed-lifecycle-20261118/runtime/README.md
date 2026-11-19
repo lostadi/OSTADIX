@@ -12,6 +12,7 @@ separate source, review and qualification.
 |---|---|
 | `qualification.json` | Stage status, exact final owner source identities, compatibility and blockers |
 | `lifecycle-component.json` | Three-ISA production policy, full-width observations, exhaustive finite projections, modeled hooks and 14 policy mutations |
+| `identity-runner-admission.json` / `lifecycle-identity-runner.json` | Fresh output isolation, required runner identities, and actual 64-case constructor/layout execution per ISA |
 | `o10-native-components.json` | Nine fresh native suites with no required skips; namespace-off resident regression included |
 | `kernel-m3-r1.json` | Actual x86-64 TCG Modes 0/13/19/24, fixed limits and retained secondary live artifacts |
 | `kernel-m3-r2.json` | Fresh affected Modes 19/24 after typed resource destruction correction |

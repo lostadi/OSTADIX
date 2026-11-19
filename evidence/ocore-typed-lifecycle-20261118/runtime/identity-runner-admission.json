@@ -1,0 +1,43 @@
+{
+  "schema": "ostadix.identity-runner-admission/v1",
+  "fixes": [
+    "Resolve a caller-relative fresh output directory before repository-cwd producers can access it",
+    "Bind every nonnative runner executable and the shared evidence utility as observed inputs before execution"
+  ],
+  "unit_checks": {
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "tests.test_ocore_lifecycle_identity",
+      "-v"
+    ],
+    "exit_code": 0,
+    "passed": 4
+  },
+  "source_sha256": {
+    "scripts/check_ocore_lifecycle_identity.py": "a313d558d45eef6e1eda7a2672cef63ce72820bd8acdd759a0d36afc84e5fbf2",
+    "tests/test_ocore_lifecycle_identity.py": "eb8662c4406c82cb7cc65e2402fc43ae0f5d980380e4edd1a98783ed98b953aa"
+  },
+  "scope": "Admission/provenance checks; actual constructor and type rejection execution is recorded separately.",
+  "native_execution": {
+    "argv": [
+      "python3",
+      "/home/ustad/ostadix-BM/scripts/check_ocore_lifecycle_identity.py",
+      "--ocorec",
+      "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-tools-5b8a05e9a3d8/ocorec",
+      "--output-dir",
+      ".local/state/ostadix-typed-lifecycle-20261118/identity-guard-final"
+    ],
+    "cwd": "/home/ustad",
+    "exit_code": 0,
+    "targets": [
+      "x86_64",
+      "aarch64",
+      "riscv64"
+    ],
+    "constructor_layout_cases_per_target": 64,
+    "crossed_domain_rejections_per_target": 2,
+    "receipt_sha256": "7a3a15e1c91747ecb1b658ca9ce90134017c1cd2b1f9d882d0cad7c50bf0ec22"
+  }
+}
