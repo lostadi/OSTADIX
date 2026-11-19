@@ -594,7 +594,8 @@
         }
       ],
       "sources": [
-        "tests/fixtures/ocore_native_equivalence.oc"
+        "tests/fixtures/ocore_native_equivalence.oc",
+        "tests/fixtures/ocore_native_wrapper_client.oc"
       ]
     },
     {
@@ -1220,6 +1221,22 @@
         "evidence/o10-m2-20261113/namespace-epoch-fix/namespace-generation-fix-r1/final-source/ocore/runtime/aarch64/unified_world.oc",
         "evidence/o10-m2-20261113/namespace-epoch-fix/namespace-generation-fix-r1/source/ocore/runtime/aarch64/kernel_world_9p.oc",
         "evidence/o10-m2-20261113/namespace-epoch-fix/namespace-generation-fix-r1/source/ocore/runtime/aarch64/unified_world.oc"
+      ]
+    },
+    {
+      "id": "ocore-lifecycle-identity",
+      "category": "runtime-module",
+      "reason": "Nominal O10 and namespace identities preserve separate numeric policies and primitive boundaries.",
+      "coverage": [
+        {
+          "path": "scripts/check_ocore_lifecycle_identity.py",
+          "kind": "runtime",
+          "conditions": "Requires a candidate ocorec, Clang/LLD and every canonical native target runner; actual constructor, layout and crossed-domain checks."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/common/lifecycle_identity.oc",
+        "tests/fixtures/ocore_lifecycle_identity.oc"
       ]
     }
   ],

@@ -1,0 +1,15 @@
+module wrapper_client;
+use conformance::WU64 as Generation;
+use conformance::WRAPPER_FIRST as INITIAL;
+const COPY:Generation=INITIAL;
+static STATE:Generation=COPY;
+static ARRAY:[Generation;2]=[INITIAL;2];
+@export @no_mangle
+extern "C" unsafe fn ocore_wrapper_client(choose:u64)->u64{
+ let mut selected:Generation=COPY;
+ if choose!=0{selected=conformance::WRAPPER_SECOND;}
+ let values:[Generation;2]=[STATE;2];let copied:[Generation;2]=values;
+ let secret:conformance::WrapperSecret=conformance::WRAPPER_SECRET;
+ return conformance::wrapper_bits(selected)+conformance::wrapper_bits(ARRAY[1])
+ +conformance::wrapper_bits(copied[1])+conformance::wrapper_bits(COPY)+conformance::wrapper_secret_bits(&secret);
+}

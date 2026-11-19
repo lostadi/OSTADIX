@@ -1,0 +1,74 @@
+module runtime::common::lifecycle_identity;
+
+// These are distinct counter vocabularies, not authority or liveness proofs.
+// Output pointers must designate writable, aligned storage for the exact type.
+@opaque
+@transparent
+pub struct O10DomainGeneration { raw: u64 }
+
+@opaque
+@transparent
+pub struct NamespaceTransportEpoch { raw: u64 }
+
+@opaque
+@transparent
+pub struct NamespaceSessionEpoch { raw: u64 }
+
+pub const O10_DOMAIN_FIRST: O10DomainGeneration = O10DomainGeneration { raw: 1 };
+pub const NAMESPACE_TRANSPORT_FIRST: NamespaceTransportEpoch = NamespaceTransportEpoch { raw: 1 };
+pub const NAMESPACE_SESSION_FIRST: NamespaceSessionEpoch = NamespaceSessionEpoch { raw: 1 };
+
+pub unsafe fn o10_domain_generation_init(result: *mut O10DomainGeneration, raw: u64) -> u64 {
+    if result as usize == 0 || raw == 0 || raw > 0xffff_ffff { return 0; }
+    *result = O10DomainGeneration { raw: raw };
+    return 1;
+}
+
+pub fn o10_domain_generation_raw(value: O10DomainGeneration) -> u64 { return value.raw; }
+
+pub fn o10_domain_generation_equal(left: O10DomainGeneration, right: O10DomainGeneration) -> bool {
+    return left.raw == right.raw;
+}
+
+pub unsafe fn o10_domain_generation_next(result: *mut O10DomainGeneration, current: O10DomainGeneration) -> u64 {
+    if result as usize == 0 || current.raw == 0 || current.raw >= 0xffff_ffff { return 0; }
+    *result = O10DomainGeneration { raw: current.raw + 1 };
+    return 1;
+}
+
+pub unsafe fn namespace_transport_epoch_init(result: *mut NamespaceTransportEpoch, raw: u64) -> u64 {
+    if result as usize == 0 || raw == 0 { return 0; }
+    *result = NamespaceTransportEpoch { raw: raw };
+    return 1;
+}
+
+pub fn namespace_transport_epoch_raw(value: NamespaceTransportEpoch) -> u64 { return value.raw; }
+
+pub unsafe fn namespace_transport_epoch_next(result: *mut NamespaceTransportEpoch, current: NamespaceTransportEpoch) -> u64 {
+    if result as usize == 0 || current.raw == 0 || current.raw == 0xffff_ffff_ffff_ffff { return 0; }
+    *result = NamespaceTransportEpoch { raw: current.raw + 1 };
+    return 1;
+}
+
+pub unsafe fn namespace_session_epoch_init(result: *mut NamespaceSessionEpoch, raw: u64) -> u64 {
+    if result as usize == 0 || raw == 0 { return 0; }
+    *result = NamespaceSessionEpoch { raw: raw };
+    return 1;
+}
+
+pub fn namespace_session_epoch_raw(value: NamespaceSessionEpoch) -> u64 { return value.raw; }
+
+pub unsafe fn namespace_session_epoch_next(result: *mut NamespaceSessionEpoch, current: NamespaceSessionEpoch) -> u64 {
+    if result as usize == 0 || current.raw == 0 || current.raw == 0xffff_ffff_ffff_ffff { return 0; }
+    *result = NamespaceSessionEpoch { raw: current.raw + 1 };
+    return 1;
+}
+
+// The caller still validates the low slot and the live domain independently.
+pub fn o10_domain_handle(generation: O10DomainGeneration, slot: u32) -> u64 {
+    return (generation.raw << 32) | (slot as u64);
+}
+
+pub unsafe fn o10_domain_handle_generation(result: *mut O10DomainGeneration, handle: u64) -> u64 {
+    return o10_domain_generation_init(result, handle >> 32);
+}

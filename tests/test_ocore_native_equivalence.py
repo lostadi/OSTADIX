@@ -94,6 +94,7 @@ class NativeEvidenceProvenanceTests(unittest.TestCase):
         fixtures.mkdir(parents=True)
         for suffix in ("oc", "c"):
             (fixtures / ("ocore_native_equivalence." + suffix)).write_text("test fixture\n")
+        (fixtures / "ocore_native_wrapper_client.oc").write_text("module client; test fixture\n")
         self.output = self.root / "evidence"
         self.args = argparse.Namespace(
             ocorec=self.bin / "ocorec", clang=str(self.bin / "clang"),

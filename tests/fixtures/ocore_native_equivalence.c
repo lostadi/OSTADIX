@@ -81,6 +81,53 @@ static void write_all(const char *data, u64 length) {
     }
 }
 
+/* Primitive shims exercise nominal internal signatures without a C aggregate ABI. */
+typedef int i32;
+extern u8 ocore_wrapper_u8(u8);
+extern u16 ocore_wrapper_u16(u16);
+extern u32 ocore_wrapper_u32(u32);
+extern u64 ocore_wrapper_u64(u64);
+extern i8 ocore_wrapper_i8(i8);
+extern i16 ocore_wrapper_i16(i16);
+extern i32 ocore_wrapper_i32(i32);
+extern i64 ocore_wrapper_i64(i64);
+extern unsigned long ocore_wrapper_usize(unsigned long);
+extern long ocore_wrapper_isize(long);
+extern u64 ocore_wrapper_storage(u64);
+extern u64 ocore_wrapper_opaque_copy(void);
+extern u64 ocore_wrapper_stack(void);
+extern u64 ocore_wrapper_layout(void);
+extern u64 ocore_wrapper_client(u64);
+
+static int wrapper_conformance(void) {
+ const u64 values[8]={0,1,127,128,255,0x80000000ULL,0x8000000000000000ULL,0xffffffffffffffffULL};
+ for (u32 index=0;index<8;++index) {
+  u64 value=values[index];
+  if (ocore_wrapper_u8((u8)value)!=(u8)value) return 120;
+  if (ocore_wrapper_u16((u16)value)!=(u16)value) return 121;
+  if (ocore_wrapper_u32((u32)value)!=(u32)value) return 122;
+  if (ocore_wrapper_u64((u64)value)!=(u64)value) return 123;
+  if (ocore_wrapper_i8((i8)value)!=(i8)value) return 124;
+  if (ocore_wrapper_i16((i16)value)!=(i16)value) return 125;
+  if (ocore_wrapper_i32((i32)value)!=(i32)value) return 126;
+  if (ocore_wrapper_i64((i64)value)!=(i64)value) return 127;
+  if (ocore_wrapper_usize((unsigned long)value)!=(unsigned long)value) return 128;
+  if (ocore_wrapper_isize((long)value)!=(long)value) return 129;
+  if (ocore_wrapper_storage(value)!=value) return 130;
+ }
+ if (ocore_wrapper_opaque_copy()!=14) return 131;
+ u64 expected=(u8)250+2*(u64)(i8)-128+3*(u64)(u16)65530+4*(u64)(i16)-32768
+  +5*(u64)(u32)0xf1234567U+6*(u64)(i32)(-2147483647-1)+7*0xf123456789abcdefULL
+  +8*(u64)(i64)(1ULL<<63)+9*0x7ffffffffffffffeULL+10*(u64)(long)-123456789
+  +11*(u64)(i8)-99+12*(u64)(u16)0x8bad;
+ if (ocore_wrapper_stack()!=expected) return 132;
+ expected=sizeof(u8)+2*sizeof(u16)+3*sizeof(u32)+4*sizeof(u64)+5*sizeof(i8)
+  +6*sizeof(i16)+7*sizeof(i32)+8*sizeof(i64)+9*sizeof(unsigned long)+10*sizeof(long);
+ if (ocore_wrapper_layout()!=expected) return 133;
+ if (ocore_wrapper_client(0)!=35 || ocore_wrapper_client(1)!=39) return 134;
+ return 0;
+}
+
 int conformance_main(void) {
 #if NEVER_CASE == 1
     diverging_repeat(); return 107;
@@ -99,6 +146,8 @@ int conformance_main(void) {
 #elif FAULT_CASE == 6
     fault_atomic((const u64 *)1); return 106;
 #else
+    int wrappers=wrapper_conformance();
+    if (wrappers) return wrappers;
     u64 selftest = ocore_selftest();
     if (selftest) return (int)selftest;
     if (many_args(1,2,3,4,5,6,7,8,9,10,11,12) != 650) return 31;

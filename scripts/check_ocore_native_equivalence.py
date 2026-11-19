@@ -279,7 +279,10 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
                  for target in args.targets}
     corpus = ROOT / "tests/fixtures/ocore_native_equivalence.oc"
     harness = ROOT / "tests/fixtures/ocore_native_equivalence.c"
-    evidence = RunEvidence([__file__, corpus, harness, TARGET_CATALOG],
+    wrapper_client = ROOT / "tests/fixtures/ocore_native_wrapper_client.oc"
+    # Client first deliberately tests a cross-module forward constant alias.
+    sources = [wrapper_client, corpus]
+    evidence = RunEvidence([__file__, *sources, harness, TARGET_CATALOG],
                            {"ocorec": compiler, "clang": clang, "assembler_clang": assembler,
                             "linker": linker, **{isa: runner[0] for isa, runner in emulators.items() if runner}})
     run = evidence.checked_run
@@ -288,17 +291,19 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
     report["selected_native_targets"] = [TARGETS[target][0] for target in args.targets]
     report["assembler_clang"] = run([assembler, "--version"]).stdout.decode().splitlines()[0]
     report["source_sha256"] = hashlib.sha256(corpus.read_bytes()).hexdigest()
+    report["source_modules"] = [file_identity(source) for source in sources]
+    report["transparent_integer_wrappers"] = {"primitive_widths": ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "usize", "isize"], "c_oracle_checks_per_target": 93, "foreign_boundary": "primitive C shims only", "coverage": ["layout", "direct and indirect internal calls", "12 mixed-width arguments", "signed normalization", "locals/statics/arrays", "opaque-only aggregate copies", "imported aliases and forward constants", "control-flow assignment"]}
     report["reference_sha256"] = hashlib.sha256(harness.read_bytes()).hexdigest()
     report["compiler_sha256"] = hashlib.sha256(Path(compiler).read_bytes()).hexdigest()
     reference = None
     for target in args.targets:
         native, hosted, machine, flags = TARGETS[target]
         obj = directory / (target + ".o")
-        produce([compiler, str(corpus), "--target", native, "--emit", "obj", "--keep-asm", "--function-sections", "-o", str(obj)], [obj, obj.with_suffix(".s")], runner=run)
+        produce([compiler, *map(str, sources), "--target", native, "--emit", "obj", "--keep-asm", "--function-sections", "-o", str(obj)], [obj, obj.with_suffix(".s")], runner=run)
         elf(obj, machine, 1)
         # Rebuilding in another directory must preserve every object byte.
         alternate = directory / "reproducible" / (target + ".o")
-        produce([compiler, str(corpus), "--target", native, "--emit", "obj", "--function-sections", "-o", str(alternate)], [alternate], runner=run)
+        produce([compiler, *map(str, sources), "--target", native, "--emit", "obj", "--function-sections", "-o", str(alternate)], [alternate], runner=run)
         if obj.read_bytes() != alternate.read_bytes():
             raise RuntimeError(f"{target} object is not byte reproducible")
         link = [clang, "--target=" + hosted, *flags, "-O2", "-ffreestanding", "-fno-builtin", "-fno-stack-protector", "-fno-pic", "-nostdlib", "-static", "--ld-path=" + linker, "-Wl,-e,_start", "-Wl,--build-id=none", str(harness), str(obj)]
@@ -337,7 +342,7 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
         if emulators[target]:
             result["emulator"] = run([emulators[target][0], "--version"]).stdout.decode().splitlines()[0]
         report["targets"][target] = result
-        print(f"{target}: PASS — {result['output']}; C ABI/memory/atomics; 6 synchronous fault cases; 2 never cases; reproducible object", flush=True)
+        print(f"{target}: PASS — {result['output']}; C ABI/memory/atomics; 6 synchronous fault cases; 2 never cases; 93 wrapper checks; reproducible object", flush=True)
     report["executed_native_targets"] = [TARGETS[target][0] for target in report["targets"]]
     report["equivalent"] = set(report["executed_native_targets"]) == set(catalog["canonical_targets"])
     report["provenance"] = evidence.finish()

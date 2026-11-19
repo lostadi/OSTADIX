@@ -1,0 +1,97 @@
+{
+  "schema": "ostadix.typed-lifecycle-m1/v1",
+  "baseline_commit": "88fc0de62d1064025bf8e31abde68352d1f1d7c9",
+  "source_state": "Baseline plus the exact source hashes recorded by focused-gates.json; execution preceded publication.",
+  "compiler": {
+    "original_path": "/home/ustad/ostadix-BM/target/debug/ocorec",
+    "retained_path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-tools-5b8a05e9a3d8/ocorec",
+    "sha256": "5b8a05e9a3d893f8159be424adf63ff9cc28794c277d77917bd9717d058c4b8f"
+  },
+  "status": "passed within compiler and constructor scope",
+  "checks": {
+    "rust": {
+      "parser": 4,
+      "typeck": 32,
+      "mir": 15,
+      "emitters": 45
+    },
+    "runner_and_target_coverage": 16,
+    "per_target": {
+      "arithmetic_cases": 12288,
+      "wrapper_oracle_checks": 93,
+      "arithmetic_traps": 6,
+      "never_returns": 2,
+      "constructor_layout_cases": 64,
+      "crossed_domain_rejections": 2
+    },
+    "internal_phi_loop": "typed i8 merge and parallel-edge internal call executed on every target",
+    "object_reproducibility": true,
+    "format": {
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "observed_tool_session": 89060
+    },
+    "clippy": {
+      "argv": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--package",
+        "ostadix-api",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "observed_tool_session": 12472,
+      "final_stdout_stderr": "Finished `dev` profile [unoptimized] target(s) in 1m 38s",
+      "scope": "Compiler library and test lint check; does not execute tests"
+    }
+  },
+  "execution": {
+    "x86_64": "Linux native",
+    "aarch64": "Linux user-mode QEMU",
+    "rv64gc": "Linux user-mode QEMU"
+  },
+  "review": {
+    "result": "Independent source review findings corrected; final diff checked without additional correctness findings.",
+    "resolved": [
+      "callback nominal signatures in malformed MIR",
+      "opaque aggregate constant copies",
+      "pointer-to-array place validation",
+      "pointer storage nominal identity"
+    ]
+  },
+  "receipts": {
+    "native-equivalence.json": {
+      "sha256": "d6c79bc2b70dd22ebf851844e9b8cf7fe20d25df57f325f25af0d15f2ab447c0",
+      "bytes": 208353
+    },
+    "wrapper-phi.json": {
+      "sha256": "e569c8695d8a95a29a7b3b68b646fb1e4ccfaea40a781bdd941fda28f3167d93",
+      "bytes": 14883
+    },
+    "lifecycle-identities.json": {
+      "sha256": "d5902f1bd1146878f4dd19eb695b0c5cc828f552cf53426601168b4ec15417e9",
+      "bytes": 65211
+    },
+    "focused-gates.json": {
+      "sha256": "b7da29cceaaa38624b158d7881f18f9dabdc7dcc61718303b64f2a08736d0941",
+      "bytes": 18705
+    }
+  },
+  "limits": [
+    "No physical Orange Pi execution",
+    "No kernel or full-system guest qualification from these compiler results",
+    "No runtime authority proof from nominal types",
+    "Checked arrays are a separate change"
+  ]
+}

@@ -1,0 +1,84 @@
+module lifecycle_identity_test;
+
+use runtime::common::lifecycle_identity::O10DomainGeneration;
+use runtime::common::lifecycle_identity::NamespaceTransportEpoch;
+use runtime::common::lifecycle_identity::NamespaceSessionEpoch;
+use runtime::common::lifecycle_identity::O10_DOMAIN_FIRST;
+use runtime::common::lifecycle_identity::NAMESPACE_TRANSPORT_FIRST;
+use runtime::common::lifecycle_identity::NAMESPACE_SESSION_FIRST;
+use runtime::common::lifecycle_identity::o10_domain_generation_init;
+use runtime::common::lifecycle_identity::o10_domain_generation_raw;
+use runtime::common::lifecycle_identity::o10_domain_generation_next;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_init;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_raw;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_next;
+use runtime::common::lifecycle_identity::namespace_session_epoch_init;
+use runtime::common::lifecycle_identity::namespace_session_epoch_raw;
+use runtime::common::lifecycle_identity::namespace_session_epoch_next;
+
+struct Framed { before: u8, value: O10DomainGeneration, after: u8 }
+
+@export @no_mangle
+extern "C" unsafe fn lifecycle_identity_probe(kind: u64, raw: u64, operation: u64, output: *mut u64) -> u64 {
+    if kind == 0 {
+        let mut value: O10DomainGeneration = O10_DOMAIN_FIRST;
+        o10_domain_generation_init(&mut value, 29);
+        let mut status: u64 = 0;
+        if operation == 0 { status = o10_domain_generation_init(&mut value, raw); }
+        if operation == 1 {
+            let mut current: O10DomainGeneration = O10_DOMAIN_FIRST;
+            if o10_domain_generation_init(&mut current, raw) == 1 {
+                status = o10_domain_generation_next(&mut value, current);
+            }
+        }
+        if operation == 2 {
+            status = o10_domain_generation_init(0 as *mut O10DomainGeneration, raw)
+                | o10_domain_generation_next(0 as *mut O10DomainGeneration, O10_DOMAIN_FIRST);
+        }
+        *output = o10_domain_generation_raw(value); return status;
+    }
+    if kind == 1 {
+        let mut value: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+        namespace_transport_epoch_init(&mut value, 29);
+        let mut status: u64 = 0;
+        if operation == 0 { status = namespace_transport_epoch_init(&mut value, raw); }
+        if operation == 1 {
+            let mut current: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+            if namespace_transport_epoch_init(&mut current, raw) == 1 {
+                status = namespace_transport_epoch_next(&mut value, current);
+            }
+        }
+        if operation == 2 {
+            status = namespace_transport_epoch_init(0 as *mut NamespaceTransportEpoch, raw)
+                | namespace_transport_epoch_next(0 as *mut NamespaceTransportEpoch, NAMESPACE_TRANSPORT_FIRST);
+        }
+        *output = namespace_transport_epoch_raw(value); return status;
+    }
+    let mut value: NamespaceSessionEpoch = NAMESPACE_SESSION_FIRST;
+    namespace_session_epoch_init(&mut value, 29);
+    let mut status: u64 = 0;
+    if operation == 0 { status = namespace_session_epoch_init(&mut value, raw); }
+    if operation == 1 {
+        let mut current: NamespaceSessionEpoch = NAMESPACE_SESSION_FIRST;
+        if namespace_session_epoch_init(&mut current, raw) == 1 {
+            status = namespace_session_epoch_next(&mut value, current);
+        }
+    }
+    if operation == 2 {
+        status = namespace_session_epoch_init(0 as *mut NamespaceSessionEpoch, raw)
+            | namespace_session_epoch_next(0 as *mut NamespaceSessionEpoch, NAMESPACE_SESSION_FIRST);
+    }
+    *output = namespace_session_epoch_raw(value); return status;
+}
+
+@export @no_mangle
+extern "C" unsafe fn lifecycle_identity_layout() -> u64 {
+    let values: [O10DomainGeneration; 2] = [O10_DOMAIN_FIRST; 2];
+    let frames: [Framed; 2] = [Framed { before: 0, value: O10_DOMAIN_FIRST, after: 0 }; 2];
+    let stride: u64 = (((&values[1]) as usize) - ((&values[0]) as usize)) as u64;
+    let field: u64 = (((&frames[0].value) as usize) - ((&frames[0]) as usize)) as u64;
+    let tail: u64 = (((&frames[0].after) as usize) - ((&frames[0]) as usize)) as u64;
+    let frame_stride: u64 = (((&frames[1]) as usize) - ((&frames[0]) as usize)) as u64;
+    let primitive: u64 = volatile_load((&values[0]) as *const u64);
+    return stride | (field << 8) | (tail << 16) | (frame_stride << 24) | (primitive << 32);
+}

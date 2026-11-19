@@ -1,0 +1,372 @@
+{
+  "schema": "ostadix.ocore-transparent-phi-execution/v1",
+  "complete": true,
+  "source_files": [
+    {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/hir.rs",
+      "bytes": 15363,
+      "sha256": "2b44a040e2e80964b8fb2fb1515c60d727e454b29309eb76bab41327d0ea21c0"
+    },
+    {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/typeck.rs",
+      "bytes": 133746,
+      "sha256": "b29b9a2b4375a3a763c43f521c3884b8f6044f87843ea72329414122ea6a35f9"
+    },
+    {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/mir.rs",
+      "bytes": 96082,
+      "sha256": "809259cd8ca2cff250682dd7618098cf6ef4b0623b8741f06c1be23c86207fe5"
+    },
+    {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/codegen.rs",
+      "bytes": 88772,
+      "sha256": "86e5cfba77ca789411afffdc3be6c1cbc6bd01fb0509e314bc1b7c902b808884"
+    },
+    {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/codegen_aarch64.rs",
+      "bytes": 99157,
+      "sha256": "53f9a835ff51828db12d37ea3888556a3fb855a723fc102adc25c35b00fceb30"
+    },
+    {
+      "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/codegen_riscv64.rs",
+      "bytes": 85622,
+      "sha256": "f6f50abcbfdfbf5394ca1344f5cd3ee230454685c6d0b46c464ec9c356bbdecc"
+    }
+  ],
+  "test_executable_path": "/home/ustad/ostadix-BM/target/debug/deps/ostadix_api-49a358f8512c2845",
+  "running_test_binary": {
+    "path": "/proc/self/exe",
+    "bytes": 130792464,
+    "sha256": "bf0aebe63e4821f539e403b488fdae370fc8b52cd902d75ca1287c8b05372868"
+  },
+  "clang": {
+    "path": "/usr/bin/clang",
+    "bytes": 137584,
+    "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+  },
+  "linker": {
+    "path": "/usr/bin/ld.lld",
+    "bytes": 5873872,
+    "sha256": "6a65863a9eba1af6b6e8969f8e96a5ad4df0e8b705f98491a28b1790ce35718c"
+  },
+  "commands": [
+    {
+      "target": "x86_64-unknown-none",
+      "phase": "assemble",
+      "argv": [
+        "/usr/bin/clang",
+        "--target=x86_64-unknown-none-elf",
+        "-c",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.s",
+        "-o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.o"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_after": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n"
+    },
+    {
+      "target": "x86_64-unknown-none",
+      "phase": "link",
+      "argv": [
+        "/usr/bin/clang",
+        "--target=x86_64-linux-gnu",
+        "-nostdlib",
+        "-static",
+        "-fno-pic",
+        "-Wl,--build-id=none",
+        "-Wl,-e,_start",
+        "--ld-path=/usr/bin/ld.lld",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.o",
+        "-o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.elf"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_after": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n"
+    },
+    {
+      "target": "x86_64-unknown-none",
+      "phase": "execute",
+      "argv": [
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.elf"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.elf",
+        "bytes": 1736,
+        "sha256": "559e82373d0f254647d2dbf00b4ac195f16e8cb2da52cc7156e2ff755e4e8d3b"
+      },
+      "tool_after": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.elf",
+        "bytes": 1736,
+        "sha256": "559e82373d0f254647d2dbf00b4ac195f16e8cb2da52cc7156e2ff755e4e8d3b"
+      },
+      "tool_version": null
+    },
+    {
+      "target": "aarch64-unknown-none",
+      "phase": "assemble",
+      "argv": [
+        "/usr/bin/clang",
+        "--target=aarch64-unknown-none-elf",
+        "-c",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.s",
+        "-o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.o"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_after": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n"
+    },
+    {
+      "target": "aarch64-unknown-none",
+      "phase": "link",
+      "argv": [
+        "/usr/bin/clang",
+        "--target=aarch64-linux-gnu",
+        "-nostdlib",
+        "-static",
+        "-fno-pic",
+        "-Wl,--build-id=none",
+        "-Wl,-e,_start",
+        "--ld-path=/usr/bin/ld.lld",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.o",
+        "-o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.elf"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_after": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n"
+    },
+    {
+      "target": "aarch64-unknown-none",
+      "phase": "execute",
+      "argv": [
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.elf"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+        "bytes": 7108312,
+        "sha256": "532b2c75f44749d4c6db3e5f578a76488bfcd7a261289a89675d2ced24a0bd3c"
+      },
+      "tool_after": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-aarch64",
+        "bytes": 7108312,
+        "sha256": "532b2c75f44749d4c6db3e5f578a76488bfcd7a261289a89675d2ced24a0bd3c"
+      },
+      "tool_version": "qemu-aarch64 version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.3)\nCopyright (c) 2003-2025 Fabrice Bellard and the QEMU Project developers\n"
+    },
+    {
+      "target": "riscv64-unknown-none",
+      "phase": "assemble",
+      "argv": [
+        "/usr/bin/clang",
+        "--target=riscv64-unknown-none-elf",
+        "-march=rv64gc",
+        "-mabi=lp64",
+        "-c",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.s",
+        "-o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.o"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_after": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n"
+    },
+    {
+      "target": "riscv64-unknown-none",
+      "phase": "link",
+      "argv": [
+        "/usr/bin/clang",
+        "--target=riscv64-linux-gnu",
+        "-march=rv64gc",
+        "-mabi=lp64",
+        "-nostdlib",
+        "-static",
+        "-fno-pic",
+        "-Wl,--build-id=none",
+        "-Wl,-e,_start",
+        "--ld-path=/usr/bin/ld.lld",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.o",
+        "-o",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.elf"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_after": {
+        "path": "/usr/bin/clang",
+        "bytes": 137584,
+        "sha256": "412bbe8c60571a1eb06f48fde89635033621caeb01a9b4ee76d46711bae8e932"
+      },
+      "tool_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n"
+    },
+    {
+      "target": "riscv64-unknown-none",
+      "phase": "execute",
+      "argv": [
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+        "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.elf"
+      ],
+      "cwd": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2",
+      "exit_code": 0,
+      "status": "ExitStatus(unix_wait_status(0))",
+      "stdout": "",
+      "stderr": "",
+      "tool_before": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+        "bytes": 4669656,
+        "sha256": "c837c333af8ecc4459abc1a44ecca4e32c18d10ffac70e37dd3aa9e9d2442dc1"
+      },
+      "tool_after": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/tools/qemu-user-root/usr/bin/qemu-riscv64",
+        "bytes": 4669656,
+        "sha256": "c837c333af8ecc4459abc1a44ecca4e32c18d10ffac70e37dd3aa9e9d2442dc1"
+      },
+      "tool_version": "qemu-riscv64 version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.3)\nCopyright (c) 2003-2025 Fabrice Bellard and the QEMU Project developers\n"
+    }
+  ],
+  "targets": [
+    {
+      "target": "x86_64-unknown-none",
+      "assembly": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.s",
+        "bytes": 5037,
+        "sha256": "2dde11f71b3492457f487b861c789bae45fad1541a8b989b5a004267d6f778f7"
+      },
+      "object": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.o",
+        "bytes": 1512,
+        "sha256": "7e3e066c8a5a4d74d21da6244a59ca340e6865d042fc7793f4e9b40f87293d39"
+      },
+      "executable": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/x86_64.elf",
+        "bytes": 1736,
+        "sha256": "559e82373d0f254647d2dbf00b4ac195f16e8cb2da52cc7156e2ff755e4e8d3b"
+      },
+      "passed": true
+    },
+    {
+      "target": "aarch64-unknown-none",
+      "assembly": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.s",
+        "bytes": 5980,
+        "sha256": "69d7fe92ad71c791c4f3263df00fc8130fe816aef9b190cf3849c3c6ccda5c29"
+      },
+      "object": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.o",
+        "bytes": 1848,
+        "sha256": "4209dc56b7f4fc25a9ce306e8bf16c356f806d0d5e93f379223c75eef0784f7e"
+      },
+      "executable": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/aarch64.elf",
+        "bytes": 2072,
+        "sha256": "045294824bb721cc3118fbc9e00d0af2c2572da9bbd186d09ac0f9ba22a1d216"
+      },
+      "passed": true
+    },
+    {
+      "target": "riscv64-unknown-none",
+      "assembly": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.s",
+        "bytes": 7362,
+        "sha256": "b4d452439050047a9ef57347938afd098cd94b06daef1823e762042071da692e"
+      },
+      "object": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.o",
+        "bytes": 2304,
+        "sha256": "d2c199d7487a546f2f700fb38799b8330a8c70b8e2d5339fb52577015447bceb"
+      },
+      "executable": {
+        "path": "/home/ustad/.local/state/ostadix-typed-lifecycle-20261118/m1-wrapper-phi-r2/riscv64.elf",
+        "bytes": 2568,
+        "sha256": "12269dfc987aabc2d6ff2106ab9c55cdec9472667758cda67f1808dd52d91494"
+      },
+      "passed": true
+    }
+  ],
+  "scope": "Actual typed O-core MIR Phi/parallel-edge moves and internal narrow-signed wrapper ABI; no imported NativeModule or guest qualification"
+}

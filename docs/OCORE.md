@@ -1541,7 +1541,9 @@ require an unsafe context.
 
 Extracting a function's integer address is safe. Converting an integer or data
 pointer into a function pointer requires an unsafe context, as does changing
-a function pointer's signature or ABI.
+a function pointer's signature or ABI. A cast between different function
+signatures that contain a transparent integer structure is rejected, including
+inside `unsafe`; its nominal parameter and result identities must be preserved.
 
 Function pointers retain the target ABI and parameter/result types. They may
 be stored, assigned, and called indirectly; each indirect call requires an
@@ -1589,6 +1591,71 @@ O-core v0.1 has no garbage collector and no implicit heap allocation. Values
 have deterministic destruction-free storage. A later ownership layer may add
 checked owning pointers, but it must lower to this explicit storage model.
 
+### Opaque, transparent integer structures
+
+Use a structure when two values have the same bits but different meanings:
+
+```ocore
+module identity;
+
+@opaque
+@transparent
+pub struct TransportEpoch { raw: u64 }
+
+@opaque
+@transparent
+pub struct SessionEpoch { raw: u64 }
+
+pub const FIRST: TransportEpoch = TransportEpoch { raw: 1 };
+
+pub fn transport_bits(value: TransportEpoch) -> u64 {
+    return value.raw;
+}
+```
+
+`TransportEpoch`, `SessionEpoch`, and `u64` remain different types. Assignment,
+arguments, results, and indirect calls require the exact declared type. There
+is no implicit conversion or direct `as` conversion between a wrapper and its
+integer, or between wrappers, even inside `unsafe`. The structure receives no
+arithmetic, comparison, equality, shift, bitwise, or atomic operations. Its
+owner supplies the typed operations it needs.
+
+The two attributes do separate jobs:
+
+| Attribute | Rule |
+|---|---|
+| `@transparent` | Exactly one direct primitive integer field, at offset zero; size and alignment equal that integer. The value can cross an internal O-core call boundary. |
+| `@opaque` | Only the canonical defining module can construct a literal or read, write, or take the address of a field. Imported aliases retain that owner. |
+
+The admitted representations are `u8/u16/u32/u64`, `i8/i16/i32/i64`, and
+`usize/isize`. Nested wrappers, arrays, pointers, Boolean and floating-point
+fields, zero or multiple fields, and combinations with `@packed` or `@align`
+are rejected. The attributes take no arguments, cannot repeat, and cannot be
+placed on other item kinds.
+
+`@transparent` alone permits ordinary outside-module construction and field
+access. `@opaque` alone retains ordinary aggregate-call limits. Either form
+can be copied when its nominal type matches. An opaque owner constant can be
+used in another module's constant, static, local, or array initializer without
+exposing its fields. Constant dependencies resolve before static initializers;
+forward references and reversed module input order work, while dependency
+cycles diagnose rather than producing placeholder zero. There is no implicit
+zero value for a wrapper.
+
+Transparent values retain their nominal type through MIR, internal function
+pointers, register and stack arguments, and returns. Their machine transport
+uses the declared integer's width and signedness. `C`, `sysv64`, syscall,
+assembly, and wire boundaries keep primitive values: validate and construct in
+an explicit owner adapter, and extract raw bits at the return boundary. This
+feature does not change the imported NativeModule ABI.
+
+Opacity controls ordinary source access. Existing `pub` behavior is unchanged;
+a helper is not protected merely because it omits `pub` or has an unchecked
+name. Privileged unsafe pointer reinterpretation can still forge storage.
+Construction can establish a numeric range, but a correctly typed value may
+still be stale, belong to a different caller, or lack the requested rights.
+Keep those runtime checks in the lifecycle owner.
+
 ## 5. Layout and ABI
 
 Primitive sizes and alignments are identical on the three supported targets:
@@ -1629,8 +1696,10 @@ alignment and correct incoming/outgoing narrow scalar extension:
 RISC-V C call/return boundaries apply the psABI's 32-bit sign extension even
 for `u32`; unsigned SSA values remain zero-extended internally.
 `extern "sysv64"` explicitly selects the AMD64 convention and is rejected on
-other targets. Aggregate parameters and returns are forbidden across direct
-and indirect calls, including extern calls; pass pointers instead. Variadic
+other targets. Ordinary aggregate parameters and returns are forbidden across
+direct and indirect calls, including extern calls; pass pointers instead.
+Transparent integer structures are the narrow internal O-core ABI exception
+described above. Variadic
 calls and floating-point C ABI classification are not implemented by the `.oc`
 frontend. Imported NativeModule C variadics use the separate route above.
 
@@ -1700,6 +1769,8 @@ Supported attributes are:
 - `@align(N)`: increase item/type alignment;
 - `@used`: retain an otherwise unreferenced static;
 - `@packed`: packed structure layout;
+- `@opaque`: defining-module construction and field access for a structure;
+- `@transparent`: one-integer structure layout and internal scalar transport;
 - `@interrupt`: x86_64 interrupt entry ABI;
 - `@naked`: no compiler prologue/epilogue; body is restricted to assembly.
 
@@ -1900,7 +1971,9 @@ integer operations and casts, direct and unsafe indirect calls with stack
 arguments, branches and parallel phi moves, volatile memory, all supported
 atomic integer widths, aligned local frames, and overlap-safe aggregate
 copies. Aggregates support layout, construction, fields, indexing, locals,
-and statics; call boundaries still require pointers to aggregates. Enum
+and statics; ordinary aggregates cross call boundaries through pointers.
+Transparent integer structures retain nominal identity while crossing internal
+O-core calls with their integer representation. Enum
 construction is supported; pattern matching is not. MIR structure and codegen
 type contracts are checked before unsupported shapes can select machine
 instructions. Floating-point computation and full C ABI classification remain
@@ -1930,7 +2003,12 @@ Run it on an x86_64 Linux host with `clang`, `ld.lld`, `qemu-aarch64`, and
 arithmetic functions (12,288 reference comparisons per ISA), C crossings in
 both directions, twelve-argument direct/indirect calls, packed and aligned
 memory, an 8193-byte local array, overlap-safe copies, volatile memory, and
-8/16/32/64-bit atomics. Successful output bytes must agree across targets.
+8/16/32/64-bit atomics. A second source module exercises imported opaque
+constants before their owner's input, local/static/array copies, all ten
+transparent integer representations, narrow signed normalization, and direct
+and indirect internal calls beyond the argument registers. The primitive C
+carrier makes 93 additional independent wrapper checks per ISA. Successful
+output bytes must agree across targets.
 Six separate fault programs per ISA must trap: four division/remainder cases
 and two misaligned volatile/atomic accesses. Object bytes must reproduce across
 output directories. Two additional executions verify that a `never` call
