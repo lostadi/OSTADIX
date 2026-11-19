@@ -40,6 +40,23 @@ use runtime::pages::FRAME_KIND_ANONYMOUS;
 use runtime::pages::FRAME_KIND_EXECUTABLE;
 use runtime::pages::FRAME_KIND_SHARED;
 
+
+// Nominal identities validate representation only; every operation still checks
+// the current generation, owner, state and rights. Output storage must be valid.
+@opaque
+@transparent
+pub struct MemoryObjectHandle { raw: u64 }
+pub const MEMORY_OBJECT_HANDLE_FIRST: MemoryObjectHandle = MemoryObjectHandle { raw: 0x1_a100_0000 };
+pub unsafe fn memory_object_handle_init(result: *mut MemoryObjectHandle, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xff00_0000) != 0xa100_0000 { return 0; }
+    if (raw & 0x00ff_ffff) >= MAX_MEMORY_OBJECTS as u64 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    *result = MemoryObjectHandle { raw: raw };
+    return 1;
+}
+pub fn memory_object_handle_raw(value: MemoryObjectHandle) -> u64 { return value.raw; }
+
 pub const MEMORY_ANONYMOUS: u64 = 1;
 pub const MEMORY_SHARED: u64 = 2;
 pub const MEMORY_EXECUTABLE: u64 = 3;
@@ -399,11 +416,16 @@ pub unsafe fn object_for_capability(cspace_id: usize, capability: u64) -> u64 {
 }
 
 pub unsafe fn object_kind(handle: u64) -> u64 {
+
     let index: usize = checked_object(handle, 0);
     if index >= MAX_MEMORY_OBJECTS {
         return 0;
     }
     return KINDS[index] as u64;
+}
+
+pub unsafe fn object_kind_typed(handle_identity: MemoryObjectHandle) -> u64 {
+    return object_kind(memory_object_handle_raw(handle_identity));
 }
 
 // Trusted kernel subsystems use this to preflight ownership teardown. A zero
@@ -418,12 +440,17 @@ pub unsafe fn reference_count(handle: u64) -> u32 {
 }
 
 pub unsafe fn retain_object(handle: u64) -> u64 {
+
     let index: usize = checked_object(handle, 0);
     if index >= MAX_MEMORY_OBJECTS || REFERENCES[index] == 0xffff_ffff {
         return 0;
     }
     REFERENCES[index] += 1;
     return 1;
+}
+
+pub unsafe fn retain_object_typed(handle_identity: MemoryObjectHandle) -> u64 {
+    return retain_object(memory_object_handle_raw(handle_identity));
 }
 
 pub unsafe fn retain_for_mapping(
@@ -459,6 +486,7 @@ pub unsafe fn release_mapping(handle: u64, expected_kind: u64) -> u64 {
 }
 
 pub unsafe fn release_object(handle: u64) -> u64 {
+
     let index: usize = checked_object(handle, 0);
     if index >= MAX_MEMORY_OBJECTS || REFERENCES[index] == 0 {
         return 0;
@@ -494,6 +522,10 @@ pub unsafe fn release_object(handle: u64) -> u64 {
         STATES[index] = OBJECT_EMPTY;
     }
     return 1;
+}
+
+pub unsafe fn release_object_typed(handle_identity: MemoryObjectHandle) -> u64 {
+    return release_object(memory_object_handle_raw(handle_identity));
 }
 
 pub unsafe fn close_capability_for_owner(owner: u64, capability: u64) -> u64 {

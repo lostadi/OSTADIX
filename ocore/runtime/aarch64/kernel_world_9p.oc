@@ -6,6 +6,14 @@ use runtime::common::namespace_store::session_init;
 use runtime::common::namespace_store::handle;
 use runtime::common::namespace_store::session_handle;
 use runtime::common::namespace_store::revoke_if_current;
+use runtime::common::lifecycle_identity::NamespaceTransportEpoch;
+use runtime::common::lifecycle_identity::NamespaceSessionEpoch;
+use runtime::common::lifecycle_identity::NAMESPACE_TRANSPORT_FIRST;
+use runtime::common::lifecycle_identity::NAMESPACE_SESSION_FIRST;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_init;
+use runtime::common::lifecycle_identity::namespace_transport_epoch_raw;
+use runtime::common::lifecycle_identity::namespace_session_epoch_init;
+use runtime::common::lifecycle_identity::namespace_session_epoch_raw;
 
 extern "ocore" fn kw_guest_address(gpa: u64, length: u64) -> usize;
 extern "ocore" fn kw_memory_barrier() -> void;
@@ -105,15 +113,23 @@ unsafe fn reset_transport() -> u64 {
     INTERRUPT = 0;
     ERROR = 0;
     if BOUND != 1 { SESSION = 0; kw_9p_irq_level(0); return 1; }
-    if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return fail(1); }
-    SESSION_EPOCH += 1;
-    SESSION = session_init(LINUX_NAMESPACE_GRANT, SESSION_EPOCH);
+    let mut epoch: NamespaceSessionEpoch = NAMESPACE_SESSION_FIRST;
+    if next_session_epoch_typed(&mut epoch) != 1 { return fail(1); }
+    SESSION_EPOCH = namespace_session_epoch_raw(epoch);
+    SESSION = session_init_typed(LINUX_NAMESPACE_GRANT, epoch);
     kw_9p_irq_level(0);
     if SESSION == 0 { return fail(1); }
     return 1;
 }
 
 pub unsafe fn init(guest_base: u64, guest_size: u64, generation: u64) -> u64 {
+    let mut checked: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if namespace_transport_epoch_init(&mut checked, generation) != 1 { return 0; }
+    return init_typed(guest_base, guest_size, checked);
+}
+
+pub unsafe fn init_typed(guest_base: u64, guest_size: u64, generation_identity: NamespaceTransportEpoch) -> u64 {
+    let generation: u64 = namespace_transport_epoch_raw(generation_identity);
     if guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
         || generation == 0 || generation <= GENERATION { return 0; }
     RAM_BASE = guest_base;
@@ -362,13 +378,27 @@ pub unsafe fn fault_kind() -> u64 {
 // changing anything: a stale lifecycle caller cannot revoke a rebound wire.
 pub unsafe fn generation() -> u64 { return GENERATION; }
 pub unsafe fn can_detach(expected: u64) -> u64 {
+    let mut checked: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if namespace_transport_epoch_init(&mut checked, expected) != 1 { return 0; }
+    return can_detach_typed(checked);
+}
+
+pub unsafe fn can_detach_typed(expected_identity: NamespaceTransportEpoch) -> u64 {
+    let expected: u64 = namespace_transport_epoch_raw(expected_identity);
     if expected == 0 || expected != GENERATION || ACTIVE != 1 { return 0; }
     let current: u64 = session_handle(LINUX_NAMESPACE_GRANT);
     if current != 0 && current != SESSION { return 0; }
     return 1;
 }
 pub unsafe fn detach(expected: u64) -> u64 {
-    if can_detach(expected) != 1 { return 0; }
+    let mut checked: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if namespace_transport_epoch_init(&mut checked, expected) != 1 { return 0; }
+    return detach_typed(checked);
+}
+
+pub unsafe fn detach_typed(expected_identity: NamespaceTransportEpoch) -> u64 {
+    let expected: u64 = namespace_transport_epoch_raw(expected_identity);
+    if can_detach_typed(expected_identity) != 1 { return 0; }
     let current: u64 = session_handle(LINUX_NAMESPACE_GRANT);
     if current != 0 && revoke_if_current(LINUX_NAMESPACE_GRANT, current) != 1 { return 0; }
     ACTIVE = 0; BOUND = 0; SESSION = 0;
@@ -385,6 +415,13 @@ pub unsafe fn detach(expected: u64) -> u64 {
 // Transport generations retain the full u64 boot epoch; O10 domain/lease
 // handle generations use their separate bounded vocabulary.
 pub unsafe fn provision(guest_base: u64, guest_size: u64, next: u64) -> u64 {
+    let mut checked: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if namespace_transport_epoch_init(&mut checked, next) != 1 { return 0; }
+    return provision_typed(guest_base, guest_size, checked);
+}
+
+pub unsafe fn provision_typed(guest_base: u64, guest_size: u64, next_identity: NamespaceTransportEpoch) -> u64 {
+    let next: u64 = namespace_transport_epoch_raw(next_identity);
     if ACTIVE != 0 || guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
         || next == 0 || next <= GENERATION { return 0; }
     RAM_BASE = guest_base; RAM_SIZE = guest_size; GENERATION = next;
@@ -392,6 +429,16 @@ pub unsafe fn provision(guest_base: u64, guest_size: u64, next: u64) -> u64 {
     return reset_transport();
 }
 pub unsafe fn bind_current(expected: u64, session: u64, epoch: u64) -> u64 {
+    let mut transport: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    let mut accepted_epoch: NamespaceSessionEpoch = NAMESPACE_SESSION_FIRST;
+    if namespace_transport_epoch_init(&mut transport, expected) != 1
+        || namespace_session_epoch_init(&mut accepted_epoch, epoch) != 1 { return 0; }
+    return bind_current_typed(transport, session, accepted_epoch);
+}
+
+pub unsafe fn bind_current_typed(expected_identity: NamespaceTransportEpoch, session: u64, epoch_identity: NamespaceSessionEpoch) -> u64 {
+    let expected: u64 = namespace_transport_epoch_raw(expected_identity);
+    let epoch: u64 = namespace_session_epoch_raw(epoch_identity);
     if ACTIVE != 1 || BOUND != 0 || expected != GENERATION || session == 0
         || epoch == 0 || epoch <= SESSION_EPOCH
         || session_handle(LINUX_NAMESPACE_GRANT) != session { return 0; }
@@ -401,14 +448,35 @@ pub unsafe fn bind_current(expected: u64, session: u64, epoch: u64) -> u64 {
 
 
 pub unsafe fn can_provision(next: u64) -> u64 {
+    let mut checked: NamespaceTransportEpoch = NAMESPACE_TRANSPORT_FIRST;
+    if namespace_transport_epoch_init(&mut checked, next) != 1 { return 0; }
+    return can_provision_typed(checked);
+}
+
+pub unsafe fn can_provision_typed(next_identity: NamespaceTransportEpoch) -> u64 {
+    let next: u64 = namespace_transport_epoch_raw(next_identity);
     return (ACTIVE == 0 && next != 0 && next > GENERATION) as u64;
 }
 pub unsafe fn bound() -> u64 { return BOUND; }
 
 
 pub unsafe fn next_session_epoch() -> u64 {
+    let mut epoch: NamespaceSessionEpoch = NAMESPACE_SESSION_FIRST;
+    if next_session_epoch_typed(&mut epoch) != 1 { return 0; }
+    return namespace_session_epoch_raw(epoch);
+}
+
+pub unsafe fn next_session_epoch_typed(result: *mut NamespaceSessionEpoch) -> u64 {
     if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return 0; }
-    return SESSION_EPOCH + 1;
+    return namespace_session_epoch_init(result, SESSION_EPOCH + 1);
+}
+
+pub unsafe fn generation_identity(result: *mut NamespaceTransportEpoch) -> u64 {
+    return namespace_transport_epoch_init(result, GENERATION);
+}
+
+pub unsafe fn session_init_typed(grant: u64, epoch: NamespaceSessionEpoch) -> u64 {
+    return session_init(grant, namespace_session_epoch_raw(epoch));
 }
 
 // Read-only native observer: a name, never authority supplied by a guest.

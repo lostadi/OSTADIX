@@ -1,5 +1,35 @@
 module runtime::cap_transfer;
 
+use runtime::capability::CSpaceHandle;
+use runtime::capability::CapabilityHandle;
+use runtime::capability::CapabilityReservation;
+use runtime::capability::CSPACE_HANDLE_FIRST;
+use runtime::capability::CAPABILITY_HANDLE_FIRST;
+use runtime::capability::CAPABILITY_RESERVATION_FIRST;
+use runtime::capability::cspace_handle_init;
+use runtime::capability::cspace_handle_raw;
+use runtime::capability::capability_handle_init;
+use runtime::capability::capability_handle_raw;
+use runtime::capability::capability_reservation_init;
+use runtime::capability::capability_reservation_raw;
+use runtime::capability::cspace_is_live_typed;
+use runtime::capability::inspect_for_owner_typed;
+use runtime::capability::reserve_first_free_for_owner_typed;
+use runtime::capability::publish_reserved_for_owner_typed;
+use runtime::capability::abort_reserved_for_owner_typed;
+use runtime::process::ProcessHandle;
+use runtime::process::PROCESS_HANDLE_FIRST;
+use runtime::process::process_handle_init;
+use runtime::process::process_handle_raw;
+use runtime::memory_object::MemoryObjectHandle;
+use runtime::memory_object::MEMORY_OBJECT_HANDLE_FIRST;
+use runtime::memory_object::memory_object_handle_init;
+use runtime::memory_object::object_kind_typed;
+use runtime::memory_object::retain_object_typed;
+use runtime::memory_object::release_object_typed;
+use runtime::process::can_issue_operations_typed as process_can_issue_operations_typed;
+use runtime::process::cspace_for_typed as process_cspace_typed;
+
 use runtime::capability::abort_reserved_for_owner;
 use runtime::capability::cspace_is_live;
 use runtime::capability::inspect_for_owner;
@@ -16,6 +46,23 @@ use runtime::memory_object::retain_object;
 use runtime::memory_object::MEMORY_SHARED;
 use runtime::process::cspace_for as process_cspace;
 use runtime::process::can_issue_operations as process_can_issue_operations;
+
+
+// Nominal identities validate representation only; every operation still checks
+// the current generation, owner, state and rights. Output storage must be valid.
+@opaque
+@transparent
+pub struct TransferTicket { raw: u64 }
+pub const TRANSFER_TICKET_FIRST: TransferTicket = TransferTicket { raw: 0x1_b200_0000 };
+pub unsafe fn transfer_ticket_init(result: *mut TransferTicket, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xff00_0000) != 0xb200_0000 { return 0; }
+    if (raw & 0x00ff_ffff) >= 16 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    *result = TransferTicket { raw: raw };
+    return 1;
+}
+pub fn transfer_ticket_raw(value: TransferTicket) -> u64 { return value.raw; }
 
 pub const MAX_TRANSFER_TICKETS: usize = 16;
 pub const CANCEL_OWNER_FAILURE: u64 = 0xffff_ffff_ffff_ffff;
@@ -205,6 +252,7 @@ pub unsafe fn prepare_copy(
     requested_rights: u64,
     owner_process: u64
 ) -> u64 {
+
     if INITIALIZED == 0
         || POISONED != 0
         || source_cspace == 0
@@ -220,6 +268,12 @@ pub unsafe fn prepare_copy(
         return 0;
     }
 
+    let mut source_cspace_identity: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut destination_cspace_identity: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut source_capability_identity: CapabilityHandle = CAPABILITY_HANDLE_FIRST;
+    if cspace_handle_init(&mut source_cspace_identity, source_cspace) != 1
+        || cspace_handle_init(&mut destination_cspace_identity, destination_cspace) != 1
+        || capability_handle_init(&mut source_capability_identity, source_capability) != 1 { return 0; }
     let mut slot: usize = 0;
     while slot < MAX_TRANSFER_TICKETS && STATES[slot] != TICKET_EMPTY {
         slot += 1;
@@ -230,28 +284,32 @@ pub unsafe fn prepare_copy(
 
     let mut object: u64 = 0;
     let mut actual_rights: u64 = 0;
-    let object_type: u64 = inspect_for_owner(
-        source_cspace,
-        source_capability,
+    let object_type: u64 = inspect_for_owner_typed(
+        source_cspace_identity,
+        source_capability_identity,
         OBJECT_MEMORY,
         RIGHT_TRANSFER,
         (&mut object),
         (&mut actual_rights)
     );
+    let mut object_identity: MemoryObjectHandle = MEMORY_OBJECT_HANDLE_FIRST;
     if object_type != OBJECT_MEMORY
         || object == 0
-        || object_kind(object) != MEMORY_SHARED
+        || memory_object_handle_init(&mut object_identity, object) != 1
+        || object_kind_typed(object_identity) != MEMORY_SHARED
         || (requested_rights & actual_rights) != requested_rights
         || (requested_rights & MEMORY_TRANSFER_RIGHTS) != requested_rights {
         return 0;
     }
 
-    let reservation: u64 = reserve_first_free_for_owner(destination_cspace);
+    let reservation: u64 = reserve_first_free_for_owner_typed(destination_cspace_identity);
     if reservation == 0 {
         return 0;
     }
-    if retain_object(object) == 0 {
-        if abort_reserved_for_owner(destination_cspace, reservation) == 0 {
+    let mut reservation_identity: CapabilityReservation = CAPABILITY_RESERVATION_FIRST;
+    if capability_reservation_init(&mut reservation_identity, reservation) != 1 { POISONED = 1; return 0; }
+    if retain_object_typed(object_identity) == 0 {
+        if abort_reserved_for_owner_typed(destination_cspace_identity, reservation_identity) == 0 {
             POISONED = 1;
         }
         return 0;
@@ -269,10 +327,21 @@ pub unsafe fn prepare_copy(
     return make_handle(slot);
 }
 
+pub unsafe fn prepare_copy_typed(
+    source_cspace_identity: CSpaceHandle,
+    destination_cspace_identity: CSpaceHandle,
+    source_capability_identity: CapabilityHandle,
+    requested_rights: u64,
+    owner_process_identity: ProcessHandle
+) -> u64 {
+    return prepare_copy(cspace_handle_raw(source_cspace_identity), cspace_handle_raw(destination_cspace_identity), capability_handle_raw(source_capability_identity), requested_rights, process_handle_raw(owner_process_identity));
+}
+
 pub unsafe fn commit_copy(
     ticket: u64,
     destination_capability: *mut u64
 ) -> u64 {
+
     if destination_capability as usize == 0 {
         return 0;
     }
@@ -294,9 +363,13 @@ pub unsafe fn commit_copy(
         return 0;
     }
 
-    let capability: u64 = publish_reserved_for_owner(
-        DESTINATION_CSPACES[slot],
-        RESERVATIONS[slot],
+    let mut destination_identity: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut reservation_identity: CapabilityReservation = CAPABILITY_RESERVATION_FIRST;
+    if cspace_handle_init(&mut destination_identity, DESTINATION_CSPACES[slot]) != 1
+        || capability_reservation_init(&mut reservation_identity, RESERVATIONS[slot]) != 1 { POISONED = 1; return 0; }
+    let capability: u64 = publish_reserved_for_owner_typed(
+        destination_identity,
+        reservation_identity,
         OBJECTS[slot],
         OBJECT_MEMORY,
         RIGHTS[slot]
@@ -312,6 +385,13 @@ pub unsafe fn commit_copy(
     return 1;
 }
 
+pub unsafe fn commit_copy_typed(
+    ticket_identity: TransferTicket,
+    destination_capability: *mut u64
+) -> u64 {
+    return commit_copy(transfer_ticket_raw(ticket_identity), destination_capability);
+}
+
 // Public IPC may carry a generation-tagged transfer ticket between syscalls,
 // but possession of that scalar is not sufficient authority to redirect it.
 // Commit therefore rebinds the ticket to both the exact creating process and
@@ -322,6 +402,7 @@ pub unsafe fn commit_copy_for_owner(
     expected_destination_cspace: u64,
     destination_capability: *mut u64
 ) -> u64 {
+
     if destination_capability as usize == 0 {
         return 0;
     }
@@ -337,7 +418,17 @@ pub unsafe fn commit_copy_for_owner(
     return commit_copy(ticket, destination_capability);
 }
 
+pub unsafe fn commit_copy_for_owner_typed(
+    ticket_identity: TransferTicket,
+    owner_process_identity: ProcessHandle,
+    expected_destination_cspace_identity: CSpaceHandle,
+    destination_capability: *mut u64
+) -> u64 {
+    return commit_copy_for_owner(transfer_ticket_raw(ticket_identity), process_handle_raw(owner_process_identity), cspace_handle_raw(expected_destination_cspace_identity), destination_capability);
+}
+
 pub unsafe fn abort_copy(ticket: u64) -> u64 {
+
     let slot: usize = checked_ticket(ticket);
     if slot >= MAX_TRANSFER_TICKETS {
         return 0;
@@ -354,19 +445,26 @@ pub unsafe fn abort_copy(ticket: u64) -> u64 {
     // encounters an impossible invariant failure, poisoning quarantines a
     // retained reference rather than leaving a live ticket that no longer owns
     // the reference and could double-release it on retry.
-    if abort_reserved_for_owner(
-        DESTINATION_CSPACES[slot],
-        RESERVATIONS[slot]
-    ) == 0 {
+    let mut destination_identity: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut reservation_identity: CapabilityReservation = CAPABILITY_RESERVATION_FIRST;
+    let mut object_identity: MemoryObjectHandle = MEMORY_OBJECT_HANDLE_FIRST;
+    if cspace_handle_init(&mut destination_identity, DESTINATION_CSPACES[slot]) != 1
+        || capability_reservation_init(&mut reservation_identity, RESERVATIONS[slot]) != 1
+        || memory_object_handle_init(&mut object_identity, OBJECTS[slot]) != 1 { POISONED = 1; return 0; }
+    if abort_reserved_for_owner_typed(destination_identity, reservation_identity) == 0 {
         POISONED = 1;
         return 0;
     }
-    if release_object(OBJECTS[slot]) == 0 {
+    if release_object_typed(object_identity) == 0 {
         POISONED = 1;
         return 0;
     }
     retire_or_reuse(slot);
     return 1;
+}
+
+pub unsafe fn abort_copy_typed(ticket_identity: TransferTicket) -> u64 {
+    return abort_copy(transfer_ticket_raw(ticket_identity));
 }
 
 // A public abort is authorized by the exact generation-tagged process that
@@ -377,6 +475,7 @@ pub unsafe fn abort_copy_for_owner(
     ticket: u64,
     owner_process: u64
 ) -> u64 {
+
     let slot: usize = checked_ticket(ticket);
     if slot >= MAX_TRANSFER_TICKETS
         || owner_process == 0
@@ -385,6 +484,13 @@ pub unsafe fn abort_copy_for_owner(
         return 0;
     }
     return abort_copy(ticket);
+}
+
+pub unsafe fn abort_copy_for_owner_typed(
+    ticket_identity: TransferTicket,
+    owner_process_identity: ProcessHandle
+) -> u64 {
+    return abort_copy_for_owner(transfer_ticket_raw(ticket_identity), process_handle_raw(owner_process_identity));
 }
 
 pub unsafe fn copy_atomic(
@@ -417,6 +523,17 @@ pub unsafe fn copy_atomic(
         return 0;
     }
     return 1;
+}
+
+pub unsafe fn copy_atomic_typed(
+    source_cspace_identity: CSpaceHandle,
+    destination_cspace_identity: CSpaceHandle,
+    source_capability_identity: CapabilityHandle,
+    requested_rights: u64,
+    owner_process_identity: ProcessHandle,
+    destination_capability: *mut u64
+) -> u64 {
+    return copy_atomic(cspace_handle_raw(source_cspace_identity), cspace_handle_raw(destination_cspace_identity), capability_handle_raw(source_capability_identity), requested_rights, process_handle_raw(owner_process_identity), destination_capability);
 }
 
 // Cancellation is keyed by the complete generation-tagged process handle.
@@ -459,6 +576,12 @@ pub unsafe fn cancel_owner(owner_process: u64) -> u64 {
         slot += 1;
     }
     return cancelled;
+}
+
+// The primitive cleanup key keeps its full legacy nonzero domain. Nominal
+// process callers use this entry without changing exact-match cleanup results.
+pub unsafe fn cancel_owner_typed(owner_process_identity: ProcessHandle) -> u64 {
+    return cancel_owner(process_handle_raw(owner_process_identity));
 }
 
 pub unsafe fn is_live(ticket: u64) -> bool {

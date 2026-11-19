@@ -198,7 +198,7 @@ pub unsafe fn test_mailbox() -> u64 { native_control(); return LIVE[0] | (LIVE[1
 pub unsafe fn test_inputs() -> void { LINUX_INPUT_COUNT=3; LINUX_INPUT[0]=0x55; RX_COUNT=7; RX[0]=0xa7; }
 pub unsafe fn test_plan9_input() -> u64 { return (RX_COUNT==7 && RX[0]==0xa7) as u64; }
 pub unsafe fn test_linux_input() -> u64 { return LINUX_INPUT_COUNT as u64; }
-pub unsafe fn test_generation(value:u64) -> void { O10_DOMAIN_GENERATION[0]=value; }
+pub unsafe fn test_generation(value:u64) -> void { volatile_store(((&mut O10_DOMAIN_GENERATION[0]) as *mut u64), value); }
 
 """
 

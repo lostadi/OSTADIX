@@ -1,5 +1,66 @@
 module runtime::personality_bounded_rpc;
 
+use runtime::personality_rpc::service_died_typed as service_rpc_identity;
+use runtime::personality_rpc::caller_exited_typed as process_rpc_identity;
+
+
+use runtime::personality_memory_view::create_typed as create_view_identity;
+use runtime::personality_memory_view::abort_create_typed as abort_view_identity;
+use runtime::personality_memory_view::consume_terminal_typed as consume_view_identity;
+use runtime::personality_memory_view::read_byte_typed as read_view_identity;
+use runtime::personality_memory_view::write_byte_typed as write_view_identity;
+use runtime::personality_memory_view::can_reply_typed as can_reply_view_identity;
+use runtime::personality_memory_view::reply_typed as reply_view_identity;
+use runtime::personality_memory_view::cancel_typed as cancel_view_identity;
+use runtime::personality_memory_view::timeout_typed as timeout_view_identity;
+use runtime::personality_memory_view::discard_terminal_typed as discard_view_identity;
+use runtime::personality_memory_view::unmapped_typed as unmapped_view_identity;
+use runtime::personality_memory_view::service_died_typed as service_views_identity;
+use runtime::personality_memory_view::process_exited_typed as process_views_identity;
+use runtime::personality_rpc::prepare_dispatch_typed as prepare_rpc_identity;
+use runtime::personality_rpc::abort_prepared_dispatch_typed as abort_rpc_identity;
+use runtime::personality_rpc::prepare_wait_before_publish_typed as prepare_wait_identity;
+use runtime::personality_rpc::publish_dispatch_typed as publish_rpc_identity;
+use runtime::personality_rpc::abort_prepared_wait_dispatch_typed as abort_prepared_wait_identity;
+use runtime::personality_rpc::dispatch_or_consume_typed as dispatch_rpc_identity;
+use runtime::personality_rpc::can_reply_typed as can_reply_rpc_identity;
+use runtime::personality_rpc::reply_typed as reply_rpc_identity;
+use runtime::personality_rpc::can_transition_typed as can_transition_rpc_identity;
+use runtime::personality_rpc::supervisor_cancel_typed as cancel_rpc_identity;
+use runtime::personality_rpc::abort_wait_typed as abort_wait_rpc_identity;
+use runtime::personality_rpc::abort_dispatched_typed as abort_published_identity;
+use runtime::delegated_resource::create_bound_typed as create_resource_identity;
+use runtime::delegated_resource::revoke_request_typed as revoke_request_identity;
+use runtime::delegated_resource::revoke_typed as revoke_resource_identity;
+use runtime::delegated_resource::destroy_typed as destroy_resource_identity;
+
+use runtime::capability::CSpaceHandle;
+use runtime::capability::CSPACE_HANDLE_FIRST;
+use runtime::capability::CAPABILITY_HANDLE_FIRST;
+use runtime::capability::cspace_handle_init;
+use runtime::capability::capability_handle_init;
+use runtime::process::PROCESS_HANDLE_FIRST;
+use runtime::process::process_handle_init;
+use runtime::address_space::ADDRESS_SPACE_HANDLE_FIRST;
+use runtime::address_space::address_space_handle_init;
+use runtime::personality_rpc::PERSONALITY_REQUEST_HANDLE_FIRST;
+use runtime::personality_rpc::personality_request_handle_init;
+use runtime::personality_memory_view::MemoryViewHandle;
+use runtime::personality_memory_view::MEMORY_VIEW_HANDLE_FIRST;
+use runtime::personality_memory_view::memory_view_handle_init;
+use runtime::delegated_resource::DelegatedResourceHandle;
+use runtime::delegated_resource::DELEGATED_RESOURCE_HANDLE_FIRST;
+use runtime::delegated_resource::delegated_resource_handle_init;
+
+use runtime::address_space::AddressSpaceHandle;
+use runtime::address_space::address_space_handle_raw;
+use runtime::capability::CapabilityHandle;
+use runtime::capability::capability_handle_raw;
+use runtime::personality_rpc::PersonalityRequestHandle;
+use runtime::personality_rpc::personality_request_handle_raw;
+use runtime::process::ProcessHandle;
+use runtime::process::process_handle_raw;
+
 use runtime::native_abi::ERR_PERSONALITY_BUSY;
 use runtime::native_abi::ERR_PERSONALITY_CANCELLED;
 use runtime::native_abi::ERR_PERSONALITY_DUPLICATE;
@@ -182,6 +243,40 @@ static mut REPLY_FAILURE_TEST_SEEN: u64 = 0;
 static mut INITIALIZED: u8 = 0;
 static mut POISONED: u8 = 0;
 
+
+// Reconstitute typed values only at the existing raw storage boundary. Every
+// correlation still comes from the exact request's retained record; none of
+// these types authorizes a transition or substitutes for its runtime checks.
+struct RequestIdentity {
+    request: PersonalityRequestHandle,
+    view: MemoryViewHandle,
+    capability: CapabilityHandle,
+    service_cspace: CSpaceHandle,
+}
+unsafe fn read_identity(slot: usize, destination: *mut RequestIdentity) -> bool {
+    if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS { return false; }
+    if destination as usize == 0 { return false; }
+    if personality_request_handle_init(&mut (*destination).request, REQUESTS[slot]) != 1 { return false; }
+    if memory_view_handle_init(&mut (*destination).view, VIEWS[slot]) != 1 { return false; }
+    if capability_handle_init(&mut (*destination).capability, VIEW_CAPABILITIES[slot]) != 1 { return false; }
+    if cspace_handle_init(&mut (*destination).service_cspace, SERVICE_CSPACES[slot]) != 1 { return false; }
+    return true;
+}
+
+
+unsafe fn timeout_stored_view(slot: usize) -> u64 {
+    let mut view: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
+    if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS { return 0; }
+    if memory_view_handle_init(&mut view, VIEWS[slot]) != 1 { return 0; }
+    return timeout_view_identity(view);
+}
+unsafe fn discard_stored_view(slot: usize) -> u64 {
+    let mut view: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
+    if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS { return 0; }
+    if memory_view_handle_init(&mut view, VIEWS[slot]) != 1 { return 0; }
+    return discard_view_identity(view);
+}
+
 unsafe fn clear_slot(slot: usize) -> void {
     REQUESTS[slot] = 0;
     VIEWS[slot] = 0;
@@ -219,7 +314,16 @@ unsafe fn destroy_slot_resource(slot: usize) -> bool {
     if RESOURCES[slot] == 0 {
         return RESOURCE_CAPABILITIES[slot] == 0;
     }
-    if destroy_resource(RESOURCES[slot]) != 1 {
+    let mut resource: DelegatedResourceHandle = DELEGATED_RESOURCE_HANDLE_FIRST;
+    let mut destroyed: u64 = 0;
+    if delegated_resource_handle_init(&mut resource, RESOURCES[slot]) == 1 {
+        destroyed = destroy_resource_identity(resource);
+    } else {
+        // Preserve the owner's exact diagnostic/accounting path for malformed
+        // raw storage; healthy retained resources cross the typed boundary.
+        destroyed = destroy_resource(RESOURCES[slot]);
+    }
+    if destroyed != 1 {
         return false;
     }
     RESOURCES[slot] = 0;
@@ -423,6 +527,10 @@ pub unsafe fn dispatch_or_consume(
         return deny(ERR_PERSONALITY_STALE);
     }
 
+    let mut caller_identity: ProcessHandle = PROCESS_HANDLE_FIRST;
+    let mut address_identity: AddressSpaceHandle = ADDRESS_SPACE_HANDLE_FIRST;
+    if process_handle_init(&mut caller_identity, caller_process) != 1
+        || address_space_handle_init(&mut address_identity, caller_address_space) != 1 { return deny(ERR_PERSONALITY_STALE); }
     let existing: usize = record_for_thread(caller_thread);
     if existing < MAX_BOUNDED_PERSONALITY_REQUESTS {
         if STATES[existing] != BOUNDED_TERMINAL
@@ -445,12 +553,14 @@ pub unsafe fn dispatch_or_consume(
             POISONED = 1;
             return ERR_PERSONALITY_FAILED;
         }
+        let mut consumed_view: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
+        if memory_view_handle_init(&mut consumed_view, view) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
         let mut view_kind: u64 = 0;
         let mut committed: usize = 0;
-        if consume_view(
-            view,
-            caller_process,
-            caller_address_space,
+        if consume_view_identity(
+            consumed_view,
+            caller_identity,
+            address_identity,
             foreign_address,
             (&mut view_kind),
             (&mut committed)
@@ -463,8 +573,8 @@ pub unsafe fn dispatch_or_consume(
         }
         let mut consumed_request: u64 = 0;
         let mut result: u64 = 0;
-        let disposition: u64 = dispatch_rpc(
-            caller_process,
+        let disposition: u64 = dispatch_rpc_identity(
+            caller_identity,
             caller_thread,
             request_frame,
             deadline,
@@ -498,6 +608,8 @@ pub unsafe fn dispatch_or_consume(
         || !process_is_live(service_process) {
         return deny(ERR_PERSONALITY_UNAVAILABLE);
     }
+    let mut service_identity: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    if cspace_handle_init(&mut service_identity, service_cspace) != 1 { return deny(ERR_PERSONALITY_UNAVAILABLE); }
     let mut slot: usize = 0;
     while slot < MAX_BOUNDED_PERSONALITY_REQUESTS
         && STATES[slot] != BOUNDED_EMPTY {
@@ -518,8 +630,8 @@ pub unsafe fn dispatch_or_consume(
     let wait_failures_before: u64 = rpc_wait_failure_count();
 
     let mut request: u64 = 0;
-    let prepared: u64 = prepare_rpc_dispatch(
-        caller_process,
+    let prepared: u64 = prepare_rpc_identity(
+        caller_identity,
         caller_thread,
         request_frame,
         deadline,
@@ -528,12 +640,14 @@ pub unsafe fn dispatch_or_consume(
     if prepared != 1 {
         return prepared;
     }
+    let mut request_identity: PersonalityRequestHandle = PERSONALITY_REQUEST_HANDLE_FIRST;
+    if personality_request_handle_init(&mut request_identity, request) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
     // Mode24's live gate arms this one-shot before CPL3 scheduling.  The
     // failure occurs after exact request reservation but before snapshot,
     // capability publication, endpoint enqueue, or service wake, exercising
     // the real reserve rollback edge rather than a synthetic counter oracle.
     if FAIL_NEXT_ALLOCATION != 0 {
-        if abort_rpc_dispatch(request) != 1
+        if abort_rpc_identity(request_identity) != 1
             || ALLOCATION_FAILURES == MAX_COUNTER
             || ALLOCATION_ROLLBACK_PROOFS == MAX_COUNTER
             || base_dispatch_count() != dispatches_before
@@ -552,23 +666,25 @@ pub unsafe fn dispatch_or_consume(
         return deny(ERR_PERSONALITY_FAILED);
     }
     let mut capability: u64 = 0;
-    let view: u64 = create_view(
-        request,
-        caller_process,
-        caller_address_space,
+    let view: u64 = create_view_identity(
+        request_identity,
+        caller_identity,
+        address_identity,
         foreign_address,
         length,
         direction,
-        service_cspace,
+        service_identity,
         (&mut capability)
     );
     if view == 0 || capability == 0 {
-        if abort_rpc_dispatch(request) != 1 {
+        if abort_rpc_identity(request_identity) != 1 {
             POISONED = 1;
             return ERR_PERSONALITY_FAILED;
         }
         return deny(ERR_PERSONALITY_FAILED);
     }
+    let mut view_identity: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
+    if memory_view_handle_init(&mut view_identity, view) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
     STATES[slot] = BOUNDED_LIVE;
     REQUESTS[slot] = request;
     VIEWS[slot] = view;
@@ -583,10 +699,10 @@ pub unsafe fn dispatch_or_consume(
     SERVICE_PROCESSES[slot] = service_process;
     SERVICE_GENERATIONS[slot] = service_generation;
     SERVICE_CSPACES[slot] = service_cspace;
-    let wait: u64 = prepare_rpc_wait(request);
+    let wait: u64 = prepare_wait_identity(request_identity);
     if (wait & 0xff00_0000) != 0xb300_0000 {
-        if abort_created_view(view) != 1
-            || abort_rpc_dispatch(request) != 1
+        if abort_view_identity(view_identity) != 1
+            || abort_rpc_identity(request_identity) != 1
             || base_dispatch_count() != dispatches_before
             || service_request_wake_count() != service_wakes_before
             || endpoint_message_count(base_endpoint) != messages_before
@@ -611,10 +727,10 @@ pub unsafe fn dispatch_or_consume(
         }
         return deny(wait);
     }
-    let published: u64 = publish_rpc_dispatch(request);
+    let published: u64 = publish_rpc_identity(request_identity);
     if published != RPC_DISPATCHED {
-        if abort_created_view(view) != 1
-            || abort_prepared_rpc_wait(request, wait) != 1 {
+        if abort_view_identity(view_identity) != 1
+            || abort_prepared_wait_identity(request_identity, wait) != 1 {
             POISONED = 1;
             return ERR_PERSONALITY_FAILED;
         }
@@ -760,9 +876,14 @@ pub unsafe fn read_byte(
     if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if read_view_byte(
-        SERVICE_CSPACES[slot],
-        capability,
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if read_view_identity(
+        identity.service_cspace,
+        identity.capability,
         offset,
         result
     ) != 1 {
@@ -783,9 +904,14 @@ pub unsafe fn write_byte(
     if slot >= MAX_BOUNDED_PERSONALITY_REQUESTS {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if write_view_byte(
-        SERVICE_CSPACES[slot],
-        capability,
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if write_view_identity(
+        identity.service_cspace,
+        identity.capability,
         offset,
         value
     ) != 1 {
@@ -834,9 +960,16 @@ pub unsafe fn reply(
         || RESOURCES[slot] != 0 {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if !can_reply_view(
-        SERVICE_CSPACES[slot],
-        capability,
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut service_identity: ProcessHandle = PROCESS_HANDLE_FIRST;
+    if process_handle_init(&mut service_identity, caller) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if !can_reply_view_identity(
+        identity.service_cspace,
+        identity.capability,
         committed_length
     ) {
         return deny(ERR_PERSONALITY_FAILED);
@@ -850,7 +983,7 @@ pub unsafe fn reply(
     if take_reply_failure(REPLY_FAILURE_BRIDGE_CAPACITY) {
         return ERR_PERSONALITY_FAILED;
     }
-    let outer_ready: u64 = can_reply_rpc(request, caller, result);
+    let outer_ready: u64 = can_reply_rpc_identity(identity.request, service_identity, result);
     if outer_ready != 1 {
         return deny(outer_ready);
     }
@@ -868,9 +1001,9 @@ pub unsafe fn reply(
     // The view close below is the first irreversible action. Syscall entry
     // masks interrupts in the current single-CPU contract, so the complete
     // readiness proof above remains stable. Nothing below may return failure.
-    if reply_view(
-        SERVICE_CSPACES[slot],
-        capability,
+    if reply_view_identity(
+        identity.service_cspace,
+        identity.capability,
         committed_length
     ) != 1 {
         fail_stop();
@@ -881,7 +1014,7 @@ pub unsafe fn reply(
     if !terminalize_record(slot, MEMORY_VIEW_TERMINAL_REPLY) {
         fail_stop();
     }
-    if reply_rpc(request, caller, result) != 1 {
+    if reply_rpc_identity(identity.request, service_identity, result) != 1 {
         fail_stop();
     }
     if rpc_state(request) != RPC_STATE_TERMINAL
@@ -926,8 +1059,13 @@ pub unsafe fn cancel(request: u64) -> u64 {
         || rpc_state(request) != RPC_STATE_WAITING {
         return deny(ERR_PERSONALITY_STALE);
     }
-    let outer_ready: u64 = can_transition_rpc(
-        request,
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let outer_ready: u64 = can_transition_rpc_identity(
+        identity.request,
         RPC_TERMINAL_SUPERVISOR_CANCEL
     );
     if outer_ready != 1 {
@@ -936,9 +1074,9 @@ pub unsafe fn cancel(request: u64) -> u64 {
     if RESOURCES[slot] != 0 {
         return deny(ERR_PERSONALITY_BUSY);
     }
-    if cancel_view(VIEWS[slot]) != 1
+    if cancel_view_identity(identity.view) != 1
         || !terminalize_record(slot, MEMORY_VIEW_TERMINAL_CANCELLED)
-        || cancel_rpc(request) != 1
+        || cancel_rpc_identity(identity.request) != 1
         || rpc_state(request) != RPC_STATE_TERMINAL
         || !terminal_pair_valid(
             MEMORY_VIEW_TERMINAL_CANCELLED,
@@ -986,7 +1124,7 @@ pub unsafe fn expire(now: u64) -> u64 {
             && rpc_state(REQUESTS[slot]) == RPC_STATE_WAITING
             && rpc_deadline(REQUESTS[slot]) != 0
             && rpc_deadline(REQUESTS[slot]) <= now {
-            if timeout_view(VIEWS[slot]) != 1
+            if timeout_stored_view(slot) != 1
                 || !terminalize_record(
                     slot,
                     MEMORY_VIEW_TERMINAL_TIMEOUT
@@ -1045,7 +1183,11 @@ pub unsafe fn service_died(service_process: u64) -> u64 {
     if expected == 0 {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if views_service_died(service_cspace) != expected {
+    let mut service_id: ProcessHandle = PROCESS_HANDLE_FIRST;
+    let mut cspace_id: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    if process_handle_init(&mut service_id, service_process) != 1
+        || cspace_handle_init(&mut cspace_id, service_cspace) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if service_views_identity(cspace_id) != expected {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
     }
@@ -1063,7 +1205,7 @@ pub unsafe fn service_died(service_process: u64) -> u64 {
         }
         slot += 1;
     }
-    if rpc_service_died(service_process) != expected
+    if service_rpc_identity(service_id) != expected
         || SERVICE_DEATHS > MAX_COUNTER - expected {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
@@ -1110,12 +1252,17 @@ pub unsafe fn delegate_resource(
         || RESOURCE_CAPABILITIES[slot] != 0 {
         return deny(ERR_PERSONALITY_STALE);
     }
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
     let mut capability: u64 = 0;
-    let resource: u64 = create_bound_resource(
-        request,
+    let resource: u64 = create_resource_identity(
+        identity.request,
         kind,
-        SERVICE_CSPACES[slot],
-        VIEWS[slot],
+        identity.service_cspace,
+        identity.view,
         (&mut capability)
     );
     if resource == 0
@@ -1154,8 +1301,10 @@ pub unsafe fn process_exited(caller_process: u64) -> u64 {
     if expected == 0 || PROCESS_EXITS > MAX_COUNTER - expected {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if views_process_exited(caller_process) != expected
-        || rpc_caller_exited(caller_process) != expected {
+    let mut caller_id: ProcessHandle = PROCESS_HANDLE_FIRST;
+    if process_handle_init(&mut caller_id, caller_process) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if process_views_identity(caller_id) != expected
+        || process_rpc_identity(caller_id) != expected {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
     }
@@ -1166,7 +1315,7 @@ pub unsafe fn process_exited(caller_process: u64) -> u64 {
             if !terminalize_record(
                 slot,
                 MEMORY_VIEW_TERMINAL_PROCESS_EXIT
-            ) || discard_view(VIEWS[slot]) != 1 {
+            ) || discard_stored_view(slot) != 1 {
                 POISONED = 1;
                 return ERR_PERSONALITY_FAILED;
             }
@@ -1197,13 +1346,20 @@ pub unsafe fn unmap_request(request: u64) -> u64 {
         || UNMAPS == MAX_COUNTER {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if views_unmapped(
-        CALLER_ADDRESS_SPACES[slot],
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut address_identity: AddressSpaceHandle = ADDRESS_SPACE_HANDLE_FIRST;
+    if address_space_handle_init(&mut address_identity, CALLER_ADDRESS_SPACES[slot]) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if unmapped_view_identity(
+        address_identity,
         FOREIGN_ADDRESSES[slot],
         LENGTHS[slot]
     ) != 1
         || !terminalize_record(slot, MEMORY_VIEW_TERMINAL_UNMAP)
-        || cancel_rpc(request) != 1 {
+        || cancel_rpc_identity(identity.request) != 1 {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
     }
@@ -1227,10 +1383,15 @@ pub unsafe fn revoke_request(request: u64) -> u64 {
         || REQUEST_REVOCATIONS == MAX_COUNTER {
         return deny(ERR_PERSONALITY_STALE);
     }
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
     let mut resources: u64 = 0;
     let mut views: u64 = 0;
-    if revoke_delegated_request(
-        request,
+    if revoke_request_identity(
+        identity.request,
         (&mut resources),
         (&mut views)
     ) != 1
@@ -1239,7 +1400,7 @@ pub unsafe fn revoke_request(request: u64) -> u64 {
             slot,
             MEMORY_VIEW_TERMINAL_REQUEST_REVOKED
         )
-        || cancel_rpc(request) != 1 {
+        || cancel_rpc_identity(identity.request) != 1 {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
     }
@@ -1264,10 +1425,17 @@ pub unsafe fn revoke_resource(request: u64) -> u64 {
         || RESOURCE_REVOCATIONS == MAX_COUNTER {
         return deny(ERR_PERSONALITY_STALE);
     }
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    let mut resource_capability: CapabilityHandle = CAPABILITY_HANDLE_FIRST;
+    if capability_handle_init(&mut resource_capability, RESOURCE_CAPABILITIES[slot]) != 1 { POISONED = 1; return ERR_PERSONALITY_FAILED; }
     let mut views: u64 = 0;
-    if revoke_resource_capability(
-        SERVICE_CSPACES[slot],
-        RESOURCE_CAPABILITIES[slot],
+    if revoke_resource_identity(
+        identity.service_cspace,
+        resource_capability,
         (&mut views)
     ) != 1
         || views != 1
@@ -1275,7 +1443,7 @@ pub unsafe fn revoke_resource(request: u64) -> u64 {
             slot,
             MEMORY_VIEW_TERMINAL_RESOURCE_REVOKED
         )
-        || cancel_rpc(request) != 1 {
+        || cancel_rpc_identity(identity.request) != 1 {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
     }
@@ -1298,9 +1466,14 @@ pub unsafe fn abort_wait(request: u64, wait: u64) -> u64 {
             && rpc_state(request) != RPC_STATE_WAITING) {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if cancel_view(VIEWS[slot]) != 1
-        || abort_rpc_wait(request, wait) != 1
-        || discard_view(VIEWS[slot]) != 1
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if cancel_view_identity(identity.view) != 1
+        || abort_wait_rpc_identity(identity.request, wait) != 1
+        || discard_view_identity(identity.view) != 1
         || ABORTS == MAX_COUNTER {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
@@ -1324,9 +1497,14 @@ pub unsafe fn abort_unarmed_dispatch(request: u64) -> u64 {
         || rpc_state(request) != RPC_STATE_DISPATCHED {
         return deny(ERR_PERSONALITY_STALE);
     }
-    if cancel_view(VIEWS[slot]) != 1
-        || abort_published_rpc(request) != 1
-        || discard_view(VIEWS[slot]) != 1
+    let mut identity: RequestIdentity = RequestIdentity {
+        request: PERSONALITY_REQUEST_HANDLE_FIRST, view: MEMORY_VIEW_HANDLE_FIRST,
+        capability: CAPABILITY_HANDLE_FIRST, service_cspace: CSPACE_HANDLE_FIRST,
+};
+    if !read_identity(slot, &mut identity) { POISONED = 1; return ERR_PERSONALITY_FAILED; }
+    if cancel_view_identity(identity.view) != 1
+        || abort_published_identity(identity.request) != 1
+        || discard_view_identity(identity.view) != 1
         || ABORTS == MAX_COUNTER {
         POISONED = 1;
         return ERR_PERSONALITY_FAILED;
@@ -1806,3 +1984,102 @@ pub unsafe fn wait_rollback_proof_count() -> u64 {
 }
 pub unsafe fn charged_bytes() -> usize { return view_charged_bytes(); }
 pub unsafe fn poisoned() -> bool { return POISONED != 0; }
+
+// Typed callers share the primitive adapters' exact rejection accounting
+// and one mutation body, including terminal ordering and irreversible failures.
+pub unsafe fn dispatch_or_consume_typed(
+    caller_process: ProcessHandle,
+    caller_thread: u64,
+    caller_address_space: AddressSpaceHandle,
+    request_frame: u64,
+    deadline: u64,
+    foreign_address: usize,
+    length: usize,
+    direction: u64,
+    request_out: *mut u64,
+    result_out: *mut u64,
+    committed_length_out: *mut usize,
+    terminal_kind_out: *mut u64,
+    wait_out: *mut u64
+) -> u64 {
+    return dispatch_or_consume(process_handle_raw(caller_process), caller_thread, address_space_handle_raw(caller_address_space), request_frame, deadline, foreign_address, length, direction, request_out, result_out, committed_length_out, terminal_kind_out, wait_out);
+}
+
+pub unsafe fn lookup_view_typed(request: PersonalityRequestHandle) -> u64 {
+    return lookup_view(personality_request_handle_raw(request));
+}
+
+pub unsafe fn request_metadata_typed(
+    request: PersonalityRequestHandle,
+    capability: CapabilityHandle,
+    request_frame_out: *mut u64,
+    length_out: *mut usize,
+    direction_out: *mut u64
+) -> u64 {
+    return request_metadata(personality_request_handle_raw(request), capability_handle_raw(capability), request_frame_out, length_out, direction_out);
+}
+
+pub unsafe fn read_byte_typed(
+    capability: CapabilityHandle,
+    offset: usize,
+    result: *mut u8
+) -> u64 {
+    return read_byte(capability_handle_raw(capability), offset, result);
+}
+
+pub unsafe fn write_byte_typed(
+    capability: CapabilityHandle,
+    offset: usize,
+    value: u8
+) -> u64 {
+    return write_byte(capability_handle_raw(capability), offset, value);
+}
+
+pub unsafe fn reply_typed(
+    request: PersonalityRequestHandle,
+    capability: CapabilityHandle,
+    committed_length: usize,
+    result: u64
+) -> u64 {
+    return reply(personality_request_handle_raw(request), capability_handle_raw(capability), committed_length, result);
+}
+
+pub unsafe fn cancel_typed(request: PersonalityRequestHandle) -> u64 {
+    return cancel(personality_request_handle_raw(request));
+}
+
+pub unsafe fn service_died_typed(service_process: ProcessHandle) -> u64 {
+    return service_died(process_handle_raw(service_process));
+}
+
+pub unsafe fn delegate_resource_typed(
+    request: PersonalityRequestHandle,
+    kind: u64,
+    capability_out: *mut u64
+) -> u64 {
+    return delegate_resource(personality_request_handle_raw(request), kind, capability_out);
+}
+
+pub unsafe fn process_exited_typed(caller_process: ProcessHandle) -> u64 {
+    return process_exited(process_handle_raw(caller_process));
+}
+
+pub unsafe fn unmap_request_typed(request: PersonalityRequestHandle) -> u64 {
+    return unmap_request(personality_request_handle_raw(request));
+}
+
+pub unsafe fn revoke_request_typed(request: PersonalityRequestHandle) -> u64 {
+    return revoke_request(personality_request_handle_raw(request));
+}
+
+pub unsafe fn revoke_resource_typed(request: PersonalityRequestHandle) -> u64 {
+    return revoke_resource(personality_request_handle_raw(request));
+}
+
+pub unsafe fn abort_wait_typed(request: PersonalityRequestHandle, wait: u64) -> u64 {
+    return abort_wait(personality_request_handle_raw(request), wait);
+}
+
+pub unsafe fn abort_unarmed_dispatch_typed(request: PersonalityRequestHandle) -> u64 {
+    return abort_unarmed_dispatch(personality_request_handle_raw(request));
+}

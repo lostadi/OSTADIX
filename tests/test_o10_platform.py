@@ -23,7 +23,7 @@ pub unsafe fn o10_platform_test_init() -> u64 {
 pub unsafe fn o10_platform_test_gic_init() -> u64 { return gic_init(); }
 pub unsafe fn o10_platform_test_wire_init() -> u64 { return plan9_wire_init(1); }
 pub unsafe fn o10_platform_test_generations(domain: u64, lease: u64) -> void {
-    O10_DOMAIN_GENERATION[1] = domain; O10_LEASE_GENERATION = lease;
+    *((&mut O10_DOMAIN_GENERATION[1]) as *mut u64) = domain; O10_LEASE_GENERATION = lease;
 }
 pub unsafe fn o10_platform_test_mailbox() -> u64 {
     native_control();

@@ -101,7 +101,7 @@ class LinuxWitnessNativeTests(unittest.TestCase):
         self.assertTrue(compiler.is_file(),"existing compiler required")
         clang=shutil.which("clang");self.assertIsNotNone(clang)
         sources=["ocore/runtime/aarch64/linux_restart_witness.oc","ocore/runtime/aarch64/kernel_world_9p.oc",
-                 "ocore/runtime/aarch64/plan9_namespace_uart.oc","ocore/runtime/common/namespace_store.oc",
+                 "ocore/runtime/aarch64/plan9_namespace_uart.oc","ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
                  "ocore/runtime/common/o10_codec.oc"]
         with tempfile.TemporaryDirectory(prefix="o10-store-witness-") as d:
             p=Path(d);(p/"harness.c").write_text(HARNESS)

@@ -294,7 +294,9 @@
         "ocore/kernel/world_value_semantics.oc",
         "ocore/kernel/world_value_semantics_stub.oc",
         "ocore/kernel/x86_64/boot_info.oc",
-        "ocore/kernel/x86_64/boot_info_stub.oc"
+        "ocore/kernel/x86_64/boot_info_stub.oc",
+        "ocore/kernel/x86_64/m3_typed_transfer_real.oc",
+        "ocore/kernel/x86_64/m3_typed_transfer_stub.oc"
       ]
     },
     {

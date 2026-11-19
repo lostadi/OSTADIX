@@ -1,0 +1,120 @@
+module kernel::m3_typed_transfer;
+
+
+use runtime::capability::CSpaceHandle;
+use runtime::capability::CapabilityHandle;
+use runtime::capability::CSPACE_HANDLE_FIRST;
+use runtime::capability::CAPABILITY_HANDLE_FIRST;
+use runtime::capability::cspace_handle_init;
+use runtime::capability::capability_handle_init;
+use runtime::capability::reserve_first_free_for_owner;
+use runtime::capability::abort_reserved_for_owner;
+use runtime::capability::cspace_child_refs;
+use runtime::process::ProcessHandle;
+use runtime::process::PROCESS_HANDLE_FIRST;
+use runtime::process::process_handle_init;
+use runtime::cap_transfer::TransferTicket;
+use runtime::cap_transfer::TRANSFER_TICKET_FIRST;
+use runtime::cap_transfer::transfer_ticket_init;
+use runtime::cap_transfer::prepare_copy_typed;
+use runtime::cap_transfer::commit_copy_typed;
+use runtime::cap_transfer::commit_copy_for_owner_typed;
+use runtime::cap_transfer::abort_copy_typed;
+use runtime::cap_transfer::abort_copy_for_owner_typed;
+use runtime::cap_transfer::copy_atomic_typed;
+use runtime::cap_transfer::cancel_owner_typed;
+use runtime::cap_transfer::prepared_count;
+use runtime::memory_object::reference_count;
+use runtime::memory_object::REFERENCES as test_memory_references;
+use runtime::cap_transfer::GENERATIONS as test_ticket_generations;
+use runtime::cap_transfer::STATES as test_ticket_states;
+
+
+use runtime::capability::RIGHT_MEMORY_USE;
+use runtime::cap_transfer::cancel_owner as cancel_transfer_owner;
+use runtime::cap_transfer::invariants_hold as transfer_invariants_hold;
+use runtime::capability::invariants_hold as capability_invariants_hold;
+use runtime::memory_object::invariants_hold as memory_invariants_hold;
+
+unsafe fn fail_closed() -> never { disable_interrupts(); loop { halt(); } }
+
+pub unsafe fn exercise(source: u64, destination: u64, capability: u64,
+    creator: u64, other_process: u64, object: u64) -> void {
+    let mut source_id: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut destination_id: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut capability_id: CapabilityHandle = CAPABILITY_HANDLE_FIRST;
+    let mut creator_id: ProcessHandle = PROCESS_HANDLE_FIRST;
+    let mut other_id: ProcessHandle = PROCESS_HANDLE_FIRST;
+    let mut stale_process_id: ProcessHandle = PROCESS_HANDLE_FIRST;
+    if cspace_handle_init(&mut source_id, source) != 1
+        || cspace_handle_init(&mut destination_id, destination) != 1
+        || capability_handle_init(&mut capability_id, capability) != 1
+        || process_handle_init(&mut creator_id, creator) != 1
+        || process_handle_init(&mut other_id, other_process) != 1
+        || process_handle_init(&mut stale_process_id, creator + 0x1_0000_0000) != 1 { fail_closed(); }
+    let refs: u32 = reference_count(object);
+    let child_refs: u32 = cspace_child_refs(destination);
+    let mut result: u64 = 0x77;
+    if refs == 0 || prepared_count() != 0
+        || prepare_copy_typed(source_id, destination_id, capability_id, RIGHT_MEMORY_USE, stale_process_id) != 0
+        || prepare_copy_typed(destination_id, source_id, capability_id, RIGHT_MEMORY_USE, creator_id) != 0
+        || copy_atomic_typed(source_id, destination_id, capability_id,
+            RIGHT_MEMORY_USE | 0x100, creator_id, &mut result) != 0
+        || result != 0 { fail_closed(); }
+    let ticket: u64 = prepare_copy_typed(source_id, destination_id, capability_id, RIGHT_MEMORY_USE, creator_id);
+    let mut ticket_id: TransferTicket = TRANSFER_TICKET_FIRST;
+    if transfer_ticket_init(&mut ticket_id, ticket) != 1
+        || reference_count(object) != refs + 1
+        || commit_copy_for_owner_typed(ticket_id, other_id, destination_id, &mut result) != 0
+        || result != 0
+        || commit_copy_for_owner_typed(ticket_id, creator_id, source_id, &mut result) != 0
+        || result != 0 || abort_copy_for_owner_typed(ticket_id, other_id) != 0
+        || cancel_transfer_owner(1) != 0
+        || cancel_transfer_owner(0) != 0xffff_ffff_ffff_ffff
+        || cancel_owner_typed(stale_process_id) != 0
+        || prepared_count() != 1 || abort_copy_for_owner_typed(ticket_id, creator_id) != 1
+        || abort_copy_typed(ticket_id) != 0 || commit_copy_typed(ticket_id, &mut result) != 0
+        || result != 0 || reference_count(object) != refs { fail_closed(); }
+    let replacement: u64 = prepare_copy_typed(source_id, destination_id, capability_id, RIGHT_MEMORY_USE, creator_id);
+    let mut replacement_id: TransferTicket = TRANSFER_TICKET_FIRST;
+    if replacement == ticket || transfer_ticket_init(&mut replacement_id, replacement) != 1
+        || commit_copy_typed(ticket_id, &mut result) != 0 || result != 0
+        || abort_copy_for_owner_typed(replacement_id, creator_id) != 1 { fail_closed(); }
+
+    // Fill hidden destination slots, then ensure failure retains no object ref.
+    let mut reservations: [u64; 64] = [0; 64];
+    let mut count: usize = 0;
+    while count < 64 {
+        let reserved: u64 = reserve_first_free_for_owner(destination);
+        if reserved == 0 { break; }
+        reservations[count] = reserved; count += 1;
+    }
+    if count == 0 || prepare_copy_typed(source_id, destination_id, capability_id, RIGHT_MEMORY_USE, creator_id) != 0
+        || reference_count(object) != refs { fail_closed(); }
+    let mut at: usize = 0;
+    while at < count {
+        if abort_reserved_for_owner(destination, reservations[at]) != 1 { fail_closed(); }
+        at += 1;
+    }
+    // The test alone injects saturation into the existing private reference
+    // counter. Restore it before checking the observed rollback result.
+    let object_slot: usize = (object & 0x00ff_ffff) as usize;
+    test_memory_references[object_slot] = 0xffff_ffff;
+    let denied: u64 = prepare_copy_typed(source_id, destination_id, capability_id, RIGHT_MEMORY_USE, creator_id);
+    test_memory_references[object_slot] = refs;
+    if denied != 0 || prepared_count() != 0 || reference_count(object) != refs
+        || cspace_child_refs(destination) != child_refs || !transfer_invariants_hold()
+        || !capability_invariants_hold() || !memory_invariants_hold() { fail_closed(); }
+    // Unlike a capability generation, the maximum transfer generation is live
+    // while occupied and retires on release. Restore only this test fixture.
+    if test_ticket_states[0] != 0 { fail_closed(); }
+    let saved_ticket_generation: u32 = test_ticket_generations[0];
+    test_ticket_generations[0] = 0xffff_ffff;
+    let maximum: u64 = prepare_copy_typed(source_id, destination_id, capability_id, RIGHT_MEMORY_USE, creator_id);
+    let mut maximum_id: TransferTicket = TRANSFER_TICKET_FIRST;
+    if maximum >> 32 != 0xffff_ffff || transfer_ticket_init(&mut maximum_id, maximum) != 1
+        || abort_copy_for_owner_typed(maximum_id, creator_id) != 1
+        || test_ticket_states[0] != 2 || test_ticket_generations[0] != 0xffff_ffff { fail_closed(); }
+    test_ticket_states[0] = 0;
+    test_ticket_generations[0] = saved_ticket_generation;
+}

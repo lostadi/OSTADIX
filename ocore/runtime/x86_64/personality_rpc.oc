@@ -1,5 +1,8 @@
 module runtime::personality_rpc;
 
+use runtime::process::ProcessHandle;
+use runtime::process::process_handle_raw;
+
 use runtime::endpoint::cancel_by_sender_correlation;
 use runtime::endpoint::enqueue;
 use runtime::endpoint::invariants_hold as endpoint_invariants_hold;
@@ -41,6 +44,18 @@ use runtime::thread::WAKE_REASON_IPC;
 // M6A deliberately carries only one scalar frame per request. The endpoint
 // correlation is the generation-tagged request handle itself; neither a user
 // pointer nor a user-selected correlation is retained across the wait.
+// Request correlations include standalone mechanism scopes. Only checked_request
+// decides whether a correlation names a current live RPC record.
+@opaque
+@transparent
+pub struct PersonalityRequestHandle { raw: u64 }
+pub const PERSONALITY_REQUEST_HANDLE_FIRST: PersonalityRequestHandle = PersonalityRequestHandle { raw: 1 };
+pub unsafe fn personality_request_handle_init(result: *mut PersonalityRequestHandle, raw: u64) -> u64 {
+    if result as usize == 0 || !(raw != 0) { return 0; }
+    *result = PersonalityRequestHandle { raw: raw }; return 1;
+}
+pub fn personality_request_handle_raw(value: PersonalityRequestHandle) -> u64 { return value.raw; }
+
 pub const MAX_PERSONALITY_REQUESTS: usize = 4;
 pub const MAX_PERSONALITY_TOMBSTONES: usize = 16;
 pub const PERSONALITY_FRAME_VALUE_MASK: u64 = 0x00ff_ffff_ffff_ffff;
@@ -1824,3 +1839,118 @@ pub unsafe fn wait_failure_count() -> u64 { return WAIT_FAILURES; }
 pub unsafe fn publish_count() -> u64 { return PUBLISHES; }
 pub unsafe fn replacement_count() -> u64 { return REPLACEMENTS; }
 pub unsafe fn is_poisoned() -> bool { return POISONED != 0; }
+
+// Typed callers share the primitive adapters' exact rejection accounting
+// and one mutation body, including terminal ordering and irreversible failures.
+pub unsafe fn publish_typed(
+    service_process: ProcessHandle,
+    service_generation: u64,
+    protocol_id: u64,
+    service_request_endpoint: u64,
+    client_wait_endpoint: u64
+) -> u64 {
+    return publish(process_handle_raw(service_process), service_generation, protocol_id, service_request_endpoint, client_wait_endpoint);
+}
+
+pub unsafe fn install_replacement_typed(
+    expected_service_process: ProcessHandle,
+    expected_service_generation: u64,
+    replacement_service_process: ProcessHandle,
+    replacement_service_generation: u64,
+    protocol_id: u64,
+    replacement_request_endpoint: u64
+) -> u64 {
+    return install_replacement(process_handle_raw(expected_service_process), expected_service_generation, process_handle_raw(replacement_service_process), replacement_service_generation, protocol_id, replacement_request_endpoint);
+}
+
+pub unsafe fn prepare_dispatch_typed(
+    caller_process: ProcessHandle,
+    caller_thread: u64,
+    request_frame: u64,
+    deadline: u64,
+    request_out: *mut u64
+) -> u64 {
+    return prepare_dispatch(process_handle_raw(caller_process), caller_thread, request_frame, deadline, request_out);
+}
+
+pub unsafe fn publish_dispatch_typed(request: PersonalityRequestHandle) -> u64 {
+    return publish_dispatch(personality_request_handle_raw(request));
+}
+
+pub unsafe fn abort_prepared_dispatch_typed(request: PersonalityRequestHandle) -> u64 {
+    return abort_prepared_dispatch(personality_request_handle_raw(request));
+}
+
+pub unsafe fn prepare_wait_before_publish_typed(request: PersonalityRequestHandle) -> u64 {
+    return prepare_wait_before_publish(personality_request_handle_raw(request));
+}
+
+pub unsafe fn abort_prepared_wait_dispatch_typed(
+    request: PersonalityRequestHandle,
+    wait: u64
+) -> u64 {
+    return abort_prepared_wait_dispatch(personality_request_handle_raw(request), wait);
+}
+
+pub unsafe fn dispatch_or_consume_typed(
+    caller_process: ProcessHandle,
+    caller_thread: u64,
+    request_frame: u64,
+    deadline: u64,
+    request_out: *mut u64,
+    result_out: *mut u64
+) -> u64 {
+    return dispatch_or_consume(process_handle_raw(caller_process), caller_thread, request_frame, deadline, request_out, result_out);
+}
+
+pub unsafe fn arm_wait_typed(request: PersonalityRequestHandle) -> u64 {
+    return arm_wait(personality_request_handle_raw(request));
+}
+
+pub unsafe fn arm_wait_preserving_dispatch_typed(request: PersonalityRequestHandle) -> u64 {
+    return arm_wait_preserving_dispatch(personality_request_handle_raw(request));
+}
+
+pub unsafe fn abort_dispatched_typed(request: PersonalityRequestHandle) -> u64 {
+    return abort_dispatched(personality_request_handle_raw(request));
+}
+
+pub unsafe fn commit_wait_typed(request: PersonalityRequestHandle, wait: u64) -> u64 {
+    return commit_wait(personality_request_handle_raw(request), wait);
+}
+
+pub unsafe fn abort_wait_typed(request: PersonalityRequestHandle, wait: u64) -> u64 {
+    return abort_wait(personality_request_handle_raw(request), wait);
+}
+
+pub unsafe fn can_reply_typed(
+    request: PersonalityRequestHandle,
+    replying_service_process: ProcessHandle,
+    result: u64
+) -> u64 {
+    return can_reply(personality_request_handle_raw(request), process_handle_raw(replying_service_process), result);
+}
+
+pub unsafe fn can_transition_typed(request: PersonalityRequestHandle, kind: u64) -> u64 {
+    return can_transition(personality_request_handle_raw(request), kind);
+}
+
+pub unsafe fn caller_exited_typed(caller_process: ProcessHandle) -> u64 {
+    return caller_exited(process_handle_raw(caller_process));
+}
+
+pub unsafe fn reply_typed(
+    request: PersonalityRequestHandle,
+    replying_service_process: ProcessHandle,
+    result: u64
+) -> u64 {
+    return reply(personality_request_handle_raw(request), process_handle_raw(replying_service_process), result);
+}
+
+pub unsafe fn supervisor_cancel_typed(request: PersonalityRequestHandle) -> u64 {
+    return supervisor_cancel(personality_request_handle_raw(request));
+}
+
+pub unsafe fn service_died_typed(service_process: ProcessHandle) -> u64 {
+    return service_died(process_handle_raw(service_process));
+}

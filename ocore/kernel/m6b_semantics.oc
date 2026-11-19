@@ -1,5 +1,43 @@
 module kernel::m6b_semantics;
 
+use runtime::process::ProcessHandle;
+use runtime::process::PROCESS_HANDLE_FIRST;
+use runtime::process::process_handle_init;
+use runtime::address_space::AddressSpaceHandle;
+use runtime::address_space::ADDRESS_SPACE_HANDLE_FIRST;
+use runtime::address_space::address_space_handle_init;
+use runtime::capability::CSpaceHandle;
+use runtime::capability::CapabilityHandle;
+use runtime::capability::CSPACE_HANDLE_FIRST;
+use runtime::capability::CAPABILITY_HANDLE_FIRST;
+use runtime::capability::cspace_handle_init;
+use runtime::capability::capability_handle_init;
+use runtime::capability::capability_handle_raw;
+use runtime::personality_rpc::PersonalityRequestHandle;
+use runtime::personality_rpc::PERSONALITY_REQUEST_HANDLE_FIRST;
+use runtime::personality_rpc::personality_request_handle_init;
+use runtime::personality_memory_view::MemoryViewHandle;
+use runtime::personality_memory_view::MEMORY_VIEW_HANDLE_FIRST;
+use runtime::personality_memory_view::memory_view_handle_init;
+use runtime::personality_memory_view::MEMORY_VIEW_DIRECTION_INOUT;
+use runtime::delegated_resource::DelegatedResourceHandle;
+use runtime::delegated_resource::DELEGATED_RESOURCE_HANDLE_FIRST;
+use runtime::delegated_resource::delegated_resource_handle_init;
+use runtime::personality_memory_view::create_typed as typed_view_create;
+use runtime::personality_memory_view::read_byte_typed as typed_view_read_byte;
+use runtime::personality_memory_view::write_byte_typed as typed_view_write_byte;
+use runtime::personality_memory_view::reply_typed as typed_view_reply;
+use runtime::personality_memory_view::cancel_typed as typed_view_cancel;
+use runtime::personality_memory_view::consume_terminal_typed as typed_view_consume_terminal;
+use runtime::delegated_resource::create_bound_typed as typed_resource_create_bound;
+use runtime::delegated_resource::revoke_typed as typed_resource_revoke;
+use runtime::delegated_resource::destroy_typed as typed_resource_destroy;
+use runtime::personality_memory_view::GENERATIONS as test_view_generations;
+use runtime::personality_memory_view::STATES as test_view_states;
+use runtime::delegated_resource::GENERATIONS as test_resource_generations;
+use runtime::delegated_resource::STATES as test_resource_states;
+
+
 use kernel::linux_personality_semantics::self_test as linux_semantics_self_test;
 use kernel::linux_personality_semantics::LINUX_MINIMAL_SEMANTICS_PASS;
 use runtime::capability::begin_cspace_drain;
@@ -208,6 +246,107 @@ unsafe fn ordered_terminal(view: u64, expected_kind: u64) -> bool {
         && view_cap_close_sequence(view) != 0
         && view_cap_close_sequence(view) < view_terminal_sequence(view)
         && view_terminal_sequence(view) < view_wake_sequence(view);
+}
+
+
+// Exercise the nominal entry points against live mechanism state. Private
+// counter injection belongs only to this oracle and is restored after each
+// maximum-generation retirement check; guests receive no override operation.
+unsafe fn typed_identity_oracle(process: u64, address_space: u64, service_cspace: u64) -> bool {
+    let mut caller: ProcessHandle = PROCESS_HANDLE_FIRST;
+    let mut stale_caller: ProcessHandle = PROCESS_HANDLE_FIRST;
+    let mut address: AddressSpaceHandle = ADDRESS_SPACE_HANDLE_FIRST;
+    let mut stale_address: AddressSpaceHandle = ADDRESS_SPACE_HANDLE_FIRST;
+    let mut service: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut stale_service: CSpaceHandle = CSPACE_HANDLE_FIRST;
+    let mut scope: PersonalityRequestHandle = PERSONALITY_REQUEST_HANDLE_FIRST;
+    let mut wrong_scope: PersonalityRequestHandle = PERSONALITY_REQUEST_HANDLE_FIRST;
+    let scope_bits: u64 = request();
+    if process_handle_init(&mut caller, process) != 1
+        || process_handle_init(&mut stale_caller, process + 0x1_0000_0000) != 1
+        || address_space_handle_init(&mut address, address_space) != 1
+        || address_space_handle_init(&mut stale_address, 0x2_a200_0000) != 1
+        || cspace_handle_init(&mut service, service_cspace) != 1
+        || cspace_handle_init(&mut stale_service, service_cspace + 0x1_0000_0000) != 1
+        || personality_request_handle_init(&mut scope, scope_bits) != 1
+        || personality_request_handle_init(&mut wrong_scope, scope_bits + 0x1_0000_0000) != 1 { return false; }
+    let mut cap: CapabilityHandle = CAPABILITY_HANDLE_FIRST;
+    let before: u64 = capability_handle_raw(cap);
+    if capability_handle_init(&mut cap, 0xffff_ffff_0000_0000) != 0
+        || capability_handle_raw(cap) != before { return false; }
+    let mut raw_cap: u64 = 7;
+    if typed_view_create(scope, stale_caller, address, OUTPUT_ADDRESS, 2, MEMORY_VIEW_DIRECTION_INOUT, service, &mut raw_cap) != 0
+        || raw_cap != 0
+        || typed_view_create(scope, caller, stale_address, OUTPUT_ADDRESS, 2, MEMORY_VIEW_DIRECTION_INOUT, service, &mut raw_cap) != 0
+        || raw_cap != 0
+        || typed_view_create(scope, caller, address, OUTPUT_ADDRESS, 2, MEMORY_VIEW_DIRECTION_INOUT, stale_service, &mut raw_cap) != 0
+        || raw_cap != 0 || active_view_count() != 0 { return false; }
+    if test_view_states[0] != 0 { return false; }
+    let saved_view_generation: u32 = test_view_generations[0];
+    test_view_generations[0] = 0xffff_ffff;
+    volatile_store(OUTPUT_ADDRESS as *mut u8, 0x2a);
+    let view: u64 = typed_view_create(scope, caller, address, OUTPUT_ADDRESS, 2, MEMORY_VIEW_DIRECTION_INOUT, service, &mut raw_cap);
+    let mut view_id: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
+    if view >> 32 != 0xffff_ffff || memory_view_handle_init(&mut view_id, view) != 1
+        || capability_handle_init(&mut cap, raw_cap) != 1 { return false; }
+    volatile_store(OUTPUT_ADDRESS as *mut u8, 0x33);
+    let mut byte: u8 = 0;
+    let mut resource_cap: u64 = 7;
+    if typed_view_read_byte(service, cap, 0, &mut byte) != 1 || byte != 0x2a
+        || typed_view_write_byte(stale_service, cap, 0, 0x44) != 0
+        || typed_resource_create_bound(wrong_scope, DELEGATED_RESOURCE_MEMORY, service, view_id, &mut resource_cap) != 0
+        || resource_cap != 0 || resource_for(view) != 0
+        || typed_view_write_byte(service, cap, 0, 0x44) != 1
+        || typed_view_reply(service, cap, 2) != 0
+        || !view_is_live(view)
+        || typed_view_write_byte(service, cap, 1, 0x45) != 1
+        || typed_view_reply(service, cap, 2) != 1
+        || !ordered_terminal(view, MEMORY_VIEW_TERMINAL_REPLY) { return false; }
+    let mut terminal: u64 = 0;
+    let mut committed: usize = 0;
+    if typed_view_consume_terminal(view_id, stale_caller, address, OUTPUT_ADDRESS, &mut terminal, &mut committed) != 0
+        || typed_view_consume_terminal(view_id, caller, stale_address, OUTPUT_ADDRESS, &mut terminal, &mut committed) != 0
+        || typed_view_consume_terminal(view_id, caller, address, OUTPUT_ADDRESS, &mut terminal, &mut committed) != 1
+        || terminal != MEMORY_VIEW_TERMINAL_REPLY || committed != 2
+        || volatile_load(OUTPUT_ADDRESS as *const u8) != 0x44
+        || test_view_states[0] != 3 || test_view_generations[0] != 0xffff_ffff { return false; }
+    test_view_states[0] = 0; test_view_generations[0] = saved_view_generation;
+
+    // Same-address replacement cannot revive the old maximum-generation view.
+    if personality_request_handle_init(&mut scope, request()) != 1 { return false; }
+    let next_view: u64 = typed_view_create(scope, caller, address, OUTPUT_ADDRESS, 1, MEMORY_VIEW_DIRECTION_IN, service, &mut raw_cap);
+    let mut next_id: MemoryViewHandle = MEMORY_VIEW_HANDLE_FIRST;
+    if next_view == 0 || memory_view_handle_init(&mut next_id, next_view) != 1
+        || typed_view_cancel(view_id) != 0 || !view_is_live(next_view)
+        || test_resource_states[0] != 0 { return false; }
+    let saved_resource_generation: u32 = test_resource_generations[0];
+    test_resource_generations[0] = 0xffff_ffff;
+    let resource: u64 = typed_resource_create_bound(scope, DELEGATED_RESOURCE_MEMORY, service, next_id, &mut resource_cap);
+    let mut resource_id: DelegatedResourceHandle = DELEGATED_RESOURCE_HANDLE_FIRST;
+    let mut resource_cap_id: CapabilityHandle = CAPABILITY_HANDLE_FIRST;
+    let mut revoked: u64 = 7;
+    if resource >> 32 != 0xffff_ffff || delegated_resource_handle_init(&mut resource_id, resource) != 1
+        || capability_handle_init(&mut resource_cap_id, resource_cap) != 1
+        || typed_resource_destroy(resource_id) != 0
+        || typed_resource_revoke(stale_service, resource_cap_id, &mut revoked) != 0
+        || revoked != 0 || !view_is_live(next_view)
+        || typed_resource_revoke(service, resource_cap_id, &mut revoked) != 1 || revoked != 1
+        || !ordered_terminal(next_view, MEMORY_VIEW_TERMINAL_RESOURCE_REVOKED)
+        || resource_cap_close_sequence(resource) >= resource_revocation_sequence(resource)
+        || typed_view_consume_terminal(next_id, caller, address, OUTPUT_ADDRESS, &mut terminal, &mut committed) != 1
+        || typed_resource_destroy(resource_id) != 1
+        || test_resource_states[0] != 3 || test_resource_generations[0] != 0xffff_ffff { return false; }
+    test_resource_states[0] = 0; test_resource_generations[0] = saved_resource_generation;
+    if personality_request_handle_init(&mut scope, request()) != 1 { return false; }
+    let cancelled: u64 = typed_view_create(scope, caller, address, OUTPUT_ADDRESS, 1, MEMORY_VIEW_DIRECTION_IN, service, &mut raw_cap);
+    if memory_view_handle_init(&mut next_id, cancelled) != 1
+        || typed_view_cancel(next_id) != 1
+        || !ordered_terminal(cancelled, MEMORY_VIEW_TERMINAL_CANCELLED)
+        || typed_view_consume_terminal(next_id, caller, address, OUTPUT_ADDRESS, &mut terminal, &mut committed) != 1
+        || terminal != MEMORY_VIEW_TERMINAL_CANCELLED || committed != 0 { return false; }
+    return active_view_count() == 0 && active_resource_count() == 0
+        && view_charged_bytes() == 0 && live_slots_for_owner(service_cspace) == 0
+        && view_invariants_hold() && resource_invariants_hold();
 }
 
 unsafe fn quota_and_predispatch_denials(
@@ -1045,6 +1184,7 @@ pub unsafe fn start(
         fail_closed();
     }
 
+    if !typed_identity_oracle(process, address_space, service_cspace) { fail_closed(); }
     if !quota_and_predispatch_denials(
         process,
         address_space,

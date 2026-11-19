@@ -75,6 +75,14 @@ The compiler corpus executes on x86-64, AArch64 and RV64GC. The
 capability and memory-view migrations, their execution evidence and remaining
 guest qualification. Array-bounds checking is a separate language change.
 
+The runtime pilot separates O10 domain generations from namespace transport
+and session epochs. Capability transfer and request-bound memory views use
+owner-defined handle types at internal operation boundaries. The independent
+O10/namespace corpus executes production policy on all three ISAs; transfer
+and view gates run in the x86-64 QEMU kernel. Fresh AArch64 guest acceptance
+still needs its private fixtures. The [runtime receipts](evidence/ocore-typed-lifecycle-20261118/runtime/README.md)
+record that distinction and the tested source identities.
+
 ## License and citation
 
 The project uses the GNU Lesser General Public License v2.1 only (`LGPL-2.1-only`); see [LICENSE](LICENSE). Generated AOT build crates are `publish = false`. Their component-scoped Cargo metadata identifies the embedded Ostadix runtime as LGPL-2.1-only while marking embedded user or project inputs as retaining the licensing attached to their source; it does not declare one license for the mixed generated package.

@@ -155,7 +155,7 @@ if '-o' in args:
         self.assertIn("NAMESPACE: u64 = 1;", profile)
         self.assertFalse(evidence["network_grant"]["enabled"])
         self.assertIn("virtio_mmio@a000400", (self.build / "guest.dts").read_text())
-        for source in ("ocore/runtime/common/namespace_store.oc", "ocore/runtime/common/namespace_peer.oc",
+        for source in ("ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc", "ocore/runtime/common/namespace_peer.oc",
                        "ocore/runtime/aarch64/kernel_world_9p.oc"):
             self.assertIn(source, evidence["source_sha256"])
             self.assertEqual(evidence["source_sha256"][source], hashlib.sha256((ROOT / source).read_bytes()).hexdigest())

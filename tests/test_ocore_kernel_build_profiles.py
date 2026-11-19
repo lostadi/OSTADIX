@@ -129,6 +129,37 @@ class KernelBuildProfileTests(unittest.TestCase):
     def test_mode17_sections_preserve_semantics_sources_and_fixed_linker(self) -> None:
         self._assert_sections_preserve_sources_and_fixed_linker(17)
 
+    def test_new_transfer_oracle_is_selected_only_for_mode13(self) -> None:
+        common_sources = []
+        for mode in (0, 13, 19):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary)
+                arguments = output / "arguments.json"
+                compiler = output / "ocorec"
+                compiler.write_text(
+                    f"#!{sys.executable}\nimport json,sys\nfrom pathlib import Path\n"
+                    f"Path({str(arguments)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+                    "raise SystemExit(91)\n"
+                )
+                compiler.chmod(0o755)
+                environment = dict(os.environ, OCOREC_BIN=str(compiler),
+                                   OCORE_PROBE_MODE=str(mode), OCORE_BOOT_INFO_ENABLED="0",
+                                   OCORE_BUILD_DIR=str(output / "build"))
+                result = subprocess.run(["bash", str(ROOT / "ocore/kernel/build.sh")],
+                                        cwd=ROOT, env=environment, capture_output=True, timeout=20)
+                self.assertEqual(result.returncode, 91, result.stderr.decode(errors="replace"))
+                argv = json.loads(arguments.read_text())
+                sources = [str(Path(p).relative_to(ROOT)) for p in argv if p.endswith(".oc")]
+                expected = "real" if mode == 13 else "stub"
+                oracle = f"ocore/kernel/x86_64/m3_typed_transfer_{expected}.oc"
+                self.assertEqual([p for p in sources if "m3_typed_transfer_" in p], [oracle])
+                for name in ("m1", "m2", "m3", "m3_live", "m4"):
+                    self.assertIn(f"ocore/kernel/{name}.oc", sources)
+                    self.assertNotIn(f"ocore/kernel/{name}_mode25_stub.oc", sources)
+                if mode in (0, 13):
+                    common_sources.append([p for p in sources if p != oracle])
+        self.assertEqual(common_sources[0], common_sources[1])
+
 
 if __name__ == "__main__":
     unittest.main()
