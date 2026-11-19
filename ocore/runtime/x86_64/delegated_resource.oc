@@ -1,5 +1,14 @@
 module runtime::delegated_resource;
 
+use runtime::capability::CSpaceHandle;
+use runtime::capability::CapabilityHandle;
+use runtime::capability::capability_handle_raw;
+use runtime::capability::cspace_handle_raw;
+use runtime::personality_memory_view::MemoryViewHandle;
+use runtime::personality_memory_view::memory_view_handle_raw;
+use runtime::personality_rpc::PersonalityRequestHandle;
+use runtime::personality_rpc::personality_request_handle_raw;
+
 use runtime::capability::abort_reserved_for_owner;
 use runtime::capability::close_during_drain;
 use runtime::capability::close_for_owner;
@@ -28,6 +37,21 @@ use runtime::personality_memory_view::service_cspace_for as memory_view_service_
 // A delegated resource is a typed, generation-tagged lease. Its service-side
 // capability has USE only and is therefore nontransferable. Names and kinds
 // never imply ambient authority.
+// Nominal identity preserves bits; authority and lifetime checks remain below.
+@opaque
+@transparent
+pub struct DelegatedResourceHandle { raw: u64 }
+pub const DELEGATED_RESOURCE_HANDLE_FIRST: DelegatedResourceHandle = DelegatedResourceHandle { raw: 0x1_b600_0000 };
+pub unsafe fn delegated_resource_handle_init(result: *mut DelegatedResourceHandle, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xff00_0000) != 0xb600_0000 { return 0; }
+    if (raw & 0x00ff_ffff) >= 8 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    *result = DelegatedResourceHandle { raw: raw };
+    return 1;
+}
+pub fn delegated_resource_handle_raw(value: DelegatedResourceHandle) -> u64 { return value.raw; }
+
 pub const MAX_DELEGATED_RESOURCES: usize = 8;
 
 pub const DELEGATED_RESOURCE_MEMORY: u64 = 1;
@@ -776,3 +800,60 @@ pub unsafe fn stale_denial_count() -> u64 { return STALE_DENIALS; }
 pub unsafe fn bind_failure_arm_count() -> u64 { return BIND_FAILURE_ARMS; }
 pub unsafe fn bind_failure_count() -> u64 { return BIND_FAILURES; }
 pub unsafe fn poisoned() -> bool { return POISONED != 0; }
+
+// Typed callers share the primitive adapters' exact rejection accounting
+// and one mutation body, including terminal ordering and irreversible failures.
+pub unsafe fn create_typed(
+    request: PersonalityRequestHandle,
+    kind: u64,
+    service_cspace: CSpaceHandle,
+    capability_out: *mut u64
+) -> u64 {
+    return create(personality_request_handle_raw(request), kind, cspace_handle_raw(service_cspace), capability_out);
+}
+
+pub unsafe fn use_resource_typed(
+    service_cspace: CSpaceHandle,
+    capability: CapabilityHandle,
+    expected_kind: u64
+) -> u64 {
+    return use_resource(cspace_handle_raw(service_cspace), capability_handle_raw(capability), expected_kind);
+}
+
+pub unsafe fn bind_view_typed(
+    service_cspace: CSpaceHandle,
+    resource_capability: CapabilityHandle,
+    view: MemoryViewHandle
+) -> u64 {
+    return bind_view(cspace_handle_raw(service_cspace), capability_handle_raw(resource_capability), memory_view_handle_raw(view));
+}
+
+pub unsafe fn revoke_typed(
+    service_cspace: CSpaceHandle,
+    capability: CapabilityHandle,
+    revoked_views_out: *mut u64
+) -> u64 {
+    return revoke(cspace_handle_raw(service_cspace), capability_handle_raw(capability), revoked_views_out);
+}
+
+pub unsafe fn revoke_request_typed(
+    request: PersonalityRequestHandle,
+    revoked_resources_out: *mut u64,
+    revoked_views_out: *mut u64
+) -> u64 {
+    return revoke_request(personality_request_handle_raw(request), revoked_resources_out, revoked_views_out);
+}
+
+pub unsafe fn destroy_typed(resource: DelegatedResourceHandle) -> u64 {
+    return destroy(delegated_resource_handle_raw(resource));
+}
+
+pub unsafe fn create_bound_typed(
+    request: PersonalityRequestHandle,
+    kind: u64,
+    service_cspace: CSpaceHandle,
+    view: MemoryViewHandle,
+    capability_out: *mut u64
+) -> u64 {
+    return create_bound(personality_request_handle_raw(request), kind, cspace_handle_raw(service_cspace), memory_view_handle_raw(view), capability_out);
+}

@@ -108,6 +108,7 @@ EOF
     "$ROOT/ocore/runtime/aarch64/kernel_world_net_host.oc" \
     "$ROOT/ocore/runtime/aarch64/kernel_world_net.oc" \
     "$ROOT/ocore/runtime/aarch64/kernel_world_9p.oc" \
+    "$ROOT/ocore/runtime/common/lifecycle_identity.oc" \
     "$ROOT/ocore/runtime/common/namespace_store.oc" \
     "${NAMESPACE_PEER_SOURCES[@]}" \
     --target aarch64-unknown-none --emit obj --keep-asm -o "$BUILD/kernel.o"
@@ -181,7 +182,7 @@ manifest = {
             "ocore/runtime/aarch64/kernel_world_net_host.oc",
             "ocore/runtime/aarch64/kernel_world_net.oc",
             "ocore/runtime/aarch64/kernel_world_9p.oc",
-            "ocore/runtime/common/namespace_store.oc",
+            "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
             *peer_sources,
             "ocore/kernel/aarch64/kernel_world/monitor.S",
             "ocore/kernel/aarch64/kernel_world/guest.dts",

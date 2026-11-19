@@ -37,7 +37,7 @@ SOURCES = (
     "ocore/runtime/aarch64/kernel_world_9p.oc",
     "ocore/runtime/aarch64/plan9_namespace_uart.oc",
     "ocore/runtime/aarch64/coordinator_uart.oc",
-    "ocore/runtime/common/namespace_store.oc",
+    "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
     "ocore/runtime/common/o10_codec.oc",
     "ocore/runtime/common/o10_executor.oc",
     "ocore/runtime/common/namespace_peer.oc",

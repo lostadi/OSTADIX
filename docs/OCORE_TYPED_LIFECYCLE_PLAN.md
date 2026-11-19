@@ -172,12 +172,12 @@ through fast-forward integration, preserving concurrent work.
 | Stage | Source | Changed files | Checks executed | Evidence | Review | Status | Remaining blocker |
 |---|---|---|---|---|---|---|---|
 | M0 baseline | `88fc0de6` | This contract record | Clean build; 77 focused Rust checks; native equivalence on all three ISAs; x86 O10/namespace characterization; kernel Modes 0/13/19/24 | Retained baseline artifacts | Source baseline reconciled | Passed within recorded scope | Orange Pi contact and fresh guest fixtures remain unavailable |
-| M1 wrappers | `88fc0de6` plus retained candidate manifest | HIR/checker/MIR/three emitters and native corpus | 96 focused Rust checks; 16 runner/coverage checks; native arithmetic/wrappers/traps/Phi on all three ISAs; clippy and formatting | Retained M1 compiler and source-bound receipts | Independent findings resolved | Passed within compiler scope | Shared publication and later integration |
-| M2 O10/namespace | Candidate | Lifecycle owner and complete caller path | Constructor/layout and crossed-domain checks on all three ISAs; native lifecycle suites and namespace-off resident regression | Retained component runs | Two findings corrected; qualification continuing | Implementing | Full independent corpus/mutations and fresh same-build guest acceptance |
-| M3a transfer | Pending | Capability/process/transfer owners and oracle | Not run | Pending | Pending | Not run | M1 |
-| M3b views | Pending | Request/view/resource/bounded-RPC owners | Not run | Pending | Pending | Not run | M3a |
-| M4 model | `88fc0de6` | Independent model, vectors, carrier and strict runner | Source contract audit; runner prerequisites being checked | Pending | Pending | Implementing | Compiled baseline corpus |
-| M5 arrays | Pending | Separate compiler change and bounds corpus | Not run | Pending | Pending | Not run | Separate implementation/review after compiler ownership clears |
+| M1 wrappers | Canonical PR120 / origin PR61; matching tree `a6a310ef` | HIR/checker/MIR/three emitters and native corpus | 96 focused Rust checks; 16 runner/coverage checks; native arithmetic/wrappers/traps/Phi on all three ISAs; 460 source parses; clippy and formatting | [M1 receipts](../evidence/ocore-typed-lifecycle-20261118/m1/README.md) | Independent findings resolved | Passed within compiler scope; merged to both masters with 22 CI checks each | None |
+| M2 O10/namespace | Source-bound candidate | Lifecycle owner and complete caller path | Constructor/layout and crossed-domain checks on all three ISAs; native lifecycle suites, namespace-off resident and independent full-width/finite/mutation corpus | [Runtime receipts](../evidence/ocore-typed-lifecycle-20261118/runtime/README.md) | Namespace-off and release-closure findings corrected | Component checks passed; guest qualification blocked | Fresh same-build AArch64 fixtures, admission and observed provenance |
+| M3a transfer | Frozen reviewed source manifest | Capability/process/transfer owners and Mode 13 oracle | Modes 13/0; actual crossed-kind rejection; independent Mode 13 rerun; maximum ticket retirement | [Runtime receipts](../evidence/ocore-typed-lifecycle-20261118/runtime/README.md) | Raw cleanup-key finding corrected; final compact adapters reviewed | Passed with the retained M1 compiler | Requalification with the separate final array compiler |
+| M3b views | Frozen reviewed source manifest | Request/view/resource/bounded-RPC owners | Modes 19/24; typed lifecycle and generation retirement; actual API compiler negatives; source mirror and ABI/storage audits | [Runtime receipts](../evidence/ocore-typed-lifecycle-20261118/runtime/README.md) | Typed resource destruction omission corrected; no remaining findings | Passed with the retained M1 compiler | Requalification with the separate final array compiler |
+| M4 model | Frozen oracle plus source-bound candidate | Independent model, vectors, carrier and strict runner | 33 traces and 535 observations per ISA; 27,714 finite edge witnesses; 14 actual policy mutations; 32 model/runner checks | [Runtime receipts](../evidence/ocore-typed-lifecycle-20261118/runtime/README.md) | Framing, effect comparison and source-copy isolation reviewed; baseline refinements retained | Passed with the retained M1 compiler | Final guarded runner with the separate array compiler |
+| M5 arrays | Separate candidate checkout | Checked-address MIR, three emitters and bounds corpus | Original adjacent-field read reproduced; 51 bounds/order cases and seven source rejections per ISA; native arithmetic/wrapper regression; Mode 0 | Retained characterization and candidate artifacts | Static-layout diagnostic finding corrected; final review continuing | Implementing | Fresh final-source execution and fixed-limit Mode 24 build |
 | M6 integration | Pending | Evidence, inventories and documentation | Not run | Pending | Pending | Not run | Required stages and fresh guest gates |
 
 General aggregate ABI support, generics, borrow checking, affine authority,
@@ -196,3 +196,39 @@ The historical cache paths referenced by the old acceptance record are absent
 on this host. Component execution does not fill that gap or admit a new
 monitor/profile pair. The private RV coordination request is open without an
 acknowledged agent session.
+
+The compiler milestone also repairs a baseline architecture declaration: the
+assembly inventory keeps its existing module identity and source filename,
+using a manifest-owned compiled fragment. The checker is unchanged. Its 147
+boundary tests and 49 affected Rust tests passed. The original failed CI run
+is retained separately from the repaired candidate.
+
+### Runtime implementation notes
+
+The raw entry points retain one mutation body and their original rejection
+accounting. Typed internal calls extract or project identities at explicit
+storage boundaries. Shared capability lookup checks keep the exact owner,
+slot, state, generation, object-type and rights predicates. A nonzero cleanup
+key with no matching escrow still returns zero.
+
+The new transfer mutation oracle has a dedicated real/stub leaf, selected
+only for Mode 13. Existing module choices and fixed linker limits remain in
+place. The live memory-view build fits those limits after removing redundant
+forwarding and sharing identical read-only capability predicates. Those changes
+alter generated instructions, with behavior checked by the mechanism and live
+gates.
+
+The finite model distinguishes a provisioned namespace frontend from bound
+authority. After withdraw, restore, then withdraw before binding, the baseline
+can retain an active frontend with no bound session. Fresh baseline and
+candidate traces reject device activation and stale namespace access while
+the domain remains withdrawn and unrunnable. The model records that state
+rather than treating the active flag as authority.
+
+The component carrier executes the production RAM-copy paths. Privileged
+reset and interrupt-interface hooks remain explicitly modeled; raw effects
+are retained. Its finite profiles exhaust 561 session states and 6,732 edges,
+95 replacement states and 868 edges, and 63 journal states and 1,638 edges.
+Each edge has a shortest predecessor witness. The initial independent model
+covers O10 and namespaces; transfer and views use their compiled kernel
+oracles.

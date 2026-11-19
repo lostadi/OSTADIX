@@ -18,7 +18,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_NAMES = (
-    "ocore/runtime/common/namespace_store.oc",
+    "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
     "ocore/runtime/aarch64/kernel_world_9p.oc",
     "ocore/runtime/aarch64/plan9_namespace_uart.oc",
 )

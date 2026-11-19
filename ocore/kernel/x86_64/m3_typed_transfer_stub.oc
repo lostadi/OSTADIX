@@ -1,0 +1,3 @@
+module kernel::m3_typed_transfer;
+
+pub unsafe fn exercise(source: u64, destination: u64, capability: u64, creator: u64, other_process: u64, object: u64) -> void {}

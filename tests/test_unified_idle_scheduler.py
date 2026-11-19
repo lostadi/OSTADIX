@@ -161,7 +161,7 @@ class UnifiedIdleSchedulerTests(unittest.TestCase):
         (out / "provider.oc").write_text(mux.PROVIDER)
         (out / "harness.c").write_text(harness())
         sources = [str(ROOT / name) for name in (
-            "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/plan9_namespace_uart.oc",
+            "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc", "ocore/runtime/aarch64/plan9_namespace_uart.oc",
             "ocore/runtime/aarch64/coordinator_uart.oc", "ocore/runtime/aarch64/unified_gic.oc",
             "ocore/runtime/aarch64/unified_world.oc")]+[str(out / "provider.oc")]
         commands = [

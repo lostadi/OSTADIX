@@ -1,5 +1,67 @@
 module runtime::capability;
 
+// Nominal identities validate representation only; every operation still checks
+// the current generation, owner, state and rights. Output storage must be valid.
+@opaque
+@transparent
+pub struct CSpaceHandle { raw: u64 }
+pub const CSPACE_HANDLE_FIRST: CSpaceHandle = CSpaceHandle { raw: 0x1_c100_0000 };
+pub unsafe fn cspace_handle_init(result: *mut CSpaceHandle, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xff00_0000) != 0xc100_0000 { return 0; }
+    if (raw & 0x00ff_ffff) >= 4 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    if (raw >> 32) > 0xffff_fffe { return 0; }
+    *result = CSpaceHandle { raw: raw };
+    return 1;
+}
+pub fn cspace_handle_raw(value: CSpaceHandle) -> u64 { return value.raw; }
+@opaque
+@transparent
+pub struct CapabilityHandle { raw: u64 }
+pub const CAPABILITY_HANDLE_FIRST: CapabilityHandle = CapabilityHandle { raw: 0x1_0000_0000 };
+pub unsafe fn capability_handle_init(result: *mut CapabilityHandle, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xffff_ffff) >= 64 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    if (raw >> 32) > 0xffff_fffe { return 0; }
+    *result = CapabilityHandle { raw: raw };
+    return 1;
+}
+pub fn capability_handle_raw(value: CapabilityHandle) -> u64 { return value.raw; }
+@opaque
+@transparent
+pub struct CapabilityReservation { raw: u64 }
+pub const CAPABILITY_RESERVATION_FIRST: CapabilityReservation = CapabilityReservation { raw: 0x1_b100_0000 };
+pub unsafe fn capability_reservation_init(result: *mut CapabilityReservation, raw: u64) -> u64 {
+    if result as usize == 0 { return 0; }
+    if (raw & 0xff00_0000) != 0xb100_0000 { return 0; }
+    if (raw & 0x00ff_ffff) >= 64 { return 0; }
+    if (raw >> 32) == 0 { return 0; }
+    if (raw >> 32) > 0xffff_fffe { return 0; }
+    *result = CapabilityReservation { raw: raw };
+    return 1;
+}
+pub fn capability_reservation_raw(value: CapabilityReservation) -> u64 { return value.raw; }
+@opaque
+@transparent
+pub struct CapabilityGeneration { raw: u32 }
+pub const CAPABILITY_GENERATION_FIRST: CapabilityGeneration = CapabilityGeneration { raw: 1 };
+pub unsafe fn capability_generation_init(result: *mut CapabilityGeneration, raw: u64) -> u64 {
+    if result as usize == 0 || !(raw != 0 && raw <= 0xffff_fffe) { return 0; }
+    *result = CapabilityGeneration { raw: raw as u32 }; return 1;
+}
+pub fn capability_generation_raw(value: CapabilityGeneration) -> u64 { return value.raw as u64; }
+@opaque
+@transparent
+pub struct CSpaceGeneration { raw: u32 }
+pub const CSPACE_GENERATION_IDENTITY_FIRST: CSpaceGeneration = CSpaceGeneration { raw: 1 };
+pub unsafe fn cspace_generation_identity_init(result: *mut CSpaceGeneration, raw: u64) -> u64 {
+    if result as usize == 0 || !(raw != 0 && raw <= 0xffff_fffe) { return 0; }
+    *result = CSpaceGeneration { raw: raw as u32 }; return 1;
+}
+pub fn cspace_generation_identity_raw(value: CSpaceGeneration) -> u64 { return value.raw as u64; }
+
 pub const MAX_CSPACES: usize = 4;
 pub const CAPABILITIES_PER_CSPACE: usize = 64;
 
@@ -269,7 +331,12 @@ pub unsafe fn cspace_owner_slot(handle: u64) -> usize {
 }
 
 pub unsafe fn cspace_is_live(handle: u64) -> bool {
+
     return checked_cspace(handle) < MAX_CSPACES;
+}
+
+pub unsafe fn cspace_is_live_typed(handle_identity: CSpaceHandle) -> bool {
+    return cspace_is_live(cspace_handle_raw(handle_identity));
 }
 
 pub unsafe fn cspace_is_valid_owner(handle: u64) -> bool {
@@ -427,6 +494,7 @@ pub unsafe fn has_free_slot_in_cspace(cspace_id: usize) -> bool {
 // kernel-only tag. Holding it pins the exact destination CSpace generation so
 // drain/reuse cannot race an in-flight transfer.
 pub unsafe fn reserve_first_free_for_owner(cspace_handle: u64) -> u64 {
+
     let cspace_id: usize = checked_cspace(cspace_handle);
     if cspace_id >= MAX_CSPACES || CSPACE_CHILD_REFS[cspace_id] == 0xffff_ffff {
         return 0;
@@ -449,6 +517,10 @@ pub unsafe fn reserve_first_free_for_owner(cspace_handle: u64) -> u64 {
     return 0;
 }
 
+pub unsafe fn reserve_first_free_for_owner_typed(cspace_handle_identity: CSpaceHandle) -> u64 {
+    return reserve_first_free_for_owner(cspace_handle_raw(cspace_handle_identity));
+}
+
 pub unsafe fn publish_reserved_for_owner(
     cspace_handle: u64,
     reservation: u64,
@@ -456,6 +528,7 @@ pub unsafe fn publish_reserved_for_owner(
     object_type: u64,
     rights: u64
 ) -> u64 {
+
     let cspace_id: usize = checked_cspace(cspace_handle);
     let capability_slot: usize = reservation_index(reservation);
     if cspace_id >= MAX_CSPACES
@@ -484,10 +557,21 @@ pub unsafe fn publish_reserved_for_owner(
     return ((GENERATIONS[index] as u64) << 32) | capability_slot as u64;
 }
 
+pub unsafe fn publish_reserved_for_owner_typed(
+    cspace_handle_identity: CSpaceHandle,
+    reservation_identity: CapabilityReservation,
+    object_id: u64,
+    object_type: u64,
+    rights: u64
+) -> u64 {
+    return publish_reserved_for_owner(cspace_handle_raw(cspace_handle_identity), capability_reservation_raw(reservation_identity), object_id, object_type, rights);
+}
+
 pub unsafe fn abort_reserved_for_owner(
     cspace_handle: u64,
     reservation: u64
 ) -> u64 {
+
     let cspace_id: usize = checked_cspace(cspace_handle);
     let capability_slot: usize = reservation_index(reservation);
     if cspace_id >= MAX_CSPACES
@@ -509,7 +593,15 @@ pub unsafe fn abort_reserved_for_owner(
     return 1;
 }
 
+pub unsafe fn abort_reserved_for_owner_typed(
+    cspace_handle_identity: CSpaceHandle,
+    reservation_identity: CapabilityReservation
+) -> u64 {
+    return abort_reserved_for_owner(cspace_handle_raw(cspace_handle_identity), capability_reservation_raw(reservation_identity));
+}
+
 pub unsafe fn reservation_is_live(cspace_handle: u64, reservation: u64) -> bool {
+
     let cspace_id: usize = checked_cspace(cspace_handle);
     let capability_slot: usize = reservation_index(reservation);
     if cspace_id >= MAX_CSPACES
@@ -521,6 +613,10 @@ pub unsafe fn reservation_is_live(cspace_handle: u64, reservation: u64) -> bool 
     return OCCUPIED[index] == SLOT_RESERVED
         && generation_is_live(GENERATIONS[index])
         && GENERATIONS[index] == reservation_generation(reservation);
+}
+
+pub unsafe fn reservation_is_live_typed(cspace_handle_identity: CSpaceHandle, reservation_identity: CapabilityReservation) -> bool {
+    return reservation_is_live(cspace_handle_raw(cspace_handle_identity), capability_reservation_raw(reservation_identity));
 }
 
 pub unsafe fn install_first_free_for_owner(
@@ -648,24 +744,28 @@ pub unsafe fn install_in_cspace(
     );
 }
 
+unsafe fn checked_capability_slot(cspace_id: usize, handle: u64, expected_state: u8) -> usize {
+    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
+    if cspace_id >= MAX_CSPACES { return 256; }
+    if capability_slot >= CAPABILITIES_PER_CSPACE { return 256; }
+    let index: usize = table_index(cspace_id, capability_slot);
+    if OCCUPIED[index] != expected_state { return 256; }
+    if !generation_is_live(GENERATIONS[index]) { return 256; }
+    if GENERATIONS[index] != (handle >> 32) as u32 { return 256; }
+    return index;
+}
+
 pub unsafe fn validate_for_owner(
     cspace_handle: u64,
     handle: u64,
     expected_object_type: u64,
     required_rights: u64
 ) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
+
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     if OBJECT_TYPES[index] != expected_object_type {
         return 0;
     }
@@ -675,24 +775,25 @@ pub unsafe fn validate_for_owner(
     return OBJECT_IDS[index];
 }
 
+pub unsafe fn validate_for_owner_typed(
+    cspace_handle_identity: CSpaceHandle,
+    handle_identity: CapabilityHandle,
+    expected_object_type: u64,
+    required_rights: u64
+) -> u64 {
+    return validate_for_owner(cspace_handle_raw(cspace_handle_identity), capability_handle_raw(handle_identity), expected_object_type, required_rights);
+}
+
 pub unsafe fn validate_during_drain(
     cspace_handle: u64,
     handle: u64,
     expected_object_type: u64,
     required_rights: u64
 ) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_draining_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     if OBJECT_TYPES[index] != expected_object_type {
         return 0;
     }
@@ -728,23 +829,16 @@ pub unsafe fn inspect_for_owner(
     object_id: *mut u64,
     actual_rights: *mut u64
 ) -> u64 {
+
     if object_id as usize == 0 || actual_rights as usize == 0 {
         return 0;
     }
     volatile_store(object_id, 0);
     volatile_store(actual_rights, 0);
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES
-        || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation
-        || (expected_object_type != 0 && OBJECT_TYPES[index] != expected_object_type)
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+    if (expected_object_type != 0 && OBJECT_TYPES[index] != expected_object_type)
         || (RIGHTS[index] & required_rights) != required_rights {
         return 0;
     }
@@ -753,51 +847,38 @@ pub unsafe fn inspect_for_owner(
     return OBJECT_TYPES[index];
 }
 
+pub unsafe fn inspect_for_owner_typed(
+    cspace_handle_identity: CSpaceHandle,
+    handle_identity: CapabilityHandle,
+    expected_object_type: u64,
+    required_rights: u64,
+    object_id: *mut u64,
+    actual_rights: *mut u64
+) -> u64 {
+    return inspect_for_owner(cspace_handle_raw(cspace_handle_identity), capability_handle_raw(handle_identity), expected_object_type, required_rights, object_id, actual_rights);
+}
+
 pub unsafe fn object_type_for_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     return OBJECT_TYPES[index];
 }
 
 pub unsafe fn object_id_for_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     return OBJECT_IDS[index];
 }
 
 pub unsafe fn rights_for_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     return RIGHTS[index];
 }
 
@@ -805,34 +886,18 @@ pub unsafe fn rights_for_owner(cspace_handle: u64, handle: u64) -> u64 {
 // either a live or draining CSpace. Ordinary service operations intentionally
 // continue to use rights_for_owner so a drain removes their authority.
 pub unsafe fn rights_for_valid_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace_owner(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     return RIGHTS[index];
 }
 
 pub unsafe fn object_type_during_drain(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_draining_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     return OBJECT_TYPES[index];
 }
 
@@ -912,20 +977,10 @@ pub unsafe fn begin_close_for_owner(
     volatile_store(object_id, 0);
     volatile_store(object_type, 0);
     volatile_store(rights, 0);
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES
-        || capability_slot >= CAPABILITIES_PER_CSPACE
-        || CSPACE_CHILD_REFS[cspace_id] == 0xffff_ffff {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+    if CSPACE_CHILD_REFS[cspace_id] == 0xffff_ffff { return 0; }
     volatile_store(object_id, OBJECT_IDS[index]);
     volatile_store(object_type, OBJECT_TYPES[index]);
     volatile_store(rights, RIGHTS[index]);
@@ -935,17 +990,10 @@ pub unsafe fn begin_close_for_owner(
 }
 
 pub unsafe fn abort_close_for_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace_owner(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_CLOSING
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation
-        || CSPACE_CHILD_REFS[cspace_id] <= CSPACE_LEASE_REFS[cspace_id] {
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_CLOSING);
+    if index >= 256 { return 0; }
+    if CSPACE_CHILD_REFS[cspace_id] <= CSPACE_LEASE_REFS[cspace_id] {
         return 0;
     }
     OCCUPIED[index] = SLOT_LIVE;
@@ -964,37 +1012,19 @@ pub unsafe fn closing_matches_for_owner(
     object_type: u64,
     rights: u64
 ) -> bool {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
+    if object_id == 0 || object_type == 0 || rights == 0 { return false; }
     let cspace_id: usize = checked_cspace_owner(cspace_handle);
-    if cspace_id >= MAX_CSPACES
-        || capability_slot >= CAPABILITIES_PER_CSPACE
-        || object_id == 0
-        || object_type == 0
-        || rights == 0 {
-        return false;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    return OCCUPIED[index] == SLOT_CLOSING
-        && generation_is_live(GENERATIONS[index])
-        && GENERATIONS[index] == generation
-        && OBJECT_IDS[index] == object_id
-        && OBJECT_TYPES[index] == object_type
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_CLOSING);
+    if index >= 256 { return false; }
+    return OBJECT_IDS[index] == object_id && OBJECT_TYPES[index] == object_type
         && RIGHTS[index] == rights;
 }
 
 pub unsafe fn commit_close_for_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace_owner(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_CLOSING
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation
-        || CSPACE_CHILD_REFS[cspace_id] <= CSPACE_LEASE_REFS[cspace_id] {
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_CLOSING);
+    if index >= 256 { return 0; }
+    if CSPACE_CHILD_REFS[cspace_id] <= CSPACE_LEASE_REFS[cspace_id] {
         return 0;
     }
     if !clear_and_advance_slot(index) {
@@ -1005,18 +1035,10 @@ pub unsafe fn commit_close_for_owner(cspace_handle: u64, handle: u64) -> u64 {
 }
 
 pub unsafe fn close_for_owner(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     if !clear_and_advance_slot(index) {
         return 0;
     }
@@ -1024,18 +1046,10 @@ pub unsafe fn close_for_owner(cspace_handle: u64, handle: u64) -> u64 {
 }
 
 pub unsafe fn close_during_drain(cspace_handle: u64, handle: u64) -> u64 {
-    let capability_slot: usize = (handle & 0xffff_ffff) as usize;
-    let generation: u32 = (handle >> 32) as u32;
     let cspace_id: usize = checked_draining_cspace(cspace_handle);
-    if cspace_id >= MAX_CSPACES || capability_slot >= CAPABILITIES_PER_CSPACE {
-        return 0;
-    }
-    let index: usize = table_index(cspace_id, capability_slot);
-    if OCCUPIED[index] != SLOT_LIVE
-        || !generation_is_live(GENERATIONS[index])
-        || GENERATIONS[index] != generation {
-        return 0;
-    }
+    let index: usize = checked_capability_slot(cspace_id, handle, SLOT_LIVE);
+    if index >= 256 { return 0; }
+
     if !clear_and_advance_slot(index) {
         return 0;
     }
@@ -1416,4 +1430,39 @@ pub unsafe fn self_test() -> u64 {
     }
 
     return 1;
+}
+
+// Typed callers share the primitive adapters' exact rejection accounting
+// and one mutation body, including terminal ordering and irreversible failures.
+pub unsafe fn cspace_is_valid_owner_typed(handle: CSpaceHandle) -> bool {
+    return cspace_is_valid_owner(cspace_handle_raw(handle));
+}
+
+pub unsafe fn validate_during_drain_typed(
+    cspace_handle: CSpaceHandle,
+    handle: CapabilityHandle,
+    expected_object_type: u64,
+    required_rights: u64
+) -> u64 {
+    return validate_during_drain(cspace_handle_raw(cspace_handle), capability_handle_raw(handle), expected_object_type, required_rights);
+}
+
+pub unsafe fn rights_for_owner_typed(cspace_handle: CSpaceHandle, handle: CapabilityHandle) -> u64 {
+    return rights_for_owner(cspace_handle_raw(cspace_handle), capability_handle_raw(handle));
+}
+
+pub unsafe fn rights_for_valid_owner_typed(cspace_handle: CSpaceHandle, handle: CapabilityHandle) -> u64 {
+    return rights_for_valid_owner(cspace_handle_raw(cspace_handle), capability_handle_raw(handle));
+}
+
+pub unsafe fn live_slots_for_owner_typed(cspace_handle: CSpaceHandle) -> usize {
+    return live_slots_for_owner(cspace_handle_raw(cspace_handle));
+}
+
+pub unsafe fn close_for_owner_typed(cspace_handle: CSpaceHandle, handle: CapabilityHandle) -> u64 {
+    return close_for_owner(cspace_handle_raw(cspace_handle), capability_handle_raw(handle));
+}
+
+pub unsafe fn close_during_drain_typed(cspace_handle: CSpaceHandle, handle: CapabilityHandle) -> u64 {
+    return close_during_drain(cspace_handle_raw(cspace_handle), capability_handle_raw(handle));
 }

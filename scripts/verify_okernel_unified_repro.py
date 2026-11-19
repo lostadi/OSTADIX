@@ -33,7 +33,7 @@ SOURCES = (
     "ocore/runtime/aarch64/kernel_world_net_host.oc",
     "ocore/runtime/aarch64/kernel_world_net.oc",
     "ocore/runtime/aarch64/kernel_world_9p.oc",
-    "ocore/runtime/common/namespace_store.oc",
+    "ocore/runtime/common/lifecycle_identity.oc", "ocore/runtime/common/namespace_store.oc",
     "ocore/runtime/common/namespace_peer.oc",
 )
 PAYLOAD = ("Image", "initramfs.cpio", "linux-payload.json")
