@@ -116,6 +116,9 @@ def write_minimal_tree(root: Path) -> None:
             'mod wide_volatile { include!("native_wide_volatile_codegen.rs"); }\n'
             'mod vector { include!("native_vector_codegen.rs"); }\n'
         ),
+        "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs": (
+            'pub mod inventory { include!("native_machine_asm_reader_inventory.rs"); }\n'
+        ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
     for relative, source in facade_sources.items():
@@ -259,6 +262,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                     "module_path": ["ocore", "native_codegen", "float_layout"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs",
+                    "module_path": ["ocore", "native_machine_asm_reader", "inventory"],
                 },
                 {
                     "path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
