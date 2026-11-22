@@ -2,7 +2,7 @@
 
 Stdio and Streamable HTTP MCP server for **Ostadix-lang / O-lang**. Supply a complete `.O`
 computation to `o_execute`, or pass an existing program/project path. The
-23-tool surface also supports Lean 4 proof verification, toolchain discovery,
+24-tool surface also supports non-code claims, Lean 4 proof verification, toolchain discovery,
 task guides, full native command arguments, and concurrent or interactive jobs.
 The server supplies an **absolute** `O_BACKENDS_DIR`, so relative `backends`
 and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
@@ -14,7 +14,7 @@ provenance, platform-specific bundles, and the opt-in watcher resource contract.
 ## URL connectors
 
 Run `ostadix-mcp --transport http --token-file /path/to/token` to serve the same
-23 tools at `http://127.0.0.1:8787/mcp`. Clients send `Authorization: Bearer TOKEN`.
+24 tools at `http://127.0.0.1:8787/mcp`. Clients send `Authorization: Bearer TOKEN`.
 Use `--bind` to select the listener and `--allowed-host` for your public HTTPS
 hostname. Explicit `--allow-unauthenticated` supports an authentication gateway
 or clients using no authentication. This endpoint grants the same execution
@@ -53,6 +53,7 @@ introduced by this transport.
 | `o_guide` | Read the same task guide as human `o guide`; `topic` defaults to the overview, with operations/runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance |
 | `o_lean_check` | Elaborate and type-check one complete Lean 4 module or existing file with a real `lean` executable; return exact source and toolchain identities without claiming proof verification |
 | `o_lean_verify` | Require named declarations to elaborate and pass Lean kernel checking, inspect each with `#print axioms`, reject `sorryAx` and disallowed dependencies, and return per-declaration evidence |
+| `o_claim` | Judge one non-code conclusion. The English statement stays unverified. `formal` accepts only the Lean result; `citation` accepts only an exact excerpt the server reads; a bare statement stays `unproved` |
 | `o_cli` | Invoke a catalog command with its complete literal `args` array, optional cwd/env/stdin, timeout, background execution, and PTY |
 | `o_eval` | Evaluate inline `.O` through the installed interpreter, with per-call cwd/env/interpreter arguments and optional background execution or PTY |
 | `o_job_list` | List the jobs owned by this MCP session without waiting for running work |
@@ -116,6 +117,16 @@ inference is logical. MCP clients should require `o_lean_verify` before calling
 a formal claim proved and retain `unproved` as the state after rejection or an
 unavailable checker. Lean compilation is not a sandbox: imported modules and
 compiler plugins retain the MCP process's authority.
+
+## Non-code claims
+
+`o_claim` is the gate for a conclusion that is not an O program. The English
+`statement` is recorded with `statement_verified: false`. `mode: formal` runs
+the same check as `o_lean_verify` and can return `verified` only for the named
+declarations. `mode: citation` returns `cited` only when the server reads a
+regular file and finds the exact `excerpt`. A statement with no mode stays
+`unproved`. None of these results prove that the English conclusion follows
+from the evidence. Repeat the returned status and do not upgrade it.
 
 ## Agent workflow
 

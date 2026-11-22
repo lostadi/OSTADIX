@@ -1,7 +1,7 @@
 <h1>ostadix-mcp (Rust-only)</h1>
 <p>Stdio and Streamable HTTP MCP server for <strong>Ostadix-lang / O-lang</strong>. Supply a complete <code>.O</code>
 computation to <code>o_execute</code>, or pass an existing program/project path. The
-23-tool surface also supports Lean 4 proof verification, toolchain discovery,
+24-tool surface also supports non-code claims, Lean 4 proof verification, toolchain discovery,
 task guides, full native command arguments, and concurrent or interactive jobs.
 The server supplies an <strong>absolute</strong> <code>O_BACKENDS_DIR</code>, so relative <code>backends</code>
 and bare <code>$O_BACKENDS_DIR</code> splice mistakes do not break runs.</p>
@@ -10,7 +10,7 @@ The <a href="../../docs/MCP_RUNTIME_ONBOARDING.md">onboarding guide</a> covers e
 provenance, platform-specific bundles, and the opt-in watcher resource contract.</p>
 <h2>URL connectors</h2>
 <p>Run <code>ostadix-mcp --transport http --token-file /path/to/token</code> to serve the same
-23 tools at <code>http://127.0.0.1:8787/mcp</code>. Clients send <code>Authorization: Bearer TOKEN</code>.
+24 tools at <code>http://127.0.0.1:8787/mcp</code>. Clients send <code>Authorization: Bearer TOKEN</code>.
 Use <code>--bind</code> to select the listener and <code>--allowed-host</code> for your public HTTPS
 hostname. Explicit <code>--allow-unauthenticated</code> supports an authentication gateway
 or clients using no authentication. This endpoint grants the same execution
@@ -67,6 +67,10 @@ introduced by this transport.</p>
 <tr>
 <td><code>o_lean_verify</code></td>
 <td>Require named declarations to elaborate and pass Lean kernel checking, inspect each with <code>#print axioms</code>, reject <code>sorryAx</code> and disallowed dependencies, and return per-declaration evidence</td>
+</tr>
+<tr>
+<td><code>o_claim</code></td>
+<td>Judge one non-code conclusion. The English statement stays unverified. <code>formal</code> accepts only the Lean result; <code>citation</code> accepts only an exact excerpt the server reads; a bare statement stays <code>unproved</code></td>
 </tr>
 <tr>
 <td><code>o_cli</code></td>
@@ -173,6 +177,14 @@ inference is logical. MCP clients should require <code>o_lean_verify</code> befo
 a formal claim proved and retain <code>unproved</code> as the state after rejection or an
 unavailable checker. Lean compilation is not a sandbox: imported modules and
 compiler plugins retain the MCP process&#39;s authority.</p>
+<h2>Non-code claims</h2>
+<p><code>o_claim</code> is the gate for a conclusion that is not an O program. The English
+<code>statement</code> is recorded with <code>statement_verified: false</code>. <code>mode: formal</code> runs
+the same check as <code>o_lean_verify</code> and can return <code>verified</code> only for the named
+declarations. <code>mode: citation</code> returns <code>cited</code> only when the server reads a
+regular file and finds the exact <code>excerpt</code>. A statement with no mode stays
+<code>unproved</code>. None of these results prove that the English conclusion follows
+from the evidence. Repeat the returned status and do not upgrade it.</p>
 <h2>Agent workflow</h2>
 <p>For paired terminal and MCP examples, read the
 <a href="../../docs/HUMAN_LLM_WORKFLOWS.md">human and LLM workflow guide</a>, or call

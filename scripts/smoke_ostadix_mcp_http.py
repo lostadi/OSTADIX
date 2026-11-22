@@ -27,7 +27,7 @@ from urllib.parse import urlsplit
 
 
 EXPECTED_TOOLS = {
-    "o_analyze_intent", "o_capabilities", "o_cli", "o_doctor", "o_env",
+    "o_analyze_intent", "o_capabilities", "o_claim", "o_cli", "o_doctor", "o_env",
     "o_eval", "o_execute", "o_execute_intent", "o_information_inspect",
     "o_guide", "o_job_cancel", "o_job_list", "o_job_read", "o_job_status",
     "o_job_write", "o_lean_check", "o_lean_verify", "o_olangc", "o_operation", "o_run", "o_runtimes",
@@ -356,7 +356,7 @@ def run_smoke(root: Path, binary: Path, timeout: float) -> None:
                     f"HTTP o_execute lost successful process evidence: {executed}")
             smoke = content_text(client.tool("o_smoke"))
             require("SMOKE_OK" in smoke and "2" in smoke, f"HTTP o_smoke did not report 2: {smoke}")
-            print("HTTP 23 tools, resources, o_execute=42, o_smoke=2: PASS", flush=True)
+            print("HTTP 24 tools, resources, o_execute=42, o_smoke=2: PASS", flush=True)
 
             job_id, pid, backend_pid = background_job(client, fixture / "delete-ready", timeout)
             child_pids.update((pid, backend_pid))
