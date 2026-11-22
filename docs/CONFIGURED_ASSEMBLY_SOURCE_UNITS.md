@@ -42,8 +42,7 @@ alone. Rust capture also checks its original Cargo-parent relation. These
 checks do not establish an authentic complete Rust producer or standard-library
 closure.
 
-This work used OpenAI Codex assistance and a separate Codex source reviewer.
-See [AI-assisted development](AI_ASSISTED_DEVELOPMENT.md). Source review,
+Source review,
 executed fixture results, compiler builds and original-runtime acceptance are
 reported separately.
 

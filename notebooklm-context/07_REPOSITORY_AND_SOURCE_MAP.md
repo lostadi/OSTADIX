@@ -154,8 +154,6 @@ as a blanket current implementation inventory.
 
 - `README.md`: broad current overview mixed with clearly labelled historical
   pinned-audit facts.
-- `docs/AI_GUIDE.md`: concise agent workflow; its backend list can lag the
-  literal catalog.
 - `DEVELOPMENT.md`: contributor map and test commands; individual mechanics
   can lag refactors.
 - `INVENTORY.md`: dated 2026-08-28 Mac audit, not live truth for this snapshot.

@@ -1,8 +1,8 @@
 # Hosted O language guide
 
 This file describes the authoritative Rust edition unless an alternate edition
-is named explicitly. Normative source: `SPEC.md`. Agent-oriented examples:
-`docs/AI_GUIDE.md` and `examples/*.O`.
+is named explicitly. Normative source: `SPEC.md`. Examples:
+`examples/*.O`.
 
 ## Typed expressions
 

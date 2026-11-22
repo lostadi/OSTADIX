@@ -79,7 +79,7 @@ class AuthorCheckTests(unittest.TestCase):
                     message=f"Change\n\n{key}: Another Person <person@example.invalid>\n"
                 )))
 
-    def test_explicit_ai_assistance_disclosure_is_not_scrubbed(self) -> None:
+    def test_message_body_prose_is_not_an_identity_trailer(self) -> None:
         for credit in (
             "Generated with Codex", "This commit was written by AI Assistant",
             "🤖 Generated with Claude Code", "Code reviewed by Gemini",
@@ -90,7 +90,7 @@ class AuthorCheckTests(unittest.TestCase):
             with self.subTest(credit=credit):
                 self.assertEqual(commit_violations(commit(message=f"Change\n\n{credit}")), [])
 
-    def test_factual_development_provenance_trailers_are_allowed(self) -> None:
+    def test_non_identity_trailer_keys_are_permitted(self) -> None:
         for key in (
             "Assisted-By", "Generated-By", "Reviewed-By", "Tested-By",
             "Pair-Programmed-By", "Credits", "Codex-Session-Id", "Agent-Transcript",

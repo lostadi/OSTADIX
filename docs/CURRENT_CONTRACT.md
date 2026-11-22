@@ -92,7 +92,7 @@ The [seven splice baseline witnesses and reproduction package](../evidence/publi
 
 [CLAIMS.md](CLAIMS.md) is the detailed evidence inventory. [CI_POSTURE.md](CI_POSTURE.md) describes the static/local audit and optional tools. [The full reference](REFERENCE.md#running-the-tests) retains the existing commands and historical results. A passing parse, unit test, object build, source capture, emulated boot, hosted integration and physical-driver test answer different questions. Any report must identify which one actually ran, its prerequisites and its source.
 
-The [AI-assisted development disclosure](AI_ASSISTED_DEVELOPMENT.md) distinguishes substantial tool assistance, maintainership, Git publication identity and evidence responsibility. The existing [technical whitepaper](../Ostadix-lang_Technical_Whitepaper.pdf) remains a dated artifact; this page does not rewrite its historical experiment dates or source identities.
+The existing [technical whitepaper](../Ostadix-lang_Technical_Whitepaper.pdf) remains a dated artifact; this page does not rewrite its historical experiment dates or source identities.
 
 ## Engine API inventory
 

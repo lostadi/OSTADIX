@@ -29,7 +29,7 @@ The inner Python expression runs first. Its result becomes an OValue. The HTML
 backend decides how that OValue is represented in HTML. Language nesting is
 therefore the composition interface rather than a separate pairwise FFI.
 
-Primary sources: `README.md`, `SPEC.md`, `docs/AI_GUIDE.md`.
+Primary sources: `README.md`, `SPEC.md`.
 
 Project metadata: the repository is
 `https://github.com/lostadi/Ostadix-lang`; the declared human author is Lee

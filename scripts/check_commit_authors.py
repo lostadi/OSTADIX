@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Check publication identity without suppressing development provenance.
-
-Maintainer Git/Cargo/CFF identities are distinct from implementation assistance.
-Generator, reviewer, test and session records may appear in messages. This check
-validates identity fields, not the truth of a provenance statement.
-"""
+"""Validate publication identity fields on commits and metadata surfaces."""
 
 from __future__ import annotations
 
@@ -62,7 +57,7 @@ AUTHOR_TRAILER_KEYS = frozenset(
         "coauthored-by",
     }
 )
-# Keep author-identity aliases separate from assistance/review provenance.
+# Keep author-identity aliases separate from other message trailer keys.
 AUTHOR_IDENTITY_TRAILER = re.compile(r"^(?:co-?)?author(?:s|ed)?(?:-by)?$")
 OBJECT_ID = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 ZERO_OBJECT_ID = re.compile(r"^0+$")
