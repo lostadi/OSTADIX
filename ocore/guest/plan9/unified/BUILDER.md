@@ -17,10 +17,10 @@ captured stream to 1 MiB; this is not the current native filesystem's per-file
 limit. Its format permits at most 3,999 blocks of 4,088 data bytes per file,
 subject to the free blocks shared by the entire 16 MiB volume.
 
-The base input is build 12115, source commit
-`350266104f1fed81c78c3d05fa44f523bec0ae4d`. The QCOW2 must be exactly
-597,164,032 bytes with SHA-256
-`67484f032a13eb9760a6287a1c0136a178da38b3c01e19ca7381d2e14a40a20f`.
+The base input is build 12160, source commit
+`cb9e5e7e9cde2c76bc44e719dda337abd8b7048b`. The QCOW2 must be exactly
+596,770,816 bytes with SHA-256
+`09f52e484f4067345d1fa6c9c95f2daa6bee51f79de20af54c12f5decb1e8d86`.
 This is an observed digest pin, not upstream signature verification. The native
 compiler binaries are admitted from that image; this workflow does not
 bootstrap them or lower their source through O-core.

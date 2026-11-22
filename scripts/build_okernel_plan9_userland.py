@@ -50,7 +50,7 @@ def admit_image(path: Path) -> dict:
         raise ValueError("official image must be a regular nonsymlink file")
     record = identity(path)
     if (record["bytes"], record["sha256"]) != (original.IMAGE_BYTES, original.IMAGE_SHA256):
-        raise ValueError("official image differs from the pinned original build12115")
+        raise ValueError("official image differs from the pinned original build12160")
     return record
 
 
@@ -552,7 +552,7 @@ def build(args) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--image", type=Path, default=Path.home() / ".cache/ostadix/plan9-original/9front-12115-arm64/9front-12115.arm64.qcow2")
+    parser.add_argument("--image", type=Path, default=Path.home() / ".cache/ostadix/plan9-original/9front-12160-arm64/9front-12160.arm64.qcow2")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--output", type=Path)
     mode.add_argument("--revalidate", type=Path, help="recheck completed native exports without launching a VM")
