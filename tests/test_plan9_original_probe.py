@@ -54,7 +54,7 @@ class OriginalKernelAdmissionTests(unittest.TestCase):
             output = Path(directory)
             kernel = output / "candidate.u"
             kernel.write_bytes(self.container())
-            with self.assertRaisesRegex(ValueError, "official build12115 kernel pin"):
+            with self.assertRaisesRegex(ValueError, "official build12160 kernel pin"):
                 probe.prepare_kernel(kernel, output, {})
             receipt = output / "derivation.json"
             receipt.write_text(json.dumps({"schema": "ostadix.original9front-native-builder/v1",

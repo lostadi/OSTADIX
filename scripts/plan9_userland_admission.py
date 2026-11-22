@@ -16,8 +16,8 @@ import struct
 import tarfile
 import zlib
 
-COMMIT = "350266104f1fed81c78c3d05fa44f523bec0ae4d"
-EPOCH = 1793431069
+COMMIT = "cb9e5e7e9cde2c76bc44e719dda337abd8b7048b"
+EPOCH = 1795076365
 TOOLS = ("rc", "cat", "echo", "ls", "mkdir", "rm", "mv", "cp", "test",
          "sleep", "mount", "bind", "unmount", "grep", "sed", "awk", "sha1sum",
          "tar", "7c", "7a", "7l", "mk", "ar", "size", "pwd", "read", "dd", "date")

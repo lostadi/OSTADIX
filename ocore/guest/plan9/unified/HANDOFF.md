@@ -75,7 +75,7 @@ the existing 22 command/cancellation cases bind that same executable.
 This is a **new derivation**, with schema
 `ostadix.original9front-userland-builder/v1`. Do not pass it off as an older
 standalone kernel derivation or relax that old probe's admission. The original
-image is build 12115, commit `350266104f1fed81c78c3d05fa44f523bec0ae4d`.
+image is build 12160, commit `cb9e5e7e9cde2c76bc44e719dda337abd8b7048b`.
 Observed digest pins provide the declared provenance; upstream signatures and
 compiler bootstrapping are not claimed.
 

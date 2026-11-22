@@ -27,10 +27,10 @@ from probe_okernel_plan9 import COMMIT, inspect_uimage
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = ROOT / "ocore/guest/plan9"
-IMAGE_BYTES = 597164032
-IMAGE_SHA256 = "67484f032a13eb9760a6287a1c0136a178da38b3c01e19ca7381d2e14a40a20f"
+IMAGE_BYTES = 596770816
+IMAGE_SHA256 = "09f52e484f4067345d1fa6c9c95f2daa6bee51f79de20af54c12f5decb1e8d86"
 UART_SHA256 = "da6be23824c0611c48880e09fb98dccd15df3a7c943a3c63b787499e69140000"
-EPOCH = 1793431069
+EPOCH = 1795076365
 FAT_OFFSET = 4128768
 MTOOLS_ENV = dict(os.environ, MTOOLSRC="/dev/null")
 
@@ -221,7 +221,7 @@ def build_vm(output: Path, base: Path, kernel: Path, platform: Path,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--image", type=Path, default=Path.home() / ".cache/ostadix/plan9-original/9front-12115-arm64/9front-12115.arm64.qcow2")
+    parser.add_argument("--image", type=Path, default=Path.home() / ".cache/ostadix/plan9-original/9front-12160-arm64/9front-12160.arm64.qcow2")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--qemu", default="qemu-system-aarch64")
     parser.add_argument("--timeout", type=float, default=600, help="maximum seconds for each private build VM")
@@ -251,7 +251,7 @@ def main() -> int:
         shutil.copyfile(args.image, base)
         admitted = identity(base)
         if admitted["bytes"] != IMAGE_BYTES or admitted["sha256"] != IMAGE_SHA256:
-            raise ValueError("official qcow2 differs from the explicit observed build12115 pin")
+            raise ValueError("official qcow2 differs from the explicit observed build12160 pin")
         base.chmod(0o400)
         geometry = json.loads(run(["qemu-img", "info", "--output=json", str(base)], capture_output=True, text=True).stdout)
         if geometry.get("format") != "qcow2" or geometry.get("backing-filename"):
@@ -270,8 +270,8 @@ def main() -> int:
         original = output / "9qemu.u"
         run(["mcopy", "-i", str(raw) + "@@" + str(FAT_OFFSET), "::/9qemu.u", str(original)], env=MTOOLS_ENV)
         metadata, payload = inspect_uimage(original)
-        if hashlib.sha256(original.read_bytes()).hexdigest() != "df704b7fff3417eeb9924fed7170fed5e0aeb52829d11fabcbf4e9f6732b34ae":
-            raise ValueError("official kernel differs from the original build12115 pin")
+        if hashlib.sha256(original.read_bytes()).hexdigest() != "295888b5760ed7e649b6a6cd769b739109793e6b4e4707d23a7cd1abdea1a328":
+            raise ValueError("official kernel differs from the original build12160 pin")
         kernel = output / "kernel.raw"
         kernel.write_bytes(payload)
         result["original_kernel"] = {"container": identity(original), "uimage": metadata}

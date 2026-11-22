@@ -25,15 +25,15 @@ import zlib
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = "12115"
-COMMIT = "350266104f1fed81c78c3d05fa44f523bec0ae4d"
-URL = "https://build.9front.org/9front/9front-12115.arm64.qcow2.gz"
-ARCHIVE_BYTES = 297523045
-ARCHIVE_SHA256 = "5d148190fba4d0ceab491b2afe2639e01c9abd8cb21f93c1ec7ac814a6f2c584"
-QCOW_BYTES = 597164032
-UIMAGE_BYTES = 4292048
-UIMAGE_SHA256 = "df704b7fff3417eeb9924fed7170fed5e0aeb52829d11fabcbf4e9f6732b34ae"
-DERIVATION_BUILDER_SHA256 = "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b"
+BUILD = "12160"
+COMMIT = "cb9e5e7e9cde2c76bc44e719dda337abd8b7048b"
+URL = "https://build.9front.org/9front/9front-12160.arm64.qcow2.gz"
+ARCHIVE_BYTES = 297357968
+ARCHIVE_SHA256 = "c18f036d41758374f88044f0e69e36d8c8d5972b93808c9e71657765f603f8d0"
+QCOW_BYTES = 596770816
+UIMAGE_BYTES = 4254256
+UIMAGE_SHA256 = "295888b5760ed7e649b6a6cd769b739109793e6b4e4707d23a7cd1abdea1a328"
+DERIVATION_BUILDER_SHA256 = "aca64c4586f9542a783d7d7570184f199f9f40f220a03f38b20e4542df3896f3"
 UART_PATCH_SHA256 = "9e264301ac0f6311e3790caaefe9996138af63e62bd6c15da3fac8073b0593d3"
 UART_DERIVED_SHA256 = "f3c0ec64beafeae20bb5f3fc859724fb648ae8d0109045ba6ae7f77f9a0a8c8c"
 
@@ -69,7 +69,7 @@ def prepare_archive(archive: Path, output: Path, records: dict) -> Path:
     shutil.copyfile(archive, selected)
     admitted = identity(selected)
     if admitted["bytes"] != ARCHIVE_BYTES or admitted["sha256"] != ARCHIVE_SHA256:
-        raise ValueError("official archive differs from its explicit observed build12115 pin")
+        raise ValueError("official archive differs from its explicit observed build12160 pin")
     selected.chmod(0o400)
     records["distribution"] = {"url": URL, "build": BUILD, "source_commit": COMMIT, "archive": admitted,
                                "integrity": "explicit repository-observed SHA256 pin; no upstream signature verification claimed"}
@@ -114,7 +114,7 @@ def admit_derivation(receipt: Path, kernel_identity: dict) -> dict:
         raise ValueError("derived kernel requires a successful pinned original-tool two-build receipt")
     if (document.get("controller_source", {}).get("sha256") != DERIVATION_BUILDER_SHA256
             or document.get("original_kernel", {}).get("container", {}).get("sha256") != UIMAGE_SHA256
-            or document.get("official_image", {}).get("sha256") != "67484f032a13eb9760a6287a1c0136a178da38b3c01e19ca7381d2e14a40a20f"):
+            or document.get("official_image", {}).get("sha256") != "09f52e484f4067345d1fa6c9c95f2daa6bee51f79de20af54c12f5decb1e8d86"):
         raise ValueError("derived kernel receipt is not bound to the admitted original build recipe/image")
     patch = document.get("platform_patch", {})
     if (patch.get("patch", {}).get("sha256") != UART_PATCH_SHA256
@@ -144,7 +144,7 @@ def prepare_kernel(source: Path, output: Path, records: dict, derivation: Path |
         shutil.copyfile(source, uimage)
     observed = identity(uimage)
     if derivation is None and (observed["bytes"] != UIMAGE_BYTES or observed["sha256"] != UIMAGE_SHA256):
-        raise ValueError("original kernel differs from the observed official build12115 kernel pin")
+        raise ValueError("original kernel differs from the observed official build12160 kernel pin")
     if derivation is not None:
         document = admit_derivation(derivation, observed)
         snapshot = output / "kernel-derivation.json"

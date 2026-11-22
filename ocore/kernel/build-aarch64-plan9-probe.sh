@@ -49,7 +49,7 @@ manifest = {
     "gic_assignment": {"version": 3, "distributor": [0x08000000, 0x08010000],
                        "redistributor_sgi_ppi": [0x080b0000, 0x080c0000],
                        "redistributor_rd": {"ipa": [0x080a0000, 0x080b0000], "transport": "native read-only fixed register facade",
-                                            "read32_offsets": [0, 4, 8, 12, 20], "writes": "denied", "lpi_authority": False},
+                                            "read32_offsets": [0, 4, 8, 12, 20], "read64_typer_offset": 8, "writes": "denied", "lpi_authority": False},
                        "its": False, "scope": "one emulated interrupt controller, no LPI table DMA grant"},
     "uart": {"ipa": 0x09000000, "bytes": 4096, "irq": 33, "transport": "native O-core mediated PL011"},
     "rtc": {"ipa": 0x09010000, "bytes": 4, "access": "read-only PL031 data register",

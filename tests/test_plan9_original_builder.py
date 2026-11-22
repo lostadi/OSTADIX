@@ -45,7 +45,7 @@ class OriginalBuilderAdmissionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr)
             receipt = json.loads((output / "result.json").read_text())
             self.assertFalse(receipt["passed"])
-            self.assertIn("explicit observed build12115 pin", receipt["error"])
+            self.assertIn("explicit observed build12160 pin", receipt["error"])
             self.assertFalse((output / "baseline").exists())
             self.assertEqual(source.read_bytes(), b"unadmitted image with no execution authority")
 

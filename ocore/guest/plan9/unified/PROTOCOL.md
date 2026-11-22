@@ -378,40 +378,40 @@ does not add backpressure-controlled interactive stdin or PTY semantics.
 ## Original Plan 9 implementation notes
 
 The pinned upstream commit is
-`350266104f1fed81c78c3d05fa44f523bec0ae4d` (official ARM64 build 12115).
+`cb9e5e7e9cde2c76bc44e719dda337abd8b7048b` (official ARM64 build 12160).
 
 - The original C APIs include `rfork`, `chdir`, `dup`, `exec`, `wait`,
   `nulldir`, `dirwstat`, `readn`, and `write`. A child created with
   `RFPROC|RFFDG|RFENVG|RFNAMEG|RFNOTEG|RFREND` can copy the parent's file,
   environment and namespace groups while getting a separate note group.
   Check every setup call. Close protocol descriptors in the child, or use
-  `OCEXEC` where appropriate. [Pinned libc header](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/include/libc.h),
-  [rfork semantics](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/man/2/fork).
+  `OCEXEC` where appropriate. [Pinned libc header](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/include/libc.h),
+  [rfork semantics](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/man/2/fork).
 - `wait()` returns allocated `Waitmsg` records; select the command's PID and
   preserve `msg`, then free the record. Collector-child exits are separate.
   `await()` returns a byte count without a terminal NUL, so using `wait()`
-  avoids hand-parsing that format. [Pinned wait documentation](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/man/2/wait).
+  avoids hand-parsing that format. [Pinned wait documentation](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/man/2/wait).
 - Explicit `/bin/rc -I SCRIPT` executes original rc non-interactively while
   descriptor zero remains available to the command's input. Quoted rc strings
   use doubled apostrophes, not POSIX shell escapes; argument-vector execution
-  avoids this translation entirely. [Pinned rc documentation](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/man/1/rc).
+  avoids this translation entirely. [Pinned rc documentation](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/man/1/rc).
 - Original `sha2_256` and `SHA2_256dlen` are declared in `<libsec.h>`, whose
   library pragma selects `libsec.a`. This supplies request and stream hashes
-  without a replacement hash implementation. [Pinned libsec header](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/include/libsec.h).
+  without a replacement hash implementation. [Pinned libsec header](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/include/libsec.h).
 - `postnote(PNGROUP, pid, "kill")` targets one note group. A live supervisor
   keeps that group addressable after the immediate command exits, but cannot
   contain every descendant. Original rc inserts `rfork s` for background `&`
   jobs, which creates another note group. Group notes therefore do not replace
   the required domain recovery on timeout, cancellation or unknown completion. [Pinned
-  postnote documentation](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/man/2/postnote),
-  [pinned rc compiler](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/src/cmd/rc/code.c).
+  postnote documentation](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/man/2/postnote),
+  [pinned rc compiler](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/src/cmd/rc/code.c).
 - The unmodified upstream boot PAQ recipe includes rc, cat, mkdir, mv, sleep,
   test and awk, but does not list 7c, 7l or sha1sum. The admitted expanded
   build-7 provider does include those original tools, the compiled service,
   and its declared compiler/header/library closure. Its separate PAQ-only
   native compilation gate establishes that closure; a kernel build alone
   would not. See `BUILDER.md` and `HANDOFF.md` for the exact receipt and
-  inventory. [Pinned upstream bootfs recipe](https://raw.githubusercontent.com/9front/9front/350266104f1fed81c78c3d05fa44f523bec0ae4d/sys/src/9/boot/bootfs.proto).
+  inventory. [Pinned upstream bootfs recipe](https://raw.githubusercontent.com/9front/9front/cb9e5e7e9cde2c76bc44e719dda337abd8b7048b/sys/src/9/boot/bootfs.proto).
 
 The host implementation is `protocol.py`; independent framing, limit,
 corruption and replay-binding cases are in

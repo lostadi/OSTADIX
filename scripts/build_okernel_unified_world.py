@@ -140,7 +140,7 @@ def admit_userland_derivation(receipt: Path, kernel_identity: dict) -> dict:
         raise ValueError("Plan9 userland FROZEN receipt differs from its qualified pin")
     frozen = json.loads(frozen_path.read_text())
     if (document.get("schema") != "ostadix.original9front-userland-builder/v1" or document.get("ok") is not True
-            or document.get("source_commit") != "350266104f1fed81c78c3d05fa44f523bec0ae4d"
+            or document.get("source_commit") != "cb9e5e7e9cde2c76bc44e719dda337abd8b7048b"
             or document.get("exports_captured_after_halt") is not True
             or frozen.get("schema") != "ostadix.frozen-private-native-build/v1"
             or frozen.get("receipt") != receipt_id or frozen.get("artifacts") != document.get("artifacts")):
@@ -165,8 +165,8 @@ def admit_userland_derivation(receipt: Path, kernel_identity: dict) -> dict:
         checked_identity(document[name])
     checked_identity(document["original_kernel"]["container"])
     checked_identity(frozen["prior_service"])
-    if (document["official_image"]["sha256"] != "67484f032a13eb9760a6287a1c0136a178da38b3c01e19ca7381d2e14a40a20f"
-            or document["original_kernel"]["container"]["sha256"] != "df704b7fff3417eeb9924fed7170fed5e0aeb52829d11fabcbf4e9f6732b34ae"
+    if (document["official_image"]["sha256"] != "09f52e484f4067345d1fa6c9c95f2daa6bee51f79de20af54c12f5decb1e8d86"
+            or document["original_kernel"]["container"]["sha256"] != "295888b5760ed7e649b6a6cd769b739109793e6b4e4707d23a7cd1abdea1a328"
             or document["inputs"]["UART.C"]["sha256"] != "f3c0ec64beafeae20bb5f3fc859724fb648ae8d0109045ba6ae7f77f9a0a8c8c"
             or document["inputs"]["uart.patch"]["sha256"] != "9e264301ac0f6311e3790caaefe9996138af63e62bd6c15da3fac8073b0593d3"
             or any(command.get("exit_code") != 0 for command in document["commands"])):
@@ -177,7 +177,7 @@ def admit_userland_derivation(receipt: Path, kernel_identity: dict) -> dict:
     if (len(tokens) != 1 or not console.rstrip(b"\n").endswith(b"done halting")
             or ("P9_PROVIDER_PASS_" + tokens[0]).encode() not in console.splitlines()
             or b"P9_USERLAND_NATIVE_HELLO" not in console.splitlines()
-            or b"P9_CLOCK 1793431069" not in console.splitlines()
+            or b"P9_CLOCK 1795076365" not in console.splitlines()
             or "if(! ~ $paqbefore(1) $paqafter(1)) fail changedpaq" not in script):
         raise ValueError("Plan9 native compile/PAQ-continuity/halt evidence is incomplete")
     # Retain the original build controller's provenance, without importing it
