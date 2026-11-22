@@ -23,6 +23,7 @@ PROTOCOL_VERSION = "2025-03-26"
 EXPECTED_TOOLS = {
     "o_analyze_intent",
     "o_capabilities",
+    "o_claim",
     "o_cli",
     "o_doctor",
     "o_env",
@@ -1167,6 +1168,70 @@ def _run_unified_surface_smoke(
         raise SmokeError(f"typed operation lost the native incompatibility report: {stale}")
 
 
+def _run_claim_smoke(
+    process: subprocess.Popen[bytes],
+    responses: ResponseReader,
+    timeout: float,
+    fixture: Path,
+) -> None:
+    """A non-code claim stays unproved unless the server finds an exact citation."""
+    source = fixture / "note.txt"
+    source.write_text("Keep the cited sentence intact.\n", encoding="utf-8")
+    next_request = 800
+
+    def call(arguments: dict[str, Any], *, error: bool) -> dict[str, Any]:
+        nonlocal next_request
+        request_id = next_request
+        next_request += 1
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": "tools/call",
+                "params": {"name": "o_claim", "arguments": arguments},
+            },
+        )
+        result = responses.response(request_id, timeout)
+        if (result.get("isError") is True) != error:
+            raise SmokeError(
+                f"o_claim returned unexpected error status: {_content_text(result)}"
+            )
+        return _content_object(result)
+
+    bare = call({"statement": "This conclusion is established."}, error=True)
+    if bare.get("status") != "unproved" or bare.get("statement_verified") is not False:
+        raise SmokeError(f"bare English claim was accepted: {bare}")
+
+    cited = call(
+        {
+            "statement": "The note contains the cited sentence.",
+            "mode": "citation",
+            "path": str(source),
+            "excerpt": "cited sentence",
+        },
+        error=False,
+    )
+    if (
+        cited.get("status") != "cited"
+        or cited.get("statement_verified") is not False
+        or cited.get("citation", {}).get("occurrences") != 1
+    ):
+        raise SmokeError(f"exact citation was not accepted: {cited}")
+
+    missing = call(
+        {
+            "statement": "The note contains a sentence it does not contain.",
+            "mode": "citation",
+            "path": str(source),
+            "excerpt": "sentence it does not contain",
+        },
+        error=True,
+    )
+    if missing.get("status") != "unproved" or missing.get("citation", {}).get("occurrences") != 0:
+        raise SmokeError(f"missing citation was treated as established: {missing}")
+
+
 def _run_lean_smoke(
     process: subprocess.Popen[bytes],
     responses: ResponseReader,
@@ -1302,6 +1367,27 @@ def _run_lean_smoke(
     declaration = forged.get("declarations", [{}])[0]
     if forged.get("verified") is not False or not declaration.get("error"):
         raise SmokeError(f"Lean accepted forged axiom-report output: {forged}")
+
+    formal = call(
+        "o_claim",
+        {
+            "statement": "Conjunction commutes, so every English conclusion about it is proved.",
+            "mode": "formal",
+            "source": (
+                "theorem and_commutes (p q : Prop) : p ∧ q → q ∧ p := by\n"
+                "  intro h\n"
+                "  exact ⟨h.right, h.left⟩\n"
+            ),
+            "declarations": ["and_commutes"],
+            "allowed_axioms": [],
+        },
+    )
+    if (
+        formal.get("status") != "verified"
+        or formal.get("statement_verified") is not False
+        or formal.get("formal", {}).get("verified") is not True
+    ):
+        raise SmokeError(f"formal non-code claim did not keep the English statement separate: {formal}")
 
 
 def run_smoke(
@@ -1742,6 +1828,14 @@ def run_smoke(
             raise SmokeError(f"o_smoke failed:\n{smoke_text}")
         if "[number] 2" not in smoke_text:
             raise SmokeError(f"o_smoke omitted the expected result 2:\n{smoke_text}")
+
+        with tempfile.TemporaryDirectory(prefix=".mcp-claim-smoke-") as claim_fixture:
+            _run_claim_smoke(
+                process,
+                responses,
+                timeout,
+                Path(claim_fixture).resolve(),
+            )
 
         if require_lean:
             with tempfile.TemporaryDirectory(prefix=".mcp-lean-smoke-") as lean_fixture:

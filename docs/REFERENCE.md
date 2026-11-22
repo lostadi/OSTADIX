@@ -1267,7 +1267,7 @@ this repository.
 
 The repository includes `ostadix-mcp`, a stdio and Streamable HTTP
 [Model Context Protocol](https://modelcontextprotocol.io/) server under
-`mcp/ostadix_lang_mcp_server/`. Its 23 typed tools include `o_execute`, the
+`mcp/ostadix_lang_mcp_server/`. Its 24 typed tools include `o_execute`, the
 primary source-first computation interface. Supply exactly one complete O
 `source` or existing program/project `path`; use an explicit `cwd` for relative
 filesystem context. Execution, parse-only checking, static planning, compiler
@@ -1292,6 +1292,7 @@ The empty-argument command continues to use stdio.
 | `o_capabilities`, `o_guide` | Discover the source-backed command catalog and embedded workflow guides. |
 | `o_lean_check` | Elaborate and type-check exactly one Lean 4 module source or existing path with a real Lean toolchain; this alone does not verify a named proof. |
 | `o_lean_verify` | Run Lean with zero trust, require exact structured axiom reports for explicitly named declarations, and reject `sorryAx` or dependencies outside the caller's allowlist. |
+| `o_claim` | Judge a non-code conclusion. The English statement stays unverified. `formal` accepts only the Lean result; `citation` accepts only an exact server-read excerpt; omitting the mode leaves the claim `unproved`. |
 | `o_cli`, `o_eval` | Full literal CLI arguments or inline O, with cwd/env/stdin, PTY, timeout and background jobs. |
 | `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, `o_job_cancel` | Follow independent session jobs, read retained logs, send input and cancel owned execution. |
 | `o_env` | Reports the resolved Ostadix root, backend directory, `O` and `olangc` paths, Python shim status, and a 30-backend runtime summary. |
@@ -5024,7 +5025,7 @@ Ostadix-lang/
 │   ├── lib.rs                  # 42 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
-├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 23 tools
+├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 24 tools
 ├── backends/                   # compatibility hosted-language adapters
 ├── ocore/                      # freestanding runtime and kernel proof
 ├── c_cpp/                      # standalone C17 hosted implementation
@@ -6330,7 +6331,7 @@ confuse with the implemented mechanisms described above.
   memory. Local fallback is eligible only while execution-start evidence
   remains absent.
 - `ostadix-mcp` defaults to a local stdio child process that inherits the MCP client's
-  authority. Its 23 tools expose source-first execution, full native command
+  authority. Its 24 tools expose source-first execution, non-code claims, full native command
   arguments, concurrent managed jobs, capability guides, environment/runtime
   diagnostics, Lean 4 checking and declaration proof verification, compiler,
   intent, search, and bounded Information inspection. Lean verification is

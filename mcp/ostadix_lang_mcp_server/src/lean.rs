@@ -365,6 +365,29 @@ fn parse_axiom_dependencies(output: &str, declaration: &str) -> Result<Vec<Strin
     found.ok_or_else(|| format!("Lean returned no exact #print axioms report for {declaration}"))
 }
 
+pub(crate) async fn verify_claim(
+    source: Option<String>,
+    path: Option<String>,
+    cwd: Option<String>,
+    declarations: Vec<String>,
+    allowed_axioms: Option<Vec<String>>,
+    timeout_secs: Option<u64>,
+    runtime_search: &super::RuntimeSearchPath,
+) -> Result<(Value, bool), String> {
+    verify_inner(
+        VerifyArgs {
+            source,
+            path,
+            cwd,
+            declarations,
+            allowed_axioms: allowed_axioms.unwrap_or_else(default_allowed_axioms),
+            timeout_secs,
+        },
+        runtime_search,
+    )
+    .await
+}
+
 async fn verify_inner(
     args: VerifyArgs,
     runtime_search: &super::RuntimeSearchPath,

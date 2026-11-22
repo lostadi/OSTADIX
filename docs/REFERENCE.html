@@ -1147,7 +1147,7 @@ this repository.</p>
 <h3>MCP server for AI-agent tools and URL connectors</h3>
 <p>The repository includes <code>ostadix-mcp</code>, a stdio and Streamable HTTP
 <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> server under
-<code>mcp/ostadix_lang_mcp_server/</code>. Its 23 typed tools include <code>o_execute</code>, the
+<code>mcp/ostadix_lang_mcp_server/</code>. Its 24 typed tools include <code>o_execute</code>, the
 primary source-first computation interface. Supply exactly one complete O
 <code>source</code> or existing program/project <code>path</code>; use an explicit <code>cwd</code> for relative
 filesystem context. Execution, parse-only checking, static planning, compiler
@@ -1185,6 +1185,10 @@ The empty-argument command continues to use stdio.</p>
 <tr>
 <td><code>o_lean_verify</code></td>
 <td>Run Lean with zero trust, require exact structured axiom reports for explicitly named declarations, and reject <code>sorryAx</code> or dependencies outside the caller&#39;s allowlist.</td>
+</tr>
+<tr>
+<td><code>o_claim</code></td>
+<td>Judge a non-code conclusion. The English statement stays unverified. <code>formal</code> accepts only the Lean result; <code>citation</code> accepts only an exact server-read excerpt; omitting the mode leaves the claim <code>unproved</code>.</td>
 </tr>
 <tr>
 <td><code>o_cli</code>, <code>o_eval</code></td>
@@ -4982,7 +4986,7 @@ Native computation
 │   ├── lib.rs                  # 42 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
-├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 23 tools
+├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 24 tools
 ├── backends/                   # compatibility hosted-language adapters
 ├── ocore/                      # freestanding runtime and kernel proof
 ├── c_cpp/                      # standalone C17 hosted implementation
@@ -6674,7 +6678,7 @@ memory. Local fallback is eligible only while execution-start evidence
 remains absent.</p>
 </li>
 <li><p><code>ostadix-mcp</code> defaults to a local stdio child process that inherits the MCP client&#39;s
-authority. Its 23 tools expose source-first execution, full native command
+authority. Its 24 tools expose source-first execution, non-code claims, full native command
 arguments, concurrent managed jobs, capability guides, environment/runtime
 diagnostics, Lean 4 checking and declaration proof verification, compiler,
 intent, search, and bounded Information inspection. Lean verification is

@@ -232,7 +232,7 @@ class OAuthProbe:
             alternate = OAuthProbe(self.connection.geturl(), alternate_resource, self.owner, self.timeout)
             status, _, _ = alternate.mcp(tokens["access_token"]).request("POST", {"method": "ping"})
             require(status == 401, "OAuth token crossed into a different configured resource")
-        print("OAuth consent, PKCE, exact 23 tools, native result 42 and smoke: PASS", flush=True)
+        print("OAuth consent, PKCE, exact 24 tools, native result 42 and smoke: PASS", flush=True)
 
         other_tokens = self.issue(client)
         other = self.mcp(other_tokens["access_token"])

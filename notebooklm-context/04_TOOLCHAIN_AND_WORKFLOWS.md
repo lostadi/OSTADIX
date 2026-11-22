@@ -301,8 +301,9 @@ Current tool surface:
 | `o_information_inspect` | Bounded read-only head inspection of an existing local Information root. |
 | `o_lean_check` | Elaborate and type-check one Lean 4 module with a real toolchain. |
 | `o_lean_verify` | Require named declarations to pass zero-trust kernel checking and reject `sorryAx` or disallowed axiom dependencies. |
+| `o_claim` | Keep a non-code conclusion unproved until Lean verifies named declarations or the server finds an exact citation. The English statement itself is never verified. |
 
-The complete 23-tool catalog is in `mcp/ostadix_lang_mcp_server/README.md`.
+The complete 24-tool catalog is in `mcp/ostadix_lang_mcp_server/README.md`.
 Lean verification is fail-closed and covers only submitted formal statements;
 it does not validate English-to-Lean translation or arbitrary agent inference.
 Set `OSTADIX_LEAN` to an absolute Lean executable when discovery is insufficient.
