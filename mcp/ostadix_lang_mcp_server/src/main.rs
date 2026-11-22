@@ -2554,7 +2554,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Judge one non-code claim. The English statement is never verified. mode formal accepts only named Lean declarations under the axiom policy. mode citation accepts only an exact excerpt read by the server from a regular file. Omitting mode leaves the claim unproved. Do not upgrade the returned status in prose.",
+        description = "Judge one non-code claim. statement_verified is true only when mode formal succeeds and statement is exactly the proposition Lean reports for the named declarations, joined by newlines when there are several. A paraphrase stays unverified. mode citation accepts only an exact excerpt and does not verify the statement. Omitting mode leaves the claim unproved. Do not upgrade the returned status in prose.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -3507,7 +3507,7 @@ impl ServerHandler for OstadixMcp {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
             .with_server_info(rmcp::model::Implementation::new(
                 "ostadix-mcp",
-                concat!(env!("CARGO_PKG_VERSION"), "+source-surface.5"),
+                concat!(env!("CARGO_PKG_VERSION"), "+source-surface.6"),
             )
                 .with_title("Ostadix runtime and toolchain")
                 .with_website_url("https://github.com/lostadi/OSTADIX"))
@@ -3517,7 +3517,7 @@ Use mode admitted for an automatic same-source/same-intent gate on ordinary O be
 Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. \
 Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. \
 For formal reasoning, use o_lean_check to type-check a Lean 4 module and o_lean_verify with explicit declaration names to require real kernel acceptance and audit axiom dependencies. Treat rejected or unavailable Lean verification as unproved; never substitute natural-language confidence, syntax checking, or an unexecuted proof sketch. Verification covers only the formal statement under its reported axioms. \
-For a non-code conclusion, call o_claim before treating it as established. mode formal uses Lean and does not prove the English statement. mode citation accepts only an exact excerpt the server reads. A bare statement stays unproved. Repeat the returned status and do not upgrade it. \
+For a non-code conclusion, call o_claim before treating it as established. statement_verified is true only when mode formal succeeds and the statement is exactly Lean's reported proposition. A paraphrase stays unverified. mode citation accepts only an exact excerpt the server reads and does not verify the statement. A bare statement stays unproved. Repeat the returned status and do not upgrade it. \
 Humans use o capabilities and o guide from the same source catalog. Use o_operation for marked operation describe/realizations/plan/explain/run/observe/replan; only run dispatches, and observation reads the retained original decision. \
 Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. \
 Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. \

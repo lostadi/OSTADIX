@@ -1389,6 +1389,26 @@ def _run_lean_smoke(
     ):
         raise SmokeError(f"formal non-code claim did not keep the English statement separate: {formal}")
 
+    matched = call(
+        "o_claim",
+        {
+            "statement": "p ∧ q → q ∧ p",
+            "mode": "formal",
+            "source": source,
+            "declarations": ["and_commutes"],
+            "allowed_axioms": [],
+        },
+    )
+    proposition = matched.get("formal", {}).get("declarations", [{}])[0].get("proposition")
+    if (
+        matched.get("status") != "verified"
+        or matched.get("statement_verified") is not True
+        or proposition != "p ∧ q → q ∧ p"
+    ):
+        raise SmokeError(
+            f"exact Lean proposition was not accepted as the statement: {matched}"
+        )
+
 
 def run_smoke(
     root: Path,

@@ -1292,7 +1292,7 @@ The empty-argument command continues to use stdio.
 | `o_capabilities`, `o_guide` | Discover the source-backed command catalog and embedded workflow guides. |
 | `o_lean_check` | Elaborate and type-check exactly one Lean 4 module source or existing path with a real Lean toolchain; this alone does not verify a named proof. |
 | `o_lean_verify` | Run Lean with zero trust, require exact structured axiom reports for explicitly named declarations, and reject `sorryAx` or dependencies outside the caller's allowlist. |
-| `o_claim` | Judge a non-code conclusion. The English statement stays unverified. `formal` accepts only the Lean result; `citation` accepts only an exact server-read excerpt; omitting the mode leaves the claim `unproved`. |
+| `o_claim` | Judge a non-code conclusion. `statement_verified` is true only when `formal` succeeds and the statement is exactly Lean's reported proposition. A paraphrase stays unverified. `citation` accepts only an exact server-read excerpt and does not verify the statement. Omitting the mode leaves the claim `unproved`. |
 | `o_cli`, `o_eval` | Full literal CLI arguments or inline O, with cwd/env/stdin, PTY, timeout and background jobs. |
 | `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, `o_job_cancel` | Follow independent session jobs, read retained logs, send input and cancel owned execution. |
 | `o_env` | Reports the resolved Ostadix root, backend directory, `O` and `olangc` paths, Python shim status, and a 30-backend runtime summary. |
