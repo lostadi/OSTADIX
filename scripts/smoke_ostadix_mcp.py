@@ -1282,7 +1282,7 @@ def _run_lean_smoke(
     if (
         ill_typed.get("checked") is not False
         or ill_typed.get("verified") is not False
-        or "type mismatch" not in diagnostic_text
+        or "type mismatch" not in diagnostic_text.casefold()
     ):
         raise SmokeError(f"Lean accepted or obscured an ill-typed proof: {ill_typed}")
 
