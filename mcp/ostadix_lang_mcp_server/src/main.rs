@@ -9,6 +9,7 @@ mod capabilities;
 mod execution;
 mod http;
 mod installation;
+mod lean;
 mod oauth;
 mod operation;
 #[path = "../../../crates/ostadix-api/src/runtime_provenance.rs"]
@@ -2522,6 +2523,36 @@ impl OstadixMcp {
     }
 
     #[tool(
+        description = "Elaborate and type-check exactly one complete Lean 4 module source or existing path with the configured real Lean toolchain. Returns source/toolchain identity and bounded diagnostics. A successful check is not a proof verification; use o_lean_verify with named declarations and an axiom policy for formal reasoning claims.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn o_lean_check(
+        &self,
+        Parameters(args): Parameters<lean::CheckArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        lean::check(args, &self.runtime_search).await
+    }
+
+    #[tool(
+        description = "Verify named Lean 4 declarations through real elaboration, zero-trust kernel checking, and exact structured #print axioms reports. Fails closed on compiler errors, missing reports, sorryAx, or axioms outside the caller's allowlist; defaults to propext, Classical.choice, and Quot.sound, with [] requiring axiom-free proofs. Success proves only the submitted formal declarations under the reported axioms, never a natural-language claim or unconstrained inference.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            open_world_hint = false
+        )
+    )]
+    async fn o_lean_verify(
+        &self,
+        Parameters(args): Parameters<lean::VerifyArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        lean::verify(args, &self.runtime_search).await
+    }
+
+    #[tool(
         description = "Primary Ostadix computation interface. Supply exactly one complete O source or existing program/project path. Execute by default, or check syntax, plan, or compile an artifact. Preserves native runtime admission, project placement, structured results and job evidence; route selects project work and node sends a complete ordinary document to one authenticated peer. mode admitted binds local ordinary O source and intent before fresh admission. Expert CLI tools remain available.",
         annotations(
             read_only_hint = false,
@@ -3460,7 +3491,7 @@ impl ServerHandler for OstadixMcp {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
             .with_server_info(rmcp::model::Implementation::new(
                 "ostadix-mcp",
-                concat!(env!("CARGO_PKG_VERSION"), "+source-surface.3"),
+                concat!(env!("CARGO_PKG_VERSION"), "+source-surface.4"),
             )
                 .with_title("Ostadix runtime and toolchain")
                 .with_website_url("https://github.com/lostadi/OSTADIX"))
@@ -3469,6 +3500,7 @@ impl ServerHandler for OstadixMcp {
 Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. \
 Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. \
 Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. \
+For formal reasoning, use o_lean_check to type-check a Lean 4 module and o_lean_verify with explicit declaration names to require real kernel acceptance and audit axiom dependencies. Treat rejected or unavailable Lean verification as unproved; never substitute natural-language confidence, syntax checking, or an unexecuted proof sketch. Verification covers only the formal statement under its reported axioms. \
 Humans use o capabilities and o guide from the same source catalog. Use o_operation for marked operation describe/realizations/plan/explain/run/observe/replan; only run dispatches, and observation reads the retained original decision. \
 Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. \
 Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. \

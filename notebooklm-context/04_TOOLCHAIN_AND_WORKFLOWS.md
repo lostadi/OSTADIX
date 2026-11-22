@@ -299,9 +299,19 @@ Current tool surface:
 | `o_olangc` | Compiler wrapper with absolute shim/path handling and bounded materialization. |
 | `o_search_run` | Run one strictly bounded leaf from an approved example/search directory. |
 | `o_information_inspect` | Bounded read-only head inspection of an existing local Information root. |
+| `o_lean_check` | Elaborate and type-check one Lean 4 module with a real toolchain. |
+| `o_lean_verify` | Require named declarations to pass zero-trust kernel checking and reject `sorryAx` or disallowed axiom dependencies. |
 
-The server is a local stdio child and inherits the MCP client's process
-authority. It has no network listener or MCP-level authentication. A matching
+The complete 23-tool catalog is in `mcp/ostadix_lang_mcp_server/README.md`.
+Lean verification is fail-closed and covers only submitted formal statements;
+it does not validate English-to-Lean translation or arbitrary agent inference.
+Set `OSTADIX_LEAN` to an absolute Lean executable when discovery is insufficient.
+The real proof and negative-control smoke is
+`python3 scripts/smoke_ostadix_mcp.py --require-lean`.
+
+The server defaults to a local stdio child and inherits the MCP client's process
+authority. Optional Streamable HTTP has its own authentication and session
+controls. A matching
 intent handle is not authorization or retained admission; execution still
 performs fresh Graph V2/Evidence V6/Admission V6 checks.
 

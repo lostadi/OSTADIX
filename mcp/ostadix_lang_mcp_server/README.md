@@ -2,8 +2,8 @@
 
 Stdio and Streamable HTTP MCP server for **Ostadix-lang / O-lang**. Supply a complete `.O`
 computation to `o_execute`, or pass an existing program/project path. The
-21-tool surface also supports toolchain discovery, task guides, full native
-command arguments, and concurrent or interactive jobs.
+23-tool surface also supports Lean 4 proof verification, toolchain discovery,
+task guides, full native command arguments, and concurrent or interactive jobs.
 The server supplies an **absolute** `O_BACKENDS_DIR`, so relative `backends`
 and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 
@@ -14,7 +14,7 @@ provenance, platform-specific bundles, and the opt-in watcher resource contract.
 ## URL connectors
 
 Run `ostadix-mcp --transport http --token-file /path/to/token` to serve the same
-21 tools at `http://127.0.0.1:8787/mcp`. Clients send `Authorization: Bearer TOKEN`.
+23 tools at `http://127.0.0.1:8787/mcp`. Clients send `Authorization: Bearer TOKEN`.
 Use `--bind` to select the listener and `--allowed-host` for your public HTTPS
 hostname. Explicit `--allow-unauthenticated` supports an authentication gateway
 or clients using no authentication. This endpoint grants the same execution
@@ -51,6 +51,8 @@ introduced by this transport.
 | `o_operation` | Typed marked-operation lifecycle: describe, realizations, plan, explain, run, observe, replan; native JSON reports and retained job evidence, with execution only for explicit `action: run` |
 | `o_capabilities` | Search the command catalog, resolved executable availability, documentation paths, and related guide topics; optional `query` filters the inventory |
 | `o_guide` | Read the same task guide as human `o guide`; `topic` defaults to the overview, with operations/runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance |
+| `o_lean_check` | Elaborate and type-check one complete Lean 4 module or existing file with a real `lean` executable; return exact source and toolchain identities without claiming proof verification |
+| `o_lean_verify` | Require named declarations to elaborate and pass Lean kernel checking, inspect each with `#print axioms`, reject `sorryAx` and disallowed dependencies, and return per-declaration evidence |
 | `o_cli` | Invoke a catalog command with its complete literal `args` array, optional cwd/env/stdin, timeout, background execution, and PTY |
 | `o_eval` | Evaluate inline `.O` through the installed interpreter, with per-call cwd/env/interpreter arguments and optional background execution or PTY |
 | `o_job_list` | List the jobs owned by this MCP session without waiting for running work |
@@ -68,6 +70,52 @@ introduced by this transport.
 | `o_olangc` | `olangc` with `--shim-dir`; relative input/output resolves against the repository root. `materialize_only` admits ordinary binary/WASM inputs, requires a new contained destination below the server cwd, rejects traversal/existing targets, and invokes neither Cargo nor output publication. |
 | `o_search_run` | Run one strict leaf name from `<work>/search`, or bundled `examples/` when no external work tree exists; reject traversal and symlink escape |
 | `o_information_inspect` | Fixed, bounded `o-info head` inspection of one existing local Information V1 root; returns sanitized IDs/count, no state path or authority, and makes no logical/content/inode/mode/mtime change (atime untested) |
+
+## Lean 4 reasoning and proof verification
+
+`o_lean_check` and `o_lean_verify` locate `lean` on the MCP server's PATH.
+`OSTADIX_LEAN` may instead name an absolute executable path. Missing or broken
+Lean installations produce an error; neither tool substitutes a parser,
+natural-language rationale, or simulated verdict. Each call records the exact
+source SHA-256 and `lean --version` identity. Source is limited to 1 MiB and
+execution has a bounded 1–900 second deadline (120 seconds by default).
+
+A check accepts exactly one complete `source` or existing `path`, with optional
+`cwd` for imports:
+
+```json
+{"source":"theorem two_eq_two : 2 = 2 := rfl"}
+```
+
+Successful `o_lean_check` means Lean elaborated and type-checked the module. It
+does not identify which declarations are proved or audit their assumptions.
+For a proof claim, name every declaration explicitly through `o_lean_verify`:
+
+```json
+{
+  "source": "theorem and_commutes (p q : Prop) : p ∧ q → q ∧ p := by\n  intro h\n  exact ⟨h.right, h.left⟩",
+  "declarations": ["and_commutes"],
+  "allowed_axioms": []
+}
+```
+
+Verification runs Lean with `--trust=0 --json`, appends bounded `#print axioms`
+commands to a private source snapshot, and requires exactly one structured
+report for every requested declaration. Non-JSON compiler output and duplicate
+or mismatched reports are rejected rather than interpreted as proof. The
+default allowlist contains `propext`, `Classical.choice`, and `Quot.sound`;
+`allowed_axioms: []` requires axiom-free proofs. Any `sorryAx` dependency is
+always rejected, even if a caller includes it in the allowlist. Unknown or
+malformed reports, compiler errors, timeouts, and disallowed dependencies fail
+closed. The result separates `checked` from `verified` and reports each
+declaration's actual and disallowed axioms.
+
+This is a fail-closed verification primitive for formalizable reasoning, not a
+proof that an English statement was formalized correctly or that every agent
+inference is logical. MCP clients should require `o_lean_verify` before calling
+a formal claim proved and retain `unproved` as the state after rejection or an
+unavailable checker. Lean compilation is not a sandbox: imported modules and
+compiler plugins retain the MCP process's authority.
 
 ## Agent workflow
 

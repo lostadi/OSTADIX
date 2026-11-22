@@ -283,7 +283,19 @@ requires `without_targets` and never dispatches. Preserve exact `run` IDs for
 observation/replanning. Read `o guide operations` for paired human/MCP calls.
 `o_cli` accepts exact native argument arrays,
 cwd, per-child environment, stdin, optional Unix PTY, and background execution.
-`o_eval` runs inline polyglot O source. Long or interactive work uses
+`o_eval` runs inline polyglot O source. For formal reasoning, `o_lean_check`
+elaborates a complete Lean 4 module, while `o_lean_verify` additionally requires
+explicit declaration names and audits their exact axiom dependencies. Lean runs
+with `--trust=0`; `sorryAx` is always rejected. The default allowlist is
+`propext`, `Classical.choice`, and `Quot.sound`; pass `allowed_axioms: []` to
+require axiom-free proofs. Rejection, timeout, or an unavailable toolchain means
+the claim remains unproved. Configure an absolute `OSTADIX_LEAN` executable when
+`lean` is not on the server's discovered runtime PATH. Successful verification
+covers only the formal statement and its reported axioms: it does not prove that
+an English-to-Lean formalization is correct or that unconstrained agent inference
+is logical. Run `python3 scripts/smoke_ostadix_mcp.py --require-lean` to exercise
+real proof acceptance and rejection over MCP.
+Long or interactive work uses
 `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, and `o_job_cancel`;
 jobs run independently and retain full output on disk with bounded pages.
 `o_job_read` can return lossless base64 bytes. Jobs and intent handles belong to

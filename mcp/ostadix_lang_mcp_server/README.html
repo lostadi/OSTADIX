@@ -1,8 +1,8 @@
 <h1>ostadix-mcp (Rust-only)</h1>
 <p>Stdio and Streamable HTTP MCP server for <strong>Ostadix-lang / O-lang</strong>. Supply a complete <code>.O</code>
 computation to <code>o_execute</code>, or pass an existing program/project path. The
-21-tool surface also supports toolchain discovery, task guides, full native
-command arguments, and concurrent or interactive jobs.
+23-tool surface also supports Lean 4 proof verification, toolchain discovery,
+task guides, full native command arguments, and concurrent or interactive jobs.
 The server supplies an <strong>absolute</strong> <code>O_BACKENDS_DIR</code>, so relative <code>backends</code>
 and bare <code>$O_BACKENDS_DIR</code> splice mistakes do not break runs.</p>
 <p>For a smaller editor/MCP installation, use <code>./setup.sh --runtime-only --verify</code>.
@@ -10,7 +10,7 @@ The <a href="../../docs/MCP_RUNTIME_ONBOARDING.md">onboarding guide</a> covers e
 provenance, platform-specific bundles, and the opt-in watcher resource contract.</p>
 <h2>URL connectors</h2>
 <p>Run <code>ostadix-mcp --transport http --token-file /path/to/token</code> to serve the same
-21 tools at <code>http://127.0.0.1:8787/mcp</code>. Clients send <code>Authorization: Bearer TOKEN</code>.
+23 tools at <code>http://127.0.0.1:8787/mcp</code>. Clients send <code>Authorization: Bearer TOKEN</code>.
 Use <code>--bind</code> to select the listener and <code>--allowed-host</code> for your public HTTPS
 hostname. Explicit <code>--allow-unauthenticated</code> supports an authentication gateway
 or clients using no authentication. This endpoint grants the same execution
@@ -59,6 +59,14 @@ introduced by this transport.</p>
 <tr>
 <td><code>o_guide</code></td>
 <td>Read the same task guide as human <code>o guide</code>; <code>topic</code> defaults to the overview, with operations/runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance</td>
+</tr>
+<tr>
+<td><code>o_lean_check</code></td>
+<td>Elaborate and type-check one complete Lean 4 module or existing file with a real <code>lean</code> executable; return exact source and toolchain identities without claiming proof verification</td>
+</tr>
+<tr>
+<td><code>o_lean_verify</code></td>
+<td>Require named declarations to elaborate and pass Lean kernel checking, inspect each with <code>#print axioms</code>, reject <code>sorryAx</code> and disallowed dependencies, and return per-declaration evidence</td>
 </tr>
 <tr>
 <td><code>o_cli</code></td>
@@ -129,6 +137,42 @@ introduced by this transport.</p>
 <td>Fixed, bounded <code>o-info head</code> inspection of one existing local Information V1 root; returns sanitized IDs/count, no state path or authority, and makes no logical/content/inode/mode/mtime change (atime untested)</td>
 </tr>
 </tbody></table>
+<h2>Lean 4 reasoning and proof verification</h2>
+<p><code>o_lean_check</code> and <code>o_lean_verify</code> locate <code>lean</code> on the MCP server&#39;s PATH.
+<code>OSTADIX_LEAN</code> may instead name an absolute executable path. Missing or broken
+Lean installations produce an error; neither tool substitutes a parser,
+natural-language rationale, or simulated verdict. Each call records the exact
+source SHA-256 and <code>lean --version</code> identity. Source is limited to 1 MiB and
+execution has a bounded 1–900 second deadline (120 seconds by default).</p>
+<p>A check accepts exactly one complete <code>source</code> or existing <code>path</code>, with optional
+<code>cwd</code> for imports:</p>
+<pre><code class="language-json">{&quot;source&quot;:&quot;theorem two_eq_two : 2 = 2 := rfl&quot;}
+</code></pre>
+<p>Successful <code>o_lean_check</code> means Lean elaborated and type-checked the module. It
+does not identify which declarations are proved or audit their assumptions.
+For a proof claim, name every declaration explicitly through <code>o_lean_verify</code>:</p>
+<pre><code class="language-json">{
+  &quot;source&quot;: &quot;theorem and_commutes (p q : Prop) : p ∧ q → q ∧ p := by\n  intro h\n  exact ⟨h.right, h.left⟩&quot;,
+  &quot;declarations&quot;: [&quot;and_commutes&quot;],
+  &quot;allowed_axioms&quot;: []
+}
+</code></pre>
+<p>Verification runs Lean with <code>--trust=0 --json</code>, appends bounded <code>#print axioms</code>
+commands to a private source snapshot, and requires exactly one structured
+report for every requested declaration. Non-JSON compiler output and duplicate
+or mismatched reports are rejected rather than interpreted as proof. The
+default allowlist contains <code>propext</code>, <code>Classical.choice</code>, and <code>Quot.sound</code>;
+<code>allowed_axioms: []</code> requires axiom-free proofs. Any <code>sorryAx</code> dependency is
+always rejected, even if a caller includes it in the allowlist. Unknown or
+malformed reports, compiler errors, timeouts, and disallowed dependencies fail
+closed. The result separates <code>checked</code> from <code>verified</code> and reports each
+declaration&#39;s actual and disallowed axioms.</p>
+<p>This is a fail-closed verification primitive for formalizable reasoning, not a
+proof that an English statement was formalized correctly or that every agent
+inference is logical. MCP clients should require <code>o_lean_verify</code> before calling
+a formal claim proved and retain <code>unproved</code> as the state after rejection or an
+unavailable checker. Lean compilation is not a sandbox: imported modules and
+compiler plugins retain the MCP process&#39;s authority.</p>
 <h2>Agent workflow</h2>
 <p>For paired terminal and MCP examples, read the
 <a href="../../docs/HUMAN_LLM_WORKFLOWS.md">human and LLM workflow guide</a>, or call

@@ -1147,7 +1147,7 @@ this repository.</p>
 <h3>MCP server for AI-agent tools and URL connectors</h3>
 <p>The repository includes <code>ostadix-mcp</code>, a stdio and Streamable HTTP
 <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> server under
-<code>mcp/ostadix_lang_mcp_server/</code>. Its 21 typed tools include <code>o_execute</code>, the
+<code>mcp/ostadix_lang_mcp_server/</code>. Its 23 typed tools include <code>o_execute</code>, the
 primary source-first computation interface. Supply exactly one complete O
 <code>source</code> or existing program/project <code>path</code>; use an explicit <code>cwd</code> for relative
 filesystem context. Execution, parse-only checking, static planning, compiler
@@ -1177,6 +1177,14 @@ The empty-argument command continues to use stdio.</p>
 <tr>
 <td><code>o_capabilities</code>, <code>o_guide</code></td>
 <td>Discover the source-backed command catalog and embedded workflow guides.</td>
+</tr>
+<tr>
+<td><code>o_lean_check</code></td>
+<td>Elaborate and type-check exactly one Lean 4 module source or existing path with a real Lean toolchain; this alone does not verify a named proof.</td>
+</tr>
+<tr>
+<td><code>o_lean_verify</code></td>
+<td>Run Lean with zero trust, require exact structured axiom reports for explicitly named declarations, and reject <code>sorryAx</code> or dependencies outside the caller&#39;s allowlist.</td>
 </tr>
 <tr>
 <td><code>o_cli</code>, <code>o_eval</code></td>
@@ -1227,6 +1235,15 @@ The empty-argument command continues to use stdio.</p>
 <td>Runs fixed local <code>o-info head</code> against one existing non-symlink state root with bounded input, output, and timeout. It returns sanitized object IDs and counts while preserving entries, content, inode, mode, and mtime.</td>
 </tr>
 </tbody></table>
+<p>The Lean tools find <code>lean</code> through the server&#39;s discovered runtime PATH or an
+absolute <code>OSTADIX_LEAN</code> override. <code>o_lean_verify</code> defaults to allowing <code>propext</code>,
+<code>Classical.choice</code>, and <code>Quot.sound</code>; <code>allowed_axioms: []</code> requires axiom-free
+proofs, and <code>sorryAx</code> is never allowed. A rejected or unavailable check leaves a
+formal claim unproved. Success covers only the exact submitted formal statement
+and its reported assumptions, not the correctness of an English-to-Lean
+translation or unconstrained natural-language inference. See the
+<a href="../mcp/ostadix_lang_mcp_server/README.md#lean-4-reasoning-and-proof-verification">MCP guide</a>
+for examples and the complete trust boundary.</p>
 <pre><code class="language-mermaid">sequenceDiagram
     participant Agent as MCP agent
     participant MCP as ostadix-mcp
@@ -1283,7 +1300,10 @@ path, executes the bundled <code>o_search_run</code>, rejects search-path escape
 <code>o_olangc</code>, and inspects a temporary local Information V1 head
 without mutating its entries/content/inode/mode/mtime; transport discovery
 alone therefore cannot mask a broken runtime-path recovery, execution tool, or
-inspection boundary. Use <code>./setup.sh --no-mcp</code> when
+inspection boundary. When Lean is installed, <code>--require-lean</code> additionally checks
+an axiom-free theorem through source and path inputs and rejects <code>sorryAx</code>,
+ill-typed proofs, and forged axiom-report output over the real MCP transport.
+Use <code>./setup.sh --no-mcp</code> when
 the MCP server is not wanted. The deterministic source release includes <code>mcp/</code>,
 <code>.mcp.json</code>, and the smoke client, and its link/schema/metadata verifier rejects
 an incomplete MCP release surface without executing archive payloads. The
@@ -4962,7 +4982,7 @@ Native computation
 │   ├── lib.rs                  # 42 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
-├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 21 tools
+├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 23 tools
 ├── backends/                   # compatibility hosted-language adapters
 ├── ocore/                      # freestanding runtime and kernel proof
 ├── c_cpp/                      # standalone C17 hosted implementation
@@ -6654,9 +6674,11 @@ memory. Local fallback is eligible only while execution-start evidence
 remains absent.</p>
 </li>
 <li><p><code>ostadix-mcp</code> defaults to a local stdio child process that inherits the MCP client&#39;s
-authority. Its 21 tools expose source-first execution, full native command
+authority. Its 23 tools expose source-first execution, full native command
 arguments, concurrent managed jobs, capability guides, environment/runtime
-diagnostics, compiler, intent, search, and bounded Information inspection.
+diagnostics, Lean 4 checking and declaration proof verification, compiler,
+intent, search, and bounded Information inspection. Lean verification is
+fail-closed but does not prove natural-language claims or formalization fidelity.
 Explicit <code>--transport http</code> exposes the same capabilities at <code>/mcp</code> with
 bearer authentication, host/origin validation, and separate session state.
 TLS belongs to the configured reverse proxy; native OAuth is enabled with
