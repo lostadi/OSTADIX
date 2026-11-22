@@ -176,7 +176,16 @@ unsafe fn handle_exit(frame_address: usize, esr: u64, far: u64, hpfar: u64) -> u
     let width: u64 = (1 as u64) << (((esr >> 22) & 3) as usize);
     let register: usize = ((esr >> 16) & 31) as usize;
     let writing: bool = (esr & 64) != 0;
-    if width > 4 || (ipa & (width - 1)) != 0 { reject(esr, ipa, pc); }
+    // GICR_TYPER is architecturally a 64-bit register; upstream 9front
+    // (arm64/gic 74ae37b2, carried by build 12160) reads it with one
+    // aligned 8-byte load where build 12115 read only its low word. Admit
+    // exactly that read on the fixed CPU0+LAST facade; every other
+    // width-8 access stays rejected; no stage-2 mapping or write is added.
+    if width == 8 {
+        if ipa != 0x080a_0008 || writing { reject(esr, ipa, pc); }
+    } else {
+        if width > 4 || (ipa & (width - 1)) != 0 { reject(esr, ipa, pc); }
+    }
     let mut value: u64 = 0; if register != 31 { value = volatile_load(frame + register); }
     if ipa >= 0x0900_0000 && ipa + width <= 0x0900_1000 {
         if writing { write_uart(ipa - 0x0900_0000, value); }
@@ -190,7 +199,7 @@ unsafe fn handle_exit(frame_address: usize, esr: u64, far: u64, hpfar: u64) -> u
             if namespace_uart_healthy() != 1 { reject(0x952, namespace_uart_diagnostic(), pc); }
         } else {
         if ipa >= 0x080a_0000 && ipa + width <= 0x080b_0000 {
-            if writing || width != 4 { reject(esr, ipa, pc); }
+            if writing || (width != 4 && width != 8) { reject(esr, ipa, pc); }
             let offset: u64 = ipa - 0x080a_0000;
             // Fixed one-CPU facade: CTLR has no EnableLPIs/RWP; TYPER has
             // CPU0+LAST and no PLPIS/VLPIS; WAKER describes an awake CPU.
