@@ -131,8 +131,7 @@ with no mode stays `unproved`. Repeat the returned status and do not upgrade it.
 
 ## Agent workflow
 
-For paired terminal and MCP examples, read the
-[human and LLM workflow guide](../../docs/HUMAN_LLM_WORKFLOWS.md), or call
+For paired terminal and MCP examples, call
 `o_guide` with `{"topic":"operations"}`. Human `o capabilities` and
 `o guide` compile the same catalog, recipes, and guide topics as MCP discovery.
 Human `o tool COMMAND [ARGS...]` uses the same catalog resolver as `o_cli`,

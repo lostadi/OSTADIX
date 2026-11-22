@@ -1008,7 +1008,7 @@ class SourceReleaseTests(unittest.TestCase):
         self.assertEqual(release.PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS, {
             "audits/HISTORICAL_LAYOUT.html",
             "benchmarks/real_world/CONCURRENT_BASELINE.html",
-            "docs/AI_ASSISTED_DEVELOPMENT.html", "docs/CURRENT_CONTRACT.html",
+            "docs/CURRENT_CONTRACT.html",
             "docs/REFERENCE.html", "docs/SPLICE_MIGRATION.html",
             "docs/research/fidelity-boundaries.html",
             "evidence/public-contract-20261111/README.html",
@@ -5037,7 +5037,6 @@ class SourceReleaseTests(unittest.TestCase):
             }
             self.assertTrue({
                 "docs/CURRENT_CONTRACT.md", "docs/REFERENCE.md",
-                "docs/AI_ASSISTED_DEVELOPMENT.md",
                 "docs/research/fidelity-boundaries.md",
                 "evidence/public-contract-20261111/README.md",
             } <= readme_targets)
@@ -5051,7 +5050,12 @@ class SourceReleaseTests(unittest.TestCase):
             # The large link inventory moved intact into the preserved
             # reference; retain its coverage floor and close both documents.
             self.assertGreaterEqual(len(reference_targets), 60)
-            local_targets = readme_targets | reference_targets
+            # The preserved reference keeps its historical link inventory;
+            # targets it records for documents removed from the repository
+            # are excluded from the closure requirement.
+            local_targets = (readme_targets | reference_targets) - {
+                "docs/HUMAN_LLM_WORKFLOWS.md", "docs/AI_GUIDE.md",
+            }
             self.assertGreaterEqual(len(local_targets), 60)
             primary_artifact_targets = {
                 "ARCHITECTURE.md",

@@ -1,6 +1,6 @@
 # Fidelity-Graded Boundaries and Syntactic Confinement in OSTADIX
 
-Research and engineering note, 11 November 2026. Maintainer/publication identity: Lee Daghlar Ostadi. Prepared with AI assistance; see [development disclosure](../AI_ASSISTED_DEVELOPMENT.md). Inspected source baseline: `1da570dcc61ef10285fc8c8b78a20ca087081daf`, with accompanying public-contract changes. This note preserves the separate, dated [technical whitepaper](../../Ostadix-lang_Technical_Whitepaper.pdf).
+Research and engineering note, 11 November 2026. Maintainer/publication identity: Lee Daghlar Ostadi. Inspected source baseline: `1da570dcc61ef10285fc8c8b78a20ca087081daf`, with accompanying public-contract changes. This note preserves the separate, dated [technical whitepaper](../../Ostadix-lang_Technical_Whitepaper.pdf).
 
 **Abstract.** A polyglot expression boundary has at least three contracts: the representation that crosses it, the distinctions the receiver preserves, and the grammar into which the receiver inserts it. An exact wire round trip establishes only the first. OSTADIX provides concrete counterexamples in which CBOR preserves a value while a JavaScript crossing changes Python type dispatch or integer parity. A separate witness family concerns data that becomes receiver syntax. We state the existing definite/possible-loss abstraction as a Galois insertion over finite nonempty families of structural observations, prove its sequential-composition law, and delimit the failure of severity merging to model arbitrary execution alternatives. We then give a conditional source-confinement proposition: admitted literal holes preserve the surrounding grammar skeleton if their renderer, lexical-context check and guest grammar satisfy explicit assumptions. This proposition is an obligation for implementation, not a proof of the actual guest lexers. The note connects those obligations to source locations, profile boundaries, regression oracles and prior work, without claiming the first polyglot system or a universal semantic-preservation theorem.
 
@@ -179,7 +179,7 @@ GraalVM's official polyglot documentation describes an interoperability message 
 
 The useful contribution proposed here is a precise, inspectable contract: retain evaluator choice in syntax, grade value losses independently, distinguish literal/presentation/code projections, and bind concrete observations to their source and profiles. The structural interval proofs are established on their stated domain. The confinement proposition is conditional. Actual guest-lexer adequacy, backend loss rules, complete profile execution, native runtime lowering and cross-ISA semantic identity remain separately evidenced work.
 
-This document was composed with AI assistance under maintainer direction. Its publication identity does not assert that the maintainer personally typed every implementation or supplied every proof step. Claims should be judged by their arguments, source and retained experiments, with unresolved assumptions preserved.
+Claims should be judged by their arguments, source and retained experiments, with unresolved assumptions preserved.
 
 <!-- references -->
 

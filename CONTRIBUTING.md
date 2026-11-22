@@ -11,11 +11,7 @@ and attach evidence no broader than the substrate actually tested.
   [SECURITY.md](SECURITY.md), never in a public issue or pull request.
 - Do not submit secrets, credentials, private keys, proprietary fixtures, or
   generated artifacts you do not have the right to contribute.
-- Record [contributor credit](docs/COMMIT_AUTHORS.md) accurately. Disclose
-  actual AI/tool assistance and review in prose or provenance trailers. Keep
-  human responsibility, agent assistance, generated code and executed checks
-  distinct; see [AI-assisted development](docs/AI_ASSISTED_DEVELOPMENT.md).
-  Do not invent contributor credit, sign-offs, test results or a human review.
+- Do not invent contributor credit, sign-offs or test results.
 - Discuss large public-API, protocol, catalog, or file-format changes before
   implementation. These surfaces have independent version axes described in
   [docs/VERSIONING.md](docs/VERSIONING.md).

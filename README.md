@@ -28,7 +28,6 @@ The first two are [recorded semantic witnesses](benchmarks/fidelity/README.md), 
 | Boot the development system | [Boot guide](boot/README.md), [qualified package profile](docs/OKERNEL_PACKAGE_BOOT.md) |
 | Inspect validation | [CI posture](docs/CI_POSTURE.md), [test/reference guide](docs/REFERENCE.md#running-the-tests), [historical results](docs/REFERENCE.md#validation-at-the-historical-audited-master) |
 | Evaluate the research | [New focused note](docs/research/fidelity-boundaries.md), [existing technical whitepaper](Ostadix-lang_Technical_Whitepaper.pdf), [whitepaper source](docs/Ostadix-lang_Technical_Whitepaper.tex) |
-| Understand development and credit | [AI-assisted development disclosure](docs/AI_ASSISTED_DEVELOPMENT.md), [contribution policy](CONTRIBUTING.md), [development credit](docs/COMMIT_AUTHORS.md) |
 
 ## Run a document
 
@@ -103,7 +102,7 @@ The project uses the GNU Lesser General Public License v2.1 only (`LGPL-2.1-only
 
 DOI `10.5281/zenodo.21544345` identifies that existing preprint/package record ([Zenodo](https://doi.org/10.5281/zenodo.21544345)); it is not an archive of a tagged Ostadix-lang source release. Cite source separately: Version 0.4.0. Commit: `FULL_COMMIT_SHA_USED`. Repository: https://github.com/lostadi/OSTADIX.
 
-[CITATION.cff](CITATION.cff) keeps these objects distinct: the existing preprint/package DOI remains under `preferred-citation`; a separate DOI for a future tagged source release belongs in its top-level `doi` field. [Development and credit](docs/AI_ASSISTED_DEVELOPMENT.md) explains AI assistance and maintainer publication identity.
+[CITATION.cff](CITATION.cff) keeps these objects distinct: the existing preprint/package DOI remains under `preferred-citation`; a separate DOI for a future tagged source release belongs in its top-level `doi` field.
 
 <details>
 <summary>Compatibility links for the former full README</summary>

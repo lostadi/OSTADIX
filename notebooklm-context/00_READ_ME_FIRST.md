@@ -92,7 +92,6 @@ same NotebookLM notebook after the numbered context pack:
 
 - `SPEC.md`
 - `ARCHITECTURE.md`
-- `docs/AI_GUIDE.md`
 - `docs/OCORE.md`
 - `docs/VERSIONING.md`
 - `docs/CLAIMS.md`

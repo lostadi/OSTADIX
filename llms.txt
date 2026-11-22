@@ -63,8 +63,6 @@ Key facts for agents:
 
 ## Docs
 
-- [Human and LLM workflows](docs/HUMAN_LLM_WORKFLOWS.md): paired interfaces, declared alternatives, exact run evidence, and replanning
-- [AI agent guide](docs/AI_GUIDE.md): how AI systems should write, check, and run O programs
 - [Language specification](SPEC.md): grammar, evaluation semantics, OValue, backend protocol, registered languages
 - [README](README.md): setup, all editions (Rust, C17, Python reference), tooling
 - [Architecture](ARCHITECTURE.md): runtime and compiler internals

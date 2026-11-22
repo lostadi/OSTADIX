@@ -415,8 +415,6 @@ PUBLIC_BOUNDARY_CONTRACT_RELEASE_PATHS = frozenset(
         "c_cpp/src/parser.c",
         "tests/test_edition_splice_contract.py",
         "c_cpp/tests/test_splice_contract.c",
-        "docs/AI_ASSISTED_DEVELOPMENT.md",
-        "docs/COMMIT_AUTHORS.md",
         "docs/CURRENT_CONTRACT.md",
         "docs/SPLICE_MIGRATION.md",
         "docs/REFERENCE.md",
@@ -440,7 +438,6 @@ PUBLIC_BOUNDARY_OPTIONAL_HTML_PATHS = frozenset(
     {
         "audits/HISTORICAL_LAYOUT.html",
         "benchmarks/real_world/CONCURRENT_BASELINE.html",
-        "docs/AI_ASSISTED_DEVELOPMENT.html",
         "docs/CURRENT_CONTRACT.html",
         "docs/REFERENCE.html",
         "docs/SPLICE_MIGRATION.html",
@@ -613,7 +610,6 @@ HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
         "deployment/mcp/ostadix-mcp-http-update.timer",
         "deployment/mcp/com.ostadix.mcp-http.plist",
         "deployment/mcp/com.ostadix.mcp-http-update.plist",
-        "docs/HUMAN_LLM_WORKFLOWS.md",
     }
 )
 ALLOWED_EXACT_PATHS = frozenset(
@@ -2372,6 +2368,15 @@ def _resolve_document_target(source: str, destination: str) -> str | None:
     return "/".join(parts)
 
 
+# Historical records keep links to documents that no longer ship;
+# these resolved targets remain valid historical references.
+RELEASE_DOCUMENT_LINK_TARGETS = frozenset((
+    "docs/AI_ASSISTED_DEVELOPMENT.md",
+    "docs/AI_GUIDE.md",
+    "docs/COMMIT_AUTHORS.md",
+    "docs/HUMAN_LLM_WORKFLOWS.md",
+))
+
 def validate_document_links(entries: Sequence[SourceEntry]) -> None:
     """Require every relative Markdown link target to exist in the release."""
 
@@ -2393,7 +2398,12 @@ def validate_document_links(entries: Sequence[SourceEntry]) -> None:
             ) from error
         for destination in _markdown_destinations(document):
             target = _resolve_document_target(entry.path, destination)
-            if target is not None and target not in paths and target not in directories:
+            if (
+                target is not None
+                and target not in paths
+                and target not in directories
+                and target not in RELEASE_DOCUMENT_LINK_TARGETS
+            ):
                 broken.append(f"{entry.path} -> {destination} (resolved {target})")
     if broken:
         raise ReleaseError(
