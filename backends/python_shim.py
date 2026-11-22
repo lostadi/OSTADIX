@@ -1023,10 +1023,13 @@ def _lossless_native_witness(value, path="$", seen=None, depth=0):
     }}
 
 
-def _lossless_input(value, path="$", depth=0):
+def _lossless_input(value, path="$", depth=0, *, _raw_containers=None):
     """Admit the wire carrier before conversion, including callback ingress."""
     if depth > 64 or type(value) is not dict:
         raise TypeError(f"morphism.invalid-input: {path}")
+    if _raw_containers is None:
+        _raw_containers = [0]
+    prior_raw_containers = _raw_containers[0]
     tag = value.get("t")
     if tag == "null":
         result = None
@@ -1041,15 +1044,30 @@ def _lossless_input(value, path="$", depth=0):
             raise TypeError(f"morphism.unsupported-number: {path}")
     elif tag == "text" and value.get("v", {}).get("encoding") == "utf-8":
         result = value["v"]["utf8"]
+        if type(result) in (list, dict):
+            _raw_containers[0] += 1
     elif tag == "list" and type(value.get("v")) is list:
-        result = [_lossless_input(item, f"{path}[{index}]", depth + 1)
-                  for index, item in enumerate(value["v"])]
+        result = [
+            _lossless_input(item, f"{path}[{index}]", depth + 1,
+                            _raw_containers=_raw_containers)
+            for index, item in enumerate(value["v"])
+        ]
     elif tag == "map" and type(value.get("v")) is dict:
-        result = {key: _lossless_input(item, f"{path}.{key}", depth + 1)
-                  for key, item in value["v"].items()}
+        result = {
+            key: _lossless_input(item, f"{path}.{key}", depth + 1,
+                                 _raw_containers=_raw_containers)
+            for key, item in value["v"].items()
+        }
     else:
         raise TypeError(f"morphism.unsupported-input: {path}: {tag}")
-    _lossless_native_witness(result, path)
+    # Converted lists/maps are fresh, and each child was already checked.
+    # A noncanonical text carrier can pass through a raw container, though.
+    # Preserve the old post-order witness in that subtree to enforce the
+    # combined depth bound and retain the order of rejection.
+    if _raw_containers[0] != prior_raw_containers or tag not in ("list", "map"):
+        _lossless_native_witness(result, path)
+    elif tag == "map" and any(type(key) is not str for key in result):
+        raise TypeError(f"morphism.non-string-map-key: {path}")
     return result
 
 

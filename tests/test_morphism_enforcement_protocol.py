@@ -65,6 +65,31 @@ class MorphismEnforcementProtocolTests(unittest.TestCase):
                 self.assertIn(reason, response["message"])
                 self.assertNotIn("receipt", response)
 
+    def test_callback_keeps_combined_depth_limit_for_noncanonical_containers(self):
+        # Reusing raw containers inside a text carrier is noncanonical, but
+        # historically admitted if the entire native value is within bounds.
+        for raw_depth in (63, 64):
+            with self.subTest(raw_depth=raw_depth):
+                raw = None
+                for _ in range(raw_depth):
+                    raw = [raw]
+                self.assertEqual("eval_request", self.shim.request(
+                    enforced("O.eval('test')\n42"),
+                )["status"])
+                response = self.shim.request({
+                    "cmd": "eval_result",
+                    "value": {"t": "list", "v": [
+                        {"t": "text", "v": {"utf8": raw, "encoding": "utf-8"}},
+                    ]},
+                })
+                if raw_depth == 63:
+                    self.assertEqual("morphism_result_v1", response["status"])
+                    self.assertEqual("42", response["receipt"]["value"]["v"]["v"])
+                else:
+                    self.assertEqual("err", response["status"])
+                    self.assertIn("morphism.depth-limit: $callback[0]", response["message"])
+                    self.assertNotIn("receipt", response)
+
     def test_unknown_contract_and_nonparticipating_adapter_reject_before_source(self):
         message = enforced("raise AssertionError('source ran')")
         message["contract"] = "invented"
