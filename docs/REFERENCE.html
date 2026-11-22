@@ -1188,7 +1188,7 @@ The empty-argument command continues to use stdio.</p>
 </tr>
 <tr>
 <td><code>o_claim</code></td>
-<td>Judge a non-code conclusion. The English statement stays unverified. <code>formal</code> accepts only the Lean result; <code>citation</code> accepts only an exact server-read excerpt; omitting the mode leaves the claim <code>unproved</code>.</td>
+<td>Judge a non-code conclusion. <code>statement_verified</code> is true only when <code>formal</code> succeeds and the statement is exactly Lean&#39;s reported proposition. A paraphrase stays unverified. <code>citation</code> accepts only an exact server-read excerpt and does not verify the statement. Omitting the mode leaves the claim <code>unproved</code>.</td>
 </tr>
 <tr>
 <td><code>o_cli</code>, <code>o_eval</code></td>

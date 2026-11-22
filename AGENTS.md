@@ -296,10 +296,11 @@ an English-to-Lean formalization is correct or that unconstrained agent inferenc
 is logical. Run `python3 scripts/smoke_ostadix_mcp.py --require-lean` to exercise
 real proof acceptance and rejection over MCP.
 For a conclusion that is not an O program, call `o_claim` before treating it as
-established. `mode: formal` runs the Lean gate and still does not prove the
-English statement. `mode: citation` accepts only an exact excerpt the server
-reads from a regular file. A bare statement stays `unproved`. Repeat that
-status; do not upgrade it in prose.
+established. `statement_verified` is true only when `mode: formal` succeeds and
+the statement is exactly the proposition Lean reports. A paraphrase stays
+unverified. `mode: citation` accepts only an exact excerpt the server reads
+from a regular file and does not verify the statement. A bare statement stays
+`unproved`. Repeat that status; do not upgrade it in prose.
 Long or interactive work uses
 `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, and `o_job_cancel`;
 jobs run independently and retain full output on disk with bounded pages.

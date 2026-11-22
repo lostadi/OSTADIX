@@ -70,7 +70,7 @@ introduced by this transport.</p>
 </tr>
 <tr>
 <td><code>o_claim</code></td>
-<td>Judge one non-code conclusion. The English statement stays unverified. <code>formal</code> accepts only the Lean result; <code>citation</code> accepts only an exact excerpt the server reads; a bare statement stays <code>unproved</code></td>
+<td>Judge one non-code conclusion. <code>statement_verified</code> is true only when <code>formal</code> succeeds and the statement is exactly Lean&#39;s proposition. A paraphrase stays unverified. <code>citation</code> accepts only an exact excerpt and does not verify the statement. A bare statement stays <code>unproved</code></td>
 </tr>
 <tr>
 <td><code>o_cli</code></td>
@@ -178,13 +178,14 @@ a formal claim proved and retain <code>unproved</code> as the state after reject
 unavailable checker. Lean compilation is not a sandbox: imported modules and
 compiler plugins retain the MCP process&#39;s authority.</p>
 <h2>Non-code claims</h2>
-<p><code>o_claim</code> is the gate for a conclusion that is not an O program. The English
-<code>statement</code> is recorded with <code>statement_verified: false</code>. <code>mode: formal</code> runs
-the same check as <code>o_lean_verify</code> and can return <code>verified</code> only for the named
-declarations. <code>mode: citation</code> returns <code>cited</code> only when the server reads a
-regular file and finds the exact <code>excerpt</code>. A statement with no mode stays
-<code>unproved</code>. None of these results prove that the English conclusion follows
-from the evidence. Repeat the returned status and do not upgrade it.</p>
+<p><code>o_claim</code> is the gate for a conclusion that is not an O program. <code>mode: formal</code>
+runs the same check as <code>o_lean_verify</code> and can return <code>verified</code> only for the
+named declarations. <code>statement_verified</code> is true only when that check succeeds
+and <code>statement</code> is exactly the proposition Lean reports for those declarations,
+joined by newlines when there are several. A paraphrase stays unverified.
+<code>mode: citation</code> returns <code>cited</code> only when the server reads a regular file and
+finds the exact <code>excerpt</code>; that does not verify the statement. A statement
+with no mode stays <code>unproved</code>. Repeat the returned status and do not upgrade it.</p>
 <h2>Agent workflow</h2>
 <p>For paired terminal and MCP examples, read the
 <a href="../../docs/HUMAN_LLM_WORKFLOWS.md">human and LLM workflow guide</a>, or call

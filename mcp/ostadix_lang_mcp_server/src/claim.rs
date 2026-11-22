@@ -11,7 +11,7 @@ const MAX_FILE_BYTES: u64 = 1024 * 1024;
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ClaimArgs {
-    /// English conclusion being offered. The server records it and never marks it verified.
+    /// Conclusion being offered. Formal mode marks it verified only when it is exactly Lean's reported proposition.
     statement: String,
     /// `formal` runs Lean verification. `citation` reads one file. Omit it and the claim stays unproved.
     mode: Option<String>,
@@ -122,13 +122,25 @@ fn envelope(statement: &str, status: &str, scope: &str) -> Value {
     })
 }
 
-fn respond(mut value: Value, accepted: bool) -> Result<CallToolResult, McpError> {
-    value["statement_verified"] = false.into();
+fn respond(value: Value, accepted: bool) -> Result<CallToolResult, McpError> {
     if accepted {
         super::structured_result(value)
     } else {
         Ok(CallToolResult::structured_error(value))
     }
+}
+
+fn statement_matches_propositions(statement: &str, propositions: &[String]) -> bool {
+    !propositions.is_empty() && statement.trim() == propositions.join("\n")
+}
+
+fn reported_propositions(formal: &Value) -> Option<Vec<String>> {
+    let declarations = formal.get("declarations")?.as_array()?;
+    let mut propositions = Vec::with_capacity(declarations.len());
+    for declaration in declarations {
+        propositions.push(declaration.get("proposition")?.as_str()?.to_string());
+    }
+    Some(propositions)
 }
 
 fn fail(statement: &str, error: String) -> Result<CallToolResult, McpError> {
@@ -224,12 +236,21 @@ async fn formal(
     .await
     {
         Ok((formal, verified)) => {
+            let propositions = reported_propositions(&formal);
+            let proved = verified
+                && propositions
+                    .as_ref()
+                    .is_some_and(|items| statement_matches_propositions(&args.statement, items));
+            let scope = if proved {
+                "The statement is exactly the proposition Lean reported for the named declarations."
+            } else if verified {
+                "status verified covers the named Lean declarations and their reported axioms. The statement is not that proposition."
+            } else {
+                "The named Lean declarations were not verified. The statement remains unproved."
+            };
             let status = if verified { "verified" } else { "unproved" };
-            let mut value = envelope(
-                &args.statement,
-                status,
-                "status verified covers only the named Lean declarations and their reported axioms. The English statement was not checked.",
-            );
+            let mut value = envelope(&args.statement, status, scope);
+            value["statement_verified"] = proved.into();
             value["formal"] = formal;
             respond(value, verified)
         }
@@ -326,6 +347,30 @@ mod tests {
         std::os::unix::fs::symlink(&file, &link).unwrap();
         assert!(read_citation(link.to_str().unwrap(), None, "cited sentence").is_err());
         let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    #[test]
+    fn only_the_exact_proposition_verifies_the_statement() {
+        let propositions = vec!["p ∧ q → q ∧ p".to_string()];
+        assert!(statement_matches_propositions(
+            "p ∧ q → q ∧ p",
+            &propositions
+        ));
+        assert!(statement_matches_propositions(
+            "  p ∧ q → q ∧ p\n",
+            &propositions
+        ));
+        assert!(!statement_matches_propositions(
+            "Conjunction commutes, so every English conclusion about it is proved.",
+            &propositions
+        ));
+        assert!(!statement_matches_propositions("p ∧ q → q ∧ p", &[]));
+        let joined = vec!["p ∧ q → q ∧ p".to_string(), "True".to_string()];
+        assert!(statement_matches_propositions(
+            "p ∧ q → q ∧ p\nTrue",
+            &joined
+        ));
+        assert!(!statement_matches_propositions("p ∧ q → q ∧ p", &joined));
     }
 
     #[test]

@@ -314,13 +314,70 @@ pub(crate) async fn verify(
     args: VerifyArgs,
     runtime_search: &super::RuntimeSearchPath,
 ) -> Result<CallToolResult, McpError> {
-    match verify_inner(args, runtime_search).await {
+    match verify_inner(args, runtime_search, false).await {
         Ok((value, verified)) => respond(value, verified),
         Err(error) => respond(
             infrastructure_failure("ostadix.lean-verification/v1", error),
             false,
         ),
     }
+}
+
+fn proposition_from_check(data: &str) -> Result<String, String> {
+    let mut depth: i32 = 0;
+    for (idx, ch) in data.char_indices() {
+        match ch {
+            '(' | '{' | '[' | '⟨' => depth += 1,
+            ')' | '}' | ']' | '⟩' => {
+                depth = depth.checked_sub(1).ok_or_else(|| {
+                    "Lean check report has an unbalanced type".to_string()
+                })?;
+            }
+            ':' if depth == 0 => {
+                let rest = data[idx + ch.len_utf8()..].trim();
+                if rest.is_empty() {
+                    return Err("Lean check report has an empty proposition".to_string());
+                }
+                return Ok(rest.to_string());
+            }
+            _ => {}
+        }
+    }
+    Err("Lean check report has no proposition".to_string())
+}
+
+fn report_names_declaration(declaration: &str, data: &str) -> bool {
+    let data = data.trim();
+    let Some(rest) = data.strip_prefix(declaration) else {
+        return false;
+    };
+    !rest.starts_with(|character: char| {
+        character.is_ascii_alphanumeric() || matches!(character, '_' | '\'' | '.')
+    })
+}
+
+fn parse_check_proposition(output: &str, declaration: &str) -> Result<String, String> {
+    let mut found = None;
+    for line in output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let message: Value = serde_json::from_str(line).map_err(|error| {
+            format!("Lean returned non-JSON diagnostic output during verification: {error}")
+        })?;
+        let Some(report) = message.get("data").and_then(Value::as_str) else {
+            continue;
+        };
+        if !report_names_declaration(declaration, report) {
+            continue;
+        }
+        let proposition = proposition_from_check(report.trim())?;
+        if found.replace(proposition).is_some() {
+            return Err(format!("duplicate #check report for {declaration}"));
+        }
+    }
+    found.ok_or_else(|| format!("Lean returned no exact #check report for {declaration}"))
 }
 
 fn parse_axiom_dependencies(output: &str, declaration: &str) -> Result<Vec<String>, String> {
@@ -365,6 +422,16 @@ fn parse_axiom_dependencies(output: &str, declaration: &str) -> Result<Vec<Strin
     found.ok_or_else(|| format!("Lean returned no exact #print axioms report for {declaration}"))
 }
 
+fn attach_proposition(record: &mut Value, capture: bool, output: &str, declaration: &str) {
+    if !capture {
+        return;
+    }
+    match parse_check_proposition(output, declaration) {
+        Ok(proposition) => record["proposition"] = proposition.into(),
+        Err(error) => record["proposition_error"] = error.into(),
+    }
+}
+
 pub(crate) async fn verify_claim(
     source: Option<String>,
     path: Option<String>,
@@ -384,6 +451,7 @@ pub(crate) async fn verify_claim(
             timeout_secs,
         },
         runtime_search,
+        true,
     )
     .await
 }
@@ -391,6 +459,7 @@ pub(crate) async fn verify_claim(
 async fn verify_inner(
     args: VerifyArgs,
     runtime_search: &super::RuntimeSearchPath,
+    capture_propositions: bool,
 ) -> Result<(Value, bool), String> {
     let timeout = timeout_secs(args.timeout_secs)?;
     if args.declarations.is_empty() {
@@ -405,6 +474,11 @@ async fn verify_inner(
         .collect::<BTreeSet<_>>();
     let mut prepared = prepare_source(args.source, args.path, args.cwd)?;
     for declaration in &args.declarations {
+        if capture_propositions {
+            prepared
+                .text
+                .push_str(&format!("\n#check {declaration}\n"));
+        }
         prepared
             .text
             .push_str(&format!("\n#print axioms {declaration}\n"));
@@ -442,20 +516,24 @@ async fn verify_inner(
                 if !disallowed.is_empty() {
                     verified = false;
                 }
-                declarations.push(json!({
+                let mut record = json!({
                     "name": declaration,
                     "axioms": axioms,
                     "disallowed_axioms": disallowed,
                     "verified": disallowed.is_empty() && code == 0,
-                }));
+                });
+                attach_proposition(&mut record, capture_propositions, &combined, declaration);
+                declarations.push(record);
             }
             Err(error) => {
                 verified = false;
-                declarations.push(json!({
+                let mut record = json!({
                     "name": declaration,
                     "verified": false,
                     "error": error,
-                }));
+                });
+                attach_proposition(&mut record, capture_propositions, &combined, declaration);
+                declarations.push(record);
             }
         }
     }
@@ -527,6 +605,58 @@ mod tests {
                 "{}\n{}",
                 report("'proof' does not depend on any axioms"),
                 report("'proof' depends on axioms: [sorryAx]")
+            ),
+            "proof"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn check_reports_yield_the_top_level_proposition() {
+        let report = |data: &str| serde_json::json!({"data": data}).to_string();
+        assert_eq!(
+            proposition_from_check("and_commutes (p q : Prop) : p ∧ q → q ∧ p").unwrap(),
+            "p ∧ q → q ∧ p"
+        );
+        assert_eq!(
+            proposition_from_check("Nat.add : Nat → Nat → Nat").unwrap(),
+            "Nat → Nat → Nat"
+        );
+        assert_eq!(
+            proposition_from_check("foo : (p : Prop) → p → p").unwrap(),
+            "(p : Prop) → p → p"
+        );
+        assert_eq!(
+            proposition_from_check(
+                "And.imp : ∀ {a b c d : Prop}, (a → c) → (b → d) → a ∧ b → c ∧ d"
+            )
+            .unwrap(),
+            "∀ {a b c d : Prop}, (a → c) → (b → d) → a ∧ b → c ∧ d"
+        );
+        assert!(proposition_from_check("and_commutes (p q : Prop)").is_err());
+        assert_eq!(
+            parse_check_proposition(
+                &report("and_commutes (p q : Prop) : p ∧ q → q ∧ p"),
+                "and_commutes"
+            )
+            .unwrap(),
+            "p ∧ q → q ∧ p"
+        );
+        assert!(parse_check_proposition(
+            &report("and_commutes (p q : Prop) : p ∧ q → q ∧ p"),
+            "and_commute"
+        )
+        .is_err());
+        assert!(parse_check_proposition(
+            &report("'and_commutes' does not depend on any axioms"),
+            "and_commutes"
+        )
+        .is_err());
+        assert!(parse_check_proposition(
+            &format!(
+                "{}\n{}",
+                report("proof : True"),
+                report("proof : False")
             ),
             "proof"
         )
