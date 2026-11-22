@@ -1142,7 +1142,7 @@ printf '%s\\n' "$LD_LIBRARY_PATH"
         result = subprocess.run([str(BASH), "-c", """
 set -euo pipefail
 source "$1"
-chmod -x -- "$2/clang"
+chmod a-x -- "$2/clang"
 source "$1"
 exec python3 -c "$3"
 """, "BM SDK refresh", str(self.script), str(sdk), probe],
