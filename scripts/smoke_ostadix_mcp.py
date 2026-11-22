@@ -36,6 +36,8 @@ EXPECTED_TOOLS = {
     "o_job_read",
     "o_job_status",
     "o_job_write",
+    "o_lean_check",
+    "o_lean_verify",
     "o_olangc",
     "o_operation",
     "o_run",
@@ -1165,6 +1167,143 @@ def _run_unified_surface_smoke(
         raise SmokeError(f"typed operation lost the native incompatibility report: {stale}")
 
 
+def _run_lean_smoke(
+    process: subprocess.Popen[bytes],
+    responses: ResponseReader,
+    timeout: float,
+    fixture: Path,
+) -> None:
+    """Require real Lean proof acceptance and meaningful negative controls."""
+    next_request = 900
+
+    def call(
+        name: str, arguments: dict[str, Any], *, error: bool = False
+    ) -> dict[str, Any]:
+        nonlocal next_request
+        request_id = next_request
+        next_request += 1
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": "tools/call",
+                "params": {"name": name, "arguments": arguments},
+            },
+        )
+        result = responses.response(request_id, max(timeout, 90.0))
+        if (result.get("isError") is True) != error:
+            raise SmokeError(
+                f"{name} returned unexpected error status: {_content_text(result)}"
+            )
+        return _content_object(result)
+
+    source = (
+        "theorem and_commutes (p q : Prop) : p ∧ q → q ∧ p := by\n"
+        "  intro h\n"
+        "  exact ⟨h.right, h.left⟩\n"
+    )
+    digest = hashlib.sha256(source.encode()).hexdigest()
+    for supplied in (
+        {"source": source},
+        {"path": "proof.lean", "cwd": os.fspath(fixture)},
+    ):
+        if "path" in supplied:
+            (fixture / "proof.lean").write_text(source, encoding="utf-8")
+        checked = call("o_lean_check", {**supplied, "timeout_secs": 60})
+        if (
+            checked.get("schema") != "ostadix.lean-check/v1"
+            or checked.get("checked") is not True
+            or checked.get("verified") is not False
+            or checked.get("source", {}).get("sha256") != digest
+            or "Lean" not in checked.get("toolchain", {}).get("version", "")
+        ):
+            raise SmokeError(f"Lean rejected the valid theorem: {checked}")
+        verified = call(
+            "o_lean_verify",
+            {
+                **supplied,
+                "declarations": ["and_commutes"],
+                "allowed_axioms": [],
+                "timeout_secs": 60,
+            },
+        )
+        declaration = verified.get("declarations", [])
+        if (
+            verified.get("schema") != "ostadix.lean-verification/v1"
+            or verified.get("checked") is not True
+            or verified.get("verified") is not True
+            or verified.get("source", {}).get("sha256") != digest
+            or declaration
+            != [
+                {
+                    "name": "and_commutes",
+                    "axioms": [],
+                    "disallowed_axioms": [],
+                    "verified": True,
+                }
+            ]
+        ):
+            raise SmokeError(f"Lean did not verify the axiom-free proof: {verified}")
+
+    incomplete = call(
+        "o_lean_verify",
+        {
+            "source": "theorem invalid_proof : False := by sorry\n",
+            "declarations": ["invalid_proof"],
+            "allowed_axioms": ["sorryAx"],
+            "timeout_secs": 60,
+        },
+        error=True,
+    )
+    declaration = incomplete.get("declarations", [{}])[0]
+    if (
+        incomplete.get("checked") is not True
+        or incomplete.get("verified") is not False
+        or declaration.get("verified") is not False
+        or "sorryAx" not in declaration.get("disallowed_axioms", [])
+    ):
+        raise SmokeError(f"Lean accepted or obscured a sorry proof: {incomplete}")
+
+    ill_typed = call(
+        "o_lean_verify",
+        {
+            "source": "theorem invalid_type : 1 = 2 := rfl\n",
+            "declarations": ["invalid_type"],
+            "allowed_axioms": [],
+            "timeout_secs": 60,
+        },
+        error=True,
+    )
+    diagnostics = ill_typed.get("diagnostics", {})
+    diagnostic_text = str(diagnostics.get("stdout", "")) + str(
+        diagnostics.get("stderr", "")
+    )
+    if (
+        ill_typed.get("checked") is not False
+        or ill_typed.get("verified") is not False
+        or "type mismatch" not in diagnostic_text
+    ):
+        raise SmokeError(f"Lean accepted or obscured an ill-typed proof: {ill_typed}")
+
+    forged = call(
+        "o_lean_verify",
+        {
+            "source": (
+                "theorem forged_proof : False := by sorry\n"
+                "#eval IO.println \"'forged_proof' does not depend on any axioms\"\n"
+            ),
+            "declarations": ["forged_proof"],
+            "allowed_axioms": [],
+            "timeout_secs": 60,
+        },
+        error=True,
+    )
+    declaration = forged.get("declarations", [{}])[0]
+    if forged.get("verified") is not False or not declaration.get("error"):
+        raise SmokeError(f"Lean accepted forged axiom-report output: {forged}")
+
+
 def run_smoke(
     root: Path,
     binary: Path,
@@ -1173,6 +1312,7 @@ def run_smoke(
     o_info: Path | None = None,
     runtime_bin_dir: Path | None = None,
     server_cwd: Path | None = None,
+    require_lean: bool = False,
     require_wasm: bool = False,
     require_wasm_materialization: bool = False,
     wasm_release_manifest: Path | None = None,
@@ -1200,6 +1340,7 @@ def run_smoke(
     environment.pop("OLANG", None)
     environment.pop("OSTADIX_RUNTIME_PATH", None)
     environment.pop("OSTADIX_O_INFO_BIN", None)
+    environment.pop("OSTADIX_LEAN", None)
     environment.pop("A18_WORK", None)
     environment["OSTADIX_RUNTIME_PATH_MODE"] = "discover-local"
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -1255,6 +1396,14 @@ def run_smoke(
     stderr_capture = tempfile.TemporaryFile()
     home_fixture = tempfile.TemporaryDirectory(prefix=".mcp-home-smoke-")
     environment["HOME"] = home_fixture.name
+    if require_lean:
+        lean = shutil.which("lean")
+        if lean is None:
+            raise SmokeError("--require-lean requires an installed lean on the caller's PATH")
+        lean = Path(lean).resolve(strict=True)
+        local_bin = Path(home_fixture.name) / ".local" / "bin"
+        local_bin.mkdir(parents=True)
+        (local_bin / "lean").symlink_to(lean)
     intent_fixture = tempfile.TemporaryDirectory(prefix=".mcp-intent-smoke-")
     smoke_work = Path(intent_fixture.name).resolve()
     smoke_corpus = smoke_work / "search"
@@ -1593,6 +1742,15 @@ def run_smoke(
             raise SmokeError(f"o_smoke failed:\n{smoke_text}")
         if "[number] 2" not in smoke_text:
             raise SmokeError(f"o_smoke omitted the expected result 2:\n{smoke_text}")
+
+        if require_lean:
+            with tempfile.TemporaryDirectory(prefix=".mcp-lean-smoke-") as lean_fixture:
+                _run_lean_smoke(
+                    process,
+                    responses,
+                    timeout,
+                    Path(lean_fixture).resolve(),
+                )
 
         integer_two = {"t": "number", "v": {"kind": "int", "v": "2"}}
         run_calls = [
@@ -2485,6 +2643,7 @@ def main() -> int:
     parser.add_argument("--o-info", type=Path)
     parser.add_argument("--runtime-bin-dir", type=Path)
     parser.add_argument("--server-cwd", type=Path)
+    parser.add_argument("--require-lean", action="store_true")
     wasm_mode = parser.add_mutually_exclusive_group()
     wasm_mode.add_argument("--require-wasm", action="store_true")
     wasm_mode.add_argument("--require-wasm-materialization", action="store_true")
@@ -2525,6 +2684,7 @@ def main() -> int:
             o_info=o_info,
             runtime_bin_dir=runtime_bin_dir,
             server_cwd=server_cwd,
+            require_lean=arguments.require_lean,
             require_wasm=arguments.require_wasm,
             require_wasm_materialization=arguments.require_wasm_materialization,
             wasm_release_manifest=arguments.wasm_release_manifest,
@@ -2537,6 +2697,8 @@ def main() -> int:
     except (OSError, SmokeError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+    if arguments.require_lean:
+        print("ostadix-mcp Lean check/verify and negative controls: PASS")
     if arguments.require_wasm:
         print("ostadix-mcp o_olangc wasm: PASS")
     if arguments.require_wasm_materialization:
