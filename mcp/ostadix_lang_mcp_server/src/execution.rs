@@ -565,7 +565,26 @@ async fn spool_stream(mut source: Reader, mut log: tokio::fs::File) -> Result<()
 }
 
 // Also runs when the Tokio runtime drops an unfinished monitor future.
-struct SessionGuard(Arc<ProcessOwnership>);
+pub(super) struct SessionGuard(Arc<ProcessOwnership>);
+impl SessionGuard {
+    pub(super) fn new(pid: u32) -> Self {
+        Self(Arc::new(ProcessOwnership {
+            pid,
+            active: Mutex::new(true),
+        }))
+    }
+
+    pub(super) fn terminate(&self) -> Result<(), String> {
+        match self.0.cleanup().error {
+            Some(error) => Err(format!("session cleanup: {error}")),
+            None => Ok(()),
+        }
+    }
+
+    pub(super) fn disarm(&self) {
+        self.0.disarm();
+    }
+}
 impl Drop for SessionGuard {
     fn drop(&mut self) {
         self.0.cleanup();
@@ -712,7 +731,7 @@ fn exit_observation(pid: u32) -> Result<Option<bool>, String> {
 }
 
 #[cfg(unix)]
-async fn observe_exit(
+pub(super) async fn observe_exit(
     _child: &mut Child,
     pid: u32,
 ) -> Result<(bool, Option<std::process::ExitStatus>), String> {
@@ -732,7 +751,7 @@ async fn observe_exit(
 }
 
 #[cfg(not(unix))]
-async fn observe_exit(
+pub(super) async fn observe_exit(
     child: &mut Child,
     _pid: u32,
 ) -> Result<(bool, Option<std::process::ExitStatus>), String> {

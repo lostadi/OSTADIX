@@ -4,6 +4,9 @@
 Each binary/root/backends tuple owns one private Unix socket and one stdio MCP
 session. Run ``TOOL JSON``, ``--list-tools``, ``--status``, or ``--stop``. The
 ``call_tool`` function remains compatible with existing aichat wrappers.
+Execution tools have no transport deadline by default. ``--timeout`` (or the
+API timeout argument) takes precedence over ``OSTADIX_MCP_CLIENT_TIMEOUT``;
+either setting explicitly selects a transport deadline, with 0 unbounded.
 """
 
 from __future__ import annotations
@@ -33,6 +36,12 @@ from typing import Any
 MAX_FRAME_BYTES = 16 * 1024 * 1024
 STARTUP_TIMEOUT = 20.0
 PROTOCOL_VERSION = "2025-03-26"
+DEFAULT_TRANSPORT_TIMEOUT = 600.0
+UNBOUNDED_EXECUTION_TOOLS = frozenset({
+    "o_execute", "o_cli", "o_eval", "o_operation", "o_run", "o_olangc",
+    "o_analyze_intent", "o_execute_intent", "o_search_run",
+    "o_lean_check", "o_lean_verify",
+})
 
 
 class BridgeError(RuntimeError):
@@ -239,9 +248,9 @@ def _ensure_connection(config: Configuration) -> socket.socket:
     raise BridgeError("timed out starting local MCP bridge")
 
 
-def request(method: str, params: dict[str, Any] | None = None, timeout: float = 600.0, *, config: Configuration | None = None, start: bool = True) -> dict[str, Any]:
+def request(method: str, params: dict[str, Any] | None = None, timeout: float | None = None, *, config: Configuration | None = None, start: bool = True) -> dict[str, Any]:
     config = config or Configuration.from_environment()
-    timeout = _positive_timeout(timeout)
+    timeout = _request_timeout(method, params or {}, timeout)
     config.private_directory()
     connection = _ensure_connection(config) if start else _connect(config)
     if connection is None:
@@ -376,9 +385,9 @@ class StdioBridge:
                 incoming = _read_frame(stream)
             method = incoming.get("method")
             params = incoming.get("params", {})
-            timeout = _positive_timeout(incoming.get("timeout", 600))
             if not isinstance(method, str) or not isinstance(params, dict):
                 raise BridgeError("method must be a string and params an object")
+            timeout = _request_timeout(method, params, incoming.get("timeout"))
             if method in ("bridge/status", "bridge/stop"):
                 assert self.child is not None
                 result = {"running": self.child.poll() is None, "bridge_pid": os.getpid(), "mcp_pid": self.child.pid, "binary": str(self.config.binary), "root": str(self.config.root), "backends": str(self.config.backends), "socket": str(self.config.socket_path), "started_at": self.started_at, "stopping": method == "bridge/stop"}
@@ -541,21 +550,38 @@ def _process_exists(pid: int) -> bool:
         return False
 
 
-def _tool_timeout(arguments: dict[str, Any], override: float | None) -> float:
+def _tool_timeout(arguments: dict[str, Any], override: float | None, tool: str | None = None) -> float:
     if override is not None:
         return _positive_timeout(override)
-    default = _positive_timeout(os.environ.get("OSTADIX_MCP_CLIENT_TIMEOUT", "600"))
+    configured = os.environ.get("OSTADIX_MCP_CLIENT_TIMEOUT")
+    if configured is not None:
+        return _positive_timeout(configured)
     requested = arguments.get("timeout_secs")
+    # An unlimited native operation must not acquire a hidden bridge deadline.
+    # Treat explicit null like an omitted optional field, in both API and CLI.
+    if requested is None and (
+        tool in UNBOUNDED_EXECUTION_TOOLS
+        or (tool == "o_claim" and arguments.get("mode") == "formal")
+    ):
+        return 0.0
     if isinstance(requested, (int, float)) and not isinstance(requested, bool) and math.isfinite(requested) and requested >= 0:
-        if requested == 0 or default == 0:
+        if requested == 0:
             return 0.0
-        return max(default, float(requested) + 30.0)
-    return default
+        return max(DEFAULT_TRANSPORT_TIMEOUT, float(requested) + 30.0)
+    return DEFAULT_TRANSPORT_TIMEOUT
+
+
+def _request_timeout(method: str, params: dict[str, Any], override: float | None) -> float:
+    arguments = params.get("arguments", {}) if method == "tools/call" else {}
+    return _tool_timeout(
+        arguments if isinstance(arguments, dict) else {}, override,
+        params.get("name") if method == "tools/call" else None,
+    )
 
 
 def call_tool(tool: str, arguments: dict[str, Any] | None, timeout: float | None = None) -> str:
     try:
-        result = _result(request("tools/call", {"name": tool, "arguments": arguments or {}}, _tool_timeout(arguments or {}, timeout)))
+        result = _result(request("tools/call", {"name": tool, "arguments": arguments or {}}, _tool_timeout(arguments or {}, timeout, tool)))
         return _render_tool(result)
     except (BridgeError, OSError) as error:
         return json.dumps({"isError": True, "error": str(error)})
@@ -568,7 +594,7 @@ def main(argv: list[str] | None = None) -> int:
     action.add_argument("--status", action="store_true")
     action.add_argument("--stop", action="store_true")
     action.add_argument("--serve", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--timeout", type=float)
+    parser.add_argument("--timeout", type=float, help="Explicit transport deadline in seconds; 0 disables it. Execution tools default to no deadline.")
     parser.add_argument("tool", nargs="?")
     parser.add_argument("arguments", nargs="?", default="{}")
     arguments = parser.parse_args(argv)
@@ -601,7 +627,7 @@ def main(argv: list[str] | None = None) -> int:
         # Some function callers send optional fields as null instead of omitting
         # them. Preserve the original adapter's top-level normalization.
         value = {key: item for key, item in value.items() if item is not None}
-        result = _result(request("tools/call", {"name": arguments.tool, "arguments": value}, _tool_timeout(value, arguments.timeout), config=config))
+        result = _result(request("tools/call", {"name": arguments.tool, "arguments": value}, _tool_timeout(value, arguments.timeout, arguments.tool), config=config))
         print(_render_tool(result))
         return 1 if result.get("isError") is True else 0
     except (BridgeError, OSError, ValueError) as error:

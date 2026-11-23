@@ -49,7 +49,6 @@ use tokio::process::Command;
 const INTENT_SCHEMA_V1: &str = "oexec.execution-intent/v1";
 const DEFAULT_INTENT_TTL_SECS: u64 = 120;
 const MAX_INTENT_TTL_SECS: u64 = 900;
-const MAX_INTENT_OPERATION_TIMEOUT_SECS: u64 = 900;
 const MAX_LIVE_INTENTS: usize = 64;
 const MAX_INFORMATION_STATE_PATH_BYTES: usize = 4096;
 const MAX_OLANGC_MATERIALIZE_PATH_BYTES: usize = 4096;
@@ -1342,7 +1341,7 @@ async fn run_cmd(
                 .map(|(key, value)| ((*key).into(), value.clone()))
                 .collect(),
             stdin: None,
-            timeout_secs: Some(timeout_secs),
+            timeout_secs: (timeout_secs != 0).then_some(timeout_secs),
             pty: false,
         })
         .await?;
@@ -1395,8 +1394,13 @@ async fn run_structured_cmd(
         // the explicit timeout path below kills and reaps the whole group.
         .kill_on_drop(true);
     #[cfg(unix)]
-    {
-        cmd.process_group(0);
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
     }
     if let Some(c) = cwd {
         cmd.current_dir(c);
@@ -1416,10 +1420,8 @@ async fn run_structured_cmd(
         .stderr
         .take()
         .ok_or_else(|| "child stderr was not piped".to_string())?;
-    #[cfg(unix)]
-    let process_group_id = child.id();
-    #[cfg(unix)]
-    let mut process_group_guard = ProcessGroupDropGuard(process_group_id);
+    let pid = child.id().ok_or("spawn returned no process ID")?;
+    let session_guard = execution::SessionGuard::new(pid);
     let mut stdout_task = tokio::spawn(read_information_pipe_bounded(
         stdout_pipe,
         MAX_COMMAND_STDOUT_BYTES,
@@ -1428,18 +1430,25 @@ async fn run_structured_cmd(
         stderr_pipe,
         MAX_COMMAND_STDERR_BYTES,
     ));
-    let timeout = tokio::time::sleep(Duration::from_secs(timeout_secs));
+    let timeout = async {
+        if timeout_secs == 0 {
+            std::future::pending::<()>().await;
+        } else {
+            tokio::time::sleep(Duration::from_secs(timeout_secs)).await;
+        }
+    };
     tokio::pin!(timeout);
     let mut status = None;
+    let mut exited = false;
     let mut stdout_bytes = None;
     let mut stderr_bytes = None;
 
-    while status.is_none() || stdout_bytes.is_none() || stderr_bytes.is_none() {
+    while !exited || stdout_bytes.is_none() || stderr_bytes.is_none() {
         tokio::select! {
-            waited = child.wait(), if status.is_none() => match waited {
-                Ok(value) => status = Some(value),
+            waited = execution::observe_exit(&mut child, pid), if !exited => match waited {
+                Ok((_, value)) => { status = value; exited = true; },
                 Err(error) => {
-                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    terminate_command_child(&mut child, &session_guard).await?;
                     stdout_task.abort();
                     stderr_task.abort();
                     return Err(format!("wait: {error}"));
@@ -1448,12 +1457,12 @@ async fn run_structured_cmd(
             output = &mut stdout_task, if stdout_bytes.is_none() => match output {
                 Ok(Ok(bytes)) => stdout_bytes = Some(bytes),
                 Ok(Err(())) => {
-                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    terminate_command_child(&mut child, &session_guard).await?;
                     stderr_task.abort();
                     return Err(format!("stdout exceeded {MAX_COMMAND_STDOUT_BYTES} bytes"));
                 }
                 Err(error) => {
-                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    terminate_command_child(&mut child, &session_guard).await?;
                     stderr_task.abort();
                     return Err(format!("read stdout task failed: {error}"));
                 }
@@ -1461,18 +1470,18 @@ async fn run_structured_cmd(
             output = &mut stderr_task, if stderr_bytes.is_none() => match output {
                 Ok(Ok(bytes)) => stderr_bytes = Some(bytes),
                 Ok(Err(())) => {
-                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    terminate_command_child(&mut child, &session_guard).await?;
                     stdout_task.abort();
                     return Err(format!("stderr exceeded {MAX_COMMAND_STDERR_BYTES} bytes"));
                 }
                 Err(error) => {
-                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    terminate_command_child(&mut child, &session_guard).await?;
                     stdout_task.abort();
                     return Err(format!("read stderr task failed: {error}"));
                 }
             },
             _ = &mut timeout => {
-                terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                terminate_command_child(&mut child, &session_guard).await?;
                 stdout_task.abort();
                 stderr_task.abort();
                 return Err(format!("timeout after {timeout_secs}s"));
@@ -1480,35 +1489,33 @@ async fn run_structured_cmd(
         }
     }
 
-    let status = status.expect("run loop requires child status");
+    // Keep the Unix leader unreaped until its output drains. Disarm cleanup
+    // before releasing the PID/session identity, as the native job manager does.
+    session_guard.disarm();
+    let status = match status {
+        Some(status) => status,
+        None => child
+            .wait()
+            .await
+            .map_err(|error| format!("reap process: {error}"))?,
+    };
     let stdout_bytes = stdout_bytes.expect("run loop requires stdout");
     let stderr_bytes = stderr_bytes.expect("run loop requires stderr");
     let code = status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
     let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
-    #[cfg(unix)]
-    {
-        process_group_guard.0 = None;
-    }
     Ok((code, stdout, stderr))
 }
 
-#[cfg(unix)]
-struct ProcessGroupDropGuard(Option<u32>);
-
-#[cfg(unix)]
-impl Drop for ProcessGroupDropGuard {
-    fn drop(&mut self) {
-        let Some(pid) = self.0 else {
-            return;
-        };
-        if let Ok(group_id) = i32::try_from(pid) {
-            // SAFETY: run_structured_cmd creates this child in a fresh process group.
-            unsafe {
-                libc::kill(-group_id, libc::SIGKILL);
-            }
-        }
-    }
+async fn terminate_command_child(
+    child: &mut tokio::process::Child,
+    session: &execution::SessionGuard,
+) -> Result<(), String> {
+    let cleanup = session.terminate();
+    let _ = child.start_kill();
+    session.disarm();
+    let _ = child.wait().await;
+    cleanup
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1993,7 +2000,7 @@ struct CliArgs {
     env: BTreeMap<String, String>,
     /// Initial stdin text. Foreground pipe jobs receive EOF after this text; background jobs keep input open.
     stdin: Option<String>,
-    /// Foreground default 120 seconds, background default no deadline. Zero explicitly disables the deadline.
+    /// Execution deadline in seconds. Omitted or zero means unlimited in foreground and background.
     timeout_secs: Option<u64>,
     /// Return a job_id immediately. Use status/read/write/cancel across calls in this MCP session.
     #[serde(default)]
@@ -2014,6 +2021,7 @@ struct EvalArgs {
     #[serde(default)]
     env: BTreeMap<String, String>,
     stdin: Option<String>,
+    /// Execution deadline in seconds. Omitted or zero means unlimited.
     timeout_secs: Option<u64>,
     #[serde(default)]
     background: bool,
@@ -2061,6 +2069,11 @@ fn structured_failure(error: impl Into<String>) -> Result<CallToolResult, McpErr
     Ok(CallToolResult::structured_error(
         serde_json::json!({"error": error.into()}),
     ))
+}
+
+/// No implicit execution deadline; only a caller-selected positive budget applies.
+fn execution_timeout(timeout_secs: Option<u64>) -> Option<u64> {
+    timeout_secs.filter(|seconds| *seconds != 0)
 }
 
 fn validate_child_input(args: &[String], env: &BTreeMap<String, String>) -> Result<(), String> {
@@ -2141,10 +2154,7 @@ impl OstadixMcp {
             }
         }
         env.extend(args.env);
-        let timeout_secs = args
-            .timeout_secs
-            .or(if args.background { None } else { Some(120) })
-            .filter(|value| *value != 0);
+        let timeout_secs = execution_timeout(args.timeout_secs);
         let started = match self
             .jobs
             .start_retained(
@@ -2213,7 +2223,9 @@ struct RunOArgs {
     #[schemars(description = "Optional working directory (relative paths use O_LANG_ROOT)")]
     cwd: Option<String>,
     #[serde(default)]
-    #[schemars(description = "Timeout seconds (default 120)")]
+    #[schemars(
+        description = "MCP deadline seconds; omitted or zero means unlimited. Selected-node native IO/publication deadlines still apply"
+    )]
     timeout_secs: Option<u64>,
     #[serde(default)]
     #[schemars(
@@ -2320,7 +2332,7 @@ struct AnalyzeIntentArgs {
     #[schemars(description = "One-use handle lifetime in seconds (default 120; maximum 900)")]
     ttl_secs: Option<u64>,
     #[serde(default)]
-    #[schemars(description = "Analysis timeout seconds (default 120)")]
+    #[schemars(description = "Deadline seconds; omitted or zero means unlimited")]
     timeout_secs: Option<u64>,
 }
 
@@ -2336,7 +2348,7 @@ struct ExecuteIntentArgs {
     )]
     cwd: Option<String>,
     #[serde(default)]
-    #[schemars(description = "Execution timeout seconds (default 120)")]
+    #[schemars(description = "Deadline seconds; omitted or zero means unlimited")]
     timeout_secs: Option<u64>,
 }
 
@@ -2358,7 +2370,7 @@ struct OlangcArgs {
     )]
     materialize_only: Option<String>,
     #[serde(default)]
-    #[schemars(description = "Timeout seconds (default 180)")]
+    #[schemars(description = "Deadline seconds; omitted or zero means unlimited")]
     timeout_secs: Option<u64>,
 }
 
@@ -2374,7 +2386,7 @@ struct SearchRunArgs {
     )]
     work: Option<String>,
     #[serde(default)]
-    #[schemars(description = "Timeout seconds (default 300)")]
+    #[schemars(description = "Deadline seconds; omitted or zero means unlimited")]
     timeout_secs: Option<u64>,
 }
 
@@ -2534,8 +2546,13 @@ impl OstadixMcp {
     async fn o_lean_check(
         &self,
         Parameters(args): Parameters<lean::CheckArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        lean::check(args, &self.runtime_search).await
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = lean::check(args, &self.runtime_search) => result,
+        }
     }
 
     #[tool(
@@ -2549,8 +2566,13 @@ impl OstadixMcp {
     async fn o_lean_verify(
         &self,
         Parameters(args): Parameters<lean::VerifyArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        lean::verify(args, &self.runtime_search).await
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = lean::verify(args, &self.runtime_search) => result,
+        }
     }
 
     #[tool(
@@ -2564,8 +2586,13 @@ impl OstadixMcp {
     async fn o_claim(
         &self,
         Parameters(args): Parameters<claim::ClaimArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        claim::judge(args, &self.runtime_search).await
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = claim::judge(args, &self.runtime_search) => result,
+        }
     }
 
     #[tool(
@@ -2611,7 +2638,16 @@ impl OstadixMcp {
     async fn o_cli(
         &self,
         Parameters(args): Parameters<CliArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_cli(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_cli(&self, args: CliArgs) -> Result<CallToolResult, McpError> {
         self.execute_cli(args).await
     }
 
@@ -2626,7 +2662,16 @@ impl OstadixMcp {
     async fn o_eval(
         &self,
         Parameters(args): Parameters<EvalArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_eval(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_eval(&self, args: EvalArgs) -> Result<CallToolResult, McpError> {
         let mut argv = args.args;
         argv.extend(["--eval".to_string(), args.source]);
         self.execute_cli(CliArgs {
@@ -2888,7 +2933,16 @@ impl OstadixMcp {
     async fn o_run(
         &self,
         Parameters(args): Parameters<RunOArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_run(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_run(&self, args: RunOArgs) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
         let o_cli = resolve_o_cli(&root);
@@ -2916,7 +2970,7 @@ impl OstadixMcp {
                 (path, cwd, Some(staged))
             }
         };
-        let timeout = args.timeout_secs.unwrap_or(120);
+        let timeout = args.timeout_secs.unwrap_or_default();
         let mode = args.mode.as_deref().unwrap_or("execute");
         if mode != "execute" && mode != "check" {
             return text_err(format!(
@@ -2969,8 +3023,8 @@ impl OstadixMcp {
             if args.route.is_some() {
                 return text_err("route is available only for local project-aware execution");
             }
-            if timeout == 0 || timeout > 86_400 {
-                return text_err("node placement timeout must be between 1 and 86400 seconds");
+            if timeout > 86_400 {
+                return text_err("explicit node placement timeout must not exceed 86400 seconds");
             }
             let octl = resolve_octl(&root);
             let deadline = timeout.to_string();
@@ -2979,7 +3033,11 @@ impl OstadixMcp {
             if let Some(node_id) = args.node_id.as_deref() {
                 command_args.extend(["--node", node_id]);
             }
-            command_args.extend(["--deadline-seconds", deadline.as_str()]);
+            // Omitted/zero disables the MCP deadline. Without an explicit
+            // deadline, octl retains its separate native network contract.
+            if timeout != 0 {
+                command_args.extend(["--deadline-seconds", deadline.as_str()]);
+            }
             return match run_structured_cmd(
                 &octl,
                 &command_args,
@@ -3129,6 +3187,18 @@ impl OstadixMcp {
     async fn o_analyze_intent(
         &self,
         Parameters(args): Parameters<AnalyzeIntentArgs>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_analyze_intent(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_analyze_intent(
+        &self,
+        args: AnalyzeIntentArgs,
     ) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
@@ -3146,12 +3216,7 @@ impl OstadixMcp {
                 "ttl_secs must be between 1 and {MAX_INTENT_TTL_SECS}"
             ));
         }
-        let timeout = args.timeout_secs.unwrap_or(120);
-        if !(1..=MAX_INTENT_OPERATION_TIMEOUT_SECS).contains(&timeout) {
-            return text_err(format!(
-                "timeout_secs must be between 1 and {MAX_INTENT_OPERATION_TIMEOUT_SECS}"
-            ));
-        }
+        let timeout = args.timeout_secs.unwrap_or_default();
         let handle = match random_intent_handle() {
             Ok(handle) => handle,
             Err(error) => return text_err(error),
@@ -3226,6 +3291,18 @@ impl OstadixMcp {
     async fn o_execute_intent(
         &self,
         Parameters(args): Parameters<ExecuteIntentArgs>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_execute_intent(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_execute_intent(
+        &self,
+        args: ExecuteIntentArgs,
     ) -> Result<CallToolResult, McpError> {
         // Consume first: expiry, mismatched arguments, mutation, admission
         // rejection, timeout, and runtime failure all make the handle unusable.
@@ -3257,7 +3334,7 @@ impl OstadixMcp {
             backends.to_string_lossy().into_owned(),
         ];
         let refs = argv.iter().map(String::as_str).collect::<Vec<_>>();
-        let timeout = args.timeout_secs.unwrap_or(120);
+        let timeout = args.timeout_secs.unwrap_or_default();
         match run_cmd(
             &o_bin,
             &refs,
@@ -3289,7 +3366,16 @@ impl OstadixMcp {
     async fn o_olangc(
         &self,
         Parameters(args): Parameters<OlangcArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_olangc(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_olangc(&self, args: OlangcArgs) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
         let olangc = resolve_olangc(&root);
@@ -3336,7 +3422,7 @@ impl OstadixMcp {
         argv.push("--shim-dir".into());
         argv.push(backends.display().to_string());
         let refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
-        let timeout = args.timeout_secs.unwrap_or(180);
+        let timeout = args.timeout_secs.unwrap_or_default();
         match run_cmd(
             &olangc,
             &refs,
@@ -3435,6 +3521,18 @@ impl OstadixMcp {
     async fn o_search_run(
         &self,
         Parameters(args): Parameters<SearchRunArgs>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => text_err("request cancelled"),
+            result = self.execute_legacy_o_search_run(args) => result,
+        }
+    }
+
+    async fn execute_legacy_o_search_run(
+        &self,
+        args: SearchRunArgs,
     ) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
@@ -3454,7 +3552,7 @@ impl OstadixMcp {
             }
         };
         // Refuse relative backends pitfalls: always pass absolute backends
-        let timeout = args.timeout_secs.unwrap_or(300);
+        let timeout = args.timeout_secs.unwrap_or_default();
         match run_cmd(
             &o_bin,
             &[path.to_str().unwrap_or(""), backends.to_str().unwrap_or("")],
@@ -4812,6 +4910,99 @@ mod tests {
             resolve_new_directory_under(&workspace, &outside.join("new").display().to_string())
                 .expect_err("absolute escape must be rejected");
         assert!(error.contains("escaped the MCP server cwd"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn zero_deadline_allows_legacy_runner_to_complete() {
+        let (code, stdout, stderr) = run_cmd(
+            Path::new("/bin/sh"),
+            &["-c", "sleep 0.1; printf finished"],
+            None,
+            &[],
+            0,
+        )
+        .await
+        .expect("zero must disable the deadline");
+        assert_eq!(
+            (code, stdout.as_str(), stderr.as_str()),
+            (0, "finished", "")
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn zero_deadline_allows_structured_runner_to_complete() {
+        let (code, stdout, stderr) = run_structured_cmd(
+            Path::new("/bin/sh"),
+            &["-c", "sleep 0.1; printf finished"],
+            None,
+            &[],
+            0,
+        )
+        .await
+        .expect("zero must disable the deadline");
+        assert_eq!(
+            (code, stdout.as_str(), stderr.as_str()),
+            (0, "finished", "")
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn structured_runner_cancellation_and_timeout_clean_separate_backend_groups() {
+        for timeout_secs in [0, 1] {
+            let fixture = Fixture::new();
+            let ready = fixture.0.join("backend-ready");
+            let marker = fixture.0.join("backend-survived");
+            let environment = [
+                ("READY", ready.display().to_string()),
+                ("MARKER", marker.display().to_string()),
+            ];
+            let task = tokio::spawn(async move {
+                let python = which::which("python3").unwrap();
+                run_structured_cmd(
+                    &python,
+                    &[
+                        "-c",
+                        r#"import os,time
+if os.fork() == 0:
+    os.setpgrp()
+    with open(os.environ['READY'], 'w') as f: f.write('started')
+    time.sleep(2)
+    with open(os.environ['MARKER'], 'w') as f: f.write('survived')
+    os._exit(0)
+time.sleep(30)
+"#,
+                    ],
+                    None,
+                    &environment,
+                    timeout_secs,
+                )
+                .await
+            });
+            for _ in 0..100 {
+                if ready.exists() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            assert!(
+                ready.exists(),
+                "backend did not reach its separate process group"
+            );
+            if timeout_secs == 0 {
+                task.abort();
+                assert!(task.await.unwrap_err().is_cancelled());
+            } else {
+                assert_eq!(task.await.unwrap().unwrap_err(), "timeout after 1s");
+            }
+            tokio::time::sleep(Duration::from_millis(2250)).await;
+            assert!(
+                !marker.exists(),
+                "backend group survived cancellation or timeout"
+            );
+        }
     }
 
     #[cfg(unix)]

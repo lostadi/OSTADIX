@@ -68,8 +68,8 @@ pub struct Options {
     /// Accepted browser origin including scheme and port; repeat as needed.
     #[arg(long)]
     allowed_origin: Vec<String>,
-    /// Session inactivity expiry; zero disables expiry for long-running jobs.
-    #[arg(long, default_value_t = 3600)]
+    /// Session inactivity expiry; disabled by default. A positive value opts into expiry.
+    #[arg(long, default_value_t = 0)]
     session_timeout_secs: u64,
     /// Maximum complete MCP request size, including inline source.
     #[arg(long, default_value_t = 16 * 1024 * 1024, value_parser = clap::value_parser!(usize))]
@@ -438,6 +438,20 @@ async fn shutdown_signal() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn session_expiry_is_opt_in() {
+        let defaults = <super::Options as clap::Parser>::try_parse_from(["ostadix-mcp"])
+            .expect("default options");
+        assert_eq!(defaults.session_timeout_secs, 0);
+        let explicit = <super::Options as clap::Parser>::try_parse_from([
+            "ostadix-mcp",
+            "--session-timeout-secs",
+            "3600",
+        ])
+        .expect("explicit session expiry");
+        assert_eq!(explicit.session_timeout_secs, 3600);
+    }
+
     use super::*;
 
     #[test]

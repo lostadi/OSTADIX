@@ -34,8 +34,9 @@ HTTP negotiates the initialized MCP lifecycle through `2025-11-25`; it does not
 advertise sessionless protocol support. Each session owns its jobs and intent
 handles. Clients must retain `Mcp-Session-Id` and the negotiated
 `MCP-Protocol-Version` on subsequent requests. DELETE ends that session and
-cancels its jobs. The default inactivity expiry is one hour; configure
-`--session-timeout-secs` (zero disables expiry) for long-running workloads.
+cancels its jobs. Configure `--session-timeout-secs` to opt into an inactivity
+expiry. The default is zero
+(no expiry), so long-running workloads keep their MCP session.
 Server shutdown or upgrade cancels jobs and invalidates sessions. `/healthz`
 is a public liveness response without environment details. Browser origins are
 denied unless listed by repeatable `--allowed-origin`; non-browser clients
@@ -79,7 +80,9 @@ introduced by this transport.
 Lean installations produce an error; neither tool substitutes a parser,
 natural-language rationale, or simulated verdict. Each call records the exact
 source SHA-256 and `lean --version` identity. Source is limited to 1 MiB and
-execution has a bounded 1–900 second deadline (120 seconds by default).
+compiler execution has no default deadline. Omit `timeout_secs` or set it to
+zero for an unlimited wait; a positive value opts into a deadline. The fixed
+compiler-version diagnostic remains bounded.
 
 A check accepts exactly one complete `source` or existing `path`, with optional
 `cwd` for imports:
@@ -227,7 +230,7 @@ outcome bounds. These protocol limits do not apply to ordinary local O source.
 
 `o_run` buffers a complete structured native response, capped at 4 MiB stdout
 and 256 KiB stderr. Overflow, timeout, and cancellation terminate its local
-process group; runner failures report incomplete output without replay. Its
+process session, including nested backend process groups; runner failures report incomplete output without replay. Its
 `mode: "check"` validates the static plan/graph, while `o_execute`'s
 `action: "check"` performs parse-only validation. Selected-node cancellation
 stops the local client and cannot promise cancellation of remote effects.
@@ -321,6 +324,20 @@ execution must be separate calls.
 
 ## Long-running and interactive jobs
 
+Local execution has no default time limit. Omitting `timeout_secs`, setting it
+to `null`, or using `0` leaves foreground and background work unbounded across
+`o_execute`, `o_cli`, `o_eval`, `o_operation`, `o_run`, `o_olangc`,
+`o_analyze_intent`, `o_execute_intent`, `o_search_run`, `o_lean_check`, and
+`o_lean_verify`. Formal `o_claim` verification uses the same unlimited
+compiler wait. A positive value opts into a deadline. Rust backend steps and the Python reference shim adapter also
+run without a deadline unless one is explicitly configured. Heartbeat warnings
+report stalled work without imposing a time limit. Cancellation remains
+available; it does not depend on a deadline.
+
+Diagnostic probes, bounded read-only inspection, one-use
+handle expiry, and remote-node protocol deadlines retain their own contracts.
+External MCP clients and providers can also impose limits outside this server.
+
 Set `background: true` on `o_execute`, `o_cli`, or `o_eval` for a managed job
 that returns once launched. Admitted `o_execute` first completes its analysis
 before returning the execution job. Jobs are independent: waiting for one does not serialize another
@@ -406,13 +423,15 @@ discarded. If transmission started, the error marks execution as uncertain;
 the bridge never retries such a request. Explicit background calls survive
 their caller's exit and remain discoverable through `o_job_list`.
 Structured tool output and `isError` are preserved, while successful legacy
-text tools retain their existing text output. The default transport wait is
-600 seconds (`OSTADIX_MCP_CLIENT_TIMEOUT` can change it), extended to at least
-30 seconds beyond a positive tool `timeout_secs`. An explicit client
-`--timeout` overrides this calculation. Tool `timeout_secs: 0` and client
-`--timeout 0` both preserve an unbounded foreground wait; client disconnection
-still cancels a pending foreground request. Background jobs allow such
-operations to continue without keeping a function invocation attached.
+text tools retain their existing text output. Execution and intent-analysis
+calls have no default transport deadline when the tool timeout is omitted,
+`null`, or zero. Other bridge requests retain a 600-second default; positive
+tool deadlines receive at least 30 seconds of transport headroom. An explicit
+`OSTADIX_MCP_CLIENT_TIMEOUT` sets the transport deadline, and client `--timeout`
+takes precedence over that setting. Use client `--timeout 0` for an unbounded
+transport wait. Client disconnection still cancels a pending foreground
+request. Background jobs allow operations to continue without keeping a
+function invocation attached.
 The bridge has a 16 MiB JSON
 frame bound; use job-log pagination for large output. Its socket is local to
 the user account, with no network listener or cross-machine protocol.

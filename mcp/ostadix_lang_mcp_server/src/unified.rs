@@ -85,8 +85,8 @@ pub(super) struct ExecuteArgs {
     env: BTreeMap<String, String>,
     /// Initial stdin. Foreground sends EOF; background keeps the pipe open.
     stdin: Option<String>,
-    /// Overall operation budget in seconds. Foreground default 120; background
-    /// default unlimited. Zero disables the local deadline. Selected-node
+    /// Overall operation budget in seconds. Omitted or zero means unlimited
+    /// in foreground and background. Selected-node
     /// execution also retains native IO/publication deadlines (see its result).
     timeout_secs: Option<u64>,
     /// Return the managed execution job immediately after any required analysis.
@@ -416,11 +416,7 @@ impl OstadixMcp {
         args: ExecuteArgs,
         context: &RequestContext<RoleServer>,
     ) -> Result<Value, String> {
-        let timeout = args
-            .timeout_secs
-            .or(if args.background { None } else { Some(120) });
-        let deadline = timeout
-            .filter(|seconds| *seconds != 0)
+        let deadline = super::execution_timeout(args.timeout_secs)
             .map(|seconds| {
                 Instant::now()
                     .checked_add(Duration::from_secs(seconds))

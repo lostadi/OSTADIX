@@ -58,8 +58,8 @@ pub(super) struct OperationArgs {
     /// Per-child environment overrides, isolated from other jobs and calls.
     #[serde(default)]
     env: BTreeMap<String, String>,
-    /// Foreground default 120 seconds; background default no deadline.
-    /// Zero disables the local deadline. Native execution limits still apply.
+    /// Execution deadline in seconds. Omitted or zero means unlimited in
+    /// foreground and background. Native execution limits still apply.
     timeout_secs: Option<u64>,
     /// Return a managed job immediately. Use o_job_status/read to inspect its
     /// result. Full native JSON and stderr remain in the retained job logs.
@@ -175,11 +175,7 @@ impl OstadixMcp {
                     cwd: Some(cwd.display().to_string()),
                     env: args.env,
                     stdin: None,
-                    timeout_secs: args.timeout_secs.or(if args.background {
-                        None
-                    } else {
-                        Some(120)
-                    }),
+                    timeout_secs: super::execution_timeout(args.timeout_secs),
                     background: args.background,
                     pty: false,
                 },
