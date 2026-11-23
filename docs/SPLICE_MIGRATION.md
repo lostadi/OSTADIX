@@ -58,7 +58,11 @@ Rust backend steps have no default deadline. Leave
 `O_BACKEND_STEP_TIMEOUT_MS` unset, or use the exact word `disabled`, for an
 unbounded step. Set it to an integer from 1 through 604800000 milliseconds to
 request an explicit limit. Operation deadlines are separate opt-in controls;
-heartbeat warnings report stalled work without terminating it.
+heartbeat warnings report stalled work without terminating it. Interactive
+Rust terminal progress displays elapsed time with `no timeout`, or a remaining
+time countdown when a step or operation deadline was explicitly configured.
+The display does not create a deadline; quiet and noninteractive output retain
+their existing behavior.
 
 The Python reference uses its in-process Python evaluator and stateless
 external shim adapters; shim calls have no default deadline and may receive an

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::{Child, Command};
 use tokio::sync::{watch, Mutex as AsyncMutex};
@@ -53,6 +53,8 @@ struct ManagerInner {
 
 struct Job {
     pid: u32,
+    started: Instant,
+    timeout_secs: Option<u64>,
     ownership: Arc<ProcessOwnership>,
     stdout: PathBuf,
     stderr: PathBuf,
@@ -210,18 +212,22 @@ impl JobManager {
         let (child, input, output, errors) = spawn(&mut command, request.pty)
             .map_err(|e| format!("spawn {}: {e}", request.program.display()))?;
         let pid = child.id().ok_or("spawn returned no process ID")?;
+        let started = Instant::now();
         let (cancel, cancel_rx) = watch::channel(false);
         let (state, _) = watch::channel(json!({
             "job_id": id, "pid": pid, "state": "running", "exit_code": null,
             "signal": null, "pty": request.pty, "error": null,
             "initial_input_state": if request.stdin.is_some() {"pending"} else {"not_supplied"},
             "input_error": null,
+            "timeout_secs": request.timeout_secs,
             "session_scoped": true, "restart_persistence": false,
             "cleanup": {"process_group_signaled": false, "child_reaped": false,
                 "logs_drained": false},
         }));
         let job = Arc::new(Job {
             pid,
+            started,
+            timeout_secs: request.timeout_secs,
             ownership: Arc::new(ProcessOwnership {
                 pid,
                 active: Mutex::new(true),
@@ -528,6 +534,9 @@ fn create_private_directory(path: &std::path::Path) -> Result<(), String> {
 
 async fn snapshot(job: &Job) -> Result<Value, String> {
     let mut state = job.state.borrow().clone();
+    if state["state"] == "running" {
+        add_timing(&mut state, job.started.elapsed(), job.timeout_secs);
+    }
     let (stdout, stderr) = tokio::join!(
         tokio::fs::metadata(&job.stdout),
         tokio::fs::metadata(&job.stderr)
@@ -543,6 +552,15 @@ async fn snapshot(job: &Job) -> Result<Value, String> {
         "pipe_close"
     });
     Ok(state)
+}
+
+fn add_timing(state: &mut Value, elapsed: Duration, timeout_secs: Option<u64>) {
+    let millis = |duration: Duration| duration.as_millis().min(u64::MAX as u128) as u64;
+    state["elapsed_ms"] = json!(millis(elapsed));
+    state["remaining_ms"] =
+        json!(timeout_secs
+            .map(|seconds| millis(Duration::from_secs(seconds).saturating_sub(elapsed))));
+    state["timer_scope"] = json!("managed_process");
 }
 
 async fn spool_stream(mut source: Reader, mut log: tokio::fs::File) -> Result<(), String> {
@@ -776,7 +794,12 @@ async fn monitor(
     let mut logs_drained = false;
     let deadline = async {
         match timeout_secs {
-            Some(seconds) => tokio::time::sleep(Duration::from_secs(seconds)).await,
+            Some(seconds) => {
+                tokio::time::sleep(
+                    Duration::from_secs(seconds).saturating_sub(job.started.elapsed()),
+                )
+                .await
+            }
             None => std::future::pending::<()>().await,
         }
     };
@@ -875,6 +898,8 @@ async fn monitor(
     #[cfg(not(unix))]
     let signal: Option<i32> = None;
     job.state.send_modify(|result| {
+        // Terminal snapshots keep this duration instead of counting forever.
+        add_timing(result, job.started.elapsed(), timeout_secs);
         result["state"] = json!(state);
         result["exit_code"] = json!(exit.as_ref().map(|status| status.code().unwrap_or(-1)));
         result["signal"] = json!(signal);
@@ -1090,6 +1115,46 @@ mod tests {
     }
     fn id(start: &Value) -> &str {
         start["job_id"].as_str().unwrap()
+    }
+
+    #[tokio::test]
+    async fn unlimited_job_timer_increases_and_freezes_after_cancellation() {
+        let jobs = JobManager::new();
+        let mut request = shell("sleep 10");
+        request.timeout_secs = None;
+        let start = jobs.start(request).await.unwrap();
+        assert!(start["timeout_secs"].is_null());
+        assert!(start["remaining_ms"].is_null());
+        tokio::time::sleep(Duration::from_millis(70)).await;
+        let running = jobs.status(id(&start)).await.unwrap();
+        assert_eq!(running["state"], "running");
+        assert!(running["elapsed_ms"].as_u64().unwrap() > start["elapsed_ms"].as_u64().unwrap());
+        assert!(running["remaining_ms"].is_null());
+        let done = jobs.cancel(id(&start)).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let later = jobs.status(id(&start)).await.unwrap();
+        assert_eq!(done["state"], "cancelled");
+        assert_eq!(later["elapsed_ms"], done["elapsed_ms"]);
+        assert!(later["remaining_ms"].is_null());
+    }
+
+    #[tokio::test]
+    async fn explicit_job_countdown_decreases_and_freezes_at_completion() {
+        let jobs = JobManager::new();
+        let start = jobs.start(shell("sleep 0.2")).await.unwrap();
+        assert_eq!(start["timeout_secs"], 10);
+        tokio::time::sleep(Duration::from_millis(70)).await;
+        let running = jobs.status(id(&start)).await.unwrap();
+        assert_eq!(running["state"], "running");
+        assert!(
+            running["remaining_ms"].as_u64().unwrap() < start["remaining_ms"].as_u64().unwrap()
+        );
+        let done = jobs.wait(id(&start)).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let later = jobs.status(id(&start)).await.unwrap();
+        assert_eq!(done["state"], "completed");
+        assert_eq!(later["elapsed_ms"], done["elapsed_ms"]);
+        assert_eq!(later["remaining_ms"], done["remaining_ms"]);
     }
 
     #[tokio::test]
@@ -1425,8 +1490,10 @@ os._exit(0)
         let setup_guard = SessionGuard(ownership.clone());
         let (cancel, cancel_rx) = watch::channel(false);
         let (state, _) = watch::channel(json!({"state": "running"}));
-        let job = Arc::new(Job {
+        let mut job = Arc::new(Job {
             pid,
+            started: Instant::now(),
+            timeout_secs: Some(1),
             ownership,
             stdout,
             stderr,
@@ -1473,6 +1540,7 @@ os._exit(0)
         assert_eq!(unsafe { libc::getsid(nested_pid) }, pid as i32);
         assert!(!spool.is_finished(), "nested group must retain output");
         assert!(!marker.exists());
+        Arc::get_mut(&mut job).unwrap().started = Instant::now();
         monitor(job.clone(), child, spool, cancel_rx, Some(1)).await;
         let done = job.state.borrow().clone();
         assert_eq!(done["state"], "timed_out");

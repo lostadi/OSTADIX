@@ -5,6 +5,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import fcntl
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -503,6 +504,175 @@ class BridgeFormattingTests(unittest.TestCase):
         for value in (-1, float("nan"), float("inf"), True):
             with self.subTest(value=value), self.assertRaises(client.BridgeError):
                 client._positive_timeout(value)
+
+
+class RequestProgressTests(unittest.TestCase):
+    def test_elapsed_and_distinct_requested_countdowns(self):
+        self.assertEqual(
+            client._progress_text("o_run", 3661.9, None, None),
+            "[o_run] request elapsed 01:01:01 | no execution timeout",
+        )
+        value = client._progress_text("o_run", 1.2, 5, 3)
+        self.assertIn("operation remaining ~00:00:04 (request clock)", value)
+        self.assertIn("client remaining ~00:00:02 (request clock)", value)
+        self.assertIn("remaining ~00:00:00", client._progress_text("o_run", 8, 5, None))
+        with patch.dict(os.environ, {}, clear=True):
+            for arguments in ({}, {"timeout_secs": None}, {"timeout_secs": 0}):
+                progress = client._RequestProgress("o_run", arguments, None, False, io.StringIO())
+                self.assertIsNone(progress.operation_timeout)
+                self.assertIsNone(progress.client_timeout)
+        with patch.dict(os.environ, {"OSTADIX_MCP_CLIENT_TIMEOUT": "5"}, clear=True):
+            progress = client._RequestProgress("o_run", {"timeout_secs": 30}, None, False, io.StringIO())
+            self.assertEqual(progress.operation_timeout, 30)
+            self.assertEqual(progress.client_timeout, 5)
+            overridden = client._RequestProgress("o_run", {}, 0, False, io.StringIO())
+            self.assertIsNone(overridden.client_timeout)
+
+    def test_cli_timer_uses_stderr_and_preserves_stdout_envelope(self):
+        result = {"content": [], "structuredContent": {"answer": 42}, "isError": False}
+
+        def complete(*args, **kwargs):
+            time.sleep(0.04)
+            return {"result": result}
+
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(client.Configuration, "from_environment", return_value=Mock()), \
+                patch.object(client, "PROGRESS_INTERVAL", 0.01), \
+                patch.object(client, "request", side_effect=complete):
+            for flags, terminal, expected in (([], False, False), ([], True, True),
+                                               (["--progress"], False, True),
+                                               (["--no-progress"], True, False)):
+                with self.subTest(flags=flags, terminal=terminal), tempfile.TemporaryFile(mode="w+") as stderr:
+                    stdout = io.StringIO()
+                    stderr.isatty = lambda: terminal
+                    with patch.object(sys, "stdout", stdout), patch.object(sys, "stderr", stderr):
+                        self.assertEqual(client.main([*flags, "o_run", "{}"]), 0)
+                    self.assertEqual(json.loads(stdout.getvalue()), result)
+                    stderr.seek(0)
+                    output = stderr.read()
+                    if expected:
+                        self.assertGreaterEqual(output.count("request elapsed"), 2)
+                    else:
+                        self.assertEqual(output, "")
+
+    def test_timer_stops_on_success_error_and_keyboard_interrupt(self):
+        with patch.dict(os.environ, {}, clear=True), patch.object(client, "PROGRESS_INTERVAL", 0.01):
+            for error in (None, client.BridgeError("failed"), KeyboardInterrupt()):
+                with self.subTest(error=type(error).__name__), tempfile.TemporaryFile(mode="w+") as stream:
+                    progress = client._RequestProgress("o_run", {}, None, True, stream)
+                    try:
+                        with progress:
+                            time.sleep(0.03)
+                            if error is not None:
+                                raise error
+                    except BaseException as caught:
+                        self.assertIs(caught, error)
+                    else:
+                        self.assertIsNone(error, "the progress context swallowed the request exception")
+                    self.assertTrue(progress.stopped.is_set())
+                    self.assertIsNotNone(progress.thread)
+                    self.assertFalse(progress.thread.is_alive())
+                    stream.seek(0)
+                    completed = stream.read()
+                    time.sleep(0.02)
+                    stream.seek(0)
+                    self.assertEqual(stream.read(), completed)
+
+    def test_failed_progress_stream_does_not_mask_request_error(self):
+        stream = Mock()
+        stream.fileno.side_effect = OSError("stderr closed")
+        with patch.dict(os.environ, {}, clear=True):
+            progress = client._RequestProgress("o_run", {}, None, True, stream)
+            with self.assertRaisesRegex(client.BridgeError, "request failure"):
+                with progress:
+                    raise client.BridgeError("request failure")
+            self.assertIsNone(progress.thread)
+
+    @unittest.skipUnless(os.name == "posix", "uses POSIX pipe descriptors")
+    def test_full_stderr_pipe_does_not_block_cli_result_or_interrupt(self):
+        program = r'''
+import importlib.util, json, sys, time
+spec = importlib.util.spec_from_file_location("progress_fixture", sys.argv[1])
+client = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = client
+spec.loader.exec_module(client)
+client.Configuration.from_environment = lambda: None
+def request(*args, **kwargs):
+    time.sleep(0.05)
+    if sys.argv[2] == "error":
+        raise client.BridgeError("fixture failure")
+    if sys.argv[2] == "interrupt":
+        raise KeyboardInterrupt()
+    return {"result": {"content": [], "structuredContent": {"answer": 42}, "isError": False}}
+client.request = request
+try:
+    status = client.main(["--progress", "o_run", "{}"])
+except KeyboardInterrupt:
+    print(json.dumps({"interrupted": True}))
+    status = 0
+raise SystemExit(status)
+'''
+        for outcome in ("success", "error", "interrupt"):
+            with self.subTest(outcome=outcome):
+                reader, writer = os.pipe()
+                try:
+                    os.set_blocking(writer, False)
+                    while True:
+                        try:
+                            os.write(writer, b"x" * 4096)
+                        except BlockingIOError:
+                            break
+                    os.set_blocking(writer, True)
+                    original_flags = fcntl.fcntl(writer, fcntl.F_GETFL)
+                    result = subprocess.run(
+                        [sys.executable, "-c", program, str(SCRIPT), outcome],
+                        stdout=subprocess.PIPE, stderr=writer, text=True, timeout=3,
+                    )
+                    self.assertEqual(fcntl.fcntl(writer, fcntl.F_GETFL), original_flags)
+                    value = json.loads(result.stdout)
+                    if outcome == "success":
+                        self.assertEqual(result.returncode, 0)
+                        self.assertEqual(value["structuredContent"]["answer"], 42)
+                    elif outcome == "error":
+                        self.assertEqual(result.returncode, 1)
+                        self.assertEqual(value["error"], "fixture failure")
+                    else:
+                        self.assertEqual(result.returncode, 0)
+                        self.assertTrue(value["interrupted"])
+                finally:
+                    os.close(writer)
+                    os.close(reader)
+
+    def test_call_tool_api_does_not_create_cli_progress(self):
+        result = {"content": [{"type": "text", "text": "done"}], "isError": False}
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(client, "_RequestProgress", side_effect=AssertionError("CLI only")), \
+                patch.object(client, "request", return_value={"result": result}):
+            self.assertEqual(client.call_tool("o_run", {}), "done")
+
+    def test_stalled_raw_progress_write_cannot_delay_request_cleanup(self):
+        entered, release = client.threading.Event(), client.threading.Event()
+
+        def stalled_write(*args):
+            entered.set()
+            release.wait(2)
+            return 0
+
+        with tempfile.TemporaryFile(mode="w+") as stream, \
+                patch.dict(os.environ, {}, clear=True), \
+                patch.object(client.os, "write", side_effect=stalled_write):
+            progress = client._RequestProgress("o_run", {}, None, True, stream)
+            try:
+                with self.assertRaisesRegex(client.BridgeError, "original failure"):
+                    with progress:
+                        self.assertTrue(entered.wait(1), "progress worker never attempted its write")
+                        started = time.monotonic()
+                        raise client.BridgeError("original failure")
+                self.assertLess(time.monotonic() - started, 0.3)
+            finally:
+                release.set()
+                progress.thread.join(timeout=1)
+            self.assertFalse(progress.thread.is_alive())
 
 
 if __name__ == "__main__":

@@ -338,6 +338,17 @@ Diagnostic probes, bounded read-only inspection, one-use
 handle expiry, and remote-node protocol deadlines retain their own contracts.
 External MCP clients and providers can also impose limits outside this server.
 
+Timing is informational. Clients that request MCP progress receive a running
+elapsed-time counter; an explicit positive `timeout_secs` also displays an
+approximate countdown on the request clock. Without a deadline the message
+says `no request timeout`. This measures request time, including admission
+and analysis, and does not estimate work
+completion or declare a process hung. Clients without progress-notification
+support can inspect managed jobs with `o_job_status` or `o_job_list`:
+`elapsed_ms` increases while running and freezes at completion, and
+`remaining_ms` is null when unlimited or counts down to zero for an explicit
+process deadline. These fields never introduce a deadline or cancel a run.
+
 Set `background: true` on `o_execute`, `o_cli`, or `o_eval` for a managed job
 that returns once launched. Admitted `o_execute` first completes its analysis
 before returning the execution job. Jobs are independent: waiting for one does not serialize another
@@ -432,6 +443,24 @@ takes precedence over that setting. Use client `--timeout 0` for an unbounded
 transport wait. Client disconnection still cancels a pending foreground
 request. Background jobs allow operations to continue without keeping a
 function invocation attached.
+The CLI displays a live timer on interactive stderr for execution requests.
+It shows request elapsed time and any explicitly selected operation/client
+budget countdown; operation timing is approximate because dispatch and
+analysis are included. `--progress` also enables the timer when stderr is
+redirected, and `--no-progress` suppresses it. Progress updates are best-effort
+and are skipped when stderr is not writable, so they cannot hold up the result.
+Stdout remains the original
+machine-readable result, and the Python API does not print a timer. For example:
+
+```bash
+ostadix-mcp-client --progress o_execute '{"path":"long-program.O"}'
+ostadix-mcp-client --progress o_execute '{"path":"long-program.O","timeout_secs":600}'
+```
+
+The first command is unlimited; only the second requests termination after a
+positive deadline. An unlimited run keeps counting elapsed time until it ends
+or is cancelled.
+
 The bridge has a 16 MiB JSON
 frame bound; use job-log pagination for large output. Its socket is local to
 the user account, with no network listener or cross-machine protocol.

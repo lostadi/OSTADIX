@@ -406,6 +406,7 @@ struct Pulse {
 /// if heartbeats resume, and draws the spinner. It never kills.
 struct StepWatch {
     started: Instant,
+    deadline: Option<Instant>,
     warning: Duration,
     silent_warned: bool,
     beats_at_warning: u64,
@@ -418,7 +419,7 @@ struct StepWatch {
 const SPINNER_FRAME: Duration = Duration::from_millis(200);
 
 impl StepWatch {
-    fn new(pulse: &Mutex<Pulse>) -> Self {
+    fn new(pulse: &Mutex<Pulse>, deadline: Option<Instant>) -> Self {
         // child state seen during an earlier wait (say a shell that exited at
         // the end of the previous block) must not trigger a warning now.
         {
@@ -428,6 +429,7 @@ impl StepWatch {
         }
         Self {
             started: Instant::now(),
+            deadline,
             // the knob was validated when the backend was spawned, so an
             // error cannot appear here; the default only satisfies the type.
             warning: heartbeat_warning().unwrap_or(DEFAULT_HEARTBEAT_WARNING),
@@ -493,8 +495,17 @@ impl StepWatch {
                 .is_none_or(|drawn| now.saturating_duration_since(drawn) >= SPINNER_FRAME)
         {
             self.last_draw = Some(now);
-            crate::progress::spinner(label, now.saturating_duration_since(self.started));
+            let (elapsed, remaining) = self.timing_at(now);
+            crate::progress::spinner(label, elapsed, remaining);
         }
+    }
+
+    fn timing_at(&self, now: Instant) -> (Duration, Option<Duration>) {
+        (
+            now.saturating_duration_since(self.started),
+            self.deadline
+                .map(|deadline| deadline.saturating_duration_since(now)),
+        )
     }
 
     fn finish(&self) {
@@ -1540,7 +1551,7 @@ impl BackendProcess {
             Some(limit) => Some(bounded_deadline(limit, "backend step")?),
             None => None,
         };
-        let mut watch = StepWatch::new(&self.pulse);
+        let mut watch = StepWatch::new(&self.pulse, deadline);
         let outcome =
             loop {
                 let wait = deadline.map_or(STEP_WATCH_TICK, |deadline| {
@@ -2535,7 +2546,7 @@ where
         })?),
         None => None,
     };
-    let mut watch = StepWatch::new(&process.pulse);
+    let mut watch = StepWatch::new(&process.pulse, operation_deadline);
     let mut last_watch = Instant::now();
 
     process.plain_bash_next = plain_bash_next;
@@ -3325,6 +3336,10 @@ impl ProcessRegistry {
                 .get(&key)
                 .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
                 .pulse,
+            match (deadline, step_deadline) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            },
         );
         let mut last_watch = Instant::now();
         let outcome = loop {
@@ -5468,6 +5483,24 @@ mod tests {
     }
 
     #[test]
+    fn step_watch_reports_only_existing_deadlines_and_clamps_remaining_time() {
+        let pulse = Mutex::new(Pulse::default());
+        let mut watch = StepWatch::new(&pulse, None);
+        let now = watch.started + Duration::from_secs(3);
+        assert_eq!(watch.timing_at(now), (Duration::from_secs(3), None));
+
+        watch.deadline = Some(watch.started + Duration::from_secs(5));
+        assert_eq!(
+            watch.timing_at(now),
+            (Duration::from_secs(3), Some(Duration::from_secs(2)))
+        );
+        assert_eq!(
+            watch.timing_at(watch.started + Duration::from_secs(8)),
+            (Duration::from_secs(8), Some(Duration::ZERO))
+        );
+    }
+
+    #[test]
     fn step_limit_knob_rejects_invalid_values() {
         // y-d-04: unset is the default; anything set must be valid.
         use std::ffi::OsStr;
@@ -5940,9 +5973,10 @@ mod tests {
     fn spinner_does_not_change_step_results() -> Result<()> {
         // stdout is never written by the status writer; a step returns the
         // same value with the spinner forced on and off.
-        let run = |spinner: bool| {
+        let run = |spinner: bool, deadline: Option<Duration>| {
             guarded(move || {
                 crate::progress::force_spinner_for_test(Some(spinner));
+                set_step_timeout_override(deadline);
                 let mut process = spawn_python_shim()?;
                 let value = process.exec(
                     "import sys, time\nprint('out line')\nsys.stderr.write('err line\\n')\ntime.sleep(0.5)\n__oval_result__ = 'same'",
@@ -5950,10 +5984,13 @@ mod tests {
                 )?;
                 process.shutdown(Duration::from_secs(2))?;
                 crate::progress::force_spinner_for_test(None);
+                set_step_timeout_override(None);
                 Ok(value)
             })
         };
-        assert_eq!(run(true)?, run(false)?);
+        for deadline in [None, Some(Duration::from_secs(2))] {
+            assert_eq!(run(true, deadline)?, run(false, deadline)?);
+        }
         Ok(())
     }
 

@@ -21,7 +21,7 @@ pub(crate) struct CheckArgs {
     /// Working directory used for imports and relative paths.
     cwd: Option<String>,
     /// Compiler deadline in seconds. Omitted or zero means unlimited.
-    timeout_secs: Option<u64>,
+    pub(super) timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -39,7 +39,7 @@ pub(crate) struct VerifyArgs {
     #[serde(default = "default_allowed_axioms")]
     allowed_axioms: Vec<String>,
     /// Compiler deadline in seconds. Omitted or zero means unlimited.
-    timeout_secs: Option<u64>,
+    pub(super) timeout_secs: Option<u64>,
 }
 
 fn default_allowed_axioms() -> Vec<String> {

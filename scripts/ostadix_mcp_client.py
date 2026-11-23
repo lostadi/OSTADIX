@@ -7,6 +7,8 @@ session. Run ``TOOL JSON``, ``--list-tools``, ``--status``, or ``--stop``. The
 Execution tools have no transport deadline by default. ``--timeout`` (or the
 API timeout argument) takes precedence over ``OSTADIX_MCP_CLIENT_TIMEOUT``;
 either setting explicitly selects a transport deadline, with 0 unbounded.
+Interactive CLI execution displays a best-effort request timer on stderr. Use ``--progress``
+to also display it when redirected, or ``--no-progress`` to suppress it.
 """
 
 from __future__ import annotations
@@ -42,6 +44,8 @@ UNBOUNDED_EXECUTION_TOOLS = frozenset({
     "o_analyze_intent", "o_execute_intent", "o_search_run",
     "o_lean_check", "o_lean_verify",
 })
+PROGRESS_INTERVAL = 1.0
+PROGRESS_JOIN_TIMEOUT = 0.05
 
 
 class BridgeError(RuntimeError):
@@ -550,6 +554,10 @@ def _process_exists(pid: int) -> bool:
         return False
 
 
+def _is_execution_tool(tool: str | None, arguments: dict[str, Any]) -> bool:
+    return tool in UNBOUNDED_EXECUTION_TOOLS or (tool == "o_claim" and arguments.get("mode") == "formal")
+
+
 def _tool_timeout(arguments: dict[str, Any], override: float | None, tool: str | None = None) -> float:
     if override is not None:
         return _positive_timeout(override)
@@ -559,10 +567,7 @@ def _tool_timeout(arguments: dict[str, Any], override: float | None, tool: str |
     requested = arguments.get("timeout_secs")
     # An unlimited native operation must not acquire a hidden bridge deadline.
     # Treat explicit null like an omitted optional field, in both API and CLI.
-    if requested is None and (
-        tool in UNBOUNDED_EXECUTION_TOOLS
-        or (tool == "o_claim" and arguments.get("mode") == "formal")
-    ):
+    if requested is None and _is_execution_tool(tool, arguments):
         return 0.0
     if isinstance(requested, (int, float)) and not isinstance(requested, bool) and math.isfinite(requested) and requested >= 0:
         if requested == 0:
@@ -587,6 +592,94 @@ def call_tool(tool: str, arguments: dict[str, Any] | None, timeout: float | None
         return json.dumps({"isError": True, "error": str(error)})
 
 
+def _clock_text(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def _progress_text(tool: str, elapsed: float, operation_timeout: float | None, client_timeout: float | None) -> str:
+    parts = [f"[{tool}] request elapsed {_clock_text(elapsed)}"]
+    if operation_timeout is not None:
+        remaining = math.ceil(max(0.0, operation_timeout - elapsed))
+        parts.append(f"operation remaining ~{_clock_text(remaining)} (request clock)")
+    if client_timeout is not None:
+        remaining = math.ceil(max(0.0, client_timeout - elapsed))
+        parts.append(f"client remaining ~{_clock_text(remaining)} (request clock)")
+    if operation_timeout is None and client_timeout is None:
+        parts.append("no execution timeout")
+    return " | ".join(parts)
+
+
+class _RequestProgress:
+    """CLI request-clock display; it neither sets nor enforces a deadline."""
+
+    def __init__(self, tool: str, arguments: dict[str, Any], override: float | None, enabled: bool, stream: Any):
+        self.tool = tool
+        self.stream = stream
+        self.enabled = enabled
+        self.terminal = False
+        self.descriptor: int | None = None
+        requested = arguments.get("timeout_secs")
+        self.operation_timeout = (
+            float(requested) if isinstance(requested, (int, float))
+            and not isinstance(requested, bool) and math.isfinite(requested) and requested > 0 else None
+        )
+        configured = override if override is not None else os.environ.get("OSTADIX_MCP_CLIENT_TIMEOUT")
+        explicit = _positive_timeout(configured) if configured is not None else 0.0
+        self.client_timeout = explicit if explicit > 0 else None
+        self.stopped = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.started = 0.0
+
+    def _write(self, final: bool = False) -> None:
+        line = _progress_text(self.tool, time.monotonic() - self.started, self.operation_timeout, self.client_timeout)
+        payload = (("\r\033[K" if self.terminal else "") + line + ("\n" if final or not self.terminal else "")).encode()
+        try:
+            # Never acquire a TextIOWrapper lock: even a daemon holding that
+            # lock can block interpreter shutdown. Drop progress when stderr
+            # is full. Each raw write stays within POSIX's minimum PIPE_BUF.
+            if select.select([], [self.descriptor], [], 0)[1]:
+                os.write(self.descriptor, payload[:512])
+        except (OSError, ValueError):
+            # A closed progress stream must not hide the request's result.
+            self.stopped.set()
+
+    def _run(self) -> None:
+        try:
+            self._write()
+            while not self.stopped.wait(PROGRESS_INTERVAL):
+                self._write()
+            self._write(final=True)
+        finally:
+            os.close(self.descriptor)
+
+    def __enter__(self):
+        if self.enabled:
+            self.started = time.monotonic()
+            try:
+                # A duplicate owns only its lifetime; do not change O_NONBLOCK
+                # because dup shares file-status flags with the caller's fd.
+                self.descriptor = os.dup(self.stream.fileno())
+                self.terminal = os.isatty(self.descriptor)
+                self.thread = threading.Thread(target=self._run, name="ostadix-request-progress", daemon=True)
+                self.thread.start()
+            except (AttributeError, OSError, TypeError, ValueError, RuntimeError):
+                if self.descriptor is not None:
+                    os.close(self.descriptor)
+                self.thread = None
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stopped.set()
+        if self.thread is not None:
+            # Readiness can race another stderr writer or slow device IO. A
+            # stalled best-effort timer must never delay the request outcome.
+            self.thread.join(timeout=PROGRESS_JOIN_TIMEOUT)
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group()
@@ -595,6 +688,9 @@ def main(argv: list[str] | None = None) -> int:
     action.add_argument("--stop", action="store_true")
     action.add_argument("--serve", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--timeout", type=float, help="Explicit transport deadline in seconds; 0 disables it. Execution tools default to no deadline.")
+    progress = parser.add_mutually_exclusive_group()
+    progress.add_argument("--progress", dest="progress", action="store_true", default=None, help="Show execution request elapsed/countdown on stderr, including when redirected.")
+    progress.add_argument("--no-progress", dest="progress", action="store_false", help="Suppress the execution request timer (normally shown on a terminal).")
     parser.add_argument("tool", nargs="?")
     parser.add_argument("arguments", nargs="?", default="{}")
     arguments = parser.parse_args(argv)
@@ -627,7 +723,12 @@ def main(argv: list[str] | None = None) -> int:
         # Some function callers send optional fields as null instead of omitting
         # them. Preserve the original adapter's top-level normalization.
         value = {key: item for key, item in value.items() if item is not None}
-        result = _result(request("tools/call", {"name": arguments.tool, "arguments": value}, _tool_timeout(value, arguments.timeout, arguments.tool), config=config))
+        timeout = _tool_timeout(value, arguments.timeout, arguments.tool)
+        show_progress = _is_execution_tool(arguments.tool, value) and (
+            arguments.progress if arguments.progress is not None else sys.stderr.isatty()
+        )
+        with _RequestProgress(arguments.tool, value, arguments.timeout, show_progress, sys.stderr):
+            result = _result(request("tools/call", {"name": arguments.tool, "arguments": value}, timeout, config=config))
         print(_render_tool(result))
         return 1 if result.get("isError") is True else 0
     except (BridgeError, OSError, ValueError) as error:

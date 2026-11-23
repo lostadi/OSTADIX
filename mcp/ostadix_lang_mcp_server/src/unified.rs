@@ -88,10 +88,10 @@ pub(super) struct ExecuteArgs {
     /// Overall operation budget in seconds. Omitted or zero means unlimited
     /// in foreground and background. Selected-node
     /// execution also retains native IO/publication deadlines (see its result).
-    timeout_secs: Option<u64>,
+    pub(super) timeout_secs: Option<u64>,
     /// Return the managed execution job immediately after any required analysis.
     #[serde(default)]
-    background: bool,
+    pub(super) background: bool,
     /// Positive ordinary-O graph worker capacity; also supported for ordinary plans.
     workers: Option<usize>,
 }
