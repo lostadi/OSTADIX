@@ -9,8 +9,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const LEAN_BIN_ENV: &str = "OSTADIX_LEAN";
 const MAX_SOURCE_BYTES: usize = 1024 * 1024;
 const MAX_DECLARATIONS: usize = 64;
-const DEFAULT_TIMEOUT_SECS: u64 = 120;
-const MAX_TIMEOUT_SECS: u64 = 900;
 const STANDARD_AXIOMS: [&str; 3] = ["propext", "Classical.choice", "Quot.sound"];
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -22,7 +20,7 @@ pub(crate) struct CheckArgs {
     path: Option<String>,
     /// Working directory used for imports and relative paths.
     cwd: Option<String>,
-    /// Bounded compiler deadline in seconds, from 1 through 900; default 120.
+    /// Compiler deadline in seconds. Omitted or zero means unlimited.
     timeout_secs: Option<u64>,
 }
 
@@ -40,7 +38,7 @@ pub(crate) struct VerifyArgs {
     /// Complete permitted axiom set. Omit for propext, Classical.choice, and Quot.sound; pass [] to require axiom-free proofs. sorryAx is always rejected.
     #[serde(default = "default_allowed_axioms")]
     allowed_axioms: Vec<String>,
-    /// Bounded compiler deadline in seconds, from 1 through 900; default 120.
+    /// Compiler deadline in seconds. Omitted or zero means unlimited.
     timeout_secs: Option<u64>,
 }
 
@@ -98,14 +96,16 @@ struct PreparedSource {
     text: String,
 }
 
-fn timeout_secs(requested: Option<u64>) -> Result<u64, String> {
-    let value = requested.unwrap_or(DEFAULT_TIMEOUT_SECS);
-    if !(1..=MAX_TIMEOUT_SECS).contains(&value) {
-        return Err(format!(
-            "timeout_secs must be between 1 and {MAX_TIMEOUT_SECS}"
-        ));
+fn timeout_secs(requested: Option<u64>) -> u64 {
+    requested.unwrap_or_default()
+}
+
+fn version_timeout_secs(compiler_timeout: u64) -> u64 {
+    if compiler_timeout == 0 {
+        10
+    } else {
+        compiler_timeout.min(10)
     }
-    Ok(value)
 }
 
 fn valid_name(name: &str) -> bool {
@@ -233,8 +233,14 @@ fn diagnostics(stdout: &str, stderr: &str, prepared: &PreparedSource) -> Value {
 }
 
 async fn version(lean: &Path, cwd: &Path, timeout: u64) -> Result<String, String> {
-    let (code, stdout, stderr) =
-        super::run_structured_cmd(lean, &["--version"], Some(cwd), &[], timeout.min(10)).await?;
+    let (code, stdout, stderr) = super::run_structured_cmd(
+        lean,
+        &["--version"],
+        Some(cwd),
+        &[],
+        version_timeout_secs(timeout),
+    )
+    .await?;
     if code != 0 {
         return Err(format!("lean --version failed: {stdout}{stderr}"));
     }
@@ -280,7 +286,7 @@ async fn check_inner(
     args: CheckArgs,
     runtime_search: &super::RuntimeSearchPath,
 ) -> Result<(Value, bool), String> {
-    let timeout = timeout_secs(args.timeout_secs)?;
+    let timeout = timeout_secs(args.timeout_secs);
     let prepared = prepare_source(args.source, args.path, args.cwd)?;
     let lean = resolve_lean(&prepared.cwd, runtime_search)?;
     let version = version(&lean, &prepared.cwd, timeout).await?;
@@ -329,9 +335,9 @@ fn proposition_from_check(data: &str) -> Result<String, String> {
         match ch {
             '(' | '{' | '[' | '⟨' => depth += 1,
             ')' | '}' | ']' | '⟩' => {
-                depth = depth.checked_sub(1).ok_or_else(|| {
-                    "Lean check report has an unbalanced type".to_string()
-                })?;
+                depth = depth
+                    .checked_sub(1)
+                    .ok_or_else(|| "Lean check report has an unbalanced type".to_string())?;
             }
             ':' if depth == 0 => {
                 let rest = data[idx + ch.len_utf8()..].trim();
@@ -461,7 +467,7 @@ async fn verify_inner(
     runtime_search: &super::RuntimeSearchPath,
     capture_propositions: bool,
 ) -> Result<(Value, bool), String> {
-    let timeout = timeout_secs(args.timeout_secs)?;
+    let timeout = timeout_secs(args.timeout_secs);
     if args.declarations.is_empty() {
         return Err("declarations must name at least one proved declaration".to_string());
     }
@@ -475,9 +481,7 @@ async fn verify_inner(
     let mut prepared = prepare_source(args.source, args.path, args.cwd)?;
     for declaration in &args.declarations {
         if capture_propositions {
-            prepared
-                .text
-                .push_str(&format!("\n#check {declaration}\n"));
+            prepared.text.push_str(&format!("\n#check {declaration}\n"));
         }
         prepared
             .text
@@ -653,11 +657,7 @@ mod tests {
         )
         .is_err());
         assert!(parse_check_proposition(
-            &format!(
-                "{}\n{}",
-                report("proof : True"),
-                report("proof : False")
-            ),
+            &format!("{}\n{}", report("proof : True"), report("proof : False")),
             "proof"
         )
         .is_err());
@@ -675,10 +675,14 @@ mod tests {
     }
 
     #[test]
-    fn verification_requires_bounded_time_and_explicit_declarations() {
-        assert_eq!(timeout_secs(None).unwrap(), DEFAULT_TIMEOUT_SECS);
-        assert!(timeout_secs(Some(0)).is_err());
-        assert!(timeout_secs(Some(MAX_TIMEOUT_SECS + 1)).is_err());
+    fn compiler_deadline_is_opt_in_and_version_probe_remains_bounded() {
+        assert_eq!(timeout_secs(None), 0);
+        assert_eq!(timeout_secs(Some(0)), 0);
+        assert_eq!(timeout_secs(Some(1)), 1);
+        assert_eq!(timeout_secs(Some(1800)), 1800);
+        assert_eq!(version_timeout_secs(0), 10);
+        assert_eq!(version_timeout_secs(1), 1);
+        assert_eq!(version_timeout_secs(1800), 10);
         let allowed = default_allowed_axioms();
         assert_eq!(allowed, STANDARD_AXIOMS);
     }

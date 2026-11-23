@@ -13,7 +13,6 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Result};
 
 pub(crate) const BACKEND_STEP_TIMEOUT_ENV: &str = "O_BACKEND_STEP_TIMEOUT_MS";
-pub(crate) const DEFAULT_BACKEND_STEP_TIMEOUT: Duration = Duration::from_secs(120);
 // shims send a heartbeat this often while a step runs (passed to the backend
 // as O_BACKEND_HEARTBEAT_INTERVAL_MS). tests shrink it.
 pub(crate) const DEFAULT_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -65,11 +64,11 @@ fn cached(cell: &'static Cached<Option<Duration>>, name: &str) -> Result<Option<
     .map_err(anyhow::Error::msg)
 }
 
-/// Default steps are bounded. Long-running jobs may select a longer positive
-/// millisecond value or explicitly disable this deadline with `disabled`.
+/// Steps run without a deadline unless a positive millisecond limit is selected.
+/// The explicit `disabled` value also leaves the step unbounded.
 pub(crate) fn parse_step_timeout(raw: Option<&std::ffi::OsStr>) -> Result<Option<Duration>> {
     match raw {
-        None => Ok(Some(DEFAULT_BACKEND_STEP_TIMEOUT)),
+        None => Ok(None),
         Some(value) if value == "disabled" => Ok(None),
         Some(_) => parse_timeout_knob(BACKEND_STEP_TIMEOUT_ENV, raw),
     }

@@ -80,7 +80,6 @@ class NixBackend:
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=60,
             )
         except FileNotFoundError:
             raise RuntimeError(

@@ -189,6 +189,23 @@ class PythonShimBackendTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "exited 7: missing engine"):
                 backend.evaluate("unused", None)
 
+    def test_default_shim_wait_has_no_implicit_deadline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.fake_backend(directory,
+                "import time\ntime.sleep(0.05)\n"
+                "write_wire_message({'status': 'ok', 'value': {'t': 'str', 'v': 'finished'}})\n")
+            backend = ShimBackend("javascript", Path(directory))
+            communicate = subprocess.Popen.communicate
+            observed = []
+
+            def record_timeout(process, *args, **kwargs):
+                observed.append(kwargs.get("timeout"))
+                return communicate(process, *args, **kwargs)
+
+            with patch.object(subprocess.Popen, "communicate", record_timeout):
+                self.assertEqual(backend.evaluate("unused", None), OStr("finished"))
+            self.assertEqual(observed, [None])
+
     @unittest.skipUnless(os.name == "posix", "process groups require POSIX")
     def test_timeout_terminates_shim_and_engine_descendant(self):
         with tempfile.TemporaryDirectory() as directory:

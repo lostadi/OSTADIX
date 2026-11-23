@@ -279,7 +279,7 @@ pub(crate) fn backend_operation_timeout() -> Result<Option<Duration>> {
     )
 }
 
-/// Parse the step deadline. Unset selects 120 seconds; `disabled` is unbounded.
+/// Parse the step deadline. Unset and `disabled` both leave steps unbounded.
 /// Anything set must be a whole number of milliseconds in `1..=MAXIMUM`; a
 /// malformed, zero or oversized value is a hard error rather than a silent
 /// fallback, because a knob the user set and the runtime ignored is a silent
@@ -5471,10 +5471,7 @@ mod tests {
     fn step_limit_knob_rejects_invalid_values() {
         // y-d-04: unset is the default; anything set must be valid.
         use std::ffi::OsStr;
-        assert_eq!(
-            parse_backend_step_timeout(None).unwrap(),
-            Some(Duration::from_secs(120))
-        );
+        assert_eq!(parse_backend_step_timeout(None).unwrap(), None);
         assert_eq!(
             parse_backend_step_timeout(Some(OsStr::new("disabled"))).unwrap(),
             None
@@ -5798,11 +5795,8 @@ mod tests {
     }
 
     #[test]
-    fn default_limit_allows_a_short_silent_step_and_can_be_disabled() -> Result<()> {
-        assert_eq!(
-            parse_backend_step_timeout(None)?,
-            Some(Duration::from_secs(120))
-        );
+    fn default_unbounded_step_allows_silent_work() -> Result<()> {
+        assert_eq!(parse_backend_step_timeout(None)?, None);
         assert_eq!(
             parse_backend_step_timeout(Some(std::ffi::OsStr::new("disabled")))?,
             None

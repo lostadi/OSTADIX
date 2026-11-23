@@ -64,7 +64,7 @@ def handle(message):
             deadline = time.monotonic() + args.get("delay", 5)
             while time.monotonic() < deadline and request_id not in cancelled:
                 time.sleep(0.01)
-        if name == "delay":
+        if name in ("delay", "o_run"):
             time.sleep(args.get("seconds", 0.1))
         if name == "o_eval" and args.get("background"):
             time.sleep(args.get("delay", 0.1))
@@ -158,11 +158,15 @@ class PersistentBridgeTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         try:
-            client.request("bridge/stop", config=self.config, start=False, timeout=2)
+            stopped = client._result(client.request("bridge/stop", config=self.config, start=False, timeout=2))
+            pids = [stopped[key] for key in ("bridge_pid", "mcp_pid") if key in stopped]
             deadline = time.monotonic() + 10
-            while self.config.socket_path.exists() and time.monotonic() < deadline:
+            # The daemon unlinks its socket before reaping the MCP child. Wait
+            # for both processes so the fixture cannot write during rmtree.
+            while (self.config.socket_path.exists() or any(client._process_exists(pid) for pid in pids)) and time.monotonic() < deadline:
                 time.sleep(0.025)
             self.assertFalse(self.config.socket_path.exists(), "bridge leaked after stop")
+            self.assertFalse(any(client._process_exists(pid) for pid in pids), "bridge process leaked after stop")
         finally:
             self.fixture.cleanup()
 
@@ -291,6 +295,31 @@ class PersistentBridgeTests(unittest.TestCase):
         self.assertEqual(self.wait_file("shutdown").read_text(), "stdin-closed")
         with self.assertRaises(ProcessLookupError):
             os.kill(status["mcp_pid"], 0)
+
+    def test_execution_defaults_do_not_inherit_transport_cutoff(self) -> None:
+        # Compress the old fallback so the real socket/daemon regression runs
+        # quickly; the native execution takes longer than that fallback.
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(client, "DEFAULT_TRANSPORT_TIMEOUT", 0.05), \
+                patch.object(client.Configuration, "from_environment", return_value=self.config):
+            for fields in ({}, {"timeout_secs": None}, {"timeout_secs": 0}):
+                with self.subTest(fields=fields):
+                    result = json.loads(client.call_tool("o_run", {"seconds": 0.15, **fields}))
+                    self.assertFalse(result["isError"], result)
+                    self.assertEqual(result["structuredContent"]["name"], "o_run")
+            result = client._result(client.request(
+                "tools/call", {"name": "o_run", "arguments": {"seconds": 0.15}},
+                config=self.config,
+            ))
+            self.assertFalse(result["isError"], result)
+
+    def test_explicit_environment_timeout_still_cancels_unbounded_execution(self) -> None:
+        with patch.dict(os.environ, {"OSTADIX_MCP_CLIENT_TIMEOUT": "0.05"}, clear=True), \
+                patch.object(client.Configuration, "from_environment", return_value=self.config):
+            result = json.loads(client.call_tool("o_run", {"seconds": 0.3, "timeout_secs": 0}))
+            self.assertTrue(result["isError"], result)
+            self.assertIn("timed out after 0.05s", result["error"])
+            self.wait_file("cancelled")
 
     def test_private_paths_and_instance_identity(self) -> None:
         self.call("echo")
@@ -428,13 +457,43 @@ class PersistentBridgeTests(unittest.TestCase):
 
 class BridgeFormattingTests(unittest.TestCase):
     def test_default_transport_timeout_covers_requested_tool_timeout(self) -> None:
-        with patch.dict(os.environ, {"OSTADIX_MCP_CLIENT_TIMEOUT": "600"}):
+        with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(client._tool_timeout({"timeout_secs": 3600}, None), 3630)
             self.assertEqual(client._tool_timeout({"timeout_secs": 30}, None), 600)
             self.assertEqual(client._tool_timeout({"timeout_secs": 3600}, 10), 10)
             self.assertEqual(client._tool_timeout({"timeout_secs": 0}, None), 0)
             self.assertEqual(client._tool_timeout({"timeout_secs": 30}, 0), 0)
             self.assertEqual(client._tool_timeout({"timeout_secs": 0}, 10), 10)
+
+    def test_execution_tools_are_unbounded_for_omitted_null_and_zero_deadlines(self) -> None:
+        tools = ("o_execute", "o_cli", "o_eval", "o_operation", "o_run", "o_olangc",
+                 "o_analyze_intent", "o_execute_intent", "o_search_run",
+                 "o_lean_check", "o_lean_verify")
+        with patch.dict(os.environ, {}, clear=True):
+            for tool in tools:
+                for fields in ({}, {"timeout_secs": None}, {"timeout_secs": 0}):
+                    for background in (False, True):
+                        with self.subTest(tool=tool, fields=fields, background=background):
+                            arguments = {"background": background, **fields}
+                            self.assertEqual(client._tool_timeout(arguments, None, tool), 0)
+                            self.assertEqual(client._request_timeout(
+                                "tools/call", {"name": tool, "arguments": arguments}, None,
+                            ), 0)
+            self.assertEqual(client._tool_timeout({}, None, "o_env"), 600)
+            self.assertEqual(client._request_timeout("tools/list", {}, None), 600)
+            for fields in ({}, {"timeout_secs": None}, {"timeout_secs": 0}):
+                self.assertEqual(client._tool_timeout({"mode": "formal", **fields}, None, "o_claim"), 0)
+            self.assertEqual(client._tool_timeout({"mode": "citation"}, None, "o_claim"), 600)
+
+    def test_explicit_client_deadlines_override_native_and_environment_defaults(self) -> None:
+        with patch.dict(os.environ, {"OSTADIX_MCP_CLIENT_TIMEOUT": "15"}, clear=True):
+            for requested in (None, 0, 3600):
+                arguments = {"timeout_secs": requested}
+                self.assertEqual(client._tool_timeout(arguments, None, "o_run"), 15)
+                self.assertEqual(client._tool_timeout(arguments, 10, "o_run"), 10)
+                self.assertEqual(client._tool_timeout(arguments, 0, "o_run"), 0)
+        with patch.dict(os.environ, {"OSTADIX_MCP_CLIENT_TIMEOUT": "0"}, clear=True):
+            self.assertEqual(client._tool_timeout({"timeout_secs": 30}, None, "o_run"), 0)
 
     def test_legacy_text_success_remains_text(self) -> None:
         self.assertEqual(client._render_tool({"content": [{"type": "text", "text": "SMOKE_OK"}], "isError": False}), "SMOKE_OK")

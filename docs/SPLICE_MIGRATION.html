@@ -42,15 +42,16 @@ longer consume the completion command. A malformed SQL request reports its
 SQL error, and the persistent session can accept a later request. The Python
 SQLite shim uses SQLite&#39;s complete-statement recognition, including trigger
 bodies and quoted semicolons.</p>
-<p>Rust backend steps have a 120-second default deadline. Set
-<code>O_BACKEND_STEP_TIMEOUT_MS</code> to an integer from 1 through 604800000 milliseconds
-for a different limit, or
-the exact word <code>disabled</code> to opt into an unbounded step. Operation and
-heartbeat deadlines are separate controls.</p>
-<p>Alternate editions have separate execution limits. The Python reference uses
-its in-process Python evaluator and stateless external shim adapters; C17
-retains its own process protocol. The Rust admission and general step-deadline
-guarantees do not automatically apply to those editions.</p>
+<p>Rust backend steps have no default deadline. Leave
+<code>O_BACKEND_STEP_TIMEOUT_MS</code> unset, or use the exact word <code>disabled</code>, for an
+unbounded step. Set it to an integer from 1 through 604800000 milliseconds to
+request an explicit limit. Operation deadlines are separate opt-in controls;
+heartbeat warnings report stalled work without terminating it.</p>
+<p>The Python reference uses its in-process Python evaluator and stateless
+external shim adapters; shim calls have no default deadline and may receive an
+explicit timeout. C17 retains its own process protocol. The Rust admission
+and general step-deadline guarantees do not automatically apply to those
+editions.</p>
 <p>The <a href="../tests/fixtures/foreign-splice-witnesses.json">seven original witnesses</a>
 remain unchanged. The <a href="../scripts/reproduce_splice_contract.py">reproduction runner</a>
 tests both their revised outcomes and corrected data-splice forms. See the
