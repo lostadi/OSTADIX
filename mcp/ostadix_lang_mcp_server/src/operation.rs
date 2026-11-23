@@ -60,11 +60,11 @@ pub(super) struct OperationArgs {
     env: BTreeMap<String, String>,
     /// Execution deadline in seconds. Omitted or zero means unlimited in
     /// foreground and background. Native execution limits still apply.
-    timeout_secs: Option<u64>,
+    pub(super) timeout_secs: Option<u64>,
     /// Return a managed job immediately. Use o_job_status/read to inspect its
     /// result. Full native JSON and stderr remain in the retained job logs.
     #[serde(default)]
-    background: bool,
+    pub(super) background: bool,
 }
 
 impl OperationArgs {

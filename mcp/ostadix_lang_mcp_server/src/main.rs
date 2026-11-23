@@ -13,6 +13,7 @@ mod installation;
 mod lean;
 mod oauth;
 mod operation;
+mod progress;
 #[path = "../../../crates/ostadix-api/src/runtime_provenance.rs"]
 mod runtime_provenance;
 mod tool_schema;
@@ -2551,7 +2552,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = lean::check(args, &self.runtime_search) => result,
+            result = progress::track(&context, args.timeout_secs, true, lean::check(args, &self.runtime_search)) => result,
         }
     }
 
@@ -2571,7 +2572,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = lean::verify(args, &self.runtime_search) => result,
+            result = progress::track(&context, args.timeout_secs, true, lean::verify(args, &self.runtime_search)) => result,
         }
     }
 
@@ -2591,7 +2592,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = claim::judge(args, &self.runtime_search) => result,
+            result = progress::track(&context, args.timeout_secs, true, claim::judge(args, &self.runtime_search)) => result,
         }
     }
 
@@ -2608,7 +2609,13 @@ impl OstadixMcp {
         Parameters(args): Parameters<unified::ExecuteArgs>,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        self.execute_computation(args, &context).await
+        progress::track(
+            &context,
+            args.timeout_secs,
+            !args.background,
+            self.execute_computation(args, &context),
+        )
+        .await
     }
 
     #[tool(
@@ -2624,7 +2631,13 @@ impl OstadixMcp {
         Parameters(args): Parameters<operation::OperationArgs>,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        self.execute_operation(args, &context).await
+        progress::track(
+            &context,
+            args.timeout_secs,
+            !args.background,
+            self.execute_operation(args, &context),
+        )
+        .await
     }
 
     #[tool(
@@ -2643,7 +2656,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_cli(args) => result,
+            result = progress::track(&context, args.timeout_secs, !args.background, self.execute_legacy_o_cli(args)) => result,
         }
     }
 
@@ -2667,7 +2680,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_eval(args) => result,
+            result = progress::track(&context, args.timeout_secs, !args.background, self.execute_legacy_o_eval(args)) => result,
         }
     }
 
@@ -2688,7 +2701,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "List managed jobs in this MCP server session, including completion and exit status. Does not wait for running work.",
+        description = "List managed jobs in this MCP server session, including elapsed time, remaining explicit timeout, completion and exit status. Does not wait for running work.",
         annotations(read_only_hint = true, open_world_hint = false)
     )]
     async fn o_job_list(
@@ -2702,7 +2715,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Inspect a managed job's state, exit code, log paths, and cleanup evidence. A started job is not a successful result.",
+        description = "Inspect a managed job's state, elapsed_ms, remaining_ms (null without an explicit timeout), exit code, log paths, and cleanup evidence. Terminal timers are frozen. A started job is not a successful result.",
         annotations(read_only_hint = true, open_world_hint = false)
     )]
     async fn o_job_status(
@@ -2938,7 +2951,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_run(args) => result,
+            result = progress::track(&context, args.timeout_secs, true, self.execute_legacy_o_run(args)) => result,
         }
     }
 
@@ -3192,7 +3205,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_analyze_intent(args) => result,
+            result = progress::track(&context, args.timeout_secs, true, self.execute_legacy_o_analyze_intent(args)) => result,
         }
     }
 
@@ -3296,7 +3309,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_execute_intent(args) => result,
+            result = progress::track(&context, args.timeout_secs, true, self.execute_legacy_o_execute_intent(args)) => result,
         }
     }
 
@@ -3371,7 +3384,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_olangc(args) => result,
+            result = progress::track(&context, args.timeout_secs, true, self.execute_legacy_o_olangc(args)) => result,
         }
     }
 
@@ -3526,7 +3539,7 @@ impl OstadixMcp {
         tokio::select! {
             biased;
             _ = context.ct.cancelled() => text_err("request cancelled"),
-            result = self.execute_legacy_o_search_run(args) => result,
+            result = progress::track(&context, args.timeout_secs, true, self.execute_legacy_o_search_run(args)) => result,
         }
     }
 

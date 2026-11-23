@@ -46,7 +46,11 @@ bodies and quoted semicolons.</p>
 <code>O_BACKEND_STEP_TIMEOUT_MS</code> unset, or use the exact word <code>disabled</code>, for an
 unbounded step. Set it to an integer from 1 through 604800000 milliseconds to
 request an explicit limit. Operation deadlines are separate opt-in controls;
-heartbeat warnings report stalled work without terminating it.</p>
+heartbeat warnings report stalled work without terminating it. Interactive
+Rust terminal progress displays elapsed time with <code>no timeout</code>, or a remaining
+time countdown when a step or operation deadline was explicitly configured.
+The display does not create a deadline; quiet and noninteractive output retain
+their existing behavior.</p>
 <p>The Python reference uses its in-process Python evaluator and stateless
 external shim adapters; shim calls have no default deadline and may receive an
 explicit timeout. C17 retains its own process protocol. The Rust admission

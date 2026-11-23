@@ -26,7 +26,7 @@ pub(crate) struct ClaimArgs {
     /// Formal mode: permitted axioms. Omit for the Lean default; [] requires axiom-free proofs.
     allowed_axioms: Option<Vec<String>>,
     /// Formal mode: Lean deadline in seconds. Omitted or zero means unlimited.
-    timeout_secs: Option<u64>,
+    pub(super) timeout_secs: Option<u64>,
     /// Citation mode: exact contiguous excerpt that must occur in the file.
     excerpt: Option<String>,
 }
