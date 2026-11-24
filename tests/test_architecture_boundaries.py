@@ -77,7 +77,6 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/evidence/intent.rs",
         "crates/ostadix-api/src/evidence/mod.rs",
         "crates/ostadix-api/src/evidence/profile.rs",
-        "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs",
         "crates/ostadix-api/src/world/grounding.rs",
     ):
         path = root / relative
@@ -118,7 +117,7 @@ def write_minimal_tree(root: Path) -> None:
             'mod vector { include!("native_vector_codegen.rs"); }\n'
         ),
         "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs": (
-            'pub mod inventory;\n'
+            'pub mod inventory { include!("native_machine_asm_reader_inventory.rs"); }\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -230,30 +229,59 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             root = Path(directory)
             write_minimal_tree(root)
             reader = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs"
+            flat_inventory = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs"
             inventory = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs"
+            self.assertEqual(
+                reader.read_text(),
+                'pub mod inventory { include!("native_machine_asm_reader_inventory.rs"); }\n',
+            )
+            self.assertEqual(flat_inventory.read_text(), "pub struct Boundary;\n")
+            self.assertFalse(inventory.exists())
+            manifest_path = root / "ci/architecture-roots.toml"
+            original_manifest = manifest_path.read_text(encoding="utf-8")
+            before_policy = tomllib.loads(original_manifest)
+            expected_fragment = {
+                "path": "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs",
+                "owner": "ocore",
+                "included_from": "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs",
+                "module_path": ["ocore", "native_machine_asm_reader", "inventory"],
+            }
+            self.assertEqual(
+                [entry for entry in before_policy["compiled_fragment"]
+                 if entry["path"] == expected_fragment["path"]],
+                [expected_fragment],
+            )
+            # Model the alternate ordinary-child layout only in this fixture.
+            # Every other synthetic policy entry remains exactly selected.
+            fragment_entry = '[[compiled_fragment]]\npath = "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs"\nowner = "ocore"\nincluded_from = "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs"\nmodule_path = ["ocore", "native_machine_asm_reader", "inventory"]\n'
+            self.assertEqual(original_manifest.count(fragment_entry), 1)
+            updated_manifest = original_manifest.replace(fragment_entry, "", 1)
+            expected_policy = dict(before_policy)
+            expected_policy["compiled_fragment"] = [
+                entry for entry in before_policy["compiled_fragment"]
+                if entry["path"] != expected_fragment["path"]
+            ]
+            self.assertEqual(tomllib.loads(updated_manifest), expected_policy)
+            manifest_path.write_text(updated_manifest, encoding="utf-8")
+            reader.write_text("pub mod inventory;\n", encoding="utf-8")
+            inventory.parent.mkdir(parents=True)
+            inventory.write_text(flat_inventory.read_text(), encoding="utf-8")
+            flat_inventory.unlink()
             self.assertEqual(reader.read_text(), "pub mod inventory;\n")
-            self.assertTrue(inventory.is_file())
+            self.assertFalse(flat_inventory.exists())
             self.assertEqual(inventory.read_text(), "pub struct Boundary;\n")
+            self.assertEqual(tomllib.loads(manifest_path.read_text()), expected_policy)
             baseline = run_checker(root)
             self.assertEqual(baseline.returncode, 0, baseline.stderr)
             forbidden = "use crate::executor::Boundary;\n"
-            inventory.write_text(forbidden)
+            inventory.write_text(forbidden, encoding="utf-8")
             self.assertEqual(inventory.read_text(), forbidden)
             result = run_checker(root)
             self.assertEqual(result.returncode, 1)
             self.assertIn("root edge `ocore -> executor` is not declared", result.stderr)
-
     def test_manifest_inventories_every_current_root_edge_override_and_facade(self) -> None:
         manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         roots = manifest["root"]
-        inventory = "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs"
-        old_inventory = "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs"
-        self.assertNotIn(inventory, manifest["production"]["excluded_files"])
-        self.assertNotIn(old_inventory, manifest["production"]["excluded_files"])
-        self.assertFalse(any(
-            fragment["path"] in {inventory, old_inventory}
-            for fragment in manifest["compiled_fragment"]
-        ))
         self.assertEqual(
             manifest["production"]["package_manifest"],
             "crates/ostadix-api/Cargo.toml",
@@ -289,6 +317,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                     "module_path": ["ocore", "native_codegen", "float_layout"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs",
+                    "module_path": ["ocore", "native_machine_asm_reader", "inventory"],
                 },
                 {
                     "path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",

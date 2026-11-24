@@ -557,6 +557,7 @@ struct UnitOwner {
 pub(super) struct AdmittedCapture {
     path: PathBuf,
     raw: Vec<u8>,
+    raw_sha256: String,
     receipt: Value,
     capture: Value,
     selected: BTreeSet<String>,
@@ -620,14 +621,16 @@ impl AdmittedCapture {
         selected: &BTreeSet<String>,
         receipt: Value,
     ) -> Result<Self> {
-        let capture: Value = serde_json::from_slice(raw).context("decode held capture bytes")?;
+        let raw = raw.to_vec();
+        let raw_sha256 = digest(&raw);
+        let capture: Value = serde_json::from_slice(&raw).context("decode held capture bytes")?;
         if capture["schema"] != CAPTURE_FORMAT
             || receipt["schema"] != "ocore-runtime-capture-verification-v1"
             || receipt["verified"] != true
             || receipt["scope"]
                 != "source-capture-unit-role-partition-and-observed-native-output-membership"
             || receipt["admitted_report"]
-                != json!({"path":path,"sha256":digest(raw),"bytes":raw.len()})
+                != json!({"path":path,"sha256":raw_sha256,"bytes":raw.len()})
         {
             bail!("capture verifier receipt differs from the held report bytes");
         }
@@ -742,12 +745,17 @@ impl AdmittedCapture {
         }
         Ok(Self {
             path: path.to_owned(),
-            raw: raw.to_vec(),
+            raw,
+            raw_sha256,
             receipt,
             capture,
             selected: selected.clone(),
             units,
         })
+    }
+
+    fn raw_sha256(&self) -> &str {
+        &self.raw_sha256
     }
 
     pub(super) fn receipt(&self) -> &Value {
@@ -787,7 +795,7 @@ impl AdmittedCapture {
         }
         let original = owner.input.original().clone();
         let compiler = BytesIdentity::consumed(compiler, &compiler_raw);
-        let capture = json!({"report":{"path":self.path,"sha256":digest(&self.raw),"bytes":self.raw.len()},
+        let capture = json!({"report":{"path":self.path,"sha256":self.raw_sha256(),"bytes":self.raw.len()},
             "manifest":self.capture["manifest"],"source":self.capture["source"],
             "capture_worker":self.capture["capture_worker"],"producer_capabilities":self.capture["producer_capabilities"],
             "inventory":self.capture["unit_inventory"],"verification":self.receipt});
@@ -1888,6 +1896,116 @@ mod tests {
                 &selected,
                 "policy/format or qualification flags differ",
             );
+        }
+    }
+    #[test]
+    fn capture_digest_cache_borrows_owned_identity_after_caller_changes() {
+        let (c, selected) = fixture();
+        let mut raw = serde_json::to_vec(&c).unwrap();
+        let original = raw.clone();
+        let owner = AdmittedCapture::bind_reverified(
+            Path::new("/capture/report.json"),
+            &raw,
+            &selected,
+            receipt(&raw, &c),
+        )
+        .unwrap();
+        let view = owner.checked_view(&owner.path, &raw, &selected).unwrap();
+        assert!(std::ptr::eq(
+            owner.raw_sha256().as_ptr(),
+            owner.raw_sha256.as_ptr()
+        ));
+        assert!(std::ptr::eq(view.raw().as_ptr(), owner.raw.as_ptr()));
+        assert_ne!(view.raw().as_ptr(), raw.as_ptr());
+        raw.push(b' ');
+        assert_ne!(raw, original);
+        assert_eq!(view.raw(), original);
+        assert_eq!(owner.raw_sha256(), digest(&original));
+        assert_ne!(owner.raw_sha256(), digest(&raw));
+    }
+    #[test]
+    fn capture_digest_cache_rejects_changed_raw_despite_correct_claimed_length() {
+        let (c, selected) = fixture();
+        let raw = serde_json::to_vec(&c).unwrap();
+        let mut proof = receipt(&raw, &c);
+        let mut changed = raw.clone();
+        changed.push(b' ');
+        proof["admitted_report"]["bytes"] = json!(changed.len());
+        assert_eq!(serde_json::from_slice::<Value>(&changed).unwrap(), c);
+        assert_ne!(proof["admitted_report"]["sha256"], digest(&changed));
+        let e = AdmittedCapture::bind_reverified(
+            Path::new("/capture/report.json"),
+            &changed,
+            &selected,
+            proof,
+        )
+        .err()
+        .expect("stale digest admitted");
+        assert!(e.to_string().contains("held report bytes"), "{e:#}");
+    }
+    #[test]
+    fn capture_digest_cache_keeps_identical_report_for_every_native_unit() {
+        let (c, selected, inputs) = native_edge_fixture();
+        let raw = serde_json::to_vec(&c).unwrap();
+        let owner = bind(&c, &selected).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let compiler = dir.path().join("compiler");
+        fs::write(&compiler, b"authored compiler DATA").unwrap();
+        let sha = digest(b"authored compiler DATA");
+        let expected = json!({"report":{"path":"/capture/report.json","sha256":digest(&raw),"bytes":raw.len()},"manifest":c["manifest"],"source":c["source"],"capture_worker":c["capture_worker"],"producer_capabilities":c["producer_capabilities"],"inventory":c["unit_inventory"],"verification":owner.receipt()});
+        assert_eq!(owner.raw_sha256(), digest(&raw));
+        assert_eq!(inputs.len(), 2);
+        for (i, input) in inputs.iter().enumerate() {
+            let unit = &c["units"][i];
+            let out = dir.path().join(format!("unit-{i}.bc"));
+            let lineage = owner
+                .begin(
+                    unit["id"].as_str().unwrap(),
+                    unit,
+                    input,
+                    &out,
+                    &compiler,
+                    &sha,
+                )
+                .unwrap();
+            assert_eq!(lineage.capture, expected);
+            assert_eq!(fs::read(out).unwrap(), *input);
+            assert!(!lineage.runtime_qualified);
+            assert!(!lineage.final_link_qualified);
+        }
+    }
+    #[test]
+    fn capture_digest_cache_does_not_authorize_wrong_replay_or_native_input() {
+        for native in [false, true] {
+            let (c, selected) = if native {
+                let (c, s, _) = native_edge_fixture();
+                (c, s)
+            } else {
+                fixture()
+            };
+            let owner = bind(&c, &selected).unwrap();
+            assert_eq!(owner.raw_sha256(), digest(&owner.raw));
+            let dir = tempfile::tempdir().unwrap();
+            let output = dir.path().join("must-not-exist");
+            let unit = &c["units"][0];
+            let wrong = b"different from admitted LLVM DATA";
+            assert_ne!(unit["ir"]["sha256"], digest(wrong));
+            let e = owner
+                .begin(
+                    unit["id"].as_str().unwrap(),
+                    unit,
+                    wrong,
+                    &output,
+                    Path::new("/not-a-compiler"),
+                    "unused",
+                )
+                .unwrap_err();
+            assert!(
+                e.to_string()
+                    .contains("consumed LLVM buffer differs from admitted original unit"),
+                "{native}: {e:#}"
+            );
+            assert!(!output.exists());
         }
     }
     include!("source_action_replay_tests.rs");
