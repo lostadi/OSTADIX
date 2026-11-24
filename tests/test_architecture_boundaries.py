@@ -77,6 +77,7 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/evidence/intent.rs",
         "crates/ostadix-api/src/evidence/mod.rs",
         "crates/ostadix-api/src/evidence/profile.rs",
+        "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs",
         "crates/ostadix-api/src/world/grounding.rs",
     ):
         path = root / relative
@@ -117,7 +118,7 @@ def write_minimal_tree(root: Path) -> None:
             'mod vector { include!("native_vector_codegen.rs"); }\n'
         ),
         "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs": (
-            'pub mod inventory { include!("native_machine_asm_reader_inventory.rs"); }\n'
+            'pub mod inventory;\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -224,9 +225,35 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             edges, sum(len(root["allowed_dependencies"]) for root in manifest["root"])
         )
 
+    def test_configured_inventory_ordinary_source_retains_root_dependency_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            reader = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs"
+            inventory = root / "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs"
+            self.assertEqual(reader.read_text(), "pub mod inventory;\n")
+            self.assertTrue(inventory.is_file())
+            self.assertEqual(inventory.read_text(), "pub struct Boundary;\n")
+            baseline = run_checker(root)
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            forbidden = "use crate::executor::Boundary;\n"
+            inventory.write_text(forbidden)
+            self.assertEqual(inventory.read_text(), forbidden)
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("root edge `ocore -> executor` is not declared", result.stderr)
+
     def test_manifest_inventories_every_current_root_edge_override_and_facade(self) -> None:
         manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         roots = manifest["root"]
+        inventory = "crates/ostadix-api/src/ocore/native_machine_asm_reader/inventory.rs"
+        old_inventory = "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs"
+        self.assertNotIn(inventory, manifest["production"]["excluded_files"])
+        self.assertNotIn(old_inventory, manifest["production"]["excluded_files"])
+        self.assertFalse(any(
+            fragment["path"] in {inventory, old_inventory}
+            for fragment in manifest["compiled_fragment"]
+        ))
         self.assertEqual(
             manifest["production"]["package_manifest"],
             "crates/ostadix-api/Cargo.toml",
@@ -262,12 +289,6 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                     "module_path": ["ocore", "native_codegen", "float_layout"],
-                },
-                {
-                    "path": "crates/ostadix-api/src/ocore/native_machine_asm_reader_inventory.rs",
-                    "owner": "ocore",
-                    "included_from": "crates/ostadix-api/src/ocore/native_machine_asm_reader.rs",
-                    "module_path": ["ocore", "native_machine_asm_reader", "inventory"],
                 },
                 {
                     "path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
@@ -1032,7 +1053,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
     def test_fragment_children_cannot_redirect_or_escape_declared_module_identity(self) -> None:
         for replacement, expected in (
             ('#[path = "../parser.rs"]\nmod common;', "must use its declared same-directory"),
-            ('mod common;', "must use its declared same-directory"),
+            ('#[path = "native_abi.rs"]\nmod common;', "must use its declared same-directory"),
             ('#[path = "common.rs"]\nmod renamed;', "expected declared children"),
         ):
             with self.subTest(replacement=replacement), tempfile.TemporaryDirectory() as directory:
@@ -1043,6 +1064,173 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 result = run_checker(root)
                 self.assertEqual(result.returncode, 1)
                 self.assertIn(expected, result.stderr)
+
+    def test_fragment_ordinary_child_cannot_hide_conditional_second_declaration(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+            declaration = '#[path = "common.rs"]\nmod common;'
+            original = fragment.read_text()
+            self.assertEqual(original.count(declaration), 1)
+            replacement = (
+                "mod common;\n"
+                '#[cfg_attr(feature = "fragment_alias", path = "common.rs")]\n'
+                "mod common;"
+            )
+            fragment.write_text(original.replace(declaration, replacement, 1))
+            current = fragment.read_text()
+            self.assertEqual(current.count("mod common;"), 2)
+            self.assertIn(replacement, current)
+            self.assertTrue((fragment.parent / "common.rs").is_file())
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "compiled-fragment child \x60common\x60 has a conditional #[cfg_attr(path)] source",
+                result.stderr,
+            )
+
+    def test_fragment_conditional_child_source_cannot_be_silently_skipped(self) -> None:
+        for condition in ('feature = "fragment_alias"', "all()"):
+            with self.subTest(condition=condition), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+                declaration = '#[path = "common.rs"]\nmod common;'
+                original = fragment.read_text()
+                self.assertEqual(original.count(declaration), 1)
+                replacement = f'#[cfg_attr({condition}, path = "common.rs")]\nmod common;'
+                fragment.write_text(original.replace(declaration, replacement, 1))
+                current = fragment.read_text()
+                self.assertEqual(current.count("mod common;"), 1)
+                self.assertIn(replacement, current)
+                self.assertTrue((fragment.parent / "common.rs").is_file())
+                result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "compiled-fragment child \x60common\x60 has a conditional #[cfg_attr(path)] source",
+                    result.stderr,
+                )
+
+    def test_fragment_declared_ordinary_child_uses_conventional_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+            original = fragment.read_text()
+            declaration = '#[path = "common.rs"]\nmod common;'
+            self.assertEqual(original.count(declaration), 1)
+            fragment.write_text(original.replace(declaration, "mod common;", 1))
+            self.assertNotIn(declaration, fragment.read_text())
+            self.assertIn("mod common;", fragment.read_text())
+            self.assertTrue((fragment.parent / "common.rs").is_file())
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_fragment_ordinary_child_cannot_omit_its_declared_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+            declaration = '#[path = "common.rs"]\nmod common;'
+            original = fragment.read_text()
+            self.assertEqual(original.count(declaration), 1)
+            fragment.write_text(original.replace(declaration, "mod common;", 1))
+            child = fragment.parent / "common.rs"
+            self.assertTrue(child.is_file())
+            child.unlink()
+            self.assertFalse(child.exists())
+            self.assertIn("mod common;", fragment.read_text())
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "child \x60common\x60 must use its declared same-directory source and module identity",
+                result.stderr,
+            )
+
+    def test_fragment_ordinary_child_retains_root_dependency_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+            declaration = '#[path = "common.rs"]\nmod common;'
+            original = fragment.read_text()
+            self.assertEqual(original.count(declaration), 1)
+            fragment.write_text(original.replace(declaration, "mod common;", 1))
+            child = fragment.parent / "common.rs"
+            forbidden = "use crate::executor::Boundary;\n"
+            child.write_text(forbidden)
+            self.assertEqual(child.read_text(), forbidden)
+            self.assertIn("mod common;", fragment.read_text())
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("root edge \x60ocore -> executor\x60 is not declared", result.stderr)
+
+    def test_fragment_ordinary_child_retains_duplicate_ownership_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+            declaration = '#[path = "common.rs"]\nmod common;'
+            original = fragment.read_text()
+            self.assertEqual(original.count(declaration), 1)
+            fragment.write_text(original.replace(declaration, "mod common;", 1))
+            parent = fragment.parent / "mod.rs"
+            parent.write_text(parent.read_text() + "mod common;\n")
+            self.assertEqual(parent.read_text().count("mod common;"), 1)
+            self.assertIn("mod common;", fragment.read_text())
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "child \x60common\x60 also has conventional ownership", result.stderr
+            )
+
+    def test_fragment_ordinary_child_requires_supported_include_context(self) -> None:
+        for included_from, include in (
+            (
+                "crates/ostadix-api/src/ocore/native_codegen.rs",
+                'include!("native_core.rs");\n',
+            ),
+            (
+                "crates/ostadix-api/src/placement/mod.rs",
+                'include!("../ocore/native_core.rs");\n',
+            ),
+        ):
+            with self.subTest(included_from=included_from), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+                declaration = '#[path = "common.rs"]\nmod common;'
+                original = fragment.read_text()
+                self.assertEqual(original.count(declaration), 1)
+                fragment.write_text(original.replace(declaration, "mod common;", 1))
+                old_parent = fragment.parent / "mod.rs"
+                old_include = 'include!("native_core.rs");\n'
+                self.assertEqual(old_parent.read_text().count(old_include), 1)
+                old_parent.write_text(old_parent.read_text().replace(old_include, "", 1))
+                new_parent = root / included_from
+                new_parent.write_text(new_parent.read_text() + include)
+                self.assertIn(include, new_parent.read_text())
+                manifest = root / "ci/architecture-roots.toml"
+                old_owner = (
+                    'path = "crates/ostadix-api/src/ocore/native_core.rs"\n'
+                    'owner = "ocore"\n'
+                    'included_from = "crates/ostadix-api/src/ocore/mod.rs"'
+                )
+                old = manifest.read_text()
+                self.assertEqual(old.count(old_owner), 1)
+                new_owner = old_owner.replace(
+                    'included_from = "crates/ostadix-api/src/ocore/mod.rs"',
+                    f'included_from = "{included_from}"',
+                )
+                manifest.write_text(old.replace(old_owner, new_owner, 1))
+                self.assertIn(new_owner, manifest.read_text())
+                result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "ordinary child \x60common\x60 requires a same-directory mod.rs include site",
+                    result.stderr,
+                )
 
     def test_fragment_child_dependencies_and_duplicate_ownership_remain_checked(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

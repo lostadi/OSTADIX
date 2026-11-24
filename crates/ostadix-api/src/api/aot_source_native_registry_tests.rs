@@ -63,16 +63,22 @@ fn root_modules(root: &str) -> Result<BTreeMap<String, String>, GuardError> {
             return Err(GuardError::UnsupportedRootDeclaration(line_number));
         }
         let declaration = module_line(line);
-        if let Some((path, _)) = pending.take() {
+        let (path, name) = if let Some((path, _)) = pending.take() {
             let name = declaration.ok_or(GuardError::UnsupportedRootDeclaration(line_number))?;
-            if !names.insert(name.to_owned()) {
-                return Err(GuardError::DuplicateRootModule(name.to_owned()));
+            (path, name)
+        } else if let Some(name) = declaration {
+            (format!("{name}.rs"), name)
+        } else {
+            if line.split_whitespace().any(|word| word == "mod") {
+                return Err(GuardError::UnsupportedRootDeclaration(line_number));
             }
-            if paths.insert(path.clone(), name.to_owned()).is_some() {
-                return Err(GuardError::DuplicateRootPath(path));
-            }
-        } else if declaration.is_some() || line.split_whitespace().any(|word| word == "mod") {
-            return Err(GuardError::UnsupportedRootDeclaration(line_number));
+            continue;
+        };
+        if !names.insert(name.to_owned()) {
+            return Err(GuardError::DuplicateRootModule(name.to_owned()));
+        }
+        if paths.insert(path.clone(), name.to_owned()).is_some() {
+            return Err(GuardError::DuplicateRootPath(path));
         }
     }
     if let Some((_, line)) = pending {
@@ -402,5 +408,96 @@ fn removing_each_configured_artifact_sibling_reaches_its_missing_path() {
             ConfiguredArtifactSiblingError::MissingSource { path, module }
         };
         assert_eq!(check_configured_artifact_siblings(&mutant), Err(expected));
+    }
+}
+
+#[test]
+fn ordinary_root_declarations_require_their_conventional_source_rows() {
+    let root = "mod private_root;\npub mod public_root;\n";
+    let rows = [
+        ("mod.rs", root),
+        ("private_root.rs", ""),
+        ("public_root.rs", ""),
+    ];
+    let required = check(root, &rows).expect("strict unconditional ordinary declarations");
+    assert_eq!(
+        required,
+        BTreeMap::from([
+            ("private_root.rs".to_owned(), "private_root".to_owned()),
+            ("public_root.rs".to_owned(), "public_root".to_owned()),
+        ])
+    );
+    for (path, module) in required {
+        let missing: Vec<_> = rows
+            .iter()
+            .copied()
+            .filter(|row| row.0 != path.as_str())
+            .collect();
+        assert_eq!(missing.len() + 1, rows.len());
+        assert!(!missing.iter().any(|row| row.0 == path.as_str()));
+        assert_eq!(
+            check(root, &missing),
+            Err(GuardError::MissingModule { path, module })
+        );
+    }
+}
+
+#[test]
+fn ordinary_and_explicit_root_declarations_share_duplicate_guards() {
+    let root = "mod ordinary_root;\n#[path = \"explicit_root.rs\"]\npub mod explicit_root;\n";
+    fn fixture<'a>(root: &'a str) -> Vec<(&'static str, &'a str)> {
+        vec![
+            ("mod.rs", root),
+            ("ordinary_root.rs", ""),
+            ("explicit_root.rs", ""),
+        ]
+    }
+    assert_eq!(check(root, &fixture(root)).unwrap().len(), 2);
+
+    let duplicate_name = root.replace("pub mod explicit_root;", "pub mod ordinary_root;");
+    assert_ne!(duplicate_name, root);
+    assert!(duplicate_name.ends_with("pub mod ordinary_root;\n"));
+    assert_eq!(
+        check(&duplicate_name, &fixture(&duplicate_name)),
+        Err(GuardError::DuplicateRootModule("ordinary_root".to_owned()))
+    );
+
+    let duplicate_path = root.replace(
+        "#[path = \"explicit_root.rs\"]",
+        "#[path = \"ordinary_root.rs\"]",
+    );
+    assert_ne!(duplicate_path, root);
+    assert!(duplicate_path.contains("#[path = \"ordinary_root.rs\"]"));
+    assert_eq!(
+        check(&duplicate_path, &fixture(&duplicate_path)),
+        Err(GuardError::DuplicateRootPath("ordinary_root.rs".to_owned()))
+    );
+}
+
+#[test]
+fn ordinary_root_support_does_not_accept_conditional_or_unsupported_layouts() {
+    let baseline = "mod ordinary_root;\n";
+    assert_eq!(
+        check(baseline, &[("mod.rs", baseline), ("ordinary_root.rs", "")])
+            .unwrap()
+            .len(),
+        1
+    );
+    for suffix in [
+        "#[cfg(any())]\npub mod conditional_probe;\n",
+        "#[cfg_attr(any(), path = \"other.rs\")]\npub mod conditional_probe;\n",
+        "pub(crate) mod visibility_probe;\n",
+        "pub mod inline_probe {}\n",
+        "pub mod malformed_probe; trailing\n",
+    ] {
+        let mutant = format!("{baseline}{suffix}");
+        assert!(mutant.starts_with(baseline));
+        assert!(mutant.ends_with(suffix));
+        assert_eq!(mutant.lines().nth(1), suffix.lines().next());
+        let rows = [("mod.rs", mutant.as_str()), ("ordinary_root.rs", "")];
+        assert_eq!(
+            check(&mutant, &rows),
+            Err(GuardError::UnsupportedRootDeclaration(2))
+        );
     }
 }

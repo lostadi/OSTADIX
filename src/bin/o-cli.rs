@@ -52,7 +52,8 @@ use o_lang::intent::{
     RunContentRefV1, RunDispositionV1, RunFailureV1, RunInputKindV1, RunRecordV1,
     RunRecordingStatusV1, RunResultReferenceV1, RunSelectorV1, RunStoreReaderV1, RunStoreV1,
     RunSummaryV1, RunTraceAttachmentV1, RunTraceBindingV1, SelectionReuseExecutionErrorV1,
-    OPERATION_RUN_DECISION_SCHEMA_V1, OPERATION_RUN_PLAN_SCHEMA_V1, RUN_SUMMARY_SCHEMA_V1,
+    MAX_RUN_OBJECT_BYTES_V1, OPERATION_RUN_DECISION_SCHEMA_V1, OPERATION_RUN_PLAN_SCHEMA_V1,
+    RUN_SUMMARY_SCHEMA_V1,
 };
 use o_lang::project::executor::{ProjectExecutionError, ProjectExecutionFailureClass};
 use o_lang::project::model::OutputCapture;
@@ -4731,14 +4732,20 @@ fn exact_selection_run_selector(value: &str) -> Result<RunSelectorV1> {
 
 struct StreamObservation {
     retained: Vec<u8>,
+    retention_limit: usize,
     total_observed_bytes: u64,
     hash: Sha256,
 }
 
 impl StreamObservation {
     fn new() -> Self {
+        Self::with_retention_limit(usize::try_from(MAX_RUN_OBJECT_BYTES_V1).unwrap_or(usize::MAX))
+    }
+
+    fn with_retention_limit(retention_limit: usize) -> Self {
         Self {
             retained: Vec::new(),
+            retention_limit,
             total_observed_bytes: 0,
             hash: Sha256::new(),
         }
@@ -4749,10 +4756,22 @@ impl StreamObservation {
         self.total_observed_bytes = self
             .total_observed_bytes
             .saturating_add(u64::try_from(bytes.len()).unwrap_or(u64::MAX));
-        // This is the front door's terminal stream, not a new bounded runtime
-        // capture. Preserve it exactly and let the run store's 256 MiB hard
-        // limit decide whether the terminal observation can be finalized.
-        self.retained.extend_from_slice(bytes);
+        // Continue hashing and replaying the complete stream, but never retain
+        // an unbounded copy before the run store can apply its object limit.
+        // Finalization below refuses this recording if any suffix was omitted.
+        let remaining = self.retention_limit.saturating_sub(self.retained.len());
+        let retained = &bytes[..bytes.len().min(remaining)];
+        let required = self.retained.len() + retained.len();
+        if required > self.retained.capacity() {
+            let capacity = self
+                .retained
+                .capacity()
+                .saturating_mul(2)
+                .max(required)
+                .min(self.retention_limit);
+            self.retained.reserve_exact(capacity - self.retained.len());
+        }
+        self.retained.extend_from_slice(retained);
     }
 
     fn finish(self) -> CapturedStreamV1 {
@@ -4767,6 +4786,22 @@ impl StreamObservation {
             },
         }
     }
+}
+
+fn require_complete_terminal_streams(
+    stdout: &CapturedStreamV1,
+    stderr: &CapturedStreamV1,
+) -> Result<()> {
+    for (name, stream) in [("stdout", stdout), ("stderr", stderr)] {
+        if stream.capture.truncated {
+            bail!(
+                "terminal {name} exceeded the run-recording retention budget: observed {} bytes, retained {}; recording is incomplete",
+                stream.capture.total_observed_bytes,
+                stream.capture.retained_bytes,
+            );
+        }
+    }
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -5002,7 +5037,23 @@ fn drain_captured_stream(
     stream
         .seek(SeekFrom::Start(0))
         .context("failed to rewind captured execution stream")?;
-    let mut observation = StreamObservation::new();
+    drain_observed_stream(stream, StreamObservation::new(), |bytes| {
+        if !replay {
+            return Ok(());
+        }
+        match descriptor {
+            CapturedDescriptor::Stdout => io::stdout().write_all(bytes),
+            CapturedDescriptor::Stderr => io::stderr().write_all(bytes),
+        }
+    })
+}
+
+#[cfg(unix)]
+fn drain_observed_stream(
+    stream: &mut impl Read,
+    mut observation: StreamObservation,
+    mut replay: impl FnMut(&[u8]) -> io::Result<()>,
+) -> Result<(StreamObservation, Option<String>)> {
     let mut buffer = [0_u8; 64 * 1024];
     let mut replay_error = None;
     loop {
@@ -5014,12 +5065,8 @@ fn drain_captured_stream(
         }
         let bytes = &buffer[..read];
         observation.observe(bytes);
-        if replay && replay_error.is_none() {
-            let result = match descriptor {
-                CapturedDescriptor::Stdout => io::stdout().write_all(bytes),
-                CapturedDescriptor::Stderr => io::stderr().write_all(bytes),
-            };
-            if let Err(error) = result {
+        if replay_error.is_none() {
+            if let Err(error) = replay(bytes) {
                 replay_error = Some(format!(
                     "failed to replay captured execution stream: {error}"
                 ));
@@ -5535,8 +5582,15 @@ fn run_intent_controlled(
                 .as_ref()
                 .map(|renderer| renderer as &dyn ValidatedSelectionProgressObserverV1),
         );
-        let recorded_stdout = CapturedStreamV1::complete(report.stdout.clone());
-        let recorded_stderr = CapturedStreamV1::complete(report.stderr.clone());
+        let (recorded_stdout, recorded_stderr) = if lease.is_some() {
+            (
+                CapturedStreamV1::complete(report.stdout.clone()),
+                CapturedStreamV1::complete(report.stderr.clone()),
+            )
+        } else {
+            // These values are consumed only when a recording lease exists.
+            (CapturedStreamV1::default(), CapturedStreamV1::default())
+        };
         (report, recorded_stdout, recorded_stderr)
     };
     let elapsed_nanos = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX);
@@ -5546,6 +5600,8 @@ fn run_intent_controlled(
     let mut command_exit = report.exit_code;
     let summary = if let Some(lease) = lease {
         let attempt = lease.attempt().clone();
+        let terminal_streams_complete =
+            require_complete_terminal_streams(&recorded_stdout, &recorded_stderr);
         let mut record = RunRecordV1::terminal(
             attempt.run_id.clone(),
             attempt.sequence,
@@ -5568,7 +5624,12 @@ fn run_intent_controlled(
             plan.execution = report.operation_execution.clone();
             plan
         });
-        match lease.finalize(record.clone(), report.trace.clone()) {
+        let finalization = terminal_streams_complete.and_then(|()| {
+            lease
+                .finalize(record.clone(), report.trace.clone())
+                .map_err(anyhow::Error::new)
+        });
+        match finalization {
             Ok(finalized) => RunSummaryV1::from_record(
                 &record,
                 RunRecordingStatusV1::Recorded {
@@ -7082,6 +7143,157 @@ mod tests {
         ValidatedSelectionObservationV1,
     };
     use tempfile::tempdir;
+
+    #[test]
+    fn terminal_stream_observation_uses_run_store_byte_limit() {
+        let observation = StreamObservation::new();
+        assert_eq!(
+            observation.retention_limit,
+            usize::try_from(MAX_RUN_OBJECT_BYTES_V1).unwrap_or(usize::MAX),
+        );
+        assert!(observation.retained.is_empty());
+    }
+
+    #[test]
+    fn terminal_stream_observation_retains_exact_boundary_across_chunks() {
+        let mut observation = StreamObservation::with_retention_limit(5);
+        observation.observe(b"ab");
+        observation.observe(b"cde");
+        let stream = observation.finish();
+        assert_eq!(stream.retained, b"abcde");
+        assert_eq!(stream.capture.total_observed_bytes, 5);
+        assert_eq!(stream.capture.retained_bytes, 5);
+        assert!(!stream.capture.truncated);
+        assert_eq!(stream.capture.sha256, hex::encode(Sha256::digest(b"abcde")));
+        stream.validate().unwrap();
+        require_complete_terminal_streams(&stream, &CapturedStreamV1::default()).unwrap();
+    }
+
+    #[test]
+    fn terminal_stream_observation_caps_prefix_but_hashes_every_chunk() {
+        let mut observation = StreamObservation::with_retention_limit(5);
+        for chunk in [b"ab".as_slice(), b"cdef".as_slice(), b"gh".as_slice()] {
+            observation.observe(chunk);
+            assert!(observation.retained.len() <= 5);
+        }
+        let stream = observation.finish();
+        assert_eq!(stream.retained, b"abcde");
+        assert_eq!(stream.capture.total_observed_bytes, 8);
+        assert_eq!(stream.capture.retained_bytes, 5);
+        assert!(stream.capture.truncated);
+        assert_eq!(
+            stream.capture.sha256,
+            hex::encode(Sha256::digest(b"abcdefgh"))
+        );
+        assert_ne!(
+            stream.capture.sha256,
+            hex::encode(Sha256::digest(&stream.retained))
+        );
+        stream.validate().unwrap();
+    }
+
+    #[test]
+    fn terminal_stream_observation_zero_budget_distinguishes_empty_and_nonempty() {
+        let empty = StreamObservation::with_retention_limit(0).finish();
+        assert_eq!(empty, CapturedStreamV1::default());
+        let mut observation = StreamObservation::with_retention_limit(0);
+        observation.observe(b"x");
+        let stream = observation.finish();
+        assert!(stream.retained.is_empty());
+        assert_eq!(stream.capture.total_observed_bytes, 1);
+        assert_eq!(stream.capture.retained_bytes, 0);
+        assert!(stream.capture.truncated);
+        assert_eq!(stream.capture.sha256, hex::encode(Sha256::digest(b"x")));
+        stream.validate().unwrap();
+    }
+
+    #[test]
+    fn terminal_stream_budget_overflow_refuses_finalization() {
+        let mut observation = StreamObservation::with_retention_limit(2);
+        observation.observe(b"abcd");
+        let stream = observation.finish();
+        let mut finalized = false;
+        let result = require_complete_terminal_streams(&stream, &CapturedStreamV1::default())
+            .and_then(|()| {
+                finalized = true;
+                Ok(())
+            });
+        assert!(!finalized);
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("terminal stdout"), "{error}");
+        assert!(error.contains("observed 4 bytes, retained 2"), "{error}");
+        assert!(error.contains("recording is incomplete"), "{error}");
+    }
+
+    #[test]
+    fn terminal_stream_stderr_budget_overflow_is_not_a_complete_record() {
+        let mut observation = StreamObservation::with_retention_limit(1);
+        observation.observe(b"err");
+        let error =
+            require_complete_terminal_streams(&CapturedStreamV1::default(), &observation.finish())
+                .unwrap_err()
+                .to_string();
+        assert!(error.contains("terminal stderr"), "{error}");
+        assert!(error.contains("observed 3 bytes, retained 1"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_stream_drain_replays_full_output_after_retention_overflow() {
+        let expected: Vec<u8> = (0..(2 * 64 * 1024 + 17)).map(|i| (i % 251) as u8).collect();
+        let mut input = io::Cursor::new(&expected);
+        let mut replayed = Vec::new();
+        let (observation, replay_error) = drain_observed_stream(
+            &mut input,
+            StreamObservation::with_retention_limit(7),
+            |bytes| {
+                replayed.extend_from_slice(bytes);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(replay_error.is_none());
+        assert_eq!(input.position(), expected.len() as u64);
+        assert_eq!(replayed, expected);
+        let stream = observation.finish();
+        assert_eq!(stream.retained, expected[..7]);
+        assert_eq!(stream.capture.total_observed_bytes, expected.len() as u64);
+        assert_eq!(
+            stream.capture.sha256,
+            hex::encode(Sha256::digest(&expected))
+        );
+        assert!(require_complete_terminal_streams(&stream, &CapturedStreamV1::default()).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_stream_drain_keeps_observing_after_replay_failure() {
+        let expected = vec![b'x'; 2 * 64 * 1024 + 1];
+        let mut input = io::Cursor::new(&expected);
+        let mut replay_calls = 0;
+        let (observation, replay_error) = drain_observed_stream(
+            &mut input,
+            StreamObservation::with_retention_limit(3),
+            |_| {
+                replay_calls += 1;
+                Err(io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "injected replay failure",
+                ))
+            },
+        )
+        .unwrap();
+        assert_eq!(replay_calls, 1);
+        assert!(replay_error.unwrap().contains("injected replay failure"));
+        assert_eq!(input.position(), expected.len() as u64);
+        let stream = observation.finish();
+        assert_eq!(stream.retained, b"xxx");
+        assert_eq!(stream.capture.total_observed_bytes, expected.len() as u64);
+        assert_eq!(
+            stream.capture.sha256,
+            hex::encode(Sha256::digest(&expected))
+        );
+    }
 
     fn parse_run(arguments: &[&str]) -> RunArgs {
         let cli = Cli::try_parse_from(arguments).unwrap();

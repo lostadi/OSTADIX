@@ -487,8 +487,7 @@ impl SourceGroup {
         }
     }
     pub(super) fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        provider_order::check_json(bytes)?;
-        let value: Value = serde_json::from_slice(bytes)?;
+        let value = provider_order::checked_json(bytes)?;
         if matches!(value["format"].as_str(), Some(FORMAT | FORMAT_V3))
             && (value.get("original_membership").is_some()
                 || array(&value, "components")?
@@ -498,7 +497,7 @@ impl SourceGroup {
             bail!("legacy source group cannot carry compound membership fields");
         }
         let group: Self =
-            serde_json::from_slice(bytes).context("decode source-backed native IR group")?;
+            serde_json::from_value(value).context("decode source-backed native IR group")?;
         group.check()?;
         Ok(group)
     }
@@ -835,3 +834,41 @@ fn check_original_selection(recipe: &Value, finalized: &Value, capture: &Value) 
 #[cfg(test)]
 #[path = "whole_artifact_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod checked_json_reuse_tests {
+    use super::*;
+    fn reject(b: &[u8], why: &str) {
+        let e = match SourceGroup::from_bytes(b) {
+            Ok(_) => panic!("accepted"),
+            Err(e) => e.to_string(),
+        };
+        assert!(e.contains(why), "{e}");
+    }
+    #[test]
+    fn nested_escaped_duplicate() {
+        let b = br#"{"a":[{"x":1,"\u0078":2}]}"#;
+        assert!(serde_json::from_slice::<Value>(b).is_ok());
+        reject(b, "duplicate original-order JSON key");
+    }
+    #[test]
+    fn trailing_document() {
+        reject(b"{} []", "trailing characters");
+    }
+    #[test]
+    fn present_null_legacy_fields() {
+        for schema in [FORMAT, FORMAT_V3] {
+            for v in [
+                json!({"format":schema,"components":[],"original_membership":null}),
+                json!({"format":schema,"components":[{"compound_dependencies":null}]}),
+            ] {
+                let b = serde_json::to_vec(&v).unwrap();
+                assert!(b.windows(4).any(|b| b == b"null"));
+                reject(
+                    &b,
+                    "legacy source group cannot carry compound membership fields",
+                );
+            }
+        }
+    }
+}

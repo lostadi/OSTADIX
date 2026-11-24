@@ -358,7 +358,7 @@ fn hash(value: &str) -> Result<()> {
 }
 // Reject duplicate object keys recursively before converting any raw policy,
 // embedded JSON, capture, or helper result into Value or a typed structure.
-fn checked_json(bytes: &[u8]) -> Result<Value> {
+pub(super) fn checked_json(bytes: &[u8]) -> Result<Value> {
     struct Unique(Value);
     impl<'de> Deserialize<'de> for Unique {
         fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {

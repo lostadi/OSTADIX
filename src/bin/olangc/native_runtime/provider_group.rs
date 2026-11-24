@@ -125,8 +125,7 @@ fn selected_order(plan: &Plan) -> Result<Option<provider_order::SealedOrder>> {
 }
 
 fn decode_plan(raw: &[u8]) -> Result<Plan> {
-    provider_order::check_json(raw)?;
-    let value: Value = serde_json::from_slice(raw)?;
+    let value = provider_order::checked_json(raw)?;
     if matches!(
         value["schema"].as_str(),
         Some(PLAN_FORMAT | provider_order::PLAN_V3)
@@ -137,7 +136,7 @@ fn decode_plan(raw: &[u8]) -> Result<Plan> {
     {
         bail!("legacy provider plan cannot carry compound membership fields");
     }
-    Ok(serde_json::from_slice(raw)?)
+    Ok(serde_json::from_value(value)?)
 }
 fn dependency_targets(node: &SourceNode) -> impl Iterator<Item = &String> {
     node.dependencies
@@ -1068,3 +1067,41 @@ mod membership_finalization_tests;
 #[cfg(test)]
 #[path = "provider_membership_placement_tests.rs"]
 mod membership_placement_tests;
+
+#[cfg(test)]
+mod checked_json_reuse_tests {
+    use super::*;
+    fn reject(b: &[u8], why: &str) {
+        let e = match decode_plan(b) {
+            Ok(_) => panic!("accepted"),
+            Err(e) => e.to_string(),
+        };
+        assert!(e.contains(why), "{e}");
+    }
+    #[test]
+    fn nested_escaped_duplicate() {
+        let b = br#"{"a":[{"x":1,"\u0078":2}]}"#;
+        assert!(serde_json::from_slice::<Value>(b).is_ok());
+        reject(b, "duplicate original-order JSON key");
+    }
+    #[test]
+    fn trailing_document() {
+        reject(b"{} []", "trailing characters");
+    }
+    #[test]
+    fn present_null_legacy_fields() {
+        for schema in [PLAN_FORMAT, provider_order::PLAN_V3] {
+            for v in [
+                json!({"schema":schema,"components":[],"membership_policy":null}),
+                json!({"schema":schema,"components":[{"compound_dependencies":null}]}),
+            ] {
+                let b = serde_json::to_vec(&v).unwrap();
+                assert!(b.windows(4).any(|b| b == b"null"));
+                reject(
+                    &b,
+                    "legacy provider plan cannot carry compound membership fields",
+                );
+            }
+        }
+    }
+}

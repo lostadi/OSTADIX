@@ -2391,7 +2391,11 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     let ocore_dir = src_dir.join("ocore");
     fs::create_dir_all(&ocore_dir)?;
     for &(relative_path, source) in RUNTIME_OCORE_NATIVE_SOURCES {
-        fs::write(ocore_dir.join(relative_path), source)?;
+        let destination = ocore_dir.join(relative_path);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(destination, source)?;
     }
     fs::write(
         src_dir.join("backend_catalog.rs"),

@@ -66,7 +66,8 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser as ClapParser, ValueEnum};
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -1877,19 +1878,12 @@ fn dependency_plan_group(
         .collect::<Vec<_>>();
     let mut ready = (0..components.len())
         .filter(|&component| in_degree[component] == 0)
-        .collect::<Vec<_>>();
+        .map(|component| Reverse((component_min_index[component], component)))
+        .collect::<BinaryHeap<_>>();
     let mut result = Vec::with_capacity(n);
 
-    while !ready.is_empty() {
-        // Pick the component whose first member appeared earliest. This is the
-        // stable analogue of Kahn's algorithm on the condensation DAG.
-        let pos = ready
-            .iter()
-            .enumerate()
-            .min_by_key(|(_, &component)| component_min_index[component])
-            .map(|(p, _)| p)
-            .unwrap();
-        let component = ready.remove(pos);
+    while let Some(Reverse((_, component))) = ready.pop() {
+        // Preserve original-index priority, including newly ready components.
         let cyclic = components[component].len() > 1;
         for &node in &components[component] {
             let mut effective_dependencies = adjacency[node].clone();
@@ -1923,7 +1917,7 @@ fn dependency_plan_group(
         for dependent in dependents {
             in_degree[dependent] -= 1;
             if in_degree[dependent] == 0 {
-                ready.push(dependent);
+                ready.push(Reverse((component_min_index[dependent], dependent)));
             }
         }
     }
@@ -3415,5 +3409,44 @@ mod tests {
         assert_eq!(ordered.len(), 2);
 
         let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod queue_stability_tests {
+    use super::*;
+
+    #[test]
+    fn newly_ready_components_keep_original_index_priority() {
+        let dir = tempfile::tempdir().unwrap();
+        let files = ["a.py", "b.py", "c.py", "d.py"].map(|n| dir.path().join(n));
+        for (p, s) in files
+            .iter()
+            .zip(["import c\n", "b=1\n", "c=1\n", "import b\n"])
+        {
+            fs::write(p, s).unwrap();
+        }
+        assert_eq!(
+            order_by_deps(&files, &default_extension_map()),
+            vec![
+                files[1].clone(),
+                files[2].clone(),
+                files[0].clone(),
+                files[3].clone()
+            ]
+        );
+    }
+
+    #[test]
+    fn wide_independent_queue_preserves_supplied_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let files = (0..1024)
+            .rev()
+            .map(|n| dir.path().join(format!("unit_{n:04}.py")))
+            .collect::<Vec<_>>();
+        for p in &files {
+            fs::write(p, "value=1\n").unwrap();
+        }
+        assert_eq!(order_by_deps(&files, &default_extension_map()), files);
     }
 }

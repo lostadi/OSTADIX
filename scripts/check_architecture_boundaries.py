@@ -2838,7 +2838,10 @@ def _top_level_external_modules(path: Path) -> set[str]:
 
 
 def _external_module_records(
-    path: Path, *, include_disabled: bool = False
+    path: Path,
+    *,
+    include_disabled: bool = False,
+    reject_uncertain_paths: bool = False,
 ) -> list[tuple[str, str | None, int, bool]]:
     """Resolve literal attributes on top-level external declarations only.
 
@@ -2889,6 +2892,11 @@ def _external_module_records(
             )
             cursor = marker - 1
         if uncertain_path:
+            if reject_uncertain_paths:
+                raise ValueError(
+                    f"compiled-fragment child `{tokens[index + 1].text}` "
+                    "has a conditional #[cfg_attr(path)] source"
+                )
             continue
         records.append((
             tokens[index + 1].text, declared_path, token.start,
@@ -3046,7 +3054,9 @@ def _physical_override_ownership_findings(
         fragment_path = root / fragment.path
         try:
             declared_children = _top_level_external_modules(fragment_path)
-            child_records = _external_module_records(fragment_path)
+            child_records = _external_module_records(
+                fragment_path, reject_uncertain_paths=True
+            )
         except (OSError, UnicodeError, ValueError) as error:
             failures.append(
                 f"{fragment.path}: could not analyze fragment module ownership: {error}"
@@ -3061,9 +3071,23 @@ def _physical_override_ownership_findings(
         for name, declared_path, _offset, _disabled in child_records:
             target = (Path(fragment.path).parent / f"{name}.rs").as_posix()
             expected_module = (*(fragment.module_path or (fragment.owner,)), name)
+            # An ordinary declaration is needed when a child has its own modules:
+            # forcing #[path] changes Rust's nested-module lookup directory.
+            # Support only the same-directory mod.rs include context here; other
+            # include contexts still need an explicit reviewed source geometry.
+            conventional_child = (
+                declared_path is None
+                and Path(fragment.included_from).name == "mod.rs"
+                and Path(fragment.included_from).parent == Path(fragment.path).parent
+            )
+            if declared_path is None and not conventional_child:
+                failures.append(
+                    f"compiled fragment `{fragment.path}` ordinary child `{name}` "
+                    "requires a same-directory mod.rs include site"
+                )
             if (
                 name not in fragment.child_modules
-                or declared_path != f"{name}.rs"
+                or not (declared_path == f"{name}.rs" or conventional_child)
                 or target not in production_by_relative
                 or _file_module_path(
                     target, manifest.production.source_root, manifest.physical_overrides
@@ -3071,7 +3095,7 @@ def _physical_override_ownership_findings(
             ):
                 failures.append(
                     f"compiled fragment `{fragment.path}` child `{name}` must use "
-                    "its declared same-directory #[path] source and module identity"
+                    "its declared same-directory source and module identity"
                 )
             for other, children in module_declarations.items():
                 if other == fragment.included_from and name in children:
