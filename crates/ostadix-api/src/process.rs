@@ -6099,6 +6099,10 @@ mod tests {
         #[cfg(not(target_os = "macos"))]
         let mut command = Command::new(&python);
 
+        // Match python_shim_command: bootstrap from the admitted runtime root.
+        #[cfg(target_os = "macos")]
+        command.current_dir(temp.path());
+
         let output = command
             .arg("-c")
             .arg(PYTHON_POLICY_BOOTSTRAP)

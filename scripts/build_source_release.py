@@ -470,6 +470,7 @@ OSTADIX_API_RUNTIME_ASSET_PATHS = frozenset(
             "ruby_shim.py",
             "rust_shim.py",
             "shell_shim.py",
+            "voice_shim.py",
             "sql_shim.py",
             "ubuntu_vm_shim.py",
             "webassembly_shim.py",

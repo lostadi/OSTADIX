@@ -1571,9 +1571,14 @@ fn render_python_number(value: &ONumber) -> String {
             format!("__import__('struct').unpack('>d', bytes([{bytes}]))[0]")
         }
         ONumber::BinaryFloat { .. } => py_string_literal(&render_number_fallback(value)),
-        ONumber::BigFloat { .. } | ONumber::Complex { .. } => {
-            py_string_literal(&render_number_fallback(value))
-        }
+        ONumber::BigFloat { .. } => py_string_literal(&render_number_fallback(value)),
+        // A complex is a value, not a caption. Splicing the fallback text
+        // made `$cx` arrive in Python as the string "F64:…+F64:…i".
+        ONumber::Complex { re, im } => format!(
+            "complex({}, {})",
+            render_python_number(re),
+            render_python_number(im)
+        ),
     }
 }
 

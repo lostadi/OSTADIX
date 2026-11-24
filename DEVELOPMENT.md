@@ -78,7 +78,7 @@ Bare hosted blocks are ephemeral: `lang^(...)_lang` gets a fresh evaluator insta
 
 To add a Rust-hosted language backend:
 
-1. Add a static `BackendSpec` entry to `BACKEND_SPECS` in `crates/ostadix-api/src/ir.rs`: canonical name, aliases, cache-safety flag, splice renderer, execution mode, and required authorities.
+1. Add a static declaration to the `backend_catalog!` records in `crates/ostadix-api/src/backend_catalog.inc.rs`. `BackendRegistry::global()` expands that file. Do not add a per-binary tag list.
 2. Add the authoritative shim under `crates/ostadix-api/backends/` when the
    backend is `ExecutionMode::Shim`, then update the root `backends/`
    compatibility mirror byte-for-byte. Shims speak the 4-byte length-prefixed

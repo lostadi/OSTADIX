@@ -1159,6 +1159,7 @@ output is one rendering of that tree.
 | `nixos_test` |         | `backends/nixos_test_shim.py`. NixOS integration test runner. |
 | `bash`       |         | `backends/bash_shim.py`. Executes Bash and returns stdout. |
 | `shell`      |         | `backends/shell_shim.py`. Executes POSIX sh and returns stdout. |
+| `voice`      |         | Speaks the trimmed literal body with macOS `say`. Lee Ostadi’s Personal Voice is first; Aaron Compact is used only if that voice does not open. The result is the spoken text, not `say` stdout. `backends/voice_shim.py` serves the other editions. A value hole is rejected. |
 | `rust`       |         | `backends/rust_shim.py`. Compiles with rustc, runs, and returns stdout. |
 | `racket`     |         | `backends/racket_shim.py`. Executes Racket and returns stdout. |
 | `cpp`        |         | Compiles C++17 with g++, runs, and returns stdout. |

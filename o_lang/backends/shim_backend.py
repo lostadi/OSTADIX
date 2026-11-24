@@ -96,7 +96,7 @@ def _splice_repr(value: OValue) -> str:
 
 class ShimBackend:
     def __init__(self, name: str, shim_dir: Path | None = None, timeout: float | None = None):
-        if name not in {"common_lisp", "javascript", "sql", "bash", "shell"}:
+        if name not in {"common_lisp", "javascript", "sql", "bash", "shell", "voice"}:
             raise ValueError(f"unsupported stateless shim backend {name!r}")
         self.name = name
         default_shims = Path(__file__).resolve().parents[2] / "backends"
