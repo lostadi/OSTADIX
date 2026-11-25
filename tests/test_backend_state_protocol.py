@@ -187,8 +187,8 @@ image = Image.new('RGB', (2, 2), (20, 30, 40))
         finally:
             shim.close()
 
-    def test_all_22_shims_report_their_truthful_state_tier(self):
-        self.assertEqual(22, len(ALL_SHIMS))
+    def test_all_23_shims_report_their_truthful_state_tier(self):
+        self.assertEqual(23, len(ALL_SHIMS))
         for shim_name in ALL_SHIMS:
             with self.subTest(shim=shim_name):
                 shim = ShimProcess(shim_name)
@@ -234,8 +234,8 @@ image = Image.new('RGB', (2, 2), (20, 30, 40))
                     shim.close()
                 self.assertIn(f'{catalog_field}: "{identity}"', catalog)
 
-    def test_all_19_stateless_shims_round_trip_canonical_empty_state(self):
-        self.assertEqual(19, len(STATELESS))
+    def test_all_20_stateless_shims_round_trip_canonical_empty_state(self):
+        self.assertEqual(20, len(STATELESS))
         for shim_name in sorted(STATELESS):
             with self.subTest(shim=shim_name):
                 shim = ShimProcess(shim_name)

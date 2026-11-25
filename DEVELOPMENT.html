@@ -68,7 +68,7 @@ use the native front door directly.</li>
 <h2>Backend registry and shims</h2>
 <p>To add a Rust-hosted language backend:</p>
 <ol>
-<li>Add a static <code>BackendSpec</code> entry to <code>BACKEND_SPECS</code> in <code>crates/ostadix-api/src/ir.rs</code>: canonical name, aliases, cache-safety flag, splice renderer, execution mode, and required authorities.</li>
+<li>Add a static declaration to the <code>backend_catalog!</code> records in <code>crates/ostadix-api/src/backend_catalog.inc.rs</code>. <code>BackendRegistry::global()</code> expands that file. Do not add a per-binary tag list.</li>
 <li>Add the authoritative shim under <code>crates/ostadix-api/backends/</code> when the
 backend is <code>ExecutionMode::Shim</code>, then update the root <code>backends/</code>
 compatibility mirror byte-for-byte. Shims speak the 4-byte length-prefixed

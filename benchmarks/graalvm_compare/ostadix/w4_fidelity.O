@@ -1,0 +1,17 @@
+O^(
+let big = python^(
+__oval_result__ = 2 ** 100
+)_python
+
+let f = python^(
+__oval_result__ = 0.1 + 0.2
+)_python
+
+let nz = python^(
+__oval_result__ = -0.0
+)_python
+
+javascript^(
+console.log([typeof big, String(big), String(f), String(Object.is(nz, -0))].join("|"))
+)_javascript
+)_O

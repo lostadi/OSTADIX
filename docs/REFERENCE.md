@@ -4257,7 +4257,7 @@ live authenticated kernel session already binds it.
 
 ## Hosted backends
 
-Backend Catalog V6 registers 31 canonical backends and six aliases: `o`, `md`,
+Backend Catalog V6 registers 30 canonical backends and six aliases: `o`, `md`,
 `tex`, `plain`, `py`, and `ubuntu`. The Rust runtime executes the following
 canonical languages. Inline backends
 run inside the evaluator. Hosted backends run as Rust backend processes through
@@ -4296,7 +4296,6 @@ semantics that are not a plain external command, such as live Python `O.eval`.
 | `webassembly` | WABT plus Wasmtime or Wasmer | Compiles WAT when needed and executes the resulting WebAssembly module. |
 | `java` | Rust backend runner plus `javac` and `java` | Compiles and runs a Java class. |
 | `javascript` | Rust backend runner plus Node.js | Executes JavaScript with O bindings injected as constants. |
-| `voice` | Rust backend runner plus macOS `say` | Speaks the trimmed literal body in Lee Ostadi’s Personal Voice and returns that text as a string. Aaron Compact is used only when that voice does not open. A value hole is rejected. |
 | `ocaml` | Rust backend runner plus OCaml toolchain | Interprets or compiles OCaml and returns stdout. |
 
 Every row names an executing backend implementation. A missing target runtime

@@ -174,6 +174,7 @@ Connected <code>o</code>/<code>ostadix</code> wrappers also in <code>~/.local/bi
 registered-alias support (<code>py</code>, <code>md</code>, <code>tex</code>, <code>plain</code>, <code>o</code>); <code>$IDENT</code> binds to O values, <code>\$var</code>
 splices host env; <code>quote^(…)_quote</code> for unevaluated O source.</p>
 <p><strong>30 backends</strong> (from the live <code>o_doctor</code> catalog above): builtin = <code>O,quote,nix_expr,html, markdown,latex,text</code>; located shims (22 <code>.py</code> files in <code>backends/</code>) = <code>bash,shell,python, javascript,ruby,rust,c,cpp,java(java+java),nix,nix_store,nixos_test,sql,haskell,ocaml,racket, lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),webassembly (wat2wasm+wasmtime),ubuntu_vm(python3+multipass)</code>.</p>
+<p>Later than that <code>o_doctor</code> snapshot: <code>voice</code> speaks a trimmed literal body through macOS <code>say</code> (<code>backends/voice_shim.py</code>). The Rust runner returns the spoken text. Lee Ostadi’s Personal Voice is first; Aaron Compact is only the fallback when that voice does not open.</p>
 <p><strong>What I ran, in this session, that actually worked:</strong></p>
 <ul>
 <li><code>examples/hello.O</code> via MCP <code>o_smoke</code> → <code>[number] 2</code></li>
@@ -234,7 +235,7 @@ in this snapshot; treat <code>okernel-multikernel/</code> as the kernel-mesh exp
 Root crate exposes all 14 bins. <code>ostadix-api</code> = the &quot;independent runtime engine&quot; (v0.4.0,
 default feature <code>graph_executor</code>; see commit <code>e74cda5a</code> &quot;make ostadix-api the independent
 runtime engine&quot; and <code>e20fe0f4</code> &quot;freeze M2 execution fabric loopback&quot;).</li>
-<li><code>backends/</code> — 22 <code>*_shim.py</code> files + <code>manifest.json</code>, etc (the shim set for <code>O</code> AOT execution).</li>
+<li><code>backends/</code> — 23 <code>*_shim.py</code> files + <code>manifest.json</code>, etc (the shim set for <code>O</code> AOT execution). <code>voice_shim.py</code> is the speech adapter.</li>
 <li><code>examples/</code> — 52 top-level entries; 42 are <code>.O</code> programs + fixtures (<code>computed_plot.html</code>,
 <code>hello.html</code>, <code>t.html</code>, <code>manifest.json</code>, <code>literate_report.md</code>, <code>group_pipeline/</code>,
 <code>docker_literal/</code>, <code>plan9/</code>, <code>plan9_test.html</code>, <code>plan9.html</code>) + a bunch of single-topic demos

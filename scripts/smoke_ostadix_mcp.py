@@ -1782,7 +1782,7 @@ def run_smoke(
         }
         if not all(value in environment_text for value in required_environment):
             raise SmokeError(f"o_env returned unexpected paths:\n{environment_text}")
-        if "runtime-summary backend-count=30" not in environment_text:
+        if "runtime-summary backend-count=31" not in environment_text:
             raise SmokeError(f"o_env omitted the all-runtime summary:\n{environment_text}")
 
         _send(
@@ -1804,7 +1804,7 @@ def run_smoke(
             "runtime-catalog-legacy-schema-v4=ostadix.backend-catalog/v4",
             "runtime-catalog-projection=compiled-mcp-snapshot",
             "runtime-search-mode=discover-local",
-            "runtime-summary backend-count=30",
+            "runtime-summary backend-count=31",
             "runtime backends=python status=located",
             "runtime backends=java status=",
             "runtime backends=webassembly status=",

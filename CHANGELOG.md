@@ -33,8 +33,7 @@ Package SemVer is only one of the independent coordinates documented in
   they do not establish guest execution, completion or a universal confinement
   theorem.
 - The short README links to the complete preserved reference and a focused
-  research note. Development guidance records contributor credit and truthful
-  AI-assistance and review provenance. Historical root inputs and patches are
+  research note. Historical root inputs and patches are
   retained under `audits/` with byte identities.
 
 ### Added
