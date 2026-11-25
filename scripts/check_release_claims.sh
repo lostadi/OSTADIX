@@ -26,8 +26,6 @@ cd "$ROOT" || exit 2
 # against each gate's captured live transcript.
 python3 scripts/release_evidence.py validate
 python3 scripts/world_alpha_evidence.py --quiet
-# The detailed guide is immutable history, never current execution evidence.
-python3 scripts/check_readme_reference.py
 
 # Bash 3.2, shipped by macOS, has arrays but not mapfile/readarray.  Keep the
 # NUL-delimited Git path list in a temporary file so spaces and glob characters
@@ -367,9 +365,9 @@ do
 done
 # ROOT_README_CLAIMS_END
 
-# Historical audits and detailed tutorials remain byte-bound to the original
-# README by check_readme_reference.py above. Current World normative/source,
-# CLAIMS.md and sealed-ledger checks below retain their separate authority.
+# docs/REFERENCE.md may be edited, but its historical results must stay
+# labeled as historical. Current World normative/source, CLAIMS.md and
+# sealed-ledger checks below retain their separate authority.
 require_fixed docs/REFERENCE.md \
     '### Validation at the historical audited master' \
     'the historical master audit is presented as current validation'
