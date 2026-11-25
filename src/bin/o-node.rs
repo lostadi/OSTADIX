@@ -370,6 +370,9 @@ struct ServeArgs {
     /// manual mode enables the mesh only when this option is supplied.
     #[arg(long, value_name = "PATH", conflicts_with = "no_mesh")]
     mesh_state_dir: Option<PathBuf>,
+    /// Refuse unbounded V2 mesh actors; existing finite V1 ceilings stay unchanged.
+    #[arg(long, conflicts_with = "no_mesh")]
+    mesh_no_unbounded: bool,
     /// Disable the scheduler/actor mesh that automatic mode enables by default.
     #[arg(long, conflicts_with = "mesh_state_dir")]
     no_mesh: bool,
@@ -2778,6 +2781,7 @@ fn serve(mut args: ServeArgs) -> Result<()> {
                 // connection limit (32 by default).
                 let mut config =
                     MeshNodeRuntimeConfig::new(v1_runtime.node_id.clone(), mesh_state_dir.clone());
+                config.allow_unbounded_actors = !args.mesh_no_unbounded;
                 config.max_concurrent_actors = mesh_actor_capacity(
                     config.max_concurrent_actors,
                     v1_runtime.max_concurrent_connections,

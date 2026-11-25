@@ -3277,7 +3277,7 @@ fn validated_progress_callbacks_do_not_enter_branch_measurements_or_delay_prereq
             observed.lock().unwrap().push(event);
         };
         let mut options = RunOptions::default();
-        options.limits.wall_clock_timeout = Duration::from_secs(10);
+        options.limits.wall_clock_timeout = Some(Duration::from_secs(10));
         let execution = execute_project_hgraph_selection_with_contract_and_progress(
             &bundle,
             &project,

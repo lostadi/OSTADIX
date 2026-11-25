@@ -44,6 +44,99 @@ use crate::project::runtime::{
 pub const MESH_EXECUTION_TRACE_SCHEMA_V1: &str = "ostadix.project-mesh-trace/v1";
 pub const MESH_READ_ONLY_DISCOVERY_SCHEMA_V1: &str = "ostadix.mesh-read-only-discovery/v1";
 
+use super::mesh::{
+    MeshActorSpecV2, MeshExecutionLimitsV2, MeshRouteRequirementsV2, HOSTED_MESH_PROTOCOL_V1,
+    HOSTED_MESH_PROTOCOL_V2,
+};
+
+/// Internal request authority retains the selected policy before any wire
+/// conversion. Unbounded execution can never be encoded as an invalid V1 zero.
+#[derive(Debug, Clone)]
+enum RequestedMeshRoute {
+    FiniteV1(MeshRouteRequirementsV1),
+    OptionalV2(MeshRouteRequirementsV2),
+}
+
+impl RequestedMeshRoute {
+    fn protocol(&self) -> &'static str {
+        match self {
+            Self::FiniteV1(_) => HOSTED_MESH_PROTOCOL_V1,
+            Self::OptionalV2(_) => HOSTED_MESH_PROTOCOL_V2,
+        }
+    }
+
+    fn probe(
+        &self,
+        connection: &mut MeshNodeConnection,
+    ) -> Result<(String, bool, Vec<String>, u32)> {
+        match self {
+            Self::FiniteV1(requirements) => {
+                let probe = connection.probe_route(requirements.clone())?;
+                if probe.requirements != *requirements {
+                    bail!("finite mesh probe substituted its requested contract");
+                }
+                Ok((
+                    probe.node_id,
+                    probe.eligible,
+                    probe.missing,
+                    probe.available_slots,
+                ))
+            }
+            Self::OptionalV2(requirements) => {
+                let probe = connection.probe_route_v2(requirements.clone())?;
+                if probe.requirements != *requirements {
+                    bail!("optional mesh probe substituted its requested contract");
+                }
+                Ok((
+                    probe.node_id,
+                    probe.eligible,
+                    probe.missing,
+                    probe.available_slots,
+                ))
+            }
+        }
+    }
+
+    fn actor(&self, actor: MeshActorIdV1, node_id: String) -> RequestedMeshActor {
+        match self {
+            Self::FiniteV1(requirements) => RequestedMeshActor::FiniteV1(MeshActorSpecV1::new(
+                actor,
+                requirements.clone(),
+                node_id,
+            )),
+            Self::OptionalV2(requirements) => RequestedMeshActor::OptionalV2(MeshActorSpecV2::new(
+                actor,
+                requirements.clone(),
+                node_id,
+            )),
+        }
+    }
+}
+
+enum RequestedMeshActor {
+    FiniteV1(MeshActorSpecV1),
+    OptionalV2(MeshActorSpecV2),
+}
+
+impl RequestedMeshActor {
+    fn actor_ref(&self) -> Result<MeshActorRefV1> {
+        match self {
+            Self::FiniteV1(actor) => actor.actor_ref(),
+            Self::OptionalV2(actor) => actor.actor_ref(),
+        }
+    }
+
+    fn submit(
+        self,
+        connection: &mut MeshNodeConnection,
+    ) -> Result<crate::hosted_remote::mesh::MeshActorStatusV1> {
+        match self {
+            Self::FiniteV1(actor) => connection.execute_actor(actor),
+            Self::OptionalV2(actor) => connection.execute_actor_v2(actor),
+        }
+    }
+}
+
 /// Whether a caller merely prefers the mesh or requires a remote provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -996,16 +1089,24 @@ impl ResolvedMeshPeer {
             .expect("resolved mesh peer must retain a working endpoint")
     }
 
-    fn connect(&self) -> Result<(MeshNodeClient, MeshNodeConnection)> {
+    fn connect_for_protocol(&self, protocol: &str) -> Result<(MeshNodeClient, MeshNodeConnection)> {
         let mut failures = Vec::new();
         for address in &self.addresses {
             let client = self.client_at(address);
-            match client.connect() {
-                Ok(mut connection) => match connection.profile() {
-                    Ok(profile) if profile == self.profile => return Ok((client, connection)),
-                    Ok(profile) => failures.push(format!(
-                        "{address}: authenticated profile for `{}` differs from the discovered pinned profile for `{}`",
-                        profile.node_id, self.node_id
+            let connected = match protocol {
+                HOSTED_MESH_PROTOCOL_V1 => client.connect(),
+                HOSTED_MESH_PROTOCOL_V2 => client.connect_v2(),
+                _ => bail!("unsupported selected project mesh protocol"),
+            };
+            match connected {
+                Ok(mut connection) => match if protocol == HOSTED_MESH_PROTOCOL_V1 {
+                    connection.profile().map(|profile| profile == self.profile)
+                } else {
+                    connection.profile_v2().map(|profile| optional_profile_matches_peer(&profile, &self.profile))
+                } {
+                    Ok(true) => return Ok((client, connection)),
+                    Ok(false) => failures.push(format!(
+                        "{address}: authenticated profile differs from the discovered pinned profile for `{}`", self.node_id
                     )),
                     Err(error) => failures.push(format!(
                         "{address}: authenticated profile reconciliation failed: {error:#}"
@@ -1029,6 +1130,54 @@ impl ResolvedMeshPeer {
             observed_latency_micros: self.observed_latency_micros,
         }
     }
+}
+
+/// Bridge the held V1 policy to its explicit V2 deadline contract. Every
+/// non-deadline field (including future fields covered by derived equality)
+/// must remain exact. A finite V2 ceiling also retains the held finite value.
+fn optional_execution_policy_matches_peer(
+    optional: &MeshExecutionLimitsV2,
+    finite: &MeshExecutionLimitsV1,
+) -> bool {
+    if optional.validate().is_err() || finite.validate().is_err() {
+        return false;
+    }
+    if optional
+        .wall_clock_timeout_ms
+        .is_some_and(|value| value != finite.wall_clock_timeout_ms)
+    {
+        return false;
+    }
+    let mut expected = MeshExecutionLimitsV2::from(finite);
+    expected.wall_clock_timeout_ms = optional.wall_clock_timeout_ms;
+    optional == &expected
+}
+
+fn optional_profile_matches_peer(
+    optional: &super::mesh::MeshNodeProfileV2,
+    finite: &MeshNodeProfileV1,
+) -> bool {
+    optional.validate().is_ok()
+        && finite.validate().is_ok()
+        && optional.node_id == finite.node_id
+        && optional.platform_os == finite.platform_os
+        && optional.architecture == finite.architecture
+        && optional.cpu_slots == finite.cpu_slots
+        && optional.memory_capacity_bytes == finite.memory_capacity_bytes
+        && optional.gpu_devices == finite.gpu_devices
+        && optional.backend_catalog_sha256 == finite.backend_catalog_sha256
+        && optional.catalogued_backends == finite.catalogued_backends
+        && optional.max_parallel == finite.max_parallel
+        && optional.max_storage_bytes == finite.max_storage_bytes
+        && optional.max_artifact_bytes == finite.max_artifact_bytes
+        && optional.max_result_bytes == finite.max_result_bytes
+        && optional.max_chunk_bytes == finite.max_chunk_bytes
+        && optional.max_result_chunk_bytes == finite.max_result_chunk_bytes
+        && optional.max_project_ir_bytes == finite.max_project_ir_bytes
+        && optional_execution_policy_matches_peer(
+            &optional.execution_limit_ceiling,
+            &finite.execution_limit_ceiling,
+        )
 }
 
 fn client_identity(paths: &StoredLanPeerPathsV1, peer: &StoredLanPeerV1) -> ClientTlsIdentity {
@@ -1381,7 +1530,8 @@ enum ActorStopReason {
 
 #[derive(Debug, Clone, Copy)]
 struct RemotePollPolicy {
-    deadline: Instant,
+    deadline: Option<Instant>,
+    protocol: &'static str,
     termination_grace_period: Duration,
     max_result_bytes: u64,
     max_result_chunk_bytes: u32,
@@ -1399,19 +1549,33 @@ fn route_requirements(
     upload: &MeshArtifactUploadV1,
     route_id: &str,
     opts: &RunOptions,
-) -> Result<MeshRouteRequirementsV1> {
+) -> Result<RequestedMeshRoute> {
     let projection = mesh_project_ir_projection(bundle, route_id)
         .context("failed to construct the canonical mesh actor project IR")?;
-    let mut requirements = MeshRouteRequirementsV1::new(
-        upload.artifact.clone(),
-        route_id.to_string(),
-        projection.sha256,
-        mesh_route_contract_sha256(bundle, route_id)?,
-    );
-    requirements.resources.project_ir_bytes = projection.canonical_bytes_len;
-    requirements.execution_limits = MeshExecutionLimitsV1::from_run_options(opts);
-    requirements.validate()?;
-    Ok(requirements)
+    let contract = mesh_route_contract_sha256(bundle, route_id)?;
+    if opts.limits.wall_clock_timeout.is_some() {
+        let mut requirements = MeshRouteRequirementsV1::new(
+            upload.artifact.clone(),
+            route_id.to_owned(),
+            projection.sha256,
+            contract,
+        );
+        requirements.resources.project_ir_bytes = projection.canonical_bytes_len;
+        requirements.execution_limits = MeshExecutionLimitsV1::from_run_options(opts)?;
+        requirements.validate()?;
+        Ok(RequestedMeshRoute::FiniteV1(requirements))
+    } else {
+        let mut requirements = MeshRouteRequirementsV2::new(
+            upload.artifact.clone(),
+            route_id.to_owned(),
+            projection.sha256,
+            contract,
+        );
+        requirements.resources.project_ir_bytes = projection.canonical_bytes_len;
+        requirements.execution_limits = MeshExecutionLimitsV2::from_run_options(opts)?;
+        requirements.validate()?;
+        Ok(RequestedMeshRoute::OptionalV2(requirements))
+    }
 }
 
 fn validate_result_artifact(bytes: &[u8], result: &MeshActorResultV1) -> Result<()> {
@@ -1469,7 +1633,7 @@ fn fetch_actor_result(
         let response = match connection.result_chunk(actor_ref.clone(), index) {
             Ok(response) => response,
             Err(first_error) => {
-                let (_, mut recovered) = peer.connect().with_context(|| {
+                let (_, mut recovered) = peer.connect_for_protocol(connection.protocol()).with_context(|| {
                     format!(
                         "result chunk {index} failed on the actor stream ({first_error:#}) and same-node reconnection failed"
                     )
@@ -1589,7 +1753,10 @@ fn poll_remote_actor(
                 Some(ActorStopReason::RequestCancellation)
             } else if cancel.is_cancelled() {
                 Some(ActorStopReason::RaceCancellation)
-            } else if Instant::now() >= policy.deadline {
+            } else if policy
+                .deadline
+                .is_some_and(|deadline| Instant::now() >= deadline)
+            {
                 Some(ActorStopReason::WallClockDeadline)
             } else {
                 None
@@ -1597,7 +1764,7 @@ fn poll_remote_actor(
             if let Some(reason) = reason {
                 let cancellation = match connection.cancel_actor(actor_ref.clone()) {
                     Ok(cancellation) => cancellation,
-                    Err(first_error) => match peer.connect().and_then(|(_, mut recovered)| {
+                    Err(first_error) => match peer.connect_for_protocol(policy.protocol).and_then(|(_, mut recovered)| {
                         recovered
                             .cancel_actor(actor_ref.clone())
                             .map(|cancellation| (recovered, cancellation))
@@ -1648,11 +1815,13 @@ fn poll_remote_actor(
         status = match connection.actor_status(actor_ref.clone()) {
             Ok(status) => status,
             Err(first_error) => {
-                match peer.connect().and_then(|(_, mut recovered)| {
-                    recovered
-                        .actor_status(actor_ref.clone())
-                        .map(|status| (recovered, status))
-                }) {
+                match peer
+                    .connect_for_protocol(policy.protocol)
+                    .and_then(|(_, mut recovered)| {
+                        recovered
+                            .actor_status(actor_ref.clone())
+                            .map(|status| (recovered, status))
+                    }) {
                     Ok((recovered, status)) => {
                         connection = recovered;
                         status
@@ -1675,7 +1844,7 @@ fn poll_remote_actor(
 fn execute_remote_attempt(
     peer: &ResolvedMeshPeer,
     upload: &MeshArtifactUploadV1,
-    requirements: &MeshRouteRequirementsV1,
+    requirements: &RequestedMeshRoute,
     actor: MeshActorIdV1,
     cancel: &CancellationToken,
     opts: &RunOptions,
@@ -1685,7 +1854,7 @@ fn execute_remote_attempt(
     if cancel.is_cancelled() {
         return RemoteAttemptOutcome::Cancelled;
     }
-    let (_, mut connection) = match peer.connect() {
+    let (_, mut connection) = match peer.connect_for_protocol(requirements.protocol()) {
         Ok(connected) => connected,
         Err(error) => {
             return RemoteAttemptOutcome::Failed {
@@ -1709,7 +1878,8 @@ fn execute_remote_attempt(
     if cancel.is_cancelled() {
         return RemoteAttemptOutcome::Cancelled;
     }
-    let probe = match connection.probe_route(requirements.clone()) {
+    let (probe_node, eligible, missing, available_slots) = match requirements.probe(&mut connection)
+    {
         Ok(probe) => probe,
         Err(error) => {
             return RemoteAttemptOutcome::Failed {
@@ -1721,7 +1891,7 @@ fn execute_remote_attempt(
     if cancel.is_cancelled() {
         return RemoteAttemptOutcome::Cancelled;
     }
-    if probe.node_id != peer.node_id || probe.requirements != *requirements {
+    if probe_node != peer.node_id {
         return RemoteAttemptOutcome::Failed {
             delivery: AttemptDeliveryState::ProvenNotStarted,
             detail: format!(
@@ -1730,17 +1900,17 @@ fn execute_remote_attempt(
             ),
         };
     }
-    if !probe.eligible {
+    if !eligible {
         return RemoteAttemptOutcome::Failed {
             delivery: AttemptDeliveryState::ProvenNotStarted,
             detail: format!(
                 "route is ineligible on {}: {}",
                 peer.node_id,
-                probe.missing.join(", ")
+                missing.join(", ")
             ),
         };
     }
-    if probe.available_slots == 0 {
+    if available_slots == 0 {
         return RemoteAttemptOutcome::Failed {
             delivery: AttemptDeliveryState::ProvenNotStarted,
             detail: format!(
@@ -1750,7 +1920,7 @@ fn execute_remote_attempt(
         };
     }
 
-    let spec = MeshActorSpecV1::new(actor.clone(), requirements.clone(), peer.node_id.clone());
+    let spec = requirements.actor(actor.clone(), peer.node_id.clone());
     let actor_ref = match spec.actor_ref() {
         Ok(actor_ref) => actor_ref,
         Err(error) => {
@@ -1760,11 +1930,27 @@ fn execute_remote_attempt(
             }
         }
     };
-    let deadline = Instant::now()
-        .checked_add(opts.limits.wall_clock_timeout)
-        .unwrap_or_else(Instant::now);
+    let deadline = opts
+        .limits
+        .wall_clock_timeout
+        .map(|timeout| {
+            Instant::now()
+                .checked_add(timeout)
+                .context("mesh deadline exceeds the monotonic clock range")
+        })
+        .transpose();
+    let deadline = match deadline {
+        Ok(deadline) => deadline,
+        Err(error) => {
+            return RemoteAttemptOutcome::Failed {
+                delivery: AttemptDeliveryState::ProvenNotStarted,
+                detail: error.to_string(),
+            }
+        }
+    };
     let poll_policy = RemotePollPolicy {
         deadline,
+        protocol: requirements.protocol(),
         termination_grace_period: opts.limits.termination_grace_period,
         max_result_bytes: peer.profile.max_result_bytes,
         max_result_chunk_bytes: peer.profile.max_result_chunk_bytes,
@@ -1775,7 +1961,7 @@ fn execute_remote_attempt(
     // This callback is the trace boundary: it runs only after every pre-submit
     // cancellation check and immediately before the first admission RPC.
     on_submit();
-    match connection.execute_actor(spec) {
+    match spec.submit(&mut connection) {
         Ok(status) => poll_remote_actor(
             peer,
             connection,
@@ -1801,7 +1987,7 @@ fn execute_remote_attempt(
             // generation on the same authenticated peer. The fence operation
             // atomically observes an existing admission or durably prevents a
             // delayed request from starting before proving absence.
-            match peer.connect().and_then(|(_, mut reconciliation)| {
+            match peer.connect_for_protocol(poll_policy.protocol).and_then(|(_, mut reconciliation)| {
                 reconciliation
                     .fence_actor_if_absent(actor_ref.clone())
                     .map(|fence| (reconciliation, fence))
@@ -2234,14 +2420,21 @@ fn execute_mesh_policy(
     let mut peers = discover_mesh_peers(config, trace)?;
     ensure_request_active(cancellation, [], Vec::new())?;
     let bundle_bytes_len = u64::try_from(bundle_bytes.len()).unwrap_or(u64::MAX);
-    let requested_limits = MeshExecutionLimitsV1::from_run_options(opts);
+    let requested_limits = if opts.limits.wall_clock_timeout.is_some() {
+        Some(MeshExecutionLimitsV1::from_run_options(opts)?)
+    } else {
+        None
+    };
     peers.retain(|peer| {
         let rejection = if bundle_bytes_len > peer.profile.max_artifact_bytes {
             Some(format!(
                 "bundle is {bundle_bytes_len} bytes; authenticated node maximum is {}",
                 peer.profile.max_artifact_bytes
             ))
-        } else if !requested_limits.fits_within(&peer.profile.execution_limit_ceiling) {
+        } else if requested_limits
+            .as_ref()
+            .is_some_and(|limits| !limits.fits_within(&peer.profile.execution_limit_ceiling))
+        {
             Some("requested execution policy exceeds the authenticated node ceiling".to_string())
         } else {
             None

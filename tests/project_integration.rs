@@ -1413,7 +1413,7 @@ fn project_runtime_selection_budget_counts_prerequisite_results() {
 
 fn bounded_runtime_options(timeout: Duration) -> RunOptions {
     let mut options = RunOptions::default();
-    options.limits.wall_clock_timeout = timeout;
+    options.limits.wall_clock_timeout = Some(timeout);
     options.limits.termination_grace_period = Duration::from_millis(50);
     options
 }

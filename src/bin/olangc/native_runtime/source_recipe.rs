@@ -148,9 +148,10 @@ fn immutable_driver(
 }
 
 /// An implementation input held by the compiler-owned producer invocation.
-/// These pins identify held expected bytes checked before local dispatch. They
-/// do not prove the later interpreter consumed those bytes, admit a remote
-/// capture, or replace the worker's source/tool checks.
+/// All pins are checked before and after a local dispatch. The worker entry
+/// additionally executes the exact buffer checked by the selected Python.
+/// These pins do not admit remote captures or qualify the interpreter, its
+/// libraries, or the worker's later file/helper reads and source/tool checks.
 struct SourceCaptureInputPin {
     role: &'static str,
     path: PathBuf,
@@ -181,6 +182,40 @@ impl SourceCaptureInputPin {
     }
 }
 
+// This is an execution guard, not a replacement capture implementation. -I
+// remains selected, so -c does not add cwd to the isolated interpreter's import
+// path. Production worker paths are absolute children of new_output().
+// Imports and temporary values stay in a function: the worker executes in the
+// actual __main__ module without launcher globals leaking into its namespace.
+// SystemExit and uncaught worker exceptions propagate to Python unchanged.
+const CAPTURE_WORKER_DRIVER: &str = r#"
+def _ostadix_capture_entry():
+    import hashlib
+    import importlib.machinery
+    import sys
+    script, expected_bytes, expected_sha256 = sys.argv[1:4]
+    expected_bytes = int(expected_bytes)
+    with open(script, "rb") as source:
+        raw = source.read(expected_bytes + 1)
+    if len(raw) != expected_bytes or hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise SystemExit("source capture worker bytes differ before consumption")
+    code = compile(raw, script, "exec", dont_inherit=True)
+    logical_argv = [script, *sys.argv[4:]]
+    namespace = sys.modules["__main__"].__dict__
+    del namespace["_ostadix_capture_entry"]
+    namespace.update({
+        "__name__": "__main__",
+        "__file__": script,
+        "__package__": None,
+        "__spec__": None,
+        "__cached__": None,
+        "__loader__": importlib.machinery.SourceFileLoader("__main__", script),
+    })
+    sys.argv = logical_argv
+    exec(code, namespace, namespace)
+_ostadix_capture_entry()
+"#;
+
 struct SourceCapturePaths<'a> {
     recipe: &'a Path,
     source: &'a Path,
@@ -202,6 +237,7 @@ struct SourceCapturePaths<'a> {
 struct SourceCaptureInvocation {
     program: PathBuf,
     argv: Vec<String>,
+    logical_worker_argv: Vec<String>,
     inputs: Vec<SourceCaptureInputPin>,
     source: PathBuf,
     original_source: Value,
@@ -259,16 +295,27 @@ impl SourceCaptureInvocation {
                     .context("source capture arguments must be UTF-8")
             })
             .collect::<Result<Vec<_>>>()?;
+        // Keep every worker argument from the original invocation. Only its
+        // interpreter entry changes; receipt argv must show the real launcher.
+        let logical_worker_argv = argv[1..].to_vec();
+        let worker_input =
+            SourceCaptureInputPin::new("capture_worker", paths.worker, CAPTURE_WORKER.as_bytes());
+        let mut launcher_argv = vec![
+            "-I".to_owned(),
+            "-c".to_owned(),
+            CAPTURE_WORKER_DRIVER.to_owned(),
+            logical_worker_argv[0].clone(),
+            worker_input.bytes.to_string(),
+            worker_input.sha256.clone(),
+        ];
+        launcher_argv.extend_from_slice(&logical_worker_argv[1..]);
         Ok(Self {
             program,
-            argv,
+            argv: launcher_argv,
+            logical_worker_argv,
             inputs: vec![
                 SourceCaptureInputPin::new("recipe", paths.recipe, recipe_bytes),
-                SourceCaptureInputPin::new(
-                    "capture_worker",
-                    paths.worker,
-                    CAPTURE_WORKER.as_bytes(),
-                ),
+                worker_input,
                 SourceCaptureInputPin::new(
                     "producer_registry",
                     paths.registry,
@@ -297,7 +344,12 @@ impl SourceCaptureInvocation {
             json!({"role":input.role,"path":input.path,"sha256":input.sha256,"bytes":input.bytes})
         }).collect();
         json!({"schema":"ocore-source-capture-invocation-v1",
-            "program":self.program,"argv":self.argv,"implementation_inputs":inputs,
+            "program":self.program,"argv":self.argv,
+            "logical_worker_argv":self.logical_worker_argv,
+            "worker_execution":{"mode":"hash-bound-consumed-buffer-v1",
+                "launcher_sha256":digest(CAPTURE_WORKER_DRIVER.as_bytes()),
+                "scope":"worker entry buffer only; later self/helper reads and interpreter closure remain separate"},
+            "implementation_inputs":inputs,
             "source_root":self.source,"original_source_declaration":self.original_source,
             "toolchain_declaration":self.toolchain,
             "requested_target":self.requested_target,"requested_output_kind":self.requested_output_kind,
@@ -305,18 +357,57 @@ impl SourceCaptureInvocation {
             "scope":"compiler-owned local source-production request; declared source/tool identities remain the capture worker's checks; no remote capture admission"})
     }
 
-    fn execute_local(&self, log: &fs::File) -> Result<std::process::ExitStatus> {
+    fn execute_local(
+        &self,
+        log: &fs::File,
+        process_receipt: &mut Value,
+    ) -> Result<std::process::ExitStatus> {
         for input in self.required_input_pins() {
             input.check()?;
         }
-        // Preserve the original process context and exact argv. There is no
-        // execution deadline here, and no intermediary shell or replay adapter.
-        Command::new(&self.program)
-            .args(&self.argv)
-            .stdout(log.try_clone()?)
-            .stderr(log.try_clone()?)
-            .status()
-            .context("execute embedded original-source capture worker")
+        // Inherit stdin/cwd/environment and preserve the existing log routing.
+        // No shell, execution deadline, or replay adapter is introduced.
+        let execution = (|| -> Result<std::process::ExitStatus> {
+            Command::new(&self.program)
+                .args(&self.argv)
+                .stdout(log.try_clone()?)
+                .stderr(log.try_clone()?)
+                .status()
+                .context("execute hash-bound original-source capture worker")
+        })();
+        // Record a genuinely returned status before checking custody. A failed
+        // postguard must not erase the observed exit or relabel it unknown.
+        if let Ok(status) = &execution {
+            process_receipt["exit_code"] = json!(status.code());
+            process_receipt["success"] = json!(status.success());
+        }
+        // Check every held input even after a spawn/wait/log-clone error or a
+        // nonzero worker exit, before any capture report can be consumed.
+        let postguard_errors: Vec<_> = self
+            .required_input_pins()
+            .iter()
+            .filter_map(|input| {
+                input
+                    .check()
+                    .err()
+                    .map(|error| format!("{} post-dispatch check: {error:#}", input.role))
+            })
+            .collect();
+        process_receipt["input_postguards"] = json!({
+            "success":postguard_errors.is_empty(),"errors":postguard_errors,
+        });
+        if !postguard_errors.is_empty() {
+            let detail = postguard_errors.join("; ");
+            return match execution {
+                Ok(status) => Err(anyhow::anyhow!(
+                    "source capture input postguards failed after worker {status}: {detail}"
+                )),
+                Err(error) => Err(error.context(format!(
+                    "source capture input postguards also failed: {detail}"
+                ))),
+            };
+        }
+        execution
     }
 }
 
@@ -437,9 +528,7 @@ pub(super) fn compile_impl(
             "exit_code":null,"success":false});
         receipt["capture_invocation"] = invocation.description();
         write_receipt(&output, &receipt)?;
-        let status = invocation.execute_local(&log_file)?;
-        receipt["capture_process"]["exit_code"] = json!(status.code());
-        receipt["capture_process"]["success"] = json!(status.success());
+        let status = invocation.execute_local(&log_file, &mut receipt["capture_process"])?;
         let report = capture.join("report.json");
         if report.is_file() {
             receipt["capture_report"] = artifact_record(&report)?;

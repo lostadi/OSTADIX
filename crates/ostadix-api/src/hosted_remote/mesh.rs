@@ -40,10 +40,16 @@ use super::protocol::{
     MAX_HOSTED_ID_BYTES,
 };
 use super::tls::{
-    connect_mutual_tls_mesh_v1, ClientTlsIdentity, HostedClientStream, HostedServerStream,
+    connect_mutual_tls_mesh_v1, connect_mutual_tls_mesh_v2, ClientTlsIdentity, HostedClientStream,
+    HostedServerStream,
 };
 
 pub const HOSTED_MESH_PROTOCOL_V1: &str = "ostadix.mesh-transport/v1";
+pub const HOSTED_MESH_PROTOCOL_V2: &str = "ostadix.mesh-transport/v2";
+pub const MESH_NODE_PROFILE_SCHEMA_V2: &str = "ostadix.mesh-node-profile/v2";
+const MESH_ACTOR_SPEC_SCHEMA_V2: &str = "ostadix.mesh-actor-spec/v2";
+const MESH_EXECUTION_LIMITS_SCHEMA_V2: &str = "ostadix.mesh-execution-limits/v2";
+const MESH_ACTOR_RECORD_SCHEMA_V2: &str = "ostadix.mesh-actor-record/v2";
 pub const MESH_NODE_PROFILE_SCHEMA_V1: &str = "ostadix.mesh-node-profile/v1";
 pub const MESH_CAPACITY_SCHEMA_V1: &str = "ostadix.mesh-capacity/v1";
 pub const MESH_ACTOR_STATUS_SCHEMA_V1: &str = "ostadix.mesh-actor-status/v1";
@@ -447,14 +453,23 @@ pub struct MeshExecutionLimitsV1 {
 
 impl MeshExecutionLimitsV1 {
     pub fn project_defaults() -> Self {
-        Self::from_run_options(&RunOptions::default())
+        // Preserve the original finite V1 default bytes. New unbounded requests
+        // use V2; this legacy profile is not a projection of an unbounded request.
+        let mut options = RunOptions::default();
+        options.limits.wall_clock_timeout = Some(Duration::from_secs(30 * 60));
+        Self::from_run_options(&options).expect("built-in finite V1 defaults are valid")
     }
 
-    pub fn from_run_options(options: &RunOptions) -> Self {
+    pub fn from_run_options(options: &RunOptions) -> Result<Self> {
         let limits = &options.limits;
-        Self {
-            wall_clock_timeout_ms: u64::try_from(limits.wall_clock_timeout.as_millis())
-                .unwrap_or(u64::MAX),
+        Ok(Self {
+            wall_clock_timeout_ms: u64::try_from(
+                limits
+                    .wall_clock_timeout
+                    .context("unbounded execution requires mesh protocol V2")?
+                    .as_millis(),
+            )
+            .context("finite mesh deadline exceeds wire milliseconds")?,
             termination_grace_period_ms: u64::try_from(limits.termination_grace_period.as_millis())
                 .unwrap_or(u64::MAX),
             max_retained_stdout_bytes: u64::try_from(limits.max_retained_stdout_bytes)
@@ -484,7 +499,7 @@ impl MeshExecutionLimitsV1 {
                 GuardBehavior::Enforce => MeshGuardBehaviorV1::Enforce,
                 GuardBehavior::Skip => MeshGuardBehaviorV1::Skip,
             },
-        }
+        })
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -537,7 +552,7 @@ impl MeshExecutionLimitsV1 {
                 MeshGuardBehaviorV1::Skip => GuardBehavior::Skip,
             },
             limits: ExecutionLimits {
-                wall_clock_timeout: Duration::from_millis(self.wall_clock_timeout_ms),
+                wall_clock_timeout: Some(Duration::from_millis(self.wall_clock_timeout_ms)),
                 termination_grace_period: Duration::from_millis(self.termination_grace_period_ms),
                 max_retained_stdout_bytes: usize::try_from(self.max_retained_stdout_bytes)?,
                 max_retained_stderr_bytes: usize::try_from(self.max_retained_stderr_bytes)?,
@@ -578,6 +593,563 @@ impl MeshExecutionLimitsV1 {
             && mesh_environment_policy_fits(&self.environment_policy, &ceiling.environment_policy)
             && self.process_tree_policy == ceiling.process_tree_policy
             && self.guard_behavior == ceiling.guard_behavior
+    }
+}
+
+/// Optional execution is a distinct wire contract. `None` is unbounded; every
+/// explicit duration stays positive, and a finite node never admits unbounded
+/// work. All other resource and process policies retain V1 semantics.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshExecutionLimitsV2 {
+    pub schema: String,
+    pub wall_clock_timeout_ms: Option<u64>,
+    pub termination_grace_period_ms: u64,
+    pub max_retained_stdout_bytes: u64,
+    pub max_retained_stderr_bytes: u64,
+    pub max_routes_per_selection: u64,
+    pub max_selection_retained_output_bytes: u64,
+    pub max_artifact_count: u64,
+    pub max_artifact_scan_entries: u64,
+    pub max_aggregate_artifact_bytes: u64,
+    pub max_single_artifact_bytes: u64,
+    pub environment_policy: MeshEnvironmentPolicyV1,
+    pub process_tree_policy: MeshProcessTreePolicyV1,
+    pub guard_behavior: MeshGuardBehaviorV1,
+}
+
+impl MeshExecutionLimitsV2 {
+    pub fn project_defaults() -> Self {
+        Self::from_run_options(&RunOptions::default())
+            .expect("built-in optional project limits fit the wire representation")
+    }
+
+    pub fn from_run_options(options: &RunOptions) -> Result<Self> {
+        let limits = &options.limits;
+        Ok(Self {
+            schema: MESH_EXECUTION_LIMITS_SCHEMA_V2.to_owned(),
+            wall_clock_timeout_ms: limits
+                .wall_clock_timeout
+                .map(|timeout| {
+                    u64::try_from(timeout.as_millis())
+                        .context("execution deadline does not fit optional mesh milliseconds")
+                })
+                .transpose()?,
+            termination_grace_period_ms: u64::try_from(limits.termination_grace_period.as_millis())
+                .unwrap_or(u64::MAX),
+            max_retained_stdout_bytes: u64::try_from(limits.max_retained_stdout_bytes)
+                .unwrap_or(u64::MAX),
+            max_retained_stderr_bytes: u64::try_from(limits.max_retained_stderr_bytes)
+                .unwrap_or(u64::MAX),
+            max_routes_per_selection: u64::try_from(limits.max_routes_per_selection)
+                .unwrap_or(u64::MAX),
+            max_selection_retained_output_bytes: limits.max_selection_retained_output_bytes,
+            max_artifact_count: u64::try_from(limits.max_artifact_count).unwrap_or(u64::MAX),
+            max_artifact_scan_entries: u64::try_from(limits.max_artifact_scan_entries)
+                .unwrap_or(u64::MAX),
+            max_aggregate_artifact_bytes: limits.max_aggregate_artifact_bytes,
+            max_single_artifact_bytes: limits.max_single_artifact_bytes,
+            environment_policy: match &limits.environment_policy {
+                EnvironmentPolicy::InheritAll => MeshEnvironmentPolicyV1::InheritAll,
+                EnvironmentPolicy::Clear => MeshEnvironmentPolicyV1::Clear,
+                EnvironmentPolicy::AllowList(names) => MeshEnvironmentPolicyV1::AllowList {
+                    names: names.iter().cloned().collect(),
+                },
+            },
+            process_tree_policy: match limits.process_tree_policy {
+                ProcessTreePolicy::OwnedProcessGroup => MeshProcessTreePolicyV1::OwnedProcessGroup,
+                ProcessTreePolicy::LeaderOnly => MeshProcessTreePolicyV1::LeaderOnly,
+            },
+            guard_behavior: match options.guard_behavior {
+                GuardBehavior::Enforce => MeshGuardBehaviorV1::Enforce,
+                GuardBehavior::Skip => MeshGuardBehaviorV1::Skip,
+            },
+        })
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.schema != MESH_EXECUTION_LIMITS_SCHEMA_V2 {
+            bail!("unsupported optional mesh execution-limit schema");
+        }
+        if self.wall_clock_timeout_ms == Some(0) || self.termination_grace_period_ms == 0 {
+            bail!("mesh execution timeouts must be nonzero");
+        }
+        if self.max_routes_per_selection == 0
+            || self.max_artifact_count > self.max_artifact_scan_entries
+            || self.max_single_artifact_bytes > self.max_aggregate_artifact_bytes
+        {
+            bail!("mesh execution limits are internally inconsistent");
+        }
+        if let MeshEnvironmentPolicyV1::AllowList { names } = &self.environment_policy {
+            if names.windows(2).any(|pair| pair[0] >= pair[1]) {
+                bail!("mesh environment allow-list must be strictly sorted and unique");
+            }
+            for name in names {
+                validate_identifier("environment allow-list name", name)?;
+            }
+        }
+        #[cfg(not(unix))]
+        if self.process_tree_policy == MeshProcessTreePolicyV1::OwnedProcessGroup {
+            bail!("owned process-group execution is unsupported on this platform");
+        }
+        for (field, value) in [
+            ("max_retained_stdout_bytes", self.max_retained_stdout_bytes),
+            ("max_retained_stderr_bytes", self.max_retained_stderr_bytes),
+            ("max_routes_per_selection", self.max_routes_per_selection),
+            ("max_artifact_count", self.max_artifact_count),
+            ("max_artifact_scan_entries", self.max_artifact_scan_entries),
+        ] {
+            usize::try_from(value)
+                .with_context(|| format!("{field} does not fit this node's usize"))?;
+        }
+        Ok(())
+    }
+
+    pub fn to_run_options(&self) -> Result<RunOptions> {
+        self.validate()?;
+        let environment_policy = match &self.environment_policy {
+            MeshEnvironmentPolicyV1::InheritAll => EnvironmentPolicy::InheritAll,
+            MeshEnvironmentPolicyV1::Clear => EnvironmentPolicy::Clear,
+            MeshEnvironmentPolicyV1::AllowList { names } => {
+                EnvironmentPolicy::AllowList(names.iter().cloned().collect())
+            }
+        };
+        Ok(RunOptions {
+            guard_behavior: match self.guard_behavior {
+                MeshGuardBehaviorV1::Enforce => GuardBehavior::Enforce,
+                MeshGuardBehaviorV1::Skip => GuardBehavior::Skip,
+            },
+            limits: ExecutionLimits {
+                wall_clock_timeout: self.wall_clock_timeout_ms.map(Duration::from_millis),
+                termination_grace_period: Duration::from_millis(self.termination_grace_period_ms),
+                max_retained_stdout_bytes: usize::try_from(self.max_retained_stdout_bytes)?,
+                max_retained_stderr_bytes: usize::try_from(self.max_retained_stderr_bytes)?,
+                max_routes_per_selection: usize::try_from(self.max_routes_per_selection)?,
+                max_selection_retained_output_bytes: self.max_selection_retained_output_bytes,
+                max_artifact_count: usize::try_from(self.max_artifact_count)?,
+                max_artifact_scan_entries: usize::try_from(self.max_artifact_scan_entries)?,
+                max_aggregate_artifact_bytes: self.max_aggregate_artifact_bytes,
+                max_single_artifact_bytes: self.max_single_artifact_bytes,
+                environment_policy,
+                process_tree_policy: match self.process_tree_policy {
+                    MeshProcessTreePolicyV1::OwnedProcessGroup => {
+                        ProcessTreePolicy::OwnedProcessGroup
+                    }
+                    MeshProcessTreePolicyV1::LeaderOnly => ProcessTreePolicy::LeaderOnly,
+                },
+            },
+        })
+    }
+
+    /// Return whether this complete, valid execution policy fits within a
+    /// complete, valid node ceiling. Environment inheritance uses set
+    /// containment; process-tree and guard behavior must match exactly.
+    pub fn fits_within(&self, ceiling: &Self) -> bool {
+        self.validate().is_ok()
+            && ceiling.validate().is_ok()
+            && match (self.wall_clock_timeout_ms, ceiling.wall_clock_timeout_ms) {
+                (None, None) | (Some(_), None) => true,
+                (Some(requested), Some(maximum)) => requested <= maximum,
+                (None, Some(_)) => false,
+            }
+            && self.termination_grace_period_ms <= ceiling.termination_grace_period_ms
+            && self.max_retained_stdout_bytes <= ceiling.max_retained_stdout_bytes
+            && self.max_retained_stderr_bytes <= ceiling.max_retained_stderr_bytes
+            && self.max_routes_per_selection <= ceiling.max_routes_per_selection
+            && self.max_selection_retained_output_bytes
+                <= ceiling.max_selection_retained_output_bytes
+            && self.max_artifact_count <= ceiling.max_artifact_count
+            && self.max_artifact_scan_entries <= ceiling.max_artifact_scan_entries
+            && self.max_aggregate_artifact_bytes <= ceiling.max_aggregate_artifact_bytes
+            && self.max_single_artifact_bytes <= ceiling.max_single_artifact_bytes
+            && mesh_environment_policy_fits(&self.environment_policy, &ceiling.environment_policy)
+            && self.process_tree_policy == ceiling.process_tree_policy
+            && self.guard_behavior == ceiling.guard_behavior
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshNodeProfileV2 {
+    pub schema: String,
+    pub protocol: String,
+    pub node_id: String,
+    pub platform_os: String,
+    pub architecture: String,
+    pub cpu_slots: u32,
+    pub memory_capacity_bytes: Option<u64>,
+    pub gpu_devices: Vec<String>,
+    pub backend_catalog_sha256: String,
+    pub catalogued_backends: Vec<String>,
+    pub max_parallel: u32,
+    pub max_storage_bytes: u64,
+    pub max_artifact_bytes: u64,
+    pub max_result_bytes: u64,
+    pub max_chunk_bytes: u32,
+    pub max_result_chunk_bytes: u32,
+    pub max_project_ir_bytes: u64,
+    pub execution_limit_ceiling: MeshExecutionLimitsV2,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshRouteRequirementsV2 {
+    pub bundle: MeshArtifactIdV1,
+    pub route_id: String,
+    pub logical_graph_sha256: String,
+    pub route_contract_sha256: String,
+    pub resources: MeshResourceFootprintV1,
+    pub execution_limits: MeshExecutionLimitsV2,
+}
+
+impl MeshNodeProfileV2 {
+    pub fn validate(&self) -> Result<()> {
+        if self.schema != MESH_NODE_PROFILE_SCHEMA_V2 || self.protocol != HOSTED_MESH_PROTOCOL_V2 {
+            bail!("mesh node profile has an unsupported schema or protocol");
+        }
+        validate_identifier("mesh profile node id", &self.node_id)?;
+        validate_identifier("mesh profile platform OS", &self.platform_os)?;
+        validate_identifier("mesh profile architecture", &self.architecture)?;
+        validate_sha256("mesh backend catalog sha256", &self.backend_catalog_sha256)?;
+        if self.cpu_slots == 0
+            || self.max_parallel == 0
+            || self.max_storage_bytes == 0
+            || self.max_artifact_bytes == 0
+            || self.max_result_bytes == 0
+            || self.max_artifact_bytes > self.max_storage_bytes
+            || self.max_result_bytes > self.max_artifact_bytes
+            || self.max_chunk_bytes == 0
+            || self.max_result_chunk_bytes == 0
+            || self.max_project_ir_bytes == 0
+            || self.max_project_ir_bytes
+                > u64::try_from(MAX_LOGICAL_HGRAPH_BYTES).unwrap_or(u64::MAX)
+            || usize::try_from(self.max_chunk_bytes).unwrap_or(usize::MAX) > MAX_MESH_CHUNK_BYTES
+            || usize::try_from(self.max_result_chunk_bytes).unwrap_or(usize::MAX)
+                > MAX_MESH_CHUNK_BYTES
+        {
+            bail!("mesh node profile advertises invalid capacity bounds");
+        }
+        validate_sorted_labels("mesh GPU device", &self.gpu_devices)?;
+        validate_sorted_labels("mesh backend", &self.catalogued_backends)?;
+        self.execution_limit_ceiling.validate()
+    }
+}
+
+impl MeshRouteRequirementsV2 {
+    pub fn new(
+        bundle: MeshArtifactIdV1,
+        route_id: impl Into<String>,
+        logical_graph_sha256: impl Into<String>,
+        route_contract_sha256: impl Into<String>,
+    ) -> Self {
+        Self {
+            resources: MeshResourceFootprintV1::minimal_for_bundle(&bundle),
+            execution_limits: MeshExecutionLimitsV2::project_defaults(),
+            bundle,
+            route_id: route_id.into(),
+            logical_graph_sha256: logical_graph_sha256.into(),
+            route_contract_sha256: route_contract_sha256.into(),
+        }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        self.bundle.validate()?;
+        validate_identifier("route id", &self.route_id)?;
+        validate_sha256("logical graph sha256", &self.logical_graph_sha256)?;
+        validate_sha256("route contract sha256", &self.route_contract_sha256)?;
+        self.resources.validate(&self.bundle)?;
+        self.execution_limits.validate()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshRouteProbeV2 {
+    pub node_id: String,
+    pub requirements: MeshRouteRequirementsV2,
+    pub eligible: bool,
+    pub missing: Vec<String>,
+    pub available_slots: u32,
+}
+
+impl MeshRouteProbeV2 {
+    pub fn validate(&self) -> Result<()> {
+        validate_identifier("mesh route-probe node id", &self.node_id)?;
+        self.requirements.validate()?;
+        if self.eligible != self.missing.is_empty() {
+            bail!("mesh route probe eligibility disagrees with missing requirements");
+        }
+        for missing in &self.missing {
+            if missing.is_empty() || missing.len() > 4096 || missing.chars().any(char::is_control) {
+                bail!("mesh route probe contains an invalid missing-requirement label");
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshActorSpecV2 {
+    pub schema: String,
+    pub actor: MeshActorIdV1,
+    pub target_node_id: String,
+    pub bundle: MeshArtifactIdV1,
+    pub route_id: String,
+    pub logical_graph_sha256: String,
+    pub route_contract_sha256: String,
+    pub resources: MeshResourceFootprintV1,
+    pub execution_limits: MeshExecutionLimitsV2,
+}
+
+impl MeshActorSpecV2 {
+    pub fn new(
+        actor: MeshActorIdV1,
+        requirements: MeshRouteRequirementsV2,
+        target_node_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema: MESH_ACTOR_SPEC_SCHEMA_V2.to_owned(),
+            actor,
+            target_node_id: target_node_id.into(),
+            bundle: requirements.bundle,
+            route_id: requirements.route_id,
+            logical_graph_sha256: requirements.logical_graph_sha256,
+            route_contract_sha256: requirements.route_contract_sha256,
+            resources: requirements.resources,
+            execution_limits: requirements.execution_limits,
+        }
+    }
+
+    pub fn requirements(&self) -> MeshRouteRequirementsV2 {
+        MeshRouteRequirementsV2 {
+            bundle: self.bundle.clone(),
+            route_id: self.route_id.clone(),
+            logical_graph_sha256: self.logical_graph_sha256.clone(),
+            route_contract_sha256: self.route_contract_sha256.clone(),
+            resources: self.resources.clone(),
+            execution_limits: self.execution_limits.clone(),
+        }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.schema != MESH_ACTOR_SPEC_SCHEMA_V2 {
+            bail!("unsupported optional mesh actor-spec schema");
+        }
+        self.actor.validate()?;
+        validate_identifier("target node id", &self.target_node_id)?;
+        self.requirements().validate()?;
+        self.execution_limits.validate()
+    }
+
+    pub fn sha256(&self) -> Result<String> {
+        self.validate()?;
+        canonical_hosted_sha256(self)
+    }
+
+    pub fn actor_ref(&self) -> Result<MeshActorRefV1> {
+        Ok(MeshActorRefV1::new(self.actor.clone(), self.sha256()?))
+    }
+}
+
+impl From<&MeshExecutionLimitsV1> for MeshExecutionLimitsV2 {
+    fn from(value: &MeshExecutionLimitsV1) -> Self {
+        Self {
+            schema: MESH_EXECUTION_LIMITS_SCHEMA_V2.to_owned(),
+            wall_clock_timeout_ms: Some(value.wall_clock_timeout_ms),
+            termination_grace_period_ms: value.termination_grace_period_ms.clone(),
+            max_retained_stdout_bytes: value.max_retained_stdout_bytes.clone(),
+            max_retained_stderr_bytes: value.max_retained_stderr_bytes.clone(),
+            max_routes_per_selection: value.max_routes_per_selection.clone(),
+            max_selection_retained_output_bytes: value.max_selection_retained_output_bytes.clone(),
+            max_artifact_count: value.max_artifact_count.clone(),
+            max_artifact_scan_entries: value.max_artifact_scan_entries.clone(),
+            max_aggregate_artifact_bytes: value.max_aggregate_artifact_bytes.clone(),
+            max_single_artifact_bytes: value.max_single_artifact_bytes.clone(),
+            environment_policy: value.environment_policy.clone(),
+            process_tree_policy: value.process_tree_policy.clone(),
+            guard_behavior: value.guard_behavior.clone(),
+        }
+    }
+}
+
+impl MeshExecutionLimitsV2 {
+    fn node_ceiling(config: &MeshNodeRuntimeConfig) -> Self {
+        let mut ceiling = Self::from(&config.execution_limit_ceiling);
+        if config.allow_unbounded_actors {
+            ceiling.wall_clock_timeout_ms = None;
+        }
+        ceiling
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+enum MeshExecutionPolicy {
+    FiniteV1(MeshExecutionLimitsV1),
+    OptionalV2(MeshExecutionLimitsV2),
+}
+
+impl MeshExecutionPolicy {
+    fn to_run_options(&self) -> Result<RunOptions> {
+        match self {
+            Self::FiniteV1(limits) => limits.to_run_options(),
+            Self::OptionalV2(limits) => limits.to_run_options(),
+        }
+    }
+
+    fn fits_node(&self, config: &MeshNodeRuntimeConfig) -> bool {
+        match self {
+            Self::FiniteV1(limits) => limits.fits_within(&config.execution_limit_ceiling),
+            Self::OptionalV2(limits) => {
+                limits.fits_within(&MeshExecutionLimitsV2::node_ceiling(config))
+            }
+        }
+    }
+}
+
+/// The private persistence/worker representation. Omitting `schema` preserves
+/// original finite V1 record encoding; a V2 policy always requires the V2 actor
+/// schema and a V2 outer record. Neither version is guessed from a duration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct MeshActorSpecBound {
+    actor: MeshActorIdV1,
+    target_node_id: String,
+    bundle: MeshArtifactIdV1,
+    route_id: String,
+    logical_graph_sha256: String,
+    route_contract_sha256: String,
+    resources: MeshResourceFootprintV1,
+    execution_limits: MeshExecutionPolicy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    schema: Option<String>,
+}
+
+// Decode the original strict wire shapes before conversion. In particular,
+// V1 accepts an absent schema only: schema:null is an unknown V1 field and a
+// wrong-typed V2 marker, so it can never normalize to the V1 representation.
+impl<'de> Deserialize<'de> for MeshActorSpecBound {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum WireSpec {
+            FiniteV1(MeshActorSpecV1),
+            OptionalV2(MeshActorSpecV2),
+        }
+
+        match WireSpec::deserialize(deserializer)? {
+            WireSpec::FiniteV1(spec) => Ok(spec.into()),
+            WireSpec::OptionalV2(spec) => {
+                if spec.schema != MESH_ACTOR_SPEC_SCHEMA_V2 {
+                    return Err(serde::de::Error::custom(
+                        "unsupported optional mesh actor-spec schema",
+                    ));
+                }
+                Ok(spec.into())
+            }
+        }
+    }
+}
+
+impl From<MeshActorSpecV1> for MeshActorSpecBound {
+    fn from(value: MeshActorSpecV1) -> Self {
+        Self {
+            actor: value.actor,
+            target_node_id: value.target_node_id,
+            bundle: value.bundle,
+            route_id: value.route_id,
+            logical_graph_sha256: value.logical_graph_sha256,
+            route_contract_sha256: value.route_contract_sha256,
+            resources: value.resources,
+            execution_limits: MeshExecutionPolicy::FiniteV1(value.execution_limits),
+            schema: None,
+        }
+    }
+}
+
+impl From<MeshActorSpecV2> for MeshActorSpecBound {
+    fn from(value: MeshActorSpecV2) -> Self {
+        Self {
+            actor: value.actor,
+            target_node_id: value.target_node_id,
+            bundle: value.bundle,
+            route_id: value.route_id,
+            logical_graph_sha256: value.logical_graph_sha256,
+            route_contract_sha256: value.route_contract_sha256,
+            resources: value.resources,
+            execution_limits: MeshExecutionPolicy::OptionalV2(value.execution_limits),
+            schema: Some(value.schema),
+        }
+    }
+}
+
+impl MeshActorSpecBound {
+    fn v1(&self) -> Result<MeshActorSpecV1> {
+        let MeshExecutionPolicy::FiniteV1(limits) = &self.execution_limits else {
+            bail!("optional policy is not a finite V1 actor");
+        };
+        if self.schema.is_some() {
+            bail!("finite V1 actor may not carry a V2 schema");
+        }
+        Ok(MeshActorSpecV1 {
+            actor: self.actor.clone(),
+            target_node_id: self.target_node_id.clone(),
+            bundle: self.bundle.clone(),
+            route_id: self.route_id.clone(),
+            logical_graph_sha256: self.logical_graph_sha256.clone(),
+            route_contract_sha256: self.route_contract_sha256.clone(),
+            resources: self.resources.clone(),
+            execution_limits: limits.clone(),
+        })
+    }
+
+    fn v2(&self) -> Result<MeshActorSpecV2> {
+        let MeshExecutionPolicy::OptionalV2(limits) = &self.execution_limits else {
+            bail!("finite V1 policy is not an optional V2 actor");
+        };
+        if self.schema.as_deref() != Some(MESH_ACTOR_SPEC_SCHEMA_V2) {
+            bail!("optional actor requires the exact V2 schema");
+        }
+        Ok(MeshActorSpecV2 {
+            schema: MESH_ACTOR_SPEC_SCHEMA_V2.to_owned(),
+            actor: self.actor.clone(),
+            target_node_id: self.target_node_id.clone(),
+            bundle: self.bundle.clone(),
+            route_id: self.route_id.clone(),
+            logical_graph_sha256: self.logical_graph_sha256.clone(),
+            route_contract_sha256: self.route_contract_sha256.clone(),
+            resources: self.resources.clone(),
+            execution_limits: limits.clone(),
+        })
+    }
+
+    fn validate(&self) -> Result<()> {
+        match &self.execution_limits {
+            MeshExecutionPolicy::FiniteV1(_) => self.v1()?.validate(),
+            MeshExecutionPolicy::OptionalV2(_) => self.v2()?.validate(),
+        }
+    }
+
+    fn sha256(&self) -> Result<String> {
+        match &self.execution_limits {
+            MeshExecutionPolicy::FiniteV1(_) => self.v1()?.sha256(),
+            MeshExecutionPolicy::OptionalV2(_) => self.v2()?.sha256(),
+        }
+    }
+
+    fn actor_ref(&self) -> Result<MeshActorRefV1> {
+        Ok(MeshActorRefV1::new(self.actor.clone(), self.sha256()?))
+    }
+
+    fn record_schema(&self) -> &'static str {
+        match &self.execution_limits {
+            MeshExecutionPolicy::FiniteV1(_) => MESH_ACTOR_RECORD_SCHEMA_V1,
+            MeshExecutionPolicy::OptionalV2(_) => MESH_ACTOR_RECORD_SCHEMA_V2,
+        }
     }
 }
 
@@ -821,6 +1393,17 @@ impl MeshProtocolErrorV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum MeshRequestV1 {
+    ProfileV2 {
+        protocol: String,
+    },
+    ProbeRouteV2 {
+        protocol: String,
+        requirements: MeshRouteRequirementsV2,
+    },
+    ExecuteActorV2 {
+        protocol: String,
+        actor: MeshActorSpecV2,
+    },
     Profile {
         protocol: String,
     },
@@ -868,8 +1451,11 @@ pub enum MeshRequestV1 {
 }
 
 impl MeshRequestV1 {
-    pub fn validate(&self) -> Result<()> {
-        let protocol = match self {
+    fn protocol(&self) -> &str {
+        match self {
+            Self::ProfileV2 { protocol }
+            | Self::ProbeRouteV2 { protocol, .. }
+            | Self::ExecuteActorV2 { protocol, .. } => protocol,
             Self::Profile { protocol }
             | Self::Capacity { protocol }
             | Self::ProbeRoute { protocol, .. }
@@ -881,11 +1467,31 @@ impl MeshRequestV1 {
             | Self::CancelActor { protocol, .. }
             | Self::FenceActorIfAbsent { protocol, .. }
             | Self::ResultChunk { protocol, .. } => protocol,
-        };
-        if protocol != HOSTED_MESH_PROTOCOL_V1 {
+        }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        let protocol = self.protocol();
+        if !matches!(protocol, HOSTED_MESH_PROTOCOL_V1 | HOSTED_MESH_PROTOCOL_V2) {
             bail!("unsupported mesh protocol `{protocol}`");
         }
         match self {
+            Self::ProfileV2 { .. } | Self::ProbeRouteV2 { .. } | Self::ExecuteActorV2 { .. }
+                if protocol != HOSTED_MESH_PROTOCOL_V2 =>
+            {
+                bail!("optional actor operations require mesh protocol V2")
+            }
+            Self::ProbeRoute { .. } | Self::ExecuteActor { .. }
+                if protocol != HOSTED_MESH_PROTOCOL_V1 =>
+            {
+                bail!("finite V1 actor operations require mesh protocol V1")
+            }
+            _ => {}
+        }
+        match self {
+            Self::ProfileV2 { .. } => Ok(()),
+            Self::ProbeRouteV2 { requirements, .. } => requirements.validate(),
+            Self::ExecuteActorV2 { actor, .. } => actor.validate(),
             Self::Profile { .. } | Self::Capacity { .. } => Ok(()),
             Self::ProbeRoute { requirements, .. } => requirements.validate(),
             Self::HasArtifact { artifact, .. } => artifact.validate(),
@@ -905,6 +1511,12 @@ impl MeshRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum MeshResponseV1 {
+    ProfileV2 {
+        profile: MeshNodeProfileV2,
+    },
+    RouteProbeV2 {
+        probe: MeshRouteProbeV2,
+    },
     Profile {
         profile: MeshNodeProfileV1,
     },
@@ -1004,6 +1616,7 @@ pub struct MeshNodeRuntimeConfig {
     pub available_backends: Vec<String>,
     pub max_project_ir_bytes: u64,
     pub execution_limit_ceiling: MeshExecutionLimitsV1,
+    pub allow_unbounded_actors: bool,
 }
 
 impl MeshNodeRuntimeConfig {
@@ -1035,6 +1648,7 @@ impl MeshNodeRuntimeConfig {
             available_backends,
             max_project_ir_bytes: u64::try_from(MAX_LOGICAL_HGRAPH_BYTES).unwrap_or(u64::MAX),
             execution_limit_ceiling: MeshExecutionLimitsV1::project_defaults(),
+            allow_unbounded_actors: true,
         }
     }
 
@@ -1123,7 +1737,7 @@ struct MeshArtifactManifestV1 {
 #[serde(deny_unknown_fields)]
 struct MeshActorRecordV1 {
     schema: String,
-    spec: MeshActorSpecV1,
+    spec: MeshActorSpecBound,
     status: MeshActorStatusV1,
 }
 
@@ -1201,6 +1815,34 @@ impl MeshNodeRuntime {
             max_result_chunk_bytes: config.max_result_chunk_bytes,
             max_project_ir_bytes: config.max_project_ir_bytes,
             execution_limit_ceiling: config.execution_limit_ceiling.clone(),
+        }
+    }
+
+    pub fn profile_v2(&self) -> MeshNodeProfileV2 {
+        let config = &self.inner.config;
+        let registry = BackendRegistry::global();
+        MeshNodeProfileV2 {
+            schema: MESH_NODE_PROFILE_SCHEMA_V2.to_owned(),
+            protocol: HOSTED_MESH_PROTOCOL_V2.to_owned(),
+            node_id: config.node_id.clone(),
+            platform_os: std::env::consts::OS.to_owned(),
+            architecture: std::env::consts::ARCH.to_owned(),
+            cpu_slots: std::thread::available_parallelism()
+                .ok()
+                .and_then(|value| u32::try_from(value.get()).ok())
+                .unwrap_or(1),
+            memory_capacity_bytes: config.memory_capacity_bytes,
+            gpu_devices: config.gpu_devices.clone(),
+            backend_catalog_sha256: registry.catalog_sha256(),
+            catalogued_backends: config.available_backends.clone(),
+            max_parallel: config.max_concurrent_actors,
+            max_storage_bytes: config.max_storage_bytes,
+            max_artifact_bytes: config.max_artifact_bytes,
+            max_result_bytes: config.max_result_bytes,
+            max_chunk_bytes: config.max_chunk_bytes,
+            max_result_chunk_bytes: config.max_result_chunk_bytes,
+            max_project_ir_bytes: config.max_project_ir_bytes,
+            execution_limit_ceiling: MeshExecutionLimitsV2::node_ceiling(config),
         }
     }
 
@@ -1440,6 +2082,128 @@ impl MeshNodeRuntime {
         })
     }
 
+    pub fn probe_route_v2(
+        &self,
+        requirements: MeshRouteRequirementsV2,
+    ) -> MeshNodeResult<MeshRouteProbeV2> {
+        requirements
+            .validate()
+            .map_err(|error| mesh_error("invalid-requirements", format!("{error:#}"), false))?;
+        let mut missing = Vec::new();
+        let bundle = match self.load_bundle(&requirements.bundle) {
+            Ok(bundle) => Some(bundle),
+            Err(error) if error.code == "artifact-not-found" => {
+                missing.push(format!("bundle:{}", requirements.bundle.sha256));
+                None
+            }
+            Err(error) => {
+                missing.push(format!("bundle-invalid:{}", error.message));
+                None
+            }
+        };
+        if let Some(bundle) = &bundle {
+            if bundle.route(&requirements.route_id).is_none() {
+                missing.push(format!("route:{}", requirements.route_id));
+            } else {
+                match mesh_route_contract_sha256(bundle, &requirements.route_id) {
+                    Ok(actual) if actual == requirements.route_contract_sha256 => {}
+                    Ok(_) => missing.push("route-contract-digest".to_owned()),
+                    Err(error) => missing.push(format!("route-contract:{error:#}")),
+                }
+                match mesh_project_ir_projection(bundle, &requirements.route_id) {
+                    Ok(actual) => {
+                        if actual.sha256 != requirements.logical_graph_sha256 {
+                            missing.push("logical-graph-digest".to_owned());
+                        }
+                        if actual.canonical_bytes_len != requirements.resources.project_ir_bytes {
+                            missing.push(format!(
+                                "project-ir-bytes-mismatch:{}!={}",
+                                requirements.resources.project_ir_bytes, actual.canonical_bytes_len
+                            ));
+                        }
+                        if actual.canonical_bytes_len > self.inner.config.max_project_ir_bytes {
+                            missing.push(format!(
+                                "project-ir-bytes:{}>{}",
+                                actual.canonical_bytes_len, self.inner.config.max_project_ir_bytes
+                            ));
+                        }
+                    }
+                    Err(error) => missing.push(format!("logical-graph:{error:#}")),
+                }
+                collect_missing_runtime_requirements(
+                    bundle,
+                    &requirements.route_id,
+                    &requirements.execution_limits.environment_policy,
+                    &mut missing,
+                );
+            }
+        }
+        let capacity = self.capacity()?;
+        let profile = self.profile_v2();
+        if !requirements
+            .execution_limits
+            .fits_within(&profile.execution_limit_ceiling)
+        {
+            missing.push("execution-limits-policy".to_owned());
+        }
+        let resources = &requirements.resources;
+        if resources.actor_slots > capacity.available_slots {
+            missing.push(format!(
+                "available-slots:{}>{}",
+                resources.actor_slots, capacity.available_slots
+            ));
+        }
+        if resources.min_memory_bytes > 0 {
+            match profile.memory_capacity_bytes {
+                Some(available) if available >= resources.min_memory_bytes => {}
+                Some(available) => missing.push(format!(
+                    "memory-bytes:{}>{available}",
+                    resources.min_memory_bytes
+                )),
+                None => missing.push("memory-capacity-unobserved".to_owned()),
+            }
+            missing.push("memory-reservation-unsupported".to_owned());
+        }
+        if resources.min_gpu_devices > 0 {
+            if usize::try_from(resources.min_gpu_devices).unwrap_or(usize::MAX)
+                > profile.gpu_devices.len()
+            {
+                missing.push(format!(
+                    "gpu-devices:{}>{}",
+                    resources.min_gpu_devices,
+                    profile.gpu_devices.len()
+                ));
+            }
+            missing.push("gpu-reservation-unsupported".to_owned());
+        }
+        for backend in &resources.required_backends {
+            if profile.catalogued_backends.binary_search(backend).is_err() {
+                missing.push(format!("backend:{backend}"));
+            }
+        }
+        if bundle.is_none() && resources.project_ir_bytes > profile.max_project_ir_bytes {
+            missing.push(format!(
+                "declared-project-ir-bytes:{}>{}",
+                resources.project_ir_bytes, profile.max_project_ir_bytes
+            ));
+        }
+        if bundle.is_none() && resources.bundle_storage_bytes > capacity.storage_available_bytes {
+            missing.push(format!(
+                "bundle-storage-bytes:{}>{}",
+                resources.bundle_storage_bytes, capacity.storage_available_bytes
+            ));
+        }
+        missing.sort();
+        missing.dedup();
+        Ok(MeshRouteProbeV2 {
+            node_id: self.inner.config.node_id.clone(),
+            requirements,
+            eligible: missing.is_empty(),
+            missing,
+            available_slots: capacity.available_slots,
+        })
+    }
+
     pub fn actor_status(&self, actor_ref: &MeshActorRefV1) -> MeshNodeResult<MeshActorStatusV1> {
         actor_ref
             .validate()
@@ -1517,6 +2281,14 @@ impl MeshNodeRuntime {
     }
 
     pub fn execute_actor(&self, spec: MeshActorSpecV1) -> MeshNodeResult<MeshActorStatusV1> {
+        self.execute_actor_bound(spec.into())
+    }
+
+    pub fn execute_actor_v2(&self, spec: MeshActorSpecV2) -> MeshNodeResult<MeshActorStatusV1> {
+        self.execute_actor_bound(spec.into())
+    }
+
+    fn execute_actor_bound(&self, spec: MeshActorSpecBound) -> MeshNodeResult<MeshActorStatusV1> {
         spec.validate().map_err(|error| {
             mesh_pre_admission_error("invalid-actor", format!("{error:#}"), false)
         })?;
@@ -1530,10 +2302,7 @@ impl MeshNodeRuntime {
                 false,
             ));
         }
-        if !spec
-            .execution_limits
-            .fits_within(&self.inner.config.execution_limit_ceiling)
-        {
+        if !spec.execution_limits.fits_node(&self.inner.config) {
             return Err(mesh_pre_admission_error(
                 "execution-limits-exceed-node-policy",
                 "actor execution limits exceed or differ from this node's declared policy ceiling",
@@ -1546,14 +2315,32 @@ impl MeshNodeRuntime {
         let actor_ref = MeshActorRefV1::new(spec.actor.clone(), spec_sha256.clone());
         let key = actor_storage_key(&spec.actor)?;
         let path = self.actor_path(&key);
-        let probe = self.probe_route(spec.requirements())?;
-        if !probe.eligible {
+        let (eligible, missing) = match &spec.execution_limits {
+            MeshExecutionPolicy::FiniteV1(_) => {
+                let probe = self.probe_route(
+                    spec.v1()
+                        .map_err(|error| {
+                            mesh_pre_admission_error("invalid-actor", format!("{error:#}"), false)
+                        })?
+                        .requirements(),
+                )?;
+                (probe.eligible, probe.missing)
+            }
+            MeshExecutionPolicy::OptionalV2(_) => {
+                let probe = self.probe_route_v2(
+                    spec.v2()
+                        .map_err(|error| {
+                            mesh_pre_admission_error("invalid-actor", format!("{error:#}"), false)
+                        })?
+                        .requirements(),
+                )?;
+                (probe.eligible, probe.missing)
+            }
+        };
+        if !eligible {
             return Err(mesh_pre_admission_error(
                 "route-ineligible",
-                format!(
-                    "node rejected route requirements: {}",
-                    probe.missing.join(", ")
-                ),
+                format!("node rejected route requirements: {}", missing.join(", ")),
                 false,
             ));
         }
@@ -1611,7 +2398,7 @@ impl MeshNodeRuntime {
             updated_at: now_ms_for_node()?,
         };
         let admitted = MeshActorRecordV1 {
-            schema: MESH_ACTOR_RECORD_SCHEMA_V1.to_owned(),
+            schema: spec.record_schema().to_owned(),
             spec: spec.clone(),
             status: running.clone(),
         };
@@ -1660,7 +2447,7 @@ impl MeshNodeRuntime {
                 updated_at: now_ms_for_node()?,
             };
             let terminal = MeshActorRecordV1 {
-                schema: MESH_ACTOR_RECORD_SCHEMA_V1.to_owned(),
+                schema: spec.record_schema().to_owned(),
                 spec,
                 status: status.clone(),
             };
@@ -1730,7 +2517,7 @@ impl MeshNodeRuntime {
 
     fn run_actor_worker(
         &self,
-        spec: MeshActorSpecV1,
+        spec: MeshActorSpecBound,
         path: PathBuf,
         cancellation: CancellationToken,
     ) -> MeshNodeResult<()> {
@@ -1809,7 +2596,7 @@ impl MeshNodeRuntime {
             updated_at: now_ms_for_node()?,
         };
         let terminal = MeshActorRecordV1 {
-            schema: MESH_ACTOR_RECORD_SCHEMA_V1.to_owned(),
+            schema: spec.record_schema().to_owned(),
             spec,
             status: status.clone(),
         };
@@ -1900,6 +2687,15 @@ impl MeshNodeRuntime {
             };
         }
         let response = match request {
+            MeshRequestV1::ProfileV2 { .. } => Ok(MeshResponseV1::ProfileV2 {
+                profile: self.profile_v2(),
+            }),
+            MeshRequestV1::ProbeRouteV2 { requirements, .. } => self
+                .probe_route_v2(requirements)
+                .map(|probe| MeshResponseV1::RouteProbeV2 { probe }),
+            MeshRequestV1::ExecuteActorV2 { actor, .. } => self
+                .execute_actor_v2(actor)
+                .map(|status| MeshResponseV1::ActorStatus { status }),
             MeshRequestV1::Profile { .. } => Ok(MeshResponseV1::Profile {
                 profile: self.profile(),
             }),
@@ -2625,7 +3421,20 @@ impl MeshNodeClient {
     /// sequential requests. Polling/status/result retrieval should reuse this
     /// connection rather than repeat a TLS handshake for every observation.
     pub fn connect(&self) -> Result<MeshNodeConnection> {
-        let stream = connect_mutual_tls_mesh_v1(
+        self.connect_for_protocol(HOSTED_MESH_PROTOCOL_V1)
+    }
+
+    pub fn connect_v2(&self) -> Result<MeshNodeConnection> {
+        self.connect_for_protocol(HOSTED_MESH_PROTOCOL_V2)
+    }
+
+    fn connect_for_protocol(&self, protocol: &'static str) -> Result<MeshNodeConnection> {
+        let connect = match protocol {
+            HOSTED_MESH_PROTOCOL_V1 => connect_mutual_tls_mesh_v1,
+            HOSTED_MESH_PROTOCOL_V2 => connect_mutual_tls_mesh_v2,
+            _ => bail!("unsupported selected mesh protocol"),
+        };
+        let stream = connect(
             &self.address,
             &self.tls_identity,
             self.connect_timeout,
@@ -2644,22 +3453,67 @@ impl MeshNodeClient {
         Ok(MeshNodeConnection {
             address: self.address.clone(),
             stream,
+            protocol,
         })
     }
 }
 
 pub struct MeshNodeConnection {
     address: String,
+    protocol: &'static str,
     stream: HostedClientStream,
 }
 
 impl MeshNodeConnection {
+    pub fn protocol(&self) -> &'static str {
+        self.protocol
+    }
+
+    pub fn profile_v2(&mut self) -> Result<MeshNodeProfileV2> {
+        match self.request(MeshRequestV1::ProfileV2 {
+            protocol: HOSTED_MESH_PROTOCOL_V2.to_owned(),
+        })? {
+            MeshResponseV1::ProfileV2 { profile } => Ok(profile),
+            _ => unreachable!("response correlation validated V2 profile response"),
+        }
+    }
+
+    pub fn probe_route_v2(
+        &mut self,
+        requirements: MeshRouteRequirementsV2,
+    ) -> Result<MeshRouteProbeV2> {
+        match self.request(MeshRequestV1::ProbeRouteV2 {
+            protocol: HOSTED_MESH_PROTOCOL_V2.to_owned(),
+            requirements,
+        })? {
+            MeshResponseV1::RouteProbeV2 { probe } => Ok(probe),
+            _ => unreachable!("response correlation validated V2 probe response"),
+        }
+    }
+
+    pub fn execute_actor_v2(&mut self, actor: MeshActorSpecV2) -> Result<MeshActorStatusV1> {
+        match self.request(MeshRequestV1::ExecuteActorV2 {
+            protocol: HOSTED_MESH_PROTOCOL_V2.to_owned(),
+            actor,
+        })? {
+            MeshResponseV1::ActorStatus { status } => Ok(status),
+            _ => unreachable!("response correlation validated V2 actor response"),
+        }
+    }
+
     pub fn request(&mut self, request: MeshRequestV1) -> Result<MeshResponseV1> {
         validate_client_request(&request)?;
         self.request_validated(request)
     }
 
     fn request_validated(&mut self, request: MeshRequestV1) -> Result<MeshResponseV1> {
+        if request.protocol() != self.protocol {
+            return Err(client_error(
+                MeshClientFailureDisposition::PreSend,
+                None,
+                "request protocol differs from the authenticated mesh connection",
+            ));
+        }
         write_hosted_frame(&mut self.stream, &request).map_err(|error| {
             client_error(
                 MeshClientFailureDisposition::Ambiguous,
@@ -2717,7 +3571,7 @@ impl MeshNodeConnection {
 
     pub fn profile(&mut self) -> Result<MeshNodeProfileV1> {
         match self.request(MeshRequestV1::Profile {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
         })? {
             MeshResponseV1::Profile { profile } => Ok(profile),
             _ => unreachable!("response correlation validated profile response"),
@@ -2729,7 +3583,7 @@ impl MeshNodeConnection {
         requirements: MeshRouteRequirementsV1,
     ) -> Result<MeshRouteProbeV1> {
         match self.request(MeshRequestV1::ProbeRoute {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             requirements,
         })? {
             MeshResponseV1::RouteProbe { probe } => Ok(probe),
@@ -2739,7 +3593,7 @@ impl MeshNodeConnection {
 
     pub fn has_artifact(&mut self, artifact: MeshArtifactIdV1) -> Result<bool> {
         match self.request(MeshRequestV1::HasArtifact {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             artifact,
         })? {
             MeshResponseV1::ArtifactPresence { present, .. } => Ok(present),
@@ -2749,7 +3603,7 @@ impl MeshNodeConnection {
 
     pub fn put_chunk(&mut self, chunk: MeshUploadChunkV1) -> Result<MeshChunkReceiptV1> {
         match self.request(MeshRequestV1::PutChunk {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             chunk,
         })? {
             MeshResponseV1::ChunkStored { receipt } => Ok(receipt),
@@ -2763,7 +3617,7 @@ impl MeshNodeConnection {
         chunks: Vec<MeshChunkIdV1>,
     ) -> Result<MeshArtifactCommitV1> {
         match self.request(MeshRequestV1::CommitArtifact {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             artifact,
             chunks,
         })? {
@@ -2793,7 +3647,7 @@ impl MeshNodeConnection {
 
     pub fn execute_actor(&mut self, actor: MeshActorSpecV1) -> Result<MeshActorStatusV1> {
         match self.request(MeshRequestV1::ExecuteActor {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             actor,
         })? {
             MeshResponseV1::ActorStatus { status } => Ok(status),
@@ -2803,7 +3657,7 @@ impl MeshNodeConnection {
 
     pub fn capacity(&mut self) -> Result<MeshCapacityV1> {
         match self.request(MeshRequestV1::Capacity {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
         })? {
             MeshResponseV1::Capacity { capacity } => Ok(capacity),
             _ => unreachable!("response correlation validated capacity response"),
@@ -2812,7 +3666,7 @@ impl MeshNodeConnection {
 
     pub fn actor_status(&mut self, actor_ref: MeshActorRefV1) -> Result<MeshActorStatusV1> {
         match self.request(MeshRequestV1::ActorStatus {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             actor_ref,
         })? {
             MeshResponseV1::ActorStatus { status } => Ok(status),
@@ -2840,7 +3694,7 @@ impl MeshNodeConnection {
 
     pub fn cancel_actor(&mut self, actor_ref: MeshActorRefV1) -> Result<MeshActorCancellationV1> {
         match self.request(MeshRequestV1::CancelActor {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             actor_ref,
         })? {
             MeshResponseV1::ActorCancellation { cancellation } => Ok(cancellation),
@@ -2850,7 +3704,7 @@ impl MeshNodeConnection {
 
     pub fn fence_actor_if_absent(&mut self, actor_ref: MeshActorRefV1) -> Result<MeshActorFenceV1> {
         match self.request(MeshRequestV1::FenceActorIfAbsent {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             actor_ref,
         })? {
             MeshResponseV1::ActorFence { fence } => Ok(fence),
@@ -2864,7 +3718,7 @@ impl MeshNodeConnection {
         index: u32,
     ) -> Result<MeshResultChunkV1> {
         match self.request(MeshRequestV1::ResultChunk {
-            protocol: HOSTED_MESH_PROTOCOL_V1.to_owned(),
+            protocol: self.protocol.to_owned(),
             actor_ref,
             index,
         })? {
@@ -2893,6 +3747,21 @@ fn validate_client_request(request: &MeshRequestV1) -> Result<()> {
 }
 
 pub fn serve_mesh_stream(stream: &mut HostedServerStream, runtime: &MeshNodeRuntime) -> Result<()> {
+    serve_mesh_stream_for_protocol(stream, runtime, HOSTED_MESH_PROTOCOL_V1)
+}
+
+pub fn serve_mesh_stream_v2(
+    stream: &mut HostedServerStream,
+    runtime: &MeshNodeRuntime,
+) -> Result<()> {
+    serve_mesh_stream_for_protocol(stream, runtime, HOSTED_MESH_PROTOCOL_V2)
+}
+
+fn serve_mesh_stream_for_protocol(
+    stream: &mut HostedServerStream,
+    runtime: &MeshNodeRuntime,
+    protocol: &str,
+) -> Result<()> {
     loop {
         if !runtime.is_accepting_actors() {
             return Ok(());
@@ -2910,7 +3779,17 @@ pub fn serve_mesh_stream(stream: &mut HostedServerStream, runtime: &MeshNodeRunt
                 return Ok(());
             }
         };
-        let response = runtime.handle_request(request);
+        let response = if request.protocol() != protocol {
+            MeshResponseV1::Error {
+                error: mesh_pre_admission_error(
+                    "protocol-alpn-mismatch",
+                    "mesh payload version differs from negotiated TLS protocol",
+                    false,
+                ),
+            }
+        } else {
+            runtime.handle_request(request)
+        };
         write_hosted_frame(stream, &response).context("failed to write mesh response")?;
     }
 }
@@ -2924,6 +3803,18 @@ fn validate_mesh_response(request: &MeshRequestV1, response: &MeshResponseV1) ->
         return Ok(());
     }
     match (request, response) {
+        (MeshRequestV1::ProfileV2 { .. }, MeshResponseV1::ProfileV2 { profile }) => {
+            profile.validate()
+        }
+        (
+            MeshRequestV1::ProbeRouteV2 { requirements, .. },
+            MeshResponseV1::RouteProbeV2 { probe },
+        ) if probe.requirements == *requirements => probe.validate(),
+        (MeshRequestV1::ExecuteActorV2 { actor, .. }, MeshResponseV1::ActorStatus { status })
+            if status.actor == actor.actor && status.spec_sha256 == actor.sha256()? =>
+        {
+            status.validate()
+        }
         (MeshRequestV1::Profile { .. }, MeshResponseV1::Profile { profile }) => profile.validate(),
         (MeshRequestV1::Capacity { .. }, MeshResponseV1::Capacity { capacity }) => {
             capacity.validate()
@@ -3122,7 +4013,7 @@ fn actor_storage_key(actor: &MeshActorIdV1) -> MeshNodeResult<String> {
 }
 
 fn validate_actor_record_integrity(record: &MeshActorRecordV1) -> Result<MeshActorRefV1> {
-    if record.schema != MESH_ACTOR_RECORD_SCHEMA_V1 {
+    if record.schema != record.spec.record_schema() {
         bail!("actor record has an unsupported schema");
     }
     record.spec.validate()?;

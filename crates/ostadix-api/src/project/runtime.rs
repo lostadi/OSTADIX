@@ -74,11 +74,12 @@ pub enum ProcessTreePolicy {
 
 /// Coherent resource and host-interaction limits for one spawned route.
 ///
-/// The defaults retain the historical environment behavior while making time,
-/// output, artifacts, and owned-process lifetime finite.
+/// Execution time is unbounded by default; a positive wall-clock limit is opt-in.
+/// Output, artifacts, environment and owned-process cleanup retain their budgets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecutionLimits {
-    pub wall_clock_timeout: Duration,
+    /// None leaves execution unbounded. Some must be strictly positive.
+    pub wall_clock_timeout: Option<Duration>,
     pub termination_grace_period: Duration,
     pub max_retained_stdout_bytes: usize,
     pub max_retained_stderr_bytes: usize,
@@ -95,7 +96,7 @@ pub struct ExecutionLimits {
 impl Default for ExecutionLimits {
     fn default() -> Self {
         Self {
-            wall_clock_timeout: Duration::from_secs(30 * 60),
+            wall_clock_timeout: None,
             // Allow a successfully force-signaled descendant to reach an
             // inert kernel state even when the host test/build load delays
             // scheduling. This remains a strict, configured upper bound.
@@ -118,9 +119,31 @@ impl Default for ExecutionLimits {
     }
 }
 
+fn route_deadline(
+    start: Instant,
+    timeout: Option<Duration>,
+) -> std::result::Result<Option<Instant>, RouteExecutionError> {
+    timeout
+        .map(|timeout| {
+            start
+                .checked_add(timeout)
+                .ok_or_else(|| RouteExecutionError::Configuration {
+                    detail: "wall-clock timeout overflows the monotonic clock".to_string(),
+                })
+        })
+        .transpose()
+}
+
+fn execution_deadline_elapsed(deadline: Option<Instant>, now: Instant) -> bool {
+    deadline.is_some_and(|deadline| now >= deadline)
+}
+
 impl ExecutionLimits {
     fn validate(&self) -> std::result::Result<(), RouteExecutionError> {
-        if self.wall_clock_timeout.is_zero() {
+        if self
+            .wall_clock_timeout
+            .is_some_and(|timeout| timeout.is_zero())
+        {
             return Err(RouteExecutionError::Configuration {
                 detail: "wall-clock timeout must be greater than zero".to_string(),
             });
@@ -882,11 +905,7 @@ fn spawn_route(
     }
 
     let start = Instant::now();
-    let deadline = start
-        .checked_add(opts.limits.wall_clock_timeout)
-        .ok_or_else(|| RouteExecutionError::Configuration {
-            detail: "wall-clock timeout overflows the monotonic clock".to_string(),
-        })?;
+    let deadline = route_deadline(start, opts.limits.wall_clock_timeout)?;
     let child = cmd.spawn().map_err(|source| RouteExecutionError::Spawn {
         route_id: route.id.clone(),
         command: command.join(" "),
@@ -984,13 +1003,15 @@ fn spawn_route(
         if cancel.is_cancelled() {
             break RouteStop::Cancelled;
         }
-        if Instant::now() >= deadline {
+        if execution_deadline_elapsed(deadline, Instant::now()) {
             break RouteStop::DeadlineExceeded;
         }
         match process.exited_without_reaping() {
             Ok(true) => break RouteStop::LeaderExited,
             Ok(false) => {
-                let remaining = deadline.saturating_duration_since(Instant::now());
+                let remaining = deadline.map_or(Duration::from_millis(5), |deadline| {
+                    deadline.saturating_duration_since(Instant::now())
+                });
                 std::thread::sleep(remaining.min(Duration::from_millis(5)));
             }
             Err(source) => {
@@ -1042,7 +1063,11 @@ fn spawn_route(
         RouteStop::DeadlineExceeded => {
             return Err(RouteExecutionError::DeadlineExceeded {
                 route_id: route.id.clone(),
-                timeout: opts.limits.wall_clock_timeout,
+                timeout: opts.limits.wall_clock_timeout.ok_or_else(|| {
+                    RouteExecutionError::Configuration {
+                        detail: "deadline outcome without a selected wall-clock limit".to_string(),
+                    }
+                })?,
             }
             .into())
         }
@@ -1073,7 +1098,11 @@ fn spawn_route(
         Err(ArtifactCaptureError::CaptureDeadlineExceeded) => {
             return Err(RouteExecutionError::DeadlineExceeded {
                 route_id: route.id.clone(),
-                timeout: opts.limits.wall_clock_timeout,
+                timeout: opts.limits.wall_clock_timeout.ok_or_else(|| {
+                    RouteExecutionError::Configuration {
+                        detail: "deadline outcome without a selected wall-clock limit".to_string(),
+                    }
+                })?,
             }
             .into())
         }
@@ -2294,7 +2323,7 @@ fn hash_artifact_reader(
 }
 
 struct ArtifactCaptureBudget<'a> {
-    deadline: Instant,
+    deadline: Option<Instant>,
     cancel: &'a CancellationToken,
 }
 
@@ -2302,7 +2331,7 @@ impl ArtifactCaptureBudget<'_> {
     fn check(&self) -> std::result::Result<(), ArtifactCaptureError> {
         if self.cancel.is_cancelled() {
             Err(ArtifactCaptureError::CaptureCancelled)
-        } else if Instant::now() >= self.deadline {
+        } else if execution_deadline_elapsed(self.deadline, Instant::now()) {
             Err(ArtifactCaptureError::CaptureDeadlineExceeded)
         } else {
             Ok(())
@@ -2548,7 +2577,7 @@ mod artifact_capture_tests {
 
     fn test_budget(cancel: &CancellationToken) -> ArtifactCaptureBudget<'_> {
         ArtifactCaptureBudget {
-            deadline: Instant::now() + Duration::from_secs(5),
+            deadline: Some(Instant::now() + Duration::from_secs(5)),
             cancel,
         }
     }
@@ -4225,5 +4254,78 @@ mod validated_selection_progress_tests {
             events.into_inner().unwrap(),
             vec![ValidatedSelectionProgressEventV1::ValidationStarted { candidate_count: 2 }]
         );
+    }
+}
+
+#[cfg(test)]
+mod optional_deadline_tests {
+    use super::*;
+    #[test]
+    fn default_execution_is_unbounded_but_artifact_cancellation_still_applies() {
+        let options = RunOptions::default();
+        assert_eq!(options.limits.wall_clock_timeout, None);
+        options.limits.validate().unwrap();
+        let start = Instant::now();
+        let deadline = route_deadline(start, options.limits.wall_clock_timeout).unwrap();
+        assert_eq!(deadline, None);
+        assert!(!execution_deadline_elapsed(
+            deadline,
+            start + Duration::from_secs(2 * 30 * 60)
+        ));
+        let cancel = CancellationToken::new();
+        let budget = ArtifactCaptureBudget {
+            deadline: None,
+            cancel: &cancel,
+        };
+        budget.check().unwrap();
+        cancel.cancel();
+        assert!(matches!(
+            budget.check(),
+            Err(ArtifactCaptureError::CaptureCancelled)
+        ));
+    }
+    #[test]
+    fn explicit_positive_limit_preserves_selected_deadline_and_resource_budgets() {
+        let defaults = ExecutionLimits::default();
+        let mut limits = defaults.clone();
+        let timeout = Duration::from_millis(1234);
+        limits.wall_clock_timeout = Some(timeout);
+        limits.validate().unwrap();
+        let start = Instant::now();
+        let deadline = route_deadline(start, limits.wall_clock_timeout).unwrap();
+        assert_eq!(deadline, Some(start + timeout));
+        assert!(!execution_deadline_elapsed(deadline, start));
+        assert!(execution_deadline_elapsed(deadline, start + timeout));
+        limits.wall_clock_timeout = None;
+        assert_eq!(limits, defaults);
+    }
+    #[test]
+    fn explicit_zero_and_clock_overflow_remain_rejected() {
+        let mut limits = ExecutionLimits::default();
+        limits.wall_clock_timeout = Some(Duration::ZERO);
+        assert!(
+            matches!(limits.validate(),Err(RouteExecutionError::Configuration{detail}) if detail.contains("greater than zero"))
+        );
+        let start = Instant::now();
+        let expected = start.checked_add(Duration::MAX);
+        let result = route_deadline(start, Some(Duration::MAX));
+        match expected {
+            Some(value) => assert_eq!(result.unwrap(), Some(value)),
+            None => assert!(
+                matches!(result,Err(RouteExecutionError::Configuration{detail}) if detail.contains("overflows the monotonic clock"))
+            ),
+        }
+    }
+    #[test]
+    fn explicitly_expired_artifact_deadline_still_refuses_capture() {
+        let cancel = CancellationToken::new();
+        let budget = ArtifactCaptureBudget {
+            deadline: Some(Instant::now() - Duration::from_secs(1)),
+            cancel: &cancel,
+        };
+        assert!(matches!(
+            budget.check(),
+            Err(ArtifactCaptureError::CaptureDeadlineExceeded)
+        ));
     }
 }

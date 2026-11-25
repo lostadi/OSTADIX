@@ -8,7 +8,7 @@ use anyhow::{bail, Context, Result};
 use thiserror::Error;
 
 use super::super::fabric::{serve_fabric_stream_v1, FabricAttemptProviderV1};
-use super::super::mesh::{serve_mesh_stream, MeshNodeRuntime};
+use super::super::mesh::{serve_mesh_stream, serve_mesh_stream_v2, MeshNodeRuntime};
 use super::super::node::{serve_v1_stream, HostedNodeRuntime};
 use super::super::protocol::{read_hosted_frame, write_hosted_frame};
 use super::super::tls::{
@@ -678,6 +678,11 @@ fn serve_dual_connection(
                 .context("client negotiated the mesh ALPN while the mesh runtime is disabled")?;
             serve_mesh_stream(&mut stream, runtime)
         }
+        HostedTlsProtocol::MeshV2 => {
+            let runtime = mesh_runtime
+                .context("client negotiated the mesh ALPN while the mesh runtime is disabled")?;
+            serve_mesh_stream_v2(&mut stream, runtime)
+        }
     }
 }
 
@@ -723,6 +728,11 @@ fn serve_dual_connection_with_execution_fabric_v1(
             let runtime = mesh_runtime
                 .context("client negotiated the mesh ALPN while the mesh runtime is disabled")?;
             serve_mesh_stream(&mut stream, runtime)
+        }
+        HostedTlsRouteV1::Hosted(HostedTlsProtocol::MeshV2) => {
+            let runtime = mesh_runtime
+                .context("client negotiated the mesh ALPN while the mesh runtime is disabled")?;
+            serve_mesh_stream_v2(&mut stream, runtime)
         }
         HostedTlsRouteV1::ExecutionFabricV1 => {
             let principal = peer_principal_sha256(&stream)?;
