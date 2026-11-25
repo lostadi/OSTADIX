@@ -202,6 +202,103 @@ pub fn construct_configured_assembly(
     })
 }
 
+
+/// Construct through the same held-input boundary as machine-unit output, then
+/// plan the exact constructed unit without serializing and reopening it.
+///
+/// The plan is returned only after every input/directory postguard and explicit
+/// close succeeds. This performs no assembler invocation, producer admission,
+/// native exposure or runtime/provider qualification. It retains the existing
+/// planner's complete source/floor checks and unsupported-feature refusals.
+pub fn plan_configured_assembly(
+    configured: &Path,
+    descriptor: &Path,
+    sha: &str,
+    target: Target,
+) -> Result<crate::ocore::native_machine_emit::MachineAssemblyPlan, Diagnostic> {
+    #[cfg(unix)]
+    let result = native::plan(configured, descriptor, sha, target);
+    #[cfg(not(unix))]
+    let result: Result<crate::ocore::native_machine_emit::MachineAssemblyPlan, String> = {
+        let _ = (configured, descriptor, sha, target);
+        Err(
+            "configured source file custody requires the implemented Unix openat/nofollow boundary"
+                .into(),
+        )
+    };
+    result.map_err(|message| Diagnostic {
+        file: "<configured-assembly>".into(),
+        span: Span::default(),
+        message,
+    })
+}
+
+
+/// Plan the same constructed unit with independently caller-held typed initial
+/// CIE facts. They are forwarded to the existing explicit-CIE planner without
+/// defaults or derivation from fresh output. Its complete body/map/profile
+/// checks and refusals remain authoritative for this consistency operation.
+///
+/// These facts do not establish original CIE/object/FDE association, assembler
+/// acceptance, native unwind behavior, producer admission or runtime coverage.
+/// As in plan_configured_assembly, no plan escapes failed postguards or closes.
+pub fn plan_configured_assembly_with_initial_cies(
+    configured: &Path,
+    descriptor: &Path,
+    sha: &str,
+    target: Target,
+    initial_cies: &std::collections::BTreeMap<
+        unit::BodyId,
+        crate::ocore::native_machine_verify::CfiInitialCie,
+    >,
+) -> Result<crate::ocore::native_machine_emit::MachineAssemblyPlan, Diagnostic> {
+    #[cfg(unix)]
+    let result = native::plan_with_initial_cies(
+        configured, descriptor, sha, target, initial_cies,
+    );
+    #[cfg(not(unix))]
+    let result: Result<crate::ocore::native_machine_emit::MachineAssemblyPlan, String> = {
+        let _ = (configured, descriptor, sha, target, initial_cies);
+        Err(
+            "configured source file custody requires the implemented Unix openat/nofollow boundary"
+                .into(),
+        )
+    };
+    result.map_err(|message| Diagnostic {
+        file: "<configured-assembly>".into(),
+        span: Span::default(),
+        message,
+    })
+}
+
+/// Construct and plan configured assembly, then write the exact planned bytes
+/// through the same held-input/output boundary as machine-unit construction.
+/// The output is diagnostic assembly: no assembler, native exposure or runtime
+/// admission occurs. Required CFI without selected initial-CIE facts is refused.
+pub fn emit_configured_assembly(
+    configured: &Path,
+    descriptor: &Path,
+    sha: &str,
+    target: Target,
+    output: &Path,
+) -> Result<(), Diagnostic> {
+    #[cfg(unix)]
+    let result = native::emit_assembly(configured, descriptor, sha, target, output);
+    #[cfg(not(unix))]
+    let result: Result<(), String> = {
+        let _ = (configured, descriptor, sha, target, output);
+        Err(
+            "configured source file custody requires the implemented Unix openat/nofollow boundary"
+                .into(),
+        )
+    };
+    result.map_err(|message| Diagnostic {
+        file: "<configured-assembly>".into(),
+        span: Span::default(),
+        message,
+    })
+}
+
 #[cfg(unix)]
 mod native {
     use crate::ocore::driver::configured_assembly::*;
@@ -556,6 +653,122 @@ mod native {
         target: Target,
         output: &Path,
     ) -> Result<(), String> {
+        with_constructed(configured, descriptor, sha, target, |held, checked| {
+            let ConstructedAssembly {
+                selected,
+                syntax_floor,
+                configured: ci,
+                inventory: ui,
+                constructed,
+                ..
+            } = checked;
+            let consumed:Vec<_>=held.inputs.iter().map(|r|serde_json::json!({"path":r.path,"native":r.before,"identity":identity(&r.raw)})).collect();
+            let value = serde_json::json!({"format":OUTPUT_FORMAT,"qualification":false,"original_inventory_authenticated":false,"source_or_native_admission":false,"complete_runtime_or_provider":false,"target":target.name(),"selection":selected,"consumed_files":consumed,"configured_assembly_bytes":held.inputs[ci].raw,"syntax_inventory_bytes":syntax_floor.inventory_json(),"syntax_inventory_origin":syntax_floor.origin(),"unit_inventory_bytes":held.inputs[ui].raw,"inputs":constructed.inputs,"unit":constructed.unit,"verification":constructed.report,"records":constructed.records,"bodies":constructed.bodies});
+            let mut raw = serde_json::to_vec_pretty(&value).map_err(err)?;
+            raw.push(b'\n');
+            let errors = held.guards();
+            if !errors.is_empty() {
+                return Err(errors.join("; "));
+            }
+            held.output(output, raw)
+        })
+    }
+
+    pub(in crate::ocore::driver::configured_assembly) fn plan(
+        configured: &Path,
+        descriptor: &Path,
+        sha: &str,
+        target: Target,
+    ) -> Result<crate::ocore::native_machine_emit::MachineAssemblyPlan, String> {
+        with_constructed(configured, descriptor, sha, target, |held, checked| {
+            crate::ocore::native_machine_emit::plan_unit(
+                &checked.constructed.unit,
+                &checked.selection,
+                &held.inputs[checked.inventory].raw,
+                &held.inputs[checked.configured].raw,
+                target,
+            ).map_err(|failure| serde_json::json!({
+                "format":"ocore-configured-machine-unit-plan-failure-v1",
+                "qualification":false,
+                "source_or_native_admission":false,
+                "failure":failure,
+            }).to_string())
+        })
+    }
+
+    pub(in crate::ocore::driver::configured_assembly) fn plan_with_initial_cies(
+        configured: &Path,
+        descriptor: &Path,
+        sha: &str,
+        target: Target,
+        initial_cies: &std::collections::BTreeMap<
+            unit::BodyId,
+            crate::ocore::native_machine_verify::CfiInitialCie,
+        >,
+    ) -> Result<crate::ocore::native_machine_emit::MachineAssemblyPlan, String> {
+        with_constructed(configured, descriptor, sha, target, |held, checked| {
+            crate::ocore::native_machine_emit::plan_unit_with_initial_cies(
+                &checked.constructed.unit,
+                &checked.selection,
+                &held.inputs[checked.inventory].raw,
+                &held.inputs[checked.configured].raw,
+                target,
+                initial_cies,
+            ).map_err(|failure| serde_json::json!({
+                "format":"ocore-configured-machine-unit-plan-failure-v1",
+                "qualification":false,
+                "source_or_native_admission":false,
+                "failure":failure,
+            }).to_string())
+        })
+    }
+
+    pub(in crate::ocore::driver::configured_assembly) fn emit_assembly(
+        configured: &Path,
+        descriptor: &Path,
+        sha: &str,
+        target: Target,
+        output: &Path,
+    ) -> Result<(), String> {
+        with_constructed(configured, descriptor, sha, target, |held, checked| {
+            let plan = crate::ocore::native_machine_emit::plan_unit(
+                &checked.constructed.unit,
+                &checked.selection,
+                &held.inputs[checked.inventory].raw,
+                &held.inputs[checked.configured].raw,
+                target,
+            ).map_err(|failure| serde_json::json!({
+                "format":"ocore-configured-machine-unit-plan-failure-v1",
+                "qualification":false,
+                "source_or_native_admission":false,
+                "failure":failure,
+            }).to_string())?;
+            let errors = held.guards();
+            if !errors.is_empty() {
+                return Err(errors.join("; "));
+            }
+            held.output(output, plan.assembly().as_bytes().to_vec())
+        })
+    }
+
+    // This private, nonserializable owner is created only after the real
+    // constructor succeeds. Its indices refer solely to this operation's Held
+    // inputs; it is consumed before postguards/closes and never escapes them.
+    struct ConstructedAssembly {
+        selected: AssemblyDescriptor,
+        syntax_floor: HeldSyntaxFloor,
+        configured: usize,
+        inventory: usize,
+        selection: unit::UnitSelection,
+        constructed: construction::ConstructedUnit,
+    }
+    fn with_constructed<T>(
+        configured: &Path,
+        descriptor: &Path,
+        sha: &str,
+        target: Target,
+        consume: impl FnOnce(&mut Held, ConstructedAssembly) -> Result<T, String>,
+    ) -> Result<T, String> {
         let mut held = Held::new();
         let body = (|| {
             if !digest(sha) {
@@ -671,24 +884,23 @@ mod native {
                 configured_assembly:&held.inputs[ci].raw,syntax_selection:syntax_floor.selection(),syntax_inventory_json:syntax_floor.inventory_json(),
                 unit_selection:&unit_selection,unit_inventory_json:&held.inputs[ui].raw,body_floors:&floors,target,
             }).map_err(|failure|{let f=*failure;serde_json::json!({"format":"ocore-configured-machine-unit-construction-failure-v1","qualification":false,"inputs":f.inputs,"records":f.records,"bodies":f.bodies,"issues":f.issues}).to_string()})?;
-            let consumed:Vec<_>=held.inputs.iter().map(|r|serde_json::json!({"path":r.path,"native":r.before,"identity":identity(&r.raw)})).collect();
-            let value = serde_json::json!({"format":OUTPUT_FORMAT,"qualification":false,"original_inventory_authenticated":false,"source_or_native_admission":false,"complete_runtime_or_provider":false,"target":target.name(),"selection":selected,"consumed_files":consumed,"configured_assembly_bytes":held.inputs[ci].raw,"syntax_inventory_bytes":syntax_floor.inventory_json(),"syntax_inventory_origin":syntax_floor.origin(),"unit_inventory_bytes":held.inputs[ui].raw,"inputs":constructed.inputs,"unit":constructed.unit,"verification":constructed.report,"records":constructed.records,"bodies":constructed.bodies});
-            let mut raw = serde_json::to_vec_pretty(&value).map_err(err)?;
-            raw.push(b'\n');
-            let errors = held.guards();
-            if !errors.is_empty() {
-                return Err(errors.join("; "));
-            }
-            held.output(output, raw)
+            consume(&mut held, ConstructedAssembly {
+                selected,
+                syntax_floor,
+                configured: ci,
+                inventory: ui,
+                selection: unit_selection,
+                constructed,
+            })
         })();
         let mut errors = vec![];
-        if let Err(e) = body {
-            errors.push(e);
+        if let Err(e) = &body {
+            errors.push(e.clone());
         }
         errors.extend(held.guards());
         errors.extend(held.closes());
         if errors.is_empty() {
-            Ok(())
+            body
         } else {
             Err(errors.join("; "))
         }

@@ -29,7 +29,7 @@ enum Emit {
     about = "Compile statically typed O-core to freestanding native objects"
 )]
 struct Cli {
-    /// .oc sources, or one complete imported native module.
+    /// .oc sources, one complete imported native module, or one configured assembly input.
     #[arg(required_unless_present_any = ["verify_native_map", "list_targets"])]
     inputs: Vec<PathBuf>,
 
@@ -94,7 +94,8 @@ struct Cli {
     #[arg(long, requires = "verify_native")]
     receipt: Option<PathBuf>,
 
-    /// Output kind.
+    /// Output kind. Configured assembly permits machine-unit or diagnostic asm only;
+    /// its output does not establish assembler, provider or native admission.
     #[arg(long, value_enum, default_value_t = Emit::Obj)]
     emit: Emit,
 
@@ -102,7 +103,8 @@ struct Cli {
     #[arg(long, default_value = "x86_64-unknown-none")]
     target: String,
 
-    /// Output path, or `-` for textual output on stdout.
+    /// Output path, or `-` for ordinary textual output on stdout.
+    /// Configured assembly requires a new explicit file for either output kind.
     #[arg(short, long)]
     output: Option<PathBuf>,
 
@@ -163,7 +165,7 @@ fn target_catalog() -> serde_json::Value {
     })
 }
 
-/// A separate typed artifact route; never feed its output to NativeModule/MIR.
+/// Separate typed-unit/diagnostic-assembly routes; neither coerces a machine unit to MIR.
 fn configured_arguments(cli: &Cli) -> Result<(), &'static str> {
     if cli.input_kind != InputKind::ConfiguredAssembly {
         if cli.assembly_selection.is_some()
@@ -175,13 +177,13 @@ fn configured_arguments(cli: &Cli) -> Result<(), &'static str> {
         return Ok(());
     }
     if cli.inputs.len() != 1
-        || !matches!(cli.emit, Emit::MachineUnit)
+        || !matches!(cli.emit, Emit::MachineUnit | Emit::Asm)
         || cli.output.is_none()
         || cli.output.as_deref() == Some(std::path::Path::new("-"))
         || cli.assembly_selection.is_none()
         || cli.assembly_selection_sha256.is_none()
     {
-        return Err("configured assembly requires one text input, both selection pins, --emit machine-unit and a new explicit output file");
+        return Err("configured assembly requires one text input, both selection pins, --emit machine-unit or --emit asm and a new explicit output file");
     }
     if cli.llvm_library.is_some()
         || cli.llvm_sha256.is_some()
@@ -228,16 +230,27 @@ fn main() {
             );
             std::process::exit(2);
         };
-        if let Err(error) = o_lang::ocore::driver::construct_configured_assembly(
-            &cli.inputs[0],
-            cli.assembly_selection.as_deref().unwrap(),
-            cli.assembly_selection_sha256.as_deref().unwrap(),
-            target,
-            cli.output.as_deref().unwrap(),
-        ) {
+        let result = if matches!(cli.emit, Emit::Asm) {
+            o_lang::ocore::driver::configured_assembly::emit_configured_assembly(
+                &cli.inputs[0],
+                cli.assembly_selection.as_deref().unwrap(),
+                cli.assembly_selection_sha256.as_deref().unwrap(),
+                target,
+                cli.output.as_deref().unwrap(),
+            )
+        } else {
+            o_lang::ocore::driver::construct_configured_assembly(
+                &cli.inputs[0],
+                cli.assembly_selection.as_deref().unwrap(),
+                cli.assembly_selection_sha256.as_deref().unwrap(),
+                target,
+                cli.output.as_deref().unwrap(),
+            )
+        };
+        if let Err(error) = result {
             eprintln!(
                 "{}",
-                render_diagnostic(&error, None, "configured assembly construction")
+                render_diagnostic(&error, None, "configured assembly lowering")
             );
             std::process::exit(1);
         }
