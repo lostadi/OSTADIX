@@ -2,6 +2,7 @@
 //! Plans are privately constructed only after the full unit and every record pass.
 use super::{
     common::Target, native_machine_emit_rv64, native_machine_ir::*, native_machine_unit::*,
+    native_machine_verify::CfiInitialCie,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -80,6 +81,7 @@ pub struct MachineAssemblyPlan {
     abi: &'static str,
     target: Target,
     typed_unit: TypedUnitByteIdentity,
+    initial_cies: BTreeMap<BodyId, CfiInitialCie>,
 }
 impl MachineAssemblyPlan {
     pub fn assembly(&self) -> &str {
@@ -91,6 +93,14 @@ impl MachineAssemblyPlan {
     pub fn assembler_abi(&self) -> &'static str {
         self.abi
     }
+    /// Explicit selected facts only; no original-object/FDE or native unwind proof.
+    pub fn selected_initial_cies(&self) -> &BTreeMap<BodyId, CfiInitialCie> {
+        &self.initial_cies
+    }
+    pub fn cfi_rendering_contract(&self) -> Option<&'static str> {
+        (!self.initial_cies.is_empty()).then_some(native_machine_emit_rv64::CFI_RENDERING_CONTRACT)
+    }
+    pub fn native_unwind_verified(&self) -> bool { false }
     pub fn source_or_native_admission(&self) -> bool {
         false
     }
@@ -191,6 +201,30 @@ pub fn plan_unit(
     configured_assembly: &[u8],
     target: Target,
 ) -> std::result::Result<MachineAssemblyPlan, UnitEmissionFailure> {
+    plan_unit_impl(unit, selection, inventory_json, configured_assembly, target, None)
+}
+/// Additive RV64 CFI planner using externally selected decoded initial facts.
+/// Sparse/unresolved CIEs remain unsupported. The ordinary entry is unchanged.
+/// This is a static textual plan, not source/object association, assembler
+/// acceptance, native PC/FDE validation, unwind execution or native admission.
+pub fn plan_unit_with_initial_cies(
+    unit: &MachineUnit,
+    selection: &UnitSelection,
+    inventory_json: &[u8],
+    configured_assembly: &[u8],
+    target: Target,
+    initial_cies: &BTreeMap<BodyId, CfiInitialCie>,
+) -> std::result::Result<MachineAssemblyPlan, UnitEmissionFailure> {
+    plan_unit_impl(unit, selection, inventory_json, configured_assembly, target, Some(initial_cies))
+}
+fn plan_unit_impl(
+    unit: &MachineUnit,
+    selection: &UnitSelection,
+    inventory_json: &[u8],
+    configured_assembly: &[u8],
+    target: Target,
+    initial_cies: Option<&BTreeMap<BodyId, CfiInitialCie>>,
+) -> std::result::Result<MachineAssemblyPlan, UnitEmissionFailure> {
     let mut failure = UnitEmissionFailure {
         structural_failure: None,
         records: Vec::new(),
@@ -283,18 +317,26 @@ pub fn plan_unit(
             failure.unit_refusals.push(format!("symbol {}: {e}", s.id));
         }
     }
+    if let Some(initial_cies) = initial_cies {
+        let required: BTreeSet<_> = unit.bodies.iter()
+            .filter(|body| body.contract.profile.cfi == CfiPolicy::Required).map(|body| body.id).collect();
+        if required != initial_cies.keys().copied().collect() {
+            failure.unit_refusals.push("initial CIE body membership differs from complete required CFI bodies".into());
+        }
+    }
     let mut bodies = BTreeMap::new();
     for body in &unit.bodies {
         let result = (|| {
             let inv: SelectedInstructionInventory =
                 serde_json::from_slice(&body.selected_inventory_json)
                     .map_err(|e| format!("body inventory: {e}"))?;
-            native_machine_emit_rv64::select_body(
-                &body.contract,
-                &inv,
-                target,
-                &format!("{prefix}_body_{}", body.id),
-            )
+            let prefix = format!("{prefix}_body_{}", body.id);
+            match initial_cies.and_then(|selected| selected.get(&body.id)) {
+                Some(initial) => native_machine_emit_rv64::select_body_with_initial_cie(
+                    &body.contract, &inv, target, &prefix, initial,
+                ),
+                None => native_machine_emit_rv64::select_body(&body.contract, &inv, target, &prefix),
+            }
         })();
         match result {
             Ok(plan) => {
@@ -324,8 +366,19 @@ pub fn plan_unit(
     // Every record receives a disposition even when another body/record fails.
     for record in &unit.declarations.records {
         let mut refused = Vec::new();
-        if matches!(record.kind, UnitRecordKind::Cfi | UnitRecordKind::Debug) {
+        if record.kind == UnitRecordKind::Debug ||
+           (record.kind == UnitRecordKind::Cfi && initial_cies.is_none()) {
             refused.push("CFI/debug directive realization is not implemented".into());
+        }
+        if record.kind == UnitRecordKind::Cfi && initial_cies.is_some() {
+            match record.effects.as_slice() {
+                [RecordEffect::BodyItem { body }] => {
+                    if !bodies.get(body).is_some_and(|plan| plan.owns_cfi_source_item(record.id)) {
+                        refused.push("CFI record is not uniquely consumed by a checked body schedule".into());
+                    }
+                }
+                _ => refused.push("CFI record requires exactly one BodyItem owner and no mixed/duplicate effects".into()),
+            }
         }
         for effect in &record.effects {
             match effect {
@@ -431,6 +484,10 @@ pub fn plan_unit(
     let mut text = String::from(
         "# statically selected complete typed machine unit; source/admission unqualified\n",
     );
+    if bodies.values().any(|body| body.initial_cie().is_some()) {
+        // Explicit once, before any CFI region; body CFI has zero code bytes.
+        text.push_str(".cfi_sections .eh_frame\n");
+    }
     let mut current = None;
     let mut offsets: BTreeMap<SectionId, u64> = sections.keys().map(|id| (*id, 0)).collect();
     let mut opened = BTreeSet::new();
@@ -706,6 +763,7 @@ pub fn plan_unit(
         },
         target,
         typed_unit,
+        initial_cies: bodies.iter().filter_map(|(&id, body)| body.initial_cie().map(|initial| (id, initial.clone()))).collect(),
     })
 }
 #[cfg(test)]

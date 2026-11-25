@@ -4,7 +4,7 @@ use super::{
     common::Target,
     native_ir::{BlockId, ValueId},
     native_machine_ir::*,
-    native_machine_verify,
+    native_machine_verify::{self, CfiInitialCie, CfiRegisterRule},
 };
 use std::collections::{BTreeMap, BTreeSet};
 type Result<T> = std::result::Result<T, String>;
@@ -37,30 +37,256 @@ fn immediate(value: u64, bits: u16) -> Option<i64> {
 pub(super) struct BodyEmission {
     blocks: Vec<SelectedBlock>,
     pub instruction_count: u64,
+    cfi: Option<CheckedCfiSchedule>,
 }
 #[derive(Debug)]
 struct SelectedBlock {
     id: BlockId,
     label: String,
     code: Vec<SelectedInstruction>,
+    source_label: Option<SourceItemId>,
 }
 #[derive(Debug)]
 struct SelectedInstruction {
     source: SourceItemId,
     text: String,
     edge: Option<(BlockId, bool)>,
+    expansion: SourceExpansion,
+}
+/// Only the branch selector may mark its two-instruction expansion neutral.
+/// No property is inferred by parsing the rendered assembler text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SourceExpansion { Single, FrameNeutralBranch }
+
+/// GNU-compatible LLVM 22.1.6 textual CFI contract, not assembler execution proof.
+/// The exact source references and conservative numeric restrictions are retained
+/// in the candidate handoff. This contract must be selected by a future caller.
+pub(super) const CFI_RENDERING_CONTRACT: &str =
+    "ocore-rv64-llvm22-explicit-complete-cfi-text-v1";
+#[derive(Debug)]
+enum SelectedCfiDirective {
+    Start,
+    End,
+    ReturnColumn(u64),
+    DefCfa { register: u8, offset: i64 },
+    Rule { register: u8, rule: SelectedCfiRule },
+}
+#[derive(Debug)]
+enum SelectedCfiRule {
+    Offset(i64),
+    ValueOffset(i64),
+    Undefined,
+    SameValue,
+    Register(u8),
+}
+impl SelectedCfiDirective {
+    fn render(&self, text: &mut String) {
+        match self {
+            Self::Start => text.push_str(".cfi_startproc simple\n"),
+            Self::End => text.push_str(".cfi_endproc\n"),
+            Self::ReturnColumn(column) => text.push_str(&format!(".cfi_return_column {column}\n")),
+            Self::DefCfa { register, offset } => text.push_str(&format!(".cfi_def_cfa {register}, {offset}\n")),
+            Self::Rule { register, rule } => match rule {
+                SelectedCfiRule::Offset(offset) => text.push_str(&format!(".cfi_offset {register}, {offset}\n")),
+                SelectedCfiRule::ValueOffset(offset) => text.push_str(&format!(".cfi_val_offset {register}, {offset}\n")),
+                SelectedCfiRule::Undefined => text.push_str(&format!(".cfi_undefined {register}\n")),
+                SelectedCfiRule::SameValue => text.push_str(&format!(".cfi_same_value {register}\n")),
+                SelectedCfiRule::Register(other) => text.push_str(&format!(".cfi_register {register}, {other}\n")),
+            },
+        }
+    }
+}
+/// Privately constructed only after complete source-order and CIE checks.
+/// Events have zero code bytes and never enter instruction/range accounting.
+#[derive(Debug)]
+struct CheckedCfiSchedule {
+    before: BTreeMap<SourceItemId, Vec<SelectedCfiDirective>>,
+    tail: Vec<SelectedCfiDirective>,
+    source_items: BTreeSet<SourceItemId>,
+    initial_cie: CfiInitialCie,
+}
+fn cfi_column(register: RegisterView) -> Result<u8> {
+    canonical(register)?;
+    match register.register {
+        PhysicalRegister::RiscvGpr { index } => Ok(index),
+        PhysicalRegister::RiscvFpr { index } => Ok(index + 32),
+        _ => Err("CFI needs a full supported RV64 DWARF register".into()),
+    }
+}
+fn cfi_offset(offset: i64) -> Result<i64> {
+    // The selected LLVM 22 RV64 contract has data alignment -8. Restrict to
+    // nonnegative encoded factors; no signed-encoding or rounding assumption.
+    need(offset <= 0 && offset % 8 == 0,
+         "CFI offset needs a nonpositive exact multiple of selected RV64 data alignment -8")?;
+    Ok(offset)
+}
+fn cfi_rule(rule: &CfiRegisterRule) -> Result<SelectedCfiRule> {
+    match rule {
+        CfiRegisterRule::InitialCie => Err("unresolved initial CIE rule is not emitted".into()),
+        CfiRegisterRule::CfaOffset { offset } => Ok(SelectedCfiRule::Offset(cfi_offset(*offset)?)),
+        CfiRegisterRule::CfaValueOffset { offset } => Ok(SelectedCfiRule::ValueOffset(cfi_offset(*offset)?)),
+        CfiRegisterRule::Undefined => Ok(SelectedCfiRule::Undefined),
+        CfiRegisterRule::SameValue => Ok(SelectedCfiRule::SameValue),
+        CfiRegisterRule::Register { register } => Ok(SelectedCfiRule::Register(cfi_column(*register)?)),
+    }
+}
+fn checked_cfi_schedule(
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+    initial: &CfiInitialCie,
+    blocks: &[SelectedBlock],
+) -> Result<CheckedCfiSchedule> {
+    let checked = native_machine_verify::verify_cfi_source_program_with_initial_cie(
+        body, inventory, target, initial,
+    ).map_err(|e| format!("explicit source CFI verification: {e:?}"))?;
+    need(!checked.source_object_association_verified && !checked.native_unwind_verified,
+         "source CFI facts must not acquire native/object association authority")?;
+    need(initial.code_alignment == 1 && initial.data_alignment == -8 && initial.return_column == 1,
+         "CFI needs selected LLVM 22 RV64 code/data alignment 1/-8 and RA column 1")?;
+    // ELF.h LLVM 22.1.6: soft=0, double=4, RVC=1. Other ABI/ISA
+    // flags need explicit realization instead of being ignored.
+    let expected_flags = match body.profile.abi {
+        MachineAbi::RiscvLp64 => 0u32,
+        MachineAbi::RiscvLp64d => 4u32,
+        _ => return Err("CFI object ABI is not supported RV64 LP64/LP64D".into()),
+    };
+    need(initial.elf_flags & !1u32 == expected_flags,
+         "initial CIE object float ABI or unsupported ELF flags differ from selected RV64 body")?;
+    let cfa = initial.cfa.as_ref().ok_or("initial CIE CFA is unspecified")?;
+    need(cfa.offset >= 0, "negative CFA offsets need another encoding realization")?;
+    let initial_cfa = cfi_column(cfa.register)?;
+    need(initial_cfa < 32, "CFA needs an RV64 address register")?;
+    let mut rules = BTreeMap::new();
+    for entry in &initial.registers {
+        let column = cfi_column(entry.register)?;
+        need(rules.insert(column, &entry.rule).is_none(), "duplicate initial CIE register column")?;
+        cfi_rule(&entry.rule)?;
+    }
+    // Absent register facts are unresolved, not Undefined. The first slice
+    // requires every currently supported RV64 DWARF register explicitly.
+    need(rules.len() == 64 && (0u8..64).all(|column| rules.contains_key(&column)),
+         "CFI initial rules must explicitly cover all 64 supported RV64 DWARF registers; sparse CIE remains unsupported")?;
+    let expected: Vec<_> = inventory.items.iter()
+        .filter(|item| item.kind == SourceItemKind::Instruction).map(|item| item.id).collect();
+    need(!expected.is_empty(), "CFI body has no selected instruction boundary")?;
+    let mut groups = Vec::<SourceItemId>::new();
+    let mut current = Vec::<&SelectedInstruction>::new();
+    let finish = |group: &mut Vec<&SelectedInstruction>, groups: &mut Vec<SourceItemId>| -> Result<()> {
+        if group.is_empty() { return Ok(()); }
+        need(group.len() == 1 || (group.len() == 2 &&
+             group.iter().all(|i| i.expansion == SourceExpansion::FrameNeutralBranch) &&
+             group[0].edge.is_some_and(|(_, conditional)| conditional) &&
+             group[1].edge.is_some_and(|(_, conditional)| !conditional)),
+             "CFI boundary has an unproved multi-instruction expansion")?;
+        groups.push(group[0].source);
+        group.clear();
+        Ok(())
+    };
+    for block in blocks {
+        // Labels emit no bytes, but must retain their selected instruction PC.
+        if let Some(label) = block.source_label {
+            let at = inventory.items.iter().position(|item| item.id == label)
+                .ok_or("selected block label absent from source inventory")?;
+            let next = inventory.items[at + 1..].iter()
+                .find(|item| item.kind == SourceItemKind::Instruction).map(|item| item.id);
+            need(inventory.items[at].kind == SourceItemKind::Label &&
+                 next == block.code.first().map(|i| i.source),
+                 "selected block label moved across a source instruction boundary")?;
+        }
+        finish(&mut current, &mut groups)?;
+        for inst in &block.code {
+            if current.first().is_some_and(|first| first.source != inst.source) {
+                finish(&mut current, &mut groups)?;
+            }
+            current.push(inst);
+        }
+        finish(&mut current, &mut groups)?;
+    }
+    need(groups == expected,
+         "CFI emission requires complete original instruction order with no missing/reordered/repeated boundaries")?;
+    let mut labels = BTreeSet::new();
+    for label in blocks.iter().filter_map(|block| block.source_label) {
+        need(labels.insert(label), "duplicate selected source label")?;
+    }
+    need(labels == inventory.items.iter().filter(|item| item.kind == SourceItemKind::Label)
+         .map(|item| item.id).collect(), "CFI source label membership differs")?;
+    let mut directives = BTreeMap::new();
+    for record in &body.directives {
+        need(directives.insert(record.source_item, &record.directive).is_none(),
+             "duplicate CFI source directive")?;
+    }
+    let mut before = BTreeMap::new();
+    let mut pending = Vec::new();
+    let mut source_items = BTreeSet::new();
+    for item in &inventory.items {
+        match item.kind {
+            SourceItemKind::Instruction => { before.insert(item.id, std::mem::take(&mut pending)); }
+            SourceItemKind::Label => {}
+            SourceItemKind::CfiDirective => {
+                need(source_items.insert(item.id), "duplicate CFI inventory source item")?;
+                let directive = directives.get(&item.id).ok_or("CFI inventory directive absent")?;
+                match directive {
+                    MachineDirective::CfiStart => {
+                        pending.push(SelectedCfiDirective::Start);
+                        pending.push(SelectedCfiDirective::ReturnColumn(initial.return_column));
+                        pending.push(SelectedCfiDirective::DefCfa { register: initial_cfa, offset: cfa.offset });
+                        for (&register, rule) in &rules {
+                            pending.push(SelectedCfiDirective::Rule { register, rule: cfi_rule(rule)? });
+                        }
+                    }
+                    MachineDirective::CfiEnd => pending.push(SelectedCfiDirective::End),
+                    MachineDirective::CfiDefCfa { register, offset } => {
+                        let register = cfi_column(*register)?;
+                        need(register < 32 && *offset >= 0, "CFI CFA register/offset has no selected encoding")?;
+                        pending.push(SelectedCfiDirective::DefCfa { register, offset: *offset });
+                    }
+                    MachineDirective::CfiSaved { register, offset } => pending.push(SelectedCfiDirective::Rule {
+                        register: cfi_column(*register)?, rule: SelectedCfiRule::Offset(cfi_offset(*offset)?),
+                    }),
+                    MachineDirective::CfiRestore { register } => {
+                        let register = cfi_column(*register)?;
+                        // Initial rules were emitted in the FDE after `simple`.
+                        // A literal .cfi_restore would restore the empty CIE.
+                        let rule = rules.get(&register).ok_or("initial restore rule absent")?;
+                        pending.push(SelectedCfiDirective::Rule { register, rule: cfi_rule(rule)? });
+                    }
+                    _ => return Err("non-CFI body directive needs its own exact position realization".into()),
+                }
+            }
+            _ => return Err("CFI body contains an unsupported non-CFI directive".into()),
+        }
+    }
+    need(source_items.len() == directives.len(), "unmatched CFI body directive")?;
+    Ok(CheckedCfiSchedule { before, tail: pending, source_items, initial_cie: initial.clone() })
 }
 impl BodyEmission {
+    pub(super) fn owns_cfi_source_item(&self, item: SourceItemId) -> bool {
+        self.cfi.as_ref().is_some_and(|cfi| cfi.source_items.contains(&item))
+    }
+    pub(super) fn initial_cie(&self) -> Option<&CfiInitialCie> {
+        self.cfi.as_ref().map(|cfi| &cfi.initial_cie)
+    }
     pub(super) fn assembly(&self) -> String {
         let mut text = String::from(".option push\n.option norvc\n.option norelax\n");
         for block in &self.blocks {
             text.push_str(&format!("{}:\n", block.label));
+            let mut previous = None;
             for inst in &block.code {
+                if previous != Some(inst.source) {
+                    if let Some(events) = self.cfi.as_ref().and_then(|cfi| cfi.before.get(&inst.source)) {
+                        for event in events { event.render(&mut text); }
+                    }
+                }
+                previous = Some(inst.source);
                 text.push_str(&format!(
                     "\t{} # machine-source-item {}\n",
                     inst.text, inst.source
                 ));
             }
+        }
+        if let Some(cfi) = &self.cfi {
+            for event in &cfi.tail { event.render(&mut text); }
         }
         text.push_str(".option pop\n");
         text
@@ -286,6 +512,7 @@ fn append(code: &mut Vec<SelectedInstruction>, source: SourceItemId, text: Strin
         source,
         text,
         edge: None,
+        expansion: SourceExpansion::Single,
     });
 }
 fn materialize(rd: u8, value: u64) -> Vec<String> {
@@ -607,7 +834,7 @@ fn coverage(views: &[RegisterView], reg: PhysicalRegister) -> u64 {
         .filter(|v| v.register == reg)
         .fold(0, |m, v| m | (mask(v.bits) << v.low_bit))
 }
-fn abi(body: &MachineBodyContract) -> Result<()> {
+fn abi(body: &MachineBodyContract, explicit_cfi: bool) -> Result<()> {
     need(
         body.profile.architecture == Architecture::Rv64
             && matches!(
@@ -617,7 +844,8 @@ fn abi(body: &MachineBodyContract) -> Result<()> {
         "only the explicit RV64 LP64/LP64D leaf ABI is selected",
     )?;
     need(
-        body.profile.cfi == CfiPolicy::NoCfiDeclared && body.directives.is_empty(),
+        if explicit_cfi { body.profile.cfi == CfiPolicy::Required }
+        else { body.profile.cfi == CfiPolicy::NoCfiDeclared && body.directives.is_empty() },
         "CFI/directive realization is not implemented by this selector",
     )?;
     need(
@@ -735,13 +963,31 @@ pub(super) fn select_body(
     target: Target,
     prefix: &str,
 ) -> Result<BodyEmission> {
+    select_body_impl(body, inventory, target, prefix, None)
+}
+pub(super) fn select_body_with_initial_cie(
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+    prefix: &str,
+    initial: &CfiInitialCie,
+) -> Result<BodyEmission> {
+    select_body_impl(body, inventory, target, prefix, Some(initial))
+}
+fn select_body_impl(
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+    prefix: &str,
+    initial: Option<&CfiInitialCie>,
+) -> Result<BodyEmission> {
     native_machine_verify::verify(body, inventory, target)
         .map_err(|e| format!("machine structural verification: {e:?}"))?;
     need(
         body.format == COMPUTED_CONTROL_FORMAT,
         "native selection rejects legacy return-marker format",
     )?;
-    abi(body)?;
+    abi(body, initial.is_some())?;
     need(
         !prefix.is_empty()
             && prefix
@@ -882,6 +1128,7 @@ pub(super) fn select_body(
                     source,
                     text: format!("jal x0, {label}"),
                     edge: Some((edge.target, false)),
+                    expansion: SourceExpansion::Single,
                 });
             }
             MachineControl::Branch {
@@ -900,11 +1147,13 @@ pub(super) fn select_body(
                     source,
                     text: format!("{op} x{a}, x{b}, {yes}"),
                     edge: Some((on_true.target, true)),
+                    expansion: SourceExpansion::FrameNeutralBranch,
                 });
                 code.push(SelectedInstruction {
                     source,
                     text: format!("jal x0, {no}"),
                     edge: Some((on_false.target, false)),
+                    expansion: SourceExpansion::FrameNeutralBranch,
                 });
             }
             MachineControl::ReturnTo {
@@ -928,6 +1177,7 @@ pub(super) fn select_body(
             id: block.id,
             label: labels[&block.id].clone(),
             code,
+            source_label: block.source_label,
         });
     }
     let mut offsets = BTreeMap::new();
@@ -958,8 +1208,10 @@ pub(super) fn select_body(
             pc += 4;
         }
     }
+    let cfi = initial.map(|initial| checked_cfi_schedule(body, inventory, target, initial, &blocks)).transpose()?;
     Ok(BodyEmission {
         blocks,
         instruction_count: cursor / 4,
+        cfi,
     })
 }

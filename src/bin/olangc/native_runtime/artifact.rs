@@ -115,6 +115,10 @@ impl Artifact {
     }
 
     fn inventory(&self) -> Result<Value> {
+        self.inventory_with(|_| {})
+    }
+
+    fn inventory_with(&self, mut on_module: impl FnMut(NativeModule)) -> Result<Value> {
         if self.format != FORMAT {
             bail!("unsupported native module-set format");
         }
@@ -203,6 +207,7 @@ impl Artifact {
                     .push(json!({"module":embedded.identity(),"interface":requirement}));
             }
             collected.extend(symbols(&embedded.identity(), &module)?);
+            on_module(module);
         }
         for component in &self.components {
             if actual.get(component.name.as_str())
@@ -237,9 +242,17 @@ impl Artifact {
             .unwrap_or_default())
     }
     pub(super) fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        Self::from_bytes_with_observer(bytes, |_| {})
+    }
+
+    // Observer output is usable only after this entire reader succeeds.
+    fn from_bytes_with_observer(
+        bytes: &[u8],
+        on_module: impl FnMut(NativeModule),
+    ) -> Result<Self> {
         let mut artifact: Self =
             serde_json::from_slice(bytes).context("decode native module-set")?;
-        let inventory = artifact.inventory()?;
+        let inventory = artifact.inventory_with(on_module)?;
         if artifact.symbol_inventory != inventory {
             // V1 predates the independently derived storage diagnostics. A
             // legacy packet may omit those new fields, but cannot contradict
@@ -540,6 +553,33 @@ impl Artifact {
     }
 }
 
+// A private, immutable owner for one validated package operation. External
+// readers retain their fresh validation; this is neither authority nor a path cache.
+struct VerifiedArtifact<'a> {
+    original_bytes: &'a [u8],
+    original_sha256: String,
+    artifact: Artifact,
+    modules: Vec<NativeModule>,
+}
+
+impl<'a> VerifiedArtifact<'a> {
+    fn from_bytes(original_bytes: &'a [u8]) -> Result<Self> {
+        let mut modules = Vec::new();
+        let artifact = Artifact::from_bytes_with_observer(original_bytes, |module| {
+            modules.push(module);
+        })?;
+        if modules.len() != artifact.modules.len() {
+            bail!("verified native module-set cache membership differs");
+        }
+        Ok(Self {
+            original_bytes,
+            original_sha256: digest(original_bytes),
+            artifact,
+            modules,
+        })
+    }
+}
+
 /// Re-emit an admitted native module-set without reopening foreign source, LLVM
 /// input, original capture receipts, or a frontend/parser installation.
 pub(super) fn compile_package(
@@ -549,7 +589,8 @@ pub(super) fn compile_package(
     output: &Path,
     compiler: &Path,
 ) -> Result<()> {
-    let artifact = Artifact::from_bytes(bytes)?;
+    let verified = VerifiedArtifact::from_bytes(bytes)?;
+    let artifact = &verified.artifact;
     let arch = architecture(target)?;
     if !matches!(output_kind, "ir" | "obj") {
         bail!("native module-set output must be ir or obj");
@@ -572,7 +613,7 @@ pub(super) fn compile_package(
     })?;
     let output = output.canonicalize()?;
     let package_path = output.join(FILE_NAME);
-    fs::write(&package_path, bytes)?;
+    fs::write(&package_path, verified.original_bytes)?;
     let mut records = Vec::new();
     let mut issues = Vec::new();
     for (index, embedded) in artifact.modules.iter().enumerate() {
@@ -580,14 +621,17 @@ pub(super) fn compile_package(
             "unit_id":embedded.unit_id,"verified":true,"lowered":false,
             "verification_mode":"in_process"});
         let result = (|| -> Result<()> {
-            let module = embedded.verify()?;
+            let module = verified
+                .modules
+                .get(index)
+                .context("verified native module-set cache member absent")?;
             let directory = output.join(format!("unit-{index:06}"));
             fs::create_dir(&directory)?;
             let imported = directory.join("module.native-ir.json");
             fs::write(&imported, embedded.native_ir.as_bytes())?;
             record["module"] = json!({"path":imported,"sha256":embedded.sha256});
             record["generated_floating_helper_requirements"] =
-                json!(floating_requirements(&module)?);
+                json!(floating_requirements(module)?);
             if output_kind == "obj" {
                 let object = directory.join("module.o");
                 let emission_arguments = vec![
@@ -604,7 +648,7 @@ pub(super) fn compile_package(
                 record["emit_argv"] = json!(emission_arguments);
                 invoke(compiler, &emission_arguments, &directory.join("emit.log"))?;
                 let object_bytes = fs::read(&object)?;
-                record["object_inventory"] = object_inventory(&object_bytes, arch, &module)?;
+                record["object_inventory"] = object_inventory(&object_bytes, arch, module)?;
                 record["object"] = json!({"path":object,"sha256":digest(&object_bytes),"bytes":object_bytes.len()});
             }
             if fs::read(&imported)? != embedded.native_ir.as_bytes() {
@@ -624,16 +668,16 @@ pub(super) fn compile_package(
             issues.push("actual O-core compiler changed during native lowering".into());
         }
     }
-    if fs::read(&package_path)? != bytes {
+    if fs::read(&package_path)? != verified.original_bytes {
         issues.push("native module-set changed during native lowering".into());
     }
     let complete = issues.is_empty();
     let receipt = json!({"schema":RECEIPT_FORMAT,"input_kind":"native_module_set",
-        "input_sha256":digest(bytes),"name":artifact.name,"requested_target":target,"architecture":arch,
+        "input_sha256":verified.original_sha256.as_str(),"name":artifact.name,"requested_target":target,"architecture":arch,
         "output_kind":output_kind,"compiler":(output_kind == "obj").then_some(compiler),
         "compiler_sha256":compiler_sha256,
         "source_capture_reverification_performed":false,"units":records,"issues":issues,
-        "module_set_artifact":{"path":package_path,"sha256":digest(bytes),"bytes":bytes.len(),
+        "module_set_artifact":{"path":package_path,"sha256":verified.original_sha256.as_str(),"bytes":verified.original_bytes.len(),
             "format":FORMAT,"module_count":artifact.modules.len()},
         "symbol_inventory":artifact.symbol_inventory,
         "unit_lowering_complete":complete,"lowering_complete":complete,

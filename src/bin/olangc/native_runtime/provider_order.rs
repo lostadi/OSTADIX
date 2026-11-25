@@ -937,18 +937,24 @@ impl PackagedOrder {
             })
             .collect()
     }
-    pub(super) fn check_internal(&self, inputs: &[CaptureInput<'_>]) -> Result<()> {
+    fn checked_occurrences(&self, inputs: &[CaptureInput<'_>]) -> Result<Vec<Occurrence>> {
         let policy = parse_policy(self.policy_json.as_bytes())?;
         if self.schema != package_schema(&policy)
             || self.general_helper != general_binding(&policy)
             || self.policy_json.len() as u64 != self.policy_pin.bytes
             || digest(self.policy_json.as_bytes()) != self.policy_pin.sha256
             || self.helper_sha256 != digest(JOIN.as_bytes())
-            || self.resolved_occurrences != self.expected_occurrences(inputs)?
         {
             bail!("source group original-order consistency differs");
         }
-        Ok(())
+        let occurrences = self.expected_occurrences(inputs)?;
+        if self.resolved_occurrences != occurrences {
+            bail!("source group original-order consistency differs");
+        }
+        Ok(occurrences)
+    }
+    pub(super) fn check_internal(&self, inputs: &[CaptureInput<'_>]) -> Result<()> {
+        self.checked_occurrences(inputs).map(|_| ())
     }
     /// Return the complete fresh occurrence vector recomputed from the sealed
     /// global policy and its exact original-to-fresh action mapping. Do not
@@ -958,9 +964,8 @@ impl PackagedOrder {
         &self,
         inputs: &[CaptureInput<'_>],
     ) -> Result<Vec<(String, String)>> {
-        self.check_internal(inputs)?;
         Ok(self
-            .expected_occurrences(inputs)?
+            .checked_occurrences(inputs)?
             .into_iter()
             .map(|occurrence| (occurrence.component, occurrence.unit_id))
             .collect())
