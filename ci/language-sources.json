@@ -50,6 +50,26 @@
       ]
     },
     {
+      "id": "benchmark-graalvm_compare",
+      "category": "benchmark",
+      "reason": "Benchmark semantics and evaluator requirements are owned by the named benchmark harness.",
+      "coverage": [
+        {
+          "path": "benchmarks/graalvm_compare/run.py",
+          "kind": "runtime",
+          "conditions": "Python and Node backends plus a GraalVM JDK required; results are preliminary and w5_nan records a known NaN crossing failure, not a parser failure."
+        }
+      ],
+      "sources": [
+        "benchmarks/graalvm_compare/ostadix/w1_handoff.O",
+        "benchmarks/graalvm_compare/ostadix/w2_compute.O",
+        "benchmarks/graalvm_compare/ostadix/w3_data.O",
+        "benchmarks/graalvm_compare/ostadix/w4_fidelity.O",
+        "benchmarks/graalvm_compare/ostadix/w5_nan.O",
+        "benchmarks/graalvm_compare/pack.O"
+      ]
+    },
+    {
       "id": "benchmark-hgraph_hosted",
       "category": "benchmark",
       "reason": "Benchmark semantics and evaluator requirements are owned by the named benchmark harness.",
