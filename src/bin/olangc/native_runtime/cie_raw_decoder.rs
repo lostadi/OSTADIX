@@ -6,6 +6,9 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "cie_fde_function.rs"]
+pub(crate) mod fde_function;
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RawSpan {
     pub section_offset: usize,
@@ -601,7 +604,7 @@ fn raw_relocations(
 fn relocation_width(machine: u16, kind: u32) -> Option<usize> {
     match (machine, kind) {
         (62, 1) | (183, 257) | (243, 2) => Some(8),
-        (62, 2) | (183, 261) | (243, 57) => Some(4),
+        (62, 2) | (183, 261) | (243, 35 | 39 | 57) => Some(4),
         _ => None,
     }
 }
@@ -650,6 +653,8 @@ fn protect_initial_rules(section: &mut RawFrameSection, machine: u16) {
                 continue;
             }
             let allowed = relocation.addend.is_some()
+                    // Width knowledge does not authorize ADD/SUB personality expressions.
+                    && !matches!((machine, relocation.kind), (243, 35 | 39))
                 && relocation_end.is_some_and(|limit| {
                     cie.personality.as_ref().is_some_and(|pointer| {
                         offset >= pointer.range.section_offset
@@ -772,7 +777,7 @@ fn field<const N: usize>(bytes: &[u8], offset: usize) -> Result<[u8; N]> {
 }
 /// Diagnostic entrypoint: preserves rejected frame records and exact raw bytes.
 /// Structural ELF/container errors return Err; the caller retains its actual object buffer.
-pub(crate) fn inspect_elf64_le_rel(bytes: &[u8]) -> Result<RawCieObject> {
+fn checked_elf_sections(bytes: &[u8]) -> Result<(u16, Vec<Section>)> {
     if !bytes.starts_with(b"\x7fELF\x02\x01\x01") || bytes.len() < 64 {
         bail!("raw CIE input must be an actual ELF64 little-endian object");
     }
@@ -832,7 +837,11 @@ pub(crate) fn inspect_elf64_le_rel(bytes: &[u8]) -> Result<RawCieObject> {
             stride: u64::from_le_bytes(field(bytes, at + 56)?),
         });
     }
-    let names = section_names(bytes, &sections)?;
+    Ok((machine, sections))
+}
+
+fn inspect_with_sections(bytes: &[u8], machine: u16, sections: &[Section]) -> Result<RawCieObject> {
+    let names = section_names(bytes, sections)?;
     let mut frames = Vec::new();
     for (index, section) in sections
         .iter()
@@ -844,7 +853,7 @@ pub(crate) fn inspect_elf64_le_rel(bytes: &[u8]) -> Result<RawCieObject> {
         {
             bail!("unsupported compressed or non-byte raw .eh_frame section");
         }
-        frames.push(frame_section(bytes, section, index, machine, &sections)?);
+        frames.push(frame_section(bytes, section, index, machine, sections)?);
     }
     if frames.is_empty() {
         bail!("raw object has no .eh_frame inventory");
@@ -864,6 +873,12 @@ pub(crate) fn inspect_elf64_le_rel(bytes: &[u8]) -> Result<RawCieObject> {
         unwind_execution_verified: false,
     })
 }
+
+pub(crate) fn inspect_elf64_le_rel(bytes: &[u8]) -> Result<RawCieObject> {
+    let (machine, sections) = checked_elf_sections(bytes)?;
+    inspect_with_sections(bytes, machine, &sections)
+}
+
 /// Strict raw-decoding entrypoint; callers requiring diagnostics first retain inspect_elf64_le_rel().
 pub(crate) fn decode_elf64_le_rel(bytes: &[u8]) -> Result<RawCieObject> {
     let object = inspect_elf64_le_rel(bytes)?;

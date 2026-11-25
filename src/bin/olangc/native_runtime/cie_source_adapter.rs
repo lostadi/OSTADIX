@@ -41,6 +41,14 @@ pub(crate) fn decode_initial_cie(
     selected: &OriginalFdeSelection,
 ) -> Result<(RawCieObject, CfiInitialCie)> {
     let object = cie_raw_decoder::decode_elf64_le_rel(bytes)?;
+    let initial = initial_cie_from_object(&object, selected)?;
+    Ok((object, initial))
+}
+
+fn initial_cie_from_object(
+    object: &RawCieObject,
+    selected: &OriginalFdeSelection,
+) -> Result<CfiInitialCie> {
     let architecture = native_machine_verify::cfi_elf_architecture(object.machine)
         .map_err(|error| anyhow::anyhow!(error.message))?;
     if architecture != selected.source_scope.profile.architecture {
@@ -135,7 +143,7 @@ pub(crate) fn decode_initial_cie(
         }),
         registers,
     };
-    Ok((object, initial))
+    Ok(initial)
 }
 /// Actual decoder -> typed adapter -> same complete shared structural verifier.
 /// Neither an arbitrary selected FDE nor its unresolved pointer establishes
@@ -158,6 +166,40 @@ pub(crate) fn verify_source_cfi_from_original_fde(
         source_program,
     })
 }
+
+
+/// Caller-held original object and symbol selection. The body/source relation
+/// is externally selected; same-object ELF range consistency is checked here.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct OriginalFunctionSelection {
+    pub source_scope: CfiSourceScope,
+    pub object_identity: ArtifactIdentity,
+    pub function: cie_raw_decoder::fde_function::SymbolKey,
+}
+/// Reuse one immutable checked object for multiple independently held function
+/// choices. No object serialization/reparse, fresh path cache, CIE defaults or
+/// source-production authority is introduced. Existing CIE/body checks remain.
+pub(crate) fn verify_source_cfi_from_checked_original_function(
+    object_functions: &cie_raw_decoder::fde_function::CheckedObjectFunctions,
+    selected: &OriginalFunctionSelection,
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+) -> Result<(OriginalFdeSelection, CfiSourceProgramWithInitialCie)> {
+    let locator = object_functions.selected_fde(&selected.object_identity, selected.function)?;
+    object_functions.require_initial_rules_decoded()?;
+    let selected_fde = OriginalFdeSelection {
+        source_scope: selected.source_scope.clone(),
+        frame_section_index: locator.frame_section_index,
+        fde_section_offset: locator.fde_section_offset,
+    };
+    let initial = initial_cie_from_object(object_functions.raw_object(), &selected_fde)?;
+    let source_program = native_machine_verify::verify_cfi_source_program_with_initial_cie(body, inventory, target, &initial)?;
+    Ok((selected_fde, source_program))
+}
+
+// Callers retain CheckedObjectFunctions across selection/body failures. No
+// bytes-to-success-only wrapper consumes and discards the full failure inventory.
 
 #[cfg(test)]
 #[path = "cie_source_adapter_tests.rs"]
