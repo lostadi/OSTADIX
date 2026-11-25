@@ -1,0 +1,1236 @@
+{
+ "env": {
+  "host": "macOS-26.5.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "cpu": "Apple M1 Max",
+  "ostadix_commit": "1f4576ae570d996923f8c59b9582f85e413288bd",
+  "ostadix_python": "Python 3.12.16",
+  "node": "v26.13.1",
+  "graalvm_java": "java version \"25.0.4\" 2026-07-21 LTS",
+  "polyglot_artifacts": "org.graalvm.polyglot 25.0.4 (python-community, js-community)",
+  "rounds": 10
+ },
+ "summary": {
+  "ostadix:w1_handoff": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 188.7,
+   "min_ms": 147.58,
+   "max_ms": 281.29,
+   "outputs": [
+    "42"
+   ],
+   "errors": []
+  },
+  "graalvm:w1_handoff": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 2572.3,
+   "min_ms": 2042.51,
+   "max_ms": 3077.8,
+   "outputs": [
+    "42"
+   ],
+   "errors": []
+  },
+  "ostadix:w2_compute": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 997.6,
+   "min_ms": 947.72,
+   "max_ms": 1113.99,
+   "outputs": [
+    "19999998"
+   ],
+   "errors": []
+  },
+  "graalvm:w2_compute": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 3109.5,
+   "min_ms": 2560.58,
+   "max_ms": 3488.29,
+   "outputs": [
+    "19999998"
+   ],
+   "errors": []
+  },
+  "ostadix:w3_data": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 1882.3,
+   "min_ms": 1720.16,
+   "max_ms": 2589.39,
+   "outputs": [
+    "9999950000"
+   ],
+   "errors": []
+  },
+  "graalvm:w3_data": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 2773.7,
+   "min_ms": 2288.31,
+   "max_ms": 3972.1,
+   "outputs": [
+    "9999950000"
+   ],
+   "errors": []
+  },
+  "ostadix:w4_fidelity": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 319.5,
+   "min_ms": 295.94,
+   "max_ms": 442.04,
+   "outputs": [
+    "bigint|1267650600228229401496703205376|0.30000000000000004|true"
+   ],
+   "errors": []
+  },
+  "graalvm:w4_fidelity": {
+   "runs": 10,
+   "correct": 0,
+   "median_ms": 2447.1,
+   "min_ms": 1996.07,
+   "max_ms": 4327.21,
+   "outputs": [
+    "number|1267650600228229401496703205376|0.30000000000000004|true"
+   ],
+   "errors": []
+  },
+  "ostadix:w5_nan": {
+   "runs": 10,
+   "correct": 0,
+   "median_ms": 117.8,
+   "min_ms": 87.96,
+   "max_ms": 189.2,
+   "outputs": [
+    ""
+   ],
+   "errors": [
+    "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+   ]
+  },
+  "graalvm:w5_nan": {
+   "runs": 10,
+   "correct": 10,
+   "median_ms": 2525.5,
+   "min_ms": 1998.08,
+   "max_ms": 4575.0,
+   "outputs": [
+    "true"
+   ],
+   "errors": []
+  }
+ },
+ "graal_warm": {
+  "w1_handoff": {
+   "exit": 0,
+   "iters_ms": [
+    4171.49,
+    1.681,
+    0.234,
+    0.171,
+    0.167,
+    0.428,
+    0.226,
+    0.179,
+    0.268,
+    0.17,
+    0.165,
+    0.164,
+    0.211,
+    0.287,
+    0.357
+   ],
+   "steady_median_ms": 0.22
+  },
+  "w2_compute": {
+   "exit": 0,
+   "iters_ms": [
+    6208.784,
+    1115.933,
+    1087.218,
+    878.152,
+    961.961,
+    684.802,
+    663.358,
+    621.324,
+    536.272,
+    581.182,
+    528.776,
+    521.065,
+    709.402,
+    807.442,
+    579.83
+   ],
+   "steady_median_ms": 601.25
+  },
+  "w3_data": {
+   "exit": 0,
+   "iters_ms": [
+    5290.675,
+    581.121,
+    79.292,
+    19.927,
+    16.543,
+    10.088,
+    9.921,
+    15.025,
+    11.223,
+    201.297,
+    24.285,
+    98.937,
+    31.756,
+    21.25,
+    17.203
+   ],
+   "steady_median_ms": 19.23
+  },
+  "w4_fidelity": {
+   "exit": 0,
+   "iters_ms": [
+    4942.979,
+    1.971,
+    1.01,
+    1.106,
+    0.687,
+    0.617,
+    1.41,
+    0.888,
+    3.371,
+    0.933,
+    5.332,
+    1.994,
+    3.875,
+    3.46,
+    1.371
+   ],
+   "steady_median_ms": 1.7
+  },
+  "w5_nan": {
+   "exit": 0,
+   "iters_ms": [
+    4454.005,
+    3.554,
+    1.375,
+    0.6,
+    0.944,
+    0.995,
+    0.445,
+    0.551,
+    0.847,
+    0.475,
+    1.073,
+    46.313,
+    0.67,
+    0.521,
+    0.242
+   ],
+   "steady_median_ms": 0.61
+  }
+ },
+ "records": [
+  {
+   "round": 0,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 177.44,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2580.58,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 995.53,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3128.63,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1900.76,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2346.39,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 300.71,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2221.51,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 0,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 119.15,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 0,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2570.47,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2538.69,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 199.96,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3013.95,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 954.63,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2910.79,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1983.24,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2774.96,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 346.5,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2443.75,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 1,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 113.76,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 2,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 158.66,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2294.0,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 999.58,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3206.37,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 2052.13,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2990.03,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 320.35,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2474.17,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 2,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 112.52,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 2,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2480.62,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3077.8,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 208.56,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3275.77,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1025.22,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2827.02,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1872.92,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2326.68,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 319.32,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2347.58,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 3,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 118.72,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 4,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 169.72,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2482.93,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1089.92,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2858.29,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1776.04,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2478.3,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 297.56,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2269.36,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 4,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 87.96,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 4,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 1998.08,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2042.51,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 147.58,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2560.58,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 947.72,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2288.31,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1720.16,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 1996.07,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 295.94,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3191.39,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 5,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 189.2,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 6,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 281.29,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2734.79,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 973.41,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2847.68,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1891.75,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2695.46,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 313.97,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2648.33,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 6,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 114.18,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 6,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2474.76,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2583.89,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 202.37,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3356.84,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 989.28,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2720.42,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1870.99,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2519.22,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 359.56,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2770.97,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 7,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 120.72,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 8,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 171.19,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2563.97,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1037.9,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3090.42,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1833.21,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3102.03,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 319.6,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2420.03,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 8,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 116.84,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  },
+  {
+   "round": 8,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2643.27,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w1_handoff",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 2628.68,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w1_handoff",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 210.05,
+   "output": "42",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w2_compute",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3488.29,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w2_compute",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 1113.99,
+   "output": "19999998",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w3_data",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 3972.1,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w3_data",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 2589.39,
+   "output": "9999950000",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w4_fidelity",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 4327.21,
+   "output": "number|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": false,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w4_fidelity",
+   "system": "ostadix",
+   "exit": 0,
+   "wall_ms": 442.04,
+   "output": "bigint|1267650600228229401496703205376|0.30000000000000004|true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w5_nan",
+   "system": "graalvm",
+   "exit": 0,
+   "wall_ms": 4575.0,
+   "output": "true",
+   "correct": true,
+   "error": null
+  },
+  {
+   "round": 9,
+   "workload": "w5_nan",
+   "system": "ostadix",
+   "exit": 1,
+   "wall_ms": 168.86,
+   "output": "",
+   "correct": false,
+   "error": "next: correct the reported source or backend failure and rerun the same command; completed external effects are not rolled back."
+  }
+ ]
+}

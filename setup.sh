@@ -1498,6 +1498,16 @@ _ostadix_prepend_path() {
     *) PATH="$1:$PATH" ;;
   esac
 }
+# Put this directory first even when it is already present later. O admits
+# the first python3 on PATH. A no-op prepend left Homebrew's python3 ahead
+# after the rest of the shell rc ran.
+_ostadix_prefer_path() {
+  PATH=":$PATH:"
+  PATH="${PATH//:$1:/:}"
+  PATH="${PATH#:}"
+  PATH="${PATH%:}"
+  PATH="$1${PATH:+:}$PATH"
+}
 _ostadix_prepend_path "$O_LANG_ROOT/target/release"
 _ostadix_prepend_path "${CARGO_HOME:-$HOME/.cargo}/bin"
 _ostadix_prepend_path "$HOME/.local/bin"
@@ -1508,7 +1518,7 @@ case "$_ostadix_python_command" in
   "$HOME/"*) _ostadix_python_default=false ;;
 esac
 if [ -z "${VIRTUAL_ENV:-}${CONDA_PREFIX:-}" ] && $_ostadix_python_default && [ -x "$OSTADIX_PYTHON_ENV/bin/python" ]; then
-  _ostadix_prepend_path "$OSTADIX_PYTHON_ENV/bin"
+  _ostadix_prefer_path "$OSTADIX_PYTHON_ENV/bin"
 fi
 unset _ostadix_python_command _ostadix_python_default
 for _ostadix_llvm_bin in \
@@ -1535,7 +1545,7 @@ if [ -z "${OCORE_LLD:-}" ]; then
   done
 fi
 unset _ostadix_llvm_bin _ostadix_lld
-unset -f _ostadix_prepend_path 2>/dev/null || true
+unset -f _ostadix_prepend_path _ostadix_prefer_path 2>/dev/null || true
 EOF
   printf 'if [ -z "${OSTADIX_GUESTS_DIR:-}" ]; then export OSTADIX_GUESTS_DIR=%q; fi\n' "$GUESTS_DIR"
 }

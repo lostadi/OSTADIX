@@ -5099,6 +5099,26 @@ mod tests {
     }
 
     #[test]
+    fn python_splice_renders_complex_as_a_complex_call() {
+        use crate::value::FloatFormat;
+
+        let complex = OValue::number(ONumber::Complex {
+            re: Box::new(ONumber::BinaryFloat {
+                format: FloatFormat::F64,
+                bits: 0.1_f64.to_bits().to_be_bytes().to_vec(),
+            }),
+            im: Box::new(ONumber::BinaryFloat {
+                format: FloatFormat::F64,
+                bits: 0.2_f64.to_bits().to_be_bytes().to_vec(),
+            }),
+        });
+        assert_eq!(
+            render_with(SpliceRenderer::Python, &complex),
+            "complex(0.1, 0.2)"
+        );
+    }
+
+    #[test]
     fn renderer_fidelity_handles_adversarial_numeric_and_text_payloads() {
         use num_bigint::BigInt;
 
@@ -6406,6 +6426,8 @@ mod tests {
         assert!(error.contains("NUL"), "{error}");
     }
 
+    // Finds the capture file through /proc/self/fd, which only Linux has.
+    #[cfg(target_os = "linux")]
     #[test]
     fn a_bash_block_that_removes_its_capture_file_is_an_error_not_empty_output() {
         // fd 3 copies the block's stdout capture, so the command substitution

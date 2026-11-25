@@ -1,0 +1,9 @@
+O^(
+let nan = python^(
+__oval_result__ = float("nan")
+)_python
+
+javascript^(
+console.log(String(Number.isNaN(nan)))
+)_javascript
+)_O

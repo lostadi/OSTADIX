@@ -28,6 +28,7 @@
     X(ruby) \
     X(sql) \
     X(ubuntu_vm) \
+    X(voice) \
     X(webassembly)
 
 static inline StringSet *olang_default_backends(void) {

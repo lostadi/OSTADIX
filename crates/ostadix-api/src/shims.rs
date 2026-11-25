@@ -65,6 +65,7 @@ pub const BUNDLED_SHIMS: &[(&str, &[u8])] = &[
     ("ruby_shim.py", include_bytes!("../backends/ruby_shim.py")),
     ("rust_shim.py", include_bytes!("../backends/rust_shim.py")),
     ("shell_shim.py", include_bytes!("../backends/shell_shim.py")),
+    ("voice_shim.py", include_bytes!("../backends/voice_shim.py")),
     ("sql_shim.py", include_bytes!("../backends/sql_shim.py")),
     (
         "webassembly_shim.py",
@@ -106,6 +107,7 @@ pub fn bundled_shim_state_class(name: &str) -> Option<BundledShimStateClass> {
         | "ruby_shim.py"
         | "rust_shim.py"
         | "shell_shim.py"
+        | "voice_shim.py"
         | "webassembly_shim.py" => Some(BundledShimStateClass::Stateless),
         // The common module is shipped beside executable shims but is not a
         // backend actor and therefore has no independent state tier.
@@ -229,7 +231,7 @@ mod tests {
             .filter(|(name, _)| !BUNDLED_SHIM_SUPPORT_NAMES.contains(name))
             .map(|(name, _)| (*name, bundled_shim_state_class(name)))
             .collect::<Vec<_>>();
-        assert_eq!(classified.len(), 22);
+        assert_eq!(classified.len(), 23);
         assert!(classified.iter().all(|(_, class)| class.is_some()));
         assert_eq!(
             classified

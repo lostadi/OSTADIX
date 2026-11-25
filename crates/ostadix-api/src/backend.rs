@@ -52,6 +52,7 @@ const NATIVE_BACKEND_HANDLERS: &[&str] = &[
     "matlab",
     "mathematica",
     "webassembly",
+    "voice",
 ];
 
 pub fn run_backend_from_env_args() -> Result<bool> {
@@ -1260,6 +1261,7 @@ impl RustBackend {
                 output_to_value("bash", output)
             }
             "shell" => run_shell(&self.tools, "sh", &["-c", code], Some(scalar_env(bindings))),
+            "voice" => run_voice(&self.tools, code),
             "javascript" => run_script(
                 &self.tools,
                 &self.child_pid,
@@ -2086,6 +2088,44 @@ fn reap_legacy_child(child: &mut Child, grace: Duration) -> Result<std::process:
     }
 }
 
+const PERSONAL_VOICE: &str = "Lee Ostadi\u{2019}s Voice";
+const FALLBACK_VOICE: &str = "Aaron Compact";
+
+fn run_voice(tools: &BackendToolchain, code: &str) -> Result<OValue> {
+    let text = code.trim();
+    if text.is_empty() {
+        return Ok(OValue::str_(""));
+    }
+    match speak_with(tools, PERSONAL_VOICE, text) {
+        Ok(()) => Ok(OValue::str_(text)),
+        Err(error) => {
+            eprintln!(
+                "voice: {PERSONAL_VOICE} did not open ({error}); speaking with {FALLBACK_VOICE}"
+            );
+            speak_with(tools, FALLBACK_VOICE, text).with_context(|| {
+                format!("{PERSONAL_VOICE} failed ({error}); {FALLBACK_VOICE} also failed")
+            })?;
+            Ok(OValue::str_(text))
+        }
+    }
+}
+
+fn speak_with(tools: &BackendToolchain, voice: &str, text: &str) -> Result<()> {
+    let temp = TempDir::new("o-backend-voice")?;
+    let path = temp.path().join("speech.txt");
+    fs::write(&path, text).with_context(|| format!("failed to write speech for voice {voice}"))?;
+    let output = tools
+        .command("say")?
+        .arg("-v")
+        .arg(voice)
+        .arg("-f")
+        .arg(&path)
+        .output()
+        .with_context(|| format!("failed to launch admitted `say` for voice {voice}"))?;
+    expect_success(format!("say -v {voice}"), &output)?;
+    Ok(())
+}
+
 fn run_shell(
     tools: &BackendToolchain,
     program: &str,
@@ -2352,12 +2392,69 @@ fn run_file_command(
     )
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NativeOptProfile {
+    O0,
+    O1,
+    O2,
+    O3,
+    Native,
+}
+
+impl NativeOptProfile {
+    fn from_env() -> Result<Self> {
+        match std::env::var("O_OPT") {
+            Err(std::env::VarError::NotPresent) => Ok(Self::O2),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                bail!("invalid non-UTF-8 O_OPT value; expected one of: 0, 1, 2, 3, debug, release, native")
+            }
+            Ok(raw) => match raw.trim().to_ascii_lowercase().as_str() {
+                "" | "2" | "o2" | "release" | "default" => Ok(Self::O2),
+                "0" | "o0" | "debug" => Ok(Self::O0),
+                "1" | "o1" => Ok(Self::O1),
+                "3" | "o3" => Ok(Self::O3),
+                "native" => Ok(Self::Native),
+                other => bail!(
+                    "invalid O_OPT=`{other}`; expected one of: 0, 1, 2, 3, debug, release, native"
+                ),
+            },
+        }
+    }
+
+    fn rust_args(self) -> &'static [&'static str] {
+        match self {
+            Self::O0 => &[],
+            Self::O1 => &["-C", "opt-level=1"],
+            Self::O2 => &["-C", "opt-level=2"],
+            Self::O3 => &["-C", "opt-level=3"],
+            Self::Native => &["-C", "opt-level=2", "-C", "target-cpu=native"],
+        }
+    }
+
+    fn cc_args(self) -> &'static [&'static str] {
+        match self {
+            Self::O0 => &["-O0"],
+            Self::O1 => &["-O1"],
+            Self::O2 => &["-O2"],
+            Self::O3 => &["-O3"],
+            #[cfg(target_arch = "aarch64")]
+            Self::Native => &["-O2", "-mcpu=native"],
+            #[cfg(not(target_arch = "aarch64"))]
+            Self::Native => &["-O2", "-march=native"],
+        }
+    }
+}
+
 fn run_rust(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let temp = TempDir::new("o-backend-rust")?;
     let source = temp.path().join("main.rs");
     let binary = temp.path().join("main");
     fs::write(&source, code)?;
+    let opt = NativeOptProfile::from_env()?;
     let mut compiler = tools.command("rustc")?;
+    for arg in opt.rust_args() {
+        compiler.arg(arg);
+    }
     expect_success(
         "rustc compilation failed",
         &compiler
@@ -2380,7 +2477,11 @@ fn run_c(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let source = temp.path().join("main.c");
     let binary = temp.path().join("main");
     fs::write(&source, code)?;
+    let opt = NativeOptProfile::from_env()?;
     let mut compiler = tools.command("cc")?;
+    for arg in opt.cc_args() {
+        compiler.arg(arg);
+    }
     expect_success(
         "cc compilation failed",
         &compiler
@@ -2404,7 +2505,11 @@ fn run_cpp(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let source = temp.path().join("main.cpp");
     let binary = temp.path().join("main");
     fs::write(&source, code)?;
+    let opt = NativeOptProfile::from_env()?;
     let mut compiler = tools.command("g++")?;
+    for arg in opt.cc_args() {
+        compiler.arg(arg);
+    }
     expect_success(
         "g++ compilation failed",
         &compiler
@@ -2829,12 +2934,14 @@ fn stdout_to_ovalue(mut text: String) -> OValue {
     }
     let stripped = text.trim();
     if !stripped.is_empty() {
-        if let Ok(json) = serde_json::from_str::<Value>(stripped) {
-            if let Ok(value) = json_value_to_ovalue(json) {
-                return value;
-            }
+        // Preserve the existing JSON interpretation of bare negative zero.
+        if stripped == "-0" {
+            return float_to_ovalue(-0.0);
         }
 
+        // Exact scalar branches first: std's f64 parser is correctly rounded and
+        // BigInt keeps integers past u64. serde_json would otherwise claim every
+        // valid JSON number before these branches could run.
         if is_integer_literal(stripped) {
             if let Ok(int) = stripped.parse::<i64>() {
                 return OValue::int(int);
@@ -2847,6 +2954,12 @@ fn stdout_to_ovalue(mut text: String) -> OValue {
         if is_float_literal(stripped) {
             if let Ok(float) = stripped.parse::<f64>() {
                 return float_to_ovalue(float);
+            }
+        }
+
+        if let Ok(json) = serde_json::from_str::<Value>(stripped) {
+            if let Ok(value) = json_value_to_ovalue(json) {
+                return value;
             }
         }
     }
@@ -3576,6 +3689,40 @@ mod tests {
         ] {
             assert!(!sql_checkpoint_profile_accepts(source), "{source}");
         }
+    }
+
+    proptest::proptest! {
+        // Every finite f64, printed with enough digits to round-trip, must come
+        // back as the same 64-bit pattern, alone or inside a JSON array.
+        #[test]
+        fn stdout_float_inference_is_bit_exact(bits in proptest::prelude::any::<u64>()) {
+            let x = f64::from_bits(bits);
+            proptest::prop_assume!(x.is_finite());
+            let scalar = stdout_to_ovalue(format!("{:.17e}\n", x));
+            proptest::prop_assert_eq!(scalar.as_float().unwrap().to_bits(), bits);
+            let listed = stdout_to_ovalue(format!("[{:.17e}]\n", x));
+            proptest::prop_assert_eq!(listed, OValue::list(vec![OValue::float(x)]));
+        }
+    }
+
+    #[test]
+    fn stdout_bare_negative_zero_preserves_sign() {
+        let scalar = stdout_to_ovalue("-0\n".into());
+        assert_eq!(scalar.as_float().unwrap().to_bits(), (-0.0_f64).to_bits());
+        let listed = stdout_to_ovalue("[-0]\n".into());
+        assert_eq!(listed, OValue::list(vec![OValue::float(-0.0)]));
+    }
+
+    #[test]
+    fn stdout_integers_beyond_u64_stay_integers() {
+        assert_eq!(
+            stdout_to_ovalue("18446744073709551616\n".into()),
+            OValue::big_int(18_446_744_073_709_551_616_u128)
+        );
+        assert_eq!(
+            stdout_to_ovalue("18446744073709551617\n".into()),
+            OValue::big_int(18_446_744_073_709_551_617_u128)
+        );
     }
 
     #[test]

@@ -776,6 +776,20 @@
       }
     },
 {
+      "path": "voice_hello.O",
+      "editions": ["rust"],
+      "classification": "manual",
+      "requirements": {
+        "backends": ["O", "voice"],
+        "programs": ["say"],
+        "authorities": ["process"]
+      },
+      "expected": {
+        "rust": {"patterns": ["Lee. The voice block is live."]}
+      },
+      "timeout_seconds": 30
+    },
+{
       "path": "wasm_hello.O",
       "editions": ["rust"],
       "classification": "unit",

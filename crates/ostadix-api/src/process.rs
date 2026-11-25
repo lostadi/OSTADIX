@@ -957,7 +957,9 @@ fn signal_owned_process_group(child: &mut Child) -> Result<()> {
             // process groups; a negative PID addresses only that owned group.
             if unsafe { libc::kill(-group, libc::SIGKILL) } != 0 {
                 let error = std::io::Error::last_os_error();
-                if error.raw_os_error() != Some(libc::ESRCH) {
+                if error.raw_os_error() != Some(libc::ESRCH)
+                    && !darwin_group_already_inert(group, &error)
+                {
                     let _ = child.kill();
                     return Err(error).context("failed to terminate backend process group");
                 }
@@ -966,6 +968,46 @@ fn signal_owned_process_group(child: &mut Child) -> Result<()> {
     }
     let _ = child.kill();
     Ok(())
+}
+
+/// XNU's killpg skips zombie members and, when it signals none of them,
+/// reports EPERM under POSIX semantics instead of ESRCH. A backend that died
+/// during a step leaves exactly that state: its leader is an unreaped zombie
+/// and nothing in the group can still act. Accept EPERM as "already
+/// terminated" only when the leader is a zombie or gone and no other member
+/// is active, so a live process this runtime may not signal still fails.
+#[cfg(target_os = "macos")]
+fn darwin_group_already_inert(group: i32, error: &io::Error) -> bool {
+    if error.raw_os_error() != Some(libc::EPERM) {
+        return false;
+    }
+    let Ok(information_size) = i32::try_from(std::mem::size_of::<libc::proc_bsdinfo>()) else {
+        return false;
+    };
+    // SAFETY: an all-zero proc_bsdinfo is a valid plain-data value.
+    let mut information: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    // SAFETY: `information` is valid writable storage of the exact size
+    // supplied to libproc for the queried PID.
+    let read = unsafe {
+        libc::proc_pidinfo(
+            group,
+            libc::PROC_PIDTBSDINFO,
+            0,
+            (&mut information as *mut libc::proc_bsdinfo).cast(),
+            information_size,
+        )
+    };
+    let leader_inert = if read == information_size {
+        information.pbi_status == libc::SZOMB
+    } else {
+        io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+    };
+    leader_inert && matches!(owned_group_has_no_active_descendants(group), Ok(true))
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn darwin_group_already_inert(_group: i32, _error: &io::Error) -> bool {
+    false
 }
 
 fn kill_and_reap_process_group(child: &mut Child, timeout: Duration) -> Result<()> {
@@ -6098,6 +6140,10 @@ mod tests {
 
         #[cfg(not(target_os = "macos"))]
         let mut command = Command::new(&python);
+
+        // Match python_shim_command: bootstrap from the admitted runtime root.
+        #[cfg(target_os = "macos")]
+        command.current_dir(temp.path());
 
         let output = command
             .arg("-c")

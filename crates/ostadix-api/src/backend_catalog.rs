@@ -1419,20 +1419,20 @@ mod tests {
     use super::*;
 
     const CATALOG_V4_WHOLE_SHA256: &str =
-        "abbe7201cd985baaa9c8da81a09791830a2cceb5697b514fea942852c25e10ea";
+        "c7ac1310ee8568fd3e50405e1172f0021017ff8605fbee011929d8ecf382e0b2";
     const CATALOG_V4_SOURCE_SHA256: &str =
         "6d4e19cdf737982a5cfaf7d802c716e08ef5fc1e031465379a8a20348e08687a";
     const CATALOG_V4_SOURCE_BYTES: usize = 14_568;
     const CATALOG_V5_WHOLE_SHA256: &str =
-        "9c7b98d7404b98af97d188abb96917db0edf091b22d3ae904eb14c509a2d4a78";
+        "3956947f71230743b308752a01b47cb5ba4e13289c4d91cf07227d78f8051421";
     const CATALOG_V5_SOURCE_SHA256: &str =
         "c5fd5baf4b282230f7be9be65af0728f2dfa722b85876865b8e7608a995df1bf";
     const CATALOG_V5_SOURCE_BYTES: usize = 15_630;
     const CATALOG_V6_WHOLE_SHA256: &str =
-        "2f573f62b2b0903b574a371f3fed83cd37a0e5b05ceee3047f83af85d8d255cc";
+        "19c7011c4e725fb770d988e1d30758113843595ae9f094e5a436cedabbfccd68";
     const CATALOG_V6_SOURCE_SHA256: &str =
-        "1f8363ab64a4fd38fb516f23588e98955c712c497ba537edadeea87b6dc5ca5c";
-    const CATALOG_V6_SOURCE_BYTES: usize = 15_950;
+        "e288f1c50d40eab48efde995d70b84cd928c71c6889a92cca5932058cd8237c5";
+    const CATALOG_V6_SOURCE_BYTES: usize = 16_418;
 
     const CATALOG_V3_SPEC_GOLDENS: &[(&str, &str)] = &[
         (
@@ -1554,6 +1554,10 @@ mod tests {
         (
             "javascript",
             "f98d171a8e35e67baa2d2a0b7d586140a1e37ea2d580844d596bf80ce8dd9bac",
+        ),
+        (
+            "voice",
+            "07b356ed9062d43c2058cf1bee1c095dbe0eb6cdedbccb74d0f4abaa026af110",
         ),
     ];
 
@@ -1678,6 +1682,10 @@ mod tests {
             "javascript",
             "2ef7f1459b3c11bb847239b1fa8fb0c950882b14d30aa5eefb64ad8dead111b6",
         ),
+        (
+            "voice",
+            "9424ed43358fcf54c430aeea0ca5b8894082918a53ed9ce487e3a408e0e77e1a",
+        ),
     ];
 
     const CATALOG_V5_SPEC_GOLDENS: &[(&str, &str)] = &[
@@ -1800,6 +1808,10 @@ mod tests {
         (
             "javascript",
             "8025c41424acbe27467b62d2a127145538b60490dfea5cef02f4254970417b42",
+        ),
+        (
+            "voice",
+            "d67024b9856a0a7cc55b5e2b2041db575660f575761ddcebabe1b7f017d5d641",
         ),
     ];
 
@@ -1924,6 +1936,10 @@ mod tests {
             "javascript",
             "611a154e9fc72dbe2ba048ea240b063a5446845c0dafe438223fbaf9ee43be9f",
         ),
+        (
+            "voice",
+            "cc094d3f7f90031d6cefedaee804bfa2227db09dd3b92b334251128d526ec659",
+        ),
     ];
 
     fn artifact(byte: u8) -> ArtifactId {
@@ -1966,7 +1982,7 @@ mod tests {
             (
                 "v3",
                 "593611154adeb4f3f8323e8b4e85ad12e31625c6",
-                "c2453ff4cb2480e03a4a0b2356439cbc2a0ddcc914ed948fa9fe91eab1ac79ea",
+                "bebfaf4a938e66a24c0d80f684e1108411a995753d44edb97de7ec809ab5a974",
                 "c489e11e27bf3b7677bcd14d91888978522ceb72ecea00374e2bf08bc3816d51",
                 13_180,
             ),
@@ -2533,7 +2549,7 @@ mod tests {
         assert_eq!(requirement_keys.len(), requirements.len());
 
         let mut referenced = std::collections::BTreeSet::new();
-        assert_eq!(registry.canonical_specs().len(), 30);
+        assert_eq!(registry.canonical_specs().len(), 31);
         for spec in registry.canonical_specs() {
             assert!(
                 requirement_keys.contains(spec.runtime_requirement_key),
@@ -2710,7 +2726,7 @@ mod tests {
         let registry = BackendRegistry::global();
         assert_eq!(
             registry.catalog_sha256_v3(),
-            "c2453ff4cb2480e03a4a0b2356439cbc2a0ddcc914ed948fa9fe91eab1ac79ea"
+            "bebfaf4a938e66a24c0d80f684e1108411a995753d44edb97de7ec809ab5a974"
         );
         let expected = [
             (
@@ -2833,6 +2849,10 @@ mod tests {
                 "javascript",
                 "f98d171a8e35e67baa2d2a0b7d586140a1e37ea2d580844d596bf80ce8dd9bac",
             ),
+            (
+                "voice",
+                "07b356ed9062d43c2058cf1bee1c095dbe0eb6cdedbccb74d0f4abaa026af110",
+            ),
         ];
         assert_eq!(registry.canonical_specs().len(), expected.len());
         for (name, digest) in expected {
@@ -2860,7 +2880,7 @@ mod tests {
             }
         }
 
-        assert_eq!(stateless.len(), 27);
+        assert_eq!(stateless.len(), 28);
         assert_eq!(semantic, ["sql", "python"]);
         assert_eq!(external, ["ubuntu_vm"]);
 
@@ -2936,7 +2956,7 @@ mod tests {
                 .iter()
                 .filter(|(_, profile)| profile.is_none())
                 .count(),
-            27
+            28
         );
         assert_eq!(
             registry.morphism_profile_for("py"),

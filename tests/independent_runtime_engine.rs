@@ -166,12 +166,12 @@ fn dependency_direction_is_shell_to_engine_only() {
 #[test]
 fn root_backend_directory_is_an_exact_compatibility_mirror() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    assert_eq!(ostadix_api::shims::BUNDLED_SHIMS.len(), 24);
+    assert_eq!(ostadix_api::shims::BUNDLED_SHIMS.len(), 25);
     let names = ostadix_api::shims::BUNDLED_SHIMS
         .iter()
         .map(|(name, _)| *name)
         .collect::<BTreeSet<_>>();
-    assert_eq!(names.len(), 24, "bundled adapter filenames must be unique");
+    assert_eq!(names.len(), 25, "bundled adapter filenames must be unique");
     let support_names = names
         .iter()
         .copied()

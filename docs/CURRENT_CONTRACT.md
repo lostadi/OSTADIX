@@ -80,7 +80,7 @@ result before relying on a particular export or import.
 | Integrated boot | Persistent AArch64 O-core monitor with original Linux/Alpine guest and native namespace component | Full guest-kernel lowering or a completed unified OS | [boot contract](OKERNEL_PACKAGE_BOOT.md), [boot entry](../boot/README.md) |
 | Emulated and physical hardware | Named virtual-device and QEMU gates, plus separately scoped hardware evidence where present | QEMU success as proof of physical X12 display, keyboard, storage or driver support | [X12 status](OKERNEL_X12.md), [claim inventory](CLAIMS.md) |
 
-## Validation and development disclosure
+## Validation
 
 The [splice migration guide](SPLICE_MIGRATION.md) gives revised SQL, Python,
 JavaScript and shell examples and explains the preserved reference's older

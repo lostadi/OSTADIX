@@ -162,6 +162,12 @@ runtime_requirement_catalog! {
         precision: Exact,
         alternatives: [["python3", "multipass"]],
     },
+    {
+        key: "voice",
+        builtin: false,
+        precision: Exact,
+        alternatives: [["say"]],
+    },
 }
 
 backend_catalog! {
@@ -594,5 +600,19 @@ backend_catalog! {
         rich_numbers: Collapsed,
         state_support: Stateless,
         morphism_profile: JavascriptBindingStdout,
+    },
+    {
+        name: "voice",
+        aliases: [],
+        pure: false,
+        renderer: Default,
+        execution: Shim,
+        authorities: [Process],
+        adapter: NativeRust,
+        runtime: "voice",
+        integer_exactness: Unknown,
+        rich_numbers: Unknown,
+        state_support: Stateless,
+        morphism_profile: None,
     },
 }

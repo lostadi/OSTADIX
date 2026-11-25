@@ -1,0 +1,11 @@
+O^(
+let xs = python^(
+__oval_result__ = [i * 0.5 for i in range(200000)]
+)_python
+
+javascript^(
+let acc = 0;
+for (let i = 0; i < xs.length; i++) acc += xs[i];
+console.log(String(acc))
+)_javascript
+)_O

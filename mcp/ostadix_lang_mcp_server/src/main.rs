@@ -4048,7 +4048,7 @@ mod tests {
             .filter(|backend| backend.state_support == "external-pinned")
             .map(|backend| backend.name)
             .collect::<Vec<_>>();
-        assert_eq!(stateless, 27);
+        assert_eq!(stateless, 28);
         assert_eq!(semantic, ["sql", "python"]);
         assert_eq!(external, ["ubuntu_vm"]);
 
@@ -4073,7 +4073,7 @@ mod tests {
                 .iter()
                 .filter(|backend| backend.morphism_profile.is_none())
                 .count(),
-            27
+            28
         );
     }
 
@@ -4199,6 +4199,7 @@ mod tests {
                 "mathematica",
                 "webassembly",
                 "ubuntu_vm",
+                "voice",
             ]
         );
         assert_eq!(

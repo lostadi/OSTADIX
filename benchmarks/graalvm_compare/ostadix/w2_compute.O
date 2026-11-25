@@ -1,0 +1,14 @@
+O^(
+let s = python^(
+acc = 0
+for i in range(5000000):
+    acc += (i * i) % 7
+__oval_result__ = acc
+)_python
+
+javascript^(
+let t = 0;
+for (let i = 0; i < 5000000; i++) t += (i * i) % 7;
+console.log(String(s + t))
+)_javascript
+)_O

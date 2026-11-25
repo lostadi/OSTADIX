@@ -1420,6 +1420,11 @@ output is one rendering of that tree.</p>
 <td><code>backends/shell_shim.py</code>. Executes POSIX sh and returns stdout.</td>
 </tr>
 <tr>
+<td><code>voice</code></td>
+<td></td>
+<td>Speaks the trimmed literal body with macOS <code>say</code>. Lee Ostadi’s Personal Voice is first; Aaron Compact is used only if that voice does not open. The result is the spoken text, not <code>say</code> stdout. <code>backends/voice_shim.py</code> serves the other editions. A value hole is rejected.</td>
+</tr>
+<tr>
 <td><code>rust</code></td>
 <td></td>
 <td><code>backends/rust_shim.py</code>. Compiles with rustc, runs, and returns stdout.</td>

@@ -147,6 +147,179 @@ fn immutable_driver(
     Ok(())
 }
 
+/// An implementation input held by the compiler-owned producer invocation.
+/// These pins identify held expected bytes checked before local dispatch. They
+/// do not prove the later interpreter consumed those bytes, admit a remote
+/// capture, or replace the worker's source/tool checks.
+struct SourceCaptureInputPin {
+    role: &'static str,
+    path: PathBuf,
+    sha256: String,
+    bytes: usize,
+}
+
+impl SourceCaptureInputPin {
+    fn new(role: &'static str, path: &Path, bytes: &[u8]) -> Self {
+        Self {
+            role,
+            path: path.to_owned(),
+            sha256: digest(bytes),
+            bytes: bytes.len(),
+        }
+    }
+
+    fn check(&self) -> Result<()> {
+        let bytes =
+            fs::read(&self.path).with_context(|| format!("read source capture {}", self.role))?;
+        if bytes.len() != self.bytes || digest(&bytes) != self.sha256 {
+            bail!(
+                "source capture input changed before dispatch: {}",
+                self.role
+            );
+        }
+        Ok(())
+    }
+}
+
+struct SourceCapturePaths<'a> {
+    recipe: &'a Path,
+    source: &'a Path,
+    build: &'a Path,
+    capture: &'a Path,
+    inventory: &'a Path,
+    worker: &'a Path,
+    helper: &'a Path,
+    registry: &'a Path,
+}
+
+/// One registered source-production invocation, shared by ordinary recipes and
+/// provider staging. Its private fields are deliberately not deserializable:
+/// this is an execution request, not a transferable AdmittedCapture.
+///
+/// Future node transport must supply the complete original source/tool closure
+/// and an explicit location/context binding. The descriptive record below does
+/// not authorize executing a shell command or trusting a remote report path.
+struct SourceCaptureInvocation {
+    program: PathBuf,
+    argv: Vec<String>,
+    inputs: Vec<SourceCaptureInputPin>,
+    source: PathBuf,
+    original_source: Value,
+    toolchain: Value,
+    requested_target: String,
+    requested_output_kind: String,
+}
+
+impl SourceCaptureInvocation {
+    fn new(
+        paths: SourceCapturePaths<'_>,
+        recipe_bytes: &[u8],
+        recipe: &Value,
+        options: &NativeSourceOptions<'_>,
+        jobs: usize,
+        selected_python: Option<&Path>,
+        requested: (&str, &str),
+    ) -> Result<Self> {
+        let program = selected_python
+            .unwrap_or_else(|| Path::new("python3"))
+            .to_owned();
+        let mut command = Command::new(&program);
+        command
+            .arg("-I")
+            .arg(paths.worker)
+            .arg("capture")
+            .arg(paths.recipe)
+            .arg("--source")
+            .arg(paths.source)
+            .arg("--build")
+            .arg(paths.build)
+            .arg("--output")
+            .arg(paths.capture)
+            .arg("--jobs")
+            .arg(jobs.to_string())
+            .arg("--unit-inventory")
+            .arg(paths.inventory);
+        for (flag, value, default) in [
+            ("--cc", options.cc, "clang"),
+            ("--cxx", options.cxx, "clang++"),
+            ("--rustc", options.rustc, "rustc"),
+            ("--cargo", options.cargo, "cargo"),
+            ("--llvm-nm", options.llvm_nm, "llvm-nm"),
+            ("--llvm-dis", options.llvm_dis, "llvm-dis"),
+        ] {
+            command
+                .arg(flag)
+                .arg(value.unwrap_or_else(|| Path::new(default)));
+        }
+        let argv = command
+            .get_args()
+            .map(|arg| {
+                arg.to_str()
+                    .map(str::to_owned)
+                    .context("source capture arguments must be UTF-8")
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Self {
+            program,
+            argv,
+            inputs: vec![
+                SourceCaptureInputPin::new("recipe", paths.recipe, recipe_bytes),
+                SourceCaptureInputPin::new(
+                    "capture_worker",
+                    paths.worker,
+                    CAPTURE_WORKER.as_bytes(),
+                ),
+                SourceCaptureInputPin::new(
+                    "producer_registry",
+                    paths.registry,
+                    PRODUCER_REGISTRY.as_bytes(),
+                ),
+                SourceCaptureInputPin::new(
+                    "rust_payload_helper",
+                    paths.helper,
+                    RUST_PAYLOAD.as_bytes(),
+                ),
+            ],
+            source: paths.source.to_owned(),
+            original_source: recipe["source"].clone(),
+            toolchain: recipe["toolchain"].clone(),
+            requested_target: requested.0.to_owned(),
+            requested_output_kind: requested.1.to_owned(),
+        })
+    }
+
+    fn required_input_pins(&self) -> &[SourceCaptureInputPin] {
+        &self.inputs
+    }
+
+    fn description(&self) -> Value {
+        let inputs: Vec<_> = self.required_input_pins().iter().map(|input| {
+            json!({"role":input.role,"path":input.path,"sha256":input.sha256,"bytes":input.bytes})
+        }).collect();
+        json!({"schema":"ocore-source-capture-invocation-v1",
+            "program":self.program,"argv":self.argv,"implementation_inputs":inputs,
+            "source_root":self.source,"original_source_declaration":self.original_source,
+            "toolchain_declaration":self.toolchain,
+            "requested_target":self.requested_target,"requested_output_kind":self.requested_output_kind,
+            "process_context":"inherit-current-process-cwd-and-environment",
+            "scope":"compiler-owned local source-production request; declared source/tool identities remain the capture worker's checks; no remote capture admission"})
+    }
+
+    fn execute_local(&self, log: &fs::File) -> Result<std::process::ExitStatus> {
+        for input in self.required_input_pins() {
+            input.check()?;
+        }
+        // Preserve the original process context and exact argv. There is no
+        // execution deadline here, and no intermediary shell or replay adapter.
+        Command::new(&self.program)
+            .args(&self.argv)
+            .stdout(log.try_clone()?)
+            .stderr(log.try_clone()?)
+            .status()
+            .context("execute embedded original-source capture worker")
+    }
+}
+
 // Explicit materialized origin tags route receipts, never authenticity or admission.
 fn materialized_source_origin_kind(source: &Value) -> Option<&str> {
     match source.get("kind").and_then(Value::as_str) {
@@ -241,51 +414,30 @@ pub(super) fn compile_impl(
         fs::write(&helper, RUST_PAYLOAD.as_bytes())?;
         let log = output.join("capture.log");
         let log_file = fs::File::create(&log)?;
-        let python = selected_python.unwrap_or_else(|| Path::new("python3"));
-        let mut command = Command::new(python);
-        command
-            .arg("-I")
-            .arg(&worker)
-            .arg("capture")
-            .arg(&recipe)
-            .arg("--source")
-            .arg(&source)
-            .arg("--build")
-            .arg(&build)
-            .arg("--output")
-            .arg(&capture)
-            .arg("--jobs")
-            .arg(jobs.to_string())
-            .arg("--unit-inventory")
-            .arg(&inventory);
-        for (flag, value, default) in [
-            ("--cc", options.cc, "clang"),
-            ("--cxx", options.cxx, "clang++"),
-            ("--rustc", options.rustc, "rustc"),
-            ("--cargo", options.cargo, "cargo"),
-            ("--llvm-nm", options.llvm_nm, "llvm-nm"),
-            ("--llvm-dis", options.llvm_dis, "llvm-dis"),
-        ] {
-            command
-                .arg(flag)
-                .arg(value.unwrap_or_else(|| Path::new(default)));
-        }
-        let argv = command
-            .get_args()
-            .map(|arg| {
-                arg.to_str()
-                    .context("source capture arguments must be UTF-8")
-            })
-            .collect::<Result<Vec<_>>>()?;
-        receipt["capture_process"] = json!({"program":python,
-            "argv":argv,"log":log,
+        let invocation = SourceCaptureInvocation::new(
+            SourceCapturePaths {
+                recipe: &recipe,
+                source: &source,
+                build: &build,
+                capture: &capture,
+                inventory: &inventory,
+                worker: &worker,
+                helper: &helper,
+                registry: &registry,
+            },
+            recipe_bytes,
+            &source_recipe,
+            &options,
+            jobs,
+            selected_python,
+            (target, output_kind),
+        )?;
+        receipt["capture_process"] = json!({"program":invocation.program,
+            "argv":invocation.argv,"log":log,
             "exit_code":null,"success":false});
+        receipt["capture_invocation"] = invocation.description();
         write_receipt(&output, &receipt)?;
-        let status = command
-            .stdout(log_file.try_clone()?)
-            .stderr(log_file)
-            .status()
-            .context("execute embedded original-source capture worker")?;
+        let status = invocation.execute_local(&log_file)?;
         receipt["capture_process"]["exit_code"] = json!(status.code());
         receipt["capture_process"]["success"] = json!(status.success());
         let report = capture.join("report.json");

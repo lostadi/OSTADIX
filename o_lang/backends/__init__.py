@@ -41,6 +41,7 @@ def default_registry() -> Dict[str, Backend]:
         "sql": ShimBackend("sql"),
         "bash": ShimBackend("bash"),
         "shell": ShimBackend("shell"),
+        "voice": ShimBackend("voice", timeout=None),
     }
 
 

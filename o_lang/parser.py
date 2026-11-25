@@ -54,7 +54,7 @@ REGISTERED_LANGUAGES = {
     # available inside Python blocks, which re-evaluates an OExpr.
     "quote",
     # Stateless external engines run through the repository's shipped shims.
-    "common_lisp", "javascript", "sql", "bash", "shell",
+    "common_lisp", "javascript", "sql", "bash", "shell", "voice",
     # Nix family: typed evaluator, store-path realizer, OS test runner.
     "nix",
     "nix_store",
@@ -439,8 +439,8 @@ def validate_tree(node):
             raise ValueError("invalid source-AST variable/code flag under splice contract v1")
     elif isinstance(node, ExpressionNode):
         if node.canonical_language == "quote": return
-        if node.canonical_language in {"sql", "bash", "shell"} and node.env_id not in (EPHEMERAL_ENV_ID, LINKER_ISOLATED_ENV_ID):
-            raise ValueError("Python-reference SQL/Bash/shell adapters are stateless; numbered guest state is unsupported")
+        if node.canonical_language in {"sql", "bash", "shell", "voice"} and node.env_id not in (EPHEMERAL_ENV_ID, LINKER_ISOLATED_ENV_ID):
+            raise ValueError("Python-reference SQL/Bash/shell/voice adapters are stateless; numbered guest state is unsupported")
         validate_segments(node.canonical_language, (
             ("text", child.text) if isinstance(child, TextPart) else
             ("text", "") if isinstance(child, LetBinding) else

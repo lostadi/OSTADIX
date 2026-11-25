@@ -3,6 +3,10 @@
     "ostadix": {
       "command": "ostadix-mcp",
       "args": []
+    },
+    "voice": {
+      "command": "python3",
+      "args": ["mcp/voice/server.py"]
     }
   }
 }

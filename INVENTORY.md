@@ -75,6 +75,8 @@ javascript,ruby,rust,c,cpp,java(java+java),nix,nix_store,nixos_test,sql,haskell,
 lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),webassembly
 (wat2wasm+wasmtime),ubuntu_vm(python3+multipass)`.
 
+Later than that `o_doctor` snapshot: `voice` speaks a trimmed literal body through macOS `say` (`backends/voice_shim.py`). The Rust runner returns the spoken text. Lee Ostadi’s Personal Voice is first; Aaron Compact is only the fallback when that voice does not open.
+
 **What I ran, in this session, that actually worked:**
 - `examples/hello.O` via MCP `o_smoke` → `[number] 2`
 - Full `test_o_lang_examples.sh` → **39 pass / 0 fail / 5 skip** (see above for skips)
@@ -133,7 +135,7 @@ lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),weba
   Root crate exposes all 14 bins. `ostadix-api` = the "independent runtime engine" (v0.4.0,
   default feature `graph_executor`; see commit `e74cda5a` "make ostadix-api the independent
   runtime engine" and `e20fe0f4` "freeze M2 execution fabric loopback").
-- `backends/` — 22 `*_shim.py` files + `manifest.json`, etc (the shim set for `O` AOT execution).
+- `backends/` — 23 `*_shim.py` files + `manifest.json`, etc (the shim set for `O` AOT execution). `voice_shim.py` is the speech adapter.
 - `examples/` — 52 top-level entries; 42 are `.O` programs + fixtures (`computed_plot.html`,
   `hello.html`, `t.html`, `manifest.json`, `literate_report.md`, `group_pipeline/`,
   `docker_literal/`, `plan9/`, `plan9_test.html`, `plan9.html`) + a bunch of single-topic demos

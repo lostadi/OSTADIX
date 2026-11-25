@@ -328,9 +328,11 @@ mod native {
             )
         };
         if fd < 0 {
+            let os_error = std::io::Error::last_os_error();
             Err(format!(
-                "nofollow openat: {}",
-                std::io::Error::last_os_error()
+                "nofollow openat {}: {}",
+                name.to_string_lossy(),
+                os_error
             ))
         } else {
             Ok(unsafe { File::from_raw_fd(fd) })
@@ -728,11 +730,13 @@ mod file_route_tests {
     struct Owner(PathBuf);
     impl Owner {
         fn new() -> Self {
-            let p = std::env::temp_dir().join(format!(
-                "ocore-configured-source-test-{}-{}",
-                std::process::id(),
-                NEXT.fetch_add(1, Ordering::Relaxed)
-            ));
+            let p = std::fs::canonicalize(std::env::temp_dir())
+                .unwrap()
+                .join(format!(
+                    "ocore-configured-source-test-{}-{}",
+                    std::process::id(),
+                    NEXT.fetch_add(1, Ordering::Relaxed)
+                ));
             std::fs::create_dir(&p).unwrap();
             Self(p)
         }
@@ -871,7 +875,12 @@ mod file_route_tests {
             .unwrap()
             .file_type()
             .is_symlink());
-        assert!(e.message.contains("nofollow openat"));
+        assert!(e.message.contains("nofollow openat"), "{}", e.message);
+        assert!(
+            e.message.contains("body.json"),
+            "refused a component other than the planted symlink: {}",
+            e.message
+        );
         assert!(!output.exists());
     }
 
