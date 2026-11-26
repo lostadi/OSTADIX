@@ -5,8 +5,8 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 const PLAN_FORMAT: &str = "ocore-native-provider-plan-v1";
-const INVENTORY: &str = include_str!("source_inventory.py");
-const INVENTORY_DRIVER: &str = r#"import hashlib,json,pathlib,sys
+pub(super) const INVENTORY: &str = include_str!("source_inventory.py");
+pub(super) const INVENTORY_DRIVER: &str = r#"import hashlib,json,pathlib,sys
 helper,expected,library,library_sha,original,native,output,python_sha=sys.argv[1:]
 interpreter=pathlib.Path("/proc/self/exe").read_bytes()
 assert hashlib.sha256(interpreter).hexdigest()==python_sha, "actual running Python image differs"

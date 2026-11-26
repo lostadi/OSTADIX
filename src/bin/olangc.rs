@@ -312,8 +312,8 @@ struct Cli {
     #[arg(long, requires = "native_runtime")]
     native_isa: Option<String>,
 
-    /// Native runtime artifact kind: ir or obj (default: ir).
-    #[arg(long, requires = "native_runtime", value_parser = ["ir", "obj"])]
+    /// Native runtime output: ir/obj artifact attempt or mixed-diagnostic dispositions (default: ir).
+    #[arg(long, requires = "native_runtime", value_parser = ["ir", "obj", "mixed-diagnostic"])]
     native_runtime_output: Option<String>,
 
     /// Include a self-contained verified native module-set for a declared
@@ -359,6 +359,10 @@ struct Cli {
     /// (default: unit-inventory.json). Absolute paths must remain in that build.
     #[arg(long, requires = "native_runtime_source")]
     native_runtime_unit_inventory: Option<PathBuf>,
+
+    /// Held external inputs for the mixed LLVM diagnostic operation, not a complete artifact.
+    #[arg(long, value_name = "FILE", requires = "native_runtime")]
+    native_runtime_mixed_inputs: Option<PathBuf>,
 
     /// Parallel jobs forwarded to the original source build (default: host CPUs).
     #[arg(long, requires = "native_runtime_source")]
@@ -554,6 +558,39 @@ fn run_cli() -> Result<()> {
             .output
             .as_deref()
             .ok_or_else(|| anyhow::anyhow!("--native-runtime requires -o NEWDIR"))?;
+        if let Some(mixed_inputs) = cli.native_runtime_mixed_inputs.as_deref() {
+            return native_runtime::compile_runtime_mixed_diagnostic(
+                &cli.input,
+                mixed_inputs,
+                target,
+                cli.native_runtime_output.as_deref().unwrap_or("ir"),
+                output,
+                native_runtime::NativeImportOptions {
+                    llvm_library: cli.llvm_library.as_deref(),
+                    llvm_sha256: cli.llvm_sha256.as_deref(),
+                    tls_profile: cli.tls_profile.as_deref(),
+                    atomic_profile: cli.atomic_profile.as_deref(),
+                    wide_volatile_profile: cli.wide_volatile_profile.as_deref(),
+                    linux_syscall_profile: cli.linux_syscall_profile.as_deref(),
+                    dependencies: &cli.native_runtime_dependency,
+                },
+                native_runtime::NativeSourceOptions {
+                    source: cli.native_runtime_source.as_deref(),
+                    provider_plan: cli.native_runtime_provider_plan.as_deref(),
+                    cc: cli.native_runtime_cc.as_deref(),
+                    cxx: cli.native_runtime_cxx.as_deref(),
+                    rustc: cli.native_runtime_rustc.as_deref(),
+                    cargo: cli.native_runtime_cargo.as_deref(),
+                    llvm_nm: cli.native_runtime_llvm_nm.as_deref(),
+                    llvm_dis: cli.native_runtime_llvm_dis.as_deref(),
+                    unit_inventory: cli.native_runtime_unit_inventory.as_deref(),
+                    jobs: cli.native_runtime_jobs,
+                },
+            );
+        }
+        if cli.native_runtime_output.as_deref() == Some("mixed-diagnostic") {
+            bail!("mixed-diagnostic requires --native-runtime-mixed-inputs with prior held report, context, membership, order-policy and tool identities");
+        }
         return native_runtime::compile_runtime(
             &cli.input,
             target,

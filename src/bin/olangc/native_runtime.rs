@@ -29,6 +29,7 @@ mod provider_membership;
 mod provider_order;
 #[path = "native_runtime/source_action.rs"]
 mod source_action;
+pub(super) use source_action::compile_runtime_mixed_diagnostic;
 
 #[path = "native_runtime/provider_group.rs"]
 mod provider_group;
@@ -3281,6 +3282,33 @@ fn lower_with_compiler(
         stage_only,
         selected_python,
     )
+}
+
+/// Observe a held mixed cohort with the genuine selected worker. Incomplete
+/// receipts retain every raw occurrence and refusal, with no staged-input API.
+/// This callable entry is not ordinary artifact/source-recipe admission wiring.
+pub(super) fn observe_held_mixed_capture_with_python(
+    report: &Path,
+    held_report_bytes: &[u8],
+    output: &Path,
+    python: &Path,
+    policy: source_action::MixedCapturePolicy,
+) -> Result<source_action::MixedCaptureOutcome> {
+    if fs::read(report).context("read held mixed observation report")? != held_report_bytes {
+        bail!("held mixed observation report changed");
+    }
+    let capture: Value = serde_json::from_slice(held_report_bytes)?;
+    if capture["schema"] != "ocore-runtime-capture-v2" {
+        bail!("mixed observation requires the explicit v2 capture schema");
+    }
+    fs::create_dir(output).with_context(|| format!(
+        "create new mixed observation directory {}",output.display()))?;
+    let output = output.canonicalize()?;
+    let outcome = source_action::observe_mixed_capture(
+        report,held_report_bytes,&output,python,policy)?;
+    outcome.write_summary(&output)?;
+    outcome.check_custody()?;
+    Ok(outcome)
 }
 
 /// Reconstruct and stage a complete mixed cohort under separately held policy.

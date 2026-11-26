@@ -19,7 +19,9 @@ const FORMAT: &str = "ocore-source-action-unit-lineage-v1";
 mod checked_mixed_capture;
 pub(super) use checked_mixed_capture::{
     CheckedMixedCapture, MixedCapturePolicy, MixedCaptureStage, MixedInputPin,
+    IncompleteMixedCapture, IncompleteMixedInvocation, IncompleteMixedUnit, MixedCaptureOutcome,
     MixedUnitRepresentation, MixedUnitStage,
+    MixedDiagnosticSession, MixedDiagnosticLlvmInput, MixedDiagnosticInputResult,
 };
 
 pub(super) fn preflight_mixed_capture(
@@ -27,6 +29,36 @@ pub(super) fn preflight_mixed_capture(
     policy: Option<MixedCapturePolicy>,
 ) -> Result<Option<CheckedMixedCapture>> {
     checked_mixed_capture::preflight(report, raw_report, output, python, policy)
+}
+
+/// Typed actual-terminal observation; incomplete cohorts retain diagnostics only.
+pub(super) fn observe_mixed_capture(
+    report: &Path, raw_report: &[u8], output: &Path, python: &Path,
+    policy: MixedCapturePolicy,
+) -> Result<MixedCaptureOutcome> {
+    checked_mixed_capture::observe(report,raw_report,output,python,policy)
+}
+
+// Structural LLVM import is a distinct operation-local owner, never AdmittedCapture.
+#[path = "mixed_llvm_import.rs"]
+mod mixed_llvm_import;
+pub(super) use mixed_llvm_import::MixedImportedCohort;
+
+/// Consume a complete checked mixed stage without promoting it to source admission.
+/// Incomplete exit-2 observations require their separate diagnostic input contract.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn import_mixed_llvm_stage(
+    stage: MixedCaptureStage,
+    target: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    compiler: &provider_group::Pin,
+    inventory_python: &provider_group::Pin,
+    inventory_library: &provider_group::Pin,
+) -> MixedImportedCohort {
+    mixed_llvm_import::import_stage(
+        stage, target, output, import_options, compiler, inventory_python, inventory_library,
+    )
 }
 
 // Separate MachineUnit handoff: existing admitted LLVM lineage is unchanged.
@@ -913,6 +945,20 @@ struct VerifiedLineageModule {
     mir_sha256: String,
 }
 
+
+impl VerifiedLineageModule {
+    // Private typed retention, shared by the legacy lineage and distinct mixed
+    // structural cohort. This does not construct source/ABI admission.
+    fn from_verified(module: &NativeModule, mir: &[u8]) -> Result<Self> {
+        let decoded: NativeModule =
+            serde_json::from_slice(mir).context("decode exact lineage MIR snapshot")?;
+        if serde_json::to_value(&decoded)? != serde_json::to_value(module)? {
+            bail!("retained parsed module differs from exact verified lineage MIR");
+        }
+        Ok(Self { module: module.clone(), mir_sha256: digest(mir) })
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub(super) struct UnitLineage {
     schema: &'static str,
@@ -992,15 +1038,7 @@ impl UnitLineage {
         // defaulted fields. NativeModule does not implement PartialEq. This typed
         // decode is not another native verifier or a cached verification boolean;
         // the existing checked module and independent receipt join remain required.
-        let decoded: NativeModule =
-            serde_json::from_slice(mir).context("decode exact lineage MIR snapshot")?;
-        if serde_json::to_value(&decoded)? != serde_json::to_value(module)? {
-            bail!("retained parsed module differs from exact verified lineage MIR");
-        }
-        let snapshot = Arc::new(VerifiedLineageModule {
-            module: module.clone(),
-            mir_sha256: digest(mir),
-        });
+        let snapshot = Arc::new(VerifiedLineageModule::from_verified(module, mir)?);
         self.join_verified(
             &module.provenance.input_sha256,
             serde_json::to_value(&module.target)?,
@@ -2096,3 +2134,7 @@ mod tests {
     }
     include!("source_action_replay_tests.rs");
 }
+
+#[path = "mixed_runtime_delivery.rs"]
+mod mixed_runtime_delivery;
+pub(super) use mixed_runtime_delivery::compile_runtime_mixed_diagnostic;
