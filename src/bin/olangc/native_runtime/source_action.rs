@@ -13,6 +13,40 @@ use std::os::unix::fs::OpenOptionsExt;
 
 const FORMAT: &str = "ocore-source-action-unit-lineage-v1";
 
+// Separate MachineUnit handoff: existing admitted LLVM lineage is unchanged.
+#[path = "configured_assembly_consumer.rs"]
+mod configured_assembly_consumer;
+pub(super) use configured_assembly_consumer::{
+    ConfiguredOriginalFunctionCfiBodyResult, ConfiguredOriginalFunctionCfiReport,
+    RequiredOriginalFunctionCfi,
+    ConfiguredAssemblyCommitment, ConfiguredOutputObservation, ConfiguredOutputResult,
+    RequiredConfiguredOutput, UnadmittedConfiguredAction, WholeOutputSelector,
+};
+
+// Compiler preparation only; existing admitted LLVM capture is unchanged.
+#[path = "configured_assembly_producer.rs"]
+mod configured_assembly_producer;
+pub(super) use configured_assembly_producer::{
+    IdentityAssemblyCommitment, IdentityAssemblyFunctionPolicy,
+    IdentityAssemblyIssue, IdentityAssemblyObservation,
+};
+
+/// Seal caller-held original outputs/order/floors before current observations.
+/// The actual compiled registry is context, never a packaged admission token.
+pub(super) fn hold_configured_assembly_action<'f>(
+    producer: &str,
+    action_selector: String,
+    original_action: &[u8],
+    required: Vec<RequiredConfiguredOutput<'f>>,
+    occurrences: Vec<WholeOutputSelector>,
+    target: o_lang::ocore::common::Target,
+) -> std::result::Result<ConfiguredAssemblyCommitment<'f>, String> {
+    ConfiguredAssemblyCommitment::seal(
+        source_recipe::order_producer_registry().as_bytes(), producer, action_selector,
+        original_action, required, occurrences, target,
+    )
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 struct BytesIdentity {
     path: String,

@@ -215,6 +215,194 @@ fn linear(e: &asm::Expression) -> Check<(asm::ExprAtom, i64)> {
 /// Stable IDs come only from the selected floor; payloads below are decoded from
 /// source. Declaration vector order follows that selected namespace, while
 /// record/effect and initializer order follows the consumed source.
+/// Original-source record membership, selected before fresh machine construction.
+/// No ABI, semantic blocks or producer authority are supplied by this type.
+#[derive(Debug, Clone)]
+pub struct SourceBodySelection {
+    pub id: unit::BodyId,
+    pub symbol: String,
+    pub record_ids: Vec<SourceItemId>,
+}
+#[derive(Debug)]
+pub struct ObservedSourceBody {
+    pub id: unit::BodyId,
+    pub symbol: Option<unit::SymbolId>,
+    pub source_symbol: String,
+    pub record_ids: Vec<SourceItemId>,
+    pub items: Vec<SourceItem>,
+}
+/// All issues remain available. The caller retains the original ParsedAssembly.
+/// A declaration value is provisional whenever issues is nonempty.
+#[derive(Debug)]
+pub struct ObservedSourceDeclarations {
+    pub declarations: Option<unit::UnitDeclarations>,
+    pub bodies: Vec<ObservedSourceBody>,
+    pub issues: Vec<ConstructionIssue>,
+}
+fn observed_symbol(name: unit::SymbolName, names: &mut BTreeMap<unit::SymbolName, u64>,
+    symbols: &mut Vec<unit::UnitSymbol>) -> Check<()> {
+    if names.contains_key(&name) { return Ok(()); }
+    let id = u64::try_from(symbols.len()).map_err(|_| "source symbol count exceeds u64")?;
+    names.insert(name.clone(), id);
+    // Namespace only; the existing decoder supplies every returned source fact.
+    // This seed is never serialized or exposed as a coverage/semantic floor.
+    symbols.push(unit::UnitSymbol { id, name, binding: unit::SymbolBinding::Global,
+        visibility: unit::SymbolVisibility::Default, kind: unit::SymbolKind::NoType,
+        size: unit::SymbolSize::Unspecified, definition: unit::SymbolDefinition::Undefined });
+    Ok(())
+}
+fn observed_named(name: &str, names: &mut BTreeMap<unit::SymbolName, u64>,
+    symbols: &mut Vec<unit::UnitSymbol>) -> Check<()> {
+    observed_symbol(unit::SymbolName::Named { value: name.into() }, names, symbols)
+}
+fn observed_expression(value: &asm::Expression, names: &mut BTreeMap<unit::SymbolName, u64>,
+    symbols: &mut Vec<unit::UnitSymbol>) -> Check<()> {
+    for atom in std::iter::once(&value.first).chain(value.rest.iter().map(|(_, atom)| atom)) {
+        if let asm::ExprAtom::Symbol(name) | asm::ExprAtom::Relocation { symbol: name, .. } = atom {
+            observed_named(name, names, symbols)?;
+        }
+    }
+    Ok(())
+}
+/// Real declaration decoding before any build_body/lifter invocation. Every
+/// source record is attempted. Storage/alignment IDs are allocated where the
+/// existing decoder actually emits those rows, so no padding semantics are copied.
+/// Internal body labels/operands stay in complete source items for the body lifter.
+/// ABI/interfaces and original function boundaries remain independently selected.
+pub fn observe_source_declarations(parsed: &asm::ParsedAssembly,
+    selected_bodies: &[SourceBodySelection]) -> ObservedSourceDeclarations {
+    let mut issues = Vec::new();
+    if !parsed.problems.is_empty() {
+        issues.push(issue(None, None, "source-observation", "original syntax has retained parser problems"));
+    }
+    let mut body_ids = BTreeSet::new();
+    let mut body_names = BTreeMap::<String, usize>::new();
+    let mut owners = BTreeMap::<u64, usize>::new();
+    for (index, body) in selected_bodies.iter().enumerate() {
+        if !body_ids.insert(body.id) {
+            issues.push(issue(None, Some(body.id), "source-observation", "duplicate selected source body ID"));
+        }
+        if body.symbol.is_empty() || body.symbol.contains('\0') || body_names.contains_key(&body.symbol) {
+            issues.push(issue(None, Some(body.id), "source-observation", "invalid or duplicate selected source body name"));
+        } else { body_names.insert(body.symbol.clone(), index); }
+        if body.record_ids.is_empty() {
+            issues.push(issue(None, Some(body.id), "source-observation", "empty selected source body membership"));
+        }
+        for &record in &body.record_ids {
+            if owners.contains_key(&record) {
+                issues.push(issue(Some(record), Some(body.id), "source-observation", "repeated/multiple source record ownership"));
+            } else { owners.insert(record, index); }
+        }
+    }
+    let mut sections = Vec::<unit::UnitSection>::new();
+    let mut section_names = BTreeSet::<String>::new();
+    let mut symbols = Vec::<unit::UnitSymbol>::new();
+    let mut names = BTreeMap::<unit::SymbolName, u64>::new();
+    let mut records = Vec::new();
+    let mut actual: Vec<Vec<u64>> = (0..selected_bodies.len()).map(|_| Vec::new()).collect();
+    let mut items: Vec<Vec<SourceItem>> = (0..selected_bodies.len()).map(|_| Vec::new()).collect();
+    let mut record_rows = BTreeMap::new();
+    for record in &parsed.records {
+        let id = record.required.id;
+        if record_rows.contains_key(&id) {
+            issues.push(issue(Some(id), None, "source-observation", "duplicate parsed source record ID"));
+        } else { record_rows.insert(id, record); }
+        let owner = owners.get(&id).copied();
+        if let Some(index) = owner {
+            actual[index].push(id);
+            if let Some(kind) = item_kind(record.required.kind) {
+                items[index].push(SourceItem { id, kind, decoded_span: record.required.span,
+                    origins: record.required.origins.clone() });
+            } else {
+                issues.push(issue(Some(id), Some(selected_bodies[index].id), "source-observation", "body record lacks an item representation"));
+            }
+        }
+        let observed = (|| -> Check<()> {
+            match &record.syntax {
+                asm::Syntax::Label(asm::Label::Named(name)) => {
+                    if owner.is_none() || body_names.contains_key(name) { observed_named(name, &mut names, &mut symbols)?; }
+                }
+                asm::Syntax::Label(asm::Label::Numeric(number)) if owner.is_none() => {
+                    observed_symbol(unit::SymbolName::NumericLocal { number: *number, definition_record: id }, &mut names, &mut symbols)?;
+                }
+                asm::Syntax::Directive(directive) => match directive {
+                    asm::Directive::Section { kind, name, .. } => {
+                        let name = match kind {
+                            asm::SectionKind::Text => Some(".text"), asm::SectionKind::Data => Some(".data"),
+                            asm::SectionKind::Bss => Some(".bss"),
+                            asm::SectionKind::Named | asm::SectionKind::Push => name.as_deref(),
+                            asm::SectionKind::Pop | asm::SectionKind::Previous => None,
+                        };
+                        if let Some(name) = name {
+                            if section_names.insert(name.into()) {
+                                let id = u64::try_from(sections.len()).map_err(|_| "source section count exceeds u64")?;
+                                sections.push(unit::UnitSection { id, name: name.into(), kind: unit::SectionKind::ProgramBits,
+                                    flags: Vec::new(), alignment: 1, byte_size: None });
+                            }
+                        }
+                    }
+                    asm::Directive::Binding { names: selected, .. } => {
+                        for name in selected { observed_named(name, &mut names, &mut symbols)?; }
+                    }
+                    asm::Directive::SymbolType { name, .. } => observed_named(name, &mut names, &mut symbols)?,
+                    asm::Directive::Size { name, size } => {
+                        observed_named(name, &mut names, &mut symbols)?; observed_expression(size, &mut names, &mut symbols)?;
+                    }
+                    asm::Directive::Assignment { name, value, .. } => {
+                        observed_named(name, &mut names, &mut symbols)?; observed_expression(value, &mut names, &mut symbols)?;
+                    }
+                    asm::Directive::Integers { values, .. } => {
+                        for value in values { observed_expression(value, &mut names, &mut symbols)?; }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+            Ok(())
+        })();
+        if let Err(reason) = observed {
+            issues.push(issue(Some(id), owner.map(|index| selected_bodies[index].id), "source-observation", reason));
+        }
+        if let Some(kind) = unit_kind(record.required.kind) {
+            records.push(unit::UnitRecord { id, kind, span: record.required.span,
+                origins: record.required.origins.clone(), effects: Vec::new() });
+        } else {
+            issues.push(issue(Some(id), owner.map(|index| selected_bodies[index].id), "source-observation", "source record lacks whole-unit representation"));
+        }
+    }
+    let mut bodies = Vec::with_capacity(selected_bodies.len());
+    for (index, body) in selected_bodies.iter().enumerate() {
+        if actual[index] != body.record_ids {
+            issues.push(issue(None, Some(body.id), "source-observation", "source body membership/order differs or contains missing records"));
+        }
+        if !body.record_ids.first().and_then(|id| record_rows.get(id)).is_some_and(|record|
+            matches!(&record.syntax, asm::Syntax::Label(asm::Label::Named(name)) if name == &body.symbol)) {
+            issues.push(issue(body.record_ids.first().copied(), Some(body.id), "source-observation", "body must begin at exact named function label"));
+        }
+        let symbol = names.get(&unit::SymbolName::Named { value: body.symbol.clone() }).copied();
+        if symbol.is_none() { issues.push(issue(None, Some(body.id), "source-observation", "selected body symbol absent")); }
+        bodies.push(ObservedSourceBody { id: body.id, symbol, source_symbol: body.symbol.clone(),
+            record_ids: std::mem::take(&mut actual[index]), items: std::mem::take(&mut items[index]) });
+    }
+    let seed = unit::UnitDeclarations { sections, symbols, records, initializers: Vec::new(),
+        relocations: Vec::new(), alignments: Vec::new(), external_obligations: Vec::new() };
+    let selected = bodies.iter().filter_map(|body| body.symbol.map(|symbol| (symbol, body.id)));
+    let mut decoded = match Declarations::new_namespaces(&seed, parsed.profile.architecture, selected) {
+        Ok(mut value) => { value.generated_ids = Some([0; 3]); Some(value) }
+        Err(reason) => { issues.push(issue(None, None, "declarations", reason)); None }
+    };
+    if let Some(decoded) = decoded.as_mut() {
+        for record in &parsed.records {
+            let body = owners.get(&record.required.id).map(|&index| selected_bodies[index].id);
+            if let Err(reason) = decoded.record(record, body) { issues.push(issue(Some(record.required.id), body, "declarations", reason)); }
+        }
+    }
+    let declarations = decoded.and_then(|value| match value.finish() {
+        Ok(value) => Some(value), Err(reason) => { issues.push(issue(None, None, "declarations", reason)); None }
+    });
+    ObservedSourceDeclarations { declarations, bodies, issues }
+}
+
 struct Declarations {
     expected: unit::UnitDeclarations,
     source_symbols: RefCell<BTreeSet<u64>>,
@@ -234,23 +422,30 @@ struct Declarations {
     relocations: Vec<unit::UnitRelocation>,
     alignments: Vec<unit::UnitAlignment>,
     records: Vec<unit::UnitRecord>,
+    // None preserves the existing held-selector constructor.
+    generated_ids: Option<[u64; 3]>,
 }
 impl Declarations {
     fn new(f: &unit::SelectedUnitInventory) -> Check<Self> {
+        Self::new_namespaces(&f.required, f.profile.architecture,
+            f.bodies.iter().map(|body| (body.symbol, body.id)))
+    }
+    fn new_namespaces(required: &unit::UnitDeclarations, architecture: Architecture,
+        selected_bodies: impl IntoIterator<Item = (u64, u64)>) -> Check<Self> {
         let mut section_names = BTreeMap::new();
         let mut names = BTreeMap::new();
         let mut symbols = BTreeMap::new();
         let mut source_records = BTreeMap::new();
         let mut body_symbols = BTreeMap::new();
         let mut ids = BTreeSet::new();
-        for s in &f.required.sections {
+        for s in &required.sections {
             require(
                 ids.insert(s.id) && section_names.insert(s.name.clone(), s.id).is_none(),
                 "duplicate selected section selector",
             )?;
         }
         ids.clear();
-        for s in &f.required.symbols {
+        for s in &required.symbols {
             require(
                 ids.insert(s.id) && names.insert(s.name.clone(), s.id).is_none(),
                 "duplicate selected symbol selector",
@@ -268,22 +463,22 @@ impl Declarations {
                 },
             );
         }
-        for r in &f.required.records {
+        for r in &required.records {
             require(
                 source_records.insert(r.id, r.clone()).is_none(),
                 "duplicate selected unit record selector",
             )?;
         }
-        for b in &f.bodies {
+        for (symbol, body) in selected_bodies {
             require(
-                body_symbols.insert(b.symbol, b.id).is_none(),
+                body_symbols.insert(symbol, body).is_none(),
                 "multiple selected bodies for one symbol",
             )?;
         }
         Ok(Self {
-            expected: f.required.clone(),
+            expected: required.clone(),
             source_symbols: RefCell::new(BTreeSet::new()),
-            architecture: f.profile.architecture,
+            architecture,
             section_names,
             names,
             body_symbols,
@@ -299,6 +494,7 @@ impl Declarations {
             relocations: vec![],
             alignments: vec![],
             records: vec![],
+            generated_ids: None,
         })
     }
     fn symbol(&self, name: &str) -> Check<u64> {
@@ -335,6 +531,17 @@ impl Declarations {
                 _ => None,
             })
             .collect()
+    }
+    fn emission_selectors(&mut self, record: u64, kind: u8, count: usize) -> Check<Vec<u64>> {
+        let Some(counters) = self.generated_ids.as_mut() else {
+            return Ok(self.selectors(record, kind));
+        };
+        let counter = counters.get_mut(usize::from(kind)).ok_or("invalid generated selector kind")?;
+        let count = u64::try_from(count).map_err(|_| "declaration selector count exceeds u64")?;
+        let start = *counter;
+        let end = start.checked_add(count).ok_or("declaration selector space exhausted")?;
+        *counter = end;
+        Ok((start..end).collect())
     }
     fn select(
         &mut self,
@@ -408,8 +615,9 @@ impl Declarations {
         Ok(())
     }
     fn storage(&mut self, r: u64, values: Vec<Storage>) -> Check<Vec<unit::RecordEffect>> {
-        let init_ids = self.selectors(r, 0);
-        let rel_ids = self.selectors(r, 1);
+        let init_ids = self.emission_selectors(r, 0, values.len())?;
+        let count = values.iter().filter(|value| matches!(value, Storage::Relocation { .. })).count();
+        let rel_ids = self.emission_selectors(r, 1, count)?;
         require(
             init_ids.len() == values.len(),
             "selected initializer selector count differs from source",
@@ -792,7 +1000,7 @@ impl Declarations {
                             .transpose()
                             .map_err(|_| "alignment fill exceeds one byte")?;
                         let maximum_skip = maximum_skip.as_ref().map(unsigned).transpose()?;
-                        let ids = self.selectors(id, 2);
+                        let ids = self.emission_selectors(id, 2, 1)?;
                         require(
                             ids.len() == 1,
                             "alignment needs exactly one selected alignment selector",
