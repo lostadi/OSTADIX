@@ -11,7 +11,7 @@ use super::super::exception_inventory::{
     cie_source_adapter::OriginalFunctionSelection,
 };
 use o_lang::ocore::{
-    common::Target,
+    Target,
     native_machine_asm_reader::{self as asm, inventory::{select_identity_mapped_source, SelectedSyntaxFloor}},
     native_machine_asm_unit::{observe_source_declarations, BodyFloor, ObservedSourceDeclarations, SourceBodySelection},
     native_machine_asm_unit_artifact::RequiredFloors,
@@ -238,7 +238,7 @@ impl IdentityAssemblyObservation {
         }
         if !self.issues.is_empty() || required_bodies.len() != self.policy.functions.len() { return; }
         let Some(required) = observed.declarations.take() else { self.issues.push(problem(None, None, "floor", "complete original declarations absent")); return; };
-        let floor = SelectedUnitInventory { format: unit::UNIT_INVENTORY_FORMAT.into(), source: self.policy.source.clone(),
+        let floor = SelectedUnitInventory { format: unit::inventory_format_for_declarations(&required).into(), source: self.policy.source.clone(),
             profile: self.policy.profile.clone(), required, bodies: required_bodies };
         let raw = serde_json::to_vec(&floor); observed.declarations = Some(floor.required);
         match raw {

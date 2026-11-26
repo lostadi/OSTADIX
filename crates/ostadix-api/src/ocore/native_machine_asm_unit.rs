@@ -264,10 +264,174 @@ fn observed_expression(value: &asm::Expression, names: &mut BTreeMap<unit::Symbo
     }
     Ok(())
 }
+#[derive(Debug)]
+struct InstructionReference {
+    symbol: unit::SymbolName,
+    operand: u64,
+    atom: u64,
+}
+fn record_mnemonic<'a>(parsed: &'a asm::ParsedAssembly,
+    record: &asm::ParsedRecord) -> Option<&'a str> {
+    let start = usize::try_from(record.required.span.start).ok()?;
+    let end = usize::try_from(record.required.span.end).ok()?;
+    std::str::from_utf8(parsed.original.get(start..end)?).ok()?
+        .split_ascii_whitespace().next()
+}
+// Lexical opcodes distinguish calls from jumps. JAL additionally requires the
+// exact supported spelling and canonical zero-register destination.
+fn local_control_operand(opcode: asm::Opcode, operands: &[asm::Operand],
+    mnemonic: Option<&str>) -> Option<usize> {
+    use asm::{Aarch64Opcode as A, RiscvOpcode as R, X86Opcode as X};
+    let candidate = match opcode {
+        asm::Opcode::X86 { operation: X::Jump | X::ConditionalJump(_), .. }
+            if operands.len() == 1 && matches!(operands.first(), Some(asm::Operand::Expression(_))) => Some(0),
+        asm::Opcode::Aarch64(A::Branch | A::ConditionalBranch(_))
+            if operands.len() == 1 => Some(0),
+        asm::Opcode::Aarch64(A::CompareBranchZero | A::CompareBranchNonzero)
+            if operands.len() == 2 => Some(1),
+        asm::Opcode::Aarch64(A::TestBranchZero | A::TestBranchNonzero)
+            if operands.len() == 3 => Some(2),
+        asm::Opcode::Riscv(R::Jump) if operands.len() == 1 => Some(0),
+        asm::Opcode::Riscv(R::BranchEqual | R::BranchNotEqual)
+            if operands.len() == 3 => Some(2),
+        asm::Opcode::Riscv(R::BranchZero | R::BranchNonzero)
+            if operands.len() == 2 => Some(1),
+        asm::Opcode::Riscv(R::JumpAndLink)
+            if mnemonic == Some("jal") && operands.len() == 2
+                && matches!(&operands[0], asm::Operand::Register(view)
+                    if view.low_bit == 0 && view.bits == 64
+                        && matches!(view.register,
+                            super::native_machine_ir::PhysicalRegister::RiscvGpr { index: 0 })) => Some(1),
+        _ => None,
+    };
+    candidate.filter(|&index| matches!(operands.get(index),
+        Some(asm::Operand::Expression(_)) | Some(asm::Operand::Immediate(_))))
+}
+fn operand_expressions<'a>(operand: &'a asm::Operand,
+    output: &mut Vec<&'a asm::Expression>) {
+    match operand {
+        asm::Operand::Immediate(value) | asm::Operand::Expression(value) => output.push(value),
+        asm::Operand::Address(asm::Address::X86 { displacement, .. }) => { output.push(displacement); }
+        asm::Operand::Address(asm::Address::Aarch64 { offset, .. }) => {
+            if let Some(value) = offset { output.push(value); }
+        }
+        asm::Operand::Address(asm::Address::Riscv { displacement, .. }) => output.push(displacement),
+        asm::Operand::Indirect(inner) => operand_expressions(inner, output),
+        asm::Operand::Register(_)
+        | asm::Operand::ZeroRegister { .. }
+        | asm::Operand::String(_)
+        | asm::Operand::Shift { .. } => {}
+    }
+}
+/// One immutable source pass shared by observation and fixed reconstruction.
+/// Numeric labels use consumed reader order/links, never SourceItemId order.
+/// Only an exact unique intrabody no-link control target is exempt; every other
+/// symbolic operand/atom occurrence retains a separate whole-unit reference.
+fn instruction_reference_rows(parsed: &asm::ParsedAssembly,
+    owners: &BTreeMap<u64, u64>) -> (BTreeMap<u64, Vec<InstructionReference>>, Vec<ConstructionIssue>) {
+    let mut rows = BTreeMap::<u64, Vec<InstructionReference>>::new();
+    let mut issues = Vec::new();
+    let mut named = BTreeMap::<&str, Vec<usize>>::new();
+    for (index, record) in parsed.records.iter().enumerate() {
+        if let asm::Syntax::Label(asm::Label::Named(name)) = &record.syntax {
+            named.entry(name.as_str()).or_default().push(index);
+        }
+    }
+    // At most two directions per (record, number). Conflicts are retained rather
+    // than overwriting an observed definition; raw LabelUse rows stay with parsed.
+    let mut numeric = BTreeMap::<(usize, u64), Vec<(&asm::LabelUse, bool)>>::new();
+    for usage in &parsed.label_uses {
+        let bucket = numeric.entry((usage.record, usage.number)).or_default();
+        if let Some((held, conflict)) = bucket.iter_mut()
+            .find(|(held, _)| held.direction == usage.direction) {
+            if held.definition != usage.definition { *conflict = true; }
+        } else { bucket.push((usage, false)); }
+    }
+    for (index, record) in parsed.records.iter().enumerate() {
+        let asm::Syntax::Instruction { opcode, operands } = &record.syntax else { continue; };
+        let id = record.required.id;
+        let owner = owners.get(&id).copied();
+        let control = local_control_operand(*opcode, operands, record_mnemonic(parsed, record));
+        for (operand_index, operand) in operands.iter().enumerate() {
+            let mut expressions = Vec::new();
+            operand_expressions(operand, &mut expressions);
+            let sole_expression = expressions.len() == 1;
+            for expression in expressions {
+                let plain_control = control == Some(operand_index) && sole_expression
+                    && expression.rest.is_empty();
+                for (atom_index, atom) in std::iter::once(&expression.first)
+                    .chain(expression.rest.iter().map(|(_, value)| value)).enumerate() {
+                    let symbol = match atom {
+                        asm::ExprAtom::Symbol(name) => {
+                            let definitions = named.get(name.as_str());
+                            if definitions.is_some_and(|values| values.len() > 1) {
+                                issues.push(issue(Some(id), owner, "instruction-reference",
+                                    format!("instruction symbol has multiple original definitions: {name}")));
+                            }
+                            let local = plain_control && owner.is_some()
+                                && definitions.is_some_and(|values| values.len() == 1
+                                    && owners.get(&parsed.records[values[0]].required.id).copied() == owner);
+                            if local { continue; }
+                            unit::SymbolName::Named { value: name.clone() }
+                        }
+                        asm::ExprAtom::Relocation { symbol, .. } =>
+                            unit::SymbolName::Named { value: symbol.clone() },
+                        asm::ExprAtom::NumericLabel { number, direction } => {
+                            let resolution = numeric.get(&(index, *number)).and_then(|bucket|
+                                bucket.iter().find(|(usage, _)| usage.direction == *direction));
+                            let Some((usage, conflict)) = resolution else {
+                                issues.push(issue(Some(id), owner, "instruction-reference",
+                                    "numeric instruction reference has no consumed reader resolution"));
+                                continue;
+                            };
+                            if *conflict {
+                                issues.push(issue(Some(id), owner, "instruction-reference",
+                                    "numeric instruction reference has conflicting reader resolutions"));
+                                continue;
+                            }
+                            let Some(definition) = usage.definition else {
+                                issues.push(issue(Some(id), owner, "instruction-reference",
+                                    "numeric instruction reference has no original definition"));
+                                continue;
+                            };
+                            let Some(definition_record) = parsed.records.get(definition) else {
+                                issues.push(issue(Some(id), owner, "instruction-reference",
+                                    "numeric instruction definition exceeds original record inventory"));
+                                continue;
+                            };
+                            if !matches!(&definition_record.syntax,
+                                asm::Syntax::Label(asm::Label::Numeric(actual)) if actual == number) {
+                                issues.push(issue(Some(id), owner, "instruction-reference",
+                                    "numeric reader resolution does not name its original numeric label"));
+                                continue;
+                            }
+                            if plain_control && owner.is_some()
+                                && owners.get(&definition_record.required.id).copied() == owner { continue; }
+                            unit::SymbolName::NumericLocal {
+                                number: *number, definition_record: definition_record.required.id,
+                            }
+                        }
+                        asm::ExprAtom::Integer(_) | asm::ExprAtom::CurrentLocation => continue,
+                    };
+                    let (Ok(operand), Ok(atom)) =
+                        (u64::try_from(operand_index), u64::try_from(atom_index)) else {
+                        issues.push(issue(Some(id), owner, "instruction-reference",
+                            "instruction operand/atom index exceeds u64"));
+                        continue;
+                    };
+                    rows.entry(id).or_default().push(InstructionReference { symbol, operand, atom });
+                }
+            }
+        }
+    }
+    (rows, issues)
+}
+
 /// Real declaration decoding before any build_body/lifter invocation. Every
 /// source record is attempted. Storage/alignment IDs are allocated where the
 /// existing decoder actually emits those rows, so no padding semantics are copied.
-/// Internal body labels/operands stay in complete source items for the body lifter.
+/// Exact local control labels stay in body items; other symbolic operand
+/// occurrences are also decoded into the whole-unit dependency namespace.
 /// ABI/interfaces and original function boundaries remain independently selected.
 pub fn observe_source_declarations(parsed: &asm::ParsedAssembly,
     selected_bodies: &[SourceBodySelection]) -> ObservedSourceDeclarations {
@@ -370,6 +534,20 @@ pub fn observe_source_declarations(parsed: &asm::ParsedAssembly,
             issues.push(issue(Some(id), owner.map(|index| selected_bodies[index].id), "source-observation", "source record lacks whole-unit representation"));
         }
     }
+    let instruction_owners: BTreeMap<_, _> = owners.iter()
+        .map(|(&record, &index)| (record, selected_bodies[index].id)).collect();
+    let (instruction_refs, reference_issues) = instruction_reference_rows(parsed, &instruction_owners);
+    issues.extend(reference_issues);
+    for (&record, references) in &instruction_refs {
+        for reference in references {
+            if !names.contains_key(&reference.symbol) {
+                if let Err(reason) = observed_symbol(reference.symbol.clone(), &mut names, &mut symbols) {
+                    issues.push(issue(Some(record), instruction_owners.get(&record).copied(),
+                        "instruction-reference", reason));
+                }
+            }
+        }
+    }
     let mut bodies = Vec::with_capacity(selected_bodies.len());
     for (index, body) in selected_bodies.iter().enumerate() {
         if actual[index] != body.record_ids {
@@ -394,7 +572,7 @@ pub fn observe_source_declarations(parsed: &asm::ParsedAssembly,
     if let Some(decoded) = decoded.as_mut() {
         for record in &parsed.records {
             let body = owners.get(&record.required.id).map(|&index| selected_bodies[index].id);
-            if let Err(reason) = decoded.record(record, body) { issues.push(issue(Some(record.required.id), body, "declarations", reason)); }
+            if let Err(reason) = decoded.record(record, body, instruction_refs.get(&record.required.id).map(Vec::as_slice).unwrap_or(&[])) { issues.push(issue(Some(record.required.id), body, "declarations", reason)); }
         }
     }
     let declarations = decoded.and_then(|value| match value.finish() {
@@ -743,7 +921,8 @@ impl Declarations {
         }
         Err("symbol size needs an unimplemented layout expression".into())
     }
-    fn record(&mut self, p: &asm::ParsedRecord, body: Option<u64>) -> Check<()> {
+    fn record(&mut self, p: &asm::ParsedRecord, body: Option<u64>,
+        instruction_refs: &[InstructionReference]) -> Check<()> {
         let id = p.required.id;
         let mut effects = vec![];
         match &p.syntax {
@@ -764,6 +943,14 @@ impl Declarations {
                 )?;
                 let section = self.section()?;
                 self.offsets.insert(section, None);
+                for reference in instruction_refs {
+                    let symbol = self.names.get(&reference.symbol).copied().ok_or_else(||
+                        format!("instruction reference absent from selected unit namespace: {:?}", reference.symbol))?;
+                    self.source_symbols.borrow_mut().insert(symbol);
+                    effects.push(unit::RecordEffect::InstructionReference {
+                        symbol, operand: reference.operand, atom: reference.atom,
+                    });
+                }
             }
             asm::Syntax::Label(label) => {
                 let name = match label {
@@ -1092,7 +1279,33 @@ impl Declarations {
         });
         Ok(())
     }
-    fn finish(mut self) -> Check<unit::UnitDeclarations> {
+    fn finish(self) -> Check<unit::UnitDeclarations> {
+        let mut declarations = self.finish_without_instruction_uses()?;
+        let symbols: BTreeSet<_> = declarations.symbols.iter().map(|symbol| symbol.id).collect();
+        let mut external = BTreeMap::<u64, BTreeSet<unit::ExternalUse>>::new();
+        for obligation in std::mem::take(&mut declarations.external_obligations) {
+            let uses: BTreeSet<_> = obligation.uses.iter().cloned().collect();
+            require(uses.len() == obligation.uses.len()
+                && external.insert(obligation.symbol, uses).is_none(),
+                "duplicate decoded external obligation/use")?;
+        }
+        for record in &declarations.records {
+            for effect in &record.effects {
+                if let unit::RecordEffect::InstructionReference { symbol, operand, atom } = effect {
+                    require(symbols.contains(symbol), "decoded instruction references missing symbol")?;
+                    if let Some(uses) = external.get_mut(symbol) {
+                        uses.insert(unit::ExternalUse::Instruction {
+                            record: record.id, operand: *operand, atom: *atom,
+                        });
+                    }
+                }
+            }
+        }
+        declarations.external_obligations = external.into_iter().map(|(symbol, uses)|
+            unit::ExternalObligation { symbol, uses: uses.into_iter().collect() }).collect();
+        Ok(declarations)
+    }
+    fn finish_without_instruction_uses(mut self) -> Check<unit::UnitDeclarations> {
         require(
             self.symbols
                 .keys()
@@ -1658,8 +1871,14 @@ pub fn construct_configured_unit(
             return Err(with_parsed(failure, parsed));
         }
     };
-    if floor.format != unit::UNIT_INVENTORY_FORMAT
-        || floor.source != input.unit_selection.source
+    let unit_format = match unit::unit_format_for_inventory(&floor.format) {
+        Some(format) => format,
+        None => {
+            failure.issues.push(issue(None, None, "input", "unsupported selected unit inventory format"));
+            return Err(with_parsed(failure, parsed));
+        }
+    };
+    if floor.source != input.unit_selection.source
         || floor.profile != input.unit_selection.profile
         || parsed.source != floor.source
         || parsed.profile != floor.profile
@@ -1744,6 +1963,21 @@ pub fn construct_configured_unit(
             ));
         }
     }
+    let (instruction_refs, reference_issues) = instruction_reference_rows(&parsed, &owners);
+    failure.issues.extend(reference_issues);
+    if !instruction_refs.is_empty() && floor.format != unit::UNIT_INVENTORY_FORMAT_V2 {
+        failure.issues.push(issue(None, None, "instruction-reference",
+            "nonlocal instruction reference facts require V2 selected unit inventory"));
+    }
+    let selected_names: BTreeSet<_> = floor.required.symbols.iter().map(|symbol| &symbol.name).collect();
+    for (&record, references) in &instruction_refs {
+        for reference in references {
+            if !selected_names.contains(&reference.symbol) {
+                failure.issues.push(issue(Some(record), owners.get(&record).copied(), "instruction-reference",
+                    format!("instruction reference absent from selected unit namespace: {:?}", reference.symbol)));
+            }
+        }
+    }
     let mut declarations = match Declarations::new(&floor) {
         Ok(v) => Some(v),
         Err(e) => {
@@ -1753,7 +1987,7 @@ pub fn construct_configured_unit(
     };
     if let Some(d) = declarations.as_mut() {
         for p in &parsed.records {
-            if let Err(e) = d.record(p, owners.get(&p.required.id).copied()) {
+            if let Err(e) = d.record(p, owners.get(&p.required.id).copied(), instruction_refs.get(&p.required.id).map(Vec::as_slice).unwrap_or(&[])) {
                 failure.issues.push(issue(
                     Some(p.required.id),
                     owners.get(&p.required.id).copied(),
@@ -1813,7 +2047,7 @@ pub fn construct_configured_unit(
         return Err(with_parsed(failure, parsed));
     };
     let unit = unit::MachineUnit {
-        format: unit::UNIT_FORMAT.into(),
+        format: unit_format.into(),
         selected_inventory: input.unit_selection.inventory.clone(),
         source: parsed.source.clone(),
         profile: parsed.profile.clone(),

@@ -8,7 +8,7 @@
 //! only. Its object owners and function/body relations are held before resolution;
 //! it neither establishes same-produced source/object authority nor admits a producer.
 use o_lang::ocore::{
-    common::Target,
+    Target,
     native_machine_asm_unit::ConstructedUnit,
     native_machine_asm_unit_artifact::{readmit_configured_unit, ArtifactError, RequiredFloors},
     native_machine_emit::{plan_unit, plan_unit_with_initial_cies, MachineAssemblyPlan, UnitEmissionFailure},

@@ -679,6 +679,11 @@ fn plan_unit_impl(
                         *offsets.get_mut(&section).ok_or("section absent")? =
                             before.checked_add(pad).ok_or("alignment extent overflow")?;
                     }
+                    RecordEffect::InstructionReference { .. } => {
+                        // verify_unit checked these dependency occurrences before rendering.
+                        // The checked body is emitted once through its existing definition path;
+                        // this metadata supplies no relocation, address, call ABI or provider.
+                    }
                     RecordEffect::BodyItem { .. } | RecordEffect::PreprocessorMarker { .. } => {}
                     RecordEffect::File { .. } | RecordEffect::Location { .. } => {
                         return Err("debug origin directive needs native encoding".into())

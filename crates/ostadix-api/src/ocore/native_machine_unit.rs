@@ -14,6 +14,26 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const UNIT_FORMAT: &str = "ocore-machine-whole-unit-contract-v1";
 pub const UNIT_INVENTORY_FORMAT: &str = "ocore-selected-machine-whole-unit-inventory-v1";
+/// V1 retains its original fact vocabulary; V2 explicitly carries operand uses.
+pub const UNIT_FORMAT_V2: &str = "ocore-machine-whole-unit-contract-v2";
+pub const UNIT_INVENTORY_FORMAT_V2: &str = "ocore-selected-machine-whole-unit-inventory-v2";
+pub fn unit_format_for_inventory(format: &str) -> Option<&'static str> {
+    match format {
+        UNIT_INVENTORY_FORMAT => Some(UNIT_FORMAT),
+        UNIT_INVENTORY_FORMAT_V2 => Some(UNIT_FORMAT_V2),
+        _ => None,
+    }
+}
+fn declarations_have_instruction_references(value: &UnitDeclarations) -> bool {
+    value.records.iter().any(|record| record.effects.iter().any(|effect|
+        matches!(effect, RecordEffect::InstructionReference { .. })))
+        || value.external_obligations.iter().any(|obligation| obligation.uses.iter().any(|usage|
+            matches!(usage, ExternalUse::Instruction { .. })))
+}
+pub fn inventory_format_for_declarations(value: &UnitDeclarations) -> &'static str {
+    if declarations_have_instruction_references(value) { UNIT_INVENTORY_FORMAT_V2 }
+    else { UNIT_INVENTORY_FORMAT }
+}
 pub type SectionId = u64;
 pub type SymbolId = u64;
 pub type InitializerId = u64;
@@ -277,6 +297,12 @@ pub enum RecordEffect {
     BodyItem {
         body: BodyId,
     },
+    /// One actual source operand/atom occurrence, not an address or call ABI.
+    InstructionReference {
+        symbol: SymbolId,
+        operand: u64,
+        atom: u64,
+    },
     /// Typed debug/source-mapping payload; no numeric instruction effect.
     File {
         number: Option<u64>,
@@ -314,6 +340,7 @@ pub enum ExternalUse {
     Relocation { relocation: RelocationId },
     Alias { symbol: SymbolId },
     Size { symbol: SymbolId },
+    Instruction { record: SourceItemId, operand: u64, atom: u64 },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -520,7 +547,10 @@ pub fn verify_unit(
     configured_assembly: &[u8],
     target: Target,
 ) -> Result<UnitReport> {
-    require(unit.format == UNIT_FORMAT, "unit format mismatch")?;
+    require(
+        unit.format == UNIT_FORMAT || unit.format == UNIT_FORMAT_V2,
+        "unit format mismatch",
+    )?;
     compatible(&unit.profile, target)?;
     source(&unit.source)?;
     identity(&selection.inventory)?;
@@ -536,13 +566,20 @@ pub fn verify_unit(
     let floor: SelectedUnitInventory = serde_json::from_slice(required_inventory_json)
         .map_err(|e| UnitError(format!("invalid typed selected unit inventory: {e}")))?;
     require(
-        floor.format == UNIT_INVENTORY_FORMAT
+        unit_format_for_inventory(&floor.format).is_some_and(|format| format == unit.format.as_str())
             && floor.source == unit.source
             && floor.profile == unit.profile
             && selection.source == unit.source
             && selection.profile == unit.profile,
         "selected unit source/profile/target differs",
     )?;
+    if unit.format == UNIT_FORMAT {
+        require(
+            !declarations_have_instruction_references(&unit.declarations)
+                && !declarations_have_instruction_references(&floor.required),
+            "V1 unit/inventory cannot carry V2 instruction reference facts",
+        )?;
+    }
     let d = &unit.declarations;
     let sections = unique(&d.sections, |v| v.id, "duplicate section id")?;
     let symbols = unique(&d.symbols, |v| v.id, "duplicate symbol id")?;
@@ -868,6 +905,27 @@ pub fn verify_unit(
             }
         }
     }
+    // A namespace mention cannot replace actual per-instruction dependency uses.
+    for record in &d.records {
+        let mut positions = BTreeSet::new();
+        let body_items = record.effects.iter()
+            .filter(|effect| matches!(effect, RecordEffect::BodyItem { .. })).count();
+        for effect in &record.effects {
+            if let RecordEffect::InstructionReference { symbol, operand, atom } = effect {
+                require(unit.format == UNIT_FORMAT_V2, "instruction references require V2")?;
+                require(record.kind == UnitRecordKind::Instruction && body_items == 1,
+                    "instruction reference has no unique instruction/body record")?;
+                require(symbols.contains_key(symbol), "instruction references missing symbol")?;
+                require(positions.insert((*operand, *atom)),
+                    "duplicate instruction operand/atom reference position")?;
+                if let Some(uses) = external.get_mut(symbol) {
+                    uses.insert(ExternalUse::Instruction {
+                        record: record.id, operand: *operand, atom: *atom,
+                    });
+                }
+            }
+        }
+    }
     let mut actual_external = BTreeMap::new();
     for e in &d.external_obligations {
         let uses: BTreeSet<_> = e.uses.iter().cloned().collect();
@@ -1074,6 +1132,7 @@ pub fn verify_unit(
                             | UnitRecordKind::Relocation
                     )
                 }
+                RecordEffect::InstructionReference { .. } => r.kind == UnitRecordKind::Instruction,
                 RecordEffect::File { path, .. } => {
                     require(!path.contains(&0), "NUL in debug source path")?;
                     r.kind == UnitRecordKind::Debug
@@ -1240,7 +1299,11 @@ pub fn verify_unit(
         "required unresolved dependency membership differs",
     )?;
     Ok(UnitReport {
-        format: "ocore-whole-machine-unit-relative-structure-v1",
+        format: if unit.format == UNIT_FORMAT_V2 {
+            "ocore-whole-machine-unit-relative-structure-v2"
+        } else {
+            "ocore-whole-machine-unit-relative-structure-v1"
+        },
         target: target.id(),
         checked_records: d.records.len(),
         checked_symbols: d.symbols.len(),

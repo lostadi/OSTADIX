@@ -39,7 +39,7 @@ pub(super) fn hold_configured_assembly_action<'f>(
     original_action: &[u8],
     required: Vec<RequiredConfiguredOutput<'f>>,
     occurrences: Vec<WholeOutputSelector>,
-    target: o_lang::ocore::common::Target,
+    target: o_lang::ocore::Target,
 ) -> std::result::Result<ConfiguredAssemblyCommitment<'f>, String> {
     ConfiguredAssemblyCommitment::seal(
         source_recipe::order_producer_registry().as_bytes(), producer, action_selector,
