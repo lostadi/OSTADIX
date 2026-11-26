@@ -2134,7 +2134,13 @@ mod tests {
     }
     include!("source_action_replay_tests.rs");
 }
-
 #[path = "mixed_runtime_delivery.rs"]
 mod mixed_runtime_delivery;
 pub(super) use mixed_runtime_delivery::compile_runtime_mixed_diagnostic;
+
+pub(super) use mixed_llvm_import::MixedIncompleteImportedCohort;
+pub(super) fn prepare_incomplete_mixed_llvm(
+    session:MixedDiagnosticSession,output:&std::path::Path,
+)->MixedIncompleteImportedCohort {
+    mixed_llvm_import::prepare_diagnostic_session(session,output)
+}

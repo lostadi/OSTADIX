@@ -429,6 +429,180 @@ pub(crate) struct MixedImportedCohort {
     output_created: bool,
     summary_write_error: Option<String>,
 }
+
+// Shared structural import/verification/inventory only; caller-specific capability construction is separate.
+fn held_llvm_phases<S>(
+    unit: &Value, held_path: &Path, held_bytes: &[u8], arch: &str, ordinal: usize, index: usize,
+    output: &Path, host: NativeHost, compiler: &provider_group::Pin,
+    python: &provider_group::Pin, library: &provider_group::Pin,
+    selected_library: &Path, selected_sha: &str,
+    tls_profile: Option<&str>, atomic_profile: Option<&str>, wide_volatile_profile: Option<&str>, linux_syscall_profile: Option<&str>,
+    expected_tls_profile: &Option<TlsProfile>, expected_atomic_profile: &Option<AtomicProfile>,
+    expected_wide_volatile_profile: &Option<WideVolatileProfile>,
+    expected_linux_syscall_profile: &Option<o_lang::ocore::native_ir::LinuxSyscallProfile>,
+    shared_tool_guard_count: usize, executor: &mut Executor, guards: &mut Vec<ObservedFile>,
+    custody_issues: &mut Vec<String>, record: &mut Value, phases: &mut UnitPhases,
+    active: &mut Option<PhaseKind>, module_target: &mut Option<Value>,
+    inventory_passed: &mut bool, snapshot: &mut Option<S>,
+    check_original: impl Fn() -> Result<()>,
+    capture_verified: impl FnOnce(Arc<NativeModule>, &[u8]) -> Result<S>,
+) -> Result<()> {
+    let (original_path,input_bytes) = checked_ir_bytes(unit,arch)?;
+    if original_path.as_path() != held_path || input_bytes.as_slice() != held_bytes {
+        bail!("current LLVM differs from same owned mixed-stage input");
+    }
+    let original = ObservedFile::read(&original_path)?;
+    if original.sha256 != digest(held_bytes) || original.bytes != held_bytes.len() as u64 {
+        bail!("mixed original LLVM observed identity differs");
+    }
+    record["original_input"] = original.value();
+    guards.push(original);
+    let directory = output.join(format!("unit-{ordinal:06}"));
+    fs::create_dir(&directory)?;
+    let input = directory.join(if captured_ir_format(&unit["ir"])? == "llvm-bitcode" {
+        "original-input.bc"
+    } else { "original-input.ll" });
+    record["consumed_input"] = retain(&input,held_bytes,guards)?;
+    let imported = directory.join("module.native-ir.json");
+    let diagnostics = directory.join("llvm-metadata-diagnostics.json");
+    let mut arguments = vec![input.display().to_string(),"--input-kind".into(),"llvm-ir".into(),
+        "--emit".into(),"mir".into(),"--target".into(),format!("{arch}-unknown-none"),
+        "-o".into(),imported.display().to_string(),
+        "--llvm-library".into(),selected_library.display().to_string(),
+        "--llvm-sha256".into(),selected_sha.to_owned()];
+    for (flag,value) in [("--tls-profile",tls_profile),("--atomic-profile",atomic_profile),
+        ("--linux-syscall-profile",linux_syscall_profile),
+        ("--wide-volatile-profile",wide_volatile_profile)] {
+        if let Some(value) = value { arguments.extend([flag.to_owned(),value.to_owned()]); }
+    }
+    arguments.extend([RAW_METADATA_OPTION.to_owned(),diagnostics.display().to_string()]);
+    phases.import.command_index=Some(executor.commands.len());
+    let import_ok = executor.run(compiler,&arguments,&directory,"import")?;
+    // Only a known reaped attempt permits consumption of its outputs.
+    record["metadata_diagnostics"] = retained_metadata_diagnostics(&diagnostics);
+    if !import_ok { bail!("native LLVM import failed; retained full separate command streams"); }
+    let raw = fs::read(&imported).context("read mixed imported native MIR")?;
+    phases.import.pass("module");
+    *active =Some(PhaseKind::Structural);phases.structural_verification.begin();
+    let module = NativeModule::from_json(&raw).map_err(|error|
+        anyhow::anyhow!("independent native verification: {}",error.message))?;
+    if module.provenance.input_sha256 != unit["ir"]["sha256"]
+        || module.target.triple != unit["ir"]["target_triple"]
+        || module.target.data_layout != unit["ir"]["data_layout"]
+        || &module.target.tls_profile != expected_tls_profile
+        || &module.target.atomic_profile != expected_atomic_profile
+        || &module.target.wide_volatile_profile != expected_wide_volatile_profile
+        || &module.target.linux_syscall_profile != expected_linux_syscall_profile
+    { bail!("mixed native import changed original input/target/profile"); }
+    record["metadata_diagnostics"] = validate_metadata_diagnostics(
+        Some(&diagnostics),&module,held_bytes,Some(selected_sha))?;
+    guards.push(ObservedFile::read(&diagnostics)?);
+    let current_target = serde_json::to_value(&module.target)?;
+    if module_target.as_ref().is_some_and(|expected| expected != &current_target) {
+        bail!("mixed imported modules have conflicting full target layouts/profiles");
+    }
+    if module_target.is_none() { *module_target = Some(current_target); }
+    let mir = ObservedFile::read(&imported)?;
+    if mir.sha256 != digest(&raw) || mir.bytes != raw.len() as u64 {
+        bail!("mixed imported MIR changed after consumed parse");
+    }
+    record["module"] = mir.value();
+    guards.push(mir);
+    let verification = directory.join("verification.json");
+    let verify_argv = vec![imported.display().to_string(),"--input-kind".into(),
+        "native-ir".into(),"--verify-native".into(),"--receipt".into(),
+        verification.display().to_string()];
+    phases.structural_verification.command_index=Some(executor.commands.len());
+    let verify_ok = executor.run(compiler,&verify_argv,&directory,"verify")?;
+    if !verify_ok { bail!("mixed independent native verification subprocess failed"); }
+    let receipt_raw = fs::read(&verification)?;
+    let receipt: Value = serde_json::from_slice(&receipt_raw)?;
+    if receipt["format"] != "ocore-native-verification-v1"
+        || receipt["verifier"] != "ocore-native-v1"
+        || receipt["scope"] != "structural_ir_verification"
+        || receipt["verified"] != true
+        || receipt["module_sha256"] != digest(&raw)
+    { bail!("mixed native verification receipt differs from exact MIR"); }
+    let receipt_pin = ObservedFile::read(&verification)?;
+    if receipt_pin.sha256 != digest(&receipt_raw) {
+        bail!("mixed native verification receipt changed");
+    }
+    record["verification"] = receipt_pin.value();
+    guards.push(receipt_pin);
+    let module = Arc::new(module);
+    *snapshot = Some(capture_verified(Arc::clone(&module),&raw)?);
+    record["structural_verification"] = json!("passed");
+    phases.structural_verification.pass("verification");
+    phases.control_inventory.begin();
+    match control_inventory::collect(&format!("mixed-{index}"),&raw) {
+        Ok(value)=>{record["control_inventory"]=value;phases.control_inventory.pass("control_inventory");}
+        Err(error)=>{phases.control_inventory.fail(&format!("{error:#}"),false);
+            record["control_inventory"]=json!({"failure":format!("{error:#}")});}
+    }
+    phases.floating_diagnostics.begin();
+    match floating_requirements(&module) {
+        Ok(value)=>{record["generated_floating_helper_requirements"]=json!(value);
+            phases.floating_diagnostics.pass("generated_floating_helper_requirements");}
+        Err(error)=>{phases.floating_diagnostics.fail(&format!("{error:#}"),false);
+            record["generated_floating_helper_requirements"]=json!({"failure":format!("{error:#}")});}
+    }
+    // Auxiliary errors remain errors, but cannot suppress this independent check.
+    *active =None;
+    if let Err(error)=check_original().and_then(|()| {
+        for guard in &guards[..shared_tool_guard_count] {guard.check()?;}
+        Ok(())
+    }) {
+        custody_issues.push(format!("before independent inventory {ordinal}: {error:#}"));
+        executor.halted=true;
+        phases.source_native_inventory.block("custody refusal before independent inventory");
+        return Err(error);
+    }
+    *active =Some(PhaseKind::SourceInventory);phases.source_native_inventory.begin();
+    let inventory_dir = directory.join("source-inventory");
+    fs::create_dir(&inventory_dir)?;
+    let helper = inventory_dir.join("source_inventory.py");
+    let inventory_input = inventory_dir.join("original.ll");
+    let inventory_native = inventory_dir.join("module.native-ir.json");
+    let inventory_result = inventory_dir.join("inventory.json");
+    record["inventory_inputs"] = json!({
+        "helper":retain(&helper,provider_group::INVENTORY.as_bytes(),guards)?,
+        "original":retain(&inventory_input,held_bytes,guards)?,
+        "native":retain(&inventory_native,&raw,guards)?});
+    host.pin(python,false)?; host.pin(library,true)?;
+    let inventory_argv = vec!["-I".into(),"-c".into(),
+        provider_group::INVENTORY_DRIVER.into(),helper.display().to_string(),
+        digest(provider_group::INVENTORY.as_bytes()),library.path.display().to_string(),
+        library.sha256.clone(),inventory_input.display().to_string(),
+        inventory_native.display().to_string(),inventory_result.display().to_string(),
+        python.sha256.clone()];
+    phases.source_native_inventory.command_index=Some(executor.commands.len());
+    let inventory_ok = executor.run(python,&inventory_argv,&inventory_dir,"inventory")?;
+    // Preserve the existing driver's external before/after and exact-buffer guards.
+    host.pin(python,false)?; host.pin(library,true)?;
+    if fs::read(&helper)? != provider_group::INVENTORY.as_bytes()
+        || fs::read(&inventory_input)? != held_bytes
+        || fs::read(&inventory_native)? != raw
+    { bail!("mixed independent source inventory buffers changed"); }
+    if !inventory_ok { bail!("mixed independent source inventory subprocess failed"); }
+    let inventory_raw = fs::read(&inventory_result)?;
+    let preservation: Value = serde_json::from_slice(&inventory_raw)?;
+    if preservation["schema"] != "ocore-independent-source-inventory-v1"
+        || preservation["source"]["sha256"] != digest(held_bytes)
+        || preservation["llvm_library"]["sha256"] != library.sha256
+    { bail!("mixed independent source inventory receipt identity differs"); }
+    let inventory_pin = ObservedFile::read(&inventory_result)?;
+    if inventory_pin.sha256 != digest(&inventory_raw) {
+        bail!("mixed independent source inventory receipt changed");
+    }
+    record["independent_inventory"] = json!({"receipt":inventory_pin.value(),
+        "preservation":preservation,
+        "scope":"bounded independent definitions/declarations/globals/initializer and intrinsic-site inventory; not executable equivalence or external provider proof"});
+    guards.push(inventory_pin);
+    *inventory_passed = true;
+    phases.source_native_inventory.pass("independent_inventory");
+    Ok(())
+}
+
 impl MixedImportedCohort {
     pub(crate) fn pending_process_count(&self) -> usize {
         self.executor.pending.iter().filter(|attempt|attempt.terminal.is_none()).count()
@@ -484,42 +658,50 @@ impl MixedImportedCohort {
             .all(|unit|unit.phases.source_native_inventory.passed());
         let all_phases=safe && self.units.iter().filter(|unit|unit.original_llvm())
             .all(|unit|unit.phases.all_passed());
-        json!({"schema":"ocore-mixed-llvm-import-cohort-v2",
-            "scope":"held original mixed membership; distinct structural, inventory and diagnostic phase observations",
-            "shared_inputs":{"raw_report_sha256":digest(self.stage.raw_report()),
+        let mut summary = serde_json::Map::new();
+        summary.insert("schema".into(), json!("ocore-mixed-llvm-import-cohort-v2"));
+        summary.insert("scope".into(), json!("held original mixed membership; distinct structural, inventory and diagnostic phase observations"));
+        summary.insert("shared_inputs".into(), json!({"raw_report_sha256":digest(self.stage.raw_report()),
                 "raw_context_sha256":digest(self.stage.raw_context()),
                 "member_policy_sha256":digest(self.stage.member_policy()),
-                "original_order_policy_sha256":digest(self.stage.original_order_policy())},
-            "order_scope":"original checked member index/order; not native link order",
-            "host":self.host,"native_tools":self.native_tools,
-            "declared_dependencies_unresolved":self.dependencies,
-            "units":self.units.iter().map(ImportedUnit::value).collect::<Vec<_>>(),
-            "commands":self.executor.commands,"stage_issues":self.stage.issues(),
-            "issues":self.issues,"classification_issues":self.classification_issues,
-            "custody_issues":self.custody_issues,
-            "observed_custody_failure":self.observed_custody_failure.get(),
-            "command_custody_issues":self.executor.custody_issues,
-            "historical_unknown_boundary":self.executor.unknown,
-            "unknown_without_owned_handle":self.executor.unknown_without_handle,
-            "owned_pending_child_count":self.pending_process_count(),
-            "retained_child_handle_count":self.executor.pending.len(),
-            "terminal_observations":self.executor.terminal_observations,
-            "observed_custody_stable":stable,"original_member_count":self.units.len(),
-            "original_llvm_count":llvm_count,
-            "original_classification_complete":classified,
-            "llvm_cohort_state":if llvm_count==0 {"no_original_llvm_occurrences"} else {"observed"},
-            "original_llvm_structural_verification_complete":structural,
-            "original_llvm_independent_inventory_complete":inventory,
-            "original_llvm_required_phases_complete":all_phases,
-            "exclusive_output_created":self.output_created,
-            "summary_write_error":self.summary_write_error,
-            "source_capture_complete":false,"unit_lowering_complete":false,
-            "artifact_complete":false,"runtime_complete":false,
-            "qualifications":{"original_source_authority":false,"original_order_meaning":false,
+                "original_order_policy_sha256":digest(self.stage.original_order_policy())}));
+        summary.insert("order_scope".into(), json!("original checked member index/order; not native link order"));
+        summary.insert("host".into(), json!(self.host));
+        summary.insert("native_tools".into(), json!(self.native_tools));
+        summary.insert("declared_dependencies_unresolved".into(), json!(self.dependencies));
+        summary.insert("units".into(), json!(self.units.iter().map(ImportedUnit::value).collect::<Vec<_>>()));
+        summary.insert("commands".into(), json!(self.executor.commands));
+        summary.insert("stage_issues".into(), json!(self.stage.issues()));
+        summary.insert("issues".into(), json!(self.issues));
+        summary.insert("classification_issues".into(), json!(self.classification_issues));
+        summary.insert("custody_issues".into(), json!(self.custody_issues));
+        summary.insert("observed_custody_failure".into(), json!(self.observed_custody_failure.get()));
+        summary.insert("command_custody_issues".into(), json!(self.executor.custody_issues));
+        summary.insert("historical_unknown_boundary".into(), json!(self.executor.unknown));
+        summary.insert("unknown_without_owned_handle".into(), json!(self.executor.unknown_without_handle));
+        summary.insert("owned_pending_child_count".into(), json!(self.pending_process_count()));
+        summary.insert("retained_child_handle_count".into(), json!(self.executor.pending.len()));
+        summary.insert("terminal_observations".into(), json!(self.executor.terminal_observations));
+        summary.insert("observed_custody_stable".into(), json!(stable));
+        summary.insert("original_member_count".into(), json!(self.units.len()));
+        summary.insert("original_llvm_count".into(), json!(llvm_count));
+        summary.insert("original_classification_complete".into(), json!(classified));
+        summary.insert("llvm_cohort_state".into(), json!(if llvm_count==0 {"no_original_llvm_occurrences"} else {"observed"}));
+        summary.insert("original_llvm_structural_verification_complete".into(), json!(structural));
+        summary.insert("original_llvm_independent_inventory_complete".into(), json!(inventory));
+        summary.insert("original_llvm_required_phases_complete".into(), json!(all_phases));
+        summary.insert("exclusive_output_created".into(), json!(self.output_created));
+        summary.insert("summary_write_error".into(), json!(self.summary_write_error));
+        summary.insert("source_capture_complete".into(), json!(false));
+        summary.insert("unit_lowering_complete".into(), json!(false));
+        summary.insert("artifact_complete".into(), json!(false));
+        summary.insert("runtime_complete".into(), json!(false));
+        summary.insert("qualifications".into(), json!({"original_source_authority":false,"original_order_meaning":false,
                 "abi":false,"providers":false,"native_execution":false,"all_isa":false,
                 "physical_file_identity":false,"preexec_tool_closure":false,
                 "transitive_libraries":false,"full_session_quiescence":false,
-                "generated_application_source_inclusion":false}})
+                "generated_application_source_inclusion":false}));
+        Value::Object(summary)
     }
     /// Observe only retained original Child handles. Never dispatch or resume work.
     /// Historical UNKNOWN and all qualification refusal remain permanent.
@@ -783,160 +965,16 @@ impl MixedImportedCohort {
             let mut active=Some(PhaseKind::Import);
             phases.import.begin();
             let result = (|| -> Result<()> {
-                let unit = self.stage.unit(index).context("mixed stage original member absent")?;
-                let (original_path,input_bytes) = checked_ir_bytes(unit,arch)?;
-                if original_path != *held_path || input_bytes.as_slice() != held_bytes.as_slice() {
-                    bail!("current LLVM differs from same owned mixed-stage input");
-                }
-                let original = ObservedFile::read(&original_path)?;
-                if original.sha256 != digest(held_bytes) || original.bytes != held_bytes.len() as u64 {
-                    bail!("mixed original LLVM observed identity differs");
-                }
-                record["original_input"] = original.value();
-                self.guards.push(original);
-                let directory = self.output.join(format!("unit-{ordinal:06}"));
-                fs::create_dir(&directory)?;
-                let input = directory.join(if captured_ir_format(&unit["ir"])? == "llvm-bitcode" {
-                    "original-input.bc"
-                } else { "original-input.ll" });
-                record["consumed_input"] = retain(&input,held_bytes,&mut self.guards)?;
-                let imported = directory.join("module.native-ir.json");
-                let diagnostics = directory.join("llvm-metadata-diagnostics.json");
-                let mut arguments = vec![input.display().to_string(),"--input-kind".into(),"llvm-ir".into(),
-                    "--emit".into(),"mir".into(),"--target".into(),format!("{arch}-unknown-none"),
-                    "-o".into(),imported.display().to_string(),
-                    "--llvm-library".into(),selected_library.display().to_string(),
-                    "--llvm-sha256".into(),selected_sha.to_owned()];
-                for (flag,value) in [("--tls-profile",tls_profile),("--atomic-profile",atomic_profile),
-                    ("--linux-syscall-profile",linux_syscall_profile),
-                    ("--wide-volatile-profile",wide_volatile_profile)] {
-                    if let Some(value) = value { arguments.extend([flag.to_owned(),value.to_owned()]); }
-                }
-                arguments.extend([RAW_METADATA_OPTION.to_owned(),diagnostics.display().to_string()]);
-                phases.import.command_index=Some(self.executor.commands.len());
-                let import_ok = self.executor.run(compiler,&arguments,&directory,"import")?;
-                // Only a known reaped attempt permits consumption of its outputs.
-                record["metadata_diagnostics"] = retained_metadata_diagnostics(&diagnostics);
-                if !import_ok { bail!("native LLVM import failed; retained full separate command streams"); }
-                let raw = fs::read(&imported).context("read mixed imported native MIR")?;
-                phases.import.pass("module");
-                active=Some(PhaseKind::Structural);phases.structural_verification.begin();
-                let module = NativeModule::from_json(&raw).map_err(|error|
-                    anyhow::anyhow!("independent native verification: {}",error.message))?;
-                if module.provenance.input_sha256 != unit["ir"]["sha256"]
-                    || module.target.triple != unit["ir"]["target_triple"]
-                    || module.target.data_layout != unit["ir"]["data_layout"]
-                    || module.target.tls_profile != expected_tls_profile
-                    || module.target.atomic_profile != expected_atomic_profile
-                    || module.target.wide_volatile_profile != expected_wide_volatile_profile
-                    || module.target.linux_syscall_profile != expected_linux_syscall_profile
-                { bail!("mixed native import changed original input/target/profile"); }
-                record["metadata_diagnostics"] = validate_metadata_diagnostics(
-                    Some(&diagnostics),&module,held_bytes,Some(selected_sha))?;
-                self.guards.push(ObservedFile::read(&diagnostics)?);
-                let current_target = serde_json::to_value(&module.target)?;
-                if module_target.as_ref().is_some_and(|expected| expected != &current_target) {
-                    bail!("mixed imported modules have conflicting full target layouts/profiles");
-                }
-                if module_target.is_none() { module_target = Some(current_target); }
-                let mir = ObservedFile::read(&imported)?;
-                if mir.sha256 != digest(&raw) || mir.bytes != raw.len() as u64 {
-                    bail!("mixed imported MIR changed after consumed parse");
-                }
-                record["module"] = mir.value();
-                self.guards.push(mir);
-                let verification = directory.join("verification.json");
-                let verify_argv = vec![imported.display().to_string(),"--input-kind".into(),
-                    "native-ir".into(),"--verify-native".into(),"--receipt".into(),
-                    verification.display().to_string()];
-                phases.structural_verification.command_index=Some(self.executor.commands.len());
-                let verify_ok = self.executor.run(compiler,&verify_argv,&directory,"verify")?;
-                if !verify_ok { bail!("mixed independent native verification subprocess failed"); }
-                let receipt_raw = fs::read(&verification)?;
-                let receipt: Value = serde_json::from_slice(&receipt_raw)?;
-                if receipt["format"] != "ocore-native-verification-v1"
-                    || receipt["verifier"] != "ocore-native-v1"
-                    || receipt["scope"] != "structural_ir_verification"
-                    || receipt["verified"] != true
-                    || receipt["module_sha256"] != digest(&raw)
-                { bail!("mixed native verification receipt differs from exact MIR"); }
-                let receipt_pin = ObservedFile::read(&verification)?;
-                if receipt_pin.sha256 != digest(&receipt_raw) {
-                    bail!("mixed native verification receipt changed");
-                }
-                record["verification"] = receipt_pin.value();
-                self.guards.push(receipt_pin);
-                snapshot = Some(Arc::new(VerifiedLineageModule::from_verified(&module,&raw)?));
-                record["structural_verification"] = json!("passed");
-                phases.structural_verification.pass("verification");
-                phases.control_inventory.begin();
-                match control_inventory::collect(&format!("mixed-{index}"),&raw) {
-                    Ok(value)=>{record["control_inventory"]=value;phases.control_inventory.pass("control_inventory");}
-                    Err(error)=>{phases.control_inventory.fail(&format!("{error:#}"),false);
-                        record["control_inventory"]=json!({"failure":format!("{error:#}")});}
-                }
-                phases.floating_diagnostics.begin();
-                match floating_requirements(&module) {
-                    Ok(value)=>{record["generated_floating_helper_requirements"]=json!(value);
-                        phases.floating_diagnostics.pass("generated_floating_helper_requirements");}
-                    Err(error)=>{phases.floating_diagnostics.fail(&format!("{error:#}"),false);
-                        record["generated_floating_helper_requirements"]=json!({"failure":format!("{error:#}")});}
-                }
-                // Auxiliary errors remain errors, but cannot suppress this independent check.
-                active=None;
-                if let Err(error)=self.stage.check_custody().and_then(|()| {
-                    for guard in &self.guards[..shared_tool_guard_count] {guard.check()?;}
-                    Ok(())
-                }) {
-                    self.custody_issues.push(format!("before independent inventory {ordinal}: {error:#}"));
-                    self.executor.halted=true;
-                    phases.source_native_inventory.block("custody refusal before independent inventory");
-                    return Err(error);
-                }
-                active=Some(PhaseKind::SourceInventory);phases.source_native_inventory.begin();
-                let inventory_dir = directory.join("source-inventory");
-                fs::create_dir(&inventory_dir)?;
-                let helper = inventory_dir.join("source_inventory.py");
-                let inventory_input = inventory_dir.join("original.ll");
-                let inventory_native = inventory_dir.join("module.native-ir.json");
-                let inventory_result = inventory_dir.join("inventory.json");
-                record["inventory_inputs"] = json!({
-                    "helper":retain(&helper,provider_group::INVENTORY.as_bytes(),&mut self.guards)?,
-                    "original":retain(&inventory_input,held_bytes,&mut self.guards)?,
-                    "native":retain(&inventory_native,&raw,&mut self.guards)?});
-                host.pin(python,false)?; host.pin(library,true)?;
-                let inventory_argv = vec!["-I".into(),"-c".into(),
-                    provider_group::INVENTORY_DRIVER.into(),helper.display().to_string(),
-                    digest(provider_group::INVENTORY.as_bytes()),library.path.display().to_string(),
-                    library.sha256.clone(),inventory_input.display().to_string(),
-                    inventory_native.display().to_string(),inventory_result.display().to_string(),
-                    python.sha256.clone()];
-                phases.source_native_inventory.command_index=Some(self.executor.commands.len());
-                let inventory_ok = self.executor.run(python,&inventory_argv,&inventory_dir,"inventory")?;
-                // Preserve the existing driver's external before/after and exact-buffer guards.
-                host.pin(python,false)?; host.pin(library,true)?;
-                if fs::read(&helper)? != provider_group::INVENTORY.as_bytes()
-                    || fs::read(&inventory_input)? != held_bytes.as_slice()
-                    || fs::read(&inventory_native)? != raw
-                { bail!("mixed independent source inventory buffers changed"); }
-                if !inventory_ok { bail!("mixed independent source inventory subprocess failed"); }
-                let inventory_raw = fs::read(&inventory_result)?;
-                let preservation: Value = serde_json::from_slice(&inventory_raw)?;
-                if preservation["schema"] != "ocore-independent-source-inventory-v1"
-                    || preservation["source"]["sha256"] != digest(held_bytes)
-                    || preservation["llvm_library"]["sha256"] != library.sha256
-                { bail!("mixed independent source inventory receipt identity differs"); }
-                let inventory_pin = ObservedFile::read(&inventory_result)?;
-                if inventory_pin.sha256 != digest(&inventory_raw) {
-                    bail!("mixed independent source inventory receipt changed");
-                }
-                record["independent_inventory"] = json!({"receipt":inventory_pin.value(),
-                    "preservation":preservation,
-                    "scope":"bounded independent definitions/declarations/globals/initializer and intrinsic-site inventory; not executable equivalence or external provider proof"});
-                self.guards.push(inventory_pin);
-                inventory_passed = true;
-                phases.source_native_inventory.pass("independent_inventory");
-                Ok(())
+                let stage = &self.stage;
+                let unit = stage.unit(index).context("mixed stage original member absent")?;
+                held_llvm_phases(unit,held_path.as_path(),held_bytes.as_slice(),arch,ordinal,index,
+                    &self.output,host,compiler,python,library,selected_library,selected_sha,
+                    tls_profile,atomic_profile,wide_volatile_profile,linux_syscall_profile,
+                    &expected_tls_profile,&expected_atomic_profile,&expected_wide_volatile_profile,&expected_linux_syscall_profile,
+                    shared_tool_guard_count,&mut self.executor,&mut self.guards,&mut self.custody_issues,
+                    &mut record,&mut phases,&mut active,&mut module_target,&mut inventory_passed,&mut snapshot,
+                    || stage.check_custody(),
+                    |module,raw| Ok(Arc::new(VerifiedLineageModule::from_verified(&module,raw)?)))
             })();
             record["command_indices"] = json!((command_start..self.executor.commands.len()).collect::<Vec<_>>());
             record["independent_inventory_passed"] = json!(inventory_passed);
@@ -1029,3 +1067,7 @@ pub(super) fn import_stage(
     if let Err(error) = saved { cohort.summary_write_error = Some(error.to_string()); }
     cohort
 }
+
+#[path="mixed_incomplete_llvm_import.rs"]
+mod incomplete_diagnostic;
+pub(crate) use incomplete_diagnostic::{MixedIncompleteImportedCohort,prepare_diagnostic_session};

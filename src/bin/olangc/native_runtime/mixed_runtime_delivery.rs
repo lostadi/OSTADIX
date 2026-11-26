@@ -229,6 +229,7 @@ impl HeldRequest {
 enum OwnedDisposition {
     Imported(source_action::MixedImportedCohort),
     Incomplete(source_action::MixedCaptureOutcome),
+    IncompleteImported(source_action::MixedIncompleteImportedCohort),
 }
 struct MixedDiagnosticDelivery {
     request: HeldRequest,
@@ -243,6 +244,7 @@ impl MixedDiagnosticDelivery {
         if let Some(reason)=self.refusal.get() { bail!("permanent mixed delivery refusal: {reason}"); }
         let result = self.request.check().and_then(|()| match &self.disposition {
             OwnedDisposition::Imported(cohort) => cohort.check_custody(),
+            OwnedDisposition::IncompleteImported(cohort)=>cohort.check_custody(),
             OwnedDisposition::Incomplete(outcome) => {
                 if !matches!(outcome, source_action::MixedCaptureOutcome::Incomplete(_)) {
                     bail!("invalid owned incomplete disposition");
@@ -258,11 +260,11 @@ impl MixedDiagnosticDelivery {
         Ok(())
     }
     fn wait_original(&mut self) {
-        if let OwnedDisposition::Imported(cohort)=&mut self.disposition {
-            if cohort.pending_process_count()!=0 {
-                self.pending_observation=Some(cohort.wait_pending_original());
-            }
-        }
+        self.pending_observation=match &mut self.disposition {
+            OwnedDisposition::Imported(cohort)=>Some(cohort.wait_pending_original()),
+            OwnedDisposition::IncompleteImported(cohort)=>Some(cohort.wait_pending_original()),
+            OwnedDisposition::Incomplete(_)=>None,
+        };
     }
     fn finalization_failure_preview(value: &str) -> Value {
         // This bounds metadata only. The complete original UTF-8 bytes are saved separately.
@@ -369,6 +371,7 @@ impl MixedDiagnosticDelivery {
         let shared_sha256=hash(&serde_json::to_vec(&shared).expect("serializable shared evidence"));
         let (kind,mut disposition)=match &self.disposition {
             OwnedDisposition::Imported(cohort)=>("mixed_llvm_import",cohort.summary()),
+            OwnedDisposition::IncompleteImported(cohort)=>("incomplete-llvm-diagnostic",cohort.summary()),
             OwnedDisposition::Incomplete(source_action::MixedCaptureOutcome::Incomplete(owner))=>
                 ("incomplete_capture",owner.receipt().clone()),
             OwnedDisposition::Incomplete(_)=>
@@ -413,7 +416,7 @@ impl MixedDiagnosticDelivery {
         if let Err(error)=self.check() { self.issues.push(error.to_string()); }
         self.wait_original();
         if let Err(error)=self.check() { self.issues.push(error.to_string()); }
-        let incomplete=matches!(&self.disposition,OwnedDisposition::Incomplete(_));
+        let incomplete=matches!(&self.disposition,OwnedDisposition::Incomplete(_) | OwnedDisposition::IncompleteImported(_));
         let receipt=self.output.join("mixed-diagnostic-delivery.json");
         let raw=serde_json::to_vec_pretty(&self.summary())?;
         let publication=save_exclusive(&receipt,&raw);
@@ -529,12 +532,26 @@ pub(crate) fn compile_runtime_mixed_diagnostic(
                 stage,target,&output.join("mixed-llvm-import"),effective,
                 &compiler,&python,&library))
         },
-        incomplete @ source_action::MixedCaptureOutcome::Incomplete(_)=>
-            OwnedDisposition::Incomplete(incomplete),
+        source_action::MixedCaptureOutcome::Incomplete(incomplete)=>
+            OwnedDisposition::IncompleteImported(source_action::prepare_incomplete_mixed_llvm(
+                incomplete.into_diagnostic_inputs(),&output.join("incomplete-llvm-diagnostic-import"))),
     };
     // From this point every error remains in the owner; no ? drops a Child.
     let mut delivery=MixedDiagnosticDelivery {request,disposition,output,
         issues:Vec::new(),pending_observation:None,refusal:OnceLock::new()};
+    // The owner is already installed. This operation returns no dropping Result<Self>.
+    if let OwnedDisposition::IncompleteImported(cohort)=&mut delivery.disposition {
+        let compiler=delivery.request.guards["compiler"].tool_pin();
+        let python=delivery.request.guards["inventory_python"].tool_pin();
+        let library=delivery.request.guards["inventory_library"].tool_pin();
+        let effective=NativeImportOptions {
+            llvm_library:Some(&library.path),llvm_sha256:Some(&library.sha256),
+            tls_profile:import_options.tls_profile,atomic_profile:import_options.atomic_profile,
+            wide_volatile_profile:import_options.wide_volatile_profile,
+            linux_syscall_profile:import_options.linux_syscall_profile,dependencies:import_options.dependencies,
+        };
+        cohort.run_import(target,effective,&compiler,&python,&library);
+    }
     if let Err(error)=delivery.check() { delivery.issues.push(error.to_string()); }
     delivery.finish_cli()
 }
