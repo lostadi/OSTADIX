@@ -10,8 +10,24 @@ use super::*;
 use serde::Serialize;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
+use std::sync::Arc;
 
 const FORMAT: &str = "ocore-source-action-unit-lineage-v1";
+
+// Held mixed reconstruction is a distinct capability, never AdmittedCapture.
+#[path = "checked_mixed_capture.rs"]
+mod checked_mixed_capture;
+pub(super) use checked_mixed_capture::{
+    CheckedMixedCapture, MixedCapturePolicy, MixedCaptureStage, MixedInputPin,
+    MixedUnitRepresentation, MixedUnitStage,
+};
+
+pub(super) fn preflight_mixed_capture(
+    report: &Path, raw_report: &[u8], output: &Path, python: &Path,
+    policy: Option<MixedCapturePolicy>,
+) -> Result<Option<CheckedMixedCapture>> {
+    checked_mixed_capture::preflight(report, raw_report, output, python, policy)
+}
 
 // Separate MachineUnit handoff: existing admitted LLVM lineage is unchanged.
 #[path = "configured_assembly_consumer.rs"]
@@ -29,6 +45,15 @@ mod configured_assembly_producer;
 pub(super) use configured_assembly_producer::{
     IdentityAssemblyCommitment, IdentityAssemblyFunctionPolicy,
     IdentityAssemblyIssue, IdentityAssemblyObservation,
+};
+
+// Distinct fixed-C leaf ABI preparation, not an admission or JSON reader.
+#[path = "identity_assembly_abi.rs"]
+mod identity_assembly_abi;
+pub(super) use identity_assembly_abi::{
+    IdentityAssemblyAbiCommitment, IdentityAssemblyAbiPreparation,
+    IdentityAssemblyAbiObservation, IdentityAssemblyAbiFunction,
+    IdentityAssemblyAbiFunctionOutcome, SelectedLineageDeclaration,
 };
 
 /// Seal caller-held original outputs/order/floors before current observations.
@@ -843,6 +868,7 @@ impl AdmittedCapture {
             original_llvm: original.clone(),
             consumed_llvm: consumed.clone(),
             compiler: compiler.clone(),
+            verified_module: None,
             imported_mir: None,
             verification: None,
             imported_target: None,
@@ -879,6 +905,14 @@ impl AdmittedCapture {
     }
 }
 
+/// An operation-local immutable parsed snapshot. Its fields and Arc never escape
+/// this private lineage and its child planner. This is not serialized admission.
+#[derive(Debug)]
+struct VerifiedLineageModule {
+    module: NativeModule,
+    mir_sha256: String,
+}
+
 #[derive(Debug, Serialize)]
 pub(super) struct UnitLineage {
     schema: &'static str,
@@ -888,6 +922,8 @@ pub(super) struct UnitLineage {
     original_llvm: BytesIdentity,
     consumed_llvm: BytesIdentity,
     compiler: BytesIdentity,
+    #[serde(skip)]
+    verified_module: Option<Arc<VerifiedLineageModule>>,
     imported_mir: Option<BytesIdentity>,
     verification: Option<BytesIdentity>,
     imported_target: Option<Value>,
@@ -952,6 +988,19 @@ impl UnitLineage {
         receipt_path: &Path,
         receipt_raw: &[u8],
     ) -> Result<()> {
+        // Bind every retained typed field to the exact receipt-bound MIR, including
+        // defaulted fields. NativeModule does not implement PartialEq. This typed
+        // decode is not another native verifier or a cached verification boolean;
+        // the existing checked module and independent receipt join remain required.
+        let decoded: NativeModule =
+            serde_json::from_slice(mir).context("decode exact lineage MIR snapshot")?;
+        if serde_json::to_value(&decoded)? != serde_json::to_value(module)? {
+            bail!("retained parsed module differs from exact verified lineage MIR");
+        }
+        let snapshot = Arc::new(VerifiedLineageModule {
+            module: module.clone(),
+            mir_sha256: digest(mir),
+        });
         self.join_verified(
             &module.provenance.input_sha256,
             serde_json::to_value(&module.target)?,
@@ -959,7 +1008,9 @@ impl UnitLineage {
             mir,
             receipt_path,
             receipt_raw,
-        )
+        )?;
+        self.verified_module = Some(snapshot);
+        Ok(())
     }
 
     pub(super) fn observe_object(
@@ -1256,6 +1307,7 @@ mod tests {
             original_llvm: original.clone(),
             consumed_llvm: original.clone(),
             compiler: original,
+            verified_module: None,
             imported_mir: None,
             verification: None,
             imported_target: None,

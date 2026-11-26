@@ -3283,6 +3283,33 @@ fn lower_with_compiler(
     )
 }
 
+/// Reconstruct and stage a complete mixed cohort under separately held policy.
+/// This returns representation input buffers and retained refusals, never a
+/// StagedComponent, AdmittedCapture, NativeModule or completed artifact.
+pub(super) fn stage_held_mixed_capture_with_python(
+    report: &Path,
+    held_report_bytes: &[u8],
+    output: &Path,
+    python: &Path,
+    policy: source_action::MixedCapturePolicy,
+) -> Result<source_action::MixedCaptureStage> {
+    if fs::read(report).context("read held mixed report")? != held_report_bytes {
+        bail!("held mixed capture report changed");
+    }
+    let capture: Value = serde_json::from_slice(held_report_bytes)?;
+    if capture["schema"] != "ocore-runtime-capture-v2" {
+        bail!("mixed staging requires the explicit v2 capture schema");
+    }
+    fs::create_dir(output).with_context(|| format!("create new mixed staging directory {}", output.display()))?;
+    let output = output.canonicalize()?;
+    let owner = source_action::preflight_mixed_capture(
+        report, held_report_bytes, &output, python, Some(policy),
+    )?.context("mixed staging did not return a checked reconstruction owner")?;
+    let stage = owner.into_stage();
+    stage.write_summary(&output)?;
+    Ok(stage)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn lower_held_capture_with_compiler(
     report: &Path,
@@ -3353,6 +3380,18 @@ fn lower_held_capture_with_compiler(
         )
     })?;
     let output = output.canonicalize()?;
+    // The existing decoded discriminator avoids any extra legacy JSON parse.
+    // It does not authorize mixed input: that still requires strict readmission.
+    if capture["schema"] == "ocore-runtime-capture-v2" {
+        let _ = source_action::preflight_mixed_capture(
+            report,
+            &bytes,
+            &output,
+            selected_python.unwrap_or_else(|| Path::new("python3")),
+            None,
+        )?;
+        bail!("mixed representation staging cannot become legacy capture admission");
+    }
     let (selected, mut issues) = match capture_admission_with_python(
         &capture,
         selected_python.unwrap_or_else(|| Path::new("python3")),

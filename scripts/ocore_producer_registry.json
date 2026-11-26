@@ -10,7 +10,8 @@
       "capture": {
         "available": true,
         "policies": {
-          "frontend-replay-v1": {"format": "llvm-text", "frontend_replay": true}
+          "frontend-replay-v1": {"format": "llvm-text", "frontend_replay": true},
+          "clang-identity-assembly-v1": {"format": "configured-assembly-source-v1", "frontend_replay": false, "import_available": false}
         }
       },
       "import": {"available": true, "adapter": "llvm-ir", "formats": ["llvm-text"]}

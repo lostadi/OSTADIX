@@ -32,6 +32,9 @@ import uuid
 
 RECIPE_SCHEMA = "ocore-runtime-recipe-v1"
 REPORT_SCHEMA = "ocore-runtime-capture-v1"
+MIXED_REPORT_SCHEMA = "ocore-runtime-capture-v2"
+IDENTITY_ASSEMBLY_POLICY = "clang-identity-assembly-v1"
+IDENTITY_ASSEMBLY_FORMAT = "configured-assembly-source-v1"
 INVENTORY_SCHEMA = "ocore-runtime-unit-inventory-v1"
 CARGO_PARENT_VARIABLE = "OCORE_CAPTURE_CARGO_PARENT"
 # Filled only from the independently registered observer implementation. Neither
@@ -40,7 +43,7 @@ REGISTERED_CARGO_OBSERVER_SHA256 = "518ad7b62e4e3735919cf43f5e048b53dde0723a52eb
 RUST_EMBEDDED_POLICY = "rust-embedded-bc-v1"
 REGISTERED_RUST_PAYLOAD_SHA256 = "0190404305ffa887b60d5f23e9af64029c1fe770ce6c705d19a65ee3a89d6767"
 PRODUCER_REGISTRY_FILE = "ocore_producer_registry.json"
-REGISTERED_PRODUCER_REGISTRY_SHA256 = "62d74350f9b97db882f96ccb04fb985ff519e45d648b2f977664c2e631ff4052"
+REGISTERED_PRODUCER_REGISTRY_SHA256 = "abc0b5063264ffcbc58b29a4d58e9df721c5c8874f438b81bf77d498277ce962"
 # These are implemented by this trusted worker, not recipe-selected modules.
 BUILTIN_CAPTURE_ADAPTERS = frozenset({"clang", "rustc"})
 NATIVE_TOOL_KINDS = {"ld": "linker", "ld.lld": "linker", "ld.bfd": "linker",
@@ -486,6 +489,7 @@ def validate_recipe(recipe: dict, registry: dict | None = None) -> None:
         raise CaptureError("toolchain.llvm_version must pin an exact version")
     if "rust_capture_policy" in toolchain and toolchain["rust_capture_policy"] != RUST_EMBEDDED_POLICY:
         raise CaptureError("toolchain.rust_capture_policy must be rust-embedded-bc-v1 when present")
+    identity_assembly_policy(recipe, registry)
     commands = recipe.get("commands")
     if not isinstance(commands, list) or not commands:
         raise CaptureError("recipe needs build commands")
@@ -509,6 +513,11 @@ def validate_recipe(recipe: dict, registry: dict | None = None) -> None:
             raise CaptureError("required units select registered producer IDs, not executable adapters")
         producer = registered_producer(item.get("kind"), item.get("producer"), registry)
         producer_policy(producer["unit_kind"], recipe, registry)
+        if item.get("representation") not in {None, "llvm", "configured-assembly"}:
+            raise CaptureError("unsupported required unit representation")
+        if item.get("representation") == "configured-assembly":
+            if producer["unit_kind"] != "clang" or identity_assembly_policy(recipe, registry) is None:
+                raise CaptureError("configured assembly requirement lacks its selected registered policy")
 
 
 def verify_source(recipe: dict, source: Path) -> dict:
@@ -2579,7 +2588,7 @@ def _assembly_capture_object_options(args):
     """
     modes, outputs = set(), []
     no_operand = {
-        "-pipe", "-pthread", "-nostdinc", "-nostdinc++", "-nostdlib",
+        "--no-default-config", "-pipe", "-pthread", "-nostdinc", "-nostdinc++", "-nostdlib",
         "-nostartfiles", "-nodefaultlibs", "-shared", "-static", "-pie", "-no-pie",
         "-fPIC", "-fpic", "-fPIE", "-fpie", "-fno-pic", "-fno-PIC",
         "-fno-pie", "-fno-PIE", "-ffreestanding", "-fno-stack-protector",
@@ -2617,6 +2626,8 @@ def _assembly_capture_object_options(args):
         elif (any(value.startswith(prefix) and len(value) > len(prefix) for prefix in ("-I", "-D", "-U"))
               or ("=" in value and value.split("=", 1)[0] in (PAIR_OPTIONS | joined_value_options) - {"-o"})):
             pass
+        elif value.startswith("-x") and len(value) > 2:
+            pass  # Effective per-input language is checked by the selected policy.
         elif value.startswith("-"):
             raise CaptureError("unsupported or ambiguous original-object option form: " + value)
         index += 1
@@ -2902,6 +2913,740 @@ def _assembly_capture_only_after(context, native_status, event):
             event["capture_errors"].append("assembly capture-only " + problem["code"] + ": " + problem["detail"])
 
 
+# Distinct captured representation; no NativeModule, ABI or Rust admission token.
+def identity_assembly_policy(recipe, registry=None):
+    value = recipe.get("toolchain", {}).get("clang_assembly_capture")
+    if value is None:
+        return None
+    keys = {"schema", "policy", "compiler", "target_triple", "march", "mabi", "elf_flags", "source_files"}
+    if (not isinstance(value, dict) or set(value) != keys
+            or value["schema"] != "ocore-clang-identity-assembly-policy-v1"
+            or value["policy"] != IDENTITY_ASSEMBLY_POLICY):
+        raise CaptureError("identity assembly requires its exact versioned policy")
+    contract = registered_producer("clang", registry=registry)["capture"]["policies"].get(IDENTITY_ASSEMBLY_POLICY)
+    if (not isinstance(contract, dict) or contract.get("format") != IDENTITY_ASSEMBLY_FORMAT
+            or contract.get("frontend_replay") is not False or contract.get("import_available") is not False):
+        raise CaptureError("identity assembly capture policy is not registered")
+    if (not isinstance(value["target_triple"], str) or not re.fullmatch(r"riscv64-[A-Za-z0-9_.-]+", value["target_triple"])
+            or not isinstance(value["march"], str) or not re.fullmatch(r"rv64[a-z0-9_]+", value["march"])
+            or value["mabi"] not in {"lp64", "lp64d"} or type(value["elf_flags"]) is not int
+            or value["elf_flags"] not in {0, 1, 4, 5}
+            or value["elf_flags"] & 6 != (4 if value["mabi"] == "lp64d" else 0)):
+        raise CaptureError("identity assembly requires an explicit RV64 target/object profile")
+    compiler = value["compiler"]
+    if not isinstance(compiler, dict) or set(compiler) != {"path", "invoked_path", "bytes", "sha256"}:
+        raise CaptureError("identity assembly requires exact physical/invoked compiler pins")
+    _identity_pin(compiler)
+    if not isinstance(compiler["invoked_path"], str) or not Path(compiler["invoked_path"]).is_absolute():
+        raise CaptureError("identity assembly compiler invocation must be absolute")
+    sources, seen = value["source_files"], set()
+    if not isinstance(sources, list) or not sources:
+        raise CaptureError("identity assembly requires immutable original .s file pins")
+    for source in sources:
+        if not isinstance(source, dict) or set(source) != {"path", "bytes", "sha256"}:
+            raise CaptureError("invalid original .s pin")
+        path = source["path"]
+        if (not isinstance(path, str) or not path or "\0" in path or Path(path).is_absolute()
+                or any(part in {".", "..", ""} for part in path.split("/"))
+                or Path(path).as_posix() != path or Path(path).suffix != ".s" or path in seen
+                or type(source["bytes"]) is not int or source["bytes"] <= 0
+                or not isinstance(source["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", source["sha256"])):
+            raise CaptureError("original .s pins must be unique relative files with exact bytes/hash")
+        seen.add(path)
+    return value
+
+
+def _identity_pin(record):
+    if (not isinstance(record, dict) or not isinstance(record.get("path"), str)
+            or "\0" in record["path"] or not Path(record["path"]).is_absolute()
+            or type(record.get("bytes")) is not int or record["bytes"] <= 0
+            or not isinstance(record.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", record["sha256"])):
+        raise CaptureError("invalid identity assembly consumed-file pin")
+    return {key: record[key] for key in ("path", "bytes", "sha256")}
+
+
+def _identity_consumed(record):
+    """Return the SAME bytes hashed and decoded under one held regular-file FD."""
+    expected = _identity_pin(record)
+    path = Path(expected["path"])
+    if str(path.resolve()) != str(path):
+        raise CaptureError("identity assembly input is a path alias")
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            raise CaptureError("identity assembly requires a single-link regular input")
+        native, chunks = _assembly_capture_identity(before), []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        raw = b"".join(chunks)
+        if ({"path": str(path), "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()} != expected
+                or _assembly_capture_identity(os.fstat(descriptor)) != native
+                or _assembly_capture_identity(os.lstat(path)) != native):
+            raise CaptureError("identity assembly consumed bytes/native identity differ or changed")
+        return raw, native
+    finally:
+        os.close(descriptor)
+
+
+def _identity_source(raw):
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise CaptureError("identity assembly source is not UTF-8") from error
+    if "\x00" in text:
+        raise CaptureError("identity assembly source contains NUL")
+    statements, current = [], []
+    index, quoted, block = 0, False, False
+    while index < len(text):
+        value = text[index]
+        if block:
+            if text.startswith("*/", index):
+                block = False
+                current.append(" ")
+                index += 2
+            else:
+                index += 1
+            continue
+        if quoted:
+            current.append(value)
+            if value == "\\":
+                if index + 1 >= len(text):
+                    raise CaptureError("identity assembly has unfinished string escape")
+                current.append(text[index + 1])
+                index += 2
+                continue
+            if value == '"':
+                quoted = False
+            index += 1
+            continue
+        if text.startswith("/*", index):
+            block = True
+            index += 2
+            continue
+        if value == "#":
+            while index < len(text) and text[index] != "\n":
+                index += 1
+            continue
+        if value == '"':
+            quoted = True
+            current.append(value)
+        elif value == "\\":
+            raise CaptureError("identity assembly has unsupported outside-string escape")
+        elif value in ";\n":
+            statements.append("".join(current).strip())
+            current = []
+        else:
+            current.append(value)
+        index += 1
+    if quoted or block:
+        raise CaptureError("identity assembly has unfinished string/comment")
+    statements.append("".join(current).strip())
+
+    def label_end(statement):
+        if not statement.startswith('"'):
+            match = re.match(r"(?:[A-Za-z_.$][A-Za-z0-9_.$]*|[0-9]+\$?)\s*:", statement)
+            return None if match is None else match.end()
+        offset = 1
+        while offset < len(statement):
+            if statement[offset] == "\\":
+                offset += 2
+                continue
+            if statement[offset] == '"':
+                offset += 1
+                while offset < len(statement) and statement[offset].isspace():
+                    offset += 1
+                return offset + 1 if offset < len(statement) and statement[offset] == ":" else None
+            offset += 1
+        raise CaptureError("identity assembly has unfinished quoted label")
+
+    forbidden = {"include", "incbin", "macro", "endm", "rept", "irp", "irpc", "endr",
+                 "altmacro", "noaltmacro", "else", "elseif", "endif"}
+    for statement in statements:
+        while statement:
+            end = label_end(statement)
+            if end is None:
+                break
+            statement = statement[end:].lstrip()
+        directive = re.match(r"\.([A-Za-z_][A-Za-z0-9_]*)\b", statement)
+        if directive is not None:
+            name = directive.group(1).lower()
+            if name in forbidden or name.startswith("if"):
+                raise CaptureError("identity assembly has unsupported source dependency/generation directive: ." + name)
+
+
+def _identity_elf(raw, profile):
+    """ELF envelope only; original object semantics/ABI remain separate."""
+    if len(raw) < 64 or raw[:7] != b"\x7fELF\x02\x01\x01" or raw[7] not in {0, 3} or raw[8] != 0:
+        raise CaptureError("identity assembly requires ELF64 little-endian output")
+    def number(offset, width):
+        if offset < 0 or width > len(raw) - offset:
+            raise CaptureError("ELF field outside consumed bytes")
+        return int.from_bytes(raw[offset:offset + width], "little")
+    if number(16, 2) != 1 or number(18, 2) != 243 or number(20, 4) != 1 or number(52, 2) != 64:
+        raise CaptureError("identity assembly requires ELF64 RV64 ET_REL headers")
+    flags = number(48, 4)
+    if flags != profile["elf_flags"]:
+        raise CaptureError("original object flags differ from held target/float profile")
+    if number(32, 8) or number(54, 2) or number(56, 2):
+        raise CaptureError("ET_REL program headers are unsupported")
+    offset, size, count, names = number(40, 8), number(58, 2), number(60, 2), number(62, 2)
+    if size != 64 or not count or not 0 < names < count or offset < 64 or offset > len(raw) or count > (len(raw) - offset) // size:
+        raise CaptureError("ELF section table absent/extended/out of bounds")
+    sections = []
+    for index in range(count):
+        base = offset + index * size
+        row = {"name": number(base, 4), "type": number(base + 4, 4), "offset": number(base + 24, 8),
+               "bytes": number(base + 32, 8), "link": number(base + 40, 4), "align": number(base + 48, 8)}
+        if row["type"] != 8 and (row["offset"] > len(raw) or row["bytes"] > len(raw) - row["offset"]):
+            raise CaptureError("ELF section outside consumed object")
+        if row["link"] >= count or row["align"] and row["align"] & (row["align"] - 1):
+            raise CaptureError("ELF section link/alignment invalid")
+        sections.append(row)
+    names_row = sections[names]
+    if names_row["type"] != 3 or not names_row["bytes"]:
+        raise CaptureError("ELF section-name table invalid")
+    table = raw[names_row["offset"]:names_row["offset"] + names_row["bytes"]]
+    if table[0] != 0 or any(row["name"] >= len(table) or b"\0" not in table[row["name"]:] for row in sections):
+        raise CaptureError("ELF section name outside consumed table")
+    return {"format": "elf64-le-rel-rv64-envelope-v1", "machine": 243, "flags": flags,
+            "section_count": count, "object_semantics_verified": False}
+
+
+def _identity_command(args, cwd, inputs, profile):
+    modes, outputs = _assembly_capture_object_options(args)
+    if modes != {"-c"} or len(inputs) != 1 or inputs[0].suffix != ".s":
+        raise CaptureError("identity assembly requires one original lower-case .s object compile")
+    language, positional, targets, arches, abis = None, [], [], [], []
+    index, after_separator, no_default_config = 0, False, False
+    forbidden = {"-Xclang", "-Xpreprocessor", "-Xlinker", "-mllvm", "-B", "-resource-dir",
+                 "-gcc-toolchain", "--gcc-toolchain", "--gcc-install-dir", "-m32", "-m64",
+                 "-msoft-float", "-mhard-float", "-include", "-imacros", "-include-pch", "-include-pth",
+                 "--config", "--config-user-dir", "--config-system-dir", "-fno-integrated-as",
+                 "-no-integrated-as", "-cc1", "-cc1as", "-save-temps", "-MF", "-MJ",
+                 "-dependency-file", "-serialize-diagnostics", "-mcpu", "-mtune"}
+    while index < len(args):
+        value = args[index]
+        if value == "--" and not after_separator:
+            after_separator = True
+            index += 1
+            continue
+        if not after_separator:
+            if (value in forbidden or (value.startswith("-B") and len(value) > 2)
+                    or any(value.startswith(option + "=") for option in forbidden)):
+                raise CaptureError("identity assembly driver/preprocessor/ABI/secondary-output overrides are unsupported")
+            if value.startswith("@"):
+                raise CaptureError("identity assembly does not admit response-file reopening")
+            if value == "--no-default-config":
+                no_default_config = True
+            if value == "-x":
+                if index + 1 >= len(args):
+                    raise CaptureError("missing effective language operand")
+                language = None if args[index + 1] == "none" else args[index + 1]
+                index += 2
+                continue
+            if value.startswith("-x") and len(value) > 2:
+                language = None if value[2:] == "none" else value[2:]
+                index += 1
+                continue
+            if value in {"-target", "--target"}:
+                if index + 1 >= len(args):
+                    raise CaptureError("missing explicit target operand")
+                targets.append(args[index + 1])
+                index += 2
+                continue
+            if value.startswith(("--target=", "-target=")):
+                targets.append(value.split("=", 1)[1])
+            elif value.startswith("-march="):
+                arches.append(value.split("=", 1)[1])
+            elif value.startswith("-mabi="):
+                abis.append(value.split("=", 1)[1])
+            elif value in PAIR_OPTIONS:
+                if index + 1 >= len(args):
+                    raise CaptureError("missing paired original-driver operand: " + value)
+                index += 2
+                continue
+            elif not value.startswith("-"):
+                path = Path(value)
+                path = Path(os.path.abspath(path if path.is_absolute() else cwd / path))
+                effective = language or ("assembler" if path.suffix == ".s" else "assembler-with-cpp" if path.suffix == ".S" else None)
+                positional.append((path, effective))
+        else:
+            path = Path(value)
+            path = Path(os.path.abspath(path if path.is_absolute() else cwd / path))
+            effective = language or ("assembler" if path.suffix == ".s" else "assembler-with-cpp" if path.suffix == ".S" else None)
+            positional.append((path, effective))
+        index += 1
+    if (len(positional) != 1 or positional[0][0] != inputs[0]
+            or str(positional[0][0].resolve()) != str(positional[0][0]) or positional[0][1] != "assembler"):
+        raise CaptureError("actual original effective input is not identity-mapped assembler-only .s")
+    if (not targets or targets[-1] != profile["target_triple"] or not arches or arches[-1] != profile["march"]
+            or not abis or abis[-1] != profile["mabi"]):
+        raise CaptureError("actual original target/march/mabi differ from held profile")
+    if not no_default_config:
+        raise CaptureError("identity assembly requires explicit --no-default-config")
+    if outputs:
+        if len(outputs) != 1 or outputs[0][1] == "-":
+            raise CaptureError("identity assembly original output is ambiguous")
+        output = Path(os.path.abspath(cwd / outputs[0][1]))
+    else:
+        output = Path(os.path.abspath(cwd / (inputs[0].stem + ".o")))
+    return {"source_path": str(inputs[0]), "output_path": str(output), "effective_language": "assembler",
+            "target_triple": targets[-1], "march": arches[-1], "mabi": abis[-1]}
+
+
+def _identity_before(session, event, args, inputs, cwd, environment):
+    policy = identity_assembly_policy(session["recipe"])
+    if policy is None or not any(path.suffix in ASM_SUFFIXES for path in inputs):
+        return None
+    record = {"schema": "ocore-identity-assembly-action-observation-v1",
+              "policy_sha256": hashlib.sha256(json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+              "selection": None, "compiler_guard": {}, "execution": {}, "issues": [],
+              "driver_override_names": sorted(name for name in environment if name.startswith(("CCC_", "CLANG_CONFIG_"))),
+              "source_consumption_proven": False, "producer_attribution_proven": False,
+              "target_abi_profile_admitted": False, "admission": False}
+    context = {"record": record, "compiler_fd": None, "compiler_native": None, "policy": policy}
+    event["clang_identity_assembly_capture"] = record
+    try:
+        record["selection"] = _identity_command(args, cwd, inputs, policy)
+        if record["driver_override_names"]:
+            raise CaptureError("identity assembly refuses actual passed driver/config override variables")
+        compiler = policy["compiler"]
+        if (event.get("compiler") != compiler["invoked_path"] or not isinstance(event.get("frontend"), dict)
+                or event["frontend"].get("invoked_path") != compiler["invoked_path"]
+                or _identity_pin(event["frontend"]) != _identity_pin(compiler)
+                or str(Path(compiler["invoked_path"]).resolve()) != compiler["path"]):
+            raise CaptureError("actual original compiler differs from held invocation/image pin")
+        _, native = _identity_consumed(compiler)
+        descriptor = os.open(compiler["path"], os.O_RDONLY | os.O_NOFOLLOW)
+        context["compiler_fd"] = descriptor
+        context["compiler_native"] = _assembly_capture_identity(os.fstat(descriptor))
+        if context["compiler_native"] != native or _assembly_capture_hash_fd(descriptor) != (compiler["bytes"], compiler["sha256"]):
+            raise CaptureError("compiler changed before its held execution interval")
+        record["compiler_guard"]["before"] = {"pin": _identity_pin(compiler), "native": native}
+    except (CaptureError, OSError, KeyError, TypeError, ValueError) as error:
+        record["issues"].append("before original action: " + str(error))
+    return context
+
+
+def _identity_run(context, argv, environment, stdin_bytes):
+    record, execution = context["record"], context["record"]["execution"]
+    execution.update(attempt_entered=True, completion_known=False, reaped=False, pid=None, image=None,
+                     dispatch_state="constructor_entered_no_handle_unknown")
+    try:
+        child = subprocess.Popen(argv, env=environment, stdin=subprocess.PIPE if stdin_bytes is not None else None)
+    except BaseException:
+        # Constructor entry can already have had effects. No not-dispatched claim.
+        raise
+    execution["pid"] = child.pid
+    execution["dispatch_state"] = "child_handle_returned_completion_unknown"
+    try:
+        descriptor = os.open(f"/proc/{child.pid}/exe", os.O_RDONLY)
+        try:
+            native = _assembly_capture_identity(os.fstat(descriptor))
+            observed = _assembly_capture_hash_fd(descriptor)
+            compiler = context["policy"]["compiler"]
+            if (native != context["compiler_native"] or observed != (compiler["bytes"], compiler["sha256"])
+                    or _assembly_capture_identity(os.fstat(descriptor)) != native):
+                raise CaptureError("genuine launched image differs from held compiler")
+            execution["image"] = {"pin": _identity_pin(compiler), "native": native,
+                                  "observation": "held-proc-exe-before-original-child-wait"}
+        finally:
+            os.close(descriptor)
+    except (CaptureError, OSError, KeyError, TypeError, ValueError) as error:
+        record["issues"].append("actual launched image unavailable/different: " + str(error))
+    try:
+        child.communicate(input=stdin_bytes)
+    except BaseException:
+        execution["dispatch_state"] = "child_handle_returned_completion_unknown"
+        raise
+    execution.update(completion_known=True, reaped=True, exit_code=child.returncode,
+                     dispatch_state="known_reaped")
+    return child.returncode
+
+
+def _identity_after(context, native_status):
+    if context is None:
+        return
+    record, descriptor = context["record"], context["compiler_fd"]
+    guard = record["compiler_guard"]
+    try:
+        if descriptor is None:
+            raise CaptureError("original compiler held descriptor unavailable")
+        expected, compiler = context["compiler_native"], context["policy"]["compiler"]
+        if (_assembly_capture_identity(os.fstat(descriptor)) != expected
+                or _assembly_capture_identity(os.lstat(compiler["path"])) != expected
+                or _assembly_capture_hash_fd(descriptor) != (compiler["bytes"], compiler["sha256"])
+                or _assembly_capture_identity(os.fstat(descriptor)) != expected):
+            raise CaptureError("held original compiler changed across native action")
+        guard["after"] = {"pin": _identity_pin(compiler), "native": expected}
+    except (CaptureError, OSError, KeyError, TypeError, ValueError) as error:
+        record["issues"].append("after original action: " + str(error))
+    finally:
+        context["compiler_fd"], guard["close_known"] = None, False
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+                guard["close_known"] = True
+            except OSError as error:
+                record["issues"].append("compiler close failed: " + str(error))
+        record["native_status_known"] = type(native_status) is int
+        record["native_exit_code"] = native_status
+
+
+def _identity_record_equal(actual, expected):
+    """Compare saved JSON records without Python bool/int/float coercion."""
+    if type(actual) is not type(expected):
+        return False
+    try:
+        return json.dumps(actual, sort_keys=True, separators=(",", ":"), allow_nan=False) == json.dumps(
+            expected, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    except (TypeError, ValueError):
+        return False
+
+
+def is_identity_assembly_unit(unit):
+    return isinstance(unit, dict) and (unit.get("representation") == "configured-assembly" or "configured_assembly" in unit)
+
+
+def captured_producer_unit(unit):
+    return isinstance(unit, dict) and ("ir" in unit or "representation" in unit or "configured_assembly" in unit
+                                     or unit.get("capture_policy") == IDENTITY_ASSEMBLY_POLICY)
+
+
+def captured_unit_target(unit):
+    payload = unit.get("configured_assembly" if is_identity_assembly_unit(unit) else "ir", {})
+    return payload.get("target_triple") if isinstance(payload, dict) else None
+
+
+def capture_report_schema(recipe):
+    return MIXED_REPORT_SCHEMA if recipe.get("toolchain", {}).get("clang_assembly_capture") is not None else REPORT_SCHEMA
+
+
+
+def _identity_original_terminal(event):
+    """Require original child and raw terminal agreement without reading files."""
+    observation = event.get("clang_identity_assembly_capture")
+    execution = observation.get("execution") if isinstance(observation, dict) else None
+    records = event.get("assembly_capture_only")
+    raw = records[0] if isinstance(records, list) and len(records) == 1 and isinstance(records[0], dict) else None
+    if (not isinstance(observation, dict)
+            or observation.get("schema") != "ocore-identity-assembly-action-observation-v1"
+            or not isinstance(execution, dict)
+            or execution.get("attempt_entered") is not True
+            or execution.get("completion_known") is not True
+            or execution.get("reaped") is not True
+            or execution.get("dispatch_state") != "known_reaped"
+            or type(execution.get("pid")) is not int or execution["pid"] <= 0
+            or type(execution.get("exit_code")) is not int
+            or observation.get("native_status_known") is not True
+            or type(observation.get("native_exit_code")) is not int
+            or type(event.get("exit_code")) is not int
+            or not isinstance(raw, dict)
+            or raw.get("schema") != "ocore-original-assembly-action-capture-only-v1"
+            or raw.get("original_event_id") != event.get("id")
+            or raw.get("original_action_terminal_known") is not True
+            or type(raw.get("native_exit_code")) is not int):
+        raise CaptureError("identity assembly original terminal is UNKNOWN")
+    code = execution["exit_code"]
+    if (observation["native_exit_code"] != code or event["exit_code"] != code
+            or raw["native_exit_code"] != code):
+        raise CaptureError("identity assembly original terminal observations differ; terminal is UNKNOWN")
+    if code != 0:
+        raise CaptureError("identity assembly original action failed with known exit " + str(code))
+
+
+def _identity_required_delivery_refusal(event, source, index):
+    """A recorded missing delivery may only refuse; it never authorizes input."""
+    rows = event.get("identity_assembly_delivery_refusals", [])
+    if type(rows) is not list:
+        raise CaptureError("identity assembly delivery refusal inventory is malformed")
+    seen = set()
+    sources = event.get("sources")
+    records = event.get("assembly_capture_only")
+    for row in rows:
+        if (type(row) is not dict or set(row) != {"id", "source_path", "reason"}
+                or type(row.get("id")) is not str or type(row.get("source_path")) is not str
+                or row.get("reason") != "identity assembly ordinary required unit delivery was incomplete"
+                or row["id"] in seen):
+            raise CaptureError("identity assembly delivery refusal inventory is malformed or duplicate")
+        seen.add(row["id"])
+        prefix = str(event.get("id")) + ":"
+        suffix = row["id"][len(prefix):] if row["id"].startswith(prefix) else ""
+        if (not suffix.isdecimal() or str(int(suffix)) != suffix or not isinstance(sources, list)
+                or int(suffix) >= len(sources) or not isinstance(sources[int(suffix)], dict)
+                or sources[int(suffix)].get("path") != row["source_path"]
+                or Path(row["source_path"]).suffix not in ASM_SUFFIXES):
+            raise CaptureError("identity assembly delivery refusal source membership differs")
+        bound = [entry for raw in records if isinstance(raw, dict)
+                 and raw.get("schema") == "ocore-original-assembly-action-capture-only-v1"
+                 and raw.get("original_event_id") == event.get("id")
+                 and isinstance(raw.get("original_object_selection"), dict)
+                 and raw["original_object_selection"].get("required") is True
+                 and isinstance(raw.get("sources"), list)
+                 for entry in raw["sources"] if isinstance(entry, dict)
+                 and entry.get("source_path") == row["source_path"]
+                 and entry.get("suffix") == Path(row["source_path"]).suffix]
+        if not bound:
+            raise CaptureError("identity assembly delivery refusal lacks raw required source membership")
+        if row["id"] == str(event.get("id")) + ":" + str(index):
+            if row["source_path"] != str(source):
+                raise CaptureError("identity assembly delivery refusal source differs")
+            raise CaptureError(row["reason"])
+
+
+def retain_identity_assembly_refusal_units(event, session, directory):
+    """Retain missing required assembly rows from original raw membership only."""
+    if (event.get("kind") != "clang"
+            or session.get("recipe", {}).get("toolchain", {}).get("clang_assembly_capture") is None):
+        return
+    records = event.get("assembly_capture_only", [])
+    sources, units = event.get("sources"), event.get("units")
+    if not isinstance(records, list) or not isinstance(sources, list) or not isinstance(units, list):
+        raise CaptureError("identity assembly required refusal inputs are malformed")
+    required = []
+    for raw in records:
+        if (not isinstance(raw, dict)
+                or raw.get("schema") != "ocore-original-assembly-action-capture-only-v1"
+                or raw.get("original_event_id") != event.get("id")):
+            event["capture_errors"].append("identity assembly raw required action membership differs")
+            continue
+        selection = raw.get("original_object_selection")
+        if not isinstance(selection, dict) or type(selection.get("required")) is not bool:
+            event["capture_errors"].append("identity assembly raw required selection is malformed")
+            continue
+        if selection["required"] is not True:
+            continue
+        raw_sources = raw.get("sources")
+        if not isinstance(raw_sources, list):
+            event["capture_errors"].append("identity assembly raw required source inventory is malformed")
+            continue
+        for row in raw_sources:
+            if (not isinstance(row, dict) or type(row.get("source_path")) is not str
+                    or row.get("suffix") not in ASM_SUFFIXES
+                    or Path(row["source_path"]).suffix != row["suffix"]):
+                event["capture_errors"].append("identity assembly raw required source row is malformed")
+                continue
+            path = row["source_path"]
+            if not any(isinstance(member, dict) and member.get("path") == path for member in sources):
+                event["capture_errors"].append("identity assembly raw required source is absent from original source membership: " + path)
+                continue
+            required.append(path)
+    if not required:
+        return
+    for index, source_record in enumerate(sources):
+        if not isinstance(source_record, dict) or type(source_record.get("path")) is not str:
+            event["capture_errors"].append("identity assembly original source membership is malformed")
+            continue
+        path = source_record["path"]
+        count = required.count(path)
+        if not count:
+            continue
+        if count != 1 or sum(isinstance(row, dict) and row.get("path") == path for row in sources) != 1:
+            event["capture_errors"].append("identity assembly raw/original required source occurrence is ambiguous: " + path)
+        identity = str(event.get("id")) + ":" + str(index)
+        existing = [row for row in units if isinstance(row, dict) and row.get("id") == identity]
+        if existing:
+            if len(existing) != 1 or not is_identity_assembly_unit(existing[0]):
+                event["capture_errors"].append("identity assembly duplicate or non-assembly required unit identity: " + identity)
+            continue
+        refusals = event.setdefault("identity_assembly_delivery_refusals", [])
+        if type(refusals) is not list or any(isinstance(row, dict) and row.get("id") == identity for row in refusals):
+            raise CaptureError("identity assembly required delivery refusal inventory is malformed or duplicate")
+        refusals.append({"id": identity, "source_path": path,
+                         "reason": "identity assembly ordinary required unit delivery was incomplete"})
+        item = reconstruct_identity_assembly_unit(event, session, directory, Path(path), index, require_finished=False)
+        if item["configured_assembly"]["capture_complete"] is not False:
+            raise CaptureError("identity assembly missing ordinary delivery unexpectedly became complete")
+        units.append(item)
+        event["capture_errors"].extend("identity assembly " + item["id"] + ": " + reason
+                                       for reason in item["configured_assembly"]["issues"])
+
+
+def reconstruct_identity_assembly_unit(event, session, directory, source, index, require_finished=True):
+    source = Path(source)
+    payload = {"schema": "ocore-identity-assembly-capture-v1", "format": IDENTITY_ASSEMBLY_FORMAT,
+               "policy_sha256": None, "target_triple": None, "profile": None, "configured": None,
+               "original_object": None, "native_output": None, "original_whole_output": None, "elf": None,
+               "capture_complete": False, "issues": [], "source_consumption_proven": False,
+               "producer_attribution_proven": False, "target_abi_profile_admitted": False,
+               "import_available": False, "admission": False, "runtime_complete": False}
+    unit = {"id": f"{event.get('id', 'invalid')}:{index}", "source": {"path": str(source)},
+            "kind": "clang", "producer": "clang-llvm-v1", "representation": "configured-assembly",
+            "capture_policy": IDENTITY_ASSEMBLY_POLICY, "configured_assembly": payload}
+    def need(condition, message):
+        if not condition:
+            raise CaptureError(message)
+    try:
+        source_members = event.get("sources")
+        if (type(index) is int and isinstance(source_members, list)
+                and 0 <= index < len(source_members) and isinstance(source_members[index], dict)):
+            unit["source"] = source_members[index]
+        _identity_original_terminal(event)
+        _identity_required_delivery_refusal(event, source, index)
+        policy = identity_assembly_policy(session["recipe"])
+        need(policy is not None, "identity assembly lacks its selected original policy")
+        profile = {key: policy[key] for key in ("target_triple", "march", "mabi", "elf_flags")}
+        policy_hash = hashlib.sha256(json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        payload.update(policy_sha256=policy_hash, target_triple=profile["target_triple"], profile=profile)
+        need(event.get("kind") == "clang" and event.get("producer") == "clang-llvm-v1",
+             "identity assembly original producer differs")
+        need(type(index) is int and index == 0 and len(event["sources"]) == 1,
+             "identity assembly requires the complete one-source original invocation")
+        source_record = event["sources"][index]
+        source_pin = _identity_pin(source_record)
+        unit["source"] = source_record
+        need(source_pin["path"] == str(source), "identity assembly original source member differs")
+        need(type(event.get("exit_code")) is int and event["exit_code"] == 0
+             and event.get("translation_required") is True, "identity assembly original action did not succeed")
+        need(not require_finished or event.get("state") == "finished", "identity assembly original action is unfinished")
+        cwd = Path(event["cwd"])
+        root, build = Path(session["source"]["path"]), Path(session["build"])
+        need(all(path.is_absolute() and path.resolve() == path for path in (cwd, root, build, source)),
+             "identity assembly source/build/cwd is not an exact physical absolute path")
+        args = event["argv"]
+        need(isinstance(args, list) and all(isinstance(value, str) for value in args), "identity assembly argv is malformed")
+        # The native driver reopens response files. This profile does not claim
+        # a held interval for them or substitute an expanded invocation.
+        need(not any(value.startswith("@") for value in args) and event.get("response_files") == []
+             and event.get("expanded_argv") == args, "identity assembly response-file/default expansion is unsupported")
+        inputs = clang_inputs(args, cwd)
+        selection = _identity_command(args, cwd, inputs, policy)
+        need(inputs == [source] and selection["source_path"] == str(source),
+             "identity assembly effective original input differs")
+        relative_source_path = source.relative_to(root).as_posix()
+        held = [row for row in policy["source_files"] if row["path"] == relative_source_path]
+        need(len(held) == 1, "identity assembly source is absent from its held original source selection")
+        expected_source = {"path": str(source), "bytes": held[0]["bytes"], "sha256": held[0]["sha256"]}
+        need(source_pin == expected_source, "identity assembly original source pin differs")
+        source_raw, source_native = _identity_consumed(expected_source)
+        _identity_source(source_raw)
+        observation = event["clang_identity_assembly_capture"]
+        need(observation.get("schema") == "ocore-identity-assembly-action-observation-v1"
+             and observation.get("policy_sha256") == policy_hash and _identity_record_equal(observation.get("selection"), selection)
+             and observation.get("issues") == [] and observation.get("driver_override_names") == []
+             and observation.get("native_status_known") is True
+             and type(observation.get("native_exit_code")) is int and observation["native_exit_code"] == 0,
+             "identity assembly action/image/profile observation is incomplete")
+        compiler = policy["compiler"]
+        compiler_pin = _identity_pin(compiler)
+        need(event.get("compiler") == compiler["invoked_path"]
+             and event["frontend"].get("invoked_path") == compiler["invoked_path"]
+             and _identity_pin(event["frontend"]) == compiler_pin
+             and str(Path(compiler["invoked_path"]).resolve()) == compiler["path"],
+             "identity assembly actual original compiler differs")
+        _, compiler_native = _identity_consumed(compiler)
+        guard = observation["compiler_guard"]
+        expected_guard = {"pin": compiler_pin, "native": compiler_native}
+        need(_identity_record_equal(guard.get("before"), expected_guard) and _identity_record_equal(guard.get("after"), expected_guard)
+             and guard.get("close_known") is True, "identity assembly original compiler custody is incomplete")
+        execution = observation["execution"]
+        need(execution.get("attempt_entered") is True and execution.get("completion_known") is True
+             and execution.get("reaped") is True and execution.get("dispatch_state") == "known_reaped"
+             and type(execution.get("pid")) is int and execution["pid"] > 0
+             and type(execution.get("exit_code")) is int and execution["exit_code"] == 0
+             and _identity_record_equal(execution.get("image"), {"pin": compiler_pin, "native": compiler_native,
+                    "observation": "held-proc-exe-before-original-child-wait"}),
+             "identity assembly actual launched image/terminal is incomplete")
+        records = event["assembly_capture_only"]
+        need(isinstance(records, list) and len(records) == 1, "identity assembly raw original action is not unique")
+        raw = records[0]
+        need(raw.get("schema") == "ocore-original-assembly-action-capture-only-v1"
+             and raw.get("original_event_id") == event["id"] and raw.get("original_argv") == args
+             and raw.get("expanded_argv") == args and raw.get("cwd") == str(cwd)
+             and raw.get("response_files") == [] and raw.get("compiler") == event["compiler"]
+             and raw.get("frontend") == event["frontend"] and raw.get("problems") == []
+             and raw.get("retention_passed") is True and raw.get("original_object_bytes_retained") is True
+             and raw.get("original_action_terminal_known") is True and type(raw.get("native_exit_code")) is int
+             and raw["native_exit_code"] == 0 and raw.get("capture_complete") is False and raw.get("admission") is False,
+             "identity assembly raw original-action retention differs or failed")
+        need(len(raw["sources"]) == 1 and len(raw["original_object_outputs"]) == 1,
+             "identity assembly required original source/output membership differs")
+        source_row, output_row = raw["sources"][0], raw["original_object_outputs"][0]
+        need(source_row["source_path"] == str(source) and source_row["suffix"] == ".s"
+             and _identity_record_equal(source_row["stage_candidate"], {"selection": "plain-assembly-source-bytes-only",
+                 "configured_stage_output_proven": False, "include_incbin_closure_complete": False}),
+             "identity assembly raw source/stage is not the original plain .s")
+        object_options = _assembly_capture_object_options(args)[1]
+        naming = "separate-explicit-output-v1" if object_options else "per-source-default-object-v1"
+        output_path = Path(selection["output_path"])
+        relative_output_path = output_path.relative_to(build).as_posix()
+        need(output_row["path"] == str(output_path) and output_row.get("before_identity") is None
+             and output_row.get("eligible") is True and output_row.get("fresh_named_file_after_original_action") is True
+             and _identity_record_equal(output_row.get("selector"), {"schema": "ocore-original-assembly-object-selector-v1",
+                 "original_event_id": event["id"], "source_path": str(source), "output_path": str(output_path),
+                 "naming_profile": naming, "explicit_output_argv_index": object_options[0][0] if object_options else None}),
+             "identity assembly original output selector/freshness differs")
+        selected = raw["original_object_selection"]
+        need(selected.get("required") is True and selected.get("profile") == naming
+             and type(selected.get("selected_count")) is int and selected["selected_count"] == 1
+             and selected.get("selection_complete") is True, "identity assembly original whole output selection is incomplete")
+        source_copy, object_copy = source_row["source_retention"], output_row["retained"]
+        need(source_copy["source_path"] == str(source)
+             and type(source_copy["bytes"]) is int and source_copy["bytes"] == expected_source["bytes"] and source_copy["sha256"] == expected_source["sha256"]
+             and _identity_record_equal(source_copy["identity"], source_native), "identity assembly original source retained identity differs")
+        configured_pin, object_pin = _identity_pin(source_copy["retained"]), _identity_pin(object_copy["retained"])
+        configured_path, object_path = Path(configured_pin["path"]), Path(object_pin["path"])
+        retention_directory = configured_path.parent
+        need(retention_directory.parent == Path(directory) / "assembly-capture-only"
+             and re.fullmatch(r"[0-9a-f]{32}", retention_directory.name) is not None
+             and object_path.parent == retention_directory and configured_path.name == "source-000000.s"
+             and object_path.name == "object-000000.native", "identity assembly retained namespace membership differs")
+        configured_raw, configured_native = _identity_consumed(configured_pin)
+        object_raw, object_native = _identity_consumed(object_pin)
+        need(configured_raw == source_raw and _identity_record_equal(configured_native, source_copy["retained"]["identity"])
+             and _identity_record_equal(object_native, object_copy["retained"]["identity"]),
+             "identity assembly consumed retained bytes/native identities differ")
+        native_pin = {"path": str(output_path), "bytes": len(object_raw), "sha256": hashlib.sha256(object_raw).hexdigest()}
+        native_raw, native_identity = _identity_consumed(native_pin)
+        need(native_raw == object_raw and object_copy["source_path"] == str(output_path)
+             and type(object_copy["bytes"]) is int and object_copy["bytes"] == len(object_raw) and object_copy["sha256"] == native_pin["sha256"]
+             and _identity_record_equal(object_copy["identity"], native_identity), "identity assembly actual original object retained identity differs")
+        outputs = event["outputs"]
+        need(isinstance(outputs, list) and [_identity_pin(row) for row in outputs] == [native_pin],
+             "identity assembly complete original native output membership differs")
+        expected_files = {str(source): "original-source", str(configured_path): "retained-original-source",
+                          str(output_path): "original-object-output-candidate", str(object_path): "retained-original-object-output-candidate"}
+        custody = raw["custody"]
+        need(len(custody) == len(expected_files) and len({row["path"] for row in custody}) == len(custody)
+             and all(row["path"] in expected_files and row["role"] == expected_files[row["path"]]
+                     and row.get("passed") is True and row.get("full_hash_attempted") is True
+                     and "error" not in row for row in custody), "identity assembly full original/retained file custody differs")
+        expected_closes = set(expected_files) | {str(Path(directory)), str(retention_directory.parent), str(retention_directory)}
+        closes = raw["closes"]
+        need(len(closes) == len(expected_closes) and {row["path"] for row in closes} == expected_closes
+             and all(row.get("known") is True and "error" not in row for row in closes),
+             "identity assembly held file/directory close completion differs")
+        elf = _identity_elf(object_raw, profile)
+        payload.update(configured=configured_pin, original_object=object_pin, native_output=native_pin, elf=elf,
+                       original_whole_output={"source": relative_source_path, "output": relative_output_path,
+                           "naming_profile": naming, "selector_authority_verified": False},
+                       capture_complete=True)
+        unit["dependencies"] = [str(source)]
+    except (CaptureError, OSError, KeyError, TypeError, ValueError, IndexError, AttributeError) as error:
+        payload["issues"].append(str(error))
+    return unit
+
+
+def verify_identity_assembly_unit(event, session, directory, unit):
+    sources = event.get("sources", [])
+    matches = [(index, row) for index, row in enumerate(sources)
+               if unit.get("id") == f"{event.get('id')}:{index}"]
+    if len(matches) != 1:
+        raise CaptureError("identity assembly unit does not have one exact original source member")
+    index, source = matches[0]
+    expected = reconstruct_identity_assembly_unit(event, session, directory, Path(source["path"]), index)
+    if not _identity_record_equal(expected, unit) or expected["configured_assembly"]["capture_complete"] is not True:
+        raise CaptureError("identity assembly independent reconstruction differs or is incomplete")
+    return {"schema": "ocore-identity-assembly-capture-verification-v1", "capture_verified": True,
+            "unit_id": unit["id"], "policy_sha256": expected["configured_assembly"]["policy_sha256"],
+            "source_consumption_proven": False, "producer_attribution_proven": False,
+            "target_abi_profile_admitted": False, "import_available": False, "admission": False, "runtime_complete": False}
+
+
 def compiler(session_path: Path, kind: str, original_args: list[str], *,
              expected_cargo_observer_sha256: str | None = None) -> int:
     session = read_json(session_path / "session.json")
@@ -3062,13 +3807,22 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                 native_environment["OCORE_CAPTURE_LINKER_IDENTITY"] = json.dumps(event["selected_linker"])
                 write_json(event_path, event)
         _assembly_action_capture = _assembly_capture_only_before(session_path, event, args, inputs, cwd, kind, header_compile)
+        _identity_action_capture = (_identity_before(session, event, args, inputs, cwd, native_environment)
+                                    if kind == "clang" else None)
         _assembly_native_status = None
         try:
-            native_code = subprocess.run([program, *executed_args], env=native_environment,
-                                         **({"input": stdin_bytes} if stdin_source is not None else {})).returncode
+            if _identity_action_capture is None:
+                native_code = subprocess.run([program, *executed_args], env=native_environment,
+                                             **({"input": stdin_bytes} if stdin_source is not None else {})).returncode
+            else:
+                native_code = _identity_run(_identity_action_capture,
+                    [program, *executed_args], native_environment, stdin_bytes)
             _assembly_native_status = native_code
         finally:
-            _assembly_capture_only_after(_assembly_action_capture, _assembly_native_status, event)
+            try:
+                _assembly_capture_only_after(_assembly_action_capture, _assembly_native_status, event)
+            finally:
+                _identity_after(_identity_action_capture, _assembly_native_status)
         event["exit_code"] = native_code
         query = any(arg in {"-E", "-M", "-MM", "-fsyntax-only", "--version", "-V", "-vV", "-###"}
                     or arg.startswith(("--print", "-print", "-dump")) for arg in args)
@@ -3125,7 +3879,14 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
                         event["capture_errors"].append("stdin LLVM replay requires an explicit supported C-family language")
                         continue
                     if source.suffix in ASM_SUFFIXES:
-                        event["capture_errors"].append(f"assembly translation unit requires an explicit target-specific importer: {source}")
+                        if session["recipe"].get("toolchain", {}).get("clang_assembly_capture") is None:
+                            event["capture_errors"].append(f"assembly translation unit requires an explicit target-specific importer: {source}")
+                        else:
+                            item = reconstruct_identity_assembly_unit(event, session, session_path,
+                                                                      source, index, require_finished=False)
+                            event["units"].append(item)
+                            event["capture_errors"].extend(f"identity assembly {item['id']}: {reason}"
+                                for reason in item["configured_assembly"]["issues"])
                         continue
                     output, depfile = directory / f"unit-{index}.ll", directory / f"unit-{index}.d"
                     replay = [program, *clang_replay(args, source, inputs, cwd, output, depfile, stdin_source)]
@@ -3163,6 +3924,11 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
         event["exit_code"] = native_code
         event["state"] = "finished"
         event["finished_ns"] = time.time_ns()
+        try:
+            retain_identity_assembly_refusal_units(event, session, session_path)
+        except Exception as error:
+            # Capture accounting must not replace the original child outcome.
+            event["capture_errors"].append("identity assembly required refusal accounting: " + str(error))
         for unit in event["units"]:
             unit["producer"] = producer["id"]
         write_json(event_path, event)
@@ -3198,8 +3964,11 @@ def check_requirements(requirements: list[dict], events: list[dict], source: Pat
                     and any(fnmatch.fnmatchcase(relative_source(item["path"], source), requirement["source"])
                             for item in event.get("sources", []))]
         units = [unit for event in matching for unit in event.get("units", [])
-                 if "ir" in unit and fnmatch.fnmatchcase(relative_source(unit["source"]["path"], source), requirement["source"])
-                 and (not requirement.get("target_triple") or unit["ir"]["target_triple"] == requirement["target_triple"])]
+                 if captured_producer_unit(unit)
+                 and fnmatch.fnmatchcase(relative_source(unit["source"]["path"], source), requirement["source"])
+                 and (not requirement.get("representation") or requirement["representation"] ==
+                      ("configured-assembly" if is_identity_assembly_unit(unit) else "llvm"))
+                 and (not requirement.get("target_triple") or captured_unit_target(unit) == requirement["target_triple"])]
         failures = [event["id"] for event in matching if event.get("exit_code", 1) != 0
                     or event.get("capture_errors") or event.get("state") != "finished"]
         results.append({**requirement, "captured_unit_ids": [unit["id"] for unit in units],
@@ -3787,7 +4556,7 @@ def partition_units(units: list[dict], required: list[dict], inventory: dict | N
                     inventory_info: dict | None, events: list[dict], steps: list[dict],
                     source: Path, recipe_required_count: int = 0, membership: dict | None = None,
                     registry: dict | None = None) -> dict:
-    """Assign every LLVM unit an explicit role, retaining the complete journal.
+    """Assign every represented producer unit a role, retaining all refusals.
 
     Runtime selections come from the complete build inventory and recipe floors.
     Exclusions require an inventory rule and hashed evidence; source names alone
@@ -3802,7 +4571,7 @@ def partition_units(units: list[dict], required: list[dict], inventory: dict | N
     selected_requirements = required[recipe_required_count:] if inventory_info else required
     lowering = {unit_id for item in selected_requirements for unit_id in item["captured_unit_ids"]}
     excluded = {}
-    owners = {unit["id"]: event for event in events for unit in event.get("units", []) if "ir" in unit}
+    owners = {unit["id"]: event for event in events for unit in event.get("units", []) if unit["id"] in known}
     step_evidence = {}
     rule_ids = set()
 
@@ -3886,7 +4655,7 @@ def partition_units(units: list[dict], required: list[dict], inventory: dict | N
         except (CaptureError, OSError, KeyError, TypeError) as error:
             issues.append(f"unit role inventory: {error}")
     for event in events:
-        ids = {unit["id"] for unit in event.get("units", []) if "ir" in unit}
+        ids = {unit["id"] for unit in event.get("units", []) if unit["id"] in known}
         if ids & lowering and ids & set(excluded):
             issues.append(f"frontend invocation has both runtime and non-runtime codegen units: {event['id']}")
     unclassified = sorted(set(known) - lowering - set(excluded))
@@ -3897,7 +4666,8 @@ def partition_units(units: list[dict], required: list[dict], inventory: dict | N
             "unclassified_unit_ids": unclassified, "complete": not issues, "issues": issues}
 
 
-def make_report(directory: Path, persist: bool = True, expected_worker_sha256: str | None = None) -> dict:
+def make_report(directory: Path, persist: bool = True, expected_worker_sha256: str | None = None,
+                unit_observer=None) -> dict:
     session = read_json(directory / "session.json")
     recipe = session["recipe"]
     events = [read_json(path) for path in sorted((directory / "events").glob("*.json"))]
@@ -4019,7 +4789,8 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                 issues.append(f"build log differs from its finalized capture journal artifact: {step['name']}")
         except OSError as error:
             issues.append(f"build log unavailable: {step['name']}: {error}")
-    units = [unit for event in events for unit in event.get("units", []) if "ir" in unit]
+    units = [unit for event in events for unit in event.get("units", [])
+             if capture_report_schema(recipe) == MIXED_REPORT_SCHEMA or "ir" in unit]
     membership = runtime_output_membership(recipe, inventory, events, build)
     rust_context = None
     if worker is not None and registry is not None and any(event.get("kind") == "rustc" for event in events):
@@ -4047,17 +4818,39 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
             item["complete"] = item["complete"] and bool(item["captured_unit_ids"])
             if not item["complete"]:
                 issues.append(f"required unit incomplete: {item['id']} ({item['source']})")
+    unit_owners = {}
+    for event in events:
+        for item in event.get("units", []):
+            unit_owners.setdefault(item["id"], []).append(event)
     for unit in units:
+        checked = False
+        problem = None
         try:
             producer = registered_producer(unit.get("kind"), unit.get("producer"), registry)
+            if is_identity_assembly_unit(unit):
+                owners = unit_owners.get(unit["id"], [])
+                if len(owners) != 1 or "ir" in unit:
+                    raise CaptureError("configured assembly owner/representation is not unique")
+                verify_identity_assembly_unit(owners[0], session, directory, unit)
+                checked = True
+                continue
+            if unit.get("representation") not in {None, "llvm"}:
+                raise CaptureError("unsupported producer representation")
             require_import_format(producer["unit_kind"], unit["ir"].get("format"), registry)
             if unit["ir"]["format"] != producer_policy(producer["unit_kind"], recipe, registry)["format"]:
                 raise CaptureError("captured format differs from the registered producer capture policy")
             actual = ir_info(Path(unit["ir"]["path"]), session["tools"].get("llvm_dis"))
             if actual != unit["ir"]:
-                issues.append(f"LLVM unit bytes or target metadata changed: {unit['id']}")
-        except (CaptureError, OSError, ValueError) as error:
-            issues.append(f"producer unit unavailable: {unit['id']}: {error}")
+                problem = f"LLVM unit bytes or target metadata changed: {unit['id']}"
+                issues.append(problem)
+            else:
+                checked = True
+        except (CaptureError, OSError, ValueError, KeyError, TypeError, IndexError) as error:
+            problem = f"producer unit unavailable: {unit['id']}: {error}"
+            issues.append(problem)
+        finally:
+            if unit_observer is not None:
+                unit_observer(unit, unit_owners.get(unit["id"], []), checked, problem)
     defined, undefined = set(), set()
     dependency_files_by_path = {}
     for event in events:
@@ -4068,7 +4861,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
             dependency_files_by_path[item["path"]] = item
     issues = sorted(set(issues))
     complete = not issues
-    report = {"schema": REPORT_SCHEMA, "name": recipe["name"], "manifest": session["manifest"],
+    report = {"schema": capture_report_schema(recipe), "name": recipe["name"], "manifest": session["manifest"],
               "capture_worker": session.get("capture_worker"),
               "producer_capabilities": registry,
               "source": session["source"], "build": session["build"], "tools": session["tools"],
@@ -4099,6 +4892,449 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     return report
 
 
+
+HELD_MIXED_CONTEXT_SCHEMA = "ocore-held-mixed-capture-context-v1"
+HELD_MIXED_VERIFICATION_SCHEMA = "ocore-runtime-held-mixed-capture-verification-v1"
+_HELD_MIXED_ROLES = ("report", "session", "recipe", "capture_worker",
+                     "producer_registry", "inventory", "member_policy", "original_order_policy")
+
+
+def _mixed_json(raw: bytes, label: str) -> dict:
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise CaptureError(f"{label}: duplicate JSON key {key!r}")
+            result[key] = value
+        return result
+    def constant(value):
+        raise CaptureError(f"{label}: nonfinite JSON value {value}")
+    def finite_float(value):
+        import math
+        number = float(value)
+        if not math.isfinite(number):
+            raise CaptureError(f"{label}: overflowing nonfinite JSON number {value}")
+        return number
+    try:
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=pairs,
+                           parse_constant=constant, parse_float=finite_float)
+    except (UnicodeError, ValueError) as error:
+        raise CaptureError(f"{label}: invalid strict JSON: {error}") from error
+    if type(value) is not dict:
+        raise CaptureError(f"{label}: expected a JSON object")
+    return value
+
+
+def _mixed_pin(value: object, label: str) -> dict:
+    # Syntax/type validation only: refused output paths must never be consumed here.
+    if type(value) is not dict or set(value) != {"path", "bytes", "sha256"}:
+        raise CaptureError(f"{label}: expected exact path/bytes/sha256")
+    if type(value["path"]) is not str or not Path(value["path"]).is_absolute() or os.path.normpath(value["path"]) != value["path"]:
+        raise CaptureError(f"{label}: expected normalized absolute path")
+    if type(value["bytes"]) is not int or value["bytes"] < 0:
+        raise CaptureError(f"{label}: expected exact nonnegative integer byte length")
+    if type(value["sha256"]) is not str or not re.fullmatch(r"[0-9a-f]{64}", value["sha256"]):
+        raise CaptureError(f"{label}: expected SHA-256")
+    return {key: value[key] for key in ("path", "bytes", "sha256")}
+
+
+def _mixed_native(info) -> tuple:
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+            info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+class _MixedHeldInputs:
+    """Immutable buffers/held descriptors for one reconstruction; never a global cache."""
+    def __init__(self):
+        self.files = {}
+        self.directories = {}
+        self.final_checks = []
+
+    @staticmethod
+    def physical(path: Path) -> str:
+        spelling = os.path.abspath(os.fspath(path))
+        if str(Path(spelling).resolve(strict=True)) != spelling:
+            raise CaptureError(f"held mixed input must use its physical path: {path}")
+        return spelling
+
+    def directory(self, path: Path, expected: dict | None = None) -> dict:
+        import stat
+        spelling = self.physical(path)
+        if spelling not in self.directories:
+            descriptor = os.open(spelling, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                info = os.fstat(descriptor)
+                if not stat.S_ISDIR(info.st_mode) or _mixed_native(info) != _mixed_native(os.lstat(spelling)):
+                    raise CaptureError("held mixed directory identity differs")
+                self.directories[spelling] = (descriptor, _mixed_native(info))
+            except BaseException:
+                os.close(descriptor)
+                raise
+        native = self.directories[spelling][1]
+        identity = {"path": spelling, "device": native[0], "inode": native[1]}
+        if expected is not None and not _identity_record_equal(identity, expected):
+            raise CaptureError("held mixed journal differs from caller native identity")
+        return identity
+
+    def take(self, path: Path, expected: dict | None = None) -> tuple[bytes, dict]:
+        import stat
+        spelling = self.physical(path)
+        if expected is not None:
+            expected = _mixed_pin(expected, "held mixed expected file")
+            if expected["path"] != spelling:
+                raise CaptureError("held mixed file path differs from caller pin")
+        if spelling in self.files:
+            _, _, raw, pin = self.files[spelling]
+            if expected is not None and not _identity_record_equal(pin, expected):
+                raise CaptureError("held mixed file has conflicting role pins")
+            return raw, dict(pin)
+        descriptor = os.open(spelling, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or _mixed_native(info) != _mixed_native(os.lstat(spelling)):
+                raise CaptureError("held mixed input is not one stable regular file")
+            chunks = []
+            while True:
+                chunk = os.read(descriptor, 1024 * 1024)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            raw = b"".join(chunks)
+            pin = {"path": spelling, "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+            if len(raw) != info.st_size or (expected is not None and not _identity_record_equal(pin, expected)):
+                raise CaptureError("held mixed bytes differ from caller raw pin")
+            self.files[spelling] = (descriptor, _mixed_native(info), raw, pin)
+            return raw, dict(pin)
+        except BaseException:
+            os.close(descriptor)
+            raise
+
+    def finish(self) -> list[str]:
+        errors = []
+        for check in self.final_checks:
+            try:
+                check()
+            except Exception as error:
+                errors.append(f"held mixed membership postguard: {error}")
+        for spelling, (descriptor, native, _, _) in self.files.items():
+            try:
+                if self.physical(Path(spelling)) != spelling or _mixed_native(os.fstat(descriptor)) != native or _mixed_native(os.lstat(spelling)) != native:
+                    raise CaptureError("file/native identity or contents metadata changed")
+            except Exception as error:
+                errors.append(f"held mixed file postguard {spelling}: {error}")
+        for spelling, (descriptor, native) in self.directories.items():
+            try:
+                if self.physical(Path(spelling)) != spelling or _mixed_native(os.fstat(descriptor)) != native or _mixed_native(os.lstat(spelling)) != native:
+                    raise CaptureError("directory/native identity changed")
+            except Exception as error:
+                errors.append(f"held mixed directory postguard {spelling}: {error}")
+        for descriptor in [row[0] for row in self.files.values()] + [row[0] for row in self.directories.values()]:
+            try:
+                os.close(descriptor)
+            except OSError as error:
+                errors.append(f"held mixed input close failed: {error}")
+        self.files.clear()
+        self.directories.clear()
+        return errors
+
+
+def _mixed_unit_disposition(index: int, unit: dict, owners: list[dict],
+                            checked: bool, problem: str | None) -> dict:
+    configured = is_identity_assembly_unit(unit)
+    representation = "configured-assembly" if configured else (
+        "llvm" if unit.get("representation") in {None, "llvm"} and "ir" in unit else "unsupported")
+    reasons = [] if problem is None else [problem]
+    raw_pin = None
+    input_role = None
+    if checked:
+        payload = unit.get("configured_assembly" if configured else "ir")
+        candidate = payload.get("configured") if configured and isinstance(payload, dict) else payload
+        try:
+            if not isinstance(candidate, dict):
+                raise CaptureError("checked mixed unit lacks its consumed raw input")
+            raw_pin = _mixed_pin({key: candidate[key] for key in ("path", "bytes", "sha256")},
+                                 "checked mixed unit input")
+            input_role = "configured_assembly" if configured else "llvm_ir"
+        except (CaptureError, KeyError, TypeError) as error:
+            checked = False
+            reasons.append(str(error))
+    if not checked and not reasons:
+        reasons.append("producer representation was not checked")
+    return {"index": index, "id": unit.get("id"), "representation": representation,
+            "disposition": "checked" if checked else "refused",
+            "invocation_ids": [owner.get("id") for owner in owners],
+            "kind": unit.get("kind"), "producer": unit.get("producer"),
+            "source": unit.get("source"), "target_triple": captured_unit_target(unit),
+            "input": raw_pin, "input_role": input_role,
+            "input_state": "consumed_and_checked" if checked else "not_checked",
+            "reasons": reasons}
+
+
+def _mixed_protected_paths(*values) -> set[str]:
+    result = set()
+    def visit(value):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key in {"path", "log", "invoked_path", "inventory_path"} and isinstance(child, str) and Path(child).is_absolute():
+                    result.add(os.path.abspath(child))
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+    for value in values:
+        visit(value)
+    return result
+
+
+def _reconstruct_held_mixed_capture(report_path: Path, context_path: Path, *,
+        expected_context_bytes: int, expected_context_sha256: str,
+        expected_worker_sha256: str) -> tuple[dict, set[str], set[str]]:
+    if type(expected_context_bytes) is not int or expected_context_bytes <= 0:
+        raise CaptureError("held mixed expected context length must be a positive integer")
+    if type(expected_context_sha256) is not str or not re.fullmatch(r"[0-9a-f]{64}", expected_context_sha256):
+        raise CaptureError("held mixed external context SHA-256 is required")
+    trusted_worker = worker_digest(expected_worker_sha256)
+    held = _MixedHeldInputs()
+    failure = None
+    result = None
+    protected = set()
+    roots = set()
+    try:
+        context_raw, context_pin = held.take(context_path)
+        if context_pin["bytes"] != expected_context_bytes or context_pin["sha256"] != expected_context_sha256:
+            raise CaptureError("held mixed raw context differs from external selection")
+        context = _mixed_json(context_raw, "held mixed context")
+        if set(context) != {"schema", "journal", *_HELD_MIXED_ROLES} or context["schema"] != HELD_MIXED_CONTEXT_SCHEMA:
+            raise CaptureError("held mixed exact context schema/roles differ")
+        pins = {role: _mixed_pin(context[role], f"held mixed {role}") for role in _HELD_MIXED_ROLES}
+        journal = context["journal"]
+        if type(journal) is not dict or set(journal) != {"path", "device", "inode", "events"}:
+            raise CaptureError("held mixed journal must bind directory and all event pins")
+        if type(journal["path"]) is not str or not Path(journal["path"]).is_absolute():
+            raise CaptureError("held mixed journal path must be absolute")
+        if type(journal["device"]) is not int or journal["device"] < 0 or type(journal["inode"]) is not int or journal["inode"] <= 0 or type(journal["events"]) is not list:
+            raise CaptureError("held mixed journal native identity/event types differ")
+        directory = Path(journal["path"])
+        identity = held.directory(directory, {key: journal[key] for key in ("path", "device", "inode")})
+        event_directory = directory / "events"
+        held.directory(event_directory)
+        event_pins = [_mixed_pin(value, "held mixed raw event") for value in journal["events"]]
+        expected_events = [pin["path"] for pin in event_pins]
+        if len(set(expected_events)) != len(expected_events) or any(
+                Path(path).parent != event_directory or not Path(path).name.endswith(".json")
+                for path in expected_events):
+            raise CaptureError("held mixed event membership is duplicated or outside journal")
+        def event_membership():
+            # Unlike Path.glob, scandir errors must not become an empty journal.
+            with os.scandir(event_directory) as entries:
+                actual = sorted(str(event_directory / entry.name) for entry in entries
+                                if entry.name.endswith(".json"))
+            if actual != expected_events:
+                raise CaptureError("held mixed exact event membership/order differs")
+        event_membership()
+        held.final_checks.append(event_membership)
+        events = [_mixed_json(held.take(Path(pin["path"]), pin)[0], "held mixed event")
+                  for pin in event_pins]
+        if pins["session"]["path"] != str(directory / "session.json"):
+            raise CaptureError("held mixed session is outside selected journal")
+        if os.path.abspath(os.fspath(report_path)) != pins["report"]["path"]:
+            raise CaptureError("held mixed selected report path differs")
+        role_raw = {role: held.take(Path(pin["path"]), pin)[0] for role, pin in pins.items()}
+        report = _mixed_json(role_raw["report"], "held mixed report")
+        session = _mixed_json(role_raw["session"], "held mixed session")
+        recipe = _mixed_json(role_raw["recipe"], "held mixed recipe")
+        _mixed_json(role_raw["producer_registry"], "held mixed registry")
+        inventory = _mixed_json(role_raw["inventory"], "held mixed inventory")
+        if report.get("schema") != MIXED_REPORT_SCHEMA:
+            raise CaptureError("held mixed verifier requires mixed capture-report-v2")
+        if not _identity_record_equal(session.get("manifest"), pins["recipe"]) or not _identity_record_equal(session.get("recipe"), recipe):
+            raise CaptureError("held mixed recipe differs from held journal")
+        worker = session.get("capture_worker")
+        if not isinstance(worker, dict) or not _identity_record_equal(worker.get("artifact"), pins["capture_worker"]) or pins["capture_worker"]["sha256"] != trusted_worker:
+            raise CaptureError("held mixed worker differs from external selection or journal")
+        registry = worker.get("producer_registry")
+        if not isinstance(registry, dict) or not _identity_record_equal(registry.get("artifact"), pins["producer_registry"]) or pins["producer_registry"]["sha256"] != REGISTERED_PRODUCER_REGISTRY_SHA256:
+            raise CaptureError("held mixed registry differs from selected worker/journal")
+        if not _identity_record_equal(session.get("inventory_artifact"), pins["inventory"]) or session.get("inventory_path") != pins["inventory"]["path"]:
+            raise CaptureError("held mixed inventory differs from journal")
+        if inventory.get("schema") != INVENTORY_SCHEMA or inventory.get("complete") is not True or type(inventory.get("units")) is not list or not inventory["units"]:
+            raise CaptureError("held mixed required inventory must be complete and nonempty")
+        rows = []
+        def observe(unit, owners, checked, problem):
+            rows.append(_mixed_unit_disposition(len(rows), unit, owners, checked, problem))
+        rebuilt = make_report(directory, persist=False, expected_worker_sha256=trusted_worker,
+                              unit_observer=observe)
+        if not _identity_record_equal(report, rebuilt):
+            raise CaptureError("held mixed report differs from exact typed reconstruction")
+        if not _identity_record_equal(rebuilt.get("invocations"), events):
+            raise CaptureError("held mixed invocations differ from raw held event membership")
+        units = rebuilt.get("units")
+        if type(units) is not list or len(rows) != len(units) or any(
+                not _identity_record_equal(row["id"], unit.get("id"))
+                for row, unit in zip(rows, units)):
+            raise CaptureError("held mixed dispositions do not cover exact cohort")
+        lowering = rebuilt.get("lowering_unit_ids")
+        excluded = rebuilt.get("non_lowering_units")
+        unclassified = rebuilt.get("unclassified_unit_ids")
+        if type(lowering) is not list or any(type(value) is not str for value in lowering) or len(set(lowering)) != len(lowering):
+            raise CaptureError("held mixed required membership must be unique strings")
+        if type(excluded) is not list or type(unclassified) is not list:
+            raise CaptureError("held mixed partition tables differ")
+        if any(type(row) is not dict or type(row.get("unit_id")) is not str for row in excluded):
+            raise CaptureError("held mixed excluded rows must retain genuine unit_id identities")
+        excluded_ids = [row["unit_id"] for row in excluded]
+        if len(set(excluded_ids)) != len(excluded_ids):
+            raise CaptureError("held mixed excluded unit identities are duplicated")
+        if any(type(unit_id) is not str for unit_id in unclassified) or len(set(unclassified)) != len(unclassified):
+            raise CaptureError("held mixed unclassified identities differ")
+        flags = {key: rebuilt.get(key) for key in
+                 ("capture_complete", "unit_inventory_complete", "unit_roles_complete")}
+        if any(type(value) is not bool for value in flags.values()):
+            raise CaptureError("held mixed genuine report completion fields differ")
+        diagnostics = {key: rebuilt.get(key) for key in
+                       ("issues", "failed_required_units", "uncaptured_outputs")}
+        if any(type(value) is not list for value in diagnostics.values()):
+            raise CaptureError("held mixed genuine report diagnostic tables differ")
+        by_unit = {}
+        for row in rows:
+            if type(row["id"]) is str:
+                by_unit.setdefault(row["id"], []).append(row)
+        required_complete = bool(lowering) and all(
+            len(by_unit.get(unit_id, [])) == 1 and by_unit[unit_id][0]["disposition"] == "checked"
+            for unit_id in lowering)
+        complete = (flags["capture_complete"] and flags["unit_inventory_complete"]
+                    and flags["unit_roles_complete"] and required_complete and not unclassified)
+        shared = {role: pins[role] for role in _HELD_MIXED_ROLES if role != "report"}
+        shared["journal"] = {**identity, "events": event_pins}
+        result = {
+            "schema": HELD_MIXED_VERIFICATION_SCHEMA,
+            "scope": "held-journal-mixed-representation-reconstruction",
+            "raw_inputs": {"report": pins["report"], "context": context_pin},
+            "shared_inputs": shared,
+            "journal_membership_order": "capture_event_filename_order_not_native_order",
+            "invocation_statuses": [{"index": index, "id": event.get("id"),
+                "state": event.get("state"), "exit_code": event.get("exit_code"),
+                "execution": event.get("execution"), "capture_errors": event.get("capture_errors")}
+                for index, event in enumerate(events)],
+            "units": rows,
+            "partition": {"lowering_unit_ids": lowering,
+                "non_lowering_unit_ids": excluded_ids,
+                "unclassified_unit_ids": unclassified},
+            "diagnostics": diagnostics,
+            "reconstruction_complete": True,
+            "capture_complete": flags["capture_complete"],
+            "inventory_complete": flags["unit_inventory_complete"],
+            "inventory_roles_complete": flags["unit_roles_complete"],
+            "required_representation_complete": required_complete,
+            "scoped_capture_complete": complete, "input_custody_checked": False,
+            "order_binding_scope": "raw_prior_policy_identity_consistency_only_not_native_order_meaning",
+            "qualifications": {"source_consumption_authority": False,
+                "native_module_verified": False, "native_order_meaning": False, "abi": False,
+                "provider_closure": False, "link_performed": False, "runtime_complete": False,
+                "native_execution_qualified": False, "all_isa_qualified": False,
+                "opaque_capture_admission": False},
+        }
+        protected = _mixed_protected_paths(context, session, report, events)
+        protected.update(held.files)
+        roots.add(str(directory))
+        if isinstance(session.get("source"), dict) and isinstance(session["source"].get("path"), str):
+            roots.add(os.path.abspath(session["source"]["path"]))
+        if isinstance(session.get("build"), str):
+            roots.add(os.path.abspath(session["build"]))
+    except BaseException as error:
+        failure = error
+    guard_errors = held.finish()
+    if failure is not None:
+        if guard_errors:
+            raise CaptureError(f"{failure}; " + "; ".join(guard_errors)) from failure
+        raise failure
+    if guard_errors:
+        raise CaptureError("; ".join(guard_errors))
+    result["input_custody_checked"] = True
+    return result, protected, roots
+
+
+def verify_held_mixed_report(report_path: Path, context_path: Path, *,
+        expected_context_bytes: int, expected_context_sha256: str,
+        expected_worker_sha256: str) -> dict:
+    """Check one held journal reconstruction; never mint native admission."""
+    result, _, _ = _reconstruct_held_mixed_capture(report_path, context_path,
+        expected_context_bytes=expected_context_bytes,
+        expected_context_sha256=expected_context_sha256,
+        expected_worker_sha256=expected_worker_sha256)
+    return result
+
+
+def _mixed_publish_receipt(path: Path, raw: bytes, protected: set[str],
+                           protected_roots: set[str]) -> None:
+    destination = os.path.abspath(os.fspath(path))
+    if destination in protected or any(destination == root or Path(root) in Path(destination).parents
+                                       for root in protected_roots):
+        raise CaptureError("held mixed receipt must not overwrite or enter capture inputs")
+    parent = Path(destination).parent
+    if _MixedHeldInputs.physical(parent) != str(parent):
+        raise CaptureError("held mixed receipt parent is not physical")
+    directory = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    writer = reader = None
+    failure = None
+    close_errors = []
+    try:
+        before = os.fstat(directory)
+        if _mixed_native(before) != _mixed_native(os.lstat(parent)):
+            raise CaptureError("held mixed receipt parent identity differs")
+        writer = os.open(Path(destination).name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                         os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=directory)
+        remaining = memoryview(raw)
+        while remaining:
+            count = os.write(writer, remaining)
+            if count <= 0:
+                raise CaptureError("held mixed receipt write made no progress")
+            remaining = remaining[count:]
+        os.fsync(writer)
+        reader = os.open(Path(destination).name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                         dir_fd=directory)
+        chunks = []
+        while True:
+            chunk = os.read(reader, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        if b"".join(chunks) != raw or (os.fstat(reader).st_dev, os.fstat(reader).st_ino) != (os.fstat(writer).st_dev, os.fstat(writer).st_ino):
+            raise CaptureError("held mixed receipt exact readback differs")
+        os.fsync(directory)
+        if (os.fstat(directory).st_dev, os.fstat(directory).st_ino) != (before.st_dev, before.st_ino) or (os.lstat(parent).st_dev, os.lstat(parent).st_ino) != (before.st_dev, before.st_ino):
+            raise CaptureError("held mixed receipt parent changed")
+        if (os.lstat(destination).st_dev, os.lstat(destination).st_ino) != (os.fstat(writer).st_dev, os.fstat(writer).st_ino):
+            raise CaptureError("held mixed receipt name changed")
+    except BaseException as error:
+        failure = error
+    for descriptor in (reader, writer, directory):
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError as error:
+                close_errors.append(f"held mixed receipt close failed: {error}")
+    if failure is not None:
+        if close_errors:
+            raise CaptureError(f"{failure}; " + "; ".join(close_errors)) from failure
+        raise failure
+    if close_errors:
+        raise CaptureError("; ".join(close_errors))
+
+
+def verify_held_mixed_report_cli(arguments: argparse.Namespace) -> int:
+    result, protected, roots = _reconstruct_held_mixed_capture(
+        Path(arguments.report), Path(arguments.context),
+        expected_context_bytes=arguments.context_bytes,
+        expected_context_sha256=arguments.context_sha256,
+        expected_worker_sha256=arguments.worker_sha256)
+    raw = (json.dumps(result, sort_keys=True, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    if arguments.receipt is not None:
+        _mixed_publish_receipt(Path(arguments.receipt), raw, protected, roots)
+    print(raw.decode("utf-8"), end="")
+    return 0 if result["scoped_capture_complete"] else 2
+
+
 def verify_report(report: dict, expected_worker_sha256: str | None = None) -> dict:
     """Independently reconstruct capture admission without rewriting evidence.
 
@@ -4106,13 +5342,23 @@ def verify_report(report: dict, expected_worker_sha256: str | None = None) -> di
     the original recipe, inventory, journal and actual native output membership.
     Mutually consistent edits to the report cannot redefine that partition.
     """
-    if report.get("schema") != REPORT_SCHEMA:
-        raise CaptureError(f"capture verification requires {REPORT_SCHEMA}")
+    if report.get("schema") not in {REPORT_SCHEMA, MIXED_REPORT_SCHEMA}:
+        raise CaptureError("unsupported source capture report version")
+    if report.get("schema") == REPORT_SCHEMA and any(is_identity_assembly_unit(unit) for unit in report.get("units", [])):
+        raise CaptureError("legacy capture v1 cannot admit configured assembly")
     roots = set()
     for unit in report.get("units", []):
-        path = Path(unit["ir"]["path"])
-        if not path.is_absolute() or len(path.parents) < 3 or path.parent.parent.name != "units":
-            raise CaptureError("captured LLVM unit is outside the original journal layout")
+        if is_identity_assembly_unit(unit):
+            payload = unit.get("configured_assembly", {})
+            if not isinstance(payload, dict) or payload.get("capture_complete") is not True or not isinstance(payload.get("configured"), dict):
+                raise CaptureError("required identity assembly refusal retained; capture incomplete")
+            path, namespace = Path(payload["configured"]["path"]), "assembly-capture-only"
+        else:
+            if "ir" not in unit:
+                raise CaptureError("required producer has no verified representation; refusal retained")
+            path, namespace = Path(unit["ir"]["path"]), "units"
+        if not path.is_absolute() or len(path.parents) < 3 or path.parent.parent.name != namespace:
+            raise CaptureError("captured producer unit is outside its original journal namespace")
         roots.add(path.parents[2].resolve())
     if len(roots) != 1:
         raise CaptureError("captured LLVM units do not resolve one original capture journal")
@@ -4123,6 +5369,8 @@ def verify_report(report: dict, expected_worker_sha256: str | None = None) -> di
     registry = verified_producer_registry(session, directory)
     original_recipe = read_json(Path(session["manifest"]["path"]))
     validate_recipe(original_recipe, registry)
+    if report["schema"] != capture_report_schema(original_recipe):
+        raise CaptureError("capture report version differs from original selected representation policy")
     if session["recipe"] != original_recipe:
         raise CaptureError("capture session recipe differs from its hashed source artifact")
     if file_info(Path(session["manifest"]["path"])) != session["manifest"]:
@@ -4145,7 +5393,8 @@ def verify_report(report: dict, expected_worker_sha256: str | None = None) -> di
         raise CaptureError("reconstructed source/unit partition is incomplete: " + "; ".join(rebuilt["issues"]))
     if rebuilt["non_lowering_units"] and rebuilt["runtime_output_membership"]["complete"] is not True:
         raise CaptureError("non-lowering roles lack a complete declared runtime-output membership proof")
-    return {"schema": "ocore-runtime-capture-verification-v1", "verified": True,
+    return {"schema": ("ocore-runtime-capture-verification-v2" if report["schema"] == MIXED_REPORT_SCHEMA
+                       else "ocore-runtime-capture-verification-v1"), "verified": True,
             "scope": "source-capture-unit-role-partition-and-observed-native-output-membership",
             "report_content_sha256": hashlib.sha256(json.dumps(report, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
             "capture_directory": str(directory), "inventory": rebuilt["unit_inventory"]["file"],
@@ -4331,6 +5580,13 @@ def main(argv: list[str] | None = None) -> int:
     verify = subparsers.add_parser("verify-report", help="independently reconstruct source/unit partition admission")
     verify.add_argument("report")
     verify.add_argument("--receipt")
+    mixed_verify = subparsers.add_parser("verify-mixed-report", help="reconstruct a caller-held mixed capture journal without native admission")
+    mixed_verify.add_argument("report")
+    mixed_verify.add_argument("--context", required=True)
+    mixed_verify.add_argument("--context-bytes", required=True, type=int)
+    mixed_verify.add_argument("--context-sha256", required=True)
+    mixed_verify.add_argument("--worker-sha256", required=True)
+    mixed_verify.add_argument("--receipt")
     internal = subparsers.add_parser("_compiler", help=argparse.SUPPRESS)
     internal.add_argument("--session", required=True)
     internal.add_argument("--kind", required=True)
@@ -4362,6 +5618,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result["capture_complete"] else 1
         if args.action == "verify-report":
             return verify_report_cli(args)
+        if args.action == "verify-mixed-report":
+            return verify_held_mixed_report_cli(args)
         original_args = args.args[1:] if args.args[:1] == ["--"] else args.args
         if args.action == "_native-tool":
             return native_tool(Path(args.session), args.kind, original_args)
