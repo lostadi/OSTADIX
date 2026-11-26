@@ -50,7 +50,7 @@ impl ObservedFile {
             bytes = bytes.checked_add(count as u64).context("observed byte count overflow")?;
             hash.update(&buffer[..count]);
         }
-        Ok(Self { path:path.to_owned(), sha256:format!("{:x}",hash.finalize()), bytes, header })
+        Ok(Self { path:path.to_owned(), sha256:hex::encode(hash.finalize()), bytes, header })
     }
     fn check(&self) -> Result<()> {
         let now = Self::read(&self.path)?;
@@ -534,7 +534,8 @@ fn held_llvm_phases<S>(
     record["structural_verification"] = json!("passed");
     phases.structural_verification.pass("verification");
     phases.control_inventory.begin();
-    match control_inventory::collect(&format!("mixed-{index}"),&raw) {
+    match control_inventory::collect(&format!("mixed-{index}"),&raw)
+        .and_then(|value|serde_json::to_value(value).map_err(anyhow::Error::from)) {
         Ok(value)=>{record["control_inventory"]=value;phases.control_inventory.pass("control_inventory");}
         Err(error)=>{phases.control_inventory.fail(&format!("{error:#}"),false);
             record["control_inventory"]=json!({"failure":format!("{error:#}")});}

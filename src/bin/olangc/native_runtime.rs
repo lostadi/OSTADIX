@@ -29,7 +29,7 @@ mod provider_membership;
 mod provider_order;
 #[path = "native_runtime/source_action.rs"]
 mod source_action;
-pub(super) use source_action::compile_runtime_mixed_diagnostic;
+pub(crate) use source_action::compile_runtime_mixed_diagnostic;
 
 #[path = "native_runtime/provider_group.rs"]
 mod provider_group;

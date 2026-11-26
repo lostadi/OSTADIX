@@ -49,7 +49,7 @@ struct HeldInput {
     physical: PathBuf,
     native: NativeIdentity,
 }
-fn hash(raw: &[u8]) -> String { format!("{:x}", Sha256::digest(raw)) }
+fn hash(raw: &[u8]) -> String { hex::encode(Sha256::digest(raw)) }
 fn fields(value: &Value, allowed: &[&str], label: &str) -> Result<()> {
     let object = value.as_object().ok_or_else(|| anyhow!("{label} must be an object"))?;
     if object.len() != allowed.len()
@@ -92,7 +92,7 @@ fn read_held(selected: ExpectedInput, keep_bytes: bool) -> Result<(HeldInput, Ve
         }
         if keep_bytes { retained.extend_from_slice(&buffer[..count]); }
     }
-    let observed = format!("{:x}", hasher.finalize());
+    let observed = hex::encode(hasher.finalize());
     if total != selected.bytes || observed != selected.sha256
         || NativeIdentity::of(&file.metadata()?)? != native
         || NativeIdentity::of(&fs::metadata(&selected.path)?)? != native
@@ -291,7 +291,7 @@ impl MixedDiagnosticDelivery {
             "path": relative_name,
             "relative_to": "failure-index-directory",
             "bytes": value.len(),
-            "sha256": format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(value.as_bytes())),
+            "sha256": hex::encode(<sha2::Sha256 as sha2::Digest>::digest(value.as_bytes())),
             "exclusive_saved_byte_readback_completed": true,
             "preview": Self::finalization_failure_preview(value),
         }))
@@ -336,7 +336,7 @@ impl MixedDiagnosticDelivery {
                 "path": "mixed-diagnostic-delivery.json",
                 "relative_to": "failure-index-directory",
                 "bytes": intended_receipt_raw.len(),
-                "sha256": format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(intended_receipt_raw)),
+                "sha256": hex::encode(<sha2::Sha256 as sha2::Digest>::digest(intended_receipt_raw)),
                 "publication_returned_ok": receipt_publication_returned_ok,
                 "reference_scope": "exact intended raw delivery/cohort evidence; verify referenced bytes before use",
             },
