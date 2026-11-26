@@ -38,6 +38,7 @@ pub(super) struct BodyEmission {
     blocks: Vec<SelectedBlock>,
     pub instruction_count: u64,
     cfi: Option<CheckedCfiSchedule>,
+    tail_edges: Vec<(u64, DirectTailTarget)>,
 }
 #[derive(Debug)]
 struct SelectedBlock {
@@ -136,9 +137,10 @@ fn checked_cfi_schedule(
     target: Target,
     initial: &CfiInitialCie,
     blocks: &[SelectedBlock],
+    tail_targets: &[DirectTailTarget],
 ) -> Result<CheckedCfiSchedule> {
-    let checked = native_machine_verify::verify_cfi_source_program_with_initial_cie(
-        body, inventory, target, initial,
+    let checked = native_machine_verify::verify_cfi_source_program_with_initial_cie_and_tail_targets(
+        body, inventory, target, initial, tail_targets,
     ).map_err(|e| format!("explicit source CFI verification: {e:?}"))?;
     need(!checked.source_object_association_verified && !checked.native_unwind_verified,
          "source CFI facts must not acquire native/object association authority")?;
@@ -404,7 +406,7 @@ impl<'a> Graph<'a> {
                 stack_pointer,
                 program_counter,
             } => control.extend([*stack_pointer, *program_counter]),
-            _ => {}
+            MachineControl::Return { .. } | MachineControl::DirectTailTransfer { .. } => {}
         }
         for value in control {
             g.uses
@@ -963,7 +965,7 @@ pub(super) fn select_body(
     target: Target,
     prefix: &str,
 ) -> Result<BodyEmission> {
-    select_body_impl(body, inventory, target, prefix, None)
+    select_body_impl(body, inventory, target, prefix, None, &[])
 }
 pub(super) fn select_body_with_initial_cie(
     body: &MachineBodyContract,
@@ -972,7 +974,7 @@ pub(super) fn select_body_with_initial_cie(
     prefix: &str,
     initial: &CfiInitialCie,
 ) -> Result<BodyEmission> {
-    select_body_impl(body, inventory, target, prefix, Some(initial))
+    select_body_impl(body, inventory, target, prefix, Some(initial), &[])
 }
 fn select_body_impl(
     body: &MachineBodyContract,
@@ -980,11 +982,12 @@ fn select_body_impl(
     target: Target,
     prefix: &str,
     initial: Option<&CfiInitialCie>,
+    tail_targets: &[DirectTailTarget],
 ) -> Result<BodyEmission> {
-    native_machine_verify::verify(body, inventory, target)
+    native_machine_verify::verify_with_tail_targets(body, inventory, target, tail_targets)
         .map_err(|e| format!("machine structural verification: {e:?}"))?;
     need(
-        body.format == COMPUTED_CONTROL_FORMAT,
+        (body.format == COMPUTED_CONTROL_FORMAT || body.format == DIRECT_TAIL_CONTROL_FORMAT),
         "native selection rejects legacy return-marker format",
     )?;
     abi(body, initial.is_some())?;
@@ -1156,6 +1159,10 @@ fn select_body_impl(
                     expansion: SourceExpansion::FrameNeutralBranch,
                 });
             }
+            MachineControl::DirectTailTransfer { target: selected } => {
+                need(direct_tail_identifier(&selected.target_name), "tail function name cannot be rendered safely")?;
+                append(&mut code, source, format!("jal x0, {}", selected.target_name));
+            }
             MachineControl::ReturnTo {
                 target, mechanism, ..
             } => {
@@ -1193,9 +1200,21 @@ fn select_body_impl(
             )
             .ok_or("code extent overflow")?;
     }
+    let mut selected_tails = BTreeMap::new();
+    for selected in tail_targets {
+        need(!selected_tails.contains_key(&selected.source_item), "duplicate held native tail source")?;
+        selected_tails.insert(selected.source_item, selected);
+    }
+    let mut seen_tails = BTreeSet::new();
+    let mut tail_edges = Vec::new();
     let mut pc = 0u64;
     for b in &blocks {
         for i in &b.code {
+            if let Some(selected) = selected_tails.get(&i.source) {
+                need(seen_tails.insert(i.source) && i.expansion == SourceExpansion::Single && i.edge.is_none(),
+                    "a tail source must select exactly one frame-neutral direct instruction")?;
+                tail_edges.push((pc, (**selected).clone()));
+            }
             if let Some((target, conditional)) = i.edge {
                 let delta = i128::from(offsets[&target]) - i128::from(pc);
                 let (lo, hi) = if conditional {
@@ -1208,10 +1227,31 @@ fn select_body_impl(
             pc += 4;
         }
     }
-    let cfi = initial.map(|initial| checked_cfi_schedule(body, inventory, target, initial, &blocks)).transpose()?;
+    need(seen_tails.len() == selected_tails.len(), "not every held tail selected an instruction")?;
+    let cfi = initial.map(|initial| checked_cfi_schedule(body, inventory, target, initial, &blocks, tail_targets)).transpose()?;
     Ok(BodyEmission {
         blocks,
         instruction_count: cursor / 4,
         cfi,
+        tail_edges,
     })
+}
+
+fn direct_tail_identifier(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    bytes.next().is_some_and(|b| b.is_ascii_alphabetic() || matches!(b, b'_' | b'.' | b'$'))
+        && bytes.all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'$'))
+}
+pub(super) fn select_body_with_held_tail_targets(
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+    prefix: &str,
+    initial: Option<&CfiInitialCie>,
+    tail_targets: &[DirectTailTarget],
+) -> Result<BodyEmission> {
+    select_body_impl(body, inventory, target, prefix, initial, tail_targets)
+}
+impl BodyEmission {
+    pub(super) fn direct_tail_edges(&self) -> &[(u64, DirectTailTarget)] { &self.tail_edges }
 }

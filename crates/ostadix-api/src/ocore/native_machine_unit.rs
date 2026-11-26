@@ -17,10 +17,15 @@ pub const UNIT_INVENTORY_FORMAT: &str = "ocore-selected-machine-whole-unit-inven
 /// V1 retains its original fact vocabulary; V2 explicitly carries operand uses.
 pub const UNIT_FORMAT_V2: &str = "ocore-machine-whole-unit-contract-v2";
 pub const UNIT_INVENTORY_FORMAT_V2: &str = "ocore-selected-machine-whole-unit-inventory-v2";
+/// V3 adds prior-held direct-tail selections; V1/V2 keep their old vocabulary.
+pub const UNIT_FORMAT_V3: &str = "ocore-machine-whole-unit-contract-v3";
+pub const UNIT_INVENTORY_FORMAT_V3: &str = "ocore-selected-machine-whole-unit-inventory-v3";
+
 pub fn unit_format_for_inventory(format: &str) -> Option<&'static str> {
     match format {
         UNIT_INVENTORY_FORMAT => Some(UNIT_FORMAT),
         UNIT_INVENTORY_FORMAT_V2 => Some(UNIT_FORMAT_V2),
+        UNIT_INVENTORY_FORMAT_V3 => Some(UNIT_FORMAT_V3),
         _ => None,
     }
 }
@@ -31,7 +36,8 @@ fn declarations_have_instruction_references(value: &UnitDeclarations) -> bool {
             matches!(usage, ExternalUse::Instruction { .. })))
 }
 pub fn inventory_format_for_declarations(value: &UnitDeclarations) -> &'static str {
-    if declarations_have_instruction_references(value) { UNIT_INVENTORY_FORMAT_V2 }
+    if declarations_have_direct_tail_selections(value) { UNIT_INVENTORY_FORMAT_V3 }
+    else if declarations_have_instruction_references(value) { UNIT_INVENTORY_FORMAT_V2 }
     else { UNIT_INVENTORY_FORMAT }
 }
 pub type SectionId = u64;
@@ -323,6 +329,7 @@ pub enum RecordEffect {
         feature: String,
         reason: String,
     },
+    TailTransferSelection { target: DirectTailTarget },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -548,7 +555,7 @@ pub fn verify_unit(
     target: Target,
 ) -> Result<UnitReport> {
     require(
-        unit.format == UNIT_FORMAT || unit.format == UNIT_FORMAT_V2,
+        unit.format == UNIT_FORMAT || unit.format == UNIT_FORMAT_V2 || unit.format == UNIT_FORMAT_V3,
         "unit format mismatch",
     )?;
     compatible(&unit.profile, target)?;
@@ -572,6 +579,11 @@ pub fn verify_unit(
             && selection.source == unit.source
             && selection.profile == unit.profile,
         "selected unit source/profile/target differs",
+    )?;
+    require(
+        (unit.format == UNIT_FORMAT_V3) == declarations_have_direct_tail_selections(&floor.required)
+            && (unit.format == UNIT_FORMAT_V3 || !declarations_have_direct_tail_selections(&unit.declarations)),
+        "direct tail selections require the explicit V3 unit/inventory pair",
     )?;
     if unit.format == UNIT_FORMAT {
         require(
@@ -1133,6 +1145,8 @@ pub fn verify_unit(
                     )
                 }
                 RecordEffect::InstructionReference { .. } => r.kind == UnitRecordKind::Instruction,
+                RecordEffect::TailTransferSelection { target } =>
+                    r.kind == UnitRecordKind::Instruction && target.source_item == r.id,
                 RecordEffect::File { path, .. } => {
                     require(!path.contains(&0), "NUL in debug source path")?;
                     r.kind == UnitRecordKind::Debug
@@ -1219,6 +1233,8 @@ pub fn verify_unit(
         bodies.keys().eq(expected.keys()),
         "required original body membership differs",
     )?;
+    check_direct_tail_selections(unit, &floor)?;
+    let tail_targets_by_body = selected_direct_tail_targets(&floor.required);
     for (&id, b) in &bodies {
         let f = expected[&id];
         identity(&f.inventory)?;
@@ -1265,7 +1281,8 @@ pub fn verify_unit(
                 "body/whole-unit original span/origin/kind mismatch",
             )?;
         }
-        native_machine_verify::verify(&b.contract, &inv, target)
+        native_machine_verify::verify_with_tail_targets(&b.contract, &inv, target,
+            tail_targets_by_body.get(&id).map(Vec::as_slice).unwrap_or(&[]))
             .map_err(|e| UnitError(format!("existing machine-body guard: {}", e.message)))?;
     }
     // Exact required declarations and order are externally selected, never
@@ -1299,7 +1316,9 @@ pub fn verify_unit(
         "required unresolved dependency membership differs",
     )?;
     Ok(UnitReport {
-        format: if unit.format == UNIT_FORMAT_V2 {
+        format: if unit.format == UNIT_FORMAT_V3 {
+            "ocore-whole-machine-unit-relative-structure-v3"
+        } else if unit.format == UNIT_FORMAT_V2 {
             "ocore-whole-machine-unit-relative-structure-v2"
         } else {
             "ocore-whole-machine-unit-relative-structure-v1"
@@ -2926,4 +2945,91 @@ mod tests {
             );
         }
     }
+}
+
+fn declarations_have_direct_tail_selections(value: &UnitDeclarations) -> bool {
+    value.records.iter().any(|record| record.effects.iter().any(|effect|
+        matches!(effect, RecordEffect::TailTransferSelection { .. })))
+}
+
+/// Consumers may use these only after exact equality with the separately held
+/// floor is checked, or while constructing against that floor. No policy is
+/// recovered from fresh body terminals.
+pub(super) fn selected_direct_tail_targets(value: &UnitDeclarations) -> BTreeMap<BodyId, Vec<DirectTailTarget>> {
+    let mut result: BTreeMap<BodyId, Vec<DirectTailTarget>> = BTreeMap::new();
+    for record in &value.records {
+        for effect in &record.effects {
+            if let RecordEffect::TailTransferSelection { target } = effect {
+                // Preserve every occurrence, including duplicates for refusal;
+                // never overwrite a selected relation while indexing.
+                result.entry(target.caller_body).or_default().push(target.clone());
+            }
+        }
+    }
+    result
+}
+fn direct_tail_name(symbol: &UnitSymbol) -> Option<&str> {
+    match &symbol.name { SymbolName::Named { value } => Some(value.as_str()), _ => None }
+}
+fn check_direct_tail_selections(unit: &MachineUnit, floor: &SelectedUnitInventory) -> Result<()> {
+    let actual = unique(&unit.bodies, |body| body.id, "duplicate actual tail body id")?;
+    let required = unique(&floor.bodies, |body| body.id, "duplicate required tail body id")?;
+    let symbols = unique(&unit.declarations.symbols, |symbol| symbol.id, "duplicate tail symbol id")?;
+    let mut names = BTreeMap::new();
+    for symbol in &unit.declarations.symbols {
+        if let Some(name) = direct_tail_name(symbol) { *names.entry(name).or_insert(0usize) += 1; }
+    }
+    let mut selections = BTreeMap::new();
+    for record in &floor.required.records {
+        for effect in &record.effects {
+            let RecordEffect::TailTransferSelection { target } = effect else { continue };
+            require(record.kind == UnitRecordKind::Instruction && target.source_item == record.id,
+                "tail policy source record differs")?;
+            require(record.effects.iter().filter(|effect| matches!(effect,
+                RecordEffect::BodyItem { body } if *body == target.caller_body)).count() == 1
+                && record.effects.iter().filter(|effect| matches!(effect, RecordEffect::BodyItem { .. })).count() == 1,
+                "tail source has missing/ambiguous caller body ownership")?;
+            require(record.effects.iter().filter(|effect| matches!(effect,
+                RecordEffect::InstructionReference { symbol, operand, atom }
+                    if *symbol == target.target_symbol && *operand == target.operand && *atom == target.atom)).count() == 1,
+                "tail target lacks the exact required instruction reference occurrence")?;
+            let caller = actual.get(&target.caller_body).ok_or_else(|| UnitError("tail caller body absent".into()))?;
+            let callee = actual.get(&target.target_body).ok_or_else(|| UnitError("complete tail callee body absent".into()))?;
+            let callee_floor = required.get(&target.target_body).ok_or_else(|| UnitError("complete tail callee raw floor absent".into()))?;
+            let symbol = symbols.get(&target.target_symbol).ok_or_else(|| UnitError("tail function symbol absent".into()))?;
+            require(target.caller_body != target.target_body
+                && target.caller_symbol == caller.contract.symbol
+                && target.target_symbol == callee.symbol && callee_floor.symbol == callee.symbol,
+                "tail body/function identity differs")?;
+            require(symbol.binding == SymbolBinding::Local && symbol.kind == SymbolKind::Function
+                && matches!(symbol.definition, SymbolDefinition::Body { body, .. } if body == target.target_body)
+                && direct_tail_name(symbol) == Some(target.target_name.as_str())
+                && names.get(target.target_name.as_str()) == Some(&1usize),
+                "tail target must be one actual nonpreemptible local function body, never an alias/name-only ABI")?;
+            require(target.target_inventory == callee_floor.inventory
+                && target.profile == unit.profile && target.profile == callee.contract.profile
+                && target.interface == callee.contract.interface
+                && target.interface == caller.contract.interface,
+                "tail target raw floor/profile/interface differs")?;
+            require(callee.contract.blocks.first().is_some_and(|block| block.id == callee.contract.entry),
+                "tail target entry must be the actual emitted function entry")?;
+            let key = (target.caller_body, target.source_item);
+            require(!selections.contains_key(&key), "duplicate held tail relation")?;
+            selections.insert(key, target);
+        }
+    }
+    let mut used = BTreeSet::new();
+    for body in &unit.bodies {
+        for block in &body.contract.blocks {
+            if let MachineControl::DirectTailTransfer { target } = &block.terminator.control {
+                let key = (body.id, block.terminator.source_item);
+                let held = selections.get(&key).ok_or_else(|| UnitError("actual tail lacks external unit selection".into()))?;
+                require(*held == target && target.caller_body == body.id
+                    && target.source_item == block.terminator.source_item,
+                    "actual tail differs from selected caller/occurrence/target")?;
+                require(used.insert(key), "tail relation consumed twice")?;
+            }
+        }
+    }
+    require(used.len() == selections.len(), "selected tail relation has no actual constructed terminal")
 }

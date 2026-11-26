@@ -494,7 +494,7 @@ fn register_entry_facts(body:&MachineBodyContract,seed:&BTreeMap<PhysicalRegiste
         let next=match &block.terminator.control {
             MachineControl::Jump {edge}=>vec![edge.target],
             MachineControl::Branch {on_true,on_false,..}=>vec![on_true.target,on_false.target],
-            MachineControl::Return {..}|MachineControl::ReturnTo {..}|MachineControl::RestoreContext {..}=>vec![],
+            MachineControl::Return {..}|MachineControl::ReturnTo {..}|MachineControl::RestoreContext {..}|MachineControl::DirectTailTransfer {..}=>vec![],
         };
         for id in &next {
             let Some(preds)=predecessors.get_mut(id) else {return Err(fail("control edge target is missing"));};
@@ -537,13 +537,36 @@ fn register_entry_facts(body:&MachineBodyContract,seed:&BTreeMap<PhysicalRegiste
 }
 /// Structural coverage ONLY. Both inputs remain unauthenticated claims until a
 /// separate original-source producer and semantic lift are independently proven.
-fn verify_with_cfi_input(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target, initial_cie: Option<&CfiInitialCie>) -> Result<(StructuralReport,CfiSourceProgram)> {
-    let computed_control = body.format == COMPUTED_CONTROL_FORMAT;
+fn verify_with_cfi_input(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target, initial_cie: Option<&CfiInitialCie>, tail_targets: &[DirectTailTarget]) -> Result<(StructuralReport,CfiSourceProgram)> {
+    let direct_tail_control = body.format == DIRECT_TAIL_CONTROL_FORMAT;
+    let computed_control = body.format == COMPUTED_CONTROL_FORMAT || direct_tail_control;
     require((body.format == FORMAT || computed_control) && inventory.format == INVENTORY_FORMAT, "machine/inventory contract version differs")?;
     identity(&inventory.identity)?; source(&body.source)?; profile(&body.profile,target)?; symbol(&body.symbol)?;
     require(body.selected_inventory == inventory.identity && body.source == inventory.source && body.symbol == inventory.symbol && body.profile == inventory.profile && body.interface == inventory.interface, "body differs from separately selected inventory/source/profile/interface contract")?;
     if let Some(initial)=initial_cie { validate_initial_cie(initial,body)?; }
     require(body.interface.entry.policy == EntryPolicy::NoImplicitFrameOrScratch, "ordinary prologue/unverified entry snapshot cannot realize machine entry state")?;
+    require(direct_tail_control == !tail_targets.is_empty(),
+        "V4 tails require nonempty separately held selections; legacy bodies cannot carry them")?;
+    let mut selected_tails = BTreeMap::new();
+    for selected in tail_targets {
+        identity(&selected.target_inventory)?;
+        symbol(&selected.target_name)?;
+        require(selected.caller_symbol == body.symbol && selected.profile == body.profile,
+            "tail selection caller/profile differs")?;
+        require(selected.caller_body != selected.target_body && selected.atom == 0,
+            "tail selection must name another function and a naked first expression atom")?;
+        require(selected.interface == body.interface
+            && selected.interface.entry.policy == EntryPolicy::NoImplicitFrameOrScratch
+            && selected.interface.exits.len() == 1,
+            "tail transfer needs exactly equal explicit caller/callee interfaces")?;
+        let exit = selected.interface.exits.first().ok_or_else(|| fail("tail exit absent"))?;
+        require(exit.kind == ExitKind::OrdinaryReturn
+            && exit.id == selected.caller_exit && exit.id == selected.target_exit,
+            "tail return composition differs from the held ordinary exit")?;
+        require(!selected_tails.contains_key(&selected.source_item), "duplicate held tail source item")?;
+        selected_tails.insert(selected.source_item, selected);
+    }
+    let mut consumed_tails = BTreeSet::new();
     let seed = masks(&body.profile, &body.interface.entry.initialized)?;
     let (sp, pc) = stack_pc(body.profile.architecture)?;
     for register in [sp,pc] { initialized(&seed,&body.profile,RegisterView {register,low_bit:0,bits:64})?; }
@@ -649,16 +672,33 @@ fn verify_with_cfi_input(body: &MachineBodyContract, inventory: &SelectedInstruc
                 let e=exits.get(exit).ok_or_else(||fail("return has no selected exit interface"))?;
                 for &v in e.preserved.iter().chain(&e.outputs) { initialized(&registers,&body.profile,v)?; }
             }
+            MachineControl::DirectTailTransfer { target: selected } => {
+                require(direct_tail_control, "direct tail transfer requires V4 body vocabulary")?;
+                let held = selected_tails.get(&b.terminator.source_item)
+                    .ok_or_else(|| fail("tail terminal lacks separately held target selection"))?;
+                require(*held == selected && selected.source_item == b.terminator.source_item,
+                    "fresh tail terminal differs from held target relation")?;
+                require(consumed_tails.insert(selected.source_item), "tail selection consumed more than once")?;
+                require(!b.instructions.iter().any(|instruction| instruction.source_item == selected.source_item),
+                    "a direct tail source must not also own state instructions")?;
+                // The callee produces the caller's outputs. They need not be
+                // initialized here. Complete callee verification is mandatory
+                // at the externally held whole-unit boundary.
+                for &input in &selected.interface.entry.initialized {
+                    initialized(&registers, &body.profile, input)?;
+                }
+            }
             MachineControl::RestoreContext {..} => return Err(fail("restored SP/PC transfer is unsupported without semantic/provider proof")),
         }
     }
+    require(consumed_tails.len() == selected_tails.len(), "held tail selection has no actual terminal")?;
     for item in items.values() { require(used.get(&item.id).copied().unwrap_or(0)>0,"missing independently selected original instruction/directive/label coverage")?; }
     let cfi_program=cfi(body,inventory,initial_cie)?;
-    Ok((StructuralReport { format:if computed_control {"ocore-machine-structure-relative-inventory-v3"} else {"ocore-machine-structure-relative-inventory-v2"},target:target.id(),checked_inventory_items:items.len(),checked_instruction_sites:sites,structural_coverage_relative_to_supplied_inventory:true,source_custody_verified:false,inventory_authority_verified:false,original_unit_completeness_verified:false,instruction_semantics_verified:false,native_realization_verified:false,cfi_semantics_verified:false,memory_access_validity_verified:false,entry_state_realization_verified:false,provider_qualified:false,runtime_qualified:false,isa_equivalence_qualified:false,ordinary_native_admission:false },cfi_program))
+    Ok((StructuralReport { format:if direct_tail_control {"ocore-machine-structure-relative-inventory-v4"} else if computed_control {"ocore-machine-structure-relative-inventory-v3"} else {"ocore-machine-structure-relative-inventory-v2"},target:target.id(),checked_inventory_items:items.len(),checked_instruction_sites:sites,structural_coverage_relative_to_supplied_inventory:true,source_custody_verified:false,inventory_authority_verified:false,original_unit_completeness_verified:false,instruction_semantics_verified:false,native_realization_verified:false,cfi_semantics_verified:false,memory_access_validity_verified:false,entry_state_realization_verified:false,provider_qualified:false,runtime_qualified:false,isa_equivalence_qualified:false,ordinary_native_admission:false },cfi_program))
 }
 
 fn verify_with_cfi(body: &MachineBodyContract, inventory: &SelectedInstructionInventory, target: Target) -> Result<(StructuralReport,CfiSourceProgram)> {
-    verify_with_cfi_input(body,inventory,target,None)
+    verify_with_cfi_input(body, inventory, target, None, &[])
 }
 
 /// Existing structural report; no source-state trace promotes admission.
@@ -680,7 +720,7 @@ pub fn verify_cfi_source_program_with_initial_cie(
     body: &MachineBodyContract, inventory: &SelectedInstructionInventory,
     target: Target, initial_cie: &CfiInitialCie,
 ) -> Result<CfiSourceProgramWithInitialCie> {
-    let (_,program) = verify_with_cfi_input(body,inventory,target,Some(initial_cie))?;
+    let (_,program) = verify_with_cfi_input(body, inventory, target, Some(initial_cie), &[])?;
     Ok(CfiSourceProgramWithInitialCie {
         program, initial_cie:initial_cie.clone(),
         source_object_association_verified:false, native_unwind_verified:false,
@@ -690,3 +730,27 @@ pub fn verify_cfi_source_program_with_initial_cie(
 #[cfg(test)]
 #[path = "native_machine_verify_tests.rs"]
 mod tests;
+
+/// Relative structural checking with a separately held target relation.
+/// The complete unit verifier must bind every callee body/raw inventory first;
+/// this API alone grants no source, producer, ABI or native admission authority.
+pub fn verify_with_tail_targets(
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+    tail_targets: &[DirectTailTarget],
+) -> Result<StructuralReport> {
+    verify_with_cfi_input(body, inventory, target, None, tail_targets).map(|pair| pair.0)
+}
+
+pub fn verify_cfi_source_program_with_initial_cie_and_tail_targets(
+    body: &MachineBodyContract, inventory: &SelectedInstructionInventory,
+    target: Target, initial_cie: &CfiInitialCie,
+    tail_targets: &[DirectTailTarget],
+) -> Result<CfiSourceProgramWithInitialCie> {
+    let (_,program) = verify_with_cfi_input(body, inventory, target, Some(initial_cie), tail_targets)?;
+    Ok(CfiSourceProgramWithInitialCie {
+        program, initial_cie:initial_cie.clone(),
+        source_object_association_verified:false, native_unwind_verified:false,
+    })
+}

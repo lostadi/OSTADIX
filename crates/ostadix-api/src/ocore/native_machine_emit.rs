@@ -324,6 +324,7 @@ fn plan_unit_impl(
             failure.unit_refusals.push("initial CIE body membership differs from complete required CFI bodies".into());
         }
     }
+    let tail_targets_by_body = selected_direct_tail_targets(&unit.declarations);
     let mut bodies = BTreeMap::new();
     for body in &unit.bodies {
         let result = (|| {
@@ -331,11 +332,21 @@ fn plan_unit_impl(
                 serde_json::from_slice(&body.selected_inventory_json)
                     .map_err(|e| format!("body inventory: {e}"))?;
             let prefix = format!("{prefix}_body_{}", body.id);
-            match initial_cies.and_then(|selected| selected.get(&body.id)) {
-                Some(initial) => native_machine_emit_rv64::select_body_with_initial_cie(
-                    &body.contract, &inv, target, &prefix, initial,
-                ),
-                None => native_machine_emit_rv64::select_body(&body.contract, &inv, target, &prefix),
+            // verify_unit above already checked exact equality with the
+            // separately held floor; the immutable unit is not self-authority.
+            let held_tails = tail_targets_by_body.get(&body.id).map(Vec::as_slice).unwrap_or(&[]);
+            if held_tails.is_empty() {
+                match initial_cies.and_then(|selected| selected.get(&body.id)) {
+                    Some(initial) => native_machine_emit_rv64::select_body_with_initial_cie(
+                        &body.contract, &inv, target, &prefix, initial,
+                    ),
+                    None => native_machine_emit_rv64::select_body(&body.contract, &inv, target, &prefix),
+                }
+            } else {
+                native_machine_emit_rv64::select_body_with_held_tail_targets(
+                    &body.contract, &inv, target, &prefix,
+                    initial_cies.and_then(|selected| selected.get(&body.id)), held_tails,
+                )
             }
         })();
         match result {
@@ -492,6 +503,7 @@ fn plan_unit_impl(
     let mut offsets: BTreeMap<SectionId, u64> = sections.keys().map(|id| (*id, 0)).collect();
     let mut opened = BTreeSet::new();
     let mut emitted = BTreeSet::new();
+    let mut body_positions = BTreeMap::<BodyId, (SectionId, u64)>::new();
     let mut rendering_record = None;
     let mut rendering_body = None;
     let render = (|| -> std::result::Result<(), String> {
@@ -528,6 +540,7 @@ fn plan_unit_impl(
                                 if !emitted.insert(*body) {
                                     return Err("body would be emitted twice".into());
                                 }
+                                body_positions.insert(*body, (section, offsets[&section]));
                                 let b = bodies.get(body).ok_or("selected body absent")?;
                                 text.push_str(&format!("{}:\n", names[symbol]));
                                 text.push_str(&b.assembly());
@@ -679,7 +692,7 @@ fn plan_unit_impl(
                         *offsets.get_mut(&section).ok_or("section absent")? =
                             before.checked_add(pad).ok_or("alignment extent overflow")?;
                     }
-                    RecordEffect::InstructionReference { .. } => {
+                    RecordEffect::InstructionReference { .. } | RecordEffect::TailTransferSelection { .. } => {
                         // verify_unit checked these dependency occurrences before rendering.
                         // The checked body is emitted once through its existing definition path;
                         // this metadata supplies no relocation, address, call ABI or provider.
@@ -707,6 +720,24 @@ fn plan_unit_impl(
         if emitted.len() != unit.bodies.len() {
             return Err("not every required body was emitted".into());
         }
+        for (caller, plan) in &bodies {
+            for (relative_pc, selected) in plan.direct_tail_edges() {
+                rendering_body = Some(*caller);
+                rendering_record = Some(selected.source_item);
+                let (caller_section, caller_start) = *body_positions.get(caller).ok_or("tail caller layout absent")?;
+                let (target_section, target_start) = *body_positions.get(&selected.target_body).ok_or("tail target layout absent")?;
+                if caller_section != target_section {
+                    return Err("cross-section tail needs an explicit relocation/link realization".into());
+                }
+                let pc = caller_start.checked_add(*relative_pc).ok_or("tail PC overflow")?;
+                let delta = i128::from(target_start) - i128::from(pc);
+                if delta % 2 != 0 || !(-1048576..=1048574).contains(&delta) {
+                    return Err("tail encoding range needs an explicit long-transfer realization; no scratch/relaxation is allowed".into());
+                }
+            }
+        }
+        rendering_body = None;
+        rendering_record = None;
         Ok(())
     })();
     if let Err(reason) = render {

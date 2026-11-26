@@ -12,8 +12,8 @@ use o_lang::ocore::{
     native_machine_asm_unit::ConstructedUnit,
     native_machine_asm_unit_artifact::{readmit_configured_unit, ArtifactError, RequiredFloors},
     native_machine_emit::{plan_unit, plan_unit_with_initial_cies, MachineAssemblyPlan, UnitEmissionFailure},
-    native_machine_ir::{ArtifactIdentity, CfiPolicy, SelectedInstructionInventory},
-    native_machine_unit::BodyId,
+    native_machine_ir::{ArtifactIdentity, CfiPolicy, DirectTailTarget, SelectedInstructionInventory},
+    native_machine_unit::{BodyId, RecordEffect, SelectedUnitInventory, UNIT_INVENTORY_FORMAT_V3},
     native_machine_verify::{CfiInitialCie, CfiSourceProgram, CfiSourceProgramWithInitialCie},
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,6 +21,7 @@ use super::super::exception_inventory::{
     cie_raw_decoder::fde_function::CheckedObjectFunctions,
     cie_source_adapter::{
         verify_source_cfi_from_checked_original_function,
+        verify_source_cfi_from_checked_original_function_with_tail_targets,
         OriginalFdeSelection, OriginalFunctionSelection,
     },
 };
@@ -106,11 +107,55 @@ fn checked_body_inventory(raw: &[u8]) -> Result<SelectedInstructionInventory, St
     serde_json::from_value(value).map_err(|error| format!("held body inventory: {error}"))
 }
 
+/// Seal policy from the caller's prior raw V3 inventory, not a fresh body.
+/// This index grants no producer authority. The actual constructor still verifies
+/// the complete unit/callee before the returned owner can reach this CFI path.
+fn checked_tail_targets(floors: &RequiredFloors<'_>)
+    -> Result<BTreeMap<BodyId, Vec<DirectTailTarget>>, String> {
+    if identity(floors.unit_inventory_json) != floors.unit_selection.inventory {
+        return Err("held tail-policy inventory bytes differ from the external selection".into());
+    }
+    let value = super::super::provider_order::checked_json(floors.unit_inventory_json)
+        .map_err(|error| format!("held tail-policy inventory JSON: {error}"))?;
+    let floor: SelectedUnitInventory = serde_json::from_value(value)
+        .map_err(|error| format!("held tail-policy inventory: {error}"))?;
+    if floor.format != UNIT_INVENTORY_FORMAT_V3
+        || floor.source != floors.unit_selection.source
+        || floor.profile != floors.unit_selection.profile {
+        return Err("held tail policy requires the externally selected V3 source/profile".into());
+    }
+    let mut bodies = BTreeSet::new();
+    for body in &floor.bodies {
+        if !bodies.insert(body.id) {
+            return Err(format!("duplicate held tail-policy body: {:?}", body.id));
+        }
+    }
+    let mut targets: BTreeMap<BodyId, Vec<DirectTailTarget>> = BTreeMap::new();
+    let mut sources = BTreeSet::new();
+    for record in floor.required.records {
+        for effect in record.effects {
+            if let RecordEffect::TailTransferSelection { target } = effect {
+                if !bodies.contains(&target.caller_body) || !bodies.contains(&target.target_body) {
+                    return Err("held tail policy has an orphan caller/callee body".into());
+                }
+                if !sources.insert(target.source_item) {
+                    return Err(format!("duplicate held tail-policy source item: {:?}", target.source_item));
+                }
+                targets.entry(target.caller_body).or_default().push(target);
+            }
+        }
+    }
+    if targets.is_empty() {
+        return Err("explicit V3 tail-policy selection is empty".into());
+    }
+    Ok(targets)
+}
+
 /// Readmission has already reconstructed these bodies from configured bytes and
 /// independently held floors. No packaged/current CIE or object chooses policy.
 fn verify_original_function_cfi(selector: &WholeOutputSelector, constructed: &ConstructedUnit,
     floors: &RequiredFloors<'_>, relations: &[RequiredOriginalFunctionCfi<'_>],
-    target: Target) -> ConfiguredOriginalFunctionCfiReport {
+    target: Target, tail_targets: Option<&BTreeMap<BodyId, Vec<DirectTailTarget>>>) -> ConfiguredOriginalFunctionCfiReport {
     let mut report = ConfiguredOriginalFunctionCfiReport {
         selector: selector.clone(), bodies: Vec::with_capacity(constructed.unit.bodies.len()),
         coverage_errors: Vec::new(), initial_cies: BTreeMap::new(),
@@ -213,8 +258,17 @@ fn verify_original_function_cfi(selector: &WholeOutputSelector, constructed: &Co
             }
         };
         let relation = &relations[relation_index];
-        match verify_source_cfi_from_checked_original_function(relation.object_functions,
-            &relation.selected, &body.contract, &inventory, target) {
+        // ConstructedUnit reached this call only after real complete-unit/callee
+        // verification. Policy is held from the prior raw floor, not a fresh V4
+        // terminal or a cached success flag. Ordinary bodies keep the old API.
+        let checked = match tail_targets.and_then(|selected| selected.get(&body.id)) {
+            Some(selected) => verify_source_cfi_from_checked_original_function_with_tail_targets(
+                relation.object_functions, &relation.selected, &body.contract,
+                &inventory, target, selected),
+            None => verify_source_cfi_from_checked_original_function(relation.object_functions,
+                &relation.selected, &body.contract, &inventory, target),
+        };
+        match checked {
             Err(error) => report.bodies.push(ConfiguredOriginalFunctionCfiBodyResult::Refused {
                 body_index, body: body.id, relation_index: Some(relation_index),
                 reasons: vec![format!("checked original-function source-CFI verification: {error}")],
@@ -261,6 +315,7 @@ pub(crate) struct RequiredConfiguredOutput<'f> {
     floors: RequiredFloors<'f>,
     initial_cies: Option<&'f BTreeMap<BodyId, CfiInitialCie>>,
     original_functions: Option<Vec<RequiredOriginalFunctionCfi<'f>>>,
+    tail_targets: Option<BTreeMap<BodyId, Vec<DirectTailTarget>>>,
 }
 impl<'f> RequiredConfiguredOutput<'f> {
     pub(crate) fn new(selector: WholeOutputSelector, source_unit_id: String,
@@ -269,7 +324,7 @@ impl<'f> RequiredConfiguredOutput<'f> {
         if !nonempty(&source_unit_id) || !valid_identity(&artifact) || !valid_identity(&configured) {
             return Err("invalid independently selected configured-output identity".into());
         }
-        Ok(Self { selector, source_unit_id, artifact, configured, floors, initial_cies, original_functions: None })
+        Ok(Self { selector, source_unit_id, artifact, configured, floors, initial_cies, original_functions: None, tail_targets: None })
     }
     /// Explicit opt-in borrowed-owner policy. The original constructor and its
     /// caller-selected map/None semantics are preserved without mixing policies.
@@ -278,6 +333,18 @@ impl<'f> RequiredConfiguredOutput<'f> {
         original_functions: Vec<RequiredOriginalFunctionCfi<'f>>) -> Result<Self, String> {
         let mut required = Self::new(selector, source_unit_id, artifact, configured, floors, None)?;
         required.original_functions = Some(original_functions);
+        Ok(required)
+    }
+    /// Explicit original-function CFI opt-in with prior held V3 tail policy.
+    /// Existing constructors keep no-policy behavior. Current observations, CIEs,
+    /// object names and freshly constructed terminals never choose the policy.
+    pub(crate) fn new_with_original_functions_and_tail_targets(selector: WholeOutputSelector,
+        source_unit_id: String, artifact: ArtifactIdentity, configured: ArtifactIdentity,
+        floors: RequiredFloors<'f>, original_functions: Vec<RequiredOriginalFunctionCfi<'f>>)
+        -> Result<Self, String> {
+        let mut required = Self::new_with_original_functions(selector, source_unit_id,
+            artifact, configured, floors, original_functions)?;
+        required.tail_targets = Some(checked_tail_targets(&required.floors)?);
         Ok(required)
     }
     pub(crate) fn selector(&self) -> &WholeOutputSelector { &self.selector }
@@ -417,7 +484,7 @@ impl<'f> ConfiguredAssemblyCommitment<'f> {
             }
             let planned = if let Some(relations) = required.original_functions.as_deref() {
                 let report = verify_original_function_cfi(&required.selector, &constructed,
-                    &required.floors, relations, self.target);
+                    &required.floors, relations, self.target, required.tail_targets.as_ref());
                 let report_index = original_function_cfi_reports.len();
                 if !report.complete() {
                     original_function_cfi_reports.push(report);

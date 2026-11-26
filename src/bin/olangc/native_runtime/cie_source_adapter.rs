@@ -3,7 +3,7 @@
 use super::cie_raw_decoder::{self, RawCieObject, RawRecord, RawSpan, RegisterRule};
 use anyhow::{bail, Context, Result};
 use o_lang::ocore::native_machine_ir::{
-    ArtifactIdentity, MachineBodyContract, SelectedInstructionInventory, SourceSpan,
+    ArtifactIdentity, DirectTailTarget, MachineBodyContract, SelectedInstructionInventory, SourceSpan,
 };
 use o_lang::ocore::native_machine_verify::{
     self, CfiInitialCfa, CfiInitialCie, CfiRegisterRule, CfiRegisterState,
@@ -195,6 +195,30 @@ pub(crate) fn verify_source_cfi_from_checked_original_function(
     };
     let initial = initial_cie_from_object(object_functions.raw_object(), &selected_fde)?;
     let source_program = native_machine_verify::verify_cfi_source_program_with_initial_cie(body, inventory, target, &initial)?;
+    Ok((selected_fde, source_program))
+}
+
+/// Held-policy overload preserving original object/FDE/initial-rule checks.
+/// Complete-unit/callee verification remains with the caller; this source-CFI
+/// adapter grants neither same-produced association nor native unwind authority.
+pub(crate) fn verify_source_cfi_from_checked_original_function_with_tail_targets(
+    object_functions: &cie_raw_decoder::fde_function::CheckedObjectFunctions,
+    selected: &OriginalFunctionSelection,
+    body: &MachineBodyContract,
+    inventory: &SelectedInstructionInventory,
+    target: Target,
+    tail_targets: &[DirectTailTarget],
+) -> Result<(OriginalFdeSelection, CfiSourceProgramWithInitialCie)> {
+    let locator = object_functions.selected_fde(&selected.object_identity, selected.function)?;
+    object_functions.require_initial_rules_decoded()?;
+    let selected_fde = OriginalFdeSelection {
+        source_scope: selected.source_scope.clone(),
+        frame_section_index: locator.frame_section_index,
+        fde_section_offset: locator.fde_section_offset,
+    };
+    let initial = initial_cie_from_object(object_functions.raw_object(), &selected_fde)?;
+    let source_program = native_machine_verify::verify_cfi_source_program_with_initial_cie_and_tail_targets(
+        body, inventory, target, &initial, tail_targets)?;
     Ok((selected_fde, source_program))
 }
 

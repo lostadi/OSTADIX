@@ -13,6 +13,8 @@ pub const FORMAT: &str = "ocore-machine-body-contract-v2";
 /// Version 3 requires an explicit computed target for ordinary returns.
 /// Version 2 is retained only for legacy, unqualified structural fixtures.
 pub const COMPUTED_CONTROL_FORMAT: &str = "ocore-machine-body-contract-v3";
+/// A tail terminal requires a separately held unit target selection.
+pub const DIRECT_TAIL_CONTROL_FORMAT: &str = "ocore-machine-body-contract-v4";
 pub const SOURCE_FORMAT: &str = "ocore-machine-original-source-claim-v1";
 pub const INVENTORY_FORMAT: &str = "ocore-selected-machine-inventory-contract-v1";
 pub type StateId = usize;
@@ -244,6 +246,7 @@ pub enum MachineControl {
     /// Typed future seam, always rejected by this foundation. No ordinary
     /// epilogue or generic indirectbr is authorized to realize this operation.
     RestoreContext { stack_pointer: ValueId, program_counter: ValueId },
+    DirectTailTransfer { target: DirectTailTarget },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -284,4 +287,26 @@ pub struct MachineBodyContract {
     pub entry: BlockId,
     pub blocks: Vec<MachineBlock>,
     pub directives: Vec<DirectiveRecord>,
+}
+
+/// Prior-selected same-unit, same-interface tail relation, not callee authority.
+/// Its raw inventory identity is checked against the complete externally held
+/// unit floor. It never supplies native addresses, executable bytes, or an ABI
+/// inferred from a name. V4 bodies and V3 unit floors carry this vocabulary.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DirectTailTarget {
+    pub source_item: SourceItemId,
+    pub caller_body: u64,
+    pub caller_symbol: String,
+    pub target_body: u64,
+    pub target_symbol: u64,
+    pub target_name: String,
+    pub target_inventory: ArtifactIdentity,
+    pub profile: MachineProfile,
+    pub interface: MachineInterface,
+    pub caller_exit: u32,
+    pub target_exit: u32,
+    pub operand: u64,
+    pub atom: u64,
 }

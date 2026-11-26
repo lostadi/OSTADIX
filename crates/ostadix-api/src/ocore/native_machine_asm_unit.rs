@@ -1527,10 +1527,18 @@ fn build_body(
     required: &unit::RequiredBody,
     raw: &[u8],
     target: Target,
+    held_tails: &[DirectTailTarget], parsed_by_id: &BTreeMap<SourceItemId, usize>,
 ) -> std::result::Result<unit::UnitBody, Vec<ConstructionIssue>> {
     let id = required.id;
     let mut issues = vec![];
     let error = |record, reason: String| issue(record, Some(id), "body", reason);
+    let mut selected_tails_by_item = BTreeMap::new();
+    for selected in held_tails {
+        if selected_tails_by_item.contains_key(&selected.source_item) {
+            return Err(vec![error(Some(selected.source_item), "duplicate selected tail occurrence".into())]);
+        }
+        selected_tails_by_item.insert(selected.source_item, selected);
+    }
     if artifact(raw) != required.inventory {
         return Err(vec![error(
             None,
@@ -1709,7 +1717,21 @@ fn build_body(
                                         },
                                     })
                                 }
-                                Err(e) => issues.push(error(Some(p.required.id), e)),
+                                Err(local_error) => {
+                                    let is_local = match &e.first {
+                                        asm::ExprAtom::Symbol(name) => labels.keys().any(|id|
+                                            parsed_by_id.get(id).and_then(|index| parsed.records.get(*index))
+                                                .is_some_and(|record| matches!(&record.syntax,
+                                                    asm::Syntax::Label(asm::Label::Named(label)) if label == name))),
+                                        _ => false,
+                                    };
+                                    match selected_tail_control(&e, p.required.id, required.id, &inv.symbol,
+                                        is_local, &selected_tails_by_item) {
+                                        Ok(selected) => control = Some(selected),
+                                        Err(reason) => issues.push(error(Some(p.required.id),
+                                            format!("{local_error}; direct tail: {reason}"))),
+                                    }
+                                }
                             }
                         }
                         LiftFlow::Branch { condition, target } => {
@@ -1780,7 +1802,8 @@ fn build_body(
         return Err(issues);
     }
     let contract = MachineBodyContract {
-        format: COMPUTED_CONTROL_FORMAT.into(),
+        format: if blocks.iter().any(|block: &MachineBlock| matches!(&block.terminator.control,
+            MachineControl::DirectTailTransfer { .. })) { DIRECT_TAIL_CONTROL_FORMAT } else { COMPUTED_CONTROL_FORMAT }.into(),
         selected_inventory: inv.identity.clone(),
         source: parsed.source.clone(),
         symbol: inv.symbol.clone(),
@@ -1790,7 +1813,7 @@ fn build_body(
         blocks,
         directives,
     };
-    if let Err(e) = super::native_machine_verify::verify(&contract, &inv, target) {
+    if let Err(e) = super::native_machine_verify::verify_with_tail_targets(&contract, &inv, target, held_tails) {
         return Err(vec![error(
             None,
             format!("existing body guard: {}", e.message),
@@ -1965,7 +1988,7 @@ pub fn construct_configured_unit(
     }
     let (instruction_refs, reference_issues) = instruction_reference_rows(&parsed, &owners);
     failure.issues.extend(reference_issues);
-    if !instruction_refs.is_empty() && floor.format != unit::UNIT_INVENTORY_FORMAT_V2 {
+    if !instruction_refs.is_empty() && (floor.format != unit::UNIT_INVENTORY_FORMAT_V2 && floor.format != unit::UNIT_INVENTORY_FORMAT_V3) {
         failure.issues.push(issue(None, None, "instruction-reference",
             "nonlocal instruction reference facts require V2 selected unit inventory"));
     }
@@ -2005,6 +2028,15 @@ pub fn construct_configured_unit(
         }
     });
     let mut bodies = vec![];
+    let tail_targets_by_body = unit::selected_direct_tail_targets(&floor.required);
+    let mut parsed_by_id = BTreeMap::new();
+    for (index, record) in parsed.records.iter().enumerate() {
+        if let std::collections::btree_map::Entry::Vacant(slot) = parsed_by_id.entry(record.required.id) {
+            slot.insert(index);
+        } else {
+            failure.issues.push(issue(Some(record.required.id), None, "body", "duplicate original parsed record id"));
+        }
+    }
     for b in &floor.bodies {
         let constructed = match supplied.get(&b.id) {
             None => {
@@ -2016,7 +2048,8 @@ pub fn construct_configured_unit(
                 ));
                 false
             }
-            Some(raw) => match build_body(&parsed, b, raw, input.target) {
+            Some(raw) => match build_body(&parsed, b, raw, input.target,
+                tail_targets_by_body.get(&b.id).map(Vec::as_slice).unwrap_or(&[]), &parsed_by_id) {
                 Ok(v) => {
                     bodies.push(v);
                     true
@@ -2037,7 +2070,7 @@ pub fn construct_configured_unit(
     if !failure.issues.is_empty() {
         return Err(with_parsed(failure, parsed));
     }
-    let Some(declarations) = declarations else {
+    let Some(mut declarations) = declarations else {
         failure.issues.push(issue(
             None,
             None,
@@ -2046,6 +2079,11 @@ pub fn construct_configured_unit(
         ));
         return Err(with_parsed(failure, parsed));
     };
+    if let Err(reason) = append_constructed_tail_selections(&mut declarations, &bodies) {
+        failure.issues.push(issue(None, None, "tail_selection", reason));
+        failure.records = dispositions(&parsed, &owners, &failure.issues);
+        return Err(with_parsed(failure, parsed));
+    }
     let unit = unit::MachineUnit {
         format: unit_format.into(),
         selected_inventory: input.unit_selection.inventory.clone(),
@@ -2088,3 +2126,44 @@ pub(crate) mod tests;
 
 /// Source reconstruction artifacts relative to independently supplied floors.
 pub use super::native_machine_asm_unit_artifact as artifact;
+
+fn selected_tail_control(
+    expression: &asm::Expression,
+    source_item: SourceItemId,
+    caller_body: unit::BodyId,
+    caller_symbol: &str,
+    local_label: bool,
+    held: &BTreeMap<SourceItemId, &DirectTailTarget>,
+) -> Check<MachineControl> {
+    require(!local_label, "failed/ambiguous intrafunction label is not a function-tail target")?;
+    require(expression.rest.is_empty(), "tail target algebra/offset requires another realization")?;
+    let asm::ExprAtom::Symbol(name) = &expression.first else {
+        return Err("tail target must be a naked named function, not relocation/numeric/address/indirect syntax".into());
+    };
+    let selected = *held.get(&source_item).ok_or("nonlocal jump lacks prior selected target/interface")?;
+    require(selected.caller_body == caller_body && selected.caller_symbol == caller_symbol
+        && selected.target_name == *name && selected.atom == 0,
+        "tail source/caller/function differs from held target relation")?;
+    Ok(MachineControl::DirectTailTransfer { target: selected.clone() })
+}
+fn append_constructed_tail_selections(
+    declarations: &mut unit::UnitDeclarations,
+    bodies: &[unit::UnitBody],
+) -> Check<()> {
+    let mut positions = BTreeMap::new();
+    for (index, record) in declarations.records.iter().enumerate() {
+        require(!positions.contains_key(&record.id), "duplicate declaration record id")?;
+        positions.insert(record.id, index);
+    }
+    let mut used = BTreeSet::new();
+    for body in bodies {
+        for block in &body.contract.blocks {
+            if let MachineControl::DirectTailTransfer { target } = &block.terminator.control {
+                require(used.insert(target.source_item), "duplicate constructed tail source")?;
+                let index = *positions.get(&target.source_item).ok_or("constructed tail source record absent")?;
+                declarations.records[index].effects.push(unit::RecordEffect::TailTransferSelection { target: target.clone() });
+            }
+        }
+    }
+    Ok(())
+}
