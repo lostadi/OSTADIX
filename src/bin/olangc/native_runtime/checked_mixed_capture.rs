@@ -7,6 +7,7 @@
 //! not a proof of the child runtime/library closure or of path race freedom.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
+use std::process::Stdio;
 
 const REPORT_SCHEMA: &str = "ocore-runtime-capture-v2";
 const CONTEXT_SCHEMA: &str = "ocore-held-mixed-capture-context-v1";
