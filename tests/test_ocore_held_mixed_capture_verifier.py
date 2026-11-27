@@ -26,7 +26,7 @@ class HeldMixedCaptureVerifierTests(unittest.TestCase):
         self.build=self.root/"build"; self.build.mkdir()
         registry_path=Path(self.worker.__file__).with_name("ocore_producer_registry.json")
         registry=self.worker.producer_registry(registry_path)
-        self.kind=next(kind for name,kind in self.worker.wrapper_kinds(registry) if name=="clang")
+        self.kind=self.worker.registered_producer("clang", "clang-llvm-v1", registry=registry)["unit_kind"]
         self.target="riscv64-unknown-linux-gnu"
         c=self.pin(self.source/"original.c",b"int original;\n")
         assembly=self.pin(self.source/"original.s",b".text\noriginal:\n ret\n")
