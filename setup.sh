@@ -800,6 +800,18 @@ install_hosted_runtime_extras() {
   fi
 }
 
+install_session_tools() {
+  # shpool keeps long builds and agent sessions alive across disconnects without
+  # tmux's key traps. Linux only; it installs into the cargo bin directory.
+  if ${MINIMAL} || ${RUNTIME_ONLY} || [[ "${PLATFORM}" != "linux" ]]; then
+    return
+  fi
+  if ! has_cmd shpool && [[ ! -x "${CARGO_BIN_DIR}/shpool" ]]; then
+    run_cmd cargo install --locked shpool || \
+      echo "Warning: shpool install failed; continuing without it." >&2
+  fi
+}
+
 preflight_nix_profiles() {
   if ! $WITH_NIX; then return 0; fi
   # Existing installations normally retain these backups. Use the same binary
@@ -1832,6 +1844,7 @@ if $WINDOWS_RERUN_REQUIRED; then
 fi
 install_rust
 install_hosted_runtime_extras
+install_session_tools
 if ! $SKIP_SYSTEM_PACKAGES; then install_ubuntu_vm_tools; fi
 
 export PATH="$CARGO_BIN_DIR:$PATH"
